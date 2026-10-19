@@ -138,6 +138,10 @@ pub enum Evento {
     SombraWordArt(bool),
     /// Forma do catálogo escolhida no menu (inserir ou trocar).
     Escolher(&'static str),
+    /// Inserir > Caixa de texto: um retângulo que nasce editando.
+    CaixaTexto,
+    /// Formatar forma > Efeitos: liga/desliga a sombra da forma selecionada.
+    SombraForma,
     Selecionar(u64),
     Desselecionar,
     /// Resultado de mover, redimensionar ou girar (px lógicos absolutos).
@@ -225,6 +229,9 @@ pub(super) struct EstadoObjetos {
     pub selecionado: Option<(u32, u64)>,
     /// Forma escolhida no menu, à espera do arraste que a cria.
     pub inserir: Option<&'static str>,
+    /// A forma à espera é a Caixa de texto da faixa: nasce com fundo branco
+    /// e já editando.
+    pub caixa_texto: bool,
     pub menu: Option<ModoMenu>,
     menu_pos: (f32, f32),
     /// Busca digitada na galeria de ícones e a rolagem da grade.
@@ -425,7 +432,22 @@ impl App {
                     self.mudar_selecionado(status, |o, _| wordart::definir_sombra(o, ligada));
                 }
             }
+            Evento::SombraForma => {
+                let ligar = self.objeto_selecionado().is_some_and(|o| o.sombra.is_none());
+                let status = if ligar { tr!("Sombra da forma ligada") } else { tr!("Sombra da forma desligada") };
+                self.mudar_selecionado(status, |o, _| {
+                    o.sombra = ligar.then(|| modelo::Sombra { cor: "#00000059".into(), desfoque: 4.0, dx: 3.0, dy: 3.0 });
+                });
+            }
+            Evento::CaixaTexto => {
+                self.objetos.menu = None;
+                self.objetos.inserir = Some("retangulo");
+                self.objetos.caixa_texto = true;
+                self.desselecionar();
+                self.status = tr!("Caixa de texto: arraste na planilha para desenhar; um clique cria no tamanho padrão (Esc cancela).").into();
+            }
             Evento::Escolher(forma) => {
+                self.objetos.caixa_texto = false;
                 let modo = self.objetos.menu.take().unwrap_or(ModoMenu::Inserir);
                 if modo == ModoMenu::Trocar {
                     let nome = geometria::nome(forma);
@@ -492,11 +514,21 @@ impl App {
                 if geometria::so_traco(forma) {
                     novo.aparencia = modelo::Aparencia { preenchimento: None, contorno: Some("#4472c4".into()), espessura: 2.0, transparencia: 0.0 };
                 }
+                let caixa = std::mem::take(&mut self.objetos.caixa_texto);
+                if caixa {
+                    novo.aparencia = modelo::Aparencia { preenchimento: Some("#ffffff".into()), contorno: Some("#7f7f7f".into()), espessura: 1.0, transparencia: 0.0 };
+                    novo.alinhar.h = modelo::AlinharH::Esquerda;
+                    novo.alinhar.v = modelo::AlinharV::Topo;
+                }
                 let Some(id) = objetos.adicionar(novo) else {
                     self.status = trf!("Limite de {} objetos por aba.", modelo::MAX_OBJETOS);
                     return Task::none();
                 };
                 self.objetos.selecionado = Some((aba_id, id));
+                if caixa {
+                    self.gravar_objetos(&objetos, tr!("Caixa de texto inserida (Ctrl+Z desfaz).").into());
+                    return self.evento_objetos(Evento::EditarTexto(id));
+                }
                 self.gravar_objetos(&objetos, trf!("{} inserida (Ctrl+Z desfaz).", geometria::nome(forma)));
             }
             Evento::AbrirPainel(p) => {

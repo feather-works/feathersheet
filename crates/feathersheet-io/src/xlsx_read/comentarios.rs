@@ -80,7 +80,7 @@ fn ler_classicos(xml: &XmlNode, saida: &mut Comentarios) {
 }
 
 /// Os nomes das pessoas dos comentários encadeados (`xl/persons/person.xml`).
-fn pessoas(zip: &mut ZipArchive<Cursor<Vec<u8>>>) -> HashMap<String, String> {
+fn pessoas(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> HashMap<String, String> {
     let Ok(x) = entry_text(zip, "xl/persons/person.xml").and_then(|t| parse_xml(&t)) else { return HashMap::new() };
     x.children_named("person")
         .filter_map(|p| Some((p.attr("id")?.to_string(), p.attr("displayName").unwrap_or("").to_string())))
@@ -107,7 +107,7 @@ fn ler_encadeados(xml: &XmlNode, nomes: &HashMap<String, String>, saida: &mut Co
 
 /// Os comentários da aba em `caminho_aba` (`xl/worksheets/sheet1.xml`).
 /// Parte ilegível fica de fora, sem impedir a abertura do arquivo.
-pub(super) fn ler_comentarios(zip: &mut ZipArchive<Cursor<Vec<u8>>>, caminho_aba: &str) -> Comentarios {
+pub(super) fn ler_comentarios(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho_aba: &str) -> Comentarios {
     let mut saida = Comentarios::new();
     let (dir, arq) = caminho_aba.rsplit_once('/').unwrap_or(("", caminho_aba));
     let Ok(rels) = entry_text(zip, &format!("{dir}/_rels/{arq}.rels")).and_then(|t| parse_xml(&t)) else { return saida };

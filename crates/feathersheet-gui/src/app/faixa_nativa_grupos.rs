@@ -230,22 +230,22 @@ impl App {
                     self.faixa_grande(tr!("Checkbox"), "checkbox", Some(Msg::CaixasInserir), self.selecao_tem_caixa()),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Gráficos"), self.faixa_linha(vec![
-                    self.faixa_grande(tr!("Recomendados"), "chart-suggest", None, false),
+                    self.faixa_grande(tr!("Recomendados"), "chart-suggest", Some(Msg::Grafico(graficos::Evento::Rapido(None))), false),
                     self.faixa_grafico(),
                     self.faixa_pilha(vec![
                         self.faixa_linha(vec![
-                    self.faixa_icone(tr!("Colunas"), "chart-columns", None, false),
-                    self.faixa_icone(tr!("Linhas"), "chart-line", None, false),
-                    self.faixa_icone(tr!("Pizza"), "chart-pie", None, false),
-                    self.faixa_icone(tr!("Área"), "chart-area", None, false),
+                    self.faixa_icone(tr!("Colunas"), "chart-columns", Some(Msg::Grafico(graficos::Evento::Rapido(Some(graficos::TipoUi::Colunas)))), false),
+                    self.faixa_icone(tr!("Linhas"), "chart-line", Some(Msg::Grafico(graficos::Evento::Rapido(Some(graficos::TipoUi::Linhas)))), false),
+                    self.faixa_icone(tr!("Pizza"), "chart-pie", Some(Msg::Grafico(graficos::Evento::Rapido(Some(graficos::TipoUi::Pizza)))), false),
+                    self.faixa_icone(tr!("Área"), "chart-area", Some(Msg::Grafico(graficos::Evento::Rapido(Some(graficos::TipoUi::Area)))), false),
                 ]),
                         self.faixa_linha(vec![
-                    self.faixa_icone(tr!("Dispersão"), "chart-scatter", None, false),
-                    self.faixa_icone(tr!("Combinado"), "chart-combo", None, false),
-                    self.faixa_icone(tr!("Cascata"), "chart-waterfall", None, false),
+                    self.faixa_icone(tr!("Dispersão"), "chart-scatter", Some(Msg::Grafico(graficos::Evento::Rapido(Some(graficos::TipoUi::Dispersao)))), false),
+                    self.faixa_icone(tr!("Combinado"), "chart-combo", Some(Msg::Grafico(graficos::Evento::Rapido(Some(graficos::TipoUi::Combinado)))), false),
+                    self.faixa_icone(tr!("Cascata"), "chart-waterfall", Some(Msg::Grafico(graficos::Evento::Rapido(Some(graficos::TipoUi::Cascata)))), false),
                 ]),
                     ]),
-                    self.faixa_grande_seta(tr!("Mapas"), "chart-map", None, false),
+                    em_breve(self.faixa_grande_seta(tr!("Mapas"), "chart-map", None, false), tr!("Em breve: gráfico de mapa")),
                     self.faixa_grande_seta(tr!("Gráfico dinâmico"), "chart-pivot",
                         Some(Msg::Dinamica(dinamica_ui::Evento::GraficoDinamico)), false),
                 ])));
@@ -275,17 +275,18 @@ impl App {
                         Some(Msg::Comentario(comentarios_ui::Evento::Novo)), self.comentario_editor.is_some()),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Texto"), self.faixa_linha(vec![
-                    self.faixa_grande(tr!("Caixa de texto"), "text-box", None, false),
-                    self.faixa_grande(tr!("Cabeçalho e rodapé"), "header-footer", None, false),
+                    self.faixa_grande(tr!("Caixa de texto"), "text-box", Some(Msg::Objetos(super::objetos::Evento::CaixaTexto)),
+                        self.objetos.caixa_texto && self.objetos.inserir.is_some()),
+                    self.faixa_grande(tr!("Cabeçalho e rodapé"), "header-footer", Some(Msg::Impressao(EventoImpressao::Abrir)), false),
                     // WordArt: galeria dos estilos comuns; um clique insere (objetos.rs).
                     self.faixa_grande("WordArt", "wordart", Some(Msg::Objetos(super::objetos::Evento::AlternarMenu(super::objetos::ModoMenu::WordArt))),
                         self.objetos.menu == Some(super::objetos::ModoMenu::WordArt)),
-                    self.faixa_grande(tr!("Linha de assinatura"), "signature", None, false),
-                    self.faixa_grande(tr!("Objeto"), "object", None, false),
+                    em_breve(self.faixa_grande(tr!("Linha de assinatura"), "signature", None, false), tr!("Em breve: linha de assinatura")),
+                    em_breve(self.faixa_grande(tr!("Objeto"), "object", None, false), tr!("Em breve: inserir objeto de outro programa")),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Símbolos"), self.faixa_linha(vec![
-                    self.faixa_grande(tr!("Equação"), "equation", None, false),
-                    self.faixa_grande(tr!("Símbolo"), "omega", None, false),
+                    self.faixa_grande_seta(tr!("Equação"), "equation", Some(Msg::AlternarMenuEdicao("equacao")), self.edicao_menu == Some("equacao")),
+                    self.faixa_grande_seta(tr!("Símbolo"), "omega", Some(Msg::AlternarMenuEdicao("simbolo")), self.edicao_menu == Some("simbolo")),
                 ])));
                 // Comandos já presentes em Inserir: preservados no final.
                 grupos.push(self.faixa_grupo(tr!("Células"), self.faixa_pilha(vec![
@@ -413,7 +414,10 @@ impl App {
                     self.faixa_grande(tr!("Visualizar"), "printer", Some(Msg::Impressao(EventoImpressao::Abrir)), false),
                     self.faixa_pilha(vec![
                         self.faixa_pequeno(tr!("Definir área"), "square", Some(Msg::Impressao(EventoImpressao::DefinirArea)), false),
+                        self.faixa_pequeno(tr!("Adicionar à área"), "plus", Some(Msg::Impressao(EventoImpressao::AdicionarArea)), false),
                         self.faixa_pequeno(tr!("Limpar área"), "eraser", Some(Msg::Impressao(EventoImpressao::LimparArea)), false),
+                    ]),
+                    self.faixa_pilha(vec![
                         self.faixa_pequeno(tr!("Quebras de página"), "file", Some(Msg::Impressao(EventoImpressao::AlternarQuebras)), self.quebras_mostradas()),
                     ]),
                 ])));
@@ -423,13 +427,13 @@ impl App {
                     self.faixa_grande(tr!("Editor de macros"), "code", Some(Msg::Macros), false),
                     self.faixa_pilha(vec![
                         self.faixa_pequeno(tr!("Novo módulo"), "plus", Some(Msg::MacroNovoModulo), false),
-                        self.faixa_pequeno(tr!("Novo componente"), "plus", None, false),
+                        self.faixa_pequeno(tr!("Novo componente"), "plus", Some(Msg::MacroComponentes), false),
                         self.faixa_pequeno(tr!("Editar"), "edit", Some(Msg::Macros), false),
                     ]),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Executar"), self.faixa_linha(vec![
                     self.faixa_grande(tr!("Executar macro"), "player-play", Some(Msg::MacroExecutar), false),
-                    self.faixa_grande(tr!("Componentes"), "componentes", None, false),
+                    self.faixa_grande(tr!("Componentes"), "componentes", Some(Msg::MacroComponentes), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Planilha"), self.faixa_grande(tr!("Botão de macro"), "code", Some(Msg::BotaoMacroNovo), false)));
                 grupos.push(self.faixa_grupo(tr!("Ajuda"), self.faixa_grande(tr!("Guia das funções"), "guia_funcoes", Some(Msg::Ajuda), false)));
@@ -531,8 +535,8 @@ impl App {
                     self.faixa_pequeno(tr!("Excluir aba"), "trash", (self.workbook.len()>1).then_some(Msg::RemoverAba), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Proteção"), self.faixa_pilha(vec![
-                    self.faixa_pequeno(tr!("Proteger intervalo"), "lock", None, false),
-                    self.faixa_pequeno(tr!("Intervalos protegidos"), "lock", None, false),
+                    self.faixa_pequeno(tr!("Bloquear seleção"), "lock", Some(Msg::Protecao(protecao_ui::Evento::AlternarBloqueio)), false),
+                    self.faixa_pequeno(tr!("Proteger planilha"), "lock", Some(Msg::Protecao(protecao_ui::Evento::Abrir)), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Aplicativo"), self.faixa_linha(vec![
                     self.faixa_grande(tr!("Ajuda"), "guia_funcoes", Some(Msg::Ajuda), false),

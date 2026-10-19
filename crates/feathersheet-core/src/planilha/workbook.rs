@@ -33,7 +33,7 @@
 
 use std::collections::HashMap;
 
-use crate::celulas::refs::Rect;
+use crate::celulas::refs::{key_col, key_row, CellKey, Rect};
 use crate::planilha::sheet::{Hospedeiro, Sheet};
 use crate::celulas::values::Value;
 
@@ -494,8 +494,20 @@ impl Workbook {
         F: FnOnce(&mut Sheet),
     {
         let sujo = self.abas.get(indice)?.sheet.used_rect();
+        // As células que a ação tocou dizem quais fórmulas de fora sujar:
+        // apagar uma célula da Resumo não recalcula as SOMASES dela sobre a
+        // Dados (3,4 s na Planilha Pesada, 18/10/2026). Sem saber, todas.
+        let antes = std::mem::replace(&mut *self.abas.get(indice)?.sheet.rastro.borrow_mut(),
+            crate::planilha::sheet::Rastro::sabido());
         // A ação pode escrever fora do retângulo usado de antes.
-        self.mudar_com_alcance(indice, vec![sujo], None, acao)
+        self.mudar_com_alcance_por(indice, vec![sujo], |s| {
+            acao(s);
+            let mut rastro = s.rastro.borrow_mut();
+            let tocadas = rastro.tirar();
+            *rastro = antes;
+            rastro.juntar(tocadas.as_deref());
+            tocadas.as_deref().map(alcance_das_chaves)
+        })
     }
 
     /// Edita um fragmento de uma transação grande sem disparar, a cada
@@ -662,8 +674,16 @@ impl Workbook {
     where
         F: FnOnce(&mut Sheet),
     {
+        self.mudar_com_alcance_por(indice, sujos, |s| { acao(s); alcance })
+    }
+
+    /// [`Self::mudar_com_alcance`] com o alcance que a própria ação devolve.
+    fn mudar_com_alcance_por<F>(&mut self, indice: usize, sujos: Vec<Rect>, acao: F) -> Option<Mudanca>
+    where
+        F: FnOnce(&mut Sheet) -> Option<Vec<Rect>>,
+    {
         let aba = self.abas.get_mut(indice)?;
-        acao(&mut aba.sheet);
+        let alcance = acao(&mut aba.sheet);
         aba.sheet.tocar();
         aba.versao = proxima_versao(aba.versao);
         let versao = aba.versao;
@@ -1102,6 +1122,10 @@ impl Hospedeiro for Workbook {
     fn funcao_externa(&self, nome: &str) -> bool {
         self.funcoes_externas.contains(&nome.to_uppercase())
     }
+
+    fn nomes_das_abas(&self) -> Vec<String> {
+        self.abas.iter().map(|a| a.sheet.name.clone()).collect()
+    }
 }
 
 struct TabelaMeta {
@@ -1455,3 +1479,16 @@ pub mod vinculos;
 
 #[cfg(test)]
 mod tests;
+
+/// As células tocadas como um retângulo por coluna (da primeira à última
+/// linha tocada nela): quem lê de fora pergunta por coluna.
+fn alcance_das_chaves(chaves: &[CellKey]) -> Vec<Rect> {
+    let mut por_coluna: std::collections::BTreeMap<u32, (u32, u32)> = Default::default();
+    for &k in chaves {
+        let (r, c) = (key_row(k), key_col(k));
+        let e = por_coluna.entry(c).or_insert((r, r));
+        e.0 = e.0.min(r);
+        e.1 = e.1.max(r);
+    }
+    por_coluna.into_iter().map(|(c, (r0, r1))| Rect { r0, c0: c, r1, c1: c, sheet: None }).collect()
+}

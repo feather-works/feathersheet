@@ -1,6 +1,11 @@
 //! As funções da planilha, a ajuda de cada uma e o que elas usam.
 
+pub mod fn_compat;
 pub mod fn_complexo;
+pub mod fn_cupom;
+pub mod fn_lambda;
+pub mod fn_referencia;
+pub mod fn_regressao;
 /// Funções do FeatherSheet que o Excel não tem (nome internacional). Ao
 /// exportar .xlsx, a interface avisa: no Excel essas células mostram #NOME?.
 /// Função nova sem equivalente no Excel entra aqui.

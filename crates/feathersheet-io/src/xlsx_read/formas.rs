@@ -81,7 +81,7 @@ fn ler_ancora(a: &XmlNode, aba: usize) -> Option<Forma> {
 /// As formas de todas as abas. Arquivo sem desenho dá lista vazia; falha
 /// num desenho só deixa aquele de fora.
 pub fn ler_formas(bytes: &[u8]) -> Vec<Forma> {
-    let Ok(mut zip) = ZipArchive::new(Cursor::new(bytes.to_vec())) else { return Vec::new() };
+    let Ok(mut zip) = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes))) else { return Vec::new() };
     // O tema do arquivo resolve `schemeClr`/`fillRef` da cor do botão.
     let tema = entry_text(&mut zip, "xl/theme/theme1.xml").unwrap_or_default();
     let _paleta = super::cores::instalar(&tema, "");
@@ -93,7 +93,7 @@ pub fn ler_formas(bytes: &[u8]) -> Vec<Forma> {
 }
 
 /// Visita cada `*CellAnchor` dos desenhos das abas, com o índice da aba.
-fn para_cada_ancora(zip: &mut ZipArchive<Cursor<Vec<u8>>>, mut f: impl FnMut(usize, &XmlNode)) {
+fn para_cada_ancora(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, mut f: impl FnMut(usize, &XmlNode)) {
     let Ok(book) = entry_text(zip, "xl/workbook.xml").and_then(|t| parse_xml(&t)) else { return };
     let rels_book = entry_text(zip, "xl/_rels/workbook.xml.rels").map(|t| read_rels(&t)).unwrap_or_default();
     let Some(abas) = book.child("sheets") else { return };

@@ -3141,4 +3141,522 @@ pub static HELP: &[(&str, FunctionHelp)] = &[
             doc: "Juros acumulados de um título que paga juros no vencimento.",
         },
     ),
+    (
+        "OFFSET",
+        FunctionHelp {
+            args: &["ref", "linhas", "colunas", "[altura]", "[largura]"],
+            doc: "Referência deslocada de linhas e colunas a partir de ref, com a altura e a largura pedidas. Ex.: =SOMA(DESLOC(A1;0;0;3)) soma A1:A3.",
+        },
+    ),
+    (
+        "INDIRECT",
+        FunctionHelp {
+            args: &["texto_ref", "[a1]"],
+            doc: "Referência escrita como texto (\"B7\", \"Dados!A1:C9\" ou um nome); a1 FALSO lê o estilo L1C1. Ex.: =INDIRETO(\"A\"&B1).",
+        },
+    ),
+    (
+        "TRIMRANGE",
+        FunctionHelp {
+            args: &["intervalo", "[aparar_linhas]", "[aparar_colunas]"],
+            doc: "O intervalo sem as linhas e colunas vazias das bordas. 0 não apara, 1 só no começo, 2 só no fim, 3 nos dois (padrão). Ex.: =AJUSTARINTERVALO(A:A).",
+        },
+    ),
+    (
+        "AREAS",
+        FunctionHelp {
+            args: &["ref"],
+            doc: "Quantas áreas a referência tem.",
+        },
+    ),
+    (
+        "FORMULATEXT",
+        FunctionHelp {
+            args: &["ref"],
+            doc: "O texto da fórmula da célula; sem fórmula, #N/D.",
+        },
+    ),
+    (
+        "ISFORMULA",
+        FunctionHelp {
+            args: &["ref"],
+            doc: "VERDADEIRO se a célula tem fórmula.",
+        },
+    ),
+    (
+        "SHEET",
+        FunctionHelp {
+            args: &["[valor]"],
+            doc: "Número da aba (1 = a primeira guia) da referência, do nome em texto ou, sem argumento, da aba da fórmula.",
+        },
+    ),
+    (
+        "SHEETS",
+        FunctionHelp {
+            args: &["[ref]"],
+            doc: "Quantas abas a pasta tem (sem argumento) ou a referência cobre.",
+        },
+    ),
+    (
+        "CELL",
+        FunctionHelp {
+            args: &["tipo_info", "[ref]"],
+            doc: "Informação da célula: \"endereço\", \"col\", \"lin\", \"conteúdo\", \"tipo\" (b vazia, l texto, v valor), \"prefixo\", \"formato\", \"largura\", \"proteger\".",
+        },
+    ),
+    (
+        "INFO",
+        FunctionHelp {
+            args: &["tipo"],
+            doc: "Informação do ambiente: \"numarquivo\" (abas), \"origem\", \"versãoso\", \"recalc\", \"versão\", \"sistema\", \"diretório\".",
+        },
+    ),
+    (
+        "GETPIVOTDATA",
+        FunctionHelp {
+            args: &["campo_dados", "tabela", "[campo1]", "[item1]", "…"],
+            doc: "Valor de uma tabela dinâmica desenhada na planilha: o campo de dados, uma célula da tabela e pares campo/item. Sem pares, o Total Geral.",
+        },
+    ),
+    (
+        "BYROW",
+        FunctionHelp {
+            args: &["matriz", "lambda"],
+            doc: "Aplica a LAMBDA (ou o nome de uma função) a cada linha e devolve uma coluna. Ex.: =PORLINHA(A1:C3;LAMBDA(l;SOMA(l))).",
+        },
+    ),
+    (
+        "BYCOL",
+        FunctionHelp {
+            args: &["matriz", "lambda"],
+            doc: "Aplica a LAMBDA (ou o nome de uma função) a cada coluna e devolve uma linha. Ex.: =PORCOL(A1:C3;MÁXIMO).",
+        },
+    ),
+    (
+        "SCAN",
+        FunctionHelp {
+            args: &["[valor_inicial]", "matriz", "lambda"],
+            doc: "Como REDUZIR, mas devolve cada passo do acumulador. Ex.: =VARRER(0;A1:A5;LAMBDA(a;v;a+v)) dá a soma acumulada.",
+        },
+    ),
+    (
+        "MAKEARRAY",
+        FunctionHelp {
+            args: &["linhas", "colunas", "lambda"],
+            doc: "Monta uma matriz chamando a LAMBDA(linha; coluna) em cada posição. Ex.: =CRIARMATRIZ(3;3;LAMBDA(l;c;l*c)).",
+        },
+    ),
+    (
+        "ISOMITTED",
+        FunctionHelp {
+            args: &["argumento"],
+            doc: "Dentro de uma LAMBDA, VERDADEIRO se o parâmetro não foi passado.",
+        },
+    ),
+    (
+        "GROUPBY",
+        FunctionHelp {
+            args: &["campos_linha", "valores", "função", "[cabeçalhos]", "[profundidade_total]", "[ordem]", "[filtro]", "[relação]"],
+            doc: "Agrupa os valores pelos campos e aplica a função a cada grupo, com total. Ex.: =AGRUPARPOR(A2:A9;C2:C9;SOMA).",
+        },
+    ),
+    (
+        "PIVOTBY",
+        FunctionHelp {
+            args: &["campos_linha", "campos_coluna", "valores", "função", "[cabeçalhos]", "[total_linhas]", "[ordem_linhas]", "[total_colunas]", "[ordem_colunas]", "[filtro]", "[relativo_a]"],
+            doc: "Tabela cruzada: linhas por um campo, colunas por outro, a função em cada cruzamento e os totais. Ex.: =PIVOTARPOR(A2:A9;B2:B9;C2:C9;SOMA).",
+        },
+    ),
+    (
+        "LINEST",
+        FunctionHelp {
+            args: &["y_conhecidos", "[x_conhecidos]", "[constante]", "[estatísticas]"],
+            doc: "Regressão linear por mínimos quadrados (uma ou várias variáveis): coeficientes mₙ…m₁ e b; com estatísticas, também erros padrão, R², F e somas de quadrados.",
+        },
+    ),
+    (
+        "LOGEST",
+        FunctionHelp {
+            args: &["y_conhecidos", "[x_conhecidos]", "[constante]", "[estatísticas]"],
+            doc: "Curva exponencial y = b·m₁^x₁·…: devolve mₙ…m₁ e b (e as estatísticas, na escala do logaritmo).",
+        },
+    ),
+    (
+        "FORECAST.ETS",
+        FunctionHelp {
+            args: &["data_alvo", "valores", "linha_do_tempo", "[sazonalidade]", "[conclusão_dados]", "[agregação]"],
+            doc: "Previsão por suavização exponencial tripla (tendência e sazonalidade aditivas). Sazonalidade 1 detecta sozinha, 0 desliga.",
+        },
+    ),
+    (
+        "FORECAST.ETS.CONFINT",
+        FunctionHelp {
+            args: &["data_alvo", "valores", "linha_do_tempo", "[nível_confiança]", "[sazonalidade]", "[conclusão_dados]", "[agregação]"],
+            doc: "Meia largura do intervalo de confiança da PREVISÃO.ETS na data alvo (95% por padrão).",
+        },
+    ),
+    (
+        "FORECAST.ETS.SEASONALITY",
+        FunctionHelp {
+            args: &["valores", "linha_do_tempo", "[conclusão_dados]", "[agregação]"],
+            doc: "Tamanho da estação que a PREVISÃO.ETS detecta (0 = sem sazonalidade).",
+        },
+    ),
+    (
+        "FORECAST.ETS.STAT",
+        FunctionHelp {
+            args: &["valores", "linha_do_tempo", "tipo_estatística", "[sazonalidade]", "[conclusão_dados]", "[agregação]"],
+            doc: "Estatística do modelo da PREVISÃO.ETS: 1 alfa, 2 beta, 3 gama, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 passo.",
+        },
+    ),
+    (
+        "ACCRINT",
+        FunctionHelp {
+            args: &["emissão", "primeiro_juro", "liquidação", "taxa", "valor_nominal", "frequência", "[base]", "[método_cálculo]"],
+            doc: "Juros acumulados de um título que paga juros periódicos.",
+        },
+    ),
+    (
+        "AMORDEGRC",
+        FunctionHelp {
+            args: &["custo", "data_compra", "primeiro_período", "residual", "período", "taxa", "[base]"],
+            doc: "Depreciação de cada período no sistema francês, com coeficiente pela vida útil.",
+        },
+    ),
+    (
+        "AMORLINC",
+        FunctionHelp {
+            args: &["custo", "data_compra", "primeiro_período", "residual", "período", "taxa", "[base]"],
+            doc: "Depreciação linear de cada período no sistema francês (primeiro período proporcional).",
+        },
+    ),
+    (
+        "COUPDAYBS",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "frequência", "[base]"],
+            doc: "Dias do início do período de cupom até a liquidação.",
+        },
+    ),
+    (
+        "COUPDAYS",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "frequência", "[base]"],
+            doc: "Dias do período de cupom que contém a liquidação.",
+        },
+    ),
+    (
+        "COUPDAYSNC",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "frequência", "[base]"],
+            doc: "Dias da liquidação até o próximo cupom.",
+        },
+    ),
+    (
+        "COUPNCD",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "frequência", "[base]"],
+            doc: "Data do próximo cupom depois da liquidação.",
+        },
+    ),
+    (
+        "COUPNUM",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "frequência", "[base]"],
+            doc: "Quantos cupons faltam pagar entre a liquidação e o vencimento.",
+        },
+    ),
+    (
+        "COUPPCD",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "frequência", "[base]"],
+            doc: "Data do último cupom antes da liquidação.",
+        },
+    ),
+    (
+        "DURATION",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "cupom", "lucro", "frequência", "[base]"],
+            doc: "Duração de Macaulay de um título com cupom, em anos.",
+        },
+    ),
+    (
+        "MDURATION",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "cupom", "lucro", "frequência", "[base]"],
+            doc: "Duração modificada (Macaulay dividida por 1 + lucro/frequência).",
+        },
+    ),
+    (
+        "ODDFPRICE",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "emissão", "primeiro_cupom", "taxa", "lucro", "resgate", "frequência", "[base]"],
+            doc: "Preço por 100 de um título com primeiro período irregular.",
+        },
+    ),
+    (
+        "ODDFYIELD",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "emissão", "primeiro_cupom", "taxa", "preço", "resgate", "frequência", "[base]"],
+            doc: "Rendimento de um título com primeiro período irregular.",
+        },
+    ),
+    (
+        "ODDLPRICE",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "último_juro", "taxa", "lucro", "resgate", "frequência", "[base]"],
+            doc: "Preço por 100 de um título com último período irregular.",
+        },
+    ),
+    (
+        "ODDLYIELD",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "último_juro", "taxa", "preço", "resgate", "frequência", "[base]"],
+            doc: "Rendimento de um título com último período irregular.",
+        },
+    ),
+    (
+        "PRICE",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "taxa", "lucro", "resgate", "frequência", "[base]"],
+            doc: "Preço por 100 de valor nominal de um título que paga juros periódicos. Ex.: =PREÇO(DATA(2008;2;15);DATA(2017;11;15);5,75%;6,5%;100;2) dá 94,63.",
+        },
+    ),
+    (
+        "YIELD",
+        FunctionHelp {
+            args: &["liquidação", "vencimento", "taxa", "preço", "resgate", "frequência", "[base]"],
+            doc: "Rendimento de um título que paga juros periódicos.",
+        },
+    ),
+    (
+        "BESSELK",
+        FunctionHelp {
+            args: &["x", "n"],
+            doc: "Função de Bessel modificada de segunda espécie Kn(x), x > 0. Ex.: =BESSELK(1,5;1) dá 0,277388.",
+        },
+    ),
+    (
+        "BESSELY",
+        FunctionHelp {
+            args: &["x", "n"],
+            doc: "Função de Bessel de segunda espécie Yn(x), x > 0. Ex.: =BESSELY(2,5;1) dá 0,145918.",
+        },
+    ),
+    (
+        "ASC",
+        FunctionHelp {
+            args: &["texto"],
+            doc: "Troca letras, dígitos e símbolos de largura inteira pelos de meia largura.",
+        },
+    ),
+    (
+        "DBCS",
+        FunctionHelp {
+            args: &["texto"],
+            doc: "Troca letras, dígitos e símbolos de meia largura pelos de largura inteira.",
+        },
+    ),
+    (
+        "BAHTTEXT",
+        FunctionHelp {
+            args: &["núm"],
+            doc: "O valor em baht por extenso, em tailandês.",
+        },
+    ),
+    (
+        "PHONETIC",
+        FunctionHelp {
+            args: &["ref"],
+            doc: "Texto fonético (furigana) da célula; sem ele, o próprio texto.",
+        },
+    ),
+    (
+        "EUROCONVERT",
+        FunctionHelp {
+            args: &["núm", "origem", "destino", "[precisão_total]", "[precisão_triangulação]"],
+            doc: "Converte entre o euro e as moedas antigas da zona do euro pelas taxas fixas (\"DEM\", \"FRF\", \"PTE\"…).",
+        },
+    ),
+    (
+        "FILTERXML",
+        FunctionHelp {
+            args: &["xml", "xpath"],
+            doc: "Valores de um texto XML pelo caminho XPath (/a/b, //b, [1], [@id='x'], /@atributo, text()). Ex.: =FILTROXML(A1;\"//item\").",
+        },
+    ),
+    (
+        "WEBSERVICE",
+        FunctionHelp {
+            args: &["url"],
+            doc: "O texto que a URL devolve (só pedido explícito, de mão única: nada da planilha é enviado).",
+        },
+    ),
+    (
+        "CUBEKPIMEMBER",
+        FunctionHelp {
+            args: &["conexão", "nome_kpi", "propriedade_kpi", "[legenda]"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "CUBEMEMBER",
+        FunctionHelp {
+            args: &["conexão", "expressão_membro", "[legenda]"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "CUBEMEMBERPROPERTY",
+        FunctionHelp {
+            args: &["conexão", "expressão_membro", "propriedade"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "CUBERANKEDMEMBER",
+        FunctionHelp {
+            args: &["conexão", "expressão_conjunto", "classificação", "[legenda]"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "CUBESET",
+        FunctionHelp {
+            args: &["conexão", "expressão_conjunto", "[legenda]", "[ordem]", "[classificar_por]"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "CUBESETCOUNT",
+        FunctionHelp {
+            args: &["conjunto"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "CUBEVALUE",
+        FunctionHelp {
+            args: &["conexão", "[expressão_membro1]", "…"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "RTD",
+        FunctionHelp {
+            args: &["id_prog", "servidor", "tópico1", "[tópico2]", "…"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "CALL",
+        FunctionHelp {
+            args: &["…"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "REGISTER.ID",
+        FunctionHelp {
+            args: &["…"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "STOCKHISTORY",
+        FunctionHelp {
+            args: &["ação", "data_inicial", "[data_final]", "[intervalo]", "[cabeçalhos]", "…"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "TRANSLATE",
+        FunctionHelp {
+            args: &["texto", "[idioma_origem]", "[idioma_destino]"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "DETECTLANGUAGE",
+        FunctionHelp {
+            args: &["texto"],
+            doc: "Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.",
+        },
+    ),
+    (
+        "MODE.SNGL",
+        FunctionHelp {
+            args: &["núm1", "…"],
+            doc: "Igual a MODO. Valor que mais se repete.",
+        },
+    ),
+    (
+        "NORMDIST",
+        FunctionHelp {
+            args: &["x", "média", "desv_padrão", "cumulativo"],
+            doc: "Igual a DIST.NORM.N. Distribuição normal (densidade ou cumulativa).",
+        },
+    ),
+    (
+        "NORMINV",
+        FunctionHelp {
+            args: &["probabilidade", "média", "desv_padrão"],
+            doc: "Igual a INV.NORM.N. Inverso da distribuição normal para a probabilidade.",
+        },
+    ),
+    (
+        "PERCENTILE.INC",
+        FunctionHelp {
+            args: &["intervalo", "p"],
+            doc: "Igual a PERCENTIL. Valor abaixo do qual está a fração p dos dados (p entre 0 e 1).",
+        },
+    ),
+    (
+        "PERCENTRANK",
+        FunctionHelp {
+            args: &["matriz", "x", "[signif]"],
+            doc: "Igual a ORDEM.PORCENTUAL.INC. Posição relativa de um valor, de 0 a 1 inclusive.",
+        },
+    ),
+    (
+        "QUARTILE.INC",
+        FunctionHelp {
+            args: &["intervalo", "quarto"],
+            doc: "Igual a QUARTIL. Quartil: 0 mínimo, 1, 2 mediana, 3, 4 máximo.",
+        },
+    ),
+    (
+        "STDEV.S",
+        FunctionHelp {
+            args: &["núm1", "…"],
+            doc: "Igual a DESVPAD. Desvio padrão de uma amostra.",
+        },
+    ),
+    (
+        "STDEVP",
+        FunctionHelp {
+            args: &["núm1", "…"],
+            doc: "Igual a DESVPAD.P. Desvio padrão da população inteira.",
+        },
+    ),
+    (
+        "VAR.S",
+        FunctionHelp {
+            args: &["núm1", "…"],
+            doc: "Igual a VAR. Variância de uma amostra.",
+        },
+    ),
+    (
+        "VARP",
+        FunctionHelp {
+            args: &["núm1", "…"],
+            doc: "Igual a VAR.P. Variância da população inteira.",
+        },
+    ),
+    (
+        "NA",
+        FunctionHelp {
+            args: &[],
+            doc: "Devolve o erro #N/D (valor não disponível). Ex.: =SE(A1=\"\";NÃO.DISP();A1).",
+        },
+    ),
 ];

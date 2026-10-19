@@ -1002,3 +1002,19 @@ fn boletim_configurar_series_copiar_e_pizza_por_situacao() {
         // A camada já tem o desenho do gráfico em edição: não lê a tabela de novo.
         assert!(!a.graficos.svgs.borrow().is_empty());
     }
+
+    #[test]
+    fn icones_da_faixa_criam_o_tipo_e_recomendados_le_os_dados() {
+        let mut app = App::default();
+        let _ = app.update(Msg::Colar("Mês\tVendas\nJan\t10\nFev\t20\nMar\t15".into()));
+        let _ = app.evento_grafico(Evento::Rapido(Some(TipoUi::Linhas)));
+        let lista = feathersheet_io::graficos_salvos::listar(&app.workbook.aba(0).unwrap().sheet).unwrap();
+        assert_eq!(lista.len(), 1);
+        assert_eq!(app.graficos.tipo, TipoUi::Linhas);
+        // Uma série curta, sem negativos: pizza.
+        let _ = app.evento_grafico(Evento::Rapido(None));
+        assert_eq!(app.graficos.tipo, TipoUi::Pizza);
+        let _ = app.update(Msg::Colar("X\tY\n1\t10\n2\t20\n3\t15".into()));
+        let _ = app.evento_grafico(Evento::Rapido(None));
+        assert_eq!(app.graficos.tipo, TipoUi::Dispersao);
+    }

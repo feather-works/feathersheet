@@ -1,6 +1,6 @@
 //! Importação XLSX para o motor colunar sem mapa de células nem JSON intermediário.
 //! XML de cada worksheet e sharedStrings são consumidos direto das entradas ZIP.
-use super::{anexar_elementos, entry_text, sheet, styles, xml, LIMITE_XLSX_BYTES};
+use super::{anexar_elementos, em_paralelo, entry_text, sheet, styles, xml, LIMITE_XLSX_BYTES};
 use super::refs::{parse_cell_ref, MAX_COLS};
 use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
 use feathersheet_core::celulas::values::Value;
@@ -20,7 +20,7 @@ const MAX_WORKSHEET_XML: u64 = 2 * 1024 * 1024 * 1024;
 const MAX_SHARED_STRINGS_XML: u64 = 1024 * 1024 * 1024;
 const MAX_TEXTO_COMPARTILHADO: usize = 256 * 1024 * 1024;
 
-fn strings_compartilhadas(archive: &mut ZipArchive<Cursor<Vec<u8>>>) -> Result<Vec<String>, String> {
+fn strings_compartilhadas(archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> Result<Vec<String>, String> {
     let arquivo = match archive.by_name("xl/sharedStrings.xml") {
         Ok(arquivo) => arquivo,
         Err(ZipError::FileNotFound) => return Ok(Vec::new()),
@@ -73,8 +73,13 @@ fn estilos_parciais(xfs: &[styles::XfStyle]) -> Vec<Option<EstiloParcial>> {
 /// O que um estilo de linha costuma trazer e o da célula precisa cobrir.
 const CHAVES_QUE_COBREM_A_LINHA: &[&str] = &["bg", "borders", "color"];
 
-/// Células por lote entre os estágios da leitura.
-const LOTE_CARGA: usize = 32_768;
+/// Células por lote entre os estágios da leitura. Com 32.768 uma aba de
+/// 48 mil células era só 2 lotes e os estágios quase não se sobrepunham.
+const LOTE_CARGA: usize = 8_192;
+
+/// Abas lidas ao mesmo tempo; os núcleos se dividem entre elas. Mais que
+/// isso só aumentava a RAM (cada aba tem os seus lotes em trânsito).
+const ABAS_SIMULTANEAS: usize = 4;
 
 /// Marca, no texto bruto do lote, o que a leitura deixou para converter
 /// aqui, em paralelo: fórmula a traduzir do Excel e número a formatar pelo
@@ -184,8 +189,8 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
     let texto = &texto;
     let parte_pronta = |parte: Vec<Bruta>| -> (String, Vec<CelulaPreparada>) {
         let mut padroes = Padroes::default();
-        // Chave relativa → (padrão em pt-BR, volátil).
-        let mut ja_vistas: HashMap<String, (Arc<str>, bool)> = HashMap::new();
+        // Chave relativa → (padrão em pt-BR, volátil, com árvore própria).
+        let mut ja_vistas: HashMap<String, (Arc<str>, bool, bool)> = HashMap::new();
         let mut chave = String::new();
         let mut saida = String::with_capacity(parte.len() * 12);
         let prontas = parte.into_iter().map(|(r, c, xf, v, faixa)| {
@@ -194,21 +199,26 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
             chave.clear();
             let com_chave = reaproveitar && formula.is_some_and(|f| chave_relativa(f, r, c, &mut chave));
             if com_chave {
-                if let Some((padrao, volatil)) = ja_vistas.get(chave.as_str()) {
+                if let Some((padrao, volatil, com_arvore)) = ja_vistas.get(chave.as_str()) {
                     let inicio = saida.len() as u32;
                     saida.push_str(&feathersheet_core::formula::formula_pattern::expand_pattern(padrao, r as i32, c as i32));
+                    // Fora da coluna empacotada (`SOMASES(Outra!C:C;…)`) a árvore
+                    // é de cada célula: só a análise do texto é refeita.
+                    let arvore = com_arvore.then(|| {
+                        let texto = saida[inicio as usize..].trim();
+                        feathersheet_core::formula::parser::parse_formula(texto.strip_prefix('=').unwrap_or(texto)).map_err(|e| e.message)
+                    });
                     return CelulaPreparada { row: r, col: c, estilo: xf, faixa: (inicio, saida.len() as u32),
-                        preparo: Preparo::Formula { padrao: Some(padrao.clone()), arvore: None, volatil: *volatil }, guardado: v };
+                        preparo: Preparo::Formula { padrao: Some(padrao.clone()), arvore, volatil: *volatil }, guardado: v };
                 }
             }
             let raw = converter(bruto, xf, xfs);
             let inicio = saida.len() as u32;
             saida.push_str(&raw);
             let pronta = CelulaPreparada::preparar(r, c, &raw, (inicio, saida.len() as u32), xf, v, &mut padroes);
-            // Só o que coube na coluna empacotada (sem árvore própria) volta a ser usado.
             if com_chave {
-                if let Preparo::Formula { padrao: Some(p), arvore: None, volatil } = &pronta.preparo {
-                    ja_vistas.insert(chave.clone(), (p.clone(), *volatil));
+                if let Preparo::Formula { padrao: Some(p), arvore, volatil } = &pronta.preparo {
+                    ja_vistas.insert(chave.clone(), (p.clone(), *volatil, arvore.is_some()));
                 }
             }
             pronta
@@ -242,7 +252,7 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
 }
 
 fn ler_aba(
-    archive: &mut ZipArchive<Cursor<Vec<u8>>>,
+    archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>,
     caminho: &str,
     nome: &str,
     strings: &[String],
@@ -251,7 +261,7 @@ fn ler_aba(
     rels: &HashMap<String, String>,
     imagens: &HashMap<u32, String>,
     folha: &mut Sheet,
-    total: &mut usize,
+    nucleos: usize,
 ) -> Result<sheet::SheetJson, String> {
     let arquivo = match archive.by_name(caminho) {
         Ok(arquivo) => arquivo,
@@ -273,7 +283,6 @@ fn ler_aba(
     let mut linhas_com_estilo = Vec::<(u32, usize)>::new();
     let mut vigia = feather_io::memoria::Vigia::new("A leitura do XLSX", 2_000);
     let inicio = std::time::Instant::now();
-    let nucleos = feathersheet_core::paralelismo::nucleos();
 
     // Três estágios, cada um na sua thread, passando lotes adiante:
     // ler o XML (esta thread) → preparar as células em `nucleos` threads
@@ -403,7 +412,6 @@ fn ler_aba(
                             ));
                         }
                     }
-                    *total += 1;
                     celulas += 1;
                     let guardado = sheet::valor_guardado(celula, strings);
                     lote.push(at.row as u32, at.col as u32, raw, xf_estilo, guardado);
@@ -476,7 +484,7 @@ fn ler_aba(
 
 /// Autor, última alteração e empresa (`docProps/core.xml` e `app.xml`);
 /// vazio quando o arquivo não traz essas partes.
-fn propriedades(arquivo: &mut ZipArchive<Cursor<Vec<u8>>>) -> feathersheet_core::planilha::workbook::Propriedades {
+fn propriedades(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> feathersheet_core::planilha::workbook::Propriedades {
     let mut ler = |parte: &str, campos: &[&str]| -> Vec<String> {
         let no = entry_text(arquivo, parte).ok().and_then(|t| xml::parse_xml(&t).ok());
         campos.iter().map(|c| no.as_ref().and_then(|n| n.child(c)).map(|n| n.text.trim().to_owned()).unwrap_or_default()).collect()
@@ -510,7 +518,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     if bytes.len() > LIMITE_XLSX_BYTES {
         return Err(format!("Arquivo XLSX excede {} MiB compactados", LIMITE_XLSX_BYTES / 1_048_576));
     }
-    let mut arquivo = ZipArchive::new(Cursor::new(bytes))
+    let mut arquivo = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes)))
         .map_err(|e| format!("Não parece um arquivo XLSX/ZIP válido: {e}"))?;
     let book_xml = entry_text(&mut arquivo, "xl/workbook.xml")?;
     let book = xml::parse_xml(&book_xml)?;
@@ -522,7 +530,8 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     let estilos_xml = entry_text(&mut arquivo, "xl/styles.xml")?;
     // Tema e cores indexadas do arquivo valem até o fim da leitura (regras
     // condicionais e gráficos também resolvem cor por tema).
-    let _paleta = super::cores::instalar(&entry_text(&mut arquivo, "xl/theme/theme1.xml").unwrap_or_default(), &estilos_xml);
+    let tema_xml = entry_text(&mut arquivo, "xl/theme/theme1.xml").unwrap_or_default();
+    let _paleta = super::cores::instalar(&tema_xml, &estilos_xml);
     let xfs = styles::read_styles(&estilos_xml);
     let estilos = estilos_parciais(&xfs);
     // Imagens "Colocar na célula" (vm → data URL), lidas uma vez para todas as abas.
@@ -530,7 +539,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     let mut workbook = Workbook::vazia();
     let mut resumos = Vec::new();
     let mut caminhos = Vec::new();
-    let mut total = 0usize;
+    let mut folhas = Vec::new();
     // A barra da montagem anda pelos bytes de XML das abas.
     let xml_total: u64 = (0..arquivo.len())
         .filter_map(|i| arquivo.by_index_raw(i).ok().filter(|e| e.name().starts_with("xl/worksheets/")).map(|e| e.size()))
@@ -551,22 +560,28 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
                 .map(str::to_owned).unwrap_or_else(|| format!("Planilha{}", i + 1));
             let oculta = matches!(node.attr("state"), Some("hidden") | Some("veryHidden"));
             let idx = workbook.criar_aba(nome.clone());
-            let (pasta, basename) = caminho.rsplit_once('/').unwrap_or(("", caminho.as_str()));
-            let rels_aba = sheet::read_rels(&entry_text(
-                &mut arquivo, &format!("{pasta}/_rels/{basename}.rels"),
-            )?);
-            let resumo = ler_aba(
-                &mut arquivo, &caminho, &nome, &strings, &xfs, &estilos, &rels_aba, &imagens_vm,
-                &mut workbook.aba_mut(idx).expect("aba recém-criada").sheet, &mut total,
-            )?;
-            let comentarios = super::comentarios::ler_comentarios(&mut arquivo, &caminho);
-            if let Some(viva) = workbook.aba_mut(idx) {
-                viva.sheet.oculta = oculta;
-                viva.sheet.comentarios = comentarios;
-            }
+            // A aba sai da pasta para ser lida noutra thread e volta depois.
+            let folha = std::mem::replace(&mut workbook.aba_mut(idx).expect("aba recém-criada").sheet, Sheet::new(""));
             caminhos.push((nome, caminho, oculta));
-            resumos.push(resumo);
+            folhas.push((idx, folha));
         }
+    }
+    let simultaneas = ABAS_SIMULTANEAS.min(folhas.len()).max(1);
+    let por_aba = (feathersheet_core::paralelismo::nucleos() / simultaneas).max(1);
+    let lidas = em_paralelo(&arquivo, simultaneas, caminhos.iter().zip(folhas).collect(), |zip, ((nome, caminho, _), (idx, mut folha))| {
+        // A paleta é por thread (`cores::instalar`).
+        let _paleta = super::cores::instalar(&tema_xml, &estilos_xml);
+        let (pasta, basename) = caminho.rsplit_once('/').unwrap_or(("", caminho.as_str()));
+        let rels_aba = sheet::read_rels(&entry_text(zip, &format!("{pasta}/_rels/{basename}.rels"))?);
+        let resumo = ler_aba(zip, caminho, nome, &strings, &xfs, &estilos, &rels_aba, &imagens_vm, &mut folha, por_aba)?;
+        folha.comentarios = super::comentarios::ler_comentarios(zip, caminho);
+        Ok::<_, String>((idx, folha, resumo))
+    });
+    for (lida, (_, _, oculta)) in lidas.into_iter().zip(&caminhos) {
+        let (idx, mut folha, resumo) = lida?;
+        folha.oculta = *oculta;
+        workbook.aba_mut(idx).expect("aba recém-criada").sheet = folha;
+        resumos.push(resumo);
     }
     if workbook.is_empty() { workbook.criar_aba("Planilha1"); }
     workbook.propriedades = propriedades(&mut arquivo);
@@ -762,6 +777,7 @@ mod testes_reaproveitar {
             |r| format!("LOG10(A{r})+ATAN2(B{r},C{r})"),
             |r| format!("'Plano 2023'!B{r}*Q1!C{r}"),
             |r| format!("SUMIFS(Dados!$I$2:$I$1000001,Dados!$C$2:$C$1000001,$A{r},Dados!$J$2:$J$1000001,{r})"),
+            |r| format!("SUMIFS(Raw_Beverages!C:C,Raw_Beverages!$A:$A,$A{r},Raw_Beverages!$B:$B,\"Store\")"),
             |_| "A:A".to_string(),
             |_| "TODAY()".to_string(),
             |r| format!("IFERROR(1/(A{r}-1),\"x\")&TEXT(B{r},\"0.00\")"),
@@ -786,7 +802,7 @@ mod testes_reaproveitar {
         let sem = preparar_em_paralelo_com(copia, 4, &[], false);
         assert_eq!(com.celulas.len(), sem.celulas.len());
         let padrao = |p: &Preparo| match p {
-            Preparo::Formula { padrao, arvore, volatil } => format!("{padrao:?} {} {volatil}", arvore.is_some()),
+            Preparo::Formula { padrao, arvore, volatil } => format!("{padrao:?} {arvore:?} {volatil}"),
             outro => format!("{outro:?}"),
         };
         for (a, b) in com.celulas.iter().zip(&sem.celulas) {

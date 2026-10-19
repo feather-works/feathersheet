@@ -41,12 +41,42 @@ const LIMITE_XLSX_BYTES: usize = 256 * 1024 * 1024;
 // Protege XLSX pequeno no disco mas enorme depois de descomprimir XML.
 const LIMITE_ENTRADA_XML: u64 = 32 * 1024 * 1024;
 
-fn entry_text(archive: &mut ZipArchive<Cursor<Vec<u8>>>, path: &str) -> Result<String, String> {
+/// Roda `f` em cada item com até `threads` threads, cada uma com o seu
+/// leitor do ZIP (o clone só copia o ponteiro dos bytes); devolve na ordem
+/// dos itens. Descompactar e ler o XML é serial dentro de cada parte: as
+/// abas e os gráficos em fila eram 2,3 s dos 2,4 s de um XLSX com 22 abas.
+fn em_paralelo<T: Send, R: Send>(
+    archive: &ZipArchive<Cursor<std::sync::Arc<[u8]>>>,
+    threads: usize,
+    itens: Vec<T>,
+    f: impl Fn(&mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, T) -> R + Sync,
+) -> Vec<R> {
+    let n = itens.len();
+    let fila = std::sync::Mutex::new(itens.into_iter().enumerate());
+    let prontos = std::sync::Mutex::new(Vec::with_capacity(n));
+    std::thread::scope(|escopo| {
+        for _ in 0..threads.min(n) {
+            escopo.spawn(|| {
+                let mut zip = archive.clone();
+                loop {
+                    let Some((i, item)) = fila.lock().unwrap().next() else { break };
+                    let r = f(&mut zip, item);
+                    prontos.lock().unwrap().push((i, r));
+                }
+            });
+        }
+    });
+    let mut prontos = prontos.into_inner().unwrap();
+    prontos.sort_by_key(|p| p.0);
+    prontos.into_iter().map(|p| p.1).collect()
+}
+
+fn entry_text(archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, path: &str) -> Result<String, String> {
     entry_text_com_limite(archive, path, LIMITE_ENTRADA_XML)
 }
 
 fn entry_text_com_limite(
-    archive: &mut ZipArchive<Cursor<Vec<u8>>>,
+    archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>,
     path: &str,
     limite: u64,
 ) -> Result<String, String> {
@@ -104,7 +134,7 @@ pub fn ler_xlsx_bytes(bytes: Vec<u8>) -> Result<serde_json::Value, String> {
     if bytes.len() > LIMITE_XLSX_BYTES {
         return Err(format!("Arquivo XLSX excede o limite de {} MB", LIMITE_XLSX_BYTES / (1024 * 1024)));
     }
-    let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(|e| format!("Não parece um arquivo ZIP: {e}"))?;
+    let mut archive = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes))).map_err(|e| format!("Não parece um arquivo ZIP: {e}"))?;
 
     let workbook_xml = entry_text(&mut archive, "xl/workbook.xml")?;
     let book = xml::parse_xml(&workbook_xml).map_err(|e| e.to_string())?;
@@ -170,7 +200,7 @@ pub fn ler_xlsx_bytes(bytes: Vec<u8>) -> Result<serde_json::Value, String> {
 /// Metadados não celulares do Excel, compartilhados pelos caminhos JSON e nativo.
 /// O caminho nativo mantém apenas o resumo de cada aba aqui, sem duplicar células.
 fn anexar_elementos(
-    archive: &mut ZipArchive<Cursor<Vec<u8>>>,
+    archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>,
     sheets_xml_por_indice: &[(String, String, bool)],
     sheets: &mut Vec<sheet::SheetJson>,
 ) -> Result<(), String> {
@@ -548,11 +578,19 @@ fn anexar_elementos(
         entry_text(archive, "xl/workbook.xml").ok().and_then(|t| xml::parse_xml(&t).ok())
             .map(|b| sheet::read_names(&b).into_iter().map(|n| (n.name, (n.sheet, (n.r0, n.c0, n.r1, n.c1)))).collect())
             .unwrap_or_default();
-    for fname in &zip_names {
-        if fname.to_lowercase().contains("charts/chart") && fname.ends_with(".xml") {
-            let xml_str = entry_text(archive, fname)?;
+    // O XML dos gráficos é lido em paralelo e sem os pontos guardados
+    // (`numCache/pt`): ninguém os lê, e eram 99% dos nós (585 KB de XML
+    // viravam 14 MB de árvore por gráfico).
+    // shortcut: o `strCache/pt` (categoria em texto) ainda entra na árvore; pular também se pesar.
+    let lidos = em_paralelo(archive, feathersheet_core::paralelismo::nucleos(), zip_names.iter().collect(), |zip, fname| {
+        let grafico = fname.to_lowercase().contains("charts/chart") && fname.ends_with(".xml");
+        (fname, grafico.then(|| entry_text(zip, fname)
+            .map(|t| xml::parse_xml_items_reader_result(t.as_bytes(), "numCache", "pt", &mut |_| Ok(())))))
+    });
+    for (fname, lido) in lidos {
+        if let Some(lido) = lido {
             let lugar = lugares.get(fname.as_str());
-            if let Ok(root) = xml::parse_xml(&xml_str) {
+            if let Ok(root) = lido? {
                 if let Some(ex) = graficos_ancora::ler_chartex(&root, &nomes_ocultos) {
                     let destino = match lugar {
                         Some(l) => sheets.get_mut(l.aba),
@@ -950,7 +988,7 @@ fn extras_da_dinamica(
 
 /// `cacheId` → caminho do `pivotCacheDefinition` no zip, pelo
 /// `<pivotCaches>` do workbook.xml e as relações do workbook.
-fn caminhos_dos_caches(archive: &mut ZipArchive<Cursor<Vec<u8>>>) -> std::collections::HashMap<String, String> {
+fn caminhos_dos_caches(archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> std::collections::HashMap<String, String> {
     let mut saida = std::collections::HashMap::new();
     let Ok(book) = entry_text(archive, "xl/workbook.xml").and_then(|t| xml::parse_xml(&t).map_err(|e| e.to_string())) else {
         return saida;
@@ -1028,7 +1066,7 @@ mod tests {
         // Limite artificial pequeno permite testar a protecao sem gastar RAM.
         let xml = "x".repeat(8_000);
         let zip = montar_xlsx(&[("xl/worksheets/sheet1.xml", &xml)]);
-        let mut arquivo = ZipArchive::new(Cursor::new(zip)).unwrap();
+        let mut arquivo = ZipArchive::new(Cursor::new(zip.into())).unwrap();
         let erro = entry_text_com_limite(
             &mut arquivo, "xl/worksheets/sheet1.xml", 512,
         ).unwrap_err();

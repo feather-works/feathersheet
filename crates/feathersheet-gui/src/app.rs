@@ -43,6 +43,8 @@ mod testes;
 #[cfg(test)]
 mod medir_colar_grande;
 #[cfg(test)]
+mod medir_travadas;
+#[cfg(test)]
 mod rolagem_zoom;
 mod explicacao_erro;
 mod duplicados_ui;
@@ -443,7 +445,7 @@ pub enum Msg {
     CaixasInserir, CaixaAlternar(u32, u32),
     Formatar(Formatacao), Estrutura(Estrutura), LinhasGrade(bool), RealceEixos(bool),
     EstiloMenu(String, Campo), AlternarEstilo(String), InserirMenu(Estrutura, bool),
-    InserirFuncao(String), MostrarCatalogoFuncoes, Formulas(formulas_ui::Evento), Inspecao(inspecao_ui::Evento),
+    InserirFuncao(String), InserirSimbolo(String), MostrarCatalogoFuncoes, Formulas(formulas_ui::Evento), Inspecao(inspecao_ui::Evento),
     /// Pedido do MCP ao vivo e a foto que ele pediu.
     Avaliar(avaliar_ui::Evento),
     Mcp(mcp_vivo::PedidoMcp), McpImagem(mcp_vivo::PedidoMcp, window::Screenshot),
@@ -523,7 +525,7 @@ pub enum Msg {
     Zoom(u16), ZoomMinimo(u16), ZoomMaximo(u16),
     Macros, MacroVisual(EventoVisual), MacroEditar(iced::widget::text_editor::Action), MacroExecutar,
     MacroAbrir, MacroLido(Result<Option<String>,String>), MacroSalvar, MacroDestino(Option<PathBuf>),
-    MacroNome(String), MacroNovoModulo, MacroGuardarModulo, MacroAbrirModulo(String), MacroExcluirModulo,
+    MacroNome(String), MacroNovoModulo, MacroComponentes, MacroGuardarModulo, MacroAbrirModulo(String), MacroExcluirModulo,
     MacroImportarCatalogo, MacroCatalogoLido(Result<Option<String>,String>),
     MacroExportarCatalogo, MacroDestinoCatalogo(Option<PathBuf>),
     MonitorPulso, ResumoPulso,

@@ -194,9 +194,13 @@ pub(super) fn desenhar_icone(f: &mut Frame, nome: &str, largura: f32, altura: f3
         .with_line_join(cv::LineJoin::Round).with_line_cap(cv::LineCap::Round));
 }
 
-/// Cor do texto da forma: branco sobre forma cheia, cinza-escuro sem preenchimento.
+/// Cor do texto da forma: branco sobre preenchimento escuro, cinza-escuro
+/// sem preenchimento ou sobre fundo claro (a caixa de texto é branca).
 pub(super) fn cor_texto(it: &ItemTela) -> Color {
-    if it.preenchimento.is_some() { Color::WHITE } else { Color::from_rgb8(32, 33, 36) }
+    match it.preenchimento {
+        Some(c) if 0.299 * c.r + 0.587 * c.g + 0.114 * c.b < 0.7 => Color::WHITE,
+        _ => Color::from_rgb8(32, 33, 36),
+    }
 }
 
 /// Tamanho da letra do texto da forma na tela.
@@ -227,10 +231,6 @@ pub(super) fn posicao_texto(r: Rectangle, a: modelo::AlinharTexto, z: f32) -> (P
 pub(super) fn cor_hex(hex: &str, transparencia: f32) -> Color {
     let [r, g, b, a] = feather_ui::seletor_cor::rgba_de(hex);
     Color::from_rgba8(r, g, b, f32::from(a) / 255.0 * (1.0 - transparencia).clamp(0.0, 1.0))
-}
-
-fn f_draw_svg(frame: &mut Frame, r: Rectangle, h: iced::widget::svg::Handle) {
-    frame.draw_svg(r, iced::advanced::svg::Svg::new(h));
 }
 
 /// O degradê do Office no retângulo `w` x `h` centrado na origem. `angulo`
@@ -452,15 +452,63 @@ impl GraficoTela {
     }
 }
 
-/// O pedaço `(x, y, w, h)` (unidades do SVG) do gráfico, rasterizado em
-/// `px_w` x `px_h`: o `draw_svg` do canvas não respeita o recorte, então o
-/// recorte vai no `viewBox`; e o tamanho em px inteiros evita borrão.
-pub(super) fn recortar_svg(svg: &str, (x, y, w, h): (f32, f32, f32, f32), px_w: u32, px_h: u32) -> Option<String> {
-    let ini = svg.find("<svg")?;
-    let fim = ini + svg[ini..].find('>')?;
-    let mut tag = String::from("<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"");
-    tag.push_str(&format!(" width=\"{px_w}\" height=\"{px_h}\" viewBox=\"{x:.2} {y:.2} {w:.2} {h:.2}\" preserveAspectRatio=\"none\""));
-    Some(format!("{}{tag}{}", &svg[..ini], &svg[fim..]))
+/// O gráfico rasterizado uma vez por tamanho (px inteiros evitam borrão).
+/// O `draw_svg` e o `draw_image` do canvas não respeitam o recorte, então o
+/// pedaço visível sai da imagem pronta. Antes cada quadro da rolagem montava
+/// um SVG novo (recorte no `viewBox`) e o Iced analisava e rasterizava o
+/// gráfico inteiro de novo: com 2.400 pontos por série, a rolagem travava.
+struct Raster {
+    rgba: iced::advanced::image::Bytes,
+    /// A imagem inteira, com id fixo: o Iced não a envia de novo à GPU.
+    inteira: iced::widget::image::Handle,
+}
+
+thread_local! {
+    static RASTERES: RefCell<(usize, std::collections::HashMap<(u64, u32, u32), Option<std::rc::Rc<Raster>>>)> = RefCell::default();
+}
+
+/// Teto das imagens guardadas; passou, recomeça (as visíveis voltam no próximo quadro).
+const TETO_RASTERES: usize = 128 * 1024 * 1024;
+
+fn fontes_svg() -> std::sync::Arc<resvg::usvg::fontdb::Database> {
+    static FONTES: std::sync::OnceLock<std::sync::Arc<resvg::usvg::fontdb::Database>> = std::sync::OnceLock::new();
+    FONTES.get_or_init(|| {
+        let mut db = resvg::usvg::fontdb::Database::new();
+        db.load_system_fonts();
+        std::sync::Arc::new(db)
+    }).clone()
+}
+
+// shortcut: rasteriza em px lógicos; numa tela HiDPI (escala > 1) sai borrado. Ler o fator de escala da janela se aparecer.
+fn raster(g: &GraficoTela, w: u32, h: u32) -> Option<std::rc::Rc<Raster>> {
+    RASTERES.with(|r| {
+        let (bytes, mapa) = &mut *r.borrow_mut();
+        if let Some(pronto) = mapa.get(&(g.chave, w, h)) {
+            return pronto.clone();
+        }
+        if *bytes > TETO_RASTERES {
+            mapa.clear();
+            *bytes = 0;
+        }
+        let pronto = (|| {
+            let opcoes = resvg::usvg::Options { fontdb: fontes_svg(), ..Default::default() };
+            let arvore = resvg::usvg::Tree::from_str(&g.svg, &opcoes).ok()?;
+            let mut img = resvg::tiny_skia::Pixmap::new(w, h)?;
+            let t = arvore.size();
+            resvg::render(&arvore, resvg::tiny_skia::Transform::from_scale(w as f32 / t.width(), h as f32 / t.height()), &mut img.as_mut());
+            let rgba = iced::advanced::image::Bytes::from(img.take());
+            Some(std::rc::Rc::new(Raster { inteira: iced::widget::image::Handle::from_rgba(w, h, rgba.clone()), rgba }))
+        })();
+        *bytes += (w * h * 4) as usize;
+        mapa.insert((g.chave, w, h), pronto.clone());
+        pronto
+    })
+}
+
+/// As linhas `y0..y1` e colunas `x0..x1` de uma imagem RGBA com `largura` px.
+fn recortar_rgba(rgba: &[u8], largura: u32, (x0, y0, x1, y1): (u32, u32, u32, u32)) -> Vec<u8> {
+    let (l, a, b) = (largura as usize * 4, x0 as usize * 4, x1 as usize * 4);
+    (y0 as usize..y1 as usize).flat_map(|y| &rgba[y * l + a..y * l + b]).copied().collect()
 }
 
 pub(super) struct Camada {
@@ -797,11 +845,20 @@ impl Camada {
         };
         let recorte = self.recorte(g.ret, tamanho);
         let Some(vis) = r.intersection(&recorte) else { return };
-        let (px_w, px_h) = (vis.width.round().max(1.0), vis.height.round().max(1.0));
-        let caixa = ((vis.x - r.x) / escala, (vis.y - r.y) / escala, vis.width / escala, vis.height / escala);
-        let Some(svg) = recortar_svg(&g.svg, caixa, px_w as u32, px_h as u32) else { return };
-        let h = iced::widget::svg::Handle::from_memory(svg.into_bytes());
-        f_draw_svg(frame, Rectangle { x: vis.x.round(), y: vis.y.round(), width: px_w, height: px_h }, h);
+        let (x, y) = (r.x.round(), r.y.round());
+        let (w, h) = (r.width.round().max(1.0) as u32, r.height.round().max(1.0) as u32);
+        let Some(img) = raster(g, w, h) else { return };
+        let corte = |v: f32, fim: u32| (v.round().max(0.0) as u32).min(fim);
+        let (x0, y0) = (corte(vis.x - x, w), corte(vis.y - y, h));
+        let (x1, y1) = (corte(vis.x + vis.width - x, w), corte(vis.y + vis.height - y, h));
+        if x1 <= x0 || y1 <= y0 { return; }
+        let handle = if (x0, y0, x1, y1) == (0, 0, w, h) {
+            img.inteira.clone()
+        } else {
+            iced::widget::image::Handle::from_rgba(x1 - x0, y1 - y0, recortar_rgba(&img.rgba, w, (x0, y0, x1, y1)))
+        };
+        let destino = Rectangle { x: x + x0 as f32, y: y + y0 as f32, width: (x1 - x0) as f32, height: (y1 - y0) as f32 };
+        frame.draw_image(destino, iced::advanced::image::Image::new(handle));
     }
 
     fn desenhar_recortado(&self, frame: &mut Frame, it: &ItemTela, ret: Retangulo, giro: f32, ajustes: &[f32], forma: &str, tamanho: iced::Size) {

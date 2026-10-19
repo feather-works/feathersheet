@@ -45,6 +45,8 @@ pub static CATEGORIES: &[(&str, &[&str])] = &[
             "COVARIANCE.P", "COVARIANCE.S", "PEARSON", "STANDARDIZE", "TRIMMEAN",
             "FORECAST.LINEAR", "SKEW.P", "MODE.MULT", "FISHER", "FISHERINV",
             "STEYX", "PROB", "F.TEST", "Z.TEST", "TREND", "GROWTH",
+            "LINEST", "LOGEST", "FORECAST.ETS", "FORECAST.ETS.CONFINT", "FORECAST.ETS.SEASONALITY", "FORECAST.ETS.STAT",
+            "NORM.DIST", "NORM.INV", "NORM.S.DIST", "NORMDIST", "NORMINV", "CHISQ.DIST", "CHISQ.TEST", "T.DIST", "T.TEST", "MODE.SNGL", "PERCENTILE.INC", "PERCENTRANK", "QUARTILE.INC", "STDEV.S", "STDEVP", "VAR.S", "VARP",
         ],
     ),
     (
@@ -57,6 +59,7 @@ pub static CATEGORIES: &[(&str, &[&str])] = &[
             "FILTER", "UNIQUE", "SORT", "TRANSPOSE", "SEQUENCE", "FREQUENCY", "MMULT", "MINVERSE",
             "MDETERM", "VSTACK", "HSTACK", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "TOCOL", "TOROW",
             "WRAPROWS", "WRAPCOLS", "EXPAND", "SORTBY", "RANDARRAY",
+            "GROUPBY", "PIVOTBY",
         ],
     ),
     (
@@ -65,6 +68,8 @@ pub static CATEGORIES: &[(&str, &[&str])] = &[
             "IF", "IFS", "IFERROR", "AND", "OR", "NOT", "XOR", "TRUE", "FALSE", "ISERROR",
             "ISBLANK", "ISNUMBER", "ISTEXT", "ISERR", "ISNA", "ISLOGICAL", "ISNONTEXT",
             "ERROR.TYPE", "TYPE", "N",
+            "BYROW", "BYCOL", "SCAN", "MAKEARRAY", "ISOMITTED",
+            "SWITCH", "IFNA", "NA", "LET", "LAMBDA", "MAP", "REDUCE",
         ],
     ),
     (
@@ -75,6 +80,8 @@ pub static CATEGORIES: &[(&str, &[&str])] = &[
             "CHAR", "CODE", "CLEAN", "EXACT", "T", "DOLLAR", "FIXED", "NUMBERVALUE", "UNICHAR", "UNICODE", "REPLACE",
             "TEXTAFTER", "TEXTBEFORE", "ARRAYTOTEXT", "VALUETOTEXT", "REGEXTEST",
             "LENB", "LEFTB", "RIGHTB", "MIDB", "FINDB", "SEARCHB", "REPLACEB", "ENCODEURL",
+            "ASC", "DBCS", "BAHTTEXT", "PHONETIC",
+            "CONCATENATE", "TEXTJOIN", "TEXTSPLIT", "JOIN", "REGEXEXTRACT", "REGEXMATCH", "REGEXREPLACE",
         ],
     ),
     (
@@ -82,11 +89,12 @@ pub static CATEGORIES: &[(&str, &[&str])] = &[
         &[
             "VLOOKUP", "HLOOKUP", "XLOOKUP", "INDEX", "MATCH", "CHOOSE", "ROW", "COLUMN", "ROWS",
             "COLUMNS", "LOOKUP", "XMATCH", "ADDRESS", "HYPERLINK", "ISREF",
+            "OFFSET", "INDIRECT", "TRIMRANGE", "AREAS", "FORMULATEXT", "ISFORMULA", "SHEET", "SHEETS", "CELL", "INFO", "GETPIVOTDATA",
         ],
     ),
     (
         "Data e hora",
-        &["TODAY", "NOW", "DATE", "DATEDIF", "YEAR", "MONTH", "DAY", "WEEKDAY", "HOUR", "MINUTE", "SECOND", "TIME", "DATEVALUE", "TIMEVALUE", "DAYS", "DAYS360", "ISOWEEKNUM", "YEARFRAC", "NETWORKDAYS.INTL", "WORKDAY.INTL"],
+        &["TODAY", "NOW", "DATE", "DATEDIF", "YEAR", "MONTH", "DAY", "WEEKDAY", "HOUR", "MINUTE", "SECOND", "TIME", "DATEVALUE", "TIMEVALUE", "DAYS", "DAYS360", "ISOWEEKNUM", "YEARFRAC", "NETWORKDAYS.INTL", "WORKDAY.INTL", "EDATE", "EOMONTH", "WORKDAY", "NETWORKDAYS", "WEEKNUM"],
     ),
     (
         "Engenharia",
@@ -99,9 +107,10 @@ pub static CATEGORIES: &[(&str, &[&str])] = &[
             "IMCOT", "IMCSC", "IMCSCH", "IMDIV", "IMEXP", "IMLN", "IMLOG10", "IMLOG2", "IMPOWER",
             "IMPRODUCT", "IMREAL", "IMSEC", "IMSECH", "IMSIN", "IMSINH", "IMSQRT", "IMSUB", "IMSUM",
             "IMTAN", "CONVERT", "BESSELJ", "BESSELI",
+            "BESSELK", "BESSELY",
         ],
     ),
-    ("Fonte de dados", &["IMPORTDATA", "IMPORTJSON", "FETCHTEXT"]),
+    ("Fonte de dados", &["IMPORTDATA", "IMPORTJSON", "FETCHTEXT", "FILTERXML", "WEBSERVICE", "CUBEKPIMEMBER", "CUBEMEMBER", "CUBEMEMBERPROPERTY", "CUBERANKEDMEMBER", "CUBESET", "CUBESETCOUNT", "CUBEVALUE", "RTD", "CALL", "REGISTER.ID", "STOCKHISTORY", "TRANSLATE", "DETECTLANGUAGE"]),
     (
         "Financeiras",
         &[
@@ -110,6 +119,7 @@ pub static CATEGORIES: &[(&str, &[&str])] = &[
             "RATE", "CUMIPMT", "CUMPRINC", "XNPV", "XIRR", "IRR", "MIRR", "FVSCHEDULE",
             "DISC", "PRICEDISC", "YIELDDISC", "INTRATE", "RECEIVED", "TBILLPRICE", "TBILLYIELD", "TBILLEQ",
             "PRICEMAT", "YIELDMAT", "ACCRINTM",
+            "ACCRINT", "AMORDEGRC", "AMORLINC", "COUPDAYBS", "COUPDAYS", "COUPDAYSNC", "COUPNCD", "COUPNUM", "COUPPCD", "DURATION", "MDURATION", "ODDFPRICE", "ODDFYIELD", "ODDLPRICE", "ODDLYIELD", "PRICE", "YIELD", "EUROCONVERT",
         ],
     ),
 ];

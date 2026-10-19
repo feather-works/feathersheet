@@ -240,7 +240,7 @@ fn caixa(xfrm: Option<&XmlNode>, off: &str, ext: &str) -> Option<(f64, f64, f64,
 }
 
 /// Uma figura do zip como `data:` URI.
-fn figura(zip: &mut ZipArchive<Cursor<Vec<u8>>>, caminho: &str) -> Option<String> {
+fn figura(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &str) -> Option<String> {
     let mime = match caminho.rsplit('.').next()?.to_ascii_lowercase().as_str() {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
@@ -297,7 +297,7 @@ fn transformar(o: &mut ObjetoSolto, xfrm: Option<&XmlNode>) {
 
 impl Leitura<'_> {
     /// Um elemento do desenho no retângulo `ret` (px absolutos).
-    fn elemento(&mut self, zip: &mut ZipArchive<Cursor<Vec<u8>>>, no: &XmlNode, ret: Retangulo, herdado: &Herdado) {
+    fn elemento(&mut self, zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, no: &XmlNode, ret: Retangulo, herdado: &Herdado) {
         match no.name.as_str() {
             "sp" | "cxnSp" => self.forma(no, ret, herdado),
             "pic" => self.imagem(zip, no, ret),
@@ -346,7 +346,7 @@ impl Leitura<'_> {
         self.saida.push(o);
     }
 
-    fn imagem(&mut self, zip: &mut ZipArchive<Cursor<Vec<u8>>>, pic: &XmlNode, ret: Retangulo) {
+    fn imagem(&mut self, zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, pic: &XmlNode, ret: Retangulo) {
         let Some(blip_fill) = pic.child("blipFill") else { return };
         let Some(blip) = blip_fill.child("blip") else { return };
         let Some(alvo) = blip.attr("r:embed").and_then(|id| self.rels.get(id)) else { return };
@@ -376,7 +376,7 @@ impl Leitura<'_> {
     }
 
     /// Grupo: os filhos estão no espaço `chOff`/`chExt`, levado ao `ret`.
-    fn grupo(&mut self, zip: &mut ZipArchive<Cursor<Vec<u8>>>, g: &XmlNode, ret: Retangulo, herdado: &Herdado) {
+    fn grupo(&mut self, zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, g: &XmlNode, ret: Retangulo, herdado: &Herdado) {
         let pr = g.child("grpSpPr");
         let xfrm = pr.and_then(|p| p.child("xfrm"));
         let filhos = caixa(xfrm, "chOff", "chExt").filter(|c| c.2 > 0.0 && c.3 > 0.0);
@@ -440,7 +440,7 @@ fn retangulo_da_ancora(a: &XmlNode, regua: &ReguaLida) -> Option<Retangulo> {
 
 /// Lê um `drawingN.xml` (texto) com as relações dele.
 fn ler_desenho(
-    zip: &mut ZipArchive<Cursor<Vec<u8>>>, caminho: &str, xml: &XmlNode, regua: &ReguaLida, pular_com_texto: bool,
+    zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &str, xml: &XmlNode, regua: &ReguaLida, pular_com_texto: bool,
 ) -> Vec<ObjetoSolto> {
     let (dir, arq) = caminho.rsplit_once('/').unwrap_or(("", caminho));
     let rels = entry_text(zip, &format!("{dir}/_rels/{arq}.rels")).map(|t| read_rels(&t)).unwrap_or_default();
@@ -460,7 +460,7 @@ fn ler_desenho(
 /// `pular_com_texto`: no `.xlsm` a forma com macro e texto vira botão
 /// (`importar_vba`); fica de fora para não aparecer duas vezes.
 pub(super) fn objetos_dos_desenhos(
-    zip: &mut ZipArchive<Cursor<Vec<u8>>>, reguas: &[ReguaLida], pular_com_texto: bool,
+    zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, reguas: &[ReguaLida], pular_com_texto: bool,
 ) -> Vec<(usize, Vec<ObjetoSolto>)> {
     let mut saida = Vec::new();
     for (aba, d) in desenhos_por_aba(zip) {
@@ -476,7 +476,7 @@ pub(super) fn objetos_dos_desenhos(
 const MAX_LINHAS_PAINEL: u32 = 5_000;
 
 /// `defaultRowHeight` (pt) do `<sheetFormatPr>`, lido do começo da aba.
-fn altura_padrao_pt(zip: &mut ZipArchive<Cursor<Vec<u8>>>, folha: &str) -> Option<f64> {
+fn altura_padrao_pt(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, folha: &str) -> Option<f64> {
     let mut f = zip.by_name(folha).ok()?;
     let mut buf = vec![0u8; 64 * 1024];
     let mut n = 0;
@@ -495,7 +495,7 @@ fn altura_padrao_pt(zip: &mut ZipArchive<Cursor<Vec<u8>>>, folha: &str) -> Optio
 }
 
 /// Última linha (base 0) citada pelas âncoras de um desenho.
-fn ultima_linha_do_desenho(zip: &mut ZipArchive<Cursor<Vec<u8>>>, desenho: &str) -> Option<u32> {
+fn ultima_linha_do_desenho(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, desenho: &str) -> Option<u32> {
     let xml = entry_text(zip, desenho).and_then(|t| parse_xml(&t)).ok()?;
     xml.children.iter().filter(|c| c.name.ends_with("Anchor"))
         .flat_map(|a| [a.child("from"), a.child("to")])
@@ -510,7 +510,7 @@ fn ultima_linha_do_desenho(zip: &mut ZipArchive<Cursor<Vec<u8>>>, desenho: &str)
 /// Só até a última linha usada (desenho ou célula), e só em aba pequena.
 /// `ultima_celula[i]` = última linha com dado da aba `i`.
 pub(super) fn alturas_das_abas_com_desenho(
-    zip: &mut ZipArchive<Cursor<Vec<u8>>>, folhas: &[String], ultima_celula: &[u32],
+    zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, folhas: &[String], ultima_celula: &[u32],
 ) -> Vec<(usize, f32, u32)> {
     let mut saida: Vec<(usize, f32, u32)> = Vec::new();
     for (aba, d) in desenhos_por_aba(zip) {
@@ -529,7 +529,7 @@ pub(super) fn alturas_das_abas_com_desenho(
 }
 
 /// `(índice da aba, caminho do desenho)` de cada desenho ligado a uma aba.
-pub(super) fn desenhos_por_aba(zip: &mut ZipArchive<Cursor<Vec<u8>>>) -> Vec<(usize, String)> {
+pub(super) fn desenhos_por_aba(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> Vec<(usize, String)> {
     let mut saida = Vec::new();
     let Ok(book) = entry_text(zip, "xl/workbook.xml").and_then(|t| parse_xml(&t)) else { return saida };
     let rels_book = entry_text(zip, "xl/_rels/workbook.xml.rels").map(|t| read_rels(&t)).unwrap_or_default();
@@ -554,13 +554,13 @@ mod testes {
     use super::*;
     use std::io::Write;
 
-    fn zip_de(arquivos: &[(&str, &[u8])]) -> ZipArchive<Cursor<Vec<u8>>> {
+    fn zip_de(arquivos: &[(&str, &[u8])]) -> ZipArchive<Cursor<std::sync::Arc<[u8]>>> {
         let mut w = zip::ZipWriter::new(Cursor::new(Vec::new()));
         for (nome, dados) in arquivos {
             w.start_file(*nome, zip::write::SimpleFileOptions::default()).unwrap();
             w.write_all(dados).unwrap();
         }
-        ZipArchive::new(Cursor::new(w.finish().unwrap().into_inner())).unwrap()
+        ZipArchive::new(Cursor::new(w.finish().unwrap().into_inner().into())).unwrap()
     }
 
     fn regua() -> ReguaLida {

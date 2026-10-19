@@ -103,6 +103,18 @@ pub trait EvalContext {
     fn cor_celula(&self, _row: u32, _col: u32, _sheet: Option<&str>, _fonte: bool) -> Option<String> {
         None
     }
+
+    /// O texto da fórmula guardada na célula (com o `=`), ou `None` se a
+    /// célula não tem fórmula. É o que `FÓRMULATEXTO` e `ÉFÓRMULA` leem.
+    fn formula_de(&self, _row: u32, _col: u32, _sheet: Option<&str>) -> Option<String> {
+        None
+    }
+
+    /// Os nomes das abas da pasta, na ordem das guias, e a aba desta fórmula
+    /// (`PLAN`, `PLANS`, `INFORMAÇÃO`). Vazio: o contexto não conhece a pasta.
+    fn abas(&self) -> (Vec<String>, Option<String>) {
+        (Vec::new(), None)
+    }
 }
 
 /// Acima disto um intervalo não vira matriz: seria memória demais à toa.
@@ -120,6 +132,12 @@ fn sem_zero_negativo(c: Computed) -> Computed {
 
 pub fn sheet_rect() -> Rect {
     Rect::new(0, 0, MAX_ROWS - 1, MAX_COLS - 1)
+}
+
+/// A chave escondida no ambiente que diz que o parâmetro da LAMBDA não veio
+/// (`ÉOMITIDO`). Começa com um caractere que nenhum nome digitado tem.
+pub fn marca_omitido(param: &str) -> String {
+    format!("\u{1}OMITIDO:{}", param.to_uppercase())
 }
 
 pub struct Evaluator<'a> {
@@ -161,10 +179,15 @@ impl<'a> Evaluator<'a> {
         let mut env = lambda.closure.clone();
         for (i, p) in lambda.params.iter().enumerate() {
             let val = match args.get(i) {
+                Some(ArgOrValue::Node(Node::Blank)) | None => {
+                    env.insert(marca_omitido(p), Computed::Scalar(Value::Bool(true)));
+                    env.insert(p.to_uppercase(), Computed::Scalar(Value::Empty));
+                    continue;
+                }
                 Some(ArgOrValue::Node(n)) => self.eval_array(n),
                 Some(ArgOrValue::Value(v)) => v.clone(),
-                None => Computed::Scalar(Value::Empty),
             };
+            env.remove(&marca_omitido(p));
             env.insert(p.to_uppercase(), val);
         }
         let filho = Evaluator { ctx: self.ctx, env, here: self.here };
@@ -287,7 +310,7 @@ impl<'a> Evaluator<'a> {
                     "MAP" | "MAPEAR" => self.eval_map(args),
                     "REDUCE" | "REDUZIR" => self.eval_reduce(args),
                     _ => match functions::lookup(&maiusculo) {
-                        Some(f) => sem_zero_negativo(f(args, self)),
+                        Some(f) => sem_zero_negativo(f(&self.resolver_referencias(args), self)),
                         None if self.ctx.funcao_externa(&maiusculo) => self.chamar_externa(&maiusculo, args),
                         None => Computed::Scalar(Value::Error(CellError::com_motivo(
                             ErrorCode::Name,
@@ -444,6 +467,27 @@ impl<'a> Evaluator<'a> {
 
 
 
+    /// Troca os argumentos que são `DESLOC`/`INDIRETO`/`AJUSTARINTERVALO`
+    /// pela referência que eles devolvem: assim `SOMA(DESLOC(A1;0;0;9))`
+    /// soma o intervalo e `LIN(INDIRETO("B7"))` vê a referência, como no
+    /// Excel. Sem nenhum deles, nada é copiado.
+    pub fn resolver_referencias<'n>(&self, args: &'n [Node]) -> std::borrow::Cow<'n, [Node]> {
+        use crate::funcoes::fn_referencia::{devolve_referencia, referencia};
+        let e_ref = |a: &Node| matches!(a, Node::Call { name, .. } if devolve_referencia(name));
+        if !args.iter().any(e_ref) {
+            return std::borrow::Cow::Borrowed(args);
+        }
+        std::borrow::Cow::Owned(
+            args.iter()
+                .map(|a| match a {
+                    Node::Call { name, args: dentro } if devolve_referencia(name) => referencia(name, dentro, self)
+                        .unwrap_or_else(|e| Node::Error(e.code.as_str().to_string())),
+                    outro => outro.clone(),
+                })
+                .collect(),
+        )
+    }
+
     /// Um intervalo vira matriz — é isso que faz `B2:B9>10` produzir uma
     /// coluna de verdadeiro/falso, como no Excel. Intervalo gigante continua
     /// colapsando no primeiro valor, para não estourar a memória.
@@ -582,6 +626,8 @@ impl<'a> Evaluator<'a> {
                 c1: *c1,
                 sheet: sheet.clone(),
             }),
+            // Variável de LET/LAMBDA não é intervalo nomeado: vai pelo valor.
+            Node::Name(name) if self.env.contains_key(&name.to_uppercase()) => None,
             Node::Name(name) => match self.ctx.resolve_name(name) {
                 Some(r) => Some(r),
                 None => {

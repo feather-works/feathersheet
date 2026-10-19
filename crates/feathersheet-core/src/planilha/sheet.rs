@@ -1932,6 +1932,10 @@ pub trait Hospedeiro {
     fn aba_no_endereco(&self, _endereco: usize) -> Option<&Sheet> {
         None
     }
+    /// Os nomes das abas, na ordem das guias.
+    fn nomes_das_abas(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// Se a fórmula lê algo de fora da própria aba: outra aba ou um nome.
@@ -2052,6 +2056,16 @@ impl<'a> EvalContext for SheetCtx<'a> {
     fn cor_celula(&self, row: u32, col: u32, sheet: Option<&str>, fonte: bool) -> Option<String> {
         self.alvo(sheet)?.cor_celula(row, col, fonte)
     }
+
+    fn formula_de(&self, row: u32, col: u32, sheet: Option<&str>) -> Option<String> {
+        Some(self.alvo(sheet)?.get_raw(row, col)).filter(|r| r.starts_with('='))
+    }
+
+    fn abas(&self) -> (Vec<String>, Option<String>) {
+        let nomes = self.host.map(|h| h.nomes_das_abas()).filter(|n| !n.is_empty())
+            .unwrap_or_else(|| vec![self.sheet.name.clone()]);
+        (nomes, Some(self.sheet.name.clone()))
+    }
 }
 
 #[cfg(test)]
@@ -2096,6 +2110,19 @@ impl Rastro {
     pub fn desconhecer(&mut self) {
         self.desconhecido = true;
         self.chaves = Vec::new();
+    }
+
+    /// Um rastro vazio e sabido: para medir só o que uma ação toca.
+    pub fn sabido() -> Self {
+        Rastro { chaves: Vec::new(), desconhecido: false }
+    }
+
+    /// Soma ao rastro o que [`Self::tirar`] devolveu de outro.
+    pub fn juntar(&mut self, tocadas: Option<&[CellKey]>) {
+        match tocadas {
+            Some(ks) => for &k in ks { self.anotar(k) },
+            None => self.desconhecer(),
+        }
     }
 
     /// As chaves tocadas (sem repetição), ou `None` quando não se sabe; e

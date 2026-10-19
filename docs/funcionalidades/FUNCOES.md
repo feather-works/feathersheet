@@ -589,6 +589,50 @@ Devolve a probabilidade do teste qui-quadrado de independência.
 
 Outros apelidos aceitos: `TESTEQUI`
 
+### PROJ.LIN (`LINEST`)
+
+`PROJ.LIN(y_conhecidos; [x_conhecidos]; [constante]; [estatísticas])`
+
+Regressão linear por mínimos quadrados (uma ou várias variáveis): coeficientes mₙ…m₁ e b; com estatísticas, também erros padrão, R², F e somas de quadrados.
+
+### PROJ.LOG (`LOGEST`)
+
+`PROJ.LOG(y_conhecidos; [x_conhecidos]; [constante]; [estatísticas])`
+
+Curva exponencial y = b·m₁^x₁·…: devolve mₙ…m₁ e b (e as estatísticas, na escala do logaritmo).
+
+### PREVISÃO.ETS (`FORECAST.ETS`)
+
+`PREVISÃO.ETS(data_alvo; valores; linha_do_tempo; [sazonalidade]; [conclusão_dados]; [agregação])`
+
+Previsão por suavização exponencial tripla (tendência e sazonalidade aditivas). Sazonalidade 1 detecta sozinha, 0 desliga.
+
+Outros apelidos aceitos: `PREVISAO.ETS`
+
+### PREVISÃO.ETS.CONFINT (`FORECAST.ETS.CONFINT`)
+
+`PREVISÃO.ETS.CONFINT(data_alvo; valores; linha_do_tempo; [nível_confiança]; [sazonalidade]; [conclusão_dados]; [agregação])`
+
+Meia largura do intervalo de confiança da PREVISÃO.ETS na data alvo (95% por padrão).
+
+Outros apelidos aceitos: `PREVISAO.ETS.CONFINT`
+
+### PREVISÃO.ETS.SAZONALIDADE (`FORECAST.ETS.SEASONALITY`)
+
+`PREVISÃO.ETS.SAZONALIDADE(valores; linha_do_tempo; [conclusão_dados]; [agregação])`
+
+Tamanho da estação que a PREVISÃO.ETS detecta (0 = sem sazonalidade).
+
+Outros apelidos aceitos: `PREVISAO.ETS.SAZONALIDADE`
+
+### PREVISÃO.ETS.STAT (`FORECAST.ETS.STAT`)
+
+`PREVISÃO.ETS.STAT(valores; linha_do_tempo; tipo_estatística; [sazonalidade]; [conclusão_dados]; [agregação])`
+
+Estatística do modelo da PREVISÃO.ETS: 1 alfa, 2 beta, 3 gama, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 passo.
+
+Outros apelidos aceitos: `PREVISAO.ETS.STAT`
+
 ## Matriz dinâmica
 
 ### FILTRO (`FILTER`)
@@ -656,6 +700,18 @@ Matriz inversa de uma matriz quadrada.
 `MATRIZ.DETERM(matriz)`
 
 Determinante de uma matriz quadrada.
+
+### AGRUPARPOR (`GROUPBY`)
+
+`AGRUPARPOR(campos_linha; valores; função; [cabeçalhos]; [profundidade_total]; [ordem]; [filtro]; [relação])`
+
+Agrupa os valores pelos campos e aplica a função a cada grupo, com total. Ex.: =AGRUPARPOR(A2:A9;C2:C9;SOMA).
+
+### PIVOTARPOR (`PIVOTBY`)
+
+`PIVOTARPOR(campos_linha; campos_coluna; valores; função; [cabeçalhos]; [total_linhas]; [ordem_linhas]; [total_colunas]; [ordem_colunas]; [filtro]; [relativo_a])`
+
+Tabela cruzada: linhas por um campo, colunas por outro, a função em cada cruzamento e os totais. Ex.: =PIVOTARPOR(A2:A9;B2:B9;C2:C9;SOMA).
 
 ## Lógica
 
@@ -762,6 +818,38 @@ Outros apelidos aceitos: `PARAMETRO`
 *(sem descrição cadastrada ainda)*
 
 Outros apelidos aceitos: `NAODISP`
+
+### PORLINHA (`BYROW`)
+
+`PORLINHA(matriz; lambda)`
+
+Aplica a LAMBDA (ou o nome de uma função) a cada linha e devolve uma coluna. Ex.: =PORLINHA(A1:C3;LAMBDA(l;SOMA(l))).
+
+### PORCOL (`BYCOL`)
+
+`PORCOL(matriz; lambda)`
+
+Aplica a LAMBDA (ou o nome de uma função) a cada coluna e devolve uma linha. Ex.: =PORCOL(A1:C3;MÁXIMO).
+
+### VARRER (`SCAN`)
+
+`VARRER([valor_inicial]; matriz; lambda)`
+
+Como REDUZIR, mas devolve cada passo do acumulador. Ex.: =VARRER(0;A1:A5;LAMBDA(a;v;a+v)) dá a soma acumulada.
+
+### CRIARMATRIZ (`MAKEARRAY`)
+
+`CRIARMATRIZ(linhas; colunas; lambda)`
+
+Monta uma matriz chamando a LAMBDA(linha; coluna) em cada posição. Ex.: =CRIARMATRIZ(3;3;LAMBDA(l;c;l*c)).
+
+### ÉOMITIDO (`ISOMITTED`)
+
+`ÉOMITIDO(argumento)`
+
+Dentro de uma LAMBDA, VERDADEIRO se o parâmetro não foi passado.
+
+Outros apelidos aceitos: `EOMITIDO`
 
 ## Texto
 
@@ -887,6 +975,32 @@ Divide o texto em colunas e linhas.
 
 Junta valores com um delimitador.
 
+### ASC
+
+`ASC(texto)`
+
+Troca letras, dígitos e símbolos de largura inteira pelos de meia largura.
+
+### DBCS
+
+`DBCS(texto)`
+
+Troca letras, dígitos e símbolos de meia largura pelos de largura inteira.
+
+### BAHTTEXT
+
+`BAHTTEXT(núm)`
+
+O valor em baht por extenso, em tailandês.
+
+### FONÉTICA (`PHONETIC`)
+
+`FONÉTICA(ref)`
+
+Texto fonético (furigana) da célula; sem ele, o próprio texto.
+
+Outros apelidos aceitos: `FONETICA`
+
 ## Pesquisa e referência
 
 ### PROCV (`VLOOKUP`)
@@ -950,6 +1064,82 @@ Quantidade de linhas do intervalo.
 `COLS(intervalo)`
 
 Quantidade de colunas do intervalo.
+
+### DESLOC (`OFFSET`)
+
+`DESLOC(ref; linhas; colunas; [altura]; [largura])`
+
+Referência deslocada de linhas e colunas a partir de ref, com a altura e a largura pedidas. Ex.: =SOMA(DESLOC(A1;0;0;3)) soma A1:A3.
+
+### INDIRETO (`INDIRECT`)
+
+`INDIRETO(texto_ref; [a1])`
+
+Referência escrita como texto ("B7", "Dados!A1:C9" ou um nome); a1 FALSO lê o estilo L1C1. Ex.: =INDIRETO("A"&B1).
+
+### AJUSTARINTERVALO (`TRIMRANGE`)
+
+`AJUSTARINTERVALO(intervalo; [aparar_linhas]; [aparar_colunas])`
+
+O intervalo sem as linhas e colunas vazias das bordas. 0 não apara, 1 só no começo, 2 só no fim, 3 nos dois (padrão). Ex.: =AJUSTARINTERVALO(A:A).
+
+### ÁREAS (`AREAS`)
+
+`ÁREAS(ref)`
+
+Quantas áreas a referência tem.
+
+### FÓRMULATEXTO (`FORMULATEXT`)
+
+`FÓRMULATEXTO(ref)`
+
+O texto da fórmula da célula; sem fórmula, #N/D.
+
+Outros apelidos aceitos: `FORMULATEXTO`
+
+### ÉFÓRMULA (`ISFORMULA`)
+
+`ÉFÓRMULA(ref)`
+
+VERDADEIRO se a célula tem fórmula.
+
+Outros apelidos aceitos: `EFORMULA`, `ÉFORMULA`
+
+### PLAN (`SHEET`)
+
+`PLAN([valor])`
+
+Número da aba (1 = a primeira guia) da referência, do nome em texto ou, sem argumento, da aba da fórmula.
+
+### PLANS (`SHEETS`)
+
+`PLANS([ref])`
+
+Quantas abas a pasta tem (sem argumento) ou a referência cobre.
+
+### CÉL (`CELL`)
+
+`CÉL(tipo_info; [ref])`
+
+Informação da célula: "endereço", "col", "lin", "conteúdo", "tipo" (b vazia, l texto, v valor), "prefixo", "formato", "largura", "proteger".
+
+Outros apelidos aceitos: `CEL`
+
+### INFORMAÇÃO (`INFO`)
+
+`INFORMAÇÃO(tipo)`
+
+Informação do ambiente: "numarquivo" (abas), "origem", "versãoso", "recalc", "versão", "sistema", "diretório".
+
+Outros apelidos aceitos: `INFORMACAO`
+
+### INFODADOSTABELADINÂMICA (`GETPIVOTDATA`)
+
+`INFODADOSTABELADINÂMICA(campo_dados; tabela; [campo1]; [item1]; …)`
+
+Valor de uma tabela dinâmica desenhada na planilha: o campo de dados, uma célula da tabela e pares campo/item. Sem pares, o Total Geral.
+
+Outros apelidos aceitos: `INFODADOSTABELADINAMICA`
 
 ## Data e hora
 
@@ -1061,6 +1251,100 @@ Devolve o conteúdo de um endereço como texto cru, sem interpretar.
 
 Outros apelidos aceitos: `BUSCARTEXTO`
 
+### FILTROXML (`FILTERXML`)
+
+`FILTROXML(xml; xpath)`
+
+Valores de um texto XML pelo caminho XPath (/a/b, //b, [1], [@id='x'], /@atributo, text()). Ex.: =FILTROXML(A1;"//item").
+
+### SERVIÇOWEB (`WEBSERVICE`)
+
+`SERVIÇOWEB(url)`
+
+O texto que a URL devolve (só pedido explícito, de mão única: nada da planilha é enviado).
+
+Outros apelidos aceitos: `SERVICOWEB`
+
+### MEMBROKPICUBO (`CUBEKPIMEMBER`)
+
+`MEMBROKPICUBO(conexão; nome_kpi; propriedade_kpi; [legenda])`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### MEMBROCUBO (`CUBEMEMBER`)
+
+`MEMBROCUBO(conexão; expressão_membro; [legenda])`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### PROPRIEDADEMEMBROCUBO (`CUBEMEMBERPROPERTY`)
+
+`PROPRIEDADEMEMBROCUBO(conexão; expressão_membro; propriedade)`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### MEMBROCLASSIFICADOCUBO (`CUBERANKEDMEMBER`)
+
+`MEMBROCLASSIFICADOCUBO(conexão; expressão_conjunto; classificação; [legenda])`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### CONJUNTOCUBO (`CUBESET`)
+
+`CONJUNTOCUBO(conexão; expressão_conjunto; [legenda]; [ordem]; [classificar_por])`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### CONTAGEMCONJUNTOCUBO (`CUBESETCOUNT`)
+
+`CONTAGEMCONJUNTOCUBO(conjunto)`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### VALORCUBO (`CUBEVALUE`)
+
+`VALORCUBO(conexão; [expressão_membro1]; …)`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### RTD
+
+`RTD(id_prog; servidor; tópico1; [tópico2]; …)`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### CHAMAR (`CALL`)
+
+`CHAMAR(…)`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### REGISTRO.ID (`REGISTER.ID`)
+
+`REGISTRO.ID(…)`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### HISTÓRICODEAÇÕES (`STOCKHISTORY`)
+
+`HISTÓRICODEAÇÕES(ação; data_inicial; [data_final]; [intervalo]; [cabeçalhos]; …)`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+Outros apelidos aceitos: `HISTORICODEACOES`
+
+### TRADUZIR (`TRANSLATE`)
+
+`TRADUZIR(texto; [idioma_origem]; [idioma_destino])`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
+### DETECTARIDIOMA (`DETECTLANGUAGE`)
+
+`DETECTARIDIOMA(texto)`
+
+Reconhecida para abrir arquivos do Excel; devolve #N/D, porque precisa de servidor, DLL ou serviço na internet, e o FeatherSheet roda tudo no computador.
+
 ## Imagem
 
 ### IMAGEM (`IMAGE`)
@@ -1090,3 +1374,145 @@ Extrai o trecho que casa com a expressão regular.
 `REGEXSUBSTITUIR(texto; expressao; substituicao)`
 
 Substitui o padrão encontrado pela expressão regular.
+
+## Engenharia
+
+### BESSELK
+
+`BESSELK(x; n)`
+
+Função de Bessel modificada de segunda espécie Kn(x), x > 0. Ex.: =BESSELK(1,5;1) dá 0,277388.
+
+### BESSELY
+
+`BESSELY(x; n)`
+
+Função de Bessel de segunda espécie Yn(x), x > 0. Ex.: =BESSELY(2,5;1) dá 0,145918.
+
+## Financeiras
+
+### JUROSACUM (`ACCRINT`)
+
+`JUROSACUM(emissão; primeiro_juro; liquidação; taxa; valor_nominal; frequência; [base]; [método_cálculo])`
+
+Juros acumulados de um título que paga juros periódicos.
+
+### AMORDEGRC
+
+`AMORDEGRC(custo; data_compra; primeiro_período; residual; período; taxa; [base])`
+
+Depreciação de cada período no sistema francês, com coeficiente pela vida útil.
+
+### AMORLINC
+
+`AMORLINC(custo; data_compra; primeiro_período; residual; período; taxa; [base])`
+
+Depreciação linear de cada período no sistema francês (primeiro período proporcional).
+
+### CUPDIASINLIQ (`COUPDAYBS`)
+
+`CUPDIASINLIQ(liquidação; vencimento; frequência; [base])`
+
+Dias do início do período de cupom até a liquidação.
+
+### CUPDIAS (`COUPDAYS`)
+
+`CUPDIAS(liquidação; vencimento; frequência; [base])`
+
+Dias do período de cupom que contém a liquidação.
+
+### CUPDIASPRÓX (`COUPDAYSNC`)
+
+`CUPDIASPRÓX(liquidação; vencimento; frequência; [base])`
+
+Dias da liquidação até o próximo cupom.
+
+Outros apelidos aceitos: `CUPDIASPROX`
+
+### CUPDATAPRÓX (`COUPNCD`)
+
+`CUPDATAPRÓX(liquidação; vencimento; frequência; [base])`
+
+Data do próximo cupom depois da liquidação.
+
+Outros apelidos aceitos: `CUPDATAPROX`
+
+### CUPNÚM (`COUPNUM`)
+
+`CUPNÚM(liquidação; vencimento; frequência; [base])`
+
+Quantos cupons faltam pagar entre a liquidação e o vencimento.
+
+Outros apelidos aceitos: `CUPNUM`
+
+### CUPDATAANT (`COUPPCD`)
+
+`CUPDATAANT(liquidação; vencimento; frequência; [base])`
+
+Data do último cupom antes da liquidação.
+
+### DURAÇÃO (`DURATION`)
+
+`DURAÇÃO(liquidação; vencimento; cupom; lucro; frequência; [base])`
+
+Duração de Macaulay de um título com cupom, em anos.
+
+Outros apelidos aceitos: `DURACAO`
+
+### MDURAÇÃO (`MDURATION`)
+
+`MDURAÇÃO(liquidação; vencimento; cupom; lucro; frequência; [base])`
+
+Duração modificada (Macaulay dividida por 1 + lucro/frequência).
+
+Outros apelidos aceitos: `MDURACAO`
+
+### PREÇOPRIMINC (`ODDFPRICE`)
+
+`PREÇOPRIMINC(liquidação; vencimento; emissão; primeiro_cupom; taxa; lucro; resgate; frequência; [base])`
+
+Preço por 100 de um título com primeiro período irregular.
+
+Outros apelidos aceitos: `PRECOPRIMINC`
+
+### LUCROPRIMINC (`ODDFYIELD`)
+
+`LUCROPRIMINC(liquidação; vencimento; emissão; primeiro_cupom; taxa; preço; resgate; frequência; [base])`
+
+Rendimento de um título com primeiro período irregular.
+
+### PREÇOÚLTINC (`ODDLPRICE`)
+
+`PREÇOÚLTINC(liquidação; vencimento; último_juro; taxa; lucro; resgate; frequência; [base])`
+
+Preço por 100 de um título com último período irregular.
+
+Outros apelidos aceitos: `PRECOULTINC`
+
+### LUCROÚLTINC (`ODDLYIELD`)
+
+`LUCROÚLTINC(liquidação; vencimento; último_juro; taxa; preço; resgate; frequência; [base])`
+
+Rendimento de um título com último período irregular.
+
+Outros apelidos aceitos: `LUCROULTINC`
+
+### PREÇO (`PRICE`)
+
+`PREÇO(liquidação; vencimento; taxa; lucro; resgate; frequência; [base])`
+
+Preço por 100 de valor nominal de um título que paga juros periódicos. Ex.: =PREÇO(DATA(2008;2;15);DATA(2017;11;15);5,75%;6,5%;100;2) dá 94,63.
+
+Outros apelidos aceitos: `PRECO`
+
+### LUCRO (`YIELD`)
+
+`LUCRO(liquidação; vencimento; taxa; preço; resgate; frequência; [base])`
+
+Rendimento de um título que paga juros periódicos.
+
+### EUROCONVERT
+
+`EUROCONVERT(núm; origem; destino; [precisão_total]; [precisão_triangulação])`
+
+Converte entre o euro e as moedas antigas da zona do euro pelas taxas fixas ("DEM", "FRF", "PTE"…).

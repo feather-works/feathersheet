@@ -21,6 +21,34 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.1.2",
+        data: "18/10/2026",
+        resumo: "Todas as funções do Excel, faixa completa e menos travadas",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("math-function", "Todas as 520 funções do Excel", "DESLOC, INDIRETO, LAMBDA, PROCX… e todas nos menus da aba Fórmulas."),
+            ("bolt", "Apagar e desfazer sem travar", "Apagar uma fórmula e dar Ctrl+Z: de 3,4 s para um instante."),
+            ("device-floppy", "Salvar arquivo enorme mais rápido", "Ctrl+S em 13,7 milhões de linhas: a tela para 0,7 s em vez de 3,8 s."),
+            ("chart-line", "Rolar com gráficos sem tranco", "O gráfico é desenhado uma vez; a rolagem só recorta a imagem pronta."),
+            ("chart-bar", "Gráfico com um clique", "Colunas, Linhas, Pizza… direto da faixa; Recomendados escolhe pelos dados."),
+            ("printer", "Várias áreas de impressão", "A prévia mostra todas, uma por página; cabeçalho e rodapé próprios."),
+            ("text-box", "Caixa de texto", "Inserir › Caixa de texto: clique ou arraste e já comece a digitar."),
+            ("bolt", "Abrir .xlsx mais rápido", "As abas e os gráficos do arquivo são lidos em paralelo."),
+            ("omega", "Símbolos e equações", "Moedas, setas, frações, letras gregas e sinais de conta num clique."),
+        ],
+        tambem: &[
+            "Cópia de recuperação de uma pasta com muitos erros: de 0,64 s para 0,13 s.",
+            "LET e LAMBDA: variável com intervalo funciona dentro de SOMA e das outras funções de lista.",
+            "Funções que dependem de serviço de fora (cubo, RTD, STOCKHISTORY) dizem o motivo do #N/D.",
+            "Macros › Componentes abre o editor no componente HTML/CSS.",
+            "Formas: o botão Efeitos liga e desliga a sombra.",
+            "Ferramentas › Proteção: Bloquear seleção e Proteger planilha.",
+            "Inserir › Impressão ganhou Adicionar à área.",
+            "Texto da forma fica escuro sobre preenchimento claro.",
+            "Erro repetido numa coluna inteira ocupa uma entrada só no arquivo.",
+        ],
+    },
+    Versao {
         numero: "0.1.1",
         data: "18/10/2026",
         resumo: "Milhões de linhas sem travar, imagem na célula e menos memória",

@@ -371,6 +371,11 @@ impl App {
                     self.alternar(Auxiliar::Macros)
                 }
             },
+            // Faixa > Componentes: o editor de macros aberto no componente HTML/CSS.
+            Msg::MacroComponentes => {
+                self.evento_macro_visual(EventoVisual::Documento("componente:previsao".into()));
+                if self.janelas.aberta(Auxiliar::Macros) { Task::none() } else { self.alternar(Auxiliar::Macros) }
+            },
             Msg::MacroGuardarModulo => { self.guardar_modulo_macro(); Task::none() },
             Msg::MacroAbrirModulo(nome) => { self.abrir_modulo_macro(&nome); Task::none() },
             Msg::MacroExcluirModulo => { self.excluir_modulo_macro(); Task::none() },
@@ -718,6 +723,7 @@ impl App {
                 Task::none()
             }
             Msg::FecharMenuEdicao => { self.edicao_menu = None; Task::none() },
+            Msg::InserirSimbolo(s) => self.inserir_simbolo(&s),
             Msg::EdicaoMenuAcao(msg) => {
                 self.edicao_menu = None;
                 self.update(*msg)

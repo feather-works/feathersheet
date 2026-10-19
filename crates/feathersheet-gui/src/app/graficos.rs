@@ -160,6 +160,9 @@ pub enum Evento {
     PassouNoMenu,
     FecharContexto,
     Inserir,
+    /// Ícone de tipo da faixa: cria direto o gráfico da seleção nesse tipo
+    /// (`None` = Recomendados, o tipo escolhido pelos dados).
+    Rapido(Option<TipoUi>),
     Estilo(CampoEstilo, String),
     AbrirSeletorCor(AlvoCorGrafico),
     SeletorCor(EventoCor),
@@ -849,6 +852,35 @@ impl App {
         true
     }
 
+    /// Recomendados: o tipo que os dados pedem. Categorias numéricas →
+    /// dispersão; datas → linhas; uma série curta e sem negativos → pizza;
+    /// o resto → colunas.
+    // shortcut: olha só as 200 primeiras linhas; basta para escolher o tipo.
+    fn tipo_recomendado(&self) -> TipoUi {
+        let Some(r) = parse_range_ref(self.graficos.intervalo.trim()).map(|r| r.normalized()) else { return TipoUi::Colunas };
+        let Some(aba) = self.workbook.aba(self.folha) else { return TipoUi::Colunas };
+        let numero = |t: &str| t.trim().replace(',', ".").parse::<f64>().ok();
+        let r0 = r.r0 + u32::from(self.graficos.cabecalho);
+        let linhas: Vec<u32> = (r0..=r.r1.min(r0 + 199)).collect();
+        let categorias: Vec<String> = linhas.iter().map(|&l| aba.sheet.get_raw(l, r.c0)).filter(|t| !t.trim().is_empty()).collect();
+        if categorias.is_empty() || r.c1 <= r.c0 {
+            return TipoUi::Colunas;
+        }
+        if categorias.iter().all(|t| numero(t).is_some()) {
+            return TipoUi::Dispersao;
+        }
+        let parece_data = |t: &str| t.chars().filter(|c| *c == '/' || *c == '-').count() == 2
+            && t.chars().any(|c| c.is_ascii_digit());
+        if categorias.iter().all(|t| parece_data(t)) {
+            return TipoUi::Linhas;
+        }
+        let sem_negativos = linhas.iter().all(|&l| numero(&aba.sheet.get_raw(l, r.c0 + 1)).is_none_or(|v| v >= 0.0));
+        if r.c1 == r.c0 + 1 && categorias.len() <= 6 && sem_negativos {
+            return TipoUi::Pizza;
+        }
+        TipoUi::Colunas
+    }
+
     fn atualizar_grafico(&mut self) {
         let ligou_resumo = self.exigir_resumo_se_grande();
         if self.normalizar_contas() && self.graficos.id.is_some() {
@@ -1403,6 +1435,12 @@ impl App {
             Evento::Titulo(s) => {
                 self.graficos.titulo = s;
                 self.editar_ao_vivo(Some("titulo"));
+            }
+            Evento::Rapido(tipo) => {
+                self.graficos.seletor_aberto = false;
+                let _ = self.evento_grafico(Evento::Abrir);
+                let tipo = tipo.unwrap_or_else(|| self.tipo_recomendado());
+                return self.evento_grafico(Evento::Tipo(tipo));
             }
             Evento::Tipo(t) => {
                 self.graficos.cor_ativa = None;

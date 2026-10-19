@@ -580,7 +580,7 @@ fn ultimo_dia_de_fevereiro(y: i32, m: u32, d: u32) -> bool {
 
 /// Dias entre duas datas em ano de 360 dias. `europeu` escolhe o método
 /// europeu; senão o americano (NASD), que trata o fim de fevereiro à parte.
-fn dias_360(ini: i64, fim: i64, europeu: bool) -> i64 {
+pub(crate) fn dias_360(ini: i64, fim: i64, europeu: bool) -> i64 {
     let (y1, m1, mut d1) = serial_to_ymd(ini);
     let (y2, m2, mut d2) = serial_to_ymd(fim);
     if europeu {

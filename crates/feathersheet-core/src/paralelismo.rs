@@ -126,6 +126,38 @@ mod testes {
     }
 }
 
+/// Roda `f` para cada coluna, em paralelo no aplicativo — uma thread por
+/// núcleo, cada uma pegando a próxima coluna livre (colunas têm tamanhos
+/// muito diferentes). No `.wasm` dos testes não há thread: em série.
+pub fn por_coluna<T: Send>(colunas: &[u32], f: impl Fn(u32) -> T + Sync) -> Vec<T> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let threads = crate::paralelismo::nucleos().min(colunas.len());
+        if threads > 1 {
+            let proxima = std::sync::atomic::AtomicUsize::new(0);
+            let mut feitas: Vec<(usize, T)> = std::thread::scope(|escopo| {
+                let alcas: Vec<_> = (0..threads)
+                    .map(|_| {
+                        escopo.spawn(|| {
+                            let mut minhas = Vec::new();
+                            loop {
+                                let i = proxima.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                let Some(&col) = colunas.get(i) else { break };
+                                minhas.push((i, f(col)));
+                            }
+                            minhas
+                        })
+                    })
+                    .collect();
+                alcas.into_iter().flat_map(|a| a.join().expect("thread por coluna")).collect()
+            });
+            feitas.sort_unstable_by_key(|(i, _)| *i);
+            return feitas.into_iter().map(|(_, t)| t).collect();
+        }
+    }
+    colunas.iter().map(|&c| f(c)).collect()
+}
+
 /// Andamento do cálculo em paralelo (células feitas de quantas), para a
 /// barra de abertura da janela. Um cálculo grande por vez: estado global.
 pub mod andamento {

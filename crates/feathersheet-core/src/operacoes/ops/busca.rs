@@ -168,37 +168,6 @@ impl Colunas<'_> {
     }
 }
 
-/// Roda `f` para cada coluna, em paralelo no aplicativo — uma thread por
-/// núcleo, cada uma pegando a próxima coluna livre (colunas têm tamanhos
-/// muito diferentes). No `.wasm` dos testes não há thread: em série.
-pub(super) fn por_coluna<T: Send>(colunas: &[u32], f: impl Fn(u32) -> T + Sync) -> Vec<T> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let threads = crate::paralelismo::nucleos().min(colunas.len());
-        if threads > 1 {
-            let proxima = std::sync::atomic::AtomicUsize::new(0);
-            let mut feitas: Vec<(usize, T)> = std::thread::scope(|escopo| {
-                let alcas: Vec<_> = (0..threads)
-                    .map(|_| {
-                        escopo.spawn(|| {
-                            let mut minhas = Vec::new();
-                            loop {
-                                let i = proxima.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                                let Some(&col) = colunas.get(i) else { break };
-                                minhas.push((i, f(col)));
-                            }
-                            minhas
-                        })
-                    })
-                    .collect();
-                alcas.into_iter().flat_map(|a| a.join().expect("thread da busca")).collect()
-            });
-            feitas.sort_unstable_by_key(|(i, _)| *i);
-            return feitas.into_iter().map(|(_, t)| t).collect();
-        }
-    }
-    colunas.iter().map(|&c| f(c)).collect()
-}
 
 /// `findAll`: toda célula com conteúdo cujo texto bate, em ordem de linha e
 /// coluna. Passa pelas três moradas de conteúdo — o literal colunar, a
@@ -230,7 +199,7 @@ pub fn find_all_com(sheet: &Sheet, query: &str, options: SearchOptions, valor: i
     colunas.sort_unstable();
     colunas.dedup();
     let leitor = Colunas { data: &sheet.data, formulas: &sheet.formulas, pool: &sheet.pool, textos: &sheet.textos, vistas: &vistas };
-    for (achadas, calcular) in por_coluna(&colunas, |col| leitor.varrer(col, &consulta)) {
+    for (achadas, calcular) in crate::paralelismo::por_coluna(&colunas, |col| leitor.varrer(col, &consulta)) {
         out.extend(achadas);
         // O que precisa calcular é aqui, em série: o cálculo não atravessa thread.
         for m in calcular {

@@ -309,6 +309,16 @@ impl EvalContext for Contexto<'_, '_> {
         None
     }
 
+    fn formula_de(&self, _row: u32, _col: u32, _sheet: Option<&str>) -> Option<String> {
+        self.falhar();
+        None
+    }
+
+    fn abas(&self) -> (Vec<String>, Option<String>) {
+        self.falhar();
+        (Vec::new(), None)
+    }
+
     fn funcao_externa(&self, nome: &str) -> bool {
         if self.funcoes_externas.contains(&nome.to_uppercase()) {
             self.falhar();

@@ -44,6 +44,15 @@ const VOLATILE_KEYWORDS: &[&str] = &[
     "COUNTBYCOLOR",
     "SOMAR.POR.COR",
     "CONT.SE.COR",
+    // A referência sai de uma conta: o grafo não sabe o que elas leem.
+    "OFFSET",
+    "DESLOC",
+    "INDIRECT",
+    "INDIRETO",
+    "CELL",
+    "CÉL",
+    "INFO",
+    "INFORMAÇÃO",
 ];
 
 fn is_ascii_word_char(c: char) -> bool {

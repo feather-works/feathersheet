@@ -21,11 +21,11 @@ use zip::ZipArchive;
 const MAX_BYTES_IMAGEM: u64 = 20 * 1024 * 1024;
 
 /// `vm` (como vem no atributo, a partir de 1) → data URL da imagem.
-pub(super) fn ler(arquivo: &mut ZipArchive<Cursor<Vec<u8>>>) -> HashMap<u32, String> {
+pub(super) fn ler(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> HashMap<u32, String> {
     ler_ou_vazio(arquivo).unwrap_or_default()
 }
 
-fn ler_ou_vazio(arquivo: &mut ZipArchive<Cursor<Vec<u8>>>) -> Option<HashMap<u32, String>> {
+fn ler_ou_vazio(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> Option<HashMap<u32, String>> {
     let meta = xml::parse_xml(&entry_text(arquivo, "xl/metadata.xml").ok()?).ok()?;
     // Posição (a partir de 1) do tipo XLRICHVALUE.
     let tipo_rico = meta.child("metadataTypes")?.children_named("metadataType")
@@ -100,7 +100,7 @@ fn caminho_da_midia(alvo: &str) -> String {
     partes.join("/")
 }
 
-fn data_url(arquivo: &mut ZipArchive<Cursor<Vec<u8>>>, caminho: &str) -> Option<String> {
+fn data_url(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &str) -> Option<String> {
     let mut entrada = arquivo.by_name(caminho).ok()?;
     if entrada.size() > MAX_BYTES_IMAGEM {
         return None;
@@ -125,7 +125,7 @@ mod testes {
     use std::io::Write;
 
 
-    fn zip_com(partes: &[(&str, Vec<u8>)]) -> ZipArchive<Cursor<Vec<u8>>> {
+    fn zip_com(partes: &[(&str, Vec<u8>)]) -> ZipArchive<Cursor<std::sync::Arc<[u8]>>> {
         let mut buf = Cursor::new(Vec::new());
         {
             let mut z = zip::ZipWriter::new(&mut buf);
@@ -135,7 +135,7 @@ mod testes {
             }
             z.finish().unwrap();
         }
-        ZipArchive::new(Cursor::new(buf.into_inner())).unwrap()
+        ZipArchive::new(Cursor::new(buf.into_inner().into())).unwrap()
     }
 
     #[test]

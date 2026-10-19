@@ -10,6 +10,11 @@ inteira na sua máquina: sem conta, sem login, sem telemetria.
 
 ## Baixar
 
+[![Baixar para Windows](https://img.shields.io/badge/Windows-baixar-0078D6?style=for-the-badge&logo=windows11&logoColor=white)](https://github.com/FeatherOffice/feathersheet/releases/latest/download/FeatherSheet-windows-x64.exe)
+[![Baixar para Linux (.deb)](https://img.shields.io/badge/Linux%20.deb-baixar-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/FeatherOffice/feathersheet/releases/latest/download/feathersheet-linux-amd64.deb)
+[![Baixar para Linux (.tar.gz)](https://img.shields.io/badge/Linux%20.tar.gz-baixar-333333?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/FeatherOffice/feathersheet/releases/latest/download/feathersheet-linux-x86_64.tar.gz)
+![macOS em breve](https://img.shields.io/badge/macOS-em%20breve-999999?style=for-the-badge&logo=apple&logoColor=white)
+
 | Sistema | Arquivo | Como instalar |
 |---|---|---|
 | **Windows 10/11** | [FeatherSheet-windows-x64.exe](https://github.com/FeatherOffice/feathersheet/releases/latest/download/FeatherSheet-windows-x64.exe) | abra o instalador (não pede administrador) |
@@ -26,9 +31,9 @@ instalador do Windows substituem a versão anterior.
 
 ---
 
-## Novidades da v0.1.1
+## Novidades da v0.1.2
 
-![Janela "O que há de novo" da versão 0.1.1: tabela dinâmica em segundo plano, fórmula na coluna inteira, MÍNIMOSES sem travar, Ctrl+T instantâneo, inserir e excluir coluna rápido, arquivo enorme com menos memória, imagem dentro da célula, painel Formatar imagem e tabela dinâmica pela IA](docs/imagens/novidades-0.1.1.png)
+![Janela "O que há de novo" da versão 0.1.2: todas as 520 funções do Excel, apagar e desfazer sem travar, salvar arquivo enorme mais rápido, rolar com gráficos sem tranco, gráfico com um clique, várias áreas de impressão, caixa de texto, abrir .xlsx mais rápido e símbolos e equações](docs/imagens/novidades-0.1.2.png)
 
 A mesma janela abre sozinha na primeira vez depois de atualizar (e fica no
 menu Ajuda, em *O que há de novo*).
@@ -37,7 +42,7 @@ menu Ajuda, em *O que há de novo*).
 
 | Área | Destaques |
 |---|---|
-| **Fórmulas** | 457 das 520 funções do Excel, com nomes em português ou inglês conforme o idioma da interface; avaliar fórmula passo a passo; matrizes dinâmicas, `LAMBDA`, voláteis |
+| **Fórmulas** | as 520 funções do Excel, com nomes em português ou inglês conforme o idioma da interface; avaliar fórmula passo a passo; matrizes dinâmicas, `LAMBDA`, voláteis |
 | **Arquivos grandes** | até 100 milhões de linhas; abre `.parquet` e `.csv` grande; cálculo paralelo com invalidação seletiva; rodapé com soma e contagem instantâneas; colar um valor nas 100 milhões de linhas de uma coluna em 0,3 s; fórmula na coluna inteira de 13,7 milhões de linhas em milissegundos; tabela dinâmica em segundo plano, sem travar a janela |
 | **Excel** | abre e grava `.xlsx` com cores do tema, formas, imagens, degradês e gráficos na posição certa; lê `.xlsm` e converte as macros VBA para JavaScript |
 | **Gráficos** | 25 tipos (combinado, cascata, radar, Gantt, mapa de calor…), dica do mouse e legenda clicável; gráficos editáveis com o painel *Formatar gráfico* (temas, cor por ponto, eixos, rótulos), pelo motor comum [`feather-charts`](https://github.com/FeatherOffice/feather-charts) |
@@ -97,6 +102,28 @@ fórmulas: ao abrir, só os 799 resumos que somam o milhão de linhas
 (`SOMASES`, `CONT.SES`) são refeitos. O `.xlsx` deste teste não traz
 resultado nenhum, então tudo é calculado de novo.
 
+**Comparando com outros programas** (mesmo arquivo, v0.1.1):
+
+| | FeatherSheet (`.fshz`) | FeatherSheet (`.xlsx`) | Microsoft Excel ² | LibreOffice Calc 26.2 | OnlyOffice 9.4 | WPS Office 12.1 |
+|---|---|---|---|---|---|---|
+| Máquina | Ryzen 7 5700G, 32 GB | Ryzen 7 5700G, 32 GB | Core Ultra 7 155H, 64 GB (notebook) | Ryzen 7 5700G | Ryzen 7 5700G | Ryzen 7 5700G |
+| Pronto para usar | **0,9 s** | **7,7 s** | 1 min 36,8 s | ~3 min 40 s | não abriu em 10 min | travou: mostra a planilha em ~50 s, mas não dá para usar e não calcula |
+| Pico de RAM | 270 MB ⁴ | ~0,69 GB | 4,5 GB | 3,5 GB | 5,1 GB ¹ | 2,5 GB |
+| RAM depois de pronto | **270 MB** | **362 MB** | 4,5 GB ³ | 3,5 GB | | |
+
+¹ Feito sobre o Chromium, com vários processos; somar a RAM de cada um
+conta duas vezes a memória que eles dividem, então o pico real é um pouco
+menor.
+² Cronometrado à mão em outra máquina: carregou em 1 min 24,9 s e
+terminou de calcular as fórmulas em 1 min 36,8 s. Referência, não medida
+exata.
+³ Considerado igual ao pico (não medido depois de pronto).
+⁴ Considerado igual à RAM depois de pronto (pico não medido).
+
+Os tempos do FeatherSheet são os da barra de status do app; o do
+LibreOffice foi visto na tela; a RAM dos outros é a soma de todos os
+processos de cada programa. Uma medição por programa, sem repetir.
+
 **Tabela dinâmica e colagem na aba Dados** (1 milhão de linhas, v0.1.0,
 tempos do console F12):
 
@@ -128,7 +155,7 @@ python3 scripts/gerar_xlsx_pesado.py Planilha_Pesada.xlsx 1000000
 | O que se compara | Placar | Detalhe |
 |---|---|---|
 | **Funcionalidades** (comandos da faixa, botão por botão) | **211 / 290** (72,8%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [avaliação geral](docs/planejamento/PARIDADE-AVALIACAO.md) |
-| **Funções de planilha** | **457 / 520** | [catálogo das funções](docs/funcionalidades/FUNCOES.md) · [as que faltam](docs/planejamento/FUNCOES-FALTANTES.md) |
+| **Funções de planilha** | **520 / 520** | [catálogo das funções](docs/funcionalidades/FUNCOES.md) · [limites conhecidos](docs/planejamento/FUNCOES-FALTANTES.md) |
 | **Funções do VBA** (conversor VBA → JavaScript) | **52** cobertas e **12** parciais, de **141** | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 
 Os placares medem amplitude (o comando ou a função existe e funciona), não

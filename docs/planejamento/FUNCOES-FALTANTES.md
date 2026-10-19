@@ -6,77 +6,57 @@
 > alfabética de funções do Excel 365, montada à mão por categoria (520 nomes).
 > Apelidos em português não contam: só o nome canônico em inglês.
 
-**Temos 457 das 520 funções do Excel; faltam 63.** (Atualizado em 15/10/2026: entraram
-48, ver o fim deste arquivo. Em 14/10: PERCENTOF, CHITEST, TTEST e os 26 números complexos IM*/COMPLEX.) Fora da lista do Excel,
-o motor tem ainda `COUNTUNIQUE`, `JOIN`, `REGEXMATCH`, `IMPORTDATA`,
-`IMPORTJSON`, `FETCHTEXT` e `IMAGE.BASE64`.
+**Temos as 520 funções do Excel; não falta nenhuma.** (18/10/2026: entraram as 63 que
+faltavam, ver "Lote de 18/10/2026" abaixo. 15/10: 48; 14/10: PERCENTOF, CHITEST, TTEST e os
+26 números complexos IM*/COMPLEX.) Fora da lista do Excel, o motor tem ainda `COUNTUNIQUE`,
+`JOIN`, `REGEXMATCH`, `IMPORTDATA`, `IMPORTJSON`, `FETCHTEXT` e `IMAGE.BASE64`.
 
-Quando uma função daqui for portada, tirar a linha desta lista.
+## Lote de 18/10/2026 (63 funções)
 
-## Prioridade sugerida
+Arquivos novos: `fn_referencia.rs`, `fn_lambda.rs`, `fn_regressao.rs`, `fn_cupom.rs` e
+`fn_compat.rs`; BESSELK/BESSELY em `fn_conversao.rs`. Todas com nome em português, ajuda em
+`function_help_data.rs` e descrição/nome em inglês e espanhol (`src/idiomas/funcoes.*.json`).
 
-1. **Referência e lambdas** (o que falta das mais usadas): `OFFSET`, `INDIRECT`
-   (precisam de referência dinâmica no avaliador), `BYROW`, `BYCOL`, `SCAN`,
-   `MAKEARRAY`, `ISFORMULA`, `FORMULATEXT`, `SHEET`, `SHEETS`, `GETPIVOTDATA`.
-2. **Regressão**: `LINEST`, `LOGEST` (TENDÊNCIA e CRESCIMENTO já existem para uma variável).
-3. **Financeiras de cupom** (`COUP*`, `PRICE`, `YIELD`, `DURATION`, `ODD*`) e
-   **engenharia** (`BESSELK`, `BESSELY`).
-4. **Por último ou nunca**: cubo/OLAP, suplementos (`CALL`, `REGISTER.ID`,
-   `EUROCONVERT`), web (`WEBSERVICE`, `FILTERXML` — pela regra
-   de privacidade só fariam sentido por pedido explícito), `STOCKHISTORY`,
-   `TRANSLATE`/`DETECTLANGUAGE` (dependem de serviço on-line) e as de texto
-   de byte duplo (`ASC`, `DBCS`, `PHONETIC`, `BAHTTEXT`).
+| Categoria | en / pt |
+|---|---|
+| Referência (11) | OFFSET/DESLOC, INDIRECT/INDIRETO, TRIMRANGE/AJUSTARINTERVALO, AREAS/ÁREAS, FORMULATEXT/FÓRMULATEXTO, ISFORMULA/ÉFÓRMULA, SHEET/PLAN, SHEETS/PLANS, CELL/CÉL, INFO/INFORMAÇÃO, GETPIVOTDATA/INFODADOSTABELADINÂMICA |
+| LAMBDA e agrupamento (7) | BYROW/PORLINHA, BYCOL/PORCOL, SCAN/VARRER, MAKEARRAY/CRIARMATRIZ, ISOMITTED/ÉOMITIDO, GROUPBY/AGRUPARPOR, PIVOTBY/PIVOTARPOR |
+| Estatística (6) | LINEST/PROJ.LIN, LOGEST/PROJ.LOG, FORECAST.ETS/PREVISÃO.ETS, FORECAST.ETS.CONFINT, FORECAST.ETS.SEASONALITY/PREVISÃO.ETS.SAZONALIDADE, FORECAST.ETS.STAT |
+| Financeiras (18) | ACCRINT/JUROSACUM, AMORDEGRC, AMORLINC, COUPDAYBS/CUPDIASINLIQ, COUPDAYS/CUPDIAS, COUPDAYSNC/CUPDIASPRÓX, COUPNCD/CUPDATAPRÓX, COUPNUM/CUPNÚM, COUPPCD/CUPDATAANT, DURATION/DURAÇÃO, MDURATION/MDURAÇÃO, ODDFPRICE/PREÇOPRIMINC, ODDFYIELD/LUCROPRIMINC, ODDLPRICE/PREÇOÚLTINC, ODDLYIELD/LUCROÚLTINC, PRICE/PREÇO, YIELD/LUCRO, EUROCONVERT |
+| Engenharia (2) | BESSELK, BESSELY |
+| Texto (4) | ASC, DBCS, BAHTTEXT, PHONETIC/FONÉTICA |
+| Web (2) | WEBSERVICE/SERVIÇOWEB (o mesmo pedido de mão única do BUSCAR.TEXTO), FILTERXML/FILTROXML |
+| Só reconhecidas (13) | CUBE* (7), RTD, CALL/CHAMAR, REGISTER.ID/REGISTRO.ID, STOCKHISTORY/HISTÓRICODEAÇÕES, TRANSLATE/TRADUZIR, DETECTLANGUAGE/DETECTARIDIOMA |
 
-## Lista completa, por categoria
+**Como funcionam as de referência:** DESLOC, INDIRETO e AJUSTARINTERVALO devolvem referência.
+O avaliador troca a chamada pelo `Ref`/`Range` antes de passar à função de fora
+(`Evaluator::resolver_referencias`), então `SOMA(DESLOC(A1;0;0;1000000))`, `LIN(INDIRETO("B7"))`
+e `ÉREF(DESLOC(…))` funcionam como no Excel. DESLOC, INDIRETO, CÉL e INFORMAÇÃO entram como
+voláteis (o grafo de dependências não sabe o que elas leem). O cálculo paralelo volta para o
+serial quando a fórmula pede o texto da fórmula ou a lista de abas.
 
-### Pesquisa e referência (9)
+**Só reconhecidas:** abrem sem `#NOME?` num arquivo do Excel e devolvem `#N/D` com o motivo.
+Cubo OLAP e RTD precisam de servidor; CHAMAR e REGISTRO.ID executariam código de DLL;
+HISTÓRICODEAÇÕES, TRADUZIR e DETECTARIDIOMA dependem de serviço na internet, contra a regra de
+privacidade (o conteúdo não sai do computador).
 
-`AREAS`, `FORMULATEXT`, `GETPIVOTDATA`, `GROUPBY`, `INDIRECT`, `OFFSET`, 
-`PIVOTBY`, `RTD`, `TRIMRANGE`
-
-### Lógicas (4)
-
-`BYCOL`, `BYROW`, `MAKEARRAY`, `SCAN`
-
-### Informação (6)
-
-`CELL`, `INFO`, `ISFORMULA`, `ISOMITTED`, `SHEET`, `SHEETS`
-
-### Matemáticas (0)
-
-### Estatísticas (6)
-
-`FORECAST.ETS`, `FORECAST.ETS.CONFINT`, `FORECAST.ETS.SEASONALITY`, 
-`FORECAST.ETS.STAT`, `LINEST`, `LOGEST`
-
-### Compatibilidade (0)
-
-### Financeiras (18)
-
-`ACCRINT`, `AMORDEGRC`, `AMORLINC`, `COUPDAYBS`, `COUPDAYS`, `COUPDAYSNC`, 
-`COUPNCD`, `COUPNUM`, `COUPPCD`, `DURATION`, `MDURATION`, `ODDFPRICE`, 
-`ODDFYIELD`, `ODDLPRICE`, `ODDLYIELD`, `PRICE`, `STOCKHISTORY`, `YIELD`
-
-### Engenharia (2)
-
-`BESSELK`, `BESSELY`
-
-### Texto (6)
-
-`ASC`, `BAHTTEXT`, `DBCS`, `DETECTLANGUAGE`, `PHONETIC`, `TRANSLATE`
-
-### Cubo (7)
-
-`CUBEKPIMEMBER`, `CUBEMEMBER`, `CUBEMEMBERPROPERTY`, `CUBERANKEDMEMBER`, 
-`CUBESET`, `CUBESETCOUNT`, `CUBEVALUE`
-
-### Web (2)
-
-`FILTERXML`, `WEBSERVICE`
-
-### Suplementos (3)
-
-`CALL`, `EUROCONVERT`, `REGISTER.ID`
+**Limites conhecidos:**
+- ÁREAS dá sempre 1 (o analisador não tem a união `(A1;C3:D4)`); PLANS(ref) dá 1 (sem referência 3D).
+- CÉL: "formato" é sempre "G" e "largura" é 8 (o motor não vê formato nem largura de coluna);
+  "arquivo" é vazio. INFORMAÇÃO("diretório") é vazio.
+- INFODADOSTABELADINÂMICA lê a dinâmica desenhada na planilha (cabeçalho em cima, "Total Geral"
+  embaixo, itens de coluna como `item (valor)`); o par campo/item precisa achar uma linha só.
+- AGRUPARPOR faz subtotal só no primeiro nível de campos; PIVOTARPOR só total geral (profundidade 2
+  vale como 1), ordena só pelas chaves e ignora `relativo_a`.
+- PREVISÃO.ETS é Holt-Winters aditivo com α, β, γ pelo menor erro quadrático (grade + refino). O
+  Excel não publica a otimização dele: os valores ficam perto, não idênticos. A data alvo é um
+  valor só (não matriz).
+- ASC/DBCS convertem letras, dígitos e símbolos latinos; o katakana de meia largura não.
+- As financeiras batem com os exemplos da ajuda do Excel (testes em `fn_cupom.rs`); CUPDIASPRÓX na
+  base 0 é CUPDIAS − CUPDIASINLIQ, como no Excel.
+- Nomes em português sem tradução oficial conhecida, escolhidos aqui: AJUSTARINTERVALO, PORLINHA,
+  PORCOL, VARRER, CRIARMATRIZ, ÉOMITIDO, PIVOTARPOR. Em espanhol: RECORTARRANGO. Conferir com o
+  Excel em português/espanhol quando houver.
 
 ## Lote de 15/10/2026 (48 funções, em `fn_extra.rs`, `fn_conversao.rs` e `fn_titulos.rs`)
 

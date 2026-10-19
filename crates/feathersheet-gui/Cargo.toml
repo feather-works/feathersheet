@@ -1,6 +1,6 @@
 [package]
 name = "feathersheet-gui"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Interface nativa FeatherSheet em Rust/Iced usando o template FeatherOffice"
 
@@ -37,6 +37,9 @@ feathersheet-vba = { path = "../feathersheet-vba" }
 feathersheet-mcp = { path = "../feathersheet-mcp" }
 feather-macros = { git = "https://github.com/FeatherOffice/feather-io", tag = "v0.1.1" }
 iced = { version = "0.13", features = ["canvas", "svg", "image", "tokio", "advanced", "highlighter"] }
+# Rasterizar o gráfico uma vez e recortar a imagem na rolagem (o canvas não
+# recorta SVG). A mesma versão e recursos que o Iced já usa: nada novo compila.
+resvg = { version = "0.42", default-features = false, features = ["text"] }
 tokio = { version = "1", features = ["rt", "time"] }
 # Colar imagem da area de transferencia (print). Rust puro; wayland-data-control
 # cobre GNOME/Wayland sem libs C. iced::clipboard so le texto.

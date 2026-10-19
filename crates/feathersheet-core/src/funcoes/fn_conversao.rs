@@ -313,6 +313,64 @@ pub fn fn_besseli(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     })
 }
 
+/// Regra de Simpson com `n` (par) intervalos.
+fn simpson(f: impl Fn(f64) -> f64, a: f64, b: f64, n: usize) -> f64 {
+    let h = (b - a) / n as f64;
+    let meio: f64 = (1..n).map(|i| f(a + i as f64 * h) * if i % 2 == 1 { 4.0 } else { 2.0 }).sum();
+    (f(a) + meio + f(b)) * h / 3.0
+}
+
+/// Ordens 0 e 1 por integral e as outras pela recorrência (estável subindo,
+/// tanto para K quanto para Y).
+fn bessel_por_recorrencia(x: f64, n: i64, ordem0: f64, ordem1: f64, sinal: f64) -> f64 {
+    let (mut anterior, mut atual) = (ordem0, ordem1);
+    if n == 0 {
+        return ordem0;
+    }
+    for k in 1..n {
+        let proximo = sinal * anterior + 2.0 * k as f64 / x * atual;
+        anterior = atual;
+        atual = proximo;
+    }
+    atual
+}
+
+/// `=BESSELK(x; n)` / `=BESSELK(x, n)`
+pub fn fn_besselk(args: &[Node], ev: &Evaluator<'_>) -> Computed {
+    executar(args, 2, 2, || {
+            let x = arg_num(args, ev, 0)?;
+            let n = ordem(args, ev)?;
+            if x <= 0.0 {
+                return Err(e_num());
+            }
+            // K_ν(x) = ∫₀^∞ e^(−x·cosh t)·cosh(νt) dt; depois de T o integrando some.
+            let t = (1.0 + 60.0 / x).acosh();
+            let k = |nu: f64| simpson(|u| (-x * u.cosh()).exp() * (nu * u).cosh(), 0.0, t, 4000);
+            numero(bessel_por_recorrencia(x, n, k(0.0), k(1.0), 1.0))
+    })
+}
+
+/// `=BESSELY(x; n)` / `=BESSELY(x, n)`
+pub fn fn_bessely(args: &[Node], ev: &Evaluator<'_>) -> Computed {
+    executar(args, 2, 2, || {
+            let x = arg_num(args, ev, 0)?;
+            let n = ordem(args, ev)?;
+            if x <= 0.0 {
+                return Err(e_num());
+            }
+            // Y_ν(x) = (1/π)∫₀^π sen(x·sen θ − νθ) dθ − (1/π)∫₀^∞ (e^(νt) + e^(−νt)·cos νπ)·e^(−x·senh t) dt.
+            let pi = std::f64::consts::PI;
+            let m = pontos(x, 1).max(2000) * 2;
+            let t = (100.0 / x).asinh() + 2.0;
+            let y = |nu: f64| {
+                let a = simpson(|th| (x * th.sin() - nu * th).sin(), 0.0, pi, m);
+                let b = simpson(|u| ((nu * u).exp() + (-nu * u).exp() * (nu * pi).cos()) * (-x * u.sinh()).exp(), 0.0, t, 20_000);
+                (a - b) / pi
+            };
+            numero(bessel_por_recorrencia(x, n, y(0.0), y(1.0), -1.0))
+    })
+}
+
 #[cfg(test)]
 mod testes {
     use crate::celulas::values::ErrorCode;
@@ -341,6 +399,12 @@ mod testes {
         close(calc("BESSELJ(0;0)"), 1.0);
         is_err(calc("BESSELJ(1;-1)"), ErrorCode::Num);
         is_err(calc("BESSELI(\"x\";1)"), ErrorCode::Value);
+        perto(calc("BESSELK(1,5;1)"), 0.277387804);
+        perto(calc("BESSELY(2,5;1)"), 0.145918138);
+        perto(calc("BESSELY(1;0)"), 0.088256964);
+        perto(calc("BESSELK(2;3)"), 0.647385390);
+        perto(calc("BESSELY(3;2)"), -0.160400393);
+        is_err(calc("BESSELK(0;1)"), ErrorCode::Num);
     }
 
     fn perto(v: crate::celulas::values::Value, esperado: f64) {

@@ -869,7 +869,7 @@ impl App {
                 preenchimento,
                 self.faixa_grande_seta(tr!("Contorno"), "pencil", Some(ev(Evento::AbrirPainel(Painel::Contorno))),
                     self.objetos.painel == Some(Painel::Contorno)),
-                dica(self.faixa_grande(tr!("Efeitos"), "wand", None, false), tr!("Em breve: sombra, brilho e reflexo")),
+                dica(self.faixa_grande(tr!("Efeitos"), "wand", Some(ev(Evento::SombraForma)), o.sombra.is_some()), tr!("Liga ou desliga a sombra da forma")),
             ])),
             self.faixa_grupo(tr!("Organizar"), self.faixa_linha(vec![
                 self.faixa_pilha(vec![

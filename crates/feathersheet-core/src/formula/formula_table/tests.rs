@@ -183,3 +183,27 @@ fn shift_columns_e_shift_rows_em_formula_table() {
     assert!(!t.has(2, 3));
     assert!(t.has(2, 4)); // D3 -> E3
 }
+
+#[test]
+fn salvar_guarda_o_erro_repetido_uma_vez_e_volta_igual() {
+    use crate::celulas::values::{CellError, ErrorCode};
+    let mut pool = StringPool::default();
+    let mut t = FormulaTable::new();
+    let refe = Value::Error(CellError::new(ErrorCode::Ref));
+    let div = Value::Error(CellError::new(ErrorCode::Div0));
+    for r in 0..4 {
+        assert!(t.set(r, 1, &format!("=A{}", r + 1), |_| true));
+    }
+    t.store(0, 1, &refe, &mut pool);
+    t.store(1, 1, &div, &mut pool);
+    t.store(2, 1, &refe, &mut pool);
+    t.store(3, 1, &refe, &mut pool);
+    let salva = t.save_column(1, 4, &pool).unwrap();
+    assert_eq!(salva.erros.len(), 2, "três #REF! viram uma entrada");
+    let mut lida = FormulaTable::new();
+    lida.load_patterns(&t.patterns);
+    lida.load_column(1, &salva, 4, &mut pool);
+    for (r, v) in [(0, &refe), (1, &div), (2, &refe), (3, &refe)] {
+        assert_eq!(&lida.value_at(r, 1, &pool), v, "linha {r}");
+    }
+}

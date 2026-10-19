@@ -64,7 +64,7 @@ fn id_do_grafico(no: &XmlNode) -> Option<&str> {
 
 /// Caminho do gráfico no zip (`xl/charts/chart1.xml`) → aba e âncora.
 pub(super) fn lugares(
-    archive: &mut ZipArchive<Cursor<Vec<u8>>>,
+    archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>,
     abas: &[(String, String, bool)],
 ) -> HashMap<String, LugarGrafico> {
     let mut saida = HashMap::new();

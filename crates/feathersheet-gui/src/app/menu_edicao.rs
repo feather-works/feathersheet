@@ -14,6 +14,26 @@ enum Item {
     Divisor,
 }
 
+/// Inserir > Símbolo e Equação: grades de caracteres por seção.
+type Grade = &'static [(&'static str, &'static [&'static str])];
+const SIMBOLOS: Grade = &[
+    ("MOEDA", &["R$", "€", "£", "¥", "¢", "₹", "₩", "₽", "₿", "$"]),
+    ("MARCAS E PONTUAÇÃO", &["©", "®", "™", "§", "¶", "†", "‡", "•", "…", "°", "‰", "º", "ª", "«", "»", "¿", "¡", "–", "—"]),
+    ("SETAS", &["←", "→", "↑", "↓", "↔", "↕", "⇐", "⇒", "⇔", "↗", "↘"]),
+    ("FRAÇÕES", &["½", "⅓", "⅔", "¼", "¾", "⅕", "⅛", "⅜", "⅝", "⅞"]),
+];
+const EQUACAO: Grade = &[
+    ("OPERADORES", &["±", "×", "÷", "≠", "≈", "≡", "≤", "≥", "∞", "√", "∛", "∑", "∏", "∫", "∂", "∆", "∇", "∝"]),
+    ("POTÊNCIAS E ÍNDICES", &["⁰", "¹", "²", "³", "⁴", "ⁿ", "₀", "₁", "₂", "₃"]),
+    ("LETRAS GREGAS", &["α", "β", "γ", "δ", "ε", "θ", "λ", "µ", "π", "ρ", "σ", "τ", "φ", "ω", "Δ", "Σ", "Ω"]),
+    ("CONJUNTOS E LÓGICA", &["∈", "∉", "⊂", "⊆", "∪", "∩", "∅", "∀", "∃", "¬", "∧", "∨", "ℕ", "ℤ", "ℝ"]),
+];
+const POR_LINHA: usize = 8;
+
+fn grade(tipo: &str) -> Option<Grade> {
+    match tipo { "simbolo" => Some(SIMBOLOS), "equacao" => Some(EQUACAO), _ => None }
+}
+
 fn itens(tipo: &str) -> Vec<Item> {
     use Item::{Acao, Divisor, Titulo};
     match tipo {
@@ -74,6 +94,7 @@ fn itens(tipo: &str) -> Vec<Item> {
             Acao(tr!("Inserir colunas na planilha"), "columns", Msg::InserirMenu(Estrutura::InserirColuna, false)),
             Acao(tr!("Inserir planilha · Shift+F11"), "file-plus", Msg::AdicionarAba),
         ],
+        "simbolo" | "equacao" => vec![],
         "excluir" => vec![
             Titulo("EXCLUIR"),
             Acao(tr!("Excluir células… · Ctrl+-"), "table", Msg::Celulas(celulas_dialogo::Evento::Abrir(false))),
@@ -152,6 +173,9 @@ fn itens(tipo: &str) -> Vec<Item> {
 
 /// Altura estimada do painel, para não deixá-lo passar da borda da janela.
 fn altura(tipo: &str) -> f32 {
+    if let Some(g) = grade(tipo) {
+        return 20.0 + g.iter().map(|(_, s)| 22.0 + s.len().div_ceil(POR_LINHA) as f32 * 33.0).sum::<f32>();
+    }
     20.0 + itens(tipo).iter().map(|item| match item {
         Item::Titulo(_) => 22.0,
         Item::Acao(..) => 37.0,
@@ -163,6 +187,18 @@ impl App {
     /// O menu fica junto ao botão acionado, sem ocupar a área de trabalho.
     fn menu_edicao(&self, tipo: &'static str) -> Element<'_, Msg> {
         let mut coluna = iced::widget::column![].spacing(3);
+        for (secao, simbolos) in grade(tipo).unwrap_or_default() {
+            coluna = coluna.push(text(crate::idioma::tr(secao)).size(11).color(COR_TEXTO_MUTED()));
+            for linha in simbolos.chunks(POR_LINHA) {
+                coluna = coluna.push(iced::widget::Row::with_children(linha.iter().map(|s| {
+                    button(text(*s).size(15).center().width(Length::Fill))
+                        .width(Length::Fixed(28.0)).padding([4, 0])
+                        .style(estilo_botao_pequeno(false))
+                        .on_press(Msg::EdicaoMenuAcao(Box::new(Msg::InserirSimbolo((*s).to_owned()))))
+                        .into()
+                })).spacing(2));
+            }
+        }
         for (i, item) in itens(tipo).into_iter().enumerate() {
             coluna = match item {
                 Item::Titulo(titulo) => coluna.push(

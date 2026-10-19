@@ -62,15 +62,8 @@ fn cada_regra_vai_e_volta_do_xlsx() {
     let (lida, _) = ler_xlsx_workbook(bytes).expect("ler");
     let voltaram = regras(&lida, 0);
     assert_eq!(voltaram.len(), originais.len());
-    for (a, b) in originais.iter().zip(&voltaram) {
-        // `INDIRETO` vai como `INDIRECT` e o leitor o deixa em inglês: as duas
-        // grafias valem no motor (`lista_validacao`).
-        let mut a = a.clone();
-        if let Regra::Formula { formula } = &mut a.regra {
-            *formula = formula.replace("INDIRETO(", "INDIRECT(");
-        }
-        assert_eq!(&a, b);
-    }
+    // `INDIRETO` vai como `INDIRECT` e o leitor o traduz de volta.
+    assert_eq!(voltaram, originais);
 }
 
 #[test]

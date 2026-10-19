@@ -45,38 +45,35 @@ impl DataTable {
 
     /// Exporta todas as colunas de números para gravação no formato colunar `.fshz`.
     pub fn exportar_colunas_num(&self, linhas: u32) -> Vec<(u32, Vec<f64>, Vec<u8>)> {
-        let mut out = Vec::new();
-        let mut cols: Vec<_> = self.columns.keys().cloned().collect();
-        cols.sort_unstable();
-        for col in cols {
-            if let Some(entry) = self.columns.get(&col) {
-                if let Some(fc) = &entry.float_col {
-                    if fc.max_row >= 0 {
-                        let (values, bitmap) = fc.flatten(linhas as usize);
-                        out.push((col, values, bitmap));
-                    }
-                }
-            }
-        }
-        out
+        let cols = self.colunas_com(|e| e.float_col.as_ref().is_some_and(|fc| fc.max_row >= 0));
+        // Uma coluna por núcleo: 46 colunas de 13,7 milhões de linhas eram
+        // 2,1 s de cópia na thread da tela a cada Ctrl+S (18/10/2026).
+        crate::paralelismo::por_coluna(&cols, |col| {
+            let (values, bitmap) = self.columns[&col].float_col.as_ref().unwrap().flatten(linhas as usize);
+            (col, values, bitmap)
+        })
     }
 
     /// Exporta todas as colunas de texto para gravação no formato colunar `.fshz`.
     pub fn exportar_colunas_txt(&self, linhas: u32) -> Vec<(u32, Vec<i32>, Vec<u8>)> {
-        let mut out = Vec::new();
-        let mut cols: Vec<_> = self.columns.keys().cloned().collect();
+        self.colunas_txt().into_iter().filter_map(|col| self.exportar_coluna_txt(col, linhas).map(|(i, b)| (col, i, b))).collect()
+    }
+
+    /// As colunas com texto, em ordem.
+    pub fn colunas_txt(&self) -> Vec<u32> {
+        self.colunas_com(|e| e.text_col.as_ref().is_some_and(|tc| tc.max_row >= 0))
+    }
+
+    /// Os índices de texto (no `StringPool`) e a máscara de uma coluna.
+    pub fn exportar_coluna_txt(&self, col: u32, linhas: u32) -> Option<(Vec<i32>, Vec<u8>)> {
+        let tc = self.columns.get(&col)?.text_col.as_ref().filter(|tc| tc.max_row >= 0)?;
+        Some(tc.flatten(linhas as usize))
+    }
+
+    fn colunas_com(&self, tem: impl Fn(&ColumnEntry) -> bool) -> Vec<u32> {
+        let mut cols: Vec<u32> = self.columns.iter().filter(|(_, e)| tem(e)).map(|(&c, _)| c).collect();
         cols.sort_unstable();
-        for col in cols {
-            if let Some(entry) = self.columns.get(&col) {
-                if let Some(tc) = &entry.text_col {
-                    if tc.max_row >= 0 {
-                        let (indices, bitmap) = tc.flatten(linhas as usize);
-                        out.push((col, indices, bitmap));
-                    }
-                }
-            }
-        }
-        out
+        cols
     }
 
     /// Carga de arquivo: a coluna inteira de números de uma vez, nos buffers

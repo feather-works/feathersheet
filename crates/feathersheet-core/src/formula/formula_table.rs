@@ -861,12 +861,16 @@ impl FormulaTable {
         let mut dict: Vec<String> = Vec::new();
         let mut por_pool: HashMap<i32, usize> = HashMap::new();
         let mut erros: Vec<ErroSalvo> = Vec::new();
+        let mut por_erro: HashMap<usize, usize> = HashMap::new();
+        // Erros vêm em sequência (a coluna inteira com o mesmo #REF!).
+        let mut ultimo_erro: Option<(usize, usize)> = None;
+        let invalidada = entry.invalidada.load(Ordering::Relaxed);
 
         for r in 0..length {
             if bitmap[r >> 3] & (1 << (r & 7)) == 0 {
                 continue;
             }
-            if entry.invalidada.load(Ordering::Relaxed) {
+            if invalidada {
                 slots[r] = (slots[r] >> KIND_BITS) << KIND_BITS;
                 continue;
             }
@@ -880,12 +884,24 @@ impl FormulaTable {
                 });
                 payload[r] = local as f64;
             } else if kind == KIND_ERROR {
-                let err = self.errors.get(bruto as usize);
-                erros.push(ErroSalvo {
-                    code: err.map(|e| e.code.as_str().to_string()).unwrap_or_else(|| "#ERROR!".to_string()),
-                    detail: err.and_then(|e| e.detail.clone()),
-                });
-                payload[r] = (erros.len() - 1) as f64;
+                // O mesmo erro repetido vira uma entrada só: 1 milhão de #REF!
+                // eram 2 milhões de Strings e 75 ms por coluna ao salvar.
+                let local = match ultimo_erro {
+                    Some((id, local)) if id == bruto as usize => local,
+                    _ => {
+                        let local = *por_erro.entry(bruto as usize).or_insert_with(|| {
+                            let err = self.errors.get(bruto as usize);
+                            erros.push(ErroSalvo {
+                                code: err.map(|e| e.code.as_str().to_string()).unwrap_or_else(|| "#ERROR!".to_string()),
+                                detail: err.and_then(|e| e.detail.clone()),
+                            });
+                            erros.len() - 1
+                        });
+                        ultimo_erro = Some((bruto as usize, local));
+                        local
+                    }
+                };
+                payload[r] = local as f64;
             } else {
                 payload[r] = bruto;
             }

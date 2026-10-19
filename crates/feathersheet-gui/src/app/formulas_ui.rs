@@ -308,6 +308,20 @@ impl App {
     /// Insere um nome definido na fórmula em edição, ou começa uma fórmula com ele.
     fn inserir_no_editor(&mut self, texto: &str) -> Task<Msg> {
         if self.editor_formula.ativo && self.edicao.starts_with('=') {
+            self.inserir_no_cursor(texto)
+        } else {
+            self.update(Msg::Digitar(format!("={texto}")))
+        }
+    }
+
+    /// Inserir > Símbolo: entra onde está o cursor da edição; sem edição,
+    /// começa a digitar a célula com ele.
+    pub(super) fn inserir_simbolo(&mut self, texto: &str) -> Task<Msg> {
+        if self.editor_formula.ativo { self.inserir_no_cursor(texto) } else { self.update(Msg::Digitar(texto.to_owned())) }
+    }
+
+    fn inserir_no_cursor(&mut self, texto: &str) -> Task<Msg> {
+        {
             let posicao = self.editor_formula.posicao(&self.edicao);
             let indice = self.edicao.char_indices().nth(posicao)
                 .map(|(b, _)| b).unwrap_or(self.edicao.len());
@@ -320,8 +334,6 @@ impl App {
                 text_input::move_cursor_to(text_input::Id::new("feathersheet.fx"),
                     posicao + texto.chars().count()),
             ])
-        } else {
-            self.update(Msg::Digitar(format!("={texto}")))
         }
     }
 

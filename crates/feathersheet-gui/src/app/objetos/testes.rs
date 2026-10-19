@@ -384,3 +384,17 @@ fn alinhamento_do_texto_grava_desfaz_e_posiciona() {
     app.historico(false);
     assert!(lidos(&app).obter(id).unwrap().alinhar.e_padrao(), "dois Ctrl+Z voltam ao centro/meio");
 }
+
+#[test]
+fn caixa_de_texto_nasce_branca_e_editando() {
+    let mut app = app();
+    let _ = app.update(Msg::Objetos(Evento::CaixaTexto));
+    assert_eq!(app.objetos.inserir, Some("retangulo"));
+    let _ = app.update(Msg::Objetos(Evento::Criar { forma: "retangulo", ret: Retangulo::novo(10.0, 10.0, 120.0, 60.0), espelhar: false }));
+    let o = &lidos(&app).objetos[0];
+    assert_eq!(o.aparencia.preenchimento.as_deref(), Some("#ffffff"));
+    assert_eq!(app.objetos.texto.as_ref().map(|t| t.0), Some(o.id));
+    // A próxima forma do menu volta ao normal.
+    let id = criar(&mut app, "retangulo", Retangulo::novo(200.0, 10.0, 50.0, 50.0));
+    assert_ne!(lidos(&app).objetos.iter().find(|o| o.id == id).unwrap().aparencia.preenchimento.as_deref(), Some("#ffffff"));
+}

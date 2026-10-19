@@ -114,6 +114,9 @@ pub enum Evento {
     Escala(EscalaUi),
     Grade(bool),
     Cabecalhos(bool),
+    /// Textos do cabeçalho e do rodapé da página (vazios = os padrões).
+    TextoCabecalho(String),
+    TextoRodape(String),
     Margem(MargemUi),
     Anterior,
     Proxima,
@@ -135,6 +138,8 @@ pub(super) struct Estado {
     grade: bool,
     cabecalhos: bool,
     margem: MargemUi,
+    cabecalho: String,
+    rodape: String,
     pagina: u32,
 }
 
@@ -147,6 +152,8 @@ pub(super) struct Dados {
     areas: HashMap<u32, Vec<Rect>>,
     quebras_visiveis: HashSet<u32>,
     paginas: HashMap<u32, Pagina>,
+    /// Cabeçalho e rodapé de cada aba.
+    textos: HashMap<u32, (String, String)>,
     dialogo: Option<Estado>,
     cache: RefCell<Option<(u32, u32, Quebras)>>,
 }
@@ -207,7 +214,7 @@ impl Estado {
             papel: self.papel.papel(), orientacao: self.orientacao,
             escala: self.escala.escala(), linhas_de_grade: self.grade,
             cabecalhos: self.cabecalhos, margens: self.margem.margens(),
-            ..ConfigPagina::default()
+            cabecalho: self.cabecalho.clone(), rodape: self.rodape.clone(),
         }
     }
     fn total_paginas(&self, faixa: &Rect) -> u32 {
@@ -237,16 +244,37 @@ impl App {
         self.impressao.areas.insert(id, vec![area]);
     }
 
-    /// Faixa efetiva do diálogo, igual a getEffectiveRange() do TS.
-    fn faixa_impressao(&self, e: &Estado) -> Rect {
+    /// As faixas que o diálogo imprime, na ordem: todas as áreas de
+    /// impressão da aba dele, a seleção ou a planilha usada.
+    fn faixas_impressao(&self, e: &Estado) -> Vec<Rect> {
+        let areas = self.workbook.aba(e.folha).and_then(|a| self.impressao.areas.get(&a.id)).cloned().unwrap_or_default();
         match e.escopo {
-            Escopo::Selecao => e.selecao.clone(),
-            Escopo::Area if self.area_impressao().is_some() => self.area_impressao().unwrap(),
-            _ => self.workbook.aba(e.folha).map(|a| {
+            Escopo::Selecao => vec![e.selecao.clone()],
+            Escopo::Area if !areas.is_empty() => areas,
+            _ => vec![self.workbook.aba(e.folha).map(|a| {
                 let u = a.sheet.used_rect();
                 Rect::new(0, 0, u.r1, u.c1)
-            }).unwrap_or_else(|| Rect::new(0, 0, 0, 0)),
+            }).unwrap_or_else(|| Rect::new(0, 0, 0, 0))],
         }
+    }
+
+    /// Cada área começa em página nova: o total soma as páginas de todas.
+    fn total_paginas_dialogo(&self, e: &Estado) -> u32 {
+        self.faixas_impressao(e).iter().map(|f| e.total_paginas(f)).sum::<u32>().max(1)
+    }
+
+    /// A faixa da página `pagina` (contada no total) e a página dentro dela.
+    fn pagina_na_faixa(&self, e: &Estado, pagina: u32) -> (Rect, u32) {
+        let faixas = self.faixas_impressao(e);
+        let mut resto = pagina.max(1);
+        for f in &faixas {
+            let n = e.total_paginas(f);
+            if resto <= n { return (f.clone(), resto); }
+            resto -= n;
+        }
+        let ultima = faixas.last().cloned().unwrap_or_else(|| Rect::new(0, 0, 0, 0));
+        let n = e.total_paginas(&ultima);
+        (ultima, n)
     }
 
     /// A configuração da página da aba ativa (aba Layout da Página).
@@ -267,6 +295,14 @@ impl App {
             e.orientacao = p.orientacao; e.papel = p.papel; e.escala = p.escala;
             e.margem = p.margem; e.grade = p.grade; e.cabecalhos = p.cabecalhos;
         }
+    }
+
+    /// Cabeçalho/rodapé do diálogo, guardados na aba dele para a próxima vez.
+    fn mudar_textos(&mut self, f: impl FnOnce(&mut Estado)) {
+        let Some(e) = self.impressao.dialogo.as_mut() else { return };
+        f(e);
+        let par = (e.cabecalho.clone(), e.rodape.clone());
+        if let Some(id) = self.workbook.aba(e.folha).map(|a| a.id) { self.impressao.textos.insert(id, par); }
     }
 
     /// A aba Layout da Página da faixa, como no Excel: Configurar Página,
@@ -344,11 +380,12 @@ impl App {
         if self.workbook.aba(self.folha).is_none() { return Task::none(); }
         let tem_area = self.area_impressao().is_some();
         let p = self.pagina_atual();
+        let (cabecalho, rodape) = self.id_aba_atual().and_then(|id| self.impressao.textos.get(&id).cloned()).unwrap_or_default();
         self.impressao.dialogo = Some(Estado {
             folha: self.folha, selecao: self.area_selecionada().normalized(),
             escopo: if tem_area { Escopo::Area } else { Escopo::Planilha },
             orientacao: p.orientacao, papel: p.papel, escala: p.escala,
-            grade: p.grade, cabecalhos: p.cabecalhos, margem: p.margem, pagina: 1,
+            grade: p.grade, cabecalhos: p.cabecalhos, margem: p.margem, cabecalho, rodape, pagina: 1,
         });
         self.alternar(Auxiliar::Imprimir)
     }
@@ -423,13 +460,15 @@ impl App {
             Evento::Escala(s) => self.mudar_pagina(|p| p.escala = s),
             Evento::Grade(b) => self.mudar_pagina(|p| p.grade = b),
             Evento::Cabecalhos(b) => self.mudar_pagina(|p| p.cabecalhos = b),
+            Evento::TextoCabecalho(t) => self.mudar_textos(|e| e.cabecalho = t),
+            Evento::TextoRodape(t) => self.mudar_textos(|e| e.rodape = t),
             Evento::Margem(m) => self.mudar_pagina(|p| p.margem = m),
             Evento::Anterior => if let Some(e) = self.impressao.dialogo.as_mut() {
                 e.pagina = e.pagina.saturating_sub(1).max(1);
             },
             Evento::Proxima => {
                 let total = self.impressao.dialogo.as_ref()
-                    .map(|e| e.total_paginas(&self.faixa_impressao(e))).unwrap_or(1);
+                    .map(|e| self.total_paginas_dialogo(e)).unwrap_or(1);
                 if let Some(e) = self.impressao.dialogo.as_mut() {
                     e.pagina = (e.pagina + 1).min(total);
                 }
@@ -483,14 +522,14 @@ impl App {
 
     fn pdf_do_dialogo(&self) -> Result<Vec<u8>, String> {
         let e = self.impressao.dialogo.as_ref().ok_or(tr!("diálogo fechado"))?;
-        let f = self.faixa_impressao(e);
+        let faixas = self.faixas_impressao(e);
         // Várias áreas de impressão: cada uma em páginas próprias, na ordem.
-        let areas = self.areas_impressao();
-        if e.escopo == Escopo::Area && areas.len() > 1 && e.folha == self.folha {
-            let areas: Vec<AreaImpressao> = areas.iter()
+        if faixas.len() > 1 {
+            let areas: Vec<AreaImpressao> = faixas.iter()
                 .map(|a| AreaImpressao { linha0: a.r0, coluna0: a.c0, linha1: a.r1, coluna1: a.c1 }).collect();
             return feathersheet_io::impressao_pdf::gerar_varias(&self.workbook, e.folha, &areas, &e.config());
         }
+        let f = &faixas[0];
         let area = AreaImpressao { linha0: f.r0, coluna0: f.c0, linha1: f.r1, coluna1: f.c1 };
         gerar_pdf(&self.workbook, e.folha, area, &e.config())
     }
@@ -499,10 +538,10 @@ impl App {
         let Some(e) = self.impressao.dialogo.as_ref() else {
             return container(text(tr!("Janela fechada"))).into();
         };
-        let faixa = self.faixa_impressao(e);
         let area = self.area_impressao();
-        let total = e.total_paginas(&faixa);
+        let total = self.total_paginas_dialogo(e);
         let pagina = e.pagina.min(total);
+        let (faixa, local) = self.pagina_na_faixa(e, pagina);
         let secao = |t: &str| text(t.to_owned()).size(12).color(COR_TEXTO_MUTED());
         let ev = |x: Evento| Msg::Impressao(x);
 
@@ -560,6 +599,13 @@ impl App {
             checkbox(tr!("Imprimir títulos (A,B,C e 1,2,3)"), e.cabecalhos)
                 .on_toggle(|b| Msg::Impressao(Evento::Cabecalhos(b))).size(15).text_size(13),
         ].spacing(5);
+        let textos = iced::widget::column![
+            secao(tr!("Cabeçalho e rodapé")),
+            iced::widget::text_input(tr!("Cabeçalho (vazio: nome da planilha)"), &e.cabecalho)
+                .on_input(|t| Msg::Impressao(Evento::TextoCabecalho(t))).size(13),
+            iced::widget::text_input(tr!("Rodapé (vazio: padrão)"), &e.rodape)
+                .on_input(|t| Msg::Impressao(Evento::TextoRodape(t))).size(13),
+        ].spacing(5);
         let rotulo_botao = |icone: &str, t: &str| row![
             feather_ui::icones::icone(icone, 14.0), text(t.to_owned()).size(13),
         ].spacing(6).align_y(Alignment::Center);
@@ -574,7 +620,7 @@ impl App {
                 .style(estilo_botao_secundario).on_press(ev(Evento::Fechar)),
         ].spacing(6);
         let lateral = container(iced::widget::column![
-            escopo, area_botoes, orientacao, papel, escala, exibicao,
+            escopo, area_botoes, orientacao, papel, escala, exibicao, textos,
             Space::with_height(Length::Fill), acoes,
         ].spacing(10).height(Length::Fill))
             .padding(14).width(Length::Fixed(300.)).height(Length::Fill)
@@ -593,7 +639,7 @@ impl App {
                 if e.orientacao == Orientacao::Retrato { tr!("Retrato") } else { tr!("Paisagem") }))
                 .size(12).color(COR_TEXTO_MUTED()),
         ].spacing(8).align_y(Alignment::Center);
-        let previa = cv::Canvas::new(self.previa(e, &faixa, pagina, total))
+        let previa = cv::Canvas::new(self.previa(e, &faixa, local, pagina, total))
             .width(Length::Fill).height(Length::Fill);
         let direita = iced::widget::column![nav, previa]
             .spacing(8).width(Length::Fill).height(Length::Fill);
@@ -602,9 +648,9 @@ impl App {
             .style(estilo_container_topo).into()
     }
 
-    fn previa(&self, e: &Estado, faixa: &Rect, pagina: u32, total: u32) -> Previa {
+    fn previa(&self, e: &Estado, faixa: &Rect, local: u32, pagina: u32, total: u32) -> Previa {
         let por_pagina = e.linhas_por_pagina();
-        let r0 = faixa.r0 + (pagina - 1) * por_pagina;
+        let r0 = faixa.r0 + (local - 1) * por_pagina;
         let r1 = faixa.r1.min(r0 + por_pagina - 1);
         let mut linhas = Vec::new();
         if let Some(aba) = self.workbook.aba(e.folha) {
@@ -789,12 +835,33 @@ mod testes {
     }
 
     #[test]
+    fn duas_areas_somam_as_paginas_da_previa_e_do_pdf() {
+        let mut app = app_com_dados();
+        app.update(Msg::Selecionar(0, 0));
+        app.update(Msg::Estender(4, 0));
+        let _ = app.update(Msg::Impressao(Evento::DefinirArea));
+        app.update(Msg::Selecionar(10, 1));
+        app.update(Msg::Estender(12, 1));
+        let _ = app.update(Msg::Impressao(Evento::AdicionarArea));
+        assert_eq!(app.areas_impressao().len(), 2);
+        let _ = app.update(Msg::Impressao(Evento::Abrir));
+        let e = app.impressao.dialogo.as_ref().unwrap();
+        assert_eq!(e.escopo, Escopo::Area);
+        assert_eq!(app.total_paginas_dialogo(e), 2, "uma página por área");
+        let (f, local) = app.pagina_na_faixa(e, 2);
+        assert_eq!((f.r0, f.c0, local), (10, 1, 1));
+        let _ = app.update(Msg::Impressao(Evento::Proxima));
+        assert_eq!(app.impressao.dialogo.as_ref().unwrap().pagina, 2);
+        assert!(app.pdf_do_dialogo().is_ok());
+    }
+
+    #[test]
     fn dialogo_pagina_pelo_modelo_do_ts_e_gera_pdf_pelo_ponto_unico() {
         let mut app = app_com_dados();
         let _ = app.update(Msg::Impressao(Evento::Abrir));
         assert!(app.janelas.aberta(Auxiliar::Imprimir));
         let e = app.impressao.dialogo.as_ref().unwrap();
-        let faixa = app.faixa_impressao(e);
+        let faixa = app.faixas_impressao(e)[0].clone();
         assert_eq!(e.total_paginas(&faixa), 2, "40 linhas / 35 por página");
         let _ = app.update(Msg::Impressao(Evento::Orientacao(Orientacao::Paisagem)));
         let e = app.impressao.dialogo.as_ref().unwrap();

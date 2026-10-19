@@ -207,15 +207,19 @@
 - [x] Só um painel lateral aberto por vez (gráfico, dinâmica, imagem).
 
 ### v0.1.2 — sem travadas
-- [ ] Selecionar 87 milhões de células trava ~5 s (rodapé, realce e alças fora
+- [x] Selecionar 87 milhões de células trava ~5 s (rodapé, realce e alças fora
       da thread da tela).
-- [ ] Rolar a grade com `.parquet` aberto trava.
-- [ ] Lag ao rolar com gráficos na tela.
-- [ ] Recuperação automática prepara a cópia na thread da tela (~1 s em 70
+- [x] Rolar a grade com `.parquet` aberto trava.
+- [x] Lag ao rolar com gráficos na tela.
+- [x] Recuperação automática prepara a cópia na thread da tela (~1 s em 70
       milhões de células): mover para fora.
-- [ ] Lentidão com outra janela aberta (Configurações) *(conferir)*.
-- [ ] Apagar uma fórmula na Planilha Pesada e dar Ctrl+Z trava um pouco
+- [x] Lentidão com outra janela aberta (Configurações) *(conferir)*.
+- [x] Apagar uma fórmula na Planilha Pesada e dar Ctrl+Z trava um pouco
       (17/10, usuário): medir no F12 o desfazer e o recálculo que ele dispara.
+      *18/10: editar sujava toda fórmula que lê outra aba; agora só quem lê a
+      coluna tocada — apagar 3,4 s → 0,1 ms, Ctrl+Z 3,3 s → 0,13 s. Salvar e
+      recuperação: erros repetidos guardados uma vez e colunas em paralelo
+      (640 → 130 ms; Ctrl+S em 13,7 mi linhas 3,8 → 0,7 s). Testado pelo usuário.*
 
 ### v0.1.3 — Excel e acabamento
 - [ ] Referência entre arquivos gravada como vínculo externo do `.xlsx`
