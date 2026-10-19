@@ -13,7 +13,7 @@ Unicode true
 Name "FeatherSheet ${VERSAO}"
 OutFile "${SAIDA}"
 InstallDir "$LOCALAPPDATA\Programs\FeatherSheet"
-InstallDirRegKey HKCU "Software\FeatherOffice\FeatherSheet" "Pasta"
+InstallDirRegKey HKCU "Software\FeatherWorks\FeatherSheet" "Pasta"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 
@@ -52,12 +52,12 @@ Section "FeatherSheet"
   WriteRegStr HKCU "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha" ""
   WriteRegStr HKCU "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha" ""
 
-  WriteRegStr HKCU "Software\FeatherOffice\FeatherSheet" "Pasta" "$INSTDIR"
+  WriteRegStr HKCU "Software\FeatherWorks\FeatherSheet" "Pasta" "$INSTDIR"
   WriteRegStr HKCU "${DESINSTALAR}" "DisplayName" "FeatherSheet"
   WriteRegStr HKCU "${DESINSTALAR}" "DisplayVersion" "${VERSAO}"
-  WriteRegStr HKCU "${DESINSTALAR}" "Publisher" "FeatherOffice"
+  WriteRegStr HKCU "${DESINSTALAR}" "Publisher" "FeatherWorks"
   WriteRegStr HKCU "${DESINSTALAR}" "DisplayIcon" "$INSTDIR\feathersheet.ico"
-  WriteRegStr HKCU "${DESINSTALAR}" "URLInfoAbout" "https://github.com/FeatherOffice/feathersheet"
+  WriteRegStr HKCU "${DESINSTALAR}" "URLInfoAbout" "https://github.com/feather-works/feathersheet"
   WriteRegStr HKCU "${DESINSTALAR}" "UninstallString" '"$INSTDIR\desinstalar.exe"'
   WriteRegDWORD HKCU "${DESINSTALAR}" "NoModify" 1
   WriteRegDWORD HKCU "${DESINSTALAR}" "NoRepair" 1
@@ -77,6 +77,6 @@ Section "Uninstall"
   ReadRegStr $0 HKCU "Software\Classes\.fshz" ""
   StrCmp $0 "FeatherSheet.Planilha" 0 +2
     DeleteRegKey HKCU "Software\Classes\.fshz"
-  DeleteRegKey HKCU "Software\FeatherOffice\FeatherSheet"
+  DeleteRegKey HKCU "Software\FeatherWorks\FeatherSheet"
   DeleteRegKey HKCU "${DESINSTALAR}"
 SectionEnd

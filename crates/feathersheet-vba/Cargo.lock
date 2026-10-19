@@ -758,7 +758,7 @@ dependencies = [
 [[package]]
 name = "feather-charts"
 version = "0.3.1"
-source = "git+https://github.com/FeatherOffice/feather-charts?tag=v0.3.1#a1c638e160d7b42214baaad1a0db3560970a895b"
+source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.1#a1c638e160d7b42214baaad1a0db3560970a895b"
 dependencies = [
  "feather-draw",
  "serde",
@@ -768,12 +768,12 @@ dependencies = [
 [[package]]
 name = "feather-draw"
 version = "0.1.1"
-source = "git+https://github.com/FeatherOffice/feather-draw?tag=v0.1.1#17404b4dad3cec398967d948d858ab46eed57d08"
+source = "git+https://github.com/feather-works/feather-draw?tag=v0.1.1#17404b4dad3cec398967d948d858ab46eed57d08"
 
 [[package]]
 name = "feather-image"
 version = "0.1.1"
-source = "git+https://github.com/FeatherOffice/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
 dependencies = [
  "image",
 ]
@@ -781,7 +781,7 @@ dependencies = [
 [[package]]
 name = "feather-io"
 version = "0.1.1"
-source = "git+https://github.com/FeatherOffice/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
 dependencies = [
  "feather-charts",
  "feather-draw",
@@ -794,7 +794,7 @@ dependencies = [
 [[package]]
 name = "feather-macros"
 version = "0.1.1"
-source = "git+https://github.com/FeatherOffice/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
 dependencies = [
  "boa_engine",
  "boa_gc",
@@ -805,7 +805,7 @@ dependencies = [
 [[package]]
 name = "feather-tables"
 version = "0.1.1"
-source = "git+https://github.com/FeatherOffice/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
 
 [[package]]
 name = "feathersheet-core"

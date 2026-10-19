@@ -195,7 +195,7 @@ impl App {
     }
 
     /// Novo Módulo do antigo editor TypeScript, integrado à biblioteca JS
-    /// compartilhada do FeatherOffice. Não executa a macro automaticamente.
+    /// compartilhada do FeatherWorks. Não executa a macro automaticamente.
     pub(super) fn criar_modulo_macro(&mut self) {
         let codigo = self.macro_codigo.text();
         let guardado = self.macro_catalogo.obter(self.macro_nome.trim());

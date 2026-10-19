@@ -27,7 +27,7 @@ fn cor_borda(cor: Option<&str>, fallback: [u8; 4]) -> [u8; 4] {
 }
 
 /// Converte os quatro booleanos legados no mesmo contrato de borda do
-/// FeatherOffice Tables: ordem cima/direita/baixo/esquerda. Sem alocação,
+/// FeatherWorks Tables: ordem cima/direita/baixo/esquerda. Sem alocação,
 /// cópia de células, alteração de estilos ou interpretação de fórmulas.
 pub fn adaptar_bordas(bordas: Option<&Borders>, fallback: [u8; 4]) -> [BordaVisual; 4] {
     let Some(bordas) = bordas else {

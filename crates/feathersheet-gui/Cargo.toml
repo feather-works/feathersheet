@@ -2,7 +2,7 @@
 name = "feathersheet-gui"
 version = "0.1.3"
 edition = "2021"
-description = "Interface nativa FeatherSheet em Rust/Iced usando o template FeatherOffice"
+description = "Interface nativa FeatherSheet em Rust/Iced usando o template FeatherWorks"
 
 [[bin]]
 name = "feathersheet"
@@ -11,13 +11,13 @@ path = "src/main.rs"
 [dependencies]
 # Idioma do sistema na primeira abertura (já vinha como dependência indireta).
 sys-locale = "0.3"
-feather-charts = { git = "https://github.com/FeatherOffice/feather-charts", tag = "v0.3.1" }
-feather-ui = { git = "https://github.com/FeatherOffice/feather-ui", tag = "v0.2.10" }
-feather-draw = { git = "https://github.com/FeatherOffice/feather-draw", tag = "v0.1.1" }
+feather-charts = { git = "https://github.com/feather-works/feather-charts", tag = "v0.3.2" }
+feather-ui = { git = "https://github.com/feather-works/feather-ui", tag = "v0.2.10" }
+feather-draw = { git = "https://github.com/feather-works/feather-draw", tag = "v0.1.1" }
 # Formas, ícones e SmartArt comuns da suíte (camada de objetos soltos, app/objetos).
-feather-shapes = { git = "https://github.com/FeatherOffice/feather-shapes", tag = "v0.1.1" }
+feather-shapes = { git = "https://github.com/feather-works/feather-shapes", tag = "v0.1.2" }
 # Efeitos RGBA compartilhados com FeatherDocs; codecs ficam na GUI.
-feather-image = { git = "https://github.com/FeatherOffice/feather-io", tag = "v0.1.2" }
+feather-image = { git = "https://github.com/feather-works/feather-io", tag = "v0.1.3" }
 base64 = "0.22"
 # Compatibilidade exata com ui/protecao/protecao.ts (PBKDF2-HMAC-SHA256,
 # sal criptográfico e normalização Unicode NFC); nunca armazenar senha pura.
@@ -27,7 +27,7 @@ unicode-normalization = "0.1"
 getrandom = "0.2"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp"] }
 # Apenas representacao/algoritmos de borda no Canvas; engine colunar permanece no core.
-feather-tables = { git = "https://github.com/FeatherOffice/feather-io", tag = "v0.1.2" }
+feather-tables = { git = "https://github.com/feather-works/feather-io", tag = "v0.1.3" }
 feathersheet-core = { path = "../feathersheet-core" }
 feathersheet-io = { path = "../feathersheet-io" }
 feathersheet-macros = { path = "../feathersheet-macros" }
@@ -35,7 +35,7 @@ feathersheet-macros = { path = "../feathersheet-macros" }
 feathersheet-vba = { path = "../feathersheet-vba" }
 # MCP ao vivo: as ferramentas da IA agem na planilha da tela (canal local, sem rede).
 feathersheet-mcp = { path = "../feathersheet-mcp" }
-feather-macros = { git = "https://github.com/FeatherOffice/feather-io", tag = "v0.1.2" }
+feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v0.1.3" }
 iced = { version = "0.13", features = ["canvas", "svg", "image", "tokio", "advanced", "highlighter"] }
 # Rasterizar o gráfico uma vez e recortar a imagem na rolagem (o canvas não
 # recorta SVG). A mesma versão e recursos que o Iced já usa: nada novo compila.

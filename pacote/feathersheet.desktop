@@ -2,7 +2,7 @@
 Type=Application
 Name=FeatherSheet
 GenericName=Planilha
-Comment=Planilha da suíte FeatherOffice — tudo local, sem conta
+Comment=Planilha da suíte FeatherWorks — tudo local, sem conta
 Exec=feathersheet %F
 Icon=feathersheet
 Terminal=false

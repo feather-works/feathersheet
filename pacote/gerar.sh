@@ -50,9 +50,9 @@ Architecture: amd64
 Installed-Size: $tamanho
 Depends: libc6 (>= 2.43), libxkbcommon0, libwayland-client0 | libx11-6, libfontconfig1
 Recommends: libvulkan1 | libgl1
-Maintainer: FeatherOffice <https://github.com/FeatherOffice>
-Homepage: https://github.com/FeatherOffice/feathersheet
-Description: Planilha da suíte FeatherOffice
+Maintainer: FeatherWorks <https://github.com/FeatherWorks>
+Homepage: https://github.com/feather-works/feathersheet
+Description: Planilha da suíte FeatherWorks
  Planilha em Rust com interface nativa: fórmulas em português, arquivos
  enormes, .xlsx, .csv e .parquet, macros em JavaScript. Roda inteira na
  máquina: sem conta, sem login, sem telemetria.

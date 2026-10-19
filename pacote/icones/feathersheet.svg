@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="logo-title logo-desc">
-  <title id="logo-title">FeatherOffice</title>
+  <title id="logo-title">FeatherWorks</title>
   <desc id="logo-desc">Duas penas vetoriais sobre um quadrado de cantos arredondados.</desc>
   <defs>
     <radialGradient id="fundo" cx="50%" cy="43%" r="76%">

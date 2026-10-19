@@ -1,6 +1,6 @@
 # FeatherSheet
 
-**Planilha da suíte FeatherOffice, escrita em Rust com interface nativa Iced.**
+**Planilha da suíte FeatherWorks, escrita em Rust com interface nativa Iced.**
 Abre arquivos enormes, calcula em paralelo, fala português nas fórmulas e roda
 inteira na sua máquina: sem conta, sem login, sem telemetria.
 
@@ -10,20 +10,20 @@ inteira na sua máquina: sem conta, sem login, sem telemetria.
 
 ## Baixar
 
-[![Baixar para Windows](https://img.shields.io/badge/Windows-baixar-0078D6?style=for-the-badge&logo=windows11&logoColor=white)](https://github.com/FeatherOffice/feathersheet/releases/latest/download/FeatherSheet-windows-x64.exe)
-[![Baixar para Linux (.deb)](https://img.shields.io/badge/Linux%20.deb-baixar-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/FeatherOffice/feathersheet/releases/latest/download/feathersheet-linux-amd64.deb)
-[![Baixar para Linux (.tar.gz)](https://img.shields.io/badge/Linux%20.tar.gz-baixar-333333?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/FeatherOffice/feathersheet/releases/latest/download/feathersheet-linux-x86_64.tar.gz)
+[![Baixar para Windows](https://img.shields.io/badge/Windows-baixar-0078D6?style=for-the-badge&logo=windows11&logoColor=white)](https://github.com/feather-works/feathersheet/releases/latest/download/FeatherSheet-windows-x64.exe)
+[![Baixar para Linux (.deb)](https://img.shields.io/badge/Linux%20.deb-baixar-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/feather-works/feathersheet/releases/latest/download/feathersheet-linux-amd64.deb)
+[![Baixar para Linux (.tar.gz)](https://img.shields.io/badge/Linux%20.tar.gz-baixar-333333?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/feather-works/feathersheet/releases/latest/download/feathersheet-linux-x86_64.tar.gz)
 ![macOS em breve](https://img.shields.io/badge/macOS-em%20breve-999999?style=for-the-badge&logo=apple&logoColor=white)
 
 | Sistema | Arquivo | Como instalar |
 |---|---|---|
-| **Windows 10/11** | [FeatherSheet-windows-x64.exe](https://github.com/FeatherOffice/feathersheet/releases/latest/download/FeatherSheet-windows-x64.exe) | abra o instalador (não pede administrador) |
-| **Linux** (Ubuntu, Debian, Mint…) | [feathersheet-linux-amd64.deb](https://github.com/FeatherOffice/feathersheet/releases/latest/download/feathersheet-linux-amd64.deb) | `sudo apt install ./feathersheet-linux-amd64.deb` |
-| **Linux** (qualquer distribuição) | [feathersheet-linux-x86_64.tar.gz](https://github.com/FeatherOffice/feathersheet/releases/latest/download/feathersheet-linux-x86_64.tar.gz) | extraia e rode `./instalar.sh` |
+| **Windows 10/11** | [FeatherSheet-windows-x64.exe](https://github.com/feather-works/feathersheet/releases/latest/download/FeatherSheet-windows-x64.exe) | abra o instalador (não pede administrador) |
+| **Linux** (Ubuntu, Debian, Mint…) | [feathersheet-linux-amd64.deb](https://github.com/feather-works/feathersheet/releases/latest/download/feathersheet-linux-amd64.deb) | `sudo apt install ./feathersheet-linux-amd64.deb` |
+| **Linux** (qualquer distribuição) | [feathersheet-linux-x86_64.tar.gz](https://github.com/feather-works/feathersheet/releases/latest/download/feathersheet-linux-x86_64.tar.gz) | extraia e rode `./instalar.sh` |
 | **macOS** | — | ainda não disponível |
 
 Todas as versões e as somas de verificação (`SHA256SUMS`) ficam na
-[página de versões](https://github.com/FeatherOffice/feathersheet/releases).
+[página de versões](https://github.com/feather-works/feathersheet/releases).
 Para atualizar, baixe o arquivo novo e instale por cima: o `apt` e o
 instalador do Windows substituem a versão anterior.
 
@@ -45,7 +45,7 @@ menu Ajuda, em *O que há de novo*).
 | **Fórmulas** | as 520 funções do Excel, com nomes em português ou inglês conforme o idioma da interface; avaliar fórmula passo a passo; matrizes dinâmicas, `LAMBDA`, voláteis |
 | **Arquivos grandes** | até 100 milhões de linhas; abre `.parquet` e `.csv` grande; cálculo paralelo com invalidação seletiva; rodapé com soma e contagem instantâneas; colar um valor nas 100 milhões de linhas de uma coluna em 0,3 s; fórmula na coluna inteira de 13,7 milhões de linhas em milissegundos; tabela dinâmica em segundo plano, sem travar a janela |
 | **Excel** | abre e grava `.xlsx` com cores do tema, formas, imagens, degradês, gráficos na posição certa, tabela dinâmica e vínculo com outro arquivo; lê `.xlsm` e converte as macros VBA para JavaScript |
-| **Gráficos** | 25 tipos (combinado, cascata, radar, Gantt, mapa de calor…), dica do mouse e legenda clicável; gráficos editáveis com o painel *Formatar gráfico* (temas, cor por ponto, eixos, rótulos), pelo motor comum [`feather-charts`](https://github.com/FeatherOffice/feather-charts) |
+| **Gráficos** | 25 tipos (combinado, cascata, radar, Gantt, mapa de calor…), dica do mouse e legenda clicável; gráficos editáveis com o painel *Formatar gráfico* (temas, cor por ponto, eixos, rótulos), pelo motor comum [`feather-charts`](https://github.com/feather-works/feather-charts) |
 | **Dados** | tabelas, tabela dinâmica (mostrar valores como, gráfico dinâmico, segmentação, detalhes no duplo clique), formatação condicional, validação, agrupar/subtotal, proteger planilha, Texto para colunas |
 | **Vínculos** | referência a outro arquivo (`=[Vendas.fshz]Dados!A1`) que fica viva com os dois abertos; aponte clicando na outra janela |
 | **Macros** | editor Alt+F11 com macros em JavaScript (interpretador Boa, local) guardadas dentro do próprio arquivo |
@@ -180,11 +180,11 @@ gravação pode virar uma versão consultável, sem servidor nenhum.
 | [`feathersheet-ponte`](crates/feathersheet-ponte) | camada de comandos da interface antiga (referência de paridade) |
 
 Bibliotecas comuns da suíte usadas aqui:
-[`feather-io`](https://github.com/FeatherOffice/feather-io) (arquivos, tabelas, imagens e macros),
-[`feather-ui`](https://github.com/FeatherOffice/feather-ui) (tema, ícones e componentes),
-[`feather-charts`](https://github.com/FeatherOffice/feather-charts) (gráficos),
-[`feather-draw`](https://github.com/FeatherOffice/feather-draw) (desenho vetorial, SVG e PDF) e
-[`feather-shapes`](https://github.com/FeatherOffice/feather-shapes) (formas e ícones).
+[`feather-io`](https://github.com/feather-works/feather-io) (arquivos, tabelas, imagens e macros),
+[`feather-ui`](https://github.com/feather-works/feather-ui) (tema, ícones e componentes),
+[`feather-charts`](https://github.com/feather-works/feather-charts) (gráficos),
+[`feather-draw`](https://github.com/feather-works/feather-draw) (desenho vetorial, SVG e PDF) e
+[`feather-shapes`](https://github.com/feather-works/feather-shapes) (formas e ícones).
 
 ## Compilar
 
@@ -192,7 +192,7 @@ As bibliotecas da suíte vêm do GitHub por tag, pelo próprio Cargo: basta
 clonar este repositório.
 
 ```sh
-git clone https://github.com/FeatherOffice/feathersheet
+git clone https://github.com/feather-works/feathersheet
 cd feathersheet/crates/feathersheet-gui
 cargo run --release
 ```

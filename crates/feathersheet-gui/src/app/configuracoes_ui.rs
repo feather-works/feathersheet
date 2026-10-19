@@ -412,7 +412,7 @@ fn secao_atualizacao(app: &App) -> Element<'_, Msg> {
     let inst = instalacao_atual();
     let procurar = opcao(tr!("Procurar atualizações"), "refresh", false, ev(Evento::Procurar));
     let estado: Element<'_, Msg> = match &app.atualizacao {
-        Estado::Parado => text(tr!("Consulta só github.com/FeatherOffice/feathersheet quando você clicar. Nada sobre você ou suas planilhas é enviado."))
+        Estado::Parado => text(tr!("Consulta só github.com/feather-works/feathersheet quando você clicar. Nada sobre você ou suas planilhas é enviado."))
             .size(11.5).color(COR_TEXTO_MUTED()).into(),
         Estado::Procurando => text(tr!("Procurando no GitHub…")).size(12).color(COR_TEXTO_MUTED()).into(),
         Estado::EmDia => row![feather_ui::icones::icone("check", 14.0),

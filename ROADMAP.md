@@ -78,7 +78,7 @@ Em ordem de quanto o usuário sente falta.
 - [ ] Caixa de texto, Cabeçalho e rodapé, Símbolo, Equação.
 - [ ] Minigráficos, Gráficos recomendados, Gráfico dinâmico.
 - [ ] Segmentação de dados e Linha do tempo.
-- [ ] SmartArt (o motor já existe no [`feather-shapes`](https://github.com/FeatherOffice/feather-shapes)), Instantâneo, Mapas, Linha de assinatura, Objeto.
+- [ ] SmartArt (o motor já existe no [`feather-shapes`](https://github.com/feather-works/feather-shapes)), Instantâneo, Mapas, Linha de assinatura, Objeto.
 
 **Exibir (9 / 20):**
 - [ ] Modos Normal e Layout da página, modos de exibição personalizados, Régua.
@@ -141,7 +141,7 @@ A lista completa, por categoria, está em
 
 ## Fase 5 — Gráficos
 
-O motor é o [`feather-charts`](https://github.com/FeatherOffice/feather-charts).
+O motor é o [`feather-charts`](https://github.com/feather-works/feather-charts).
 
 - [ ] Todos os tipos no desenho formatado: degraus, áreas empilhadas, radar,
       combinado, bolhas, histograma, cascata, velas, Gantt, mapa de calor, linha 3D.

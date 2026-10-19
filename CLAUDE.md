@@ -103,7 +103,7 @@ cargo clippy --all-targets
     5. **Descrever antes de construir**: 2-3 frases do que vai ser feito,
        o usuário confirma ou ajusta, só depois vem o código.
 
-23. **Bug reportado vira issue** (19/10/2026) em `FeatherOffice/feathersheet`
+23. **Bug reportado vira issue** (19/10/2026) em `feather-works/feathersheet`
     (`gh issue create`, label `bug`/`enhancement`). A correção fica com a issue
     aberta até o commit (`Fixes #N`). **Versões só em lote**; correção avulsa
     só quando algo crasha.

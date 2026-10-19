@@ -288,7 +288,7 @@ impl App {
             cabecalho, divisor(), meio, divisor(),
             botoes_rodape(Acao::AplicarLista, "OK"),
         ].spacing(3).padding(8);
-        // O popup segue o modo claro/escuro do FeatherOffice e mantém
+        // O popup segue o modo claro/escuro do FeatherWorks e mantém
         // bordas de 8 px, sem superfície lateral ou altura fixa ociosa.
         container(conteudo)
             .width(Length::Fixed(LARGURA))

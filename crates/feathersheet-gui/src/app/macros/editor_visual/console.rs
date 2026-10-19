@@ -86,7 +86,7 @@ pub(super) fn rodape<'a>(app: &'a App) -> Element<'a, Msg> {
     let documento = if nome.starts_with("planilha:") { app.macro_nome.as_str() }
         else { nome.strip_prefix("modulo:").unwrap_or(nome) };
     container(row![
-        text(tr!("FeatherOffice  /  Editor de macros")).size(10).color(cor_secundaria(escuro)),
+        text(tr!("FeatherWorks  /  Editor de macros")).size(10).color(cor_secundaria(escuro)),
         Space::with_width(Length::Fill),
         text(trf!("Módulo: {documento}")).size(10),
         text(posicao_cursor(app)).size(10),

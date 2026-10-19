@@ -2,11 +2,11 @@
 
 ## Versões com correção
 
-Correções de segurança saem na versão mais recente, publicada na [página de versões](https://github.com/FeatherOffice/feathersheet/releases).
+Correções de segurança saem na versão mais recente, publicada na [página de versões](https://github.com/feather-works/feathersheet/releases).
 
 ## Como relatar uma falha
 
-**Não abra uma issue pública.** Use o relato privado do GitHub: aba **Security → Report a vulnerability** ([link direto](https://github.com/FeatherOffice/feathersheet/security/advisories/new)).
+**Não abra uma issue pública.** Use o relato privado do GitHub: aba **Security → Report a vulnerability** ([link direto](https://github.com/feather-works/feathersheet/security/advisories/new)).
 
 Conte o que encontrou, como reproduzir e, se possível, um arquivo de exemplo **sem dados reais**. Exemplos do que interessa:
 

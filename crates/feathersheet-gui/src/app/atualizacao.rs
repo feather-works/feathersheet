@@ -1,7 +1,7 @@
 //! Procurar atualizações — só quando o usuário clica (Configurações → Sobre).
 //!
 //! Privacidade: a consulta só **lê** do GitHub qual é a versão mais nova
-//! (`api.github.com/repos/FeatherOffice/feathersheet/releases/latest`); nada da
+//! (`api.github.com/repos/feather-works/feathersheet/releases/latest`); nada da
 //! pessoa ou das planilhas é enviado. Quem consulta e baixa é o `curl` do próprio
 //! sistema (Linux, macOS e Windows 10/11 já trazem), sem biblioteca de rede no app.
 //!
@@ -13,8 +13,8 @@
 use std::path::Path;
 use std::process::Command;
 
-pub const REPOSITORIO: &str = "FeatherOffice/feathersheet";
-pub const PAGINA_VERSOES: &str = "https://github.com/FeatherOffice/feathersheet/releases";
+pub const REPOSITORIO: &str = "feather-works/feathersheet";
+pub const PAGINA_VERSOES: &str = "https://github.com/feather-works/feathersheet/releases";
 
 /// Versão deste executável.
 pub fn versao_atual() -> &'static str {
@@ -372,7 +372,7 @@ mod testes {
 
     #[test]
     fn le_a_resposta_do_github() {
-        let json = r#"{"tag_name":"v0.0.3","body":"- botão de atualizar","html_url":"https://github.com/FeatherOffice/feathersheet/releases/tag/v0.0.3","assets":[]}"#;
+        let json = r#"{"tag_name":"v0.0.3","body":"- botão de atualizar","html_url":"https://github.com/feather-works/feathersheet/releases/tag/v0.0.3","assets":[]}"#;
         let l = ler_lancamento(json).unwrap();
         assert_eq!(l.versao, "0.0.3");
         assert_eq!(l.notas, "- botão de atualizar");

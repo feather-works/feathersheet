@@ -4,12 +4,12 @@ Obrigado pelo interesse! O FeatherSheet é escrito em Rust, com interface nativa
 
 ## Defeitos e sugestões
 
-Abra uma [issue](https://github.com/FeatherOffice/feathersheet/issues/new/choose) pelos modelos de **Defeito** ou **Sugestão**. Para defeito, conte os passos, a versão e o sistema, e cole o console (**F12**) se houver erro. Não anexe planilhas com dados pessoais.
+Abra uma [issue](https://github.com/feather-works/feathersheet/issues/new/choose) pelos modelos de **Defeito** ou **Sugestão**. Para defeito, conte os passos, a versão e o sistema, e cole o console (**F12**) se houver erro. Não anexe planilhas com dados pessoais.
 
 ## Compilar e testar
 
 ```sh
-git clone https://github.com/FeatherOffice/feathersheet
+git clone https://github.com/feather-works/feathersheet
 cd feathersheet/crates/feathersheet-core
 cargo test
 cargo clippy --all-targets

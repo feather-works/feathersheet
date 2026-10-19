@@ -5,6 +5,6 @@ edition = "2021"
 description = "Execução local de macros JavaScript no interpretador Rust Boa"
 
 [dependencies]
-feather-macros = { git = "https://github.com/FeatherOffice/feather-io", tag = "v0.1.2" }
+feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v0.1.3" }
 serde_json = "1"
 feathersheet-core = { path = "../feathersheet-core" }

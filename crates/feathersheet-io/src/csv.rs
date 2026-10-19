@@ -1,4 +1,4 @@
-//! Adaptador CSV/TSV do FeatherSheet para o parser compartilhado FeatherOffice.
+//! Adaptador CSV/TSV do FeatherSheet para o parser compartilhado FeatherWorks.
 //!
 //! O parser permissivo e a divisão em lotes foram movidos para
 //! `feather_io::csv_lotes`. Esta reexportação mantém a assinatura

@@ -1,4 +1,4 @@
-//! Fronteira FeatherSheet -> FeatherOffice Charts (CHT-005).
+//! Fronteira FeatherSheet -> FeatherWorks Charts (CHT-005).
 //! A extração, filtros, datas e agregações continuam em feathersheet-core.
 //! Nunca reconstrói totais a partir de amostras, nem altera o formato .fshz.
 
