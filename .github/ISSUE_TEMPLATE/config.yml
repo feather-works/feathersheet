@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Manual (wiki)
+    url: https://github.com/FeatherOffice/feathersheet/wiki
+    about: Instalação, atalhos, fórmulas, macros e perguntas frequentes.

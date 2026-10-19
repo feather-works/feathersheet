@@ -1,0 +1,39 @@
+name: Defeito
+description: Algo não funciona como deveria
+labels: [bug]
+body:
+  - type: textarea
+    id: passos
+    attributes:
+      label: O que você fez
+      description: Os passos para fazer o defeito aparecer.
+      placeholder: "1. Abri um .xlsx com…\n2. Selecionei a coluna…\n3. …"
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que esperava e o que aconteceu
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do FeatherSheet
+      description: Menu Ajuda → Sobre, ou Configurações → Sobre.
+      placeholder: "0.1.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema
+      options: [Windows, Linux (.deb), Linux (.tar.gz), Compilado do código]
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console (F12)
+      description: Se houver erro, cole aqui as linhas do console. Não anexe planilhas com dados pessoais.
+      render: text

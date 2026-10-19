@@ -1,0 +1,15 @@
+name: Sugestão
+description: Uma função, comando ou melhoria nova
+labels: [enhancement]
+body:
+  - type: textarea
+    id: pedido
+    attributes:
+      label: O que você gostaria
+    validations:
+      required: true
+  - type: textarea
+    id: referencia
+    attributes:
+      label: Como funciona em outro programa
+      description: Se já existe no Excel, Google Sheets ou LibreOffice, conte como é lá.
