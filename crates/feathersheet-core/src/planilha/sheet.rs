@@ -1954,7 +1954,7 @@ pub(crate) fn le_de_fora(node: &Node, propria: &str) -> bool {
 
 /// Nome de aba igual sem ligar para maiúscula, sem alocar texto: é
 /// perguntado a cada célula lida de um intervalo.
-pub(crate) fn mesmo_nome(a: &str, b: &str) -> bool {
+pub fn mesmo_nome(a: &str, b: &str) -> bool {
     if a.is_ascii() && b.is_ascii() {
         return a.eq_ignore_ascii_case(b);
     }

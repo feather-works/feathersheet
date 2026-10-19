@@ -430,10 +430,10 @@ impl App {
         };
         // Um valor numa coluna até o fim (A1 em A2:A100000000, 17/10/2026):
         // a parte vazia da coluna vai em blocos pelo motor, então cola tudo.
-        // `Some` = o texto de cada coluna do bloco (uma linha só, valor
-        // simples, sem formatação nem validação na aba).
+        // `Some` = o texto e o estilo de cada coluna do bloco (uma linha só,
+        // sem validação na aba); data e moeda levam o formato numa faixa.
         let selecao = self.area_selecionada().normalized();
-        let rapida: Option<Vec<String>> = (|| {
+        let rapida: Option<Vec<(String, Option<feathersheet_core::celulas::estilo_parcial::EstiloParcial>)>> = (|| {
             if origem_altura != 1 || matches!(modo, ModoColagem::Transposta
                 | ModoColagem::SomenteFormato | ModoColagem::ValoresComFormato) {
                 return None;
@@ -443,27 +443,33 @@ impl App {
                 .is_some_and(|t| !matches!(t.trim(), "" | "[]"));
             if validacao { return None; }
             (0..origem_largura).map(|oc| {
-                let raw = match (internas, modo) {
+                let c = selecao.c0 + oc as u32;
+                // O estilo que o caminho célula a célula daria à primeira linha.
+                let (raw, estilo) = match (internas, modo) {
                     (Some(l), ModoColagem::Completa) => {
                         let s = l[0].get(oc)?;
-                        if s.style.is_some() { return None; }
-                        s.raw.clone()
+                        (s.raw.clone(), s.style.clone())
                     }
-                    (Some(l), ModoColagem::FormulasSemFormato) => l[0].get(oc)?.raw.clone(),
-                    (Some(_), _) => valores_internos?.first()?.get(oc)?.clone(),
-                    (None, _) => externas.as_ref()?.first()?.get(oc).cloned().unwrap_or_default(),
+                    (Some(l), ModoColagem::FormulasSemFormato) => (l[0].get(oc)?.raw.clone(), None),
+                    (Some(_), _) => (valores_internos?.first()?.get(oc)?.clone(), None),
+                    (None, _) => {
+                        let raw = externas.as_ref()?.first()?.get(oc).cloned().unwrap_or_default();
+                        let estilo = if modo == ModoColagem::Completa {
+                            self.workbook.aba(self.folha)?.sheet.style_for(selecao.r0, c, &raw)
+                        } else { None };
+                        (raw, estilo)
+                    }
                 };
                 // Fórmula copiada aqui vai em bloco pela coluna empacotada
                 // (`preencher_formula_faixa_vazia`); a de fora ou recortada
                 // seria o mesmo texto em todas as linhas, não um padrão.
                 if raw.starts_with('=') {
-                    let c = selecao.c0 + oc as u32;
                     let no_topo = deslocar(&raw, selecao.r0, c, 0, oc);
                     let cabe = self.workbook.aba(self.folha)
                         .is_some_and(|a| a.sheet.formula_cabe_em_bloco(c, selecao.r0, &no_topo));
-                    return (desloca.is_some() && cabe).then_some(raw);
+                    return (desloca.is_some() && cabe).then_some((raw, estilo));
                 }
-                feathersheet_core::planilha::sheet::Sheet::valor_de_faixa(&raw).map(|_| raw)
+                feathersheet_core::planilha::sheet::Sheet::valor_de_faixa(&raw, estilo.as_ref()).map(|_| (raw, estilo))
             }).collect()
         })();
         // Fora disso, a seleção que vai até o fim da planilha (coluna ou
@@ -626,12 +632,13 @@ impl App {
                 for dc in 0..plano.largura {
                     let c = plano.c0 + dc as u32;
                     let oc = dc % origem_largura;
-                    let texto = &textos[oc];
+                    let (texto, estilo) = &textos[oc];
                     let de = inicio_bloco[dc].unwrap_or(plano.r0 + altura_celulas as u32);
                     let preenchida = de > ate || (sheet.faixa_vazia(c, de, ate) && if texto.starts_with('=') {
-                        sheet.preencher_formula_faixa_vazia(c, de, ate, &deslocar(texto, de, c, 0, oc))
+                        estilo.as_ref().is_none_or(|e| sheet.pintar_faixa_vazia(c, de, ate, e))
+                            && sheet.preencher_formula_faixa_vazia(c, de, ate, &deslocar(texto, de, c, 0, oc))
                     } else {
-                        sheet.preencher_faixa_vazia(c, de, ate, texto)
+                        sheet.preencher_faixa_vazia(c, de, ate, texto, estilo.as_ref())
                     });
                     if !preenchida { sem_bloco.get_or_insert(c); }
                 }

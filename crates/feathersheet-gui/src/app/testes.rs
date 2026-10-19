@@ -1030,6 +1030,7 @@ fn modelo_orcamento_domestico_preenche_pasta_pelo_motor_real() {
     /// travava. 17/10: um valor simples cola até o fim de verdade (em
     /// blocos, no motor); fórmula continua parando na última linha com dados.
     #[test]
+    #[ignore = "cola até a linha 100 milhões: pesado demais para a suíte; o usuário testa no app"]
     fn colar_ate_o_fim_da_planilha() {
         use feathersheet_core::celulas::refs::MAX_ROWS;
         use feathersheet_core::celulas::values::Value;
@@ -1063,6 +1064,21 @@ fn modelo_orcamento_domestico_preenche_pasta_pelo_motor_real() {
         app.fim_selecao = (19, 3);
         let _ = app.update(Msg::Colar("y".into()));
         assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(19, 3), "y");
+        // 19/10: data também vai até o fim, com o formato numa faixa de
+        // estilo — digitada de fora (E) e copiada daqui com o formato (F).
+        let _ = app.update(Msg::Selecionar(0, 4));
+        app.fim_selecao = (MAX_ROWS - 1, 4);
+        let _ = app.update(Msg::Colar("16/10/2026".into()));
+        let _ = app.update(Msg::Selecionar(0, 4));
+        let copiado = app.copiar_selecao().unwrap();
+        let _ = app.update(Msg::Selecionar(1, 5));
+        app.fim_selecao = (MAX_ROWS - 1, 5);
+        let _ = app.update(Msg::Colar(copiado));
+        let sheet = &app.workbook.aba(0).unwrap().sheet;
+        for c in [4, 5] {
+            assert_eq!(sheet.get_value(MAX_ROWS - 1, c), sheet.get_value(0, 4), "coluna {c}");
+            assert!(sheet.get_style(MAX_ROWS - 1, c).is_some(), "coluna {c}: o formato de data vai junto");
+        }
     }
 
     #[test]

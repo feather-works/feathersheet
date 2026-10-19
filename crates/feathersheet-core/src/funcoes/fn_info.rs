@@ -1,30 +1,11 @@
 //! Funções de lógica e informação em Rust: VERDADEIRO, FALSO, XOR, SEERRO, SENÃODISP, SES, PARÂMETRO, ESCOLHER, NÃODISP, ÉCÉL, ÉERRO, ÉERR, É.NÃO.DISP, ÉLÓGICO, É.NÃO.TEXTO, TIPO.ERRO, TIPO, N, ÉNÚM, ÉTEXTO, ÉPAR, ÉÍMPAR, LINS, COLS.
 
+use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
 use crate::funcoes::fn_helpers::{arity, err_na, err_value, has};
-use crate::celulas::refs::Rect;
 use crate::celulas::values::{to_text, CellError, Computed, ErrorCode, Value};
 
-fn node_rect(node: &Node) -> Option<Rect> {
-    match node {
-        Node::Ref { row, col, sheet } => Some(Rect {
-            r0: *row,
-            c0: *col,
-            r1: *row,
-            c1: *col,
-            sheet: sheet.clone(),
-        }),
-        Node::Range { r0, c0, r1, c1, sheet } => Some(Rect {
-            r0: *r0,
-            c0: *c0,
-            r1: *r1,
-            c1: *c1,
-            sheet: sheet.clone(),
-        }),
-        _ => None,
-    }
-}
 
 /// `=VERDADEIRO()` / `=TRUE()`
 pub fn fn_true(_args: &[Node], _ev: &Evaluator<'_>) -> Computed {
@@ -214,11 +195,11 @@ pub fn fn_isodd(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 }
 
 /// `=LINS(matriz)` / `=ROWS(...)`
-pub fn fn_rows(args: &[Node], _ev: &Evaluator<'_>) -> Computed {
+pub fn fn_rows(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if !has(args, 0) {
         return err_value();
     }
-    if let Some(rect) = node_rect(&args[0]) {
+    if let Some(rect) = node_rect(&args[0], ev) {
         Computed::Scalar(Value::Number((rect.r1 - rect.r0 + 1) as f64))
     } else {
         Computed::Scalar(Value::Number(1.0))
@@ -226,11 +207,11 @@ pub fn fn_rows(args: &[Node], _ev: &Evaluator<'_>) -> Computed {
 }
 
 /// `=COLS(matriz)` / `=COLUMNS(...)`
-pub fn fn_columns(args: &[Node], _ev: &Evaluator<'_>) -> Computed {
+pub fn fn_columns(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if !has(args, 0) {
         return err_value();
     }
-    if let Some(rect) = node_rect(&args[0]) {
+    if let Some(rect) = node_rect(&args[0], ev) {
         Computed::Scalar(Value::Number((rect.c1 - rect.c0 + 1) as f64))
     } else {
         Computed::Scalar(Value::Number(1.0))
@@ -245,7 +226,7 @@ pub fn fn_row(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         } else {
             err_value()
         }
-    } else if let Some(rect) = node_rect(&args[0]) {
+    } else if let Some(rect) = node_rect(&args[0], ev) {
         if rect.r0 == rect.r1 {
             Computed::Scalar(Value::Number((rect.r0 + 1) as f64))
         } else {
@@ -277,7 +258,7 @@ pub fn fn_column(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         } else {
             err_value()
         }
-    } else if let Some(rect) = node_rect(&args[0]) {
+    } else if let Some(rect) = node_rect(&args[0], ev) {
         if rect.c0 == rect.c1 {
             Computed::Scalar(Value::Number((rect.c0 + 1) as f64))
         } else {

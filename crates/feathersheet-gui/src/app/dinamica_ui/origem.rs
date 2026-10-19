@@ -2,26 +2,8 @@
 use super::*;
 use feathersheet_core::dinamica::campos;
 
-fn celula(texto: &str) -> Option<(u32,u32)> {
-    let parte = texto.trim();
-    let primeiro_numero = parte.find(|c:char| c.is_ascii_digit())?;
-    let letras = &parte[..primeiro_numero];
-    let digitos = &parte[primeiro_numero..];
-    if letras.is_empty() || digitos.is_empty()
-        || !letras.chars().all(|c| c.is_ascii_alphabetic())
-        || !digitos.chars().all(|c| c.is_ascii_digit()) { return None; }
-    let coluna = col_index(&letras.to_ascii_uppercase())?;
-    let numero = digitos.parse::<u32>().ok()?;
-    (numero >= 1 && numero <= MAX_ROWS && coluna < MAX_COLS)
-        .then(|| (numero-1,coluna))
-}
-
 fn intervalo(texto: &str) -> Option<Rect> {
-    let entrada = texto.trim();
-    let (a,b) = entrada.split_once(':').unwrap_or((entrada,entrada));
-    let (r0,c0) = celula(a)?;
-    let (r1,c1) = celula(b)?;
-    Some(Rect::new(r0,c0,r1,c1).normalized())
+    feathersheet_core::celulas::refs::parse_range_ref(texto).map(|r| r.normalized())
 }
 
 pub(super) fn texto_valido(texto: &str) -> bool {
@@ -65,7 +47,7 @@ impl App {
             .map(|(i,_)| nova.c0 as usize + i).unwrap_or(nova.c1 as usize);
         if let Some(e) = self.dinamica.as_mut() {
             e.origem = nova.clone();
-            e.origem_texto = format!("{}:{}", cell_name(nova.r0,nova.c0),cell_name(nova.r1,nova.c1));
+            e.origem_texto = endereco_area(&nova);
             e.nomes = campos.into_iter().map(|c| c.nome).collect();
             e.linhas = vec![nova.c0 as usize];
             e.colunas.clear();

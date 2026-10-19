@@ -935,7 +935,7 @@ impl Sheet {
 
     /// `styleFor`: o estilo com que um texto digitado entra — o atual, com o
     /// formato implícito ("10%" pede porcentagem) quando ainda não há um.
-    fn style_for(&self, row: u32, col: u32, raw: &str) -> Option<EstiloParcial> {
+    pub fn style_for(&self, row: u32, col: u32, raw: &str) -> Option<EstiloParcial> {
         let atual = self.estilo_mesclado(row, col);
         if let Some(f) = formato(atual.as_ref()) {
             if f != "auto" {
@@ -2010,28 +2010,34 @@ impl Sheet {
         !formula
     }
 
-    /// O valor que [`Self::preencher_faixa_vazia`] grava para `raw`, ou
-    /// `None` quando ele não vai por lá (fórmula, erro, vazio, formato
-    /// detectado — data, moeda, % — ou texto que não volta igual).
-    pub fn valor_de_faixa(raw: &str) -> Option<Value> {
+    /// O valor que [`Self::preencher_faixa_vazia`] grava para `raw` com o
+    /// estilo `estilo`, ou `None` quando ele não vai por lá (fórmula, erro,
+    /// vazio ou texto que não volta igual com esse estilo: "16/10/2026" sem
+    /// formato de data precisaria guardar o texto em cada célula).
+    pub fn valor_de_faixa(raw: &str, estilo: Option<&EstiloParcial>) -> Option<Value> {
         if raw.is_empty() || raw.starts_with('=') { return None; }
         let analisado = crate::celulas::input::parse_literal(raw);
-        let simples = analisado.format.is_none()
-            && !matches!(analisado.value, Value::Error(_) | Value::Empty)
-            && round_trips(raw, &analisado.value, None);
+        let simples = !matches!(analisado.value, Value::Error(_) | Value::Empty)
+            && round_trips(raw, &analisado.value, estilo);
         simples.then_some(analisado.value)
     }
 
-    /// Cola o valor `raw` (não fórmula) em `r0..=r1` da coluna `col`, que
-    /// tem de estar vazia ([`Self::faixa_vazia`]), bloco a bloco: colar A1
-    /// em A2:A100000000 eram 100 milhões de `set_cell` (17/10/2026). Um
-    /// passo de Ctrl+Z (o do Texto para Colunas: desfazer limpa a faixa).
-    /// `false` quando o valor não vai por aqui (fórmula, erro, formato
-    /// detectado como data ou texto que não volta igual): use o caminho
-    /// de sempre.
-    pub fn preencher_faixa_vazia(&mut self, col: u32, r0: u32, r1: u32, raw: &str) -> bool {
+    /// Cola o valor `raw` (não fórmula), com o estilo `estilo`, em
+    /// `r0..=r1` da coluna `col`, que tem de estar vazia
+    /// ([`Self::faixa_vazia`]), bloco a bloco: colar A1 em A2:A100000000
+    /// eram 100 milhões de `set_cell` (17/10/2026). Um passo de Ctrl+Z (o do
+    /// Texto para Colunas: desfazer limpa a faixa). `false` quando o valor
+    /// não vai por aqui ([`Self::valor_de_faixa`], [`Self::pintar_faixa_vazia`]):
+    /// use o caminho de sempre.
+    pub fn preencher_faixa_vazia(&mut self, col: u32, r0: u32, r1: u32, raw: &str,
+        estilo: Option<&EstiloParcial>) -> bool {
         if r0 > r1 { return false; }
-        let Some(valor) = Self::valor_de_faixa(raw) else { return false };
+        let Some(valor) = Self::valor_de_faixa(raw, estilo) else { return false };
+        self.abrir_transacao();
+        if estilo.is_some_and(|e| !self.pintar_faixa_vazia(col, r0, r1, e)) {
+            self.fechar_transacao();
+            return false;
+        }
         let refazer = Refazer(Arc::new(move |s: &mut Sheet| {
             if s.data.preencher_faixa(col, r0, r1, &valor, &mut s.pool) {
                 s.cresce_limites(r0, col);
@@ -2039,6 +2045,30 @@ impl Sheet {
             }
             s.rastro.borrow_mut().desconhecer();
             if s.alguma_formula_le() { s.invalidar_todos_calculos(); }
+        }));
+        if let Some(pendente) = self.hist.pendente.as_mut() {
+            pendente.push(Passo::Divisao { area: [r0, col, r1, col], antes: Vec::new(), refazer: refazer.clone() });
+        }
+        (refazer.0)(self);
+        self.fechar_transacao();
+        true
+    }
+
+    /// Dá o estilo `estilo` a `r0..=r1` da coluna `col` como uma faixa só
+    /// (data ou moeda colada até o fim: um estilo por célula seriam milhões
+    /// de entradas). Um passo de Ctrl+Z, que limpa a faixa. `false` se ali
+    /// já há estilo de célula ou de linha: o desfazer apagaria o de antes,
+    /// e o estilo de linha muda a mescla de linha a linha.
+    pub fn pintar_faixa_vazia(&mut self, col: u32, r0: u32, r1: u32, estilo: &EstiloParcial) -> bool {
+        if !tem_estilo(Some(estilo)) { return true; }
+        if r0 > r1 || !self.row_styles.is_empty()
+            || self.styles.alguma_no_retangulo(r0, col, r1, col, |_, _, _| true) {
+            return false;
+        }
+        let Some(idx) = self.registrar_parcial(estilo.clone()) else { return true };
+        let refazer = Refazer(Arc::new(move |s: &mut Sheet| {
+            s.styles.inserir_faixa(col, r0, r1, idx);
+            s.rastro.borrow_mut().desconhecer();
         }));
         self.abrir_transacao();
         if let Some(pendente) = self.hist.pendente.as_mut() {
@@ -2098,10 +2128,13 @@ impl Sheet {
         };
         let avulsas: Vec<CellKey> = self.cells.keys()
             .chain(self.externas.iter()).chain(self.textos.iter().map(|(k, _)| k))
-            .filter(|k| dentro(k)).copied()
-            .chain(self.styles.chaves_no_retangulo(r0, c0, r1, c1)).collect();
+            .filter(|k| dentro(k)).copied().collect();
         for k in avulsas {
             self.soltar_para_literal(key_row(k), key_col(k));
+        }
+        // Estilo por faixa, sem abrir célula a célula (`pintar_faixa_vazia`).
+        for c in c0..=c1 {
+            self.styles.remover_faixa(c, r0, r1);
         }
         // Fórmula empacotada: em blocos, como entrou (`preencher_formula_faixa_vazia`).
         for c in c0..=c1 {

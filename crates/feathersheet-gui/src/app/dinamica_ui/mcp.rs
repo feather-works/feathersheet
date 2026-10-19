@@ -63,9 +63,9 @@ fn aplicar_args(e: &mut Estado, args: &Json) -> Result<(), String> {
 fn descrever(app: &App, aba: usize, d: &Json) -> String {
     let nome_aba = app.workbook.nomes().get(aba).cloned().unwrap_or_default();
     let area = retangulo_json(&d["areaResultado"])
-        .map(|a| format!("{}:{}", cell_name(a.r0, a.c0), cell_name(a.r1, a.c1))).unwrap_or_default();
+        .map(|a| endereco_area(&a)).unwrap_or_default();
     let origem = retangulo_json(&d["fonte"]["area"])
-        .map(|a| format!("{}!{}:{}", d["fonte"]["aba"].as_str().unwrap_or("?"), cell_name(a.r0, a.c0), cell_name(a.r1, a.c1)))
+        .map(|a| format!("{}!{}", d["fonte"]["aba"].as_str().unwrap_or("?"), endereco_area(&a)))
         .unwrap_or_default();
     let campos = edicao::ler_estado(app, aba, d).map(|e| {
         let nome = |c: &usize| e.nomes.get(c - e.origem.c0 as usize).cloned().unwrap_or_default();

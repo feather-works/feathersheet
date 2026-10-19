@@ -423,6 +423,7 @@ pub enum Msg {
     CondicionalPredefinida(TipoCondicional), CondicionalTipo(TipoCondicional), CondicionalValor(String),
     CondicionalValor2(String), CondicionalCor(String), CondicionalCorTexto(String),
     CondicionalCorMin(String), CondicionalCorMeio(String), CondicionalCorNegativa(String),
+    CondicionalCorAbrir(condicional_ui::CorRegra), CondicionalSeletorCor(feather_ui::seletor_cor::Evento),
     CondicionalPontoMeio(bool), CondicionalOcultarValor(bool),
     CondicionalNegrito(bool), CondicionalItalico(bool),
     CondicionalSublinhado(bool), CondicionalRiscado(bool),
@@ -529,6 +530,8 @@ pub enum Msg {
     MacroImportarCatalogo, MacroCatalogoLido(Result<Option<String>,String>),
     MacroExportarCatalogo, MacroDestinoCatalogo(Option<PathBuf>),
     MonitorPulso, ResumoPulso,
+    /// Redesenha a borda andando do Ctrl+C (só enquanto há área copiada).
+    CopiaPulso,
     /// Modo de captura (`FEATHERSHEET_CAPTURAR=arquivo.png`): prepara e fotografa.
     CapturarTela, TelaCapturada(window::Screenshot),
     /// Redesenha a barra de abertura do rodapé enquanto o arquivo carrega.
@@ -745,6 +748,10 @@ pub struct App {
     congelar_popup: (f32, f32),
     perfil_geracao: u64,
     condicional_aberto: bool,
+    /// Campo de cor da regra com o seletor aberto, e o estado do seletor.
+    condicional_cor_aberta: Option<condicional_ui::CorRegra>,
+    condicional_hsva: [f32; 4],
+    condicional_hex: String,
     condicional_menu_aberto: bool,
     condicional_menu_x: f32,
     /// Âncora vertical do popup, calculada ao clicar na ferramenta da Ribbon.
@@ -1040,6 +1047,9 @@ impl Default for App {
             objetos: Default::default(),
             congelar_popup: (8., 120.),
             condicional_aberto: false,
+            condicional_cor_aberta: None,
+            condicional_hsva: [0., 0., 0., 1.],
+            condicional_hex: String::new(),
             condicional_menu_aberto: false,
             condicional_menu_x: 8.0,
             condicional_menu_y: 132.0,
@@ -1483,6 +1493,9 @@ impl App {
                     .map(|_| Msg::AssistenteDivisao(EventoAssistenteDivisao::ProcessarLote))
             } else { Subscription::none() },
             iced::time::every(std::time::Duration::from_secs(1)).map(|_| Msg::MonitorPulso),
+            if self.marca_copia.is_some() {
+                iced::time::every(std::time::Duration::from_millis(100)).map(|_| Msg::CopiaPulso)
+            } else { Subscription::none() },
             if self.passo_captura < 2 && std::env::var_os("FEATHERSHEET_CAPTURAR").is_some() {
                 iced::time::every(std::time::Duration::from_millis(1500)).map(|_| Msg::CapturarTela)
             } else { Subscription::none() },
@@ -1510,6 +1523,15 @@ impl App {
                         Some(Msg::BuscaArrastoMover(position)),
                     iced::Event::Mouse(iced::mouse::Event::ButtonReleased(iced::mouse::Button::Left)) =>
                         Some(Msg::BuscaArrastoFim),
+                    _ => None,
+                })
+            } else { Subscription::none() },
+            // Divisória do editor de macros: soltar em cima do código (que
+            // captura o clique) não chegava ao `on_release` e o arrasto ficava preso.
+            if self.macro_visual.arrasto.is_some() {
+                iced::event::listen_with(|evento, _status, _janela| match evento {
+                    iced::Event::Mouse(iced::mouse::Event::ButtonReleased(iced::mouse::Button::Left)) =>
+                        Some(Msg::MacroVisual(macros::EventoVisual::DivisoriaFim)),
                     _ => None,
                 })
             } else { Subscription::none() },
@@ -1607,7 +1629,10 @@ impl App {
     }
 
     pub fn view(&self, id: window::Id) -> Element<'_, Msg> {
-        feather_ui::cromo::moldura_janela(self.view_conteudo(id))
+        let janela = feather_ui::cromo::moldura_janela(self.view_conteudo(id));
+        // A ponta da caneta como clique (a leitura acompanha só a principal).
+        let fonte = self.tinta.fonte_pressao.as_ref().filter(|_| self.janelas.tipo(id).is_none() && eh_janela_principal(id));
+        feather_ui::clique_caneta::clique_caneta(janela, fonte).into()
     }
 
     fn view_conteudo(&self, id: window::Id) -> Element<'_, Msg> {
@@ -1636,6 +1661,12 @@ impl App {
         self.view_editor(id)
     }
 
+}
+
+/// O intervalo como a caixa de nome e os diálogos mostram: `A1`, `A1:B10`,
+/// `C:C` ou `5:10`, sem o nome da aba.
+pub(crate) fn endereco_area(area: &Rect) -> String {
+    feathersheet_core::celulas::refs::format_ref(&Rect::new(area.r0, area.c0, area.r1, area.c1))
 }
 
 /// Janela principal, lida pela assinatura de eventos (função sem captura): o

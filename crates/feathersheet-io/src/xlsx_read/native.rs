@@ -652,6 +652,8 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         area.sheet = n.sheet;
         workbook.definir_nome(&n.name, area);
     }
+    let externos = super::vinculos::ler(&mut arquivo, &book, &rels);
+    super::vinculos::instalar(&mut workbook, externos);
     // Dinâmica sem resultado nas células (Google Planilhas, `refreshOnLoad`)
     // é calculada aqui; com resultado, só ganha a área para o painel editar.
     super::dinamica_importada::materializar(&mut workbook);

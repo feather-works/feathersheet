@@ -483,7 +483,7 @@ fn preencher_faixa_vazia_atravessa_blocos_e_desfaz_num_passo() {
     s.set_cell(0, 1, "=SOMA(A:A)");
     assert_eq!(s.get_value(0, 1), Value::Number(7.0));
     assert!(s.faixa_vazia(0, 1, 300_000));
-    assert!(s.preencher_faixa_vazia(0, 1, 300_000, "7"));
+    assert!(s.preencher_faixa_vazia(0, 1, 300_000, "7", None));
     for r in [1, 65_535, 65_536, 131_072, 300_000] {
         assert_eq!(s.get_value(r, 0), Value::Number(7.0), "linha {r}");
     }
@@ -492,10 +492,10 @@ fn preencher_faixa_vazia_atravessa_blocos_e_desfaz_num_passo() {
     assert_eq!(s.get_value(0, 1), Value::Number(7.0 * 300_001.0), "a soma vê a coluna nova");
     assert!(!s.faixa_vazia(0, 1, 10), "agora tem dado");
     // Texto também; fórmula e data ficam para o caminho de sempre.
-    assert!(s.preencher_faixa_vazia(2, 5, 70_000, "abc"));
+    assert!(s.preencher_faixa_vazia(2, 5, 70_000, "abc", None));
     assert_eq!(s.get_raw(70_000, 2), "abc");
-    assert!(!s.preencher_faixa_vazia(3, 0, 10, "=A1"));
-    assert!(!s.preencher_faixa_vazia(3, 0, 10, "16/10/2026"));
+    assert!(!s.preencher_faixa_vazia(3, 0, 10, "=A1", None));
+    assert!(!s.preencher_faixa_vazia(3, 0, 10, "16/10/2026", None));
     // Um Ctrl+Z por colagem.
     assert!(s.undo());
     assert_eq!(s.get_raw(70_000, 2), "");
@@ -506,4 +506,29 @@ fn preencher_faixa_vazia_atravessa_blocos_e_desfaz_num_passo() {
     assert_eq!(s.max_row, 0, "a última linha usada volta");
     assert!(s.redo());
     assert_eq!(s.get_value(300_000, 0), Value::Number(7.0));
+}
+
+/// Data colada até o fim: valor em blocos e o formato numa faixa de estilo
+/// só, num Ctrl+Z; onde já há estilo de célula, fica para o caminho de sempre.
+#[test]
+fn preencher_faixa_vazia_leva_o_formato_da_data() {
+    let mut s = Sheet::new("Plan1");
+    s.set_cell(0, 5, "16/10/2026");
+    let estilo = s.style_for(1, 0, "16/10/2026");
+    assert!(estilo.is_some(), "a data pede formato");
+    assert!(s.preencher_faixa_vazia(0, 1, 200_000, "16/10/2026", estilo.as_ref()));
+    for r in [1, 65_536, 200_000] {
+        assert_eq!(s.get_value(r, 0), s.get_value(0, 5), "linha {r}");
+        assert_eq!(s.get_style(r, 0), s.get_style(0, 5), "linha {r}: o mesmo formato de quem digita");
+    }
+    assert_eq!(s.styles.faixas_da_coluna(0).len(), 1, "uma faixa, não 200 mil estilos");
+    assert!(s.undo());
+    assert_eq!(s.get_value(200_000, 0), Value::Empty);
+    assert!(s.styles.faixas_da_coluna(0).is_empty(), "o Ctrl+Z tira o formato");
+    assert!(s.redo());
+    assert_eq!(s.get_value(65_536, 0), s.get_value(0, 5));
+
+    s.set_style(&Rect::new(5, 1, 5, 1), &estilo.clone().unwrap());
+    assert!(!s.preencher_faixa_vazia(1, 1, 10, "16/10/2026", estilo.as_ref()));
+    assert_eq!(s.get_value(1, 1), Value::Empty, "recusado não grava nada");
 }

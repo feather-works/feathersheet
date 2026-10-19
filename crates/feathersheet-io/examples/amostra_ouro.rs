@@ -800,6 +800,69 @@ fn aba_indice(c: &mut Ctx, aba: usize, rel: &Relatorio, n_graficos: usize, regis
     c.largura(aba, 2, 520);
 }
 
+/// Origem da dinâmica: vendas por região e produto.
+const VENDAS: [[&str; 4]; 9] = [
+    ["Região", "Produto", "Ano", "Valor"],
+    ["Sul", "A", "2024", "10"],
+    ["Sul", "B", "2024", "20"],
+    ["Norte", "A", "2025", "30"],
+    ["Norte", "B", "2025", "5"],
+    ["Leste", "A", "2024", "7"],
+    ["Norte", "C", "2025", "1"],
+    ["Leste", "C", "2025", "12"],
+    ["Sul", "C", "2025", "8"],
+];
+
+/// Tabela dinâmica (Região × soma de Valor), no formato que o painel grava
+/// em `sheet.dn`; o resultado já vai nas células e o Excel recalcula ao abrir.
+fn aba_dinamica(c: &mut Ctx, dados: usize, resumo: usize) {
+    for (r, linha) in VENDAS.iter().enumerate() {
+        for (col, t) in linha.iter().enumerate() {
+            c.put_rc(dados, r as u32, col as u32, t);
+        }
+    }
+    let resultado = [["Rótulos de Linha", "Soma de Valor"], ["Leste", "19"], ["Norte", "36"], ["Sul", "38"], ["Total Geral", "93"]];
+    for (r, linha) in resultado.iter().enumerate() {
+        for (col, t) in linha.iter().enumerate() {
+            c.put_rc(resumo, r as u32, col as u32, t);
+        }
+    }
+    let nome_dados = c.wb.aba(dados).unwrap().sheet.name.clone();
+    let meta = json!([{
+        "id": "dinamica_nativa_1_1",
+        "fonte": {"aba": nome_dados, "area": {"r0": 0, "r1": VENDAS.len() - 1, "c0": 0, "c1": 3}},
+        "destino": {"row": 0, "col": 0},
+        "linhas": [0], "colunas": [], "valores": [{"col": 3, "como": "soma"}], "datas": [],
+        "areaResultado": {"r0": 0, "c0": 0, "r1": resultado.len() - 1, "c1": 1},
+        "layout": "compacto", "repetirRotulos": false, "subtotais": false,
+        "tema": "padrao", "recolhidos": [], "filtros": [], "calculados": [],
+    }]);
+    c.wb.aba_mut(resumo).unwrap().sheet.dn = Some(meta.to_string());
+}
+
+/// Referência a outro arquivo: grava `Origem.fshz` ao lado e cita a aba
+/// "Dados" dele, com os valores já guardados (vão para o `externalLink`).
+fn aba_vinculos(c: &mut Ctx, aba: usize, saida: &std::path::Path) -> Result<(), String> {
+    let mut origem = Workbook::new();
+    origem.renomear_aba(0, "Dados");
+    for (r, (mes, v)) in [("Mês", "Total"), ("Janeiro", "1200"), ("Fevereiro", "980"), ("Março", "1430")].iter().enumerate() {
+        origem.escrever_celula(0, r as u32, 0, mes.to_string());
+        origem.escrever_celula(0, r as u32, 1, v.to_string());
+    }
+    let caminho = saida.join("Origem.fshz");
+    feathersheet_io::da_workbook::pasta_gravar_arquivo(&origem, 0, &caminho)?;
+    c.put(aba, "A1", "Vínculo com outro arquivo (Origem.fshz, na mesma pasta)");
+    c.put(aba, "A3", "Janeiro");
+    c.put(aba, "B3", "=[Origem.fshz]Dados!B2");
+    c.put(aba, "A4", "Soma do trimestre");
+    c.put(aba, "B4", "=SOMA([Origem.fshz]Dados!B2:B4)");
+    c.put(aba, "A5", "Março + 10%");
+    c.put(aba, "B5", "=[Origem.fshz]Dados!B4*1,1");
+    let abas = feathersheet_core::planilha::vinculo::retrato_de_valores(&origem);
+    c.wb.instalar_externo_com("Origem.fshz", abas, Some(caminho.display().to_string()), None);
+    Ok(())
+}
+
 fn main() -> Result<(), String> {
     set_locale_config(LocaleConfig::pt_br());
     let saida: PathBuf = std::env::args()
@@ -834,6 +897,9 @@ fn main() -> Result<(), String> {
     }
     let i_graf = c.wb.criar_aba("Gráficos");
     let i_extras = c.wb.criar_aba("Extras");
+    let i_vendas = c.wb.criar_aba("Vendas");
+    let i_resumo = c.wb.criar_aba("Dinâmica");
+    let i_vinculos = c.wb.criar_aba("Vínculos");
 
     let mut rel = Relatorio::default();
     for nome in ABAS {
@@ -843,6 +909,8 @@ fn main() -> Result<(), String> {
     let mut avisos_graf = Vec::new();
     let n_graficos = aba_graficos(&mut c, i_graf, &mut avisos_graf);
     aba_extras(&mut c, i_extras);
+    aba_dinamica(&mut c, i_vendas, i_resumo);
+    aba_vinculos(&mut c, i_vinculos, &saida)?;
     aba_indice(&mut c, 0, &rel, n_graficos, registro.len(), nomes.len());
 
     // 2) confere resultados do motor

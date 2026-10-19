@@ -139,6 +139,9 @@ impl std::fmt::Display for TipoUi {
 #[derive(Debug, Clone)]
 pub enum Evento {
     Abrir,
+    /// Inserir › Gráfico… do menu (e o MCP): sem botão da faixa para
+    /// ancorar, o seletor abre centralizado sob a faixa.
+    AbrirNoCentro,
     Fechar,
     FecharSeletor,
     Cursor(iced::Point),
@@ -1144,6 +1147,11 @@ impl App {
 
     pub(super) fn evento_grafico(&mut self, event: Evento) -> Task<Msg> {
         match event {
+            Evento::AbrirNoCentro => {
+                // `galeria_graficos` põe o popover em clique_x - 32.
+                self.graficos.cursor.x = (self.tamanho_principal.width - seletor_tipo::LARGURA_POPOVER) / 2.0 + 32.0;
+                return self.evento_grafico(Evento::Abrir);
+            }
             Evento::Abrir => {
                 if self.graficos.seletor_aberto {
                     self.graficos.seletor_aberto = false;

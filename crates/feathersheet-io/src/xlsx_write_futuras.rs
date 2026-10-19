@@ -28,6 +28,9 @@ const XLFN: &[&str] = &[
     "T.TEST", "TAKE", "TEXTAFTER", "TEXTBEFORE", "TEXTJOIN", "TEXTSPLIT", "TOCOL", "TOROW",
     "UNICHAR", "UNICODE", "UNIQUE", "VALUETOTEXT", "VAR.P", "VAR.S", "VSTACK", "WEBSERVICE",
     "WEIBULL.DIST", "WORKDAY.INTL", "WRAPCOLS", "WRAPROWS", "XLOOKUP", "XMATCH", "XOR", "Z.TEST",
+    // Faltavam (19/10/2026, amostra aberta no Excel deu #NOME?): 2010/2013 e Excel 365.
+    "AGGREGATE", "ENCODEURL", "IMAGE", "MUNIT", "PERCENTOF", "REGEXEXTRACT", "REGEXREPLACE", "REGEXTEST",
+    "GROUPBY", "PIVOTBY", "TRIMRANGE", "DETECTLANGUAGE", "TRANSLATE", "STOCKHISTORY",
 ];
 
 /// O prefixo que a função leva no arquivo, se levar. `nome` em qualquer caixa.
@@ -93,5 +96,7 @@ mod testes {
         assert_eq!(prefixo("SUM"), None);
         assert_eq!(prefixo("STDEV.S"), Some("_xlfn."));
         assert_eq!(prefixo("STDEV"), None);
+        assert_eq!(prefixo("REGEXTEST"), Some("_xlfn."));
+        assert_eq!(prefixo("AGGREGATE"), Some("_xlfn."));
     }
 }

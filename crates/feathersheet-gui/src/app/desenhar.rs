@@ -451,13 +451,11 @@ impl App {
         Task::none()
     }
 
-    /// Assinaturas da caneta: os toques lidos pelo XInput2 e a contagem
-    /// dos cliques que o Iced recebe (sem ela a leitura não sabe se precisa
-    /// do clique sintético).
+    /// Assinaturas da caneta: os toques lidos pelo XInput2 (também acordam
+    /// o invólucro `clique_caneta`, que entrega a ponta como clique).
     pub(super) fn assinatura_caneta(&self) -> Subscription<Msg> {
         match self.tinta.fonte_pressao.as_ref().filter(|f| f.entrega_toques()) {
             Some(fonte) => Subscription::batch([
-                ui_caneta::ouvir_cliques_iced(),
                 ui_caneta::assinatura_toques(fonte).map(|lote| Msg::Caneta(AjusteCaneta::Toques(lote))),
                 // Modo ligado pela caneta: um clique do mouse volta à seleção.
                 if self.tinta.auto_caneta {
@@ -518,7 +516,7 @@ impl App {
     }
 
     /// Clique que o Iced recebeu com o modo ligado pela caneta: se não veio
-    /// dela (nem toque nem clique sintético recente), é o mouse — volta à
+    /// dela (nenhum toque recente), é o mouse — volta à
     /// seleção normal (o clique segue para a grade).
     fn clique_iced_no_modo_da_caneta(&mut self) -> Task<Msg> {
         if !self.tinta.auto_caneta {
@@ -537,7 +535,7 @@ impl App {
     /// A ponta da caneta pela leitura X11: dentro da camada de tinta (modo
     /// desenho), o traço inteiro vem daqui, com a pressão exata de cada
     /// ponto; o clique do Iced, se vier, a camada descarta. Fora dela o
-    /// toque é clique (do Iced ou sintético, decidido no `feather_ui`).
+    /// toque é clique (do Iced ou do invólucro `feather_ui::clique_caneta`).
     pub(super) fn toques_caneta(&mut self, lote: Vec<ToqueCaneta>) -> Task<Msg> {
         let mut tarefas = Vec::new();
         for toque in lote {

@@ -86,7 +86,7 @@ pub fn amostra(h: &dyn Hospede, args: &Json) -> Saida {
 }
 
 pub fn localizar(h: &dyn Hospede, args: &Json) -> Saida {
-    let busca = arg_texto(args, "texto").ok_or("Falta `texto`.")?;
+    let busca = arg_texto(args, "texto").ok_or("Falta `texto` (o que procurar).")?;
     let opcoes = SearchOptions {
         match_case: arg_bool(args, "maiusculas", false),
         whole_cell: arg_bool(args, "inteira", false),
@@ -174,6 +174,8 @@ mod testes {
         let h = pasta();
         let e = texto(estatistica(&h, &json!({ "coluna": "B:B" })));
         assert!(e.contains("4 números") && e.contains("máx 1000"), "{e}");
+        // #13: só a letra também é a coluna inteira.
+        assert_eq!(texto(estatistica(&h, &json!({ "coluna": "B" }))), e);
         let a = texto(amostra(&h, &json!({ "linhas": 2 })));
         assert!(a.contains("5 linha(s)") && a.contains("Cidade"), "{a}");
         let l = texto(localizar(&h, &json!({ "texto": "SP", "inteira": true })));

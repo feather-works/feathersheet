@@ -459,7 +459,7 @@ impl App {
                 }
                 self.dinamica = Some(Estado {
                     origem: origem.clone(),
-                    origem_texto: format!("{}:{}", cell_name(origem.r0,origem.c0), cell_name(origem.r1,origem.c1)),
+                    origem_texto: endereco_area(&origem),
                     recomendacoes: false,
                     folha_origem: self.folha,
                     nomes: campos.into_iter().map(|c| c.nome).collect(),

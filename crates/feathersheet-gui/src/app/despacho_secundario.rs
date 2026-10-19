@@ -96,6 +96,7 @@ impl App {
                 Task::none()
             }
             Msg::CondicionalFechar => {
+                self.condicional_cor_aberta = None;
                 self.condicional_menu_aberto = false;
                 self.condicional_aberto = false;
                 self.condicional_editando = None;
@@ -123,7 +124,9 @@ impl App {
                 self.condicional_valor2 = "20".into();
                 Task::none()
             }
-            Msg::CondicionalTipo(tipo) => {self.condicional_operador=tipo;Task::none()}
+            Msg::CondicionalTipo(tipo) => {self.condicional_operador=tipo;self.condicional_cor_aberta=None;Task::none()}
+            Msg::CondicionalCorAbrir(campo) => {self.abrir_cor_condicional(campo);Task::none()}
+            Msg::CondicionalSeletorCor(evento) => self.evento_cor_condicional(evento),
             Msg::CondicionalValor(valor) => {self.condicional_valor=valor;Task::none()}
             Msg::CondicionalValor2(valor) => {self.condicional_valor2=valor;Task::none()}
             Msg::CondicionalCor(cor) => {self.condicional_cor=cor;Task::none()}
@@ -776,7 +779,11 @@ impl App {
                 let tarefa_selecao = match tipo {
                     Contexto::Celula(r, c) => {
                         let area = self.area_selecionada();
-                        if r < area.r0 || r > area.r1 || c < area.c0 || c > area.c1 {
+                        // A imagem na célula age sobre uma célula só: o clique nela
+                        // a ativa mesmo dentro da seleção, ou o menu não a enxerga.
+                        let tem_imagem = self.workbook.aba(self.folha).is_some_and(|a|
+                            feathersheet_core::funcoes::imagem_base64::eh_imagem_na_celula(&a.sheet.get_raw(r, c)));
+                        if r < area.r0 || r > area.r1 || c < area.c0 || c > area.c1 || tem_imagem {
                             self.trocar_selecao(r, c);
                         }
                         Task::none()
@@ -1041,6 +1048,17 @@ impl App {
                         if let Ok(modo) = std::env::var("FEATHERSHEET_CAPTURAR_IMAGEM") {
                             self.preparar_captura_imagem(&modo);
                         }
+                        // FEATHERSHEET_CAPTURAR_CONDICIONAL=escala|barra|estilo (+cor abre o seletor
+                        // da primeira cor): diálogo de formatação condicional.
+                        if let Ok(modo) = std::env::var("FEATHERSHEET_CAPTURAR_CONDICIONAL") {
+                            let tipo = if modo.starts_with("barra") { TipoCondicional::Barra }
+                                else if modo.starts_with("estilo") { TipoCondicional::Maior } else { TipoCondicional::Escala };
+                            let _ = self.update(Msg::CondicionalPredefinida(tipo));
+                            if modo.ends_with("+cor") {
+                                let _ = self.update(Msg::CondicionalCorAbrir(if tipo == TipoCondicional::Escala {
+                                    condicional_ui::CorRegra::Min } else { condicional_ui::CorRegra::Principal }));
+                            }
+                        }
                         // FEATHERSHEET_CAPTURAR_MENU_ABA=1: botão direito na primeira aba.
                         if std::env::var_os("FEATHERSHEET_CAPTURAR_MENU_ABA").is_some() {
                             let _ = self.update(Msg::AbrirContexto(Contexto::Aba(0), 0.0, 0.0));
@@ -1274,6 +1292,7 @@ impl App {
                 }
                 iced::exit()
             }
+            Msg::CopiaPulso => Task::none(),
             Msg::MonitorPulso => {
                 self.recolher_diario_motor();
                 // Parado e com o visível calculado: arruma a memória do motor

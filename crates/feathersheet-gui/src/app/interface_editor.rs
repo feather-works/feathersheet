@@ -99,7 +99,8 @@ impl App {
                     .map(str::to_owned)
             })
         };
-        let caixa_nome = nome_tabela.unwrap_or_else(|| self.endereco.clone());
+        let caixa_nome = nome_tabela.or_else(|| self.nome_da_selecao())
+            .unwrap_or_else(|| self.endereco.clone());
         let end = text_input("A1", &caixa_nome)
             .on_input(Msg::AlterarEndereco)
             .on_submit(Msg::IrPara(caixa_nome.clone()))
@@ -411,8 +412,7 @@ impl App {
         } else { base };
 
         let base: Element<'_, Msg> = if let Some(area) = &self.tabela_area {
-            let local = format!("{}:{}", cell_name(area.r0,area.c0),
-                cell_name(area.r1,area.c1));
+            let local = endereco_area(area);
             let proposta = column![
                 text(tr!("Criar tabela")).size(18),
                 text(trf!("Intervalo: {local}")).size(12),
@@ -1086,7 +1086,7 @@ impl App {
         let texto = arg.and_then(serde_json::Value::as_str).unwrap_or("");
         Some(match acao.id.as_str() {
             "newWorkbook" => Msg::Novo,
-            "insertChart" => Msg::Grafico(graficos::Evento::Abrir),
+            "insertChart" => Msg::Grafico(graficos::Evento::AbrirNoCentro),
             "openFile" => Msg::Abrir,
             "save" => Msg::Salvar,
             "saveAs" => Msg::SalvarComo,

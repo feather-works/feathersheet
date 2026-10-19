@@ -6,6 +6,8 @@
 #   SHA256SUMS
 #
 # Uso: pacote/gerar.sh [linux|windows ...]   (sem argumentos = todos)
+# Pacote de teste rápido: PERFIL=medir VERSAO=0.1.3~teste1 pacote/gerar.sh linux
+# (sem LTO: ~1 min em vez de 6–10; VERSAO não sobrescreve a pasta de uma versão lançada).
 # Precisa de: cargo, dpkg-deb; para Windows, o alvo x86_64-pc-windows-gnu
 # (rustup target add x86_64-pc-windows-gnu), mingw-w64 e makensis.
 set -euo pipefail
@@ -13,7 +15,8 @@ set -euo pipefail
 pacote="$(cd "$(dirname "$0")" && pwd)"
 raiz="$(dirname "$pacote")"
 gui="$raiz/crates/feathersheet-gui"
-versao="$(sed -n 's/^version = "\(.*\)"/\1/p' "$gui/Cargo.toml" | head -1)"
+versao="${VERSAO:-$(sed -n 's/^version = "\(.*\)"/\1/p' "$gui/Cargo.toml" | head -1)}"
+perfil="${PERFIL:-release}"
 saida="$pacote/saida/$versao"
 alvos=("$@")
 [[ ${#alvos[@]} -eq 0 ]] && alvos=(linux windows)
@@ -21,8 +24,8 @@ mkdir -p "$saida"
 echo "FeatherSheet $versao → $saida"
 
 linux() {
-  cargo build --release --manifest-path "$gui/Cargo.toml"
-  local bin="$gui/target/release/feathersheet"
+  cargo build --profile "$perfil" --manifest-path "$gui/Cargo.toml"
+  local bin="$gui/target/$perfil/feathersheet"
   strip "$bin" 2>/dev/null || true
 
   # .deb

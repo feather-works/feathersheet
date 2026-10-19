@@ -9,19 +9,13 @@
 //! (`sheet_deps.rs`): trocar a cor não muda valor nenhum, e é o
 //! recálculo das voláteis que as atualiza.
 
+use crate::funcoes::fn_helpers::node_rect;
 use crate::celulas::refs::Rect;
 use crate::celulas::values::{Computed, Value};
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
 use crate::funcoes::fn_helpers::{arity, err_value, has};
 
-fn node_rect(node: &Node) -> Option<Rect> {
-    match node {
-        Node::Ref { row, col, sheet } => Some(Rect { r0: *row, c0: *col, r1: *row, c1: *col, sheet: sheet.clone() }),
-        Node::Range { r0, c0, r1, c1, sheet } => Some(Rect { r0: *r0, c0: *c0, r1: *r1, c1: *c1, sheet: sheet.clone() }),
-        _ => None,
-    }
-}
 
 /// `#RRGGBB` em minúsculas, para comparar `#FF0000` com `#ff0000`.
 fn normalizar(cor: Option<String>) -> Option<String> {
@@ -34,7 +28,7 @@ fn preparar(args: &[Node], ev: &Evaluator<'_>) -> Result<(Rect, Option<String>, 
     if let Some(e) = arity(args, 2, 3) {
         return Err(Computed::Scalar(Value::Error(e)));
     }
-    let Some(rect) = node_rect(&args[0]) else { return Err(err_value()) };
+    let Some(rect) = node_rect(&args[0], ev) else { return Err(err_value()) };
     let fonte = if has(args, 2) {
         match ev.number(&args[2]) {
             Ok(n) if n == 0.0 => false,
@@ -45,7 +39,7 @@ fn preparar(args: &[Node], ev: &Evaluator<'_>) -> Result<(Rect, Option<String>, 
     } else {
         false
     };
-    let cor = match node_rect(&args[1]) {
+    let cor = match node_rect(&args[1], ev) {
         Some(a) => ev.ctx.cor_celula(a.r0, a.c0, a.sheet.as_deref(), fonte),
         None => match ev.text(&args[1]) {
             Ok(t) => Some(t),

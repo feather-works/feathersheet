@@ -31,7 +31,7 @@ fn coluna_da_chave(sheet: &Sheet, area: &Rect, cabecalho: bool, chave: &Json) ->
         _ => String::new(),
     };
     if texto.is_empty() {
-        return Err("Cada chave precisa de `coluna` (letra, ex.: \"B\", ou o título do cabeçalho).".into());
+        return Err("`coluna` precisa ser texto: a letra (\"B\") ou o título do cabeçalho; número não vale.".into());
     }
     if cabecalho {
         let alvo = texto.to_lowercase();
@@ -107,7 +107,7 @@ pub fn filtrar(h: &mut dyn Hospede, args: &Json) -> Saida {
 /// Substitui texto nas células (como o Ctrl+H), no intervalo, na aba ou
 /// em todas. Um Ctrl+Z por aba mexida.
 pub fn substituir(h: &mut dyn Hospede, args: &Json) -> Saida {
-    let busca = arg_texto(args, "texto").ok_or("Falta `texto`.")?;
+    let busca = arg_texto(args, "texto").ok_or("Falta `texto` (o que procurar).")?;
     let por = args.get("por").and_then(Json::as_str).ok_or("Falta `por` (pode ser \"\" para apagar o texto).")?;
     let opcoes = SearchOptions {
         match_case: arg_bool(args, "maiusculas", false),

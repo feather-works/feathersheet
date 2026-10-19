@@ -221,20 +221,28 @@
       recuperação: erros repetidos guardados uma vez e colunas em paralelo
       (640 → 130 ms; Ctrl+S em 13,7 mi linhas 3,8 → 0,7 s). Testado pelo usuário.*
 
-### v0.1.3 — Excel e acabamento
-- [ ] Referência entre arquivos gravada como vínculo externo do `.xlsx`
-      (`externalLink`); hoje o Excel pode pedir reparo.
-- [ ] Dinâmica gravada no `.xlsx` reconhecida pelo Excel como dinâmica (conferir
-      no Excel de verdade).
-- [ ] Colar até o fim também para fórmula e data formatada.
-- [ ] Alças do gráfico: barra mais grossa no lugar dos quadradinhos.
-- [ ] Barrinha flutuante da forma encostada na forma.
-- [ ] Barra de status: contas coladas no "−" do zoom, alinhadas na vertical.
-- [ ] Formatar células: códigos de número sem rolagem horizontal; abas Fonte,
-      Borda e Preenchimento compactas *(conferir)*.
-- [ ] Borda do Ctrl+C animada, como a do Excel.
+### v0.1.3 — Excel e acabamento *(lançada em 19/10/2026)*
+- [x] Referência entre arquivos gravada como vínculo externo do `.xlsx`
+      (`externalLink`, fórmula `[1]Dados!A1` com os últimos valores); lida de
+      volta com o nome do arquivo *(conferido no LibreOffice: mostra os valores guardados)*.
+- [x] Dinâmica gravada no `.xlsx` reconhecida pelo Excel como dinâmica *(conferido
+      pelo usuário no Excel, 19/10)*.
+- [x] Colar até o fim também para fórmula e data formatada *(data com o formato
+      numa faixa de estilo; fórmula que cabe na coluna empacotada; teste da
+      interface ainda não rodado)*.
+- [x] Alças do gráfico: barra mais grossa no lugar dos quadradinhos *(já era
+      assim desde a v0.0.3; conferido por foto)*.
+- [x] Barrinha flutuante da forma encostada na forma *(desde a v0.0.5, logo
+      acima da alça de giro; conferido por foto)*.
+- [x] Barra de status: contas coladas no "−" do zoom, alinhadas na vertical.
+- [x] Formatar células: códigos de número sem rolagem horizontal; abas Fonte,
+      Borda e Preenchimento compactas; Alinhamento cabe inteira (Reduzir para caber
+      e Mesclar lado a lado).
+- [x] Borda do Ctrl+C animada, como a do Excel (traço andando a cada 100 ms).
 
 ### v0.1.4 — motor novo da dinâmica
+- [ ] #27: o Excel remove o desenho da aba com histograma/cascata (`chartEx`);
+      falta abrir os `teste-1/2/3` para achar qual gráfico.
 - [ ] Ler as colunas inteiras de uma vez (dicionário de textos do motor, sem
       `Value` por célula) e agrupar por códigos em paralelo por bloco.
 - [ ] Somas guardadas por grupo: mudar uma célula da origem refaz só o grupo.

@@ -103,6 +103,11 @@ cargo clippy --all-targets
     5. **Descrever antes de construir**: 2-3 frases do que vai ser feito,
        o usuário confirma ou ajusta, só depois vem o código.
 
+23. **Bug reportado vira issue** (19/10/2026) em `FeatherOffice/feathersheet`
+    (`gh issue create`, label `bug`/`enhancement`). A correção fica com a issue
+    aberta até o commit (`Fixes #N`). **Versões só em lote**; correção avulsa
+    só quando algo crasha.
+
 ## Editor de macros (Alt+F11) — 05/10/2026
 
 - `sheet.showComponent("nome", dados?)` abre o componente num iframe
@@ -198,7 +203,43 @@ recálculo só de quem lê a célula que mudou); valores guardados no `.fshz`
 da suíte); canal entre janelas, faixa "Valores de […] de …" e Editar links
 em `feathersheet-gui/src/app/vinculos*`. **Para depois:** autocompletar o
 nome do arquivo na fórmula; "clicar na outra janela para apontar" a
-referência; ler/gravar o vínculo no `.xlsx` (`xl/externalLinks/`, `[1]Aba!A1`).
+referência. **No `.xlsx` (19/10/2026):** `xlsx_write_vinculos.rs` grava `[N]Aba!A1` +
+`xl/externalLinks/` com os valores guardados; `xlsx_read/vinculos.rs` lê de volta pelo
+`trocar_origem_externa` (só o leitor nativo; o `ler_xlsx_bytes` em JSON não).
+
+### Bugs e melhorias anotados em 19/10/2026 (montando o "Painel de Vendas" pelo MCP ao vivo)
+
+**Pedidos do usuário:**
+- Formatação condicional vira **janela de verdade** (`GUIA-JANELAS.md`), não diálogo sobre a grade.
+- Não mostrar o código hexa da cor do lado de fora (só a amostra).
+- Mostrar a área selecionada e permitir **selecionar outra área** pela grade (seletor de intervalo).
+- O seletor "Tipo de gráfico" aberto pelo menu "Gráfico…" aparece num canto aleatório (embaixo do
+  Colar), solto do botão Gráfico da faixa; e ainda diz "Opções em cinza estarão disponíveis em
+  breve" — viola a regra 3.
+
+**Motor (achados pelo MCP):**
+- Intervalo nomeado de outra aba (`TotalVendas = Vendas!$G$2:$G$241`) dá `#VALUE!` como
+  argumento de intervalo em `SOMASES` e `CORRESP`; em `SOMA`/`MÁXIMO` funciona.
+- `SOMARPRODUTO` não eleva a matriz por dentro: `SOMARPRODUTO((E2:E241>5)*1)` = 0,
+  `SOMARPRODUTO(MÊS(A2:A241))` = 1.
+- Macros: `toLocaleString("pt-BR")` ignora a localidade (data sai em inglês).
+
+**Dificuldades com o MCP:**
+1. Nenhum jeito de criar ou editar **gráfico** (nem ferramenta, nem `sheet_comando`, nem API das
+   macros). O menu "Gráfico…" só abre o seletor, que pede clique.
+2. Sem ferramenta para **validação de dados** (lista suspensa), **botão de macro** (o menu abre um
+   diálogo) e **componente/formulário** de macro.
+3. Sem ferramenta para **congelar painéis**; pelo `sheet_comando menu` o rótulo é "1 linha", que
+   não dá para descobrir: o `comando=listar` não lista os itens de menu.
+4. `sheet_tela` **não mostra os painéis abertos** (seletor de gráfico, diálogo de formatação
+   condicional) — só descobri pela foto do `sheet_ver`.
+5. `sheet_condicional` ao vivo **abriu o diálogo** de formatação condicional na tela.
+6. Parâmetros inconsistentes entre ferramentas: `sheet_filtrar` só aceita letra em `coluna` e o
+   erro fala em "Cada chave precisa de `coluna`" (mensagem do ordenar); `sheet_estatistica`
+   recusa `coluna: "G"` (quer `G:G`); `sheet_substituir` usa `texto`/`por`; `sheet_consulta`
+   descreve os passos como `agrupar{…}` mas exige `{"tipo":"agrupar",…}`.
+7. Claude Code só carrega as ferramentas `sheet_*` numa sessão nova depois do `claude mcp add`;
+   nesta sessão o MCP foi usado por stdio com um script (JSON-RPC à mão).
 
 ### Conversor de macro VBA → JavaScript (pedido do usuário, 07/10/2026) — motor pronto, falta a interface
 
@@ -244,6 +285,19 @@ captura não o abre. Registrado no Claude Code com `claude mcp add feathersheet 
 apontando para `target/release/feathersheet-mcp`; **mudou ferramenta, recompilar o MCP e o app**
 (o app embute a mesma biblioteca). Dívida (regra 3 da raiz): `ao_vivo.rs` é cópia adaptada do
 `feathercad-mcp`; o transporte deve virar crate comum da suíte.
+
+**A FAZER — "cursor do Claude" ao vivo (ideia do usuário, 19/10/2026; desenho proposto, falta
+confirmar antes de construir):** mostrar na tela o que a IA está fazendo pelo MCP. Referência:
+cursor de colaborador do Google Sheets/Figma. O `mcp_vivo.rs` já recebe cada pedido no `update`,
+então o app sabe a ferramenta e o intervalo na hora.
+1. Borda colorida (cor própria, ex. laranja) no intervalo que a IA mexe, com etiqueta "Claude"
+   no canto; anda a cada pedido.
+2. Balão de uma linha ao lado da etiqueta ("Escrevendo fórmula em C2:C200", "Rodando a macro
+   Relatório"), some alguns segundos depois do último pedido.
+3. `sheet_comando` (faixa/menu): o botão acionado pisca rapidamente.
+4. Histórico das ações da IA no Console F12 (hora, ação, intervalo) — cada uma é um Ctrl+Z.
+Fica de fora (proposto): seta de mouse animada voando pela tela — a IA não move o mouse, e
+fingir só atrasaria e cobriria a grade. Perguntado ao usuário se quer mesmo a seta; sem resposta.
 
 Rascunho original (07/10, antes de começar):
 
@@ -860,6 +914,12 @@ texto `FTINTA`), gravado por `Sheet::alterar_tinta` (um Ctrl+Z). Campo novo na a
   e avisa se ficou no Wayland com mesa. O XWayland desta máquina tem `xwayland-native-scaling`
   ligado no mutter, então a janela X deve ficar nítida — **conferir na primeira execução**
   (a foto do modo captura sai do renderizador e não mostra a escala do compositor).
+- *Clique da ponta (19/10/2026, testado com a mesa):* o winit descarta a maioria dos cliques da
+  caneta no XWayland (13 de 15 no log). O widget `feather_ui::clique_caneta` embrulha a raiz da
+  janela principal (`App::view`) e entrega o toque lido pelo XInput2 fora da tinta como
+  `ButtonPressed`/`ButtonReleased(Left)` por dentro do app (arrasto incluso; clique do próprio Iced
+  vence, sem duplicar). **Não voltar ao XTest:** simular mouse no sistema faz o GNOME pedir a
+  permissão de área de trabalho remota, e o toque se perde enquanto ela não é dada.
 - *Pressão:* Configurações > Planilha > "Caneta: usar pressão da mesa" (`caneta_pressao`,
   ligada por padrão; vale na próxima abertura). Só funciona com a janela em X11/XWayland
   (ou no Windows). `FEATHERSHEET_CANETA_X11=1` força pressão + X11; `=0` desliga a pressão.

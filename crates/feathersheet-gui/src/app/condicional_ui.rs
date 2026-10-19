@@ -1,6 +1,93 @@
 //! Menu ancorado à Ribbon e janela modal de regras, sem ocupar a grade.
 use super::*;
 use iced::widget::{column, row};
+use feather_ui::seletor_cor;
+
+/// Os campos de cor da regra (#2: amostra que abre o seletor, sem o hexa à mostra).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CorRegra { Min, Meio, Principal, Negativa, Texto }
+
+impl CorRegra {
+    fn valor(self, app: &App) -> &str {
+        match self {
+            Self::Min => &app.condicional_cor_min,
+            Self::Meio => &app.condicional_cor_meio,
+            Self::Principal => &app.condicional_cor,
+            Self::Negativa => &app.condicional_cor_negativa,
+            Self::Texto => &app.condicional_cor_texto,
+        }
+    }
+    fn msg(self, hex: String) -> Msg {
+        match self {
+            Self::Min => Msg::CondicionalCorMin(hex),
+            Self::Meio => Msg::CondicionalCorMeio(hex),
+            Self::Principal => Msg::CondicionalCor(hex),
+            Self::Negativa => Msg::CondicionalCorNegativa(hex),
+            Self::Texto => Msg::CondicionalCorTexto(hex),
+        }
+    }
+}
+
+/// Um evento do seletor de cor do `feather-ui` aplicado ao estado (HSVA e o
+/// texto do hexa); devolve a cor nova quando ela muda.
+// shortcut: gráfico, Formatar células, formas e faixa têm cópias desta conta; juntar quando mexer nelas.
+pub(super) fn aplicar_evento_cor(evento: seletor_cor::Evento, hsva: &mut [f32; 4], hex: &mut String) -> Option<String> {
+    use seletor_cor::Evento as E;
+    let do_hsva = |h: &[f32; 4]| {
+        let [r, g, b] = seletor_cor::hsv_para_rgb(h[0], h[1], h[2]);
+        seletor_cor::hex_de([r, g, b, (h[3] * 255.).round() as u8])
+    };
+    let nova = match evento {
+        E::Fechar => return None,
+        E::Escolhida(cor) => cor,
+        E::SaturacaoBrilho(s, v) => { hsva[1] = s.clamp(0., 1.); hsva[2] = v.clamp(0., 1.); do_hsva(hsva) }
+        E::Matiz(h) => { hsva[0] = h.rem_euclid(360.); do_hsva(hsva) }
+        E::Alfa(a) => { hsva[3] = a.clamp(0., 1.); do_hsva(hsva) }
+        E::TextoHex(valor) => {
+            *hex = valor.clone();
+            if !seletor_cor::hex_valido(&valor) { return None; }
+            format!("#{}", valor.trim().trim_start_matches('#').to_lowercase())
+        }
+        E::Canal(i, valor) => {
+            let n = valor.trim().parse::<u8>().ok().filter(|_| i < 4)?;
+            let mut rgba = seletor_cor::rgba_de(&do_hsva(hsva));
+            rgba[i] = n;
+            seletor_cor::hex_de(rgba)
+        }
+    };
+    if !seletor_cor::hex_valido(&nova) { return None; }
+    *hsva = seletor_cor::rgba_para_hsva(seletor_cor::rgba_de(&nova), hsva[0]);
+    *hex = nova.clone();
+    Some(nova)
+}
+
+impl App {
+    /// Clique na amostra: abre (ou fecha) o seletor daquele campo.
+    pub(super) fn abrir_cor_condicional(&mut self, campo: CorRegra) {
+        if self.condicional_cor_aberta == Some(campo) {
+            self.condicional_cor_aberta = None;
+            return;
+        }
+        let atual = campo.valor(self).to_owned();
+        self.condicional_hex = atual.clone();
+        if seletor_cor::hex_valido(&atual) {
+            self.condicional_hsva = seletor_cor::rgba_para_hsva(seletor_cor::rgba_de(&atual), self.condicional_hsva[0]);
+        }
+        self.condicional_cor_aberta = Some(campo);
+    }
+
+    pub(super) fn evento_cor_condicional(&mut self, evento: seletor_cor::Evento) -> Task<Msg> {
+        let Some(campo) = self.condicional_cor_aberta else { return Task::none() };
+        if matches!(evento, seletor_cor::Evento::Fechar) {
+            self.condicional_cor_aberta = None;
+            return Task::none();
+        }
+        match aplicar_evento_cor(evento, &mut self.condicional_hsva, &mut self.condicional_hex) {
+            Some(hex) => self.update(campo.msg(hex)),
+            None => Task::none(),
+        }
+    }
+}
 
 const LARGURA_MENU: f32 = 355.0;
 const LARGURA_MINIMA_MENU: f32 = 250.0;
@@ -45,10 +132,7 @@ impl App {
         }
         let total = regras.len();
         for (i,regra) in regras.iter().enumerate() {
-            let faixas = regra.ranges.iter().map(|a|
-                if a.r0 == a.r1 && a.c0 == a.c1 { cell_name(a.r0,a.c0) }
-                else { format!("{}:{}",cell_name(a.r0,a.c0),cell_name(a.r1,a.c1)) }
-            ).collect::<Vec<_>>().join(", ");
+            let faixas = regra.ranges.iter().map(|a| endereco_area(&Rect::new(a.r0, a.c0, a.r1, a.c1))).collect::<Vec<_>>().join(", ");
             let (descricao, amostra): (String, Element<'_, Msg>) = match &regra.condition {
                 Condition::Cell(c) => (
                     descrever_regra(c.op, &c.values),
@@ -134,11 +218,19 @@ impl App {
             text_input(dica, valor).on_input(msg).padding([7, 9]).size(12.5)
                 .width(Length::Fill).into()
         };
-        let cor_campo = |rotulo: &str, dica: &str, valor: &str, msg: fn(String) -> Msg| -> Element<'static, Msg> {
-            campo(rotulo, row![
-                amostra_cor(valor),
-                text_input(dica, valor).on_input(msg).padding([7, 9]).size(12.5).width(Length::Fill),
-            ].spacing(8).align_y(Alignment::Center).into())
+        // Amostra + nome da cor; o clique abre o seletor (o hexa fica lá dentro).
+        let aberta = self.condicional_cor_aberta;
+        let cor_campo = |rotulo: &str, vazio: &str, valor: &str, alvo: CorRegra| -> Element<'static, Msg> {
+            let legenda = if valor.trim().is_empty() { vazio.to_owned() } else { tr!("Alterar…").to_owned() };
+            campo(rotulo, button(row![
+                    amostra_cor(valor),
+                    text(legenda).size(12.5),
+                    Space::with_width(Length::Fill),
+                    feather_ui::icones::icone(if aberta == Some(alvo) { "chevron-up" } else { "chevron-down" }, 13.0),
+                ].spacing(8).align_y(Alignment::Center))
+                .padding([3, 6]).width(Length::Fill)
+                .style(estilo_botao_pequeno(aberta == Some(alvo)))
+                .on_press(Msg::CondicionalCorAbrir(alvo)).into())
         };
         let tipo = self.condicional_operador;
         let mut formulario = column![
@@ -162,16 +254,16 @@ impl App {
             TipoCondicional::Escala => {
                 formulario = formulario
                     .push(row![
-                        container(cor_campo(tr!("Cor do menor valor"), "#f8696b", &self.condicional_cor_min, Msg::CondicionalCorMin)).width(Length::Fill),
-                        container(cor_campo(tr!("Cor do maior valor"), "#63be7b", &self.condicional_cor, Msg::CondicionalCor)).width(Length::Fill),
+                        container(cor_campo(tr!("Cor do menor valor"), "", &self.condicional_cor_min, CorRegra::Min)).width(Length::Fill),
+                        container(cor_campo(tr!("Cor do maior valor"), "", &self.condicional_cor, CorRegra::Principal)).width(Length::Fill),
                     ].spacing(10))
                     .push(row![
                         toggler(self.condicional_ponto_meio).on_toggle(Msg::CondicionalPontoMeio).size(18),
                         text(tr!("Usar cor intermediária")).size(12),
                     ].spacing(8).align_y(Alignment::Center));
                 if self.condicional_ponto_meio {
-                    formulario = formulario.push(cor_campo(tr!("Cor intermediária"), "#ffeb84",
-                        &self.condicional_cor_meio, Msg::CondicionalCorMeio));
+                    formulario = formulario.push(cor_campo(tr!("Cor intermediária"), "",
+                        &self.condicional_cor_meio, CorRegra::Meio));
                 }
                 amostra_escala(&[Some(self.condicional_cor_min.as_str()),
                     self.condicional_ponto_meio.then_some(self.condicional_cor_meio.as_str()),
@@ -180,8 +272,8 @@ impl App {
             TipoCondicional::Barra => {
                 formulario = formulario
                     .push(row![
-                        container(cor_campo(tr!("Cor da barra"), "#638ec6", &self.condicional_cor, Msg::CondicionalCor)).width(Length::Fill),
-                        container(cor_campo(tr!("Barras negativas"), "#d93025", &self.condicional_cor_negativa, Msg::CondicionalCorNegativa)).width(Length::Fill),
+                        container(cor_campo(tr!("Cor da barra"), "", &self.condicional_cor, CorRegra::Principal)).width(Length::Fill),
+                        container(cor_campo(tr!("Barras negativas"), tr!("Como a barra"), &self.condicional_cor_negativa, CorRegra::Negativa)).width(Length::Fill),
                     ].spacing(10))
                     .push(row![
                         toggler(self.condicional_ocultar_valor).on_toggle(Msg::CondicionalOcultarValor).size(18),
@@ -209,8 +301,8 @@ impl App {
                 };
                 formulario = formulario
                     .push(row![
-                        container(cor_campo(tr!("Cor de fundo"), "#fce8b2", &self.condicional_cor, Msg::CondicionalCor)).width(Length::Fill),
-                        container(cor_campo(tr!("Cor do texto"), tr!("automática"), &self.condicional_cor_texto, Msg::CondicionalCorTexto)).width(Length::Fill),
+                        container(cor_campo(tr!("Cor de fundo"), tr!("Sem preenchimento"), &self.condicional_cor, CorRegra::Principal)).width(Length::Fill),
+                        container(cor_campo(tr!("Cor do texto"), tr!("Automática"), &self.condicional_cor_texto, CorRegra::Texto)).width(Length::Fill),
                     ].spacing(10))
                     .push(row![
                         efeito("bold", tr!("Negrito"), self.condicional_negrito, Msg::CondicionalNegrito),
@@ -223,6 +315,15 @@ impl App {
                 amostra_estilo(fundo, texto, self.condicional_negrito, self.condicional_italico)
             }
         };
+        if let Some(alvo) = aberta {
+            let seletor = seletor_cor::painel_embutido(tr!("Cor"), alvo.valor(self), self.condicional_hsva, &self.condicional_hex)
+                .map(Msg::CondicionalSeletorCor);
+            formulario = formulario.push(seletor);
+            if alvo == CorRegra::Texto {
+                formulario = formulario.push(button(text(tr!("Cor automática")).size(12)).padding([5, 10])
+                    .style(estilo_botao_pequeno(false)).on_press(Msg::CondicionalCorTexto(String::new())));
+            }
+        }
         formulario = formulario.push(campo(tr!("Prévia"), container(previa)
             .center_x(Length::Fill).center_y(Length::Fixed(64.0))
             .style(|_| container::Style {

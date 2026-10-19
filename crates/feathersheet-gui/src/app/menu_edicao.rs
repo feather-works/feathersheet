@@ -39,7 +39,7 @@ fn itens(tipo: &str) -> Vec<Item> {
     match tipo {
         "autosoma" => vec![
             Titulo(tr!("INSERIR FUNÇÃO")),
-            Acao(tr!("Soma"), "sum", Msg::AutoSoma),
+            Acao(tr!("Soma · Alt+="), "sum", Msg::AutoSoma),
             Acao(tr!("Média"), "math-function", Msg::AutoConta("MÉDIA")),
             Acao(tr!("Contagem"), "list-numbers", Msg::AutoConta("CONT.NÚM")),
             Acao(tr!("Máximo"), "sort-descending", Msg::AutoConta("MÁXIMO")),

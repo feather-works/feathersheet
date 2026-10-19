@@ -535,7 +535,9 @@ impl App {
                     self.faixa_pequeno(tr!("Excluir aba"), "trash", (self.workbook.len()>1).then_some(Msg::RemoverAba), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Proteção"), self.faixa_pilha(vec![
-                    self.faixa_pequeno(tr!("Bloquear seleção"), "lock", Some(Msg::Protecao(protecao_ui::Evento::AlternarBloqueio)), false),
+                    // Aceso = a célula ativa está bloqueada (o padrão, como no Excel): o clique desbloqueia.
+                    self.faixa_pequeno(tr!("Bloquear seleção"), "lock", Some(Msg::Protecao(protecao_ui::Evento::AlternarBloqueio)),
+                        self.workbook.aba(self.folha).is_some_and(|a| a.sheet.celula_marcada_bloqueada(self.linha, self.coluna))),
                     self.faixa_pequeno(tr!("Proteger planilha"), "lock", Some(Msg::Protecao(protecao_ui::Evento::Abrir)), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Aplicativo"), self.faixa_linha(vec![

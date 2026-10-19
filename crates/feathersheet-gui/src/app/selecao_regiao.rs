@@ -22,11 +22,7 @@ impl App {
         }
         let regiao = ops::regiao_atual(&aba.sheet, selecao);
         let regiao = mesclas::expandir(&mesclas::ler(&aba.sheet), regiao);
-        let endereco = if regiao.r0 == regiao.r1 && regiao.c0 == regiao.c1 {
-            cell_name(regiao.r0, regiao.c0)
-        } else {
-            format!("{}:{}", cell_name(regiao.r0, regiao.c0), cell_name(regiao.r1, regiao.c1))
-        };
+        let endereco = endereco_area(&regiao);
         self.imagem_selecionada = None;
         self.arraste_imagem = None;
         self.trocar_selecao(regiao.r0, regiao.c0);

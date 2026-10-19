@@ -21,6 +21,36 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.1.3",
+        data: "19/10/2026",
+        resumo: "Excel e acabamento",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("link", "Vínculo com outro arquivo no .xlsx", "O Excel abre sem reparo e mostra os últimos valores da origem."),
+            ("math-function", "Fórmulas novas no Excel sem #NOME?", "AGREGAR, MUNIT, REGEX e PERCENTOF chegam ao Excel com o nome certo."),
+            ("clipboard", "Colar data até o fim da coluna", "A data vai até a última linha com o formato junto, num Ctrl+Z só."),
+            ("pointer", "Clique com a caneta da mesa", "A ponta clica em botões, células e menus, sem pedir compartilhar a tela."),
+            ("photo", "Imagem entra e sai da célula", "Botão direito: Colocar sobre as células ou Colocar na célula."),
+            ("table", "Fórmulas corrigidas", "SOMARPRODUTO com matriz, DIA.DA.SEMANA com o tipo e nome de outra aba em SOMASES."),
+            ("code", "Macros com laço grande", "Laços de até 20 milhões de voltas; o erro de laço sem fim sai em português."),
+            ("bolt", "Borda do Ctrl+C animada", "A área copiada fica com o traço andando, como no Excel."),
+            ("palette", "Formatar células mais compacto", "A aba Alinhamento cabe inteira; códigos de número sem rolagem."),
+        ],
+        tambem: &[
+            "Tabela dinâmica gravada no .xlsx é reconhecida pelo Excel como dinâmica.",
+            "Barra de status: as contas ficam junto do zoom e alinhadas.",
+            "Caixa de nome mostra o nome definido da seleção e uma célula só sem repetir (G17).",
+            "Formatação condicional sem o código hexa da cor à mostra.",
+            "Seletor de tipo de gráfico abre no centro, sem opções em cinza.",
+            "Editor de macros: divisórias da lateral e da Janela Imediata arrastam direito.",
+            "Macros: toLocaleString(\"pt-BR\") segue a localidade.",
+            "Configurações gravadas sem risco de perder tudo numa queda.",
+            "MCP: sheet_tela mostra os painéis abertos; parâmetros e mensagens consistentes.",
+            "Menu ▾ da AutoSoma mostra o atalho Alt+=.",
+            "Bloquear seleção aparece aceso quando a célula está bloqueada (o clique desbloqueia).",
+        ],
+    },
+    Versao {
         numero: "0.1.2",
         data: "18/10/2026",
         resumo: "Todas as funções do Excel, faixa completa e menos travadas",

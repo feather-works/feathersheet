@@ -196,11 +196,7 @@ impl App {
             feather_ui::tema::rolagem(lista).height(Length::Fill).into()
         };
         let selecao = self.area_selecionada();
-        let alvo = if (selecao.r0, selecao.c0) == (selecao.r1, selecao.c1) {
-            cell_name(selecao.r0, selecao.c0)
-        } else {
-            format!("{}:{}", cell_name(selecao.r0, selecao.c0), cell_name(selecao.r1, selecao.c1))
-        };
+        let alvo = endereco_area(&selecao);
         let ferramentas = row![
             button(row![feather_ui::icones::icone("plus", 15.)
                 .style(|_, _| iced::widget::svg::Style { color: Some(iced::Color::WHITE) }),

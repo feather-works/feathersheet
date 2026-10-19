@@ -197,7 +197,13 @@ fn fora_do_motor(nome: &str) -> Option<&'static str> {
 /// O tokenizador tira as aspas do nome da aba; aqui elas voltam se precisam.
 fn ref_to_excel(texto: &str) -> String {
     match texto.rfind('!') {
-        Some(i) => format!("{}!{}", quote_sheet(&texto[..i]), &texto[i + 1..]),
+        Some(i) => {
+            let aba = &texto[..i];
+            // Outro arquivo: o Excel quer `[N]Aba`, com N o livro em `externalReferences`.
+            let externa = feathersheet_core::planilha::vinculo::separar(aba)
+                .and_then(|(arquivo, nome)| crate::xlsx_write_vinculos::numero(&arquivo).map(|n| format!("[{n}]{nome}")));
+            format!("{}!{}", quote_sheet(externa.as_deref().unwrap_or(aba)), &texto[i + 1..])
+        }
         None => texto.to_string(),
     }
 }
@@ -1488,6 +1494,8 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
     // Tabelas dinâmicas (`xl/pivotCache/…`, `xl/pivotTables/…`): `xlsx_write_dinamica`.
     let mut dinamicas: Vec<crate::xlsx_write_dinamica::ParteDinamica> = Vec::new();
     let mut contador_dinamicas = 0usize;
+    let livros_externos = crate::xlsx_write_vinculos::livros(pasta);
+    crate::xlsx_write_vinculos::usar_ordem(&livros_externos);
     for i in 0..pasta.len() {
         let (mut xml, mut rels) = aba_xml(pasta, i, &mut estilos, &mut textos);
         let tn = pasta.aba(i).and_then(|a| a.sheet.tn.as_deref());
@@ -1611,6 +1619,7 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
             format!("<Override PartName=\"/xl/comments{i}.xml\" ContentType=\"{}\"/>", crate::xlsx_write_comentarios::TIPO_COMENTARIOS)
         }))
         .chain(std::iter::once(crate::xlsx_write_dinamica::tipos_de_conteudo(&dinamicas)))
+        .chain(std::iter::once(crate::xlsx_write_vinculos::tipos_de_conteudo(&livros_externos)))
         .collect();
     let tipo_vml = if comentarios.is_empty() {
         String::new()
@@ -1643,6 +1652,9 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
     // `pivotCaches` vem depois de `definedNames` no CT_Workbook.
     let caches_dinamicas = crate::xlsx_write_dinamica::caches_do_livro(&dinamicas);
     let rels_dinamicas = crate::xlsx_write_dinamica::relacoes_do_livro(&dinamicas);
+    crate::xlsx_write_vinculos::usar_ordem(&[]);
+    let externas = crate::xlsx_write_vinculos::referencias_do_livro(&livros_externos);
+    let rels_externas = crate::xlsx_write_vinculos::relacoes_do_livro(&livros_externos);
 
     let mut partes: Vec<(String, Vec<u8>)> = vec![
         (
@@ -1662,14 +1674,14 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
         (
             "xl/workbook.xml".into(),
             format!(
-                "{XML_DECL}<workbook xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\"><bookViews><workbookView activeTab=\"{aba_ativa}\" firstSheet=\"{aba_ativa}\"/></bookViews><sheets>{entradas_abas}</sheets>{nomes_definidos}{caches_dinamicas}</workbook>"
+                "{XML_DECL}<workbook xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\"><bookViews><workbookView activeTab=\"{aba_ativa}\" firstSheet=\"{aba_ativa}\"/></bookViews><sheets>{entradas_abas}</sheets>{externas}{nomes_definidos}{caches_dinamicas}</workbook>"
             )
             .into_bytes(),
         ),
         (
             "xl/_rels/workbook.xml.rels".into(),
             format!(
-                "{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{rels_abas}<Relationship Id=\"rIdStyles\" Type=\"{NS_REL}/styles\" Target=\"styles.xml\"/><Relationship Id=\"rIdStrings\" Type=\"{NS_REL}/sharedStrings\" Target=\"sharedStrings.xml\"/>{rel_metadata}{rels_dinamicas}</Relationships>"
+                "{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{rels_abas}<Relationship Id=\"rIdStyles\" Type=\"{NS_REL}/styles\" Target=\"styles.xml\"/><Relationship Id=\"rIdStrings\" Type=\"{NS_REL}/sharedStrings\" Target=\"sharedStrings.xml\"/>{rel_metadata}{rels_dinamicas}{rels_externas}</Relationships>"
             )
             .into_bytes(),
         ),
@@ -1709,6 +1721,7 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
         partes.push((format!("xl/drawings/vmlDrawing{i}.vml"), vml.into_bytes()));
     }
     partes.extend(crate::xlsx_write_dinamica::arquivos(dinamicas));
+    partes.extend(crate::xlsx_write_vinculos::arquivos(pasta, &livros_externos));
     partes
 }
 

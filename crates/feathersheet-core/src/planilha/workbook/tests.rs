@@ -228,6 +228,52 @@ fn intervalo_nomeado_resolve_na_pasta() {
 }
 
 #[test]
+fn somarproduto_avalia_expressao_de_matriz() {
+    // #6: davam 0 e 1 (só o primeiro elemento).
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    for (i, (data, qtd, total)) in [("15/01/2026", "3", "10"), ("10/02/2026", "8", "20"), ("20/02/2026", "9", "5")].iter().enumerate() {
+        w.escrever_celula(0, i as u32, 0, data.to_string());
+        w.escrever_celula(0, i as u32, 1, qtd.to_string());
+        w.escrever_celula(0, i as u32, 2, total.to_string());
+    }
+    w.escrever_celula(0, 0, 4, "=SOMARPRODUTO((B1:B3>5)*1)".into());
+    w.escrever_celula(0, 0, 5, "=SOMARPRODUTO(MÊS(A1:A3))".into());
+    w.escrever_celula(0, 0, 6, "=SOMARPRODUTO((MÊS(A1:A3)=2)*C1:C3)".into());
+    w.escrever_celula(0, 0, 7, "=SOMARPRODUTO(B1:B3;C1:C3)".into());
+    w.escrever_celula(0, 0, 8, "=SOMARPRODUTO(B1:B3;{1;2})".into());
+    assert_eq!(w.valor(0, 0, 4), Value::Number(2.0));
+    assert_eq!(w.valor(0, 0, 5), Value::Number(5.0));
+    assert_eq!(w.valor(0, 0, 6), Value::Number(25.0));
+    assert_eq!(w.valor(0, 0, 7), Value::Number(3.0 * 10.0 + 8.0 * 20.0 + 9.0 * 5.0));
+    assert!(matches!(w.valor(0, 0, 8), Value::Error(_)), "tamanhos diferentes");
+}
+
+#[test]
+fn nome_de_outra_aba_vale_onde_a_funcao_exige_intervalo() {
+    // #5: SOMASES/CORRESP davam #VALUE! com nome; SOMA funcionava.
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    let vendas = w.criar_aba("Vendas");
+    for (i, (regiao, total)) in [("Sul", "10"), ("Norte", "20"), ("Sul", "5")].iter().enumerate() {
+        w.escrever_celula(vendas, i as u32, 0, regiao.to_string());
+        w.escrever_celula(vendas, i as u32, 1, total.to_string());
+    }
+    w.definir_nome("Regioes", Rect::na_aba(0, 0, 2, 0, "Vendas"));
+    w.definir_nome("TotalVendas", Rect::na_aba(0, 1, 2, 1, "Vendas"));
+    w.escrever_celula(0, 0, 0, "=SOMASES(TotalVendas;Regioes;\"Sul\")".into());
+    w.escrever_celula(0, 0, 1, "=CORRESP(MÁXIMO(TotalVendas);TotalVendas;0)".into());
+    w.escrever_celula(0, 0, 2, "=SOMASE(Regioes;\"Sul\";TotalVendas)".into());
+    w.escrever_celula(0, 0, 3, "=CONT.SES(Regioes;\"Sul\")".into());
+    w.escrever_celula(0, 0, 4, "=PROCV(\"Norte\";Vendas!A1:B3;2;0)".into());
+    assert_eq!(w.valor(0, 0, 0), Value::Number(15.0));
+    assert_eq!(w.valor(0, 0, 1), Value::Number(2.0));
+    assert_eq!(w.valor(0, 0, 2), Value::Number(15.0));
+    assert_eq!(w.valor(0, 0, 3), Value::Number(2.0));
+    assert_eq!(w.valor(0, 0, 4), Value::Number(20.0));
+}
+
+#[test]
 fn renomear_aba_preserva_intervalos_nomeados_e_formula_de_outra_aba() {
     let mut w = Workbook::new();
     let dados = w.criar_aba("Dados");
@@ -479,4 +525,25 @@ fn duplicar_aba_nao_desfaz_depois_de_outra_edicao() {
     w.desfazer_aba();
     w.duplicar_aba(1).unwrap();
     assert!(!w.pode_refazer_aba());
+}
+
+#[test]
+fn dia_da_semana_segue_o_tipo() {
+    // #22: o tipo era ignorado (sempre domingo = 1). 01/03/2026 é domingo.
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    w.escrever_celula(0, 0, 0, "01/03/2026".into());
+    w.escrever_celula(0, 1, 0, "02/03/2026".into());
+    let casos = [("A1", 1, 1.0), ("A1", 2, 7.0), ("A1", 3, 6.0), ("A1", 11, 7.0), ("A1", 12, 6.0),
+        ("A1", 16, 2.0), ("A1", 17, 1.0), ("A2", 2, 1.0), ("A2", 3, 0.0)];
+    for (i, (celula, tipo, _)) in casos.iter().enumerate() {
+        w.escrever_celula(0, i as u32, 2, format!("=DIA.DA.SEMANA({celula};{tipo})"));
+    }
+    for (i, (celula, tipo, esperado)) in casos.iter().enumerate() {
+        assert_eq!(w.valor(0, i as u32, 2), Value::Number(*esperado), "{celula} tipo {tipo}");
+    }
+    w.escrever_celula(0, 0, 3, "=DIA.DA.SEMANA(A1)".into());
+    w.escrever_celula(0, 1, 3, "=DIA.DA.SEMANA(A1;4)".into());
+    assert_eq!(w.valor(0, 0, 3), Value::Number(1.0));
+    assert!(matches!(w.valor(0, 1, 3), Value::Error(_)), "tipo inválido");
 }

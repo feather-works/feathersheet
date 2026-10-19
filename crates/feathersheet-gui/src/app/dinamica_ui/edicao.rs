@@ -89,7 +89,7 @@ pub(super) fn ler_estado(app: &App, destino: usize, meta: &Json) -> Result<Estad
     let extras_campos = (linhas.clone(), colunas.clone(), valores.iter().map(|m| m.coluna).collect());
     Ok(Estado {
         origem: origem.clone(),
-        origem_texto: format!("{}:{}",cell_name(origem.r0,origem.c0),cell_name(origem.r1,origem.c1)),
+        origem_texto: endereco_area(&origem),
         recomendacoes: false,
         folha_origem, nomes, linhas, colunas, valores, agrupar_data,
         nova_aba: false, editando: Some(id), calculados,

@@ -506,6 +506,21 @@ use super::editor::svg_do_grafico_salvo;
         }
     }
     #[test]
+    fn pelo_menu_a_galeria_abre_no_centro_e_nao_onde_o_mouse_estava() {
+        // #4: pelo menu "Gráfico…" o seletor aparecia embaixo do Colar.
+        let mut app = App::default();
+        let _ = app.evento_grafico(Evento::Cursor(iced::Point::new(40.0, 160.0)));
+        let _ = app.evento_grafico(Evento::AbrirNoCentro);
+        assert!(app.graficos.seletor_aberto);
+        let pos = crate::geometria_overlay::galeria_graficos(
+            app.graficos.ancora_seletor_x, app.tamanho_principal.width, app.tamanho_principal.height,
+            226.0, seletor_tipo::LARGURA_POPOVER, seletor_tipo::ALTURA_POPOVER,
+        ).unwrap();
+        let centro = pos.x + pos.largura / 2.0;
+        assert!((centro - app.tamanho_principal.width / 2.0).abs() < 1.0, "{pos:?}");
+    }
+
+    #[test]
     fn galeria_do_botao_grafico_nao_segue_o_mouse_apos_abrir() {
         let mut app = App::default();
         let _ = app.evento_grafico(Evento::Cursor(iced::Point::new(298.0, 142.0)));

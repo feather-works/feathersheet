@@ -40,22 +40,27 @@ fn days_in_month(y: i32, m: u32) -> u32 {
 }
 
 fn date_arg(node: &Node, ev: &Evaluator<'_>) -> Result<f64, CellError> {
-    let val = ev.value(node);
+    serial_do_valor(&ev.value(node))
+}
+
+/// A regra do [`date_arg`] para um valor já lido (item de matriz).
+fn serial_do_valor(val: &Value) -> Result<f64, CellError> {
     match val {
-        Value::Number(n) => Ok(n),
-        Value::Text(s) => {
-            let trimmed = s.trim();
-            if trimmed.is_empty() {
-                Err(CellError::new(ErrorCode::Value))
-            } else if let Ok(n) = trimmed.parse::<f64>() {
-                Ok(n)
-            } else {
-                Err(CellError::new(ErrorCode::Value))
-            }
-        }
-        Value::Error(e) => Err(e),
+        Value::Number(n) => Ok(*n),
+        Value::Text(s) => s.trim().parse::<f64>().map_err(|_| CellError::new(ErrorCode::Value)),
+        Value::Error(e) => Err(e.clone()),
         _ => Err(CellError::new(ErrorCode::Value)),
     }
+}
+
+/// Ano, mês ou dia de cada data: `MÊS(A2:A9)` dá a matriz dos meses
+/// (dentro de SOMARPRODUTO, FILTRO…), uma data só dá um número.
+fn parte_da_data(args: &[Node], ev: &Evaluator<'_>, max: usize, parte: fn(f64) -> f64) -> Computed {
+    por_elemento(args, ev, 1, max, |e| {
+        let serial = serial_do_valor(e.valor(0))?;
+        if serial < 0.0 { return Err(CellError::new(ErrorCode::Num)); }
+        Ok(Value::Number(parte(serial)))
+    })
 }
 
 /// O dia da semana de um serial, 0 = domingo — o `getUTCDay` do TypeScript.
@@ -122,67 +127,34 @@ pub fn fn_date(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 
 /// `=ANO(data)` / `=YEAR(date)`
 pub fn fn_year(args: &[Node], ev: &Evaluator<'_>) -> Computed {
-    if let Some(err) = arity(args, 1, 1) {
-        return Computed::Scalar(Value::Error(err));
-    }
-    let serial = match date_arg(&args[0], ev) {
-        Ok(s) => s,
-        Err(e) => return Computed::Scalar(Value::Error(e)),
-    };
-    if serial < 0.0 {
-        return err_num();
-    }
-    let (y, _, _) = serial_to_ymd(serial as i64);
-    Computed::Scalar(Value::Number(y as f64))
+    parte_da_data(args, ev, 1, |s| serial_to_ymd(s as i64).0 as f64)
 }
 
 /// `=MÊS(data)` / `=MONTH(date)`
 pub fn fn_month(args: &[Node], ev: &Evaluator<'_>) -> Computed {
-    if let Some(err) = arity(args, 1, 1) {
-        return Computed::Scalar(Value::Error(err));
-    }
-    let serial = match date_arg(&args[0], ev) {
-        Ok(s) => s,
-        Err(e) => return Computed::Scalar(Value::Error(e)),
-    };
-    if serial < 0.0 {
-        return err_num();
-    }
-    let (_, m, _) = serial_to_ymd(serial as i64);
-    Computed::Scalar(Value::Number(m as f64))
+    parte_da_data(args, ev, 1, |s| serial_to_ymd(s as i64).1 as f64)
 }
 
 /// `=DIA(data)` / `=DAY(date)`
 pub fn fn_day(args: &[Node], ev: &Evaluator<'_>) -> Computed {
-    if let Some(err) = arity(args, 1, 1) {
-        return Computed::Scalar(Value::Error(err));
-    }
-    let serial = match date_arg(&args[0], ev) {
-        Ok(s) => s,
-        Err(e) => return Computed::Scalar(Value::Error(e)),
-    };
-    if serial < 0.0 {
-        return err_num();
-    }
-    let (_, _, d) = serial_to_ymd(serial as i64);
-    Computed::Scalar(Value::Number(d as f64))
+    parte_da_data(args, ev, 1, |s| serial_to_ymd(s as i64).2 as f64)
 }
 
 /// `=DIA.DA.SEMANA(data; [tipo])` / `=WEEKDAY(date; [return_type])`
 pub fn fn_weekday(args: &[Node], ev: &Evaluator<'_>) -> Computed {
-    if let Some(err) = arity(args, 1, 2) {
-        return Computed::Scalar(Value::Error(err));
-    }
-    let serial = match date_arg(&args[0], ev) {
-        Ok(s) => s,
-        Err(e) => return Computed::Scalar(Value::Error(e)),
-    };
-    if serial < 0.0 {
-        return err_num();
-    }
-    // Serial 1 = 31/12/1899 (Domingo = 1)
-    let day_of_week = dia_da_semana(serial as i64) + 1;
-    Computed::Scalar(Value::Number(day_of_week as f64))
+    por_elemento(args, ev, 1, 2, |e| {
+        let serial = serial_do_valor(e.valor(0))?;
+        if serial < 0.0 { return Err(CellError::new(ErrorCode::Num)); }
+        // Tipo do Excel → dia que vale 1 (0 = domingo); o tipo 3 conta de 0.
+        let (primeiro, base) = match e.int_ou(1, 1)? {
+            1 | 17 => (0, 1),
+            2 | 11 => (1, 1),
+            3 => (1, 0),
+            t @ 12..=16 => (t - 10, 1),
+            _ => return Err(CellError::new(ErrorCode::Num)),
+        };
+        Ok(Value::Number(((dia_da_semana(serial as i64) - primeiro).rem_euclid(7) + base) as f64))
+    })
 }
 
 /// `=NÚM.SEMANA(data; [tipo])` / `=WEEKNUM(date; [return_type])`

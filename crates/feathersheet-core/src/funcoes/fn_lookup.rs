@@ -1,30 +1,11 @@
 //! Funções de busca e lógica em Rust: SE, SES, SEERRO, E, OU, NÃO, PROCV, ÍNDICE, CORRESP.
 
+use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
 use crate::funcoes::fn_helpers::{arity, err_na, err_value, has, valores_iguais, LeitorFaixa};
-use crate::celulas::refs::Rect;
 use crate::celulas::values::{compare, to_boolean, Computed, ErrorCode, Value};
 
-fn node_rect(node: &Node) -> Option<Rect> {
-    match node {
-        Node::Ref { row, col, sheet } => Some(Rect {
-            r0: *row,
-            c0: *col,
-            r1: *row,
-            c1: *col,
-            sheet: sheet.clone(),
-        }),
-        Node::Range { r0, c0, r1, c1, sheet } => Some(Rect {
-            r0: *r0,
-            c0: *c0,
-            r1: *r1,
-            c1: *c1,
-            sheet: sheet.clone(),
-        }),
-        _ => None,
-    }
-}
 
 /// `=SE(teste; valor_se_verdadeiro; [valor_se_falso])` / `=IF(...)`
 pub fn fn_if(args: &[Node], ev: &Evaluator<'_>) -> Computed {
@@ -116,7 +97,7 @@ pub fn fn_vlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::Error(e));
     }
 
-    let rect = match node_rect(&args[1]) {
+    let rect = match node_rect(&args[1], ev) {
         Some(r) => r,
         None => return err_value(),
     };
@@ -169,7 +150,7 @@ pub fn fn_hlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::Error(e));
     }
 
-    let rect = match node_rect(&args[1]) {
+    let rect = match node_rect(&args[1], ev) {
         Some(r) => r,
         None => return err_value(),
     };
@@ -222,7 +203,7 @@ pub fn fn_match(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::Error(e));
     }
 
-    let rect = match node_rect(&args[1]) {
+    let rect = match node_rect(&args[1], ev) {
         Some(r) => r,
         None => return err_value(),
     };
@@ -286,7 +267,7 @@ pub fn fn_index(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         1.0
     };
 
-    let rect = node_rect(&args[0]);
+    let rect = node_rect(&args[0], ev);
     let matriz = if rect.is_some() {
         None
     } else {
@@ -331,11 +312,11 @@ pub fn fn_xlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::Error(e));
     }
 
-    let from_rect = match node_rect(&args[1]) {
+    let from_rect = match node_rect(&args[1], ev) {
         Some(r) => r,
         None => return err_value(),
     };
-    let to_rect = match node_rect(&args[2]) {
+    let to_rect = match node_rect(&args[2], ev) {
         Some(r) => r,
         None => return err_value(),
     };

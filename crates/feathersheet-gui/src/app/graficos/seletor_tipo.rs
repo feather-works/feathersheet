@@ -260,12 +260,10 @@ pub(super) fn painel(tipo_ativo: TipoUi) -> Element<'static, Msg> {
         }
     }
 
-    let rodape = text(tr!("Opções em cinza estarão disponíveis em breve")).size(10);
     container(
         column![
             cabecalho,
             scrollable(grupos).height(Length::Fill),
-            rodape,
         ]
         .spacing(7),
     )

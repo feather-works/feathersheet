@@ -971,7 +971,7 @@ impl App {
                 self.linha = r.min(MAX_ROWS-1);
                 self.coluna = 0;
                 self.fim_selecao = (self.linha, MAX_COLS-1);
-                self.endereco = format!("{}:{}", cell_name(self.linha, 0), cell_name(self.linha, MAX_COLS-1));
+                self.endereco = endereco_area(&self.area_selecionada());
                 Task::none()
             }
             Msg::SelecionarColuna(c) => {
@@ -987,7 +987,7 @@ impl App {
                 self.coluna = c.min(MAX_COLS-1);
                 self.linha = 0;
                 self.fim_selecao = (MAX_ROWS-1, self.coluna);
-                self.endereco = format!("{}:{}", cell_name(0, self.coluna), cell_name(MAX_ROWS-1, self.coluna));
+                self.endereco = endereco_area(&self.area_selecionada());
                 Task::none()
             }
             Msg::EstenderColuna(c) => {
@@ -1001,7 +1001,7 @@ impl App {
                 }
                 self.fim_selecao = (MAX_ROWS-1, c.min(MAX_COLS-1));
                 let area = self.area_selecionada();
-                self.endereco = format!("{}:{}", cell_name(0, area.c0), cell_name(MAX_ROWS-1, area.c1));
+                self.endereco = endereco_area(&area);
                 Task::none()
             }
             Msg::EstenderLinha(r) => {
@@ -1012,7 +1012,7 @@ impl App {
                 if !self.selecao_e_linhas_inteiras() { self.coluna = 0; }
                 self.fim_selecao = (r.min(MAX_ROWS-1), MAX_COLS-1);
                 let area = self.area_selecionada();
-                self.endereco = format!("{}:{}", cell_name(area.r0, 0), cell_name(area.r1, MAX_COLS-1));
+                self.endereco = endereco_area(&area);
                 Task::none()
             }
             Msg::SelecionarRegiaoAtual => { self.selecionar_regiao_atual(); Task::none() },
@@ -1022,7 +1022,7 @@ impl App {
                 self.linha = 0;
                 self.coluna = 0;
                 self.fim_selecao = (MAX_ROWS-1, MAX_COLS-1);
-                self.endereco = format!("{}:{}", cell_name(0, 0), cell_name(MAX_ROWS-1, MAX_COLS-1));
+                self.endereco = endereco_area(&self.area_selecionada());
                 Task::none()
             }
             Msg::ArrastarReferencia(inicio, pegada, de, para) => {
@@ -1074,7 +1074,7 @@ impl App {
                 self.confirmar();
                 self.fim_selecao = (r.min(MAX_ROWS-1), c.min(MAX_COLS-1));
                 let area = self.area_selecionada();
-                self.endereco = format!("{}:{}", cell_name(area.r0, area.c0), cell_name(area.r1, area.c1));
+                self.endereco = endereco_area(&area);
                 Task::none()
             }
             Msg::PosicionarCursorFx(pos) => {

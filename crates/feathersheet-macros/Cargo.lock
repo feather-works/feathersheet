@@ -373,8 +373,8 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "feather-macros"
-version = "0.1.1"
-source = "git+https://github.com/FeatherOffice/feather-io?tag=v0.1.1#38403a58160cb7a0c303e073a7e3c27dacd95276"
+version = "0.1.2"
+source = "git+https://github.com/FeatherOffice/feather-io?tag=v0.1.2#6af52e7f57cfc0bb1ecea70f60897f2379db64f5"
 dependencies = [
  "boa_engine",
  "boa_gc",

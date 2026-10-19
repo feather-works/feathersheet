@@ -148,11 +148,7 @@ impl App {
             Estado::Calculando { area } => area,
             Estado::Prontas(visao) => &visao.area,
         };
-        let titulo_area = if area.r0 == area.r1 && area.c0 == area.c1 {
-            cell_name(area.r0, area.c0)
-        } else {
-            format!("{}:{}", cell_name(area.r0, area.c0), cell_name(area.r1, area.c1))
-        };
+        let titulo_area = endereco_area(&area);
         let corpo: Element<'_, Msg> = match estado {
             Estado::Calculando { .. } => dlg::aviso_vazio(tr!("Calculando contagens e valores distintos…")),
             Estado::Prontas(visao) => {

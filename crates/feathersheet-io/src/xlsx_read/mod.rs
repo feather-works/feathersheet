@@ -27,6 +27,7 @@ mod refs;
 mod sheet;
 mod styles;
 mod validacoes;
+mod vinculos;
 mod vistas;
 pub use vistas::{ler_vistas_arquivo, ler_vistas_bytes, VistaAba};
 mod xml;

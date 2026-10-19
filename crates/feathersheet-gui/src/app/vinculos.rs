@@ -652,11 +652,7 @@ impl App {
         let arquivo = caminho.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let aba = self.workbook.nomes().get(self.folha).cloned().unwrap_or_default();
         let area = self.area_selecionada();
-        let referencia = if area.r0 == area.r1 && area.c0 == area.c1 {
-            cell_name(area.r0, area.c0)
-        } else {
-            format!("{}:{}", cell_name(area.r0, area.c0), cell_name(area.r1, area.c1))
-        };
+        let referencia = endereco_area(&area);
         let msg = canal::mensagem_apontar(&caminho.to_string_lossy(), &arquivo, &aba, &referencia);
         if canal::mandar_para_quem_aponta(&msg) {
             self.vinculos.apontei_para = Some(pid);

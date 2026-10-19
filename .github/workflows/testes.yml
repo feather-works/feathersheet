@@ -1,0 +1,29 @@
+# Testes do motor, da leitura/gravação de arquivos e das macros a cada push
+# e PR (#25). A interface (feathersheet-gui) fica de fora: compila em minutos
+# e precisa das bibliotecas de janela do sistema.
+#
+# Como o macos.yml, só passa com o repositório compilando sozinho: um
+# `[patch]` para cópia local (`../../../feather-io`) quebra este job.
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: [feathersheet-core, feathersheet-io, feathersheet-macros]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Testar ${{ matrix.crate }}
+        working-directory: crates/${{ matrix.crate }}
+        run: cargo test

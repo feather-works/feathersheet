@@ -260,7 +260,8 @@ impl Configuracao {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        std::fs::write(path, serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?)
+        // Atômico: uma queda no meio deixaria o JSON cortado e todas as preferências voltariam ao padrão.
+        feathersheet_io::arquivo::gravar_atomico(path, &serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?)
     }
 
     pub fn carregar() -> Self {

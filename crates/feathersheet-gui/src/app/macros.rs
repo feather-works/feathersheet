@@ -27,12 +27,15 @@ pub(super) struct EstadoVisual {
     /// Alturas escolhidas nas divisórias (None = proporção padrão).
     pub(super) altura_explorador: Option<f32>,
     pub(super) altura_console: Option<f32>,
+    /// Largura escolhida para a lateral (None = 280 px).
+    pub(super) largura_lateral: Option<f32>,
     /// Divisória sendo arrastada: qual, e (y do início, altura no início)
     /// depois do primeiro movimento.
     pub(super) arrasto: Option<(Divisoria, Option<(f32, f32)>)>,
     /// Alturas desenhadas no último quadro (base do arraste).
     pub(super) desenhado_explorador: std::cell::Cell<f32>,
     pub(super) desenhado_console: std::cell::Cell<f32>,
+    pub(super) desenhado_largura: std::cell::Cell<f32>,
 }
 
 /// As divisórias arrastáveis do editor.
@@ -42,6 +45,8 @@ pub enum Divisoria {
     Lateral,
     /// Entre o código e a Janela Imediata.
     Console,
+    /// Entre a lateral (Explorador/Propriedades) e o código: arrasta na horizontal.
+    Largura,
 }
 
 impl Default for EstadoVisual {
@@ -60,9 +65,11 @@ impl Default for EstadoVisual {
             renomeando: None,
             altura_explorador: None,
             altura_console: None,
+            largura_lateral: None,
             arrasto: None,
             desenhado_explorador: std::cell::Cell::new(0.),
             desenhado_console: std::cell::Cell::new(0.),
+            desenhado_largura: std::cell::Cell::new(0.),
         }
     }
 }
@@ -394,12 +401,15 @@ impl App {
                         let atual = match d {
                             Divisoria::Lateral => v.desenhado_explorador.get(),
                             Divisoria::Console => v.desenhado_console.get(),
+                            Divisoria::Largura => v.desenhado_largura.get(),
                         };
                         v.arrasto = Some((d, Some((y, atual))));
                     }
                     // O limite de cada lado é aplicado no desenho (editor_visual).
                     Some((Divisoria::Lateral, Some((y0, h0)))) => v.altura_explorador = Some(h0 + y - y0),
                     Some((Divisoria::Console, Some((y0, h0)))) => v.altura_console = Some(h0 - (y - y0)),
+                    // Na Largura a coordenada é o x do mouse.
+                    Some((Divisoria::Largura, Some((x0, l0)))) => v.largura_lateral = Some(l0 + y - x0),
                     None => {}
                 }
             }

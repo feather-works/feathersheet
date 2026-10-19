@@ -231,7 +231,8 @@ impl App {
                 container(aviso).max_width(largura * 0.52).clip(true)
             );
         }
-        container(linha).padding([0, 8]).into()
+        // Sem folga à direita: as contas encostam no "−" do zoom, como no Excel.
+        container(linha).padding(iced::Padding { left: 8.0, ..iced::Padding::ZERO }).into()
     }
 }
 

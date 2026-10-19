@@ -21,6 +21,9 @@ pub enum Evento {
     /// Botão direito na imagem solta: seleciona e abre o menu dela.
     Contexto(String),
     FecharContexto,
+    /// O mouse entrou num item do menu (o menu comum avisa para abrir
+    /// submenu; este não tem): não faz nada.
+    PassouNoMenu,
     /// Exclui a imagem solta selecionada.
     Excluir,
 }
@@ -115,6 +118,7 @@ impl App {
                 self.imagem_contexto = Some((self.ponteiro_x, self.ponteiro_y));
             }
             Evento::FecharContexto => self.imagem_contexto = None,
+            Evento::PassouNoMenu => {}
             Evento::Excluir => {
                 self.imagem_contexto = None;
                 self.apagar_imagem_selecionada();
@@ -232,7 +236,7 @@ impl App {
             ItemMenu::Separador,
             ItemMenu::acao(tr!("Excluir"), "trash", m(Evento::Excluir)).com_atalho(tr!("Delete")),
         ];
-        menu_contexto::sobrepor(base, &itens, None, |_| m(Evento::FecharContexto),
+        menu_contexto::sobrepor(base, &itens, None, |_| m(Evento::PassouNoMenu),
             m(Evento::FecharContexto), (x, y), self.tamanho_principal)
     }
 }
@@ -243,6 +247,23 @@ mod testes {
 
     // PNG 1×1.
     const PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+    #[test]
+    fn botao_direito_na_imagem_dentro_da_selecao_oferece_colocar_sobre() {
+        use base64::Engine as _;
+        use crate::app::Contexto;
+        let mut app = App::default();
+        app.trocar_selecao(2, 1);
+        let bytes = base64::engine::general_purpose::STANDARD.decode(PNG).unwrap();
+        let _ = app.evento_imagem_celula(Evento::Carregada(Ok(Some((bytes, "x.png".into())))));
+        // Seleção A1:D5 com a ativa em A1; a imagem está em B3, dentro dela.
+        app.trocar_selecao(0, 0);
+        app.fim_selecao = (4, 3);
+        let _ = app.update(Msg::AbrirContexto(Contexto::Celula(2, 1), 40.0, 40.0));
+        assert_eq!((app.linha, app.coluna), (2, 1));
+        assert!(app.opcoes_contexto(Contexto::Celula(2, 1)).iter().flatten()
+            .any(|o| o.0 == tr!("Colocar imagem sobre as células")));
+    }
 
     #[test]
     fn colocar_sobre_e_de_volta_na_celula_com_um_ctrl_z_cada() {

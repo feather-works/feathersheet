@@ -1,30 +1,11 @@
 //! Álgebra de matrizes em Rust: MATRIZ.MULT, INVERSO, DETERM.
 
+use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
 use crate::funcoes::fn_helpers::{arity, err_value};
-use crate::celulas::refs::Rect;
 use crate::celulas::values::{to_number, CellError, Computed, ErrorCode, Matrix, Value};
 
-fn node_rect(node: &Node) -> Option<Rect> {
-    match node {
-        Node::Ref { row, col, sheet } => Some(Rect {
-            r0: *row,
-            c0: *col,
-            r1: *row,
-            c1: *col,
-            sheet: sheet.clone(),
-        }),
-        Node::Range { r0, c0, r1, c1, sheet } => Some(Rect {
-            r0: *r0,
-            c0: *c0,
-            r1: *r1,
-            c1: *c1,
-            sheet: sheet.clone(),
-        }),
-        _ => None,
-    }
-}
 
 /// A matriz de números de um argumento — o `numberMatrix` do TypeScript:
 /// intervalo, matriz escrita na fórmula (`{1\\2;3\\4}`) ou o resultado de
@@ -197,7 +178,7 @@ pub fn fn_minverse(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 }
 
 fn extract_value_matrix(node: &Node, ev: &Evaluator<'_>) -> Result<Vec<Vec<Value>>, Computed> {
-    if let Some(rect) = node_rect(node) {
+    if let Some(rect) = node_rect(node, ev) {
         let rows = (rect.r1 - rect.r0 + 1) as usize;
         let cols = (rect.c1 - rect.c0 + 1) as usize;
         let mut mat = vec![vec![Value::Empty; cols]; rows];

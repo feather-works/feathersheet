@@ -44,7 +44,7 @@ pub fn fn_dbcs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 /// guarda furigana, e sem ele o Excel devolve o próprio texto).
 pub fn fn_phonetic(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     executar(args, 1, 1, || {
-        if node_rect(&args[0]).is_none() {
+        if node_rect(&args[0], ev).is_none() {
             return Err(e_valor());
         }
         texto(arg_texto(args, ev, 0)?)

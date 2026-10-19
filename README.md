@@ -31,9 +31,9 @@ instalador do Windows substituem a versão anterior.
 
 ---
 
-## Novidades da v0.1.2
+## Novidades da v0.1.3
 
-![Janela "O que há de novo" da versão 0.1.2: todas as 520 funções do Excel, apagar e desfazer sem travar, salvar arquivo enorme mais rápido, rolar com gráficos sem tranco, gráfico com um clique, várias áreas de impressão, caixa de texto, abrir .xlsx mais rápido e símbolos e equações](docs/imagens/novidades-0.1.2.png)
+![Janela "O que há de novo" da versão 0.1.3: vínculo com outro arquivo no .xlsx, fórmulas novas no Excel sem #NOME?, colar data até o fim da coluna, clique com a caneta da mesa, imagem entrando e saindo da célula, fórmulas corrigidas, macros com laço grande, borda do Ctrl+C animada e Formatar células mais compacto](docs/imagens/novidades-0.1.3.png)
 
 A mesma janela abre sozinha na primeira vez depois de atualizar (e fica no
 menu Ajuda, em *O que há de novo*).
@@ -44,7 +44,7 @@ menu Ajuda, em *O que há de novo*).
 |---|---|
 | **Fórmulas** | as 520 funções do Excel, com nomes em português ou inglês conforme o idioma da interface; avaliar fórmula passo a passo; matrizes dinâmicas, `LAMBDA`, voláteis |
 | **Arquivos grandes** | até 100 milhões de linhas; abre `.parquet` e `.csv` grande; cálculo paralelo com invalidação seletiva; rodapé com soma e contagem instantâneas; colar um valor nas 100 milhões de linhas de uma coluna em 0,3 s; fórmula na coluna inteira de 13,7 milhões de linhas em milissegundos; tabela dinâmica em segundo plano, sem travar a janela |
-| **Excel** | abre e grava `.xlsx` com cores do tema, formas, imagens, degradês e gráficos na posição certa; lê `.xlsm` e converte as macros VBA para JavaScript |
+| **Excel** | abre e grava `.xlsx` com cores do tema, formas, imagens, degradês, gráficos na posição certa, tabela dinâmica e vínculo com outro arquivo; lê `.xlsm` e converte as macros VBA para JavaScript |
 | **Gráficos** | 25 tipos (combinado, cascata, radar, Gantt, mapa de calor…), dica do mouse e legenda clicável; gráficos editáveis com o painel *Formatar gráfico* (temas, cor por ponto, eixos, rótulos), pelo motor comum [`feather-charts`](https://github.com/FeatherOffice/feather-charts) |
 | **Dados** | tabelas, tabela dinâmica (mostrar valores como, gráfico dinâmico, segmentação, detalhes no duplo clique), formatação condicional, validação, agrupar/subtotal, proteger planilha, Texto para colunas |
 | **Vínculos** | referência a outro arquivo (`=[Vendas.fshz]Dados!A1`) que fica viva com os dois abertos; aponte clicando na outra janela |

@@ -134,8 +134,7 @@ impl App {
         let Some(e)=self.duplicados.as_ref() else{
             return container(text(tr!("Janela fechada"))).into();
         };
-        let intervalo=format!("{}:{}",cell_name(e.regiao.r0,e.regiao.c0),
-            cell_name(e.regiao.r1,e.regiao.c1));
+        let intervalo=endereco_area(&e.regiao);
         let mut opcoes=iced::widget::column![].spacing(3);
         for col in e.regiao.c0..=e.regiao.c1 {
             opcoes=opcoes.push(

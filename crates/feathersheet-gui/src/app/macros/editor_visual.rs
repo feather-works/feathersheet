@@ -214,7 +214,15 @@ fn divisoria<'a>(d: Divisoria) -> Element<'a, Msg> {
         .into()
 }
 
-fn painel_lateral<'a>(app: &'a App, altura_janela: f32) -> Element<'a, Msg> {
+/// Faixa de 8 px entre a lateral e o código; arrastar muda a largura (cursor ↔).
+fn divisoria_largura<'a>() -> Element<'a, Msg> {
+    iced::widget::mouse_area(Space::new(Length::Fixed(8.0), Length::Fill))
+        .interaction(iced::mouse::Interaction::ResizingHorizontally)
+        .on_press(Msg::MacroVisual(EventoVisual::DivisoriaInicio(Divisoria::Largura)))
+        .into()
+}
+
+fn painel_lateral<'a>(app: &'a App, altura_janela: f32, largura_janela: f32) -> Element<'a, Msg> {
     let v = &app.macro_visual;
     let conteudo: Element<'a, Msg> = match (v.explorador, v.propriedades) {
         (true, true) => {
@@ -235,7 +243,10 @@ fn painel_lateral<'a>(app: &'a App, altura_janela: f32) -> Element<'a, Msg> {
         (true, false) => arvore(app, Length::Fill),
         _ => propriedades(app, Length::Fill),
     };
-    container(conteudo).width(Length::Fixed(280.0)).height(Length::Fill).into()
+    // O código fica com pelo menos ~360 px.
+    let largura = v.largura_lateral.unwrap_or(280.0).clamp(180.0, (largura_janela - 380.0).max(180.0));
+    v.desenhado_largura.set(largura);
+    container(conteudo).width(Length::Fixed(largura)).height(Length::Fill).into()
 }
 
 fn abas_documento<'a>(app: &'a App) -> Element<'a, Msg> {
@@ -389,13 +400,15 @@ pub(super) fn janela<'a>(app: &'a App) -> Element<'a, Msg> {
         let h = app.macro_visual.codigo.janela.height;
         if h > 0.0 { h } else { 760.0 }
     };
-    janela_com(app, altura_janela())
+    let w = app.macro_visual.codigo.janela.width;
+    janela_com(app, altura_janela(), if w > 0.0 { w } else { 1100.0 })
 }
 
-fn janela_com<'a>(app: &'a App, altura_janela: f32) -> Element<'a, Msg> {
-    let mut corpo = row![].spacing(8).height(Length::Fill);
+fn janela_com<'a>(app: &'a App, altura_janela: f32, largura_janela: f32) -> Element<'a, Msg> {
+    // Sem espaçamento: a divisória de 8 px é o vão entre a lateral e o código.
+    let mut corpo = row![].spacing(0).height(Length::Fill);
     if app.macro_visual.explorador || app.macro_visual.propriedades {
-        corpo = corpo.push(painel_lateral(app, altura_janela));
+        corpo = corpo.push(painel_lateral(app, altura_janela, largura_janela)).push(divisoria_largura());
     }
     corpo = corpo.push(centro(app));
     let mut estrutura = column![
@@ -421,8 +434,10 @@ fn janela_com<'a>(app: &'a App, altura_janela: f32) -> Element<'a, Msg> {
     // fica sempre, para a árvore não mudar (e o código não perder a rolagem).
     let mut base = iced::widget::mouse_area(base);
     if app.macro_visual.arrasto.is_some() {
-        base = base.interaction(iced::mouse::Interaction::ResizingVertically)
-            .on_move(|p| Msg::MacroVisual(EventoVisual::DivisoriaMover(p.y)))
+        let largura = matches!(app.macro_visual.arrasto, Some((Divisoria::Largura, _)));
+        base = base.interaction(if largura { iced::mouse::Interaction::ResizingHorizontally }
+                else { iced::mouse::Interaction::ResizingVertically })
+            .on_move(move |p| Msg::MacroVisual(EventoVisual::DivisoriaMover(if largura { p.x } else { p.y })))
             .on_release(Msg::MacroVisual(EventoVisual::DivisoriaFim));
     }
     if let Some(id) = app.macro_visual.menu {
@@ -570,6 +585,16 @@ mod testes {
         app.evento_macro_visual(EventoVisual::DivisoriaMover(-5000.0));
         let _ = janela(&app);
         assert!(app.macro_visual.desenhado_console.get() <= 760.0 - 330.0);
+        app.evento_macro_visual(EventoVisual::DivisoriaFim);
+        // Lateral: arrastar para a direita alarga; muito longe para no limite.
+        let largura = app.macro_visual.desenhado_largura.get();
+        app.evento_macro_visual(EventoVisual::DivisoriaInicio(Divisoria::Largura));
+        app.evento_macro_visual(EventoVisual::DivisoriaMover(280.0));
+        app.evento_macro_visual(EventoVisual::DivisoriaMover(330.0));
+        assert_eq!(app.macro_visual.largura_lateral, Some(largura + 50.0));
+        app.evento_macro_visual(EventoVisual::DivisoriaMover(9000.0));
+        let _ = janela(&app);
+        assert!(app.macro_visual.desenhado_largura.get() <= 1180.0 - 380.0);
     }
 
     #[test]

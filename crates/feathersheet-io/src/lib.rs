@@ -48,4 +48,5 @@ mod xlsx_write_autofiltro;
 mod xlsx_write_comentarios;
 mod xlsx_write_dinamica;
 mod xlsx_write_graficos;
+mod xlsx_write_vinculos;
 pub mod zip_write;

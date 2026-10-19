@@ -700,7 +700,47 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
 }
 
 const API: &str = r#"
-const __nome = (r,c) => { let s=''; for(let n=c+1;n>0;n=Math.floor((n-1)/26)) s=String.fromCharCode(65+(n-1)%26)+s; return s+(r+1); };
+// O Boa vem sem `intl` (seriam MB de dados ICU): toLocaleString ignorava a
+// língua e devolvia "Mon Oct 19 2026…". Aqui, pt-BR (padrão), en-US e es-ES.
+// shortcut: só essas três línguas e moeda BRL/USD/EUR; outra língua cai no pt-BR.
+(() => {
+    const P = n => String(n).padStart(2, '0');
+    const lingua = l => { l = String(l || 'pt-BR').toLowerCase(); return l.startsWith('en') ? 'en' : l.startsWith('es') ? 'es' : 'pt'; };
+    const data = (x, l) => {
+        const [d, m, a] = [x.getDate(), x.getMonth() + 1, x.getFullYear()];
+        return l === 'en' ? m + '/' + d + '/' + a : l === 'es' ? d + '/' + m + '/' + a : P(d) + '/' + P(m) + '/' + a;
+    };
+    const hora = (x, l) => {
+        if (l !== 'en') return P(x.getHours()) + ':' + P(x.getMinutes()) + ':' + P(x.getSeconds());
+        const h = x.getHours() % 12 || 12;
+        return h + ':' + P(x.getMinutes()) + ':' + P(x.getSeconds()) + (x.getHours() < 12 ? ' AM' : ' PM');
+    };
+    Date.prototype.toLocaleDateString = function (l) { return data(this, lingua(l)); };
+    Date.prototype.toLocaleTimeString = function (l) { return hora(this, lingua(l)); };
+    Date.prototype.toLocaleString = function (l) { l = lingua(l); return data(this, l) + ', ' + hora(this, l); };
+    const numeroOriginal = Number.prototype.toLocaleString;
+    Number.prototype.toLocaleString = function (l, o) {
+        o = o || {}; l = lingua(l);
+        let n = Number(this);
+        if (!isFinite(n)) return numeroOriginal.call(n);
+        const moeda = o.style === 'currency', pct = o.style === 'percent';
+        if (pct) n *= 100;
+        const min = o.minimumFractionDigits ?? (moeda ? 2 : 0);
+        const max = Math.max(min, o.maximumFractionDigits ?? (moeda ? 2 : pct ? 0 : 3));
+        let [int, dec = ''] = Math.abs(n).toFixed(max).split('.');
+        while (dec.length > min && dec.endsWith('0')) dec = dec.slice(0, -1);
+        const [mil, virg] = l === 'en' ? [',', '.'] : ['.', ','];
+        if (o.useGrouping !== false) int = int.replace(/\B(?=(\d{3})+(?!\d))/g, mil);
+        let s = (n < 0 ? '-' : '') + int + (dec ? virg + dec : '');
+        if (pct) s += l === 'en' ? '%' : ' %';
+        if (moeda) {
+            const simbolo = { BRL: 'R$', USD: '$', EUR: '€' }[String(o.currency || 'BRL').toUpperCase()] || o.currency;
+            s = l === 'es' ? s + ' ' + simbolo : simbolo + (l === 'en' ? '' : ' ') + s;
+        }
+        return s;
+    };
+})();
+const __nome =(r,c) => { let s=''; for(let n=c+1;n>0;n=Math.floor((n-1)/26)) s=String.fromCharCode(65+(n-1)%26)+s; return s+(r+1); };
 // O tipo de erro vive no JavaScript da macro, mas os códigos validados
 // e a avaliação das fórmulas continuam pertencendo ao core Rust.
 const __codigosErro = new Set(['#DIV/0!','#VALUE!','#REF!','#NAME?','#ERROR!','#NUM!','#N/A','#SPILL!','#CIRCULAR!','#CALCULANDO!']);

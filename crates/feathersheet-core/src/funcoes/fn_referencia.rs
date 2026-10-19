@@ -62,7 +62,7 @@ fn deslocar(args: &[Node], ev: &Evaluator<'_>) -> Res<Node> {
     if let Some(e) = arity(args, 3, 5) {
         return Err(e);
     }
-    let base = node_rect(&args[0]).ok_or_else(|| erro_motivo(ErrorCode::Value, "O primeiro argumento de DESLOC precisa ser uma referência"))?;
+    let base = node_rect(&args[0], ev).ok_or_else(|| erro_motivo(ErrorCode::Value, "O primeiro argumento de DESLOC precisa ser uma referência"))?;
     let (lins, cols) = (arg_int(args, ev, 1)?, arg_int(args, ev, 2)?);
     let altura = if has(args, 3) { arg_int(args, ev, 3)? } else { (base.r1 - base.r0 + 1) as i64 };
     let largura = if has(args, 4) { arg_int(args, ev, 4)? } else { (base.c1 - base.c0 + 1) as i64 };
@@ -147,7 +147,7 @@ fn ajustar(args: &[Node], ev: &Evaluator<'_>) -> Res<Node> {
     if let Some(e) = arity(args, 1, 3) {
         return Err(e);
     }
-    let rect = node_rect(&args[0]).ok_or_else(e_valor)?;
+    let rect = node_rect(&args[0], ev).ok_or_else(e_valor)?;
     let modo = |i: usize| -> Res<i64> {
         let m = if has(args, i) { arg_int(args, ev, i)? } else { 3 };
         if (0..=3).contains(&m) { Ok(m) } else { Err(e_valor()) }
@@ -188,10 +188,10 @@ pub fn fn_areas(args: &[Node], _ev: &Evaluator<'_>) -> Computed {
 }
 
 /// A célula de cima à esquerda do argumento de referência.
-fn celula_do_arg(args: &[Node], i: usize) -> Res<(u32, u32, Option<String>)> {
+fn celula_do_arg(args: &[Node], i: usize, ev: &Evaluator<'_>) -> Res<(u32, u32, Option<String>)> {
     match args.get(i) {
         Some(Node::Error(c)) => Err(CellError::new(ErrorCode::from_code(c).unwrap_or(ErrorCode::Ref))),
-        Some(no) => node_rect(no).map(|r| (r.r0, r.c0, r.sheet)).ok_or_else(e_valor),
+        Some(no) => node_rect(no, ev).map(|r| (r.r0, r.c0, r.sheet)).ok_or_else(e_valor),
         None => Err(e_valor()),
     }
 }
@@ -199,7 +199,7 @@ fn celula_do_arg(args: &[Node], i: usize) -> Res<(u32, u32, Option<String>)> {
 /// `=FÓRMULATEXTO(ref)` / `=FORMULATEXT(reference)`
 pub fn fn_formulatext(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     executar(args, 1, 1, || {
-        let (r, c, aba) = celula_do_arg(args, 0)?;
+        let (r, c, aba) = celula_do_arg(args, 0, ev)?;
         match ev.ctx.formula_de(r, c, aba.as_deref()) {
             Some(f) => texto(f),
             None => Err(erro_motivo(ErrorCode::Na, "A célula não tem fórmula")),
@@ -210,7 +210,7 @@ pub fn fn_formulatext(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 /// `=ÉFÓRMULA(ref)` / `=ISFORMULA(reference)`
 pub fn fn_isformula(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     executar(args, 1, 1, || {
-        let (r, c, aba) = celula_do_arg(args, 0)?;
+        let (r, c, aba) = celula_do_arg(args, 0, ev)?;
         Ok(Value::Bool(ev.ctx.formula_de(r, c, aba.as_deref()).is_some()))
     })
 }
@@ -257,7 +257,7 @@ pub fn fn_cell(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     executar(args, 1, 2, || {
         let tipo = arg_texto(args, ev, 0)?.trim().to_lowercase();
         let (r, c, aba) = if has(args, 1) {
-            celula_do_arg(args, 1)?
+            celula_do_arg(args, 1, ev)?
         } else {
             let (r, c) = ev.here.ok_or_else(e_valor)?;
             (r, c, None)
@@ -317,7 +317,7 @@ pub fn fn_getpivotdata(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     }
     concluir((|| {
         let campo = arg_texto(args, ev, 0)?.trim().to_lowercase();
-        let (r, c, aba) = celula_do_arg(args, 1)?;
+        let (r, c, aba) = celula_do_arg(args, 1, ev)?;
         let aba = aba.as_deref();
         let ler = |r: u32, c: u32| ev.ctx.get_value(r, c, aba);
         let txt = |r: u32, c: u32| to_text(&ler(r, c)).trim().to_lowercase();

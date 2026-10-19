@@ -220,6 +220,8 @@ impl App {
         let controle_texto = iced::widget::column![
             titulo(tr!("Controle de texto")),
             self.formato_toggle(e, tr!("Quebrar texto automaticamente"), "wrap", "text-wrap"),
+            // Lado a lado: empilhados, a aba passava da janela e cortava "Direção do texto".
+            iced::widget::row![
             self.formato_toggle(e, tr!("Reduzir para caber"), "shrinkToFit", "zoom-out"),
             button(iced::widget::row![
                 feather_ui::icones::icone("square", 15.),
@@ -233,6 +235,7 @@ impl App {
                     estilo
                 }}).padding([7, 11])
                 .on_press(Msg::FormatoCelula(Evento::Mesclar(!e.mesclar))),
+            ].spacing(5),
         ].spacing(5).align_x(Alignment::Start);
         let esquerda = iced::widget::column![
             titulo(tr!("Alinhamento de texto")),

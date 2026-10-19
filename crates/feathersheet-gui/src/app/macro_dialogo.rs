@@ -39,15 +39,10 @@ impl App {
     fn rodar_macro_registrando(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str,
         respostas: Vec<bool>, continua: Option<(u64, u128)>) -> Option<feathersheet_macros::Resultado>
     {
-        use feathersheet_core::celulas::refs::cell_name;
         use historico_macros::{Execucao, ResultadoExecucao};
         let inicio_execucao = std::time::Instant::now();
         let (r1, c1) = self.fim_selecao;
-        let inicio = cell_name(self.linha, self.coluna);
-        let selecao = if (r1, c1) == (self.linha, self.coluna) { inicio } else {
-            let (a, b) = ((self.linha.min(r1), self.coluna.min(c1)), (self.linha.max(r1), self.coluna.max(c1)));
-            format!("{}:{}", cell_name(a.0, a.1), cell_name(b.0, b.1))
-        };
+        let selecao = endereco_area(&Rect::new(self.linha, self.coluna, r1, c1));
         let contexto = feathersheet_macros::Contexto {
             arquivo: self.caminho.clone(), selecao: Some(selecao), respostas: respostas.clone(),
         };

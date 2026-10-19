@@ -98,7 +98,7 @@ pub fn faixas_e_criterios(args: &[Node], inicio: usize, ev: &Evaluator<'_>)
     let mut crits = Vec::with_capacity(rects.capacity());
     let mut i = inicio;
     while i + 1 < args.len() {
-        let rect = node_rect(&args[i]).ok_or_else(|| CellError::new(ErrorCode::Value))?;
+        let rect = node_rect(&args[i], ev).ok_or_else(|| CellError::new(ErrorCode::Value))?;
         let crit = ev.eval(&args[i + 1]);
         if let Value::Error(e) = crit {
             return Err(e);
@@ -111,11 +111,15 @@ pub fn faixas_e_criterios(args: &[Node], inicio: usize, ev: &Evaluator<'_>)
 }
 
 /// O retângulo de um nó de referência ou intervalo.
-pub fn node_rect(node: &Node) -> Option<crate::celulas::refs::Rect> {
+/// Retângulo de um argumento que é referência: célula, intervalo ou nome
+/// definido (variável de LET/LAMBDA não é nome). Funções que exigem
+/// intervalo (SOMASES, CORRESP…) leem por aqui, para o nome valer igual.
+pub fn node_rect(node: &Node, ev: &crate::formula::evaluator::Evaluator<'_>) -> Option<crate::celulas::refs::Rect> {
     use crate::celulas::refs::Rect;
     match node {
         Node::Ref { row, col, sheet } => Some(Rect { r0: *row, c0: *col, r1: *row, c1: *col, sheet: sheet.clone() }),
         Node::Range { r0, c0, r1, c1, sheet } => Some(Rect { r0: *r0, c0: *c0, r1: *r1, c1: *c1, sheet: sheet.clone() }),
+        Node::Name(nome) if !ev.env.contains_key(&nome.to_uppercase()) => ev.ctx.resolve_name(nome),
         _ => None,
     }
 }

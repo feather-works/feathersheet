@@ -278,11 +278,7 @@ impl App {
     }
 
     fn atualizar_endereco_da_area(&mut self, area: Rect) {
-        self.endereco = if (area.r0, area.c0) == (area.r1, area.c1) {
-            cell_name(area.r0, area.c0)
-        } else {
-            format!("{}:{}", cell_name(area.r0, area.c0), cell_name(area.r1, area.c1))
-        };
+        self.endereco = endereco_area(&area);
     }
 
     /// O modo de cálculo é preferência da pessoa (como no Excel, vale para a
@@ -542,7 +538,7 @@ impl App {
             }
             MenuFormulas::Nomes => {
                 for n in self.workbook.nomeados() {
-                    lista = lista.push(Self::item_menu(n.nome.clone(), format!("{}:{}", cell_name(n.area.r0, n.area.c0), cell_name(n.area.r1, n.area.c1)),
+                    lista = lista.push(Self::item_menu(n.nome.clone(), endereco_area(&n.area),
                         Msg::Formulas(Evento::UsarNome(n.nome.clone())), false));
                 }
                 tr!("Usar em fórmula").to_owned()

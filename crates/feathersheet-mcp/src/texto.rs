@@ -48,7 +48,10 @@ pub fn intervalo(h: &dyn Hospede, args: &Json, campo: &str) -> Result<(usize, Re
         Some((aba, r)) => (indice_aba(h.pasta(), &Json::String(aba.to_string()))?, r),
         None => (aba_do_arg(h, args)?, texto),
     };
-    let rect = parse_range_ref(ref_).ok_or_else(|| format!("Endereço inválido: \"{texto}\"."))?;
+    // "G" é a coluna G inteira e "3" a linha 3 (o `parse_range_ref` só aceita G:G e 3:3).
+    let sozinho = !ref_.contains(':') && (ref_.chars().all(|c| c.is_ascii_alphabetic()) || ref_.chars().all(|c| c.is_ascii_digit()));
+    let ref_ = if sozinho { format!("{ref_}:{ref_}") } else { ref_.to_string() };
+    let rect = parse_range_ref(&ref_).ok_or_else(|| format!("Endereço inválido: \"{texto}\"."))?;
     Ok((aba, rect.normalized()))
 }
 

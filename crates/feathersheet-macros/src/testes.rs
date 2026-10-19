@@ -468,6 +468,14 @@ fn erro_reverte_escritas_e_preserva_edicoes_anteriores() {
     assert_eq!(wb.valor(0,0,0),Value::Number(9.));
 }
 #[test]
+fn laco_acima_de_cem_mil_voltas_roda() {
+    // #23: parava com RuntimeLimitError em 100 mil voltas.
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, "let s = 0; for (let i = 0; i < 200000; i++) { s += i; } sheet.set('A1', s);");
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(19_999_900_000.0));
+}
+#[test]
 fn get_text_retorna_valor_formatado_e_formula_calculada() {
     let mut wb=Workbook::new();
     wb.escrever_celula(0,0,0,"12.5".into());
@@ -689,4 +697,23 @@ fn cell_e_range_sem_aba_usam_a_aba_ativa() {
     assert_eq!(wb.valor(outra, 1, 1), Value::Number(2.));
     assert_eq!(wb.valor(outra, 0, 2), Value::Number(8.));
     assert_eq!(wb.valor(0, 0, 0), Value::Number(7.), "a primeira aba só pelo nome/número");
+}
+
+#[test]
+fn to_locale_string_segue_a_lingua_pedida() {
+    // #7: o Boa sem `intl` devolvia "Mon Oct 19 2026 08:41:50 GMT-0300".
+    let mut wb = Workbook::new();
+    let resultado = executar(&mut wb, 0,
+        "const d = new Date(2026, 9, 19, 8, 5, 9); \
+         log(d.toLocaleString('pt-BR')); log(d.toLocaleDateString()); log(d.toLocaleTimeString('en-US')); \
+         log((833402).toLocaleString('pt-BR', {minimumFractionDigits: 2})); \
+         log((833402.5).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})); \
+         log((-1234.5678).toLocaleString('en-US')); \
+         log((0.358).toLocaleString('pt-BR', {style: 'percent', maximumFractionDigits: 1})); \
+         log((1234.5).toLocaleString('es-ES', {style: 'currency', currency: 'EUR'}));");
+    assert!(resultado.erro.is_none(), "{:?}", resultado.erro);
+    assert_eq!(resultado.saida, vec![
+        "19/10/2026, 08:05:09", "19/10/2026", "8:05:09 AM",
+        "833.402,00", "R$ 833.402,50", "-1,234.568", "35,8 %", "1.234,50 €",
+    ]);
 }

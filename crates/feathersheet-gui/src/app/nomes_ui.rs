@@ -154,6 +154,19 @@ fn cortar(texto: &str, max: usize) -> String {
 }
 
 impl App {
+    /// Seleção exatamente igual a um nome definido: a caixa de nome mostra
+    /// o nome, como no Excel. Enquanto o usuário digita, nada.
+    pub(super) fn nome_da_selecao(&self) -> Option<String> {
+        if self.endereco_digitado { return None; }
+        let aba = &self.workbook.aba(self.folha)?.sheet.name;
+        let area = self.area_selecionada().normalized();
+        self.workbook.nomeados().into_iter().find(|n| {
+            let a = n.area.normalized();
+            n.area.sheet.as_ref().is_none_or(|s| s.eq_ignore_ascii_case(aba))
+                && (a.r0, a.c0, a.r1, a.c1) == (area.r0, area.c0, area.r1, area.c1)
+        }).map(|n| n.nome)
+    }
+
     pub(super) fn abrir_nomes(&mut self, preencher: bool) -> Task<Msg> {
         if !self.confirmar() { return Task::none(); }
         self.menu_aberto = false;
@@ -515,6 +528,21 @@ mod testes {
         for nome in ["", "A1", "XFD10000000", "A1:B2", "com espaço", "12abc", "a/b"] {
             assert!(validar_nome(nome).is_err(), "{nome}");
         }
+    }
+
+    #[test]
+    fn caixa_de_nome_mostra_o_nome_da_selecao_e_uma_celula_sem_repetir() {
+        let mut app = App::default();
+        app.workbook.definir_nome("teste1", Rect::na_aba(16, 6, 16, 6, "Planilha1"));
+        app.trocar_selecao(16, 6);
+        assert_eq!(app.nome_da_selecao().as_deref(), Some("teste1"));
+        app.fim_selecao = (17, 6);
+        assert_eq!(app.nome_da_selecao(), None, "G17:G18 não é o nome");
+        // #21/#26: Shift+clique de volta na mesma célula escrevia `G17:G17`.
+        let _ = app.update(Msg::Estender(16, 6));
+        assert_eq!(app.endereco, "G17");
+        let _ = app.update(Msg::Estender(18, 7));
+        assert_eq!(app.endereco, "G17:H19");
     }
 
     #[test]

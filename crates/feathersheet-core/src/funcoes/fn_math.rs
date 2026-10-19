@@ -1,6 +1,7 @@
 //! Funções matemáticas da planilha em Rust: SOMA, SOMASE, ARRED, ABS, RAIZ, POTÊNCIA, etc.
 //! Também: PAR, ÍMPAR, MDC, MMC, MARRED, ROMANO, BASE, trigonometria extra (COT, SEC…), TETO/ARREDMULTB.MAT, COMBINA, MUNIT, SOMASERIES, SOMAX2DY2…
 
+use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
 use crate::funcoes::fn_helpers::{arity, collect, err_num, err_value, has, make_predicate, LeitorFaixa};
@@ -9,25 +10,6 @@ use crate::funcoes::fn_helpers::{concluir, concluir_matriz, e_div0, e_nd, e_num,
 use crate::celulas::values::to_number;
 use crate::celulas::values::{Computed, Value};
 
-fn node_rect(node: &Node) -> Option<Rect> {
-    match node {
-        Node::Ref { row, col, sheet } => Some(Rect {
-            r0: *row,
-            c0: *col,
-            r1: *row,
-            c1: *col,
-            sheet: sheet.clone(),
-        }),
-        Node::Range { r0, c0, r1, c1, sheet } => Some(Rect {
-            r0: *r0,
-            c0: *c0,
-            r1: *r1,
-            c1: *c1,
-            sheet: sheet.clone(),
-        }),
-        _ => None,
-    }
-}
 
 /// `=SOMA(args...)`
 pub fn fn_sum(args: &[Node], ev: &Evaluator<'_>) -> Computed {
@@ -47,11 +29,11 @@ pub fn fn_sumif(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     let pred = make_predicate(&crit_val);
     let sum_node = if has(args, 2) { &args[2] } else { range_node };
 
-    let range_rect = match node_rect(range_node) {
+    let range_rect = match node_rect(range_node, ev) {
         Some(r) => r,
         None => return err_value(),
     };
-    let sum_rect = match node_rect(sum_node) {
+    let sum_rect = match node_rect(sum_node, ev) {
         Some(r) => r,
         None => range_rect.clone(),
     };
@@ -501,7 +483,7 @@ pub fn fn_sumifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if args.len() < 3 || args.len() % 2 == 0 {
         return err_value();
     }
-    let sum_rect = match node_rect(&args[0]) {
+    let sum_rect = match node_rect(&args[0], ev) {
         Some(r) => r,
         None => return err_value(),
     };
@@ -560,7 +542,7 @@ pub fn fn_sumproduct(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     let mut cols: Vec<Vec<f64>> = Vec::with_capacity(args.len());
     for a in args {
         let mut list = Vec::new();
-        if let Some(rect) = node_rect(a) {
+        if let Some(rect) = node_rect(a, ev) {
             for r in rect.r0..=rect.r1 {
                 for c in rect.c0..=rect.c1 {
                     let v = ev.ctx.get_value(r, c, rect.sheet.as_deref());
@@ -572,11 +554,18 @@ pub fn fn_sumproduct(args: &[Node], ev: &Evaluator<'_>) -> Computed {
                 }
             }
         } else {
-            let val = ev.eval(a);
-            match val {
-                Value::Error(e) => return Computed::Scalar(Value::Error(e)),
-                Value::Number(n) => list.push(n),
-                _ => list.push(0.0),
+            // Expressão (`(E2:E9>5)*1`, `MÊS(A2:A9)`): avaliada como matriz,
+            // como o Excel faz dentro do SOMARPRODUTO.
+            let m = match ev.matrix_arg(a) {
+                Ok(m) => m,
+                Err(e) => return Computed::Scalar(Value::Error(e)),
+            };
+            for v in m.rows().iter().flatten() {
+                match v {
+                    Value::Error(e) => return Computed::Scalar(Value::Error(e.clone())),
+                    Value::Number(n) => list.push(*n),
+                    _ => list.push(0.0),
+                }
             }
         }
         cols.push(list);

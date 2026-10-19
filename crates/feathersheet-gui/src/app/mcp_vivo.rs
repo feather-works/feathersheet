@@ -137,7 +137,8 @@ pub(super) fn assinatura() -> Subscription<Msg> {
 const COMANDOS: &[(&str, &str)] = &[
     ("faixa", "abre uma aba da faixa: args {aba: inicio|inserir|formulas|dados|exibir|macros|ferramentas}"),
     ("tecla", "aperta um atalho como se fosse no teclado: args {combo: \"F9\", \"Ctrl+Z\", \"Ctrl+/\", \"Shift+F9\", \"Escape\"…}"),
-    ("menu", "executa um comando dos menus pelo rótulo: args {texto: \"Inserir linha\"}"),
+    ("menu", "executa um comando dos menus pelo rótulo (veja os rótulos com menus): args {texto: \"Inserir linha\"}"),
+    ("menus", "lista os rótulos aceitos por menu, com o caminho: args {filtro?: \"congelar\"}"),
     ("editar", "digita na célula ativa e confirma com Enter, pelo mesmo caminho da barra fx: args {texto}"),
     ("rastrear_precedentes", "Fórmulas → Rastrear precedentes (um nível por chamada)"),
     ("rastrear_dependentes", "Fórmulas → Rastrear dependentes"),
@@ -236,6 +237,26 @@ impl HospedeApp<'_> {
     }
 
     /// Procura o rótulo nos menus (igual primeiro, depois "contém").
+    /// Os itens de menu que o `menu` aciona, um por linha, com o caminho
+    /// ("Exibir › Congelar › 1 linha"); `filtro` corta por trecho do caminho.
+    fn rotulos_de_menu(&self, filtro: &str) -> String {
+        fn juntar(app: &App, itens: &[menu_nativo::Item], caminho: &str, filtro: &str, saida: &mut Vec<String>) {
+            for item in itens {
+                let aqui = format!("{caminho} › {}", item.rotulo.trim());
+                if item.acao.as_ref().is_some_and(|a| app.evento_menu(a).is_some()) && aqui.to_lowercase().contains(filtro) {
+                    saida.push(aqui.clone());
+                }
+                juntar(app, &item.filhos, &aqui, filtro, saida);
+            }
+        }
+        let filtro = filtro.trim().to_lowercase();
+        let mut saida = Vec::new();
+        for m in &menu_nativo::catalogo().menus {
+            juntar(self.app, &m.itens, m.titulo.trim(), &filtro, &mut saida);
+        }
+        if saida.is_empty() { format!("Nenhum item de menu com \"{filtro}\".") } else { saida.join("\n") }
+    }
+
     fn menu(&mut self, texto: &str) -> Result<String, String> {
         fn achar(app: &App, itens: &[menu_nativo::Item], alvo: &str, exato: bool) -> Option<(String, Msg)> {
             for item in itens {
@@ -254,7 +275,7 @@ impl HospedeApp<'_> {
         let menus = &menu_nativo::catalogo().menus;
         let achado = [true, false].into_iter().find_map(|exato|
             menus.iter().find_map(|m| achar(self.app, &m.itens, &alvo, exato)));
-        let (rotulo, msg) = achado.ok_or_else(|| format!("Nenhum comando de menu com \"{texto}\"."))?;
+        let (rotulo, msg) = achado.ok_or_else(|| format!("Nenhum comando de menu com \"{texto}\". Veja os rótulos com comando=\"menus\"."))?;
         self.enviar(msg);
         Ok(rotulo)
     }
@@ -335,7 +356,7 @@ impl Hospede for HospedeApp<'_> {
             let n = |k: &str| a[k].as_u64().and_then(|v| u32::try_from(v).ok());
             Some(Rect::new(n("r0")?, n("c0")?, n("r1")?, n("c1")?))
         };
-        let nome = |r: &Rect| format!("{}:{}", cell_name(r.r0, r.c0), cell_name(r.r1, r.c1));
+        let nome = endereco_area;
         let existente = tabelas::sob_qualquer(w, aba, area.r0, area.c0);
         let texto = match acao {
             "listar" => match existente {
@@ -421,6 +442,7 @@ impl Hospede for HospedeApp<'_> {
                 self.tarefas.push(t);
             }
             "menu" => extra = format!(" (menu: {})", self.menu(&texto("texto"))?),
+            "menus" => return Ok(self.rotulos_de_menu(&texto("filtro"))),
             "editar" => {
                 self.enviar(Msg::Editar(texto("texto")));
                 self.enviar(Msg::EnviarEditor);
@@ -482,6 +504,18 @@ impl Hospede for HospedeApp<'_> {
         if a.erro_explicando.is_some() { s.push_str("Painel aberto: Diagnóstico de fórmula\n"); }
         if a.congelar_menu_aberto { s.push_str("Menu aberto: Congelar\n"); }
         if a.menu_aberto { s.push_str("Menu principal aberto\n"); }
+        // #12: painéis, seletores e menus flutuantes também cobrem a grade.
+        if a.condicional_aberto { s.push_str("Diálogo aberto: Formatação condicional\n"); }
+        if a.condicional_menu_aberto { s.push_str("Menu aberto: Formatação condicional\n"); }
+        if a.graficos.seletor_aberto { s.push_str("Seletor aberto: Tipo de gráfico\n"); }
+        if a.graficos.aberto { s.push_str("Painel aberto: Gráfico\n"); }
+        if a.graficos.contexto.is_some() { s.push_str("Menu aberto: botão direito no gráfico\n"); }
+        if a.dinamica.is_some() { s.push_str("Painel aberto: Tabela dinâmica\n"); }
+        if a.formatar_imagem.aberto { s.push_str("Painel aberto: Formatar imagem\n"); }
+        if a.efeitos_imagem.aberto { s.push_str("Painel aberto: Efeitos da imagem\n"); }
+        if a.imagem_contexto.is_some() { s.push_str("Menu aberto: botão direito na imagem\n"); }
+        if a.contexto.is_some() { s.push_str("Menu aberto: botão direito na grade\n"); }
+        if let Some(m) = a.edicao_menu { s.push_str(&format!("Menu aberto: {m} ▾ da faixa\n")); }
         if a.em_tela_inicio { s.push_str("Na tela inicial (sem planilha aberta)\n"); }
         let janelas: Vec<&str> = AUXILIARES.iter().filter(|(t, _)| a.janelas.aberta(*t)).map(|(_, n)| *n).collect();
         if !janelas.is_empty() { s.push_str(&format!("Janelas abertas: {}\n", janelas.join(", "))); }
@@ -627,6 +661,31 @@ mod testes {
 
     /// sheet_filtrar ao vivo: liga o AutoFiltro, esconde as linhas como as
     /// setas do cabeçalho, lista, limpa e remove.
+    #[test]
+    fn tela_diz_os_paineis_e_seletores_abertos() {
+        // #12: o seletor de gráfico e o diálogo de formatação condicional não apareciam.
+        let mut app = App::default();
+        app.janelas.principal = Some(window::Id::unique());
+        app.condicional_aberto = true;
+        let _ = chamar(&mut app, "sheet_escrever", json!({ "celula": "A1", "valores": [["Região", "Total"], ["Sul", 3]] }));
+        let _ = chamar(&mut app, "sheet_selecionar", json!({ "intervalo": "A1:B2" }));
+        let _ = chamar(&mut app, "sheet_comando", json!({ "comando": "menu", "args": { "texto": "Gráfico…" } }));
+        let (_, t) = chamar(&mut app, "sheet_tela", json!({}));
+        assert!(t.contains("Formatação condicional"), "{t}");
+        assert!(t.contains("Tipo de gráfico") || t.contains("Painel aberto: Gráfico"), "{t}");
+    }
+
+    #[test]
+    fn menus_lista_os_rotulos_com_caminho_e_menu_aciona_um_deles() {
+        // #13: "Congelar linha superior" não existia e não havia como descobrir "1 linha".
+        let mut app = App::default();
+        app.janelas.principal = Some(window::Id::unique());
+        let (erro, t) = chamar(&mut app, "sheet_comando", json!({ "comando": "menus", "args": { "filtro": "congelar" } }));
+        assert!(!erro && t.contains("› 1 linha"), "{t}");
+        let (_, t) = chamar(&mut app, "sheet_comando", json!({ "comando": "menu", "args": { "texto": "Congelar linha superior" } }));
+        assert!(t.contains("comando=\"menus\""), "o erro aponta o caminho: {t}");
+    }
+
     #[test]
     fn filtrar_pelo_mcp_usa_o_autofiltro_da_tela() {
         let mut app = App::default();

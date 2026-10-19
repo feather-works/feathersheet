@@ -1,7 +1,6 @@
 //! Rascunho de fórmula: autocomplete e apontamento sem gravar na planilha.
 use feathersheet_core::{
-    celulas::refs::{cell_name, col_name, Rect},
-    MAX_COLS, MAX_ROWS,
+    celulas::refs::Rect,
     formula::assistente::{accepts_reference, suggest_at, toggle_reference, token_before, Sugestao},
 };
 
@@ -102,12 +101,7 @@ impl EditorFormula {
         if !self.pode_apontar(texto) && !self.modo_apontar {return false;}
         let (row,col)=ponto;
         let rect=Rect::new(ancora.0,ancora.1,row,col).normalized();
-        let nome=if rect.r0==0 && rect.r1>=MAX_ROWS-1 {
-            format!("{}:{}",col_name(rect.c0),col_name(rect.c1))
-        } else if rect.c0==0 && rect.c1>=MAX_COLS-1 {
-            format!("{}:{}",rect.r0+1,rect.r1+1)
-        } else if rect.r0==rect.r1 && rect.c0==rect.c1 { cell_name(row,col) }
-        else {format!("{}:{}",cell_name(rect.r0,rect.c0),cell_name(rect.r1,rect.c1))};
+        let nome=crate::app::endereco_area(&rect);
         let nome=if let Some(aba)=outra_aba {
             format!("'{}'!{}",aba.replace("'","''"),nome)
         } else {nome};
