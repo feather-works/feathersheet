@@ -4,7 +4,7 @@
 //! O motor de macros permanece no featheroffice-macros compartilhado.
 
 use super::*;
-use pelicano::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::scrollable; use pelicano::text; use pelicano::text_editor; use pelicano::text_input; use pelicano::Space;
+use crate::compat::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::scrollable; use pelicano::text; use pelicano::text_editor; use pelicano::text_input; use pelicano::Space;
 use pelicano::Background; use pelicano::Border; use pelicano::Color; use pelicano::Element; use pelicano::Length; use pelicano::Theme;
 
 pub(in crate::app) mod estilos;

@@ -25,7 +25,7 @@ pub(super) const ATALHOS: &[(&str, &str, &str)] = &[
 ];
 
 pub(super) fn opcao<'a>(rotulo: &str, icone: &str, ativo: bool, evento: Msg)
-    -> pelicano::Button<'a, Msg>
+    -> crate::compat::Botao<'a, Msg>
 {
     button(row![
         feather_ui::icones::icone(icone, 14.0),

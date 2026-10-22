@@ -6,7 +6,7 @@ use super::{sob_id, Acao};
 use crate::app::{App, Msg};
 use feather_ui::icones::icone;
 use feather_ui::tema::{estilo_item_menu, estilo_popup_menu};
-use pelicano::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::text; use pelicano::Space;
+use crate::compat::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::text; use pelicano::Space;
 use pelicano::Element; use pelicano::Length; use pelicano::Task;
 
 pub(in crate::app) const LARGURA: f32 = 190.0;

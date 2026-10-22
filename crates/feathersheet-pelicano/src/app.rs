@@ -8,10 +8,7 @@ use feathersheet_core::{
     planilha::{workbook::Workbook, sheet::edicao::Snap},
 };
 use crate::compat::{keyboard::{self, Modificadores as _}, window};
-use pelicano::{
-    Element, Event, Length, Subscription, Task, Size, WindowId,
-    button, container, row, scrollable, stack, text, text_input, toggler, Space,
-};
+use pelicano::{Element, Event, Length, Subscription, Task, Size, WindowId, container, row, scrollable, stack, text, text_input, toggler, Space}; use crate::compat::button;
 use std::{cell::RefCell, collections::HashSet, path::{Path, PathBuf}, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use feather_ui::seletor_cor::{self, Evento as EventoCor};
 

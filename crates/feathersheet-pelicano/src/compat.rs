@@ -635,3 +635,68 @@ impl From<f32> for Radians {
         Radians(v)
     }
 }
+
+/// O `button` do Iced 0.13: o conteúdo fica no canto de cima à esquerda (o do pelicano centraliza).
+/// Num botão mais largo ou mais alto que o conteúdo, ele vai num container que ocupa a sobra.
+pub struct Botao<'a, M> {
+    conteudo: pelicano::Element<'a, M>,
+    on_press: Option<M>,
+    padding: pelicano::Padding,
+    width: pelicano::Length,
+    height: pelicano::Length,
+    estilo: Option<Box<dyn Fn(&pelicano::Theme, pelicano::Status) -> pelicano::Style + 'a>>,
+}
+pub fn button<'a, M: 'a>(conteudo: impl Into<pelicano::Element<'a, M>>) -> Botao<'a, M> {
+    Botao {
+        conteudo: conteudo.into(),
+        on_press: None,
+        // O recuo padrão do Iced 0.13 (o do pelicano é 6×12).
+        padding: [5u16, 10].into(),
+        width: pelicano::Length::Shrink,
+        height: pelicano::Length::Shrink,
+        estilo: None,
+    }
+}
+impl<'a, M: 'a> Botao<'a, M> {
+    pub fn on_press(mut self, m: M) -> Self {
+        self.on_press = Some(m);
+        self
+    }
+    pub fn on_press_maybe(mut self, m: Option<M>) -> Self {
+        self.on_press = m;
+        self
+    }
+    pub fn padding(mut self, p: impl Into<pelicano::Padding>) -> Self {
+        self.padding = p.into();
+        self
+    }
+    pub fn width(mut self, w: impl Into<pelicano::Length>) -> Self {
+        self.width = w.into();
+        self
+    }
+    pub fn height(mut self, h: impl Into<pelicano::Length>) -> Self {
+        self.height = h.into();
+        self
+    }
+    pub fn style(mut self, f: impl Fn(&pelicano::Theme, pelicano::Status) -> pelicano::Style + 'a) -> Self {
+        self.estilo = Some(Box::new(f));
+        self
+    }
+}
+impl<'a, M: Clone + 'a> From<Botao<'a, M>> for pelicano::Element<'a, M> {
+    fn from(b: Botao<'a, M>) -> Self {
+        use pelicano::Length::Shrink;
+        let sobra = |l| if l == Shrink { Shrink } else { pelicano::Length::FILL };
+        let conteudo: pelicano::Element<'a, M> = if b.width == Shrink && b.height == Shrink {
+            b.conteudo
+        } else {
+            pelicano::container(b.conteudo).width(sobra(b.width)).height(sobra(b.height)).into()
+        };
+        let mut p = pelicano::button(conteudo).on_press_maybe(b.on_press)
+            .padding(b.padding).width(b.width).height(b.height);
+        if let Some(f) = b.estilo {
+            p = p.style(f);
+        }
+        p.into()
+    }
+}

@@ -3,7 +3,7 @@
 //! Os tipos sem renderizador comum ficam visíveis, mas desabilitados.
 use super::{Evento, TipoUi};
 use crate::app::Msg;
-use pelicano::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::scrollable; use pelicano::svg; use pelicano::text; use pelicano::Element; use pelicano::Length;
+use crate::compat::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::scrollable; use pelicano::svg; use pelicano::text; use pelicano::Element; use pelicano::Length;
 
 #[derive(Clone, Copy)]
 struct Opcao {

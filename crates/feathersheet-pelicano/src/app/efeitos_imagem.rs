@@ -5,7 +5,7 @@
 use super::Msg;
 use feather_ui::efeitos_imagem;
 use feather_image::{EfeitoRapido, ImagemRgba};
-use pelicano::Element; use pelicano::Length; use pelicano::button; use pelicano::column; use pelicano::container; use pelicano::image as iced_image; use pelicano::Image; use pelicano::row; use pelicano::text;
+use pelicano::Element; use pelicano::Length; use crate::compat::button; use pelicano::column; use pelicano::container; use pelicano::image as iced_image; use pelicano::Image; use pelicano::row; use pelicano::text;
 use image::{DynamicImage, ImageFormat, ImageReader};
 use std::io::Cursor;
 

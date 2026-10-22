@@ -6,7 +6,7 @@ use super::imagens_importadas::{self, Posicao, Posicionamento};
 use super::{App, Msg};
 use feather_ui::campo_numero::{campo_numero, escrever, ler, Limites};
 use feather_ui::tema::{COR_BORDA, COR_PAINEL_FAIXA, COR_TEXTO, COR_TEXTO_MUTED};
-use pelicano::button; use pelicano::checkbox; use pelicano::column; use pelicano::container; use pelicano::radio; use pelicano::row; use pelicano::text; use pelicano::Space;
+use crate::compat::button; use pelicano::checkbox; use pelicano::column; use pelicano::container; use pelicano::radio; use pelicano::row; use pelicano::text; use pelicano::Space;
 use pelicano::Element; use pelicano::Length;
 use serde_json::{json, Value};
 use std::cell::RefCell;

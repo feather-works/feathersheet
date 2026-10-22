@@ -9,7 +9,7 @@ use feather_ui::tema::{
 };
 use feather_ui::icones::icone;
 use pelicano::Background; use pelicano::Border; use pelicano::Element; use pelicano::Length;
-use pelicano::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::scrollable; use pelicano::text; use pelicano::text_input; use pelicano::Space;
+use crate::compat::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::scrollable; use pelicano::text; use pelicano::text_input; use pelicano::Space;
 
 /// Comportamento compatível com o popup TypeScript e com o menu de colunas:
 /// larguras fixas, rolagem apenas na lista e ações sempre visíveis.

@@ -21,7 +21,7 @@ use feathersheet_core::operacoes::filtro::{self, AlvoCor};
 use feathersheet_core::operacoes::filtro_data::{self, Dinamico};
 use feathersheet_core::operacoes::ordenacao_ext::{self, CriterioOrdem};
 use feathersheet_core::planilha::sheet::Sheet;
-use pelicano::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::scrollable; use pelicano::text; use pelicano::text_input; use pelicano::Space;
+use crate::compat::button; use pelicano::column; use pelicano::container; use pelicano::row; use pelicano::scrollable; use pelicano::text; use pelicano::text_input; use pelicano::Space;
 use pelicano::Background; use pelicano::Border; use pelicano::Color; use pelicano::Element; use pelicano::Length;
 use serde_json::{json, Value as Json};
 

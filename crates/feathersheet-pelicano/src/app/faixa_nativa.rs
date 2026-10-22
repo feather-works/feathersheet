@@ -279,7 +279,7 @@ impl App {
     /// Botão de gráfico com dois SVG reais (gráfico + chevron), sem
     /// usar o caractere ▾ que algumas fontes substituem por um quadrado.
     pub(super) fn faixa_grafico(&self) -> Element<'_, Msg> {
-        pelicano::button(pelicano::column![
+        crate::compat::button(pelicano::column![
             feather_ui::icones::icone("chart-bar", 23.0),
             pelicano::row![
                 pelicano::text(tr!("Gráfico")).size(11),
