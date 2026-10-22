@@ -86,6 +86,10 @@ fn preparar_modo_de_apresentacao() {
 }
 
 fn main() -> iced::Result {
+    #[cfg(feature = "pelicano")]
+    if std::env::args().any(|arg| arg == "--pelicano") {
+        return app::pelicano::rodar().map_err(|e| iced::Error::WindowCreationFailed(Box::new(e)));
+    }
     // `feathersheet --mcp`: servidor MCP por stdio, sem janela (quem instalou
     // só o aplicativo liga uma IA por aqui; ver Configurações → IA (MCP)).
     if std::env::args().skip(1).any(|a| a == "--mcp") {

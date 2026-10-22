@@ -16,6 +16,8 @@ use feather_ui::seletor_cor::{self, Evento as EventoCor};
 
 
 mod dados;
+#[cfg(feature = "pelicano")]
+pub(crate) mod pelicano;
 mod caixas_ui;
 mod entrada_rapida;
 mod colar_especial;

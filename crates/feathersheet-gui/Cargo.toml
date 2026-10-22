@@ -4,11 +4,17 @@ version = "0.1.3"
 edition = "2021"
 description = "Interface nativa FeatherSheet em Rust/Iced usando o template FeatherWorks"
 
+[features]
+pelicano = ["dep:pelicano", "dep:iced_runtime"]
+
 [[bin]]
 name = "feathersheet"
 path = "src/main.rs"
 
 [dependencies]
+pelicano = { git = "https://github.com/feather-works/pelicano", tag = "v0.1.9", optional = true }
+# Ponte temporária: os comandos existentes continuam responsáveis pela validação e pelos arquivos.
+iced_runtime = { version = "0.13", optional = true }
 # Idioma do sistema na primeira abertura (já vinha como dependência indireta).
 sys-locale = "0.3"
 feather-charts = { git = "https://github.com/feather-works/feather-charts", tag = "v0.3.2" }

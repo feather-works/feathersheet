@@ -200,6 +200,11 @@ cargo run --release
 No Linux, o Iced precisa das bibliotecas de janela do sistema (`libxkbcommon`,
 `libwayland` ou `libx11`, `libfontconfig`).
 
+A nova interface em Pelicano pode ser executada com
+`cargo run --features pelicano -- --pelicano`. Está em migração; o executável
+padrão continua em Iced até a equivalência dos recursos. Comandos, testes e
+pendências estão em [Interface Pelicano](docs/INTERFACE-PELICANO.md).
+
 ## Privacidade
 
 Tudo roda localmente. Nenhum conteúdo de planilha sai da máquina; não há conta,

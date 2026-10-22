@@ -14,6 +14,8 @@ use iced::{
 use crate::app::{Contexto, Msg};
 use feathersheet_core::formula::ref_drag::drag_rect;
 mod auxiliares;
+#[cfg(feature = "pelicano")]
+mod pelicano;
 pub(crate) mod lista_suspensa;
 pub(crate) mod modelo;
 pub use modelo::{CacheGrade, Grade};

@@ -58,6 +58,24 @@ impl Curso {
 }
 
 impl Grade<'_> {
+    #[cfg(feature = "pelicano")]
+    pub(super) fn desenhar_barras_pelicano(&self, r: &mut ::pelicano::Renderer, b: ::pelicano::Rect, tema: &::pelicano::Theme) {
+        use ::pelicano::{Background, Border, Rect};
+        let (v,h) = self.cursos(Size::new(b.width,b.height));
+        for rect in [Rect {x:b.x+b.width-ESPESSURA,y:b.y,width:ESPESSURA,height:b.height},
+            Rect {x:b.x,y:b.y+b.height-ESPESSURA,width:b.width,height:ESPESSURA}] {
+            r.fill_quad(rect,Some(&Background::Color(tema.background)),Border::default(),None);
+        }
+        for (vertical,c) in [(true,v),(false,h)] {
+            let rect = if vertical {
+                Rect {x:b.x+b.width-ESPESSURA+3.,y:b.y+c.posicao_alca()+1.,width:ESPESSURA-6.,height:(c.tamanho_alca()-2.).max(4.)}
+            } else {
+                Rect {x:b.x+c.posicao_alca()+1.,y:b.y+b.height-ESPESSURA+3.,width:(c.tamanho_alca()-2.).max(4.),height:ESPESSURA-6.}
+            };
+            r.fill_quad(rect,Some(&Background::Color(tema.muted.alpha(0.45))),Border::rounded(4.),None);
+        }
+    }
+
     /// Curso das duas barras (vertical, horizontal) para o tamanho do Canvas.
     fn cursos(&self, bounds: Size) -> (Curso, Curso) {
         let usada = self.workbook.aba(self.aba).map(|a| a.sheet.used_rect());
