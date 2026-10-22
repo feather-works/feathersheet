@@ -14,7 +14,10 @@ set -euo pipefail
 
 pacote="$(cd "$(dirname "$0")" && pwd)"
 raiz="$(dirname "$pacote")"
-gui="$raiz/crates/feathersheet-gui"
+# Desde a 0.1.4 a interface vai pelo pelicano; o binário `feathersheet-pelicano` é instalado como `feathersheet`.
+gui="$raiz/crates/feathersheet-pelicano"
+bin_nome="feathersheet-pelicano"
+alvo_dir="${CARGO_TARGET_DIR:-$gui/target}"
 versao="${VERSAO:-$(sed -n 's/^version = "\(.*\)"/\1/p' "$gui/Cargo.toml" | head -1)}"
 perfil="${PERFIL:-release}"
 saida="$pacote/saida/$versao"
@@ -25,7 +28,7 @@ echo "FeatherSheet $versao → $saida"
 
 linux() {
   cargo build --profile "$perfil" --manifest-path "$gui/Cargo.toml"
-  local bin="$gui/target/$perfil/feathersheet"
+  local bin="$alvo_dir/$perfil/$bin_nome"
   strip "$bin" 2>/dev/null || true
 
   # .deb
@@ -72,7 +75,7 @@ EOF
   # .tar.gz portátil: o executável, o atalho, os ícones e um instalar.sh para a pasta do usuário.
   local t; t="$(mktemp -d)/feathersheet-$versao"
   mkdir -p "$t"
-  cp "$bin" "$t/"
+  cp "$bin" "$t/feathersheet"
   cp "$pacote/feathersheet.desktop" "$pacote/feathersheet-mime.xml" "$raiz/LICENSE" "$t/"
   cp -r "$pacote/icones" "$t/"
   cat > "$t/instalar.sh" <<'EOF'
@@ -99,7 +102,7 @@ EOF
 
 windows() {
   cargo build --release --target x86_64-pc-windows-gnu --manifest-path "$gui/Cargo.toml"
-  local exe="$gui/target/x86_64-pc-windows-gnu/release/feathersheet.exe"
+  local exe="$alvo_dir/x86_64-pc-windows-gnu/release/$bin_nome.exe"
   x86_64-w64-mingw32-strip "$exe" 2>/dev/null || true
   (cd "$pacote" && makensis -V2 -DVERSAO="$versao" -DEXE="$exe" -DSAIDA="$saida/FeatherSheet-$versao-instalador.exe" feathersheet.nsi)
 }

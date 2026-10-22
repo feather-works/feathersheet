@@ -28,8 +28,12 @@
 
 - `crates/feathersheet-pelicano` (binário `feathersheet-pelicano`) é a cópia do
   `feathersheet-gui` portada 1 pra 1 para o pelicano v0.1.9 + feather-ui v0.3.0 (por git +
-  tag), como o `featherslide-pelicano`. O `feathersheet-gui` (Iced) segue intacto e é o
-  oficial; **mudança feita num lado precisa ser repetida no outro** até escolher um.
+  tag), como o `featherslide-pelicano`. **Desde a v0.1.4 (22/10/2026) é a interface
+  lançada**: `pacote/gerar.sh` e o CI do macOS montam o pacote a partir dela, instalando o
+  binário como `feathersheet`. O `feathersheet-gui` (Iced) fica para comparar; **mudança
+  feita num lado precisa ser repetida no outro** enquanto os dois existirem.
+- Pacote: gerar de uma cópia limpa do commit (`git worktree`), porque o crate usa o
+  `feathersheet-core` por caminho e pegaria mudança não commitada.
 - `src/compat.rs` imita o canvas do Iced 0.13 (`Frame`, `Text`, `Path`, `Stroke`,
   `with_clip`…) e os módulos `keyboard`/`mouse`/`window` sobre o pelicano, para o desenho
   ficar linha a linha igual ao do Iced. `compat::pick_list_vec` é o `pick_list` com a lista

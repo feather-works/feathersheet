@@ -21,6 +21,21 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.1.4",
+        data: "22/10/2026",
+        resumo: "Agora estamos com a biblioteca pelicano",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("bolt", "Interface nova sobre o pelicano", "A mesma tela de antes, agora desenhada pela biblioteca pelicano da FeatherWorks."),
+            ("table", "Tudo no mesmo lugar", "Faixa, menus, diálogos, macros e ajuda continuam iguais aos da versão 0.1.3."),
+            ("clock", "Mesmo desempenho", "Arquivos grandes abrem no mesmo tempo e com a mesma memória da 0.1.3."),
+        ],
+        tambem: &[
+            "Barra fx: depois de inserir uma referência ou usar F4, o cursor ainda não vai para depois do trecho.",
+            "Renomear aba: o nome antigo não vem selecionado; apague antes de digitar.",
+        ],
+    },
+    Versao {
         numero: "0.1.3",
         data: "19/10/2026",
         resumo: "Excel e acabamento",
