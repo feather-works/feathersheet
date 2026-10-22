@@ -24,6 +24,24 @@
   data, estilo, validação e bloco de várias linhas ainda param na última
   linha com dados.
 
+## Porta para o pelicano, lado a lado com o Iced (22/10/2026)
+
+- `crates/feathersheet-pelicano` (binário `feathersheet-pelicano`) é a cópia do
+  `feathersheet-gui` portada 1 pra 1 para o pelicano v0.1.9 + feather-ui v0.3.0 (por git +
+  tag), como o `featherslide-pelicano`. O `feathersheet-gui` (Iced) segue intacto e é o
+  oficial; **mudança feita num lado precisa ser repetida no outro** até escolher um.
+- `src/compat.rs` imita o canvas do Iced 0.13 (`Frame`, `Text`, `Path`, `Stroke`,
+  `with_clip`…) e os módulos `keyboard`/`mouse`/`window` sobre o pelicano, para o desenho
+  ficar linha a linha igual ao do Iced. `compat::pick_list_vec` é o `pick_list` com a lista
+  por valor (o do pelicano só empresta). O `listen_with` do Iced virou `App::evento_janela`.
+- Compila (`cargo check` e `check --tests`); **ainda não foi rodado nem comparado na tela**.
+  Os limites ficaram como `// shortcut:` (31). Os que pedem versão nova do pelicano: pôr o
+  cursor ou selecionar tudo num `text_input` por tarefa (inserir referência na barra fx,
+  F4, renomear aba), cor de seleção e modo só leitura no `text_editor`, `align_x` no
+  `text_input`, cor do trilho na `progress_bar`, tamanho da letra na dica do `tooltip`.
+- A UI pequena do Codex dentro do `feathersheet-gui` (`--features pelicano`, commit
+  `f38c3ca`) fica superada por este crate e deve sair.
+
 ## Verificação antes do commit geral — 07/10/2026
 
 As alterações existentes de macros foram preservadas no commit geral pedido
