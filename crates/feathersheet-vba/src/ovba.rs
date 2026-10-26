@@ -26,6 +26,10 @@ pub enum TipoDeModulo {
     Classe,
 }
 
+/// Teto do que se lê ou descomprime de um fluxo: um projeto VBA de verdade tem poucos MiB,
+/// e um arquivo malicioso não pode pedir memória sem fim.
+pub(crate) const LIMITE_DE_BYTES: usize = 64 * 1024 * 1024;
+
 /// Descomprime um contêiner comprimido do MS-OVBA (§2.4.1). Erro em português, nunca pânico.
 pub fn descomprimir(dados: &[u8]) -> Result<Vec<u8>, String> {
     let erro = || "O código VBA está corrompido (compressão inválida).".to_string();
@@ -55,6 +59,10 @@ pub fn descomprimir(dados: &[u8]) -> Result<Vec<u8>, String> {
                     break;
                 }
                 if sinais & (1 << bit) == 0 {
+                    // Bloco descomprimido tem no máximo 4 KiB (MS-OVBA §2.4.1.1.3).
+                    if saida.len() - inicio_do_bloco >= 4096 {
+                        return Err(erro());
+                    }
                     saida.push(dados[i]);
                     i += 1;
                     continue;
@@ -70,7 +78,7 @@ pub fn descomprimir(dados: &[u8]) -> Result<Vec<u8>, String> {
                 let mascara = 0xffffu16 >> bits_da_distancia;
                 let distancia = usize::from(ficha >> (16 - bits_da_distancia)) + 1;
                 let comprimento = usize::from(ficha & mascara) + 3;
-                if distancia > posicao {
+                if distancia > posicao || posicao + comprimento > 4096 {
                     return Err(erro());
                 }
                 for _ in 0..comprimento {
@@ -78,6 +86,9 @@ pub fn descomprimir(dados: &[u8]) -> Result<Vec<u8>, String> {
                     saida.push(b);
                 }
             }
+        }
+        if saida.len() > LIMITE_DE_BYTES {
+            return Err(erro());
         }
     }
     Ok(saida)
@@ -151,7 +162,10 @@ pub fn ler_projeto(bin: &[u8]) -> Result<Vec<ModuloVba>, String> {
     let mut fluxo = |nome: &str| -> Result<Vec<u8>, String> {
         let mut f = cfb.open_stream(nome).map_err(|_| format!("O projeto VBA não tem o fluxo {nome}."))?;
         let mut v = Vec::new();
-        f.read_to_end(&mut v).map_err(|e| format!("Não consegui ler {nome}: {e}"))?;
+        f.take(LIMITE_DE_BYTES as u64 + 1).read_to_end(&mut v).map_err(|e| format!("Não consegui ler {nome}: {e}"))?;
+        if v.len() > LIMITE_DE_BYTES {
+            return Err(format!("O fluxo {nome} do projeto VBA é grande demais."));
+        }
         Ok(v)
     };
     let (pagina, entradas) = ler_dir(&descomprimir(&fluxo("/VBA/dir")?)?)?;
@@ -186,6 +200,14 @@ mod testes {
         assert!(descomprimir(&[]).is_err());
         assert!(descomprimir(&[2, 0, 0]).is_err());
         let _ = descomprimir(&[1, 0xff, 0xbf, 0xff, 0xff, 0xff]);
+    }
+
+    #[test]
+    fn bloco_que_passa_de_4_kib_da_erro() {
+        // Um literal e uma cópia de 4098 bytes: o bloco sairia com 4099. Sem o teto, blocos
+        // assim cresciam sem limite e a distância passava de 16 bits (pânico).
+        let c = [0x01, 0xff, 0xbf, 0xfe, 0x61, 0xff, 0x0f];
+        assert!(descomprimir(&c).is_err());
     }
 
     #[test]

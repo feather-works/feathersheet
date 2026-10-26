@@ -117,7 +117,6 @@ impl App {
             self.condicional_menu_aberto = false;
             self.bordas_menu_aberto = false;
             self.colar_menu_aberto = false;
-            self.divisao_menu_aberto = false;
             self.orientacao_menu_aberto = false;
             self.menu_aberto = false;
             self.cor_ativa = None;

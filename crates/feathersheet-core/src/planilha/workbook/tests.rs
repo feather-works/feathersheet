@@ -547,3 +547,53 @@ fn dia_da_semana_segue_o_tipo() {
     assert_eq!(w.valor(0, 0, 3), Value::Number(1.0));
     assert!(matches!(w.valor(0, 1, 3), Value::Error(_)), "tipo inválido");
 }
+
+#[test]
+fn outra_aba_le_a_area_derramada_e_acompanha_a_ancora() {
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    let dados = w.criar_aba("Dados");
+    w.escrever_celula(0, 0, 0, "=Dados!A2+1".into());
+    w.escrever_celula(dados, 0, 0, "=SEQUÊNCIA(3)".into());
+    assert_eq!(w.valor(0, 0, 0), Value::Number(3.0));
+    w.escrever_celula(0, 0, 1, "=SOMA(Dados!A1:A3)".into());
+    assert_eq!(w.valor(0, 0, 1), Value::Number(6.0));
+    w.escrever_celula(dados, 0, 0, "=SEQUÊNCIA(3;1;10)".into());
+    assert_eq!(w.valor(0, 0, 0), Value::Number(12.0));
+    assert_eq!(w.valor(0, 0, 1), Value::Number(33.0));
+}
+
+#[test]
+fn excluir_linha_leva_junto_a_formula_que_le_nome() {
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    w.escrever_celula(0, 0, 0, "1".into());
+    w.escrever_celula(0, 1, 0, "2".into());
+    w.definir_nome("Nm", Rect::na_aba(0, 0, 1, 0, "Planilha1"));
+    w.escrever_celula(0, 6, 2, "=SOMA(Nm)".into());
+    assert_eq!(w.valor(0, 6, 2), Value::Number(3.0));
+    w.excluir_linhas(0, 3, 1);
+    assert_eq!(w.valor(0, 5, 2), Value::Number(3.0));
+    w.escrever_celula(0, 0, 0, "10".into());
+    assert_eq!(w.valor(0, 5, 2), Value::Number(12.0));
+}
+
+#[test]
+fn nome_acompanha_inserir_e_excluir_linha_e_coluna() {
+    let mut w = Workbook::new();
+    let dados = w.criar_aba("Dados");
+    w.definir_nome("Nm", Rect::na_aba(0, 0, 3, 0, "Dados"));
+    w.definir_nome("Outro", Rect::na_aba(5, 1, 5, 1, "Dados"));
+    let area = |w: &Workbook, n: &str| w.nomeados().into_iter().find(|x| x.nome == n).map(|x| (x.area.r0, x.area.c0, x.area.r1, x.area.c1));
+    w.inserir_linhas(dados, 0, 1);
+    assert_eq!(area(&w, "Nm"), Some((1, 0, 4, 0)));
+    w.excluir_linhas(dados, 2, 2);
+    assert_eq!(area(&w, "Nm"), Some((1, 0, 2, 0)));
+    w.inserir_colunas(dados, 0, 2);
+    assert_eq!(area(&w, "Nm"), Some((1, 2, 2, 2)));
+    w.excluir_colunas(dados, 3, 1);
+    assert_eq!(area(&w, "Outro"), None, "área toda excluída");
+    // Nome de outra aba não anda.
+    w.inserir_linhas(0, 0, 5);
+    assert_eq!(area(&w, "Nm"), Some((1, 2, 2, 2)));
+}

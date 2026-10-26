@@ -822,6 +822,7 @@ impl Workbook {
 
         // 2) o deslocamento.
         self.abas[indice].sheet.deslocar(coluna, at, count, removing);
+        self.deslocar_nomeados(&nome, coluna, at, count, removing);
 
         // 3) o texto, na posição nova.
         let eixo = if coluna { crate::formula::formula_text::Axis::Col } else { crate::formula::formula_text::Axis::Row };
@@ -869,6 +870,40 @@ impl Workbook {
 }
 
 impl Workbook {
+    /// Os intervalos nomeados da aba `aba` acompanham a linha/coluna
+    /// inserida ou excluída, como no Excel: inserir dentro estica, excluir
+    /// dentro encolhe, e o nome cuja área foi toda excluída sai (não há
+    /// nome "quebrado" para guardar o `#REF!`). shortcut: nome sem aba
+    /// (`sheet: None`) não é tocado, porque não se sabe de qual aba ele é.
+    fn deslocar_nomeados(&mut self, aba: &str, coluna: bool, at: u32, count: u32, removing: bool) {
+        use crate::celulas::refs::{MAX_COLS, MAX_ROWS};
+        let limite = if coluna { MAX_COLS } else { MAX_ROWS } - 1;
+        let fim = at + count;
+        self.nomeados.retain(|_, n| {
+            if !n.area.sheet.as_deref().is_some_and(|s| s.eq_ignore_ascii_case(aba)) {
+                return true;
+            }
+            let (p0, p1) = if coluna { (n.area.c0, n.area.c1) } else { (n.area.r0, n.area.r1) };
+            let (novo0, novo1) = if !removing {
+                let anda = |p: u32| if p >= at { (p + count).min(limite) } else { p };
+                (anda(p0), anda(p1))
+            } else {
+                if p0 >= at && p1 < fim {
+                    return false;
+                }
+                let novo0 = if p0 < at { p0 } else if p0 < fim { at } else { p0 - count };
+                let novo1 = if p1 < at { p1 } else if p1 < fim { at - 1 } else { p1 - count };
+                (novo0, novo1)
+            };
+            if coluna {
+                (n.area.c0, n.area.c1) = (novo0, novo1);
+            } else {
+                (n.area.r0, n.area.r1) = (novo0, novo1);
+            }
+            true
+        });
+    }
+
     /// Copia um bloco com fotos da origem anteriores à escrita, mesmo quando
     /// as áreas se sobrepõem. Fórmulas deslocam referências relativas; estilo
     /// direto e vazios também são copiados. Um Ctrl+Z desfaz a cópia inteira.

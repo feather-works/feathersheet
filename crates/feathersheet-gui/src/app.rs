@@ -411,7 +411,7 @@ pub enum Msg {
     ColarValoresSolicitar, ColarValores(String), ColarFormatoSolicitar, ColarFormato(String),
     ColarEspecialSolicitar(ModoColagem), ColarEspecial(String, ModoColagem),
     AlternarMenuColagem, FecharMenuColagem,
-    AlternarMenuDivisao, FecharMenuDivisao,
+    AlternarMenuDivisao,
     AlternarMenuEdicao(&'static str), FecharMenuEdicao, EdicaoMenuAcao(Box<Msg>),
     AlternarMenuBordas, FecharMenuBordas,
     /// Caneta de borda (Bordas ▾ > Desenhar bordas).
@@ -484,6 +484,8 @@ pub enum Msg {
     FaixaSalvamentoFechar,
     /// Fecha o aviso de funções que o Excel não tem.
     AvisoXlsxFechar,
+    AvisoMacrosFechar,
+    AtivarMacros,
     Novidades(novidades::Evento),
     MonitorEvento(EventoMonitor),
     Fechar(window::Id), FecharAux(Auxiliar), Minimizar(window::Id),
@@ -710,6 +712,10 @@ pub struct App {
     macro_mensagens: Vec<String>,
     /// Eventos do VBA instalados que rodam sozinhos (aoMudar, aoAtivar).
     eventos_vba: Vec<eventos_vba::EventoVba>,
+    /// Macros do arquivo aberto (eventos e botões) esperando a pessoa ativar.
+    macros_bloqueadas: bool,
+    /// O diálogo "Ativar macros?" está aberto.
+    aviso_macros: bool,
     /// Uma macro rodou nesta mensagem: o que ela escreveu não dispara evento.
     macro_rodou: bool,
     /// Profundidade de `update` (só a mais de fora dispara eventos).
@@ -833,6 +839,8 @@ pub struct App {
     /// Aviso transitório na própria barra de abas, não uma linha de rodapé.
     aviso_abas: Option<(String, Instant)>,
     menu_aberto: bool,
+    /// Lista do menu clássico aberta (faixa recolhida).
+    barra_menu_aberta: bool,
     /// Tela inicial em janela inteira: fica ativa até escolher nova planilha, modelo, abrir ou recente.
     em_tela_inicio: bool,
     /// Passo do modo de captura (0 = preparar, 1 = fotografar, 2 = feito).
@@ -917,7 +925,6 @@ pub struct App {
     assistente_divisao: Option<assistente_divisao::Estado>,
     divisao_personalizada: bool,
     divisao_outro: String,
-    divisao_menu_aberto: bool,
     macro_codigo: iced::widget::text_editor::Content,
     macro_nome: String,
     macro_catalogo: feather_macros::Catalogo,
@@ -1029,7 +1036,7 @@ impl Default for App {
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,
-            vba_pendente: None, macro_pergunta: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macro_rodou: false, profundidade_update: 0,
+            vba_pendente: None, macro_pergunta: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             comentario_editor: None, comentario_sobre: None, comentarios_todos: false,
             novo_estilo: None,
@@ -1087,7 +1094,7 @@ impl Default for App {
             status: tr!("Pronto — FeatherSheet nativo Rust/Iced").into(),
             carregando: false, calculo_pendente: false,
             aviso_abas: None,
-            menu_aberto: false, menu_pagina: menu_principal::Pagina::Inicio,
+            menu_aberto: false, barra_menu_aberta: false, menu_pagina: menu_principal::Pagina::Inicio,
             em_tela_inicio: false, passo_captura: 0, captura_clicou: false, carrossel_modelos: 0, ver_todos_modelos: false, busca_recentes: String::new(),
             recentes: menu_principal::Historico::carregar(),
             recente_destino: None,
@@ -1111,7 +1118,6 @@ impl Default for App {
             config_secao: 0, atalho_captura: None, auto_salvar_desde: None, auto_salvar_ultimo_custo_ms: 0, pendente: None, salvando: false, apos_gravar: None, busca: dados::Busca::default(), validacao_formulario: None, erro_explicando: None, validacao_erro: None, validacao_editando: None, validacao_aba: Default::default(), validacao_alerta: None, validacao_aceita: false, validacao_circulos: None, serie: None, lista_aberta: false, lista_coluna: None, lista_pagina: 0, lista_destaque: 0, cabecalho_dados: false,
             assistente_divisao: None,
             divisao_personalizada: false, divisao_outro: String::new(),
-            divisao_menu_aberto: false,
             macro_codigo: iced::widget::text_editor::Content::with_text("// Execute apenas quando desejar alterar a planilha.\nlog(sheet.range(\"A1\").value);"),
             macro_nome: "Macro1".into(),
             // As macros são de cada pasta (vêm do arquivo aberto); nada global.

@@ -1033,3 +1033,40 @@ fn boletim_configurar_series_copiar_e_pizza_por_situacao() {
         let _ = app.evento_grafico(Evento::Rapido(None));
         assert_eq!(app.graficos.tipo, TipoUi::Dispersao);
     }
+
+    /// Relato de 26/10 (pelicano): clicar no gráfico não abria a edição. Monta a
+    /// janela inteira e clica pelo despacho do pelicano, como a tela faz.
+    #[test]
+    fn clique_na_tela_chega_ao_grafico() {
+        use pelicano::{Event, MouseButton, Point, Size};
+        let mut a = App::default();
+        let _ = a.update(Msg::Colar("Mês\tTotal\nmar\t1\nabr\t2".into()));
+        let g = serde_json::json!([{
+            "id": "chart_x", "type": "column", "title": "Gráfico",
+            "range": {"r0": 0, "c0": 0, "r1": 2, "c1": 1},
+            "seriesInColumns": true, "hasHeaders": true, "hasCategoryLabels": true,
+            "position": {"x": 300.0, "y": 100.0, "width": 400.0, "height": 200.0}
+        }]);
+        a.workbook.aba_mut(0).unwrap().sheet.g = Some(g.to_string());
+        let tela = Size::new(1280.0, 800.0);
+        let mut r = pelicano::Renderer::new();
+        let mut st = pelicano::States::default();
+        let mut area = pelicano::MemoryClipboard::default();
+        let el = a.view(window::Id::MAIN);
+        r.begin(tela, 1.0, pelicano::Color::TRANSPARENT);
+        let n = pelicano::layout(&el, tela, &mut r, &st, &pelicano::Theme::light());
+        let mut acertos = Vec::new();
+        for y in (0..800).step_by(20) {
+            for x in (0..1280).step_by(20) {
+                let p = Point::new(x as f32, y as f32);
+                let mut msgs = Vec::new();
+                let mut cx = pelicano::EventCx { renderer: &mut r, states: &mut st, cursor: Some(p), messages: &mut msgs,
+                    window: &mut Vec::new(), redraw: false, clipboard: &mut area };
+                pelicano::dispatch(&el, &n, &Event::MousePressed(MouseButton::Left), &mut cx);
+                if msgs.iter().any(|m| matches!(m, Msg::Grafico(Evento::Arrastar(_)))) {
+                    acertos.push((x, y));
+                }
+            }
+        }
+        assert!(!acertos.is_empty(), "nenhum clique chegou ao gráfico");
+    }

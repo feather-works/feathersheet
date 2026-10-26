@@ -56,20 +56,37 @@ pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAti
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
 /// arquivo aberto, `wb.path` é vazio e `wb.path + "\x.pdf"` daria a raiz
-/// do disco: isso também pede para salvar a pasta antes.
+/// do disco: isso também pede para salvar a pasta antes. A macro vem dentro
+/// do documento, então só grava dentro da pasta dele (ou de uma subpasta):
+/// absoluto fora dela e `..` que escapa são recusados.
 fn resolver_caminho(pedido: &str, arquivo: Option<&Path>) -> Result<PathBuf, String> {
     let texto = pedido.trim();
     if texto.is_empty() { return Err("Caminho de arquivo vazio".into()); }
     let texto = if cfg!(windows) { texto.to_string() } else { texto.replace('\\', "/") };
     let caminho = PathBuf::from(&texto);
-    let pasta = arquivo.and_then(Path::parent).filter(|p| !p.as_os_str().is_empty());
-    let salvar_antes = || format!("Salve a pasta antes: o caminho {texto} depende da pasta do arquivo");
-    if caminho.is_absolute() {
-        let na_raiz = caminho.parent().is_some_and(|p| p.parent().is_none());
-        if pasta.is_none() && na_raiz { return Err(salvar_antes()); }
-        return Ok(caminho);
+    let pasta = arquivo.and_then(Path::parent).filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| format!("Salve a pasta antes: o caminho {texto} depende da pasta do arquivo"))?;
+    let pasta = normalizar(pasta).ok_or_else(|| format!("Pasta do arquivo inválida: {}", pasta.display()))?;
+    let alvo = normalizar(&pasta.join(&caminho)).filter(|c| c.starts_with(&pasta) && *c != pasta);
+    alvo.ok_or_else(|| format!("A macro só grava dentro da pasta do arquivo ({}): {texto}", pasta.display()))
+}
+
+/// Tira `.` e resolve `..` só pelo texto (sem tocar no disco); `None` se o
+/// `..` passa da raiz.
+fn normalizar(caminho: &Path) -> Option<PathBuf> {
+    use std::path::Component;
+    let mut saida = PathBuf::new();
+    for parte in caminho.components() {
+        match parte {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !matches!(saida.components().next_back(), Some(Component::Normal(_))) { return None; }
+                saida.pop();
+            }
+            outra => saida.push(outra),
+        }
     }
-    pasta.map(|p| p.join(&caminho)).ok_or_else(salvar_antes)
+    Some(saida)
 }
 
 /// Completa a extensão que falta (`relatorio` → `relatorio.pdf`) e recusa a

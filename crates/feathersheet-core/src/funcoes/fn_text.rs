@@ -897,6 +897,12 @@ mod testes_valor {
         let Value::Error(e) = valor("VALOR(VERDADEIRO)") else { panic!("VERDADEIRO") };
         assert_eq!(e.detail.as_deref(), Some("\"VERDADEIRO\" não é número"));
     }
+    #[test]
+    fn texto_com_mascara_de_data() {
+        assert_eq!(valor("TEXTO(DATA(2020;1;5);\"dd/mm/aaaa\")"), Value::Text("05/01/2020".into()));
+        assert_eq!(valor("TEXTO(DATA(2020;1;5);\"dd/mm/yyyy\")"), Value::Text("05/01/2020".into()));
+        assert_eq!(valor("TEXTO(1250,5;\"R$ #.##0,00\")"), Value::Text("R$ 1.250,50".into()));
+    }
 }
 
 /// `=TEXTO(valor; formato)` / `=TEXT(valor; formato)`
@@ -921,6 +927,13 @@ pub fn fn_text_fmt(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         Value::Error(e) => return Computed::Scalar(Value::Error(e.clone())),
     };
 
+    // Sem `0`/`#` não é máscara de número (`dd/mm/aaaa`, `hh:mm`): vai pelo
+    // formato personalizado da célula, que sabe data e hora.
+    if !fmt.contains(['0', '#']) {
+        if let Some(t) = crate::celulas::formato_personalizado::formatar(&Value::Number(n), &fmt) {
+            return Computed::Scalar(Value::Text(t));
+        }
+    }
     Computed::Scalar(Value::Text(aplicar_mascara(n, &fmt)))
 }
 

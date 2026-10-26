@@ -127,6 +127,9 @@ impl App {
     /// pulso e apaga a cópia quando não há mais o que recuperar.
     pub(super) fn pulso_recuperacao(&mut self) -> Task<Msg> {
         let (fshz, _) = minhas();
+        // O "Salvar" desmarca o alterado antes de a gravação terminar: até ela
+        // acabar, a cópia é o único lugar com as mudanças.
+        if self.salvando { return Task::none(); }
         if !self.alterado {
             if self.recuperacao.versoes.is_some() || fshz.exists() {
                 self.descartar_recuperacao();

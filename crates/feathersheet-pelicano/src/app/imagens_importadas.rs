@@ -476,7 +476,8 @@ impl App {
             return grade;
         }
         let zoom = f64::from(self.config.zoom) / 100.;
-        let mut camadas: Vec<Element<'_, Msg>> = vec![grade];
+        // A primeira camada enche: a pilha das imagens ocupa a grade toda para o recorte abaixo.
+        let mut camadas: Vec<Element<'_, Msg>> = vec![Space::new(Length::FILL, Length::FILL).into()];
         use crate::grade::modelo::{inicio_x_da, inicio_y_da};
         let x_desloc = f64::from(inicio_x_da(&aba.sheet, self.coluna_inicio));
         let y_desloc = f64::from(inicio_y_da(&aba.sheet, self.linha_inicio));
@@ -585,7 +586,18 @@ impl App {
                 ],
             ].into());
         }
-        stack(camadas).height(Length::FILL).width(Length::FILL).into()
+        // Recortada pela grade sem as barras de rolagem (como os gráficos): o pelicano
+        // não limita a imagem ao espaço do pai, e ela cobria a barra e o rodapé.
+        let barra = crate::grade::barras::ESPESSURA;
+        let imagens = column![
+            row![
+                container(stack(camadas).height(Length::FILL).width(Length::FILL))
+                    .width(Length::FILL).height(Length::FILL).clip(true),
+                Space::new(Length::Fixed(barra), 0.0),
+            ].height(Length::FILL),
+            Space::new(0.0, Length::Fixed(barra)),
+        ].width(Length::FILL).height(Length::FILL);
+        stack([grade, imagens.into()]).height(Length::FILL).width(Length::FILL).into()
     }
 
     /// O widget mostra o estado local enquanto o botão está pressionado.

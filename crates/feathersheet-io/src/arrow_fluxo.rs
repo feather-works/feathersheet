@@ -23,9 +23,17 @@ pub(crate) enum ColunaArrow {
     Int(Vec<i32>, Vec<u8>),
 }
 
-fn ler_exato<R: Read>(r: &mut R, n: usize) -> Result<Vec<u8>, String> {
-    let mut v = vec![0u8; n];
-    r.read_exact(&mut v).map_err(|e| format!("Bloco Arrow truncado: {e}"))?;
+/// Lê `n` bytes sem reservar o tamanho declarado de antemão: um arquivo
+/// forjado pode dizer gigabytes e trazer meia dúzia de bytes.
+fn ler_exato<R: Read>(r: &mut std::io::Take<R>, n: usize) -> Result<Vec<u8>, String> {
+    if n as u64 > r.limit() {
+        return Err("Bloco Arrow truncado".into());
+    }
+    let mut v = Vec::new();
+    r.by_ref().take(n as u64).read_to_end(&mut v).map_err(|e| format!("Bloco Arrow truncado: {e}"))?;
+    if v.len() != n {
+        return Err("Bloco Arrow truncado".into());
+    }
     Ok(v)
 }
 
@@ -40,6 +48,9 @@ fn pular<R: Read>(r: &mut R, n: u64) -> Result<(), String> {
 /// Lê os `len` bytes do bloco Arrow da aba em `origem` e devolve as colunas
 /// pelo nome do campo, cada uma com `linhas` posições.
 pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result<HashMap<String, ColunaArrow>, String> {
+    if linhas > feathersheet_core::MAX_ROWS {
+        return Err(format!("Aba com {linhas} linhas passa do limite da planilha"));
+    }
     let linhas = linhas as usize;
     let mut r = origem.take(len as u64);
     let magico = ler_exato(&mut r, 6)?;
@@ -125,15 +136,16 @@ pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result
                     pular(&mut r, inicio.checked_sub(pos).ok_or("Buffers Arrow fora de ordem")?)?;
                     let largura = match coluna { ColunaArrow::Float(..) => 8, ColunaArrow::Int(..) => 4 };
                     let total = usize::try_from(valores.length()).map_err(|_| "Buffer Arrow inválido")?;
-                    if total < n * largura {
+                    let tamanho_do_lote = n.checked_mul(largura).ok_or("Lote Arrow inválido")?;
+                    if total < tamanho_do_lote {
                         return Err("Buffer Arrow menor que o lote".into());
                     }
                     // Os valores em pedaços de 1 MB, direto para a coluna.
                     let mut pedaco = vec![0u8; (1 << 20) / largura * largura];
                     let mut k = 0usize;
                     let mut lidos = 0usize;
-                    while lidos < n * largura {
-                        let quer = pedaco.len().min(n * largura - lidos);
+                    while lidos < tamanho_do_lote {
+                        let quer = pedaco.len().min(tamanho_do_lote - lidos);
                         r.read_exact(&mut pedaco[..quer]).map_err(|e| format!("Bloco Arrow truncado: {e}"))?;
                         for bytes in pedaco[..quer].chunks_exact(largura) {
                             let linha = linha0 + k;
@@ -171,6 +183,16 @@ pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn tamanhos_forjados_dao_erro_sem_reservar_memoria() {
+        // Linhas acima do teto da planilha: antes reservava 32 GB por campo.
+        assert!(ler_colunas(&b"ARROW1"[..], 6, u32::MAX).is_err());
+        // Mensagem que diz 2 GB num bloco de 14 bytes.
+        let mut b = b"ARROW1\0\0".to_vec();
+        b.extend_from_slice(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f]);
+        assert!(ler_colunas(b.as_slice(), usize::MAX, 10).is_err());
+    }
     use arrow::array::{ArrayRef, Float64Array, Int32Array, RecordBatch};
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::ipc::writer::FileWriter;

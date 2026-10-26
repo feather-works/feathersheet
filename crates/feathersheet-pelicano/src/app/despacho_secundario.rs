@@ -702,8 +702,7 @@ impl App {
             Msg::MenuGrupo(i) => {
                 self.contexto = None;
                 if i < menu_nativo::catalogo().menus.len() {
-                    self.menu_aberto = true;
-                    self.menu_pagina = menu_principal::Pagina::Comandos;
+                    self.barra_menu_aberta = true;
                     self.menu_grupo = i;
                     self.menu_caminho.clear();
                     self.menu_cursor = 0;
@@ -712,7 +711,7 @@ impl App {
             }
             Msg::MenuVoltar => {
                 if self.menu_caminho.pop().is_none() {
-                    self.menu_pagina = menu_principal::Pagina::Inicio;
+                    self.barra_menu_aberta = false;
                 }
                 self.menu_cursor = 0;
                 Task::none()
@@ -740,7 +739,7 @@ impl App {
                         self.menu_caminho.push(i);
                         self.menu_cursor = 0;
                     } else if let Some(msg) = item.acao.as_ref().and_then(|a| self.evento_menu(a)) {
-                        self.menu_aberto = false;
+                        self.barra_menu_aberta = false;
                         self.menu_caminho.clear();
                         return self.update(msg);
                     }
@@ -870,7 +869,10 @@ impl App {
                 }
                 if let Some(evento) = acao { self.update(evento) } else { Task::none() }
             }
-            Msg::FecharMenu => { self.menu_aberto = false; self.menu_caminho.clear(); Task::none() }
+            Msg::FecharMenu => {
+                (self.menu_aberto, self.barra_menu_aberta) = (false, false);
+                self.menu_caminho.clear(); Task::none()
+            }
             Msg::JanelaRedimensionada(id, size) => {
                 if self.janelas.principal == Some(id) { self.tamanho_principal = size; }
                 // O código das macros usa o tamanho da janela para a largura mínima.
@@ -887,7 +889,6 @@ impl App {
                     self.colar_menu_aberto=false;
                     self.orientacao_menu_aberto=false;
                     self.bordas_menu_aberto=false;
-                    self.divisao_menu_aberto=false;
                     self.condicional_menu_aberto=false;
                     self.tabelas_menu_aberto=false;
                     self.estilos_menu_aberto=false;
@@ -904,7 +905,6 @@ impl App {
                 if self.faixa_extras_aberto {
                     self.menu_aberto = false;
                     self.colar_menu_aberto = false;
-                    self.divisao_menu_aberto = false;
                     self.bordas_menu_aberto = false;
                     self.condicional_menu_aberto = false;
                     self.contexto = None;
@@ -923,7 +923,6 @@ impl App {
                 self.menu_aberto = false;
                 self.orientacao_menu_aberto = false;
                 self.colar_menu_aberto = false;
-                self.divisao_menu_aberto = false;
                 self.divisao_personalizada = false;
                 self.bordas_menu_aberto = false;
                 self.tabelas_menu_aberto = false;
@@ -956,6 +955,12 @@ impl App {
             Msg::Novidades(evento) => self.evento_novidades(evento),
             Msg::FaixaSalvamentoFechar => { self.faixa_salvamento = None; Task::none() }
             Msg::AvisoXlsxFechar => { self.aviso_xlsx = None; Task::none() }
+            Msg::AvisoMacrosFechar => { self.aviso_macros = false; Task::none() }
+            Msg::AtivarMacros => {
+                (self.macros_bloqueadas, self.aviso_macros) = (false, false);
+                self.status = tr!("Macros ativadas neste arquivo.").into();
+                Task::none()
+            }
             Msg::ProgressoPulso => { progresso_abertura::animar(); Task::none() },
             Msg::ResumoPulso => {
                 self.avancar_resumo();
@@ -988,6 +993,15 @@ impl App {
                                 let _ = self.executar_pendente(Pendente::Modelo(m.id));
                                 self.folha = aba.parse().unwrap_or(0);
                             }
+                        }
+                        // FEATHERSHEET_CAPTURAR_ABA=2: mostra essa aba (índice a partir de 0).
+                        if let Some(i) = std::env::var("FEATHERSHEET_CAPTURAR_ABA").ok().and_then(|v| v.parse().ok()) {
+                            let _ = self.update(Msg::Aba(i));
+                        }
+                        // FEATHERSHEET_CAPTURAR_MENU_CLASSICO=1: faixa recolhida (sem gravar) e esse menu aberto.
+                        if let Some(i) = std::env::var("FEATHERSHEET_CAPTURAR_MENU_CLASSICO").ok().and_then(|v| v.parse().ok()) {
+                            self.config.faixa_recolhida = true;
+                            let _ = self.update(Msg::MenuGrupo(i));
                         }
                         // FEATHERSHEET_CAPTURAR_CELULAS="A1==SEQUÊNCIA(5)|B1=texto": escreve antes.
                         if let Ok(lista) = std::env::var("FEATHERSHEET_CAPTURAR_CELULAS") {
@@ -1467,6 +1481,7 @@ impl App {
                 Task::none()
             }
             Msg::Faixa => { self.config.faixa_recolhida = !self.config.faixa_recolhida;
+                self.barra_menu_aberta = false;
                 self.config.gravar(); Task::none() }
             Msg::SecaoConfig(c) => {
                 self.config_secao = c.min(configuracoes_ui::SECAO_SOBRE);

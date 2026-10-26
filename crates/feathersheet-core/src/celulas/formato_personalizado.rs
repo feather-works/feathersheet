@@ -186,7 +186,8 @@ fn pecas(secao: &str) -> Vec<Peca> {
                 let resto: String = it.clone().take(4).collect();
                 if resto.to_uppercase().starts_with("M/PM") { for _ in 0..4 { it.next(); } saida.push(Peca::Codigo('P')); }
                 else if resto.to_uppercase().starts_with("/P") { for _ in 0..2 { it.next(); } saida.push(Peca::Codigo('P')); }
-                else { texto(&mut saida, c.to_string()); }
+                // Sem AM/PM, `a` é o ano do Excel em português (`dd/mm/aaaa`).
+                else { saida.push(Peca::Codigo('y')); }
             }
             _ => texto(&mut saida, c.to_string()),
         }
@@ -617,6 +618,8 @@ mod testes {
         assert_eq!(f(45000.75, "hh:mm"), "18:00");
         assert_eq!(f(1.5, "[h]:mm"), "36:00");
         assert_eq!(f(45000.75, "h:mm AM/PM"), "6:00 PM");
+        assert_eq!(f(45000.0, "dd/mm/aaaa"), "15/03/2023");
+        assert_eq!(f(45000.0, "mm/aa"), "03/23");
     }
 
     #[test]

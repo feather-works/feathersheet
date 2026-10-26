@@ -39,7 +39,8 @@ fn strings_compartilhadas(archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>
                 .filter_map(|r| r.child("t").map(|t| t.text.as_str()))
                 .collect::<String>()
         };
-        tamanho = tamanho.saturating_add(texto.len());
+        // `<si/>` vazio também ocupa um `String` na lista: conta o cabeçalho junto.
+        tamanho = tamanho.saturating_add(texto.len() + std::mem::size_of::<String>());
         if tamanho > MAX_TEXTO_COMPARTILHADO {
             return Err("XLSX: strings compartilhadas excedem 256 MiB de texto; importação interrompida para proteger a RAM".into());
         }
@@ -358,19 +359,25 @@ fn ler_aba(
                 if hidden || ht.is_some() || nivel > 0 || recolhida {
                     alturas.push((linha, ht, hidden, propria, nivel, recolhida));
                 }
+                // As linhas vêm em ordem: área que já acabou não pega mais
+                // ninguém, e a lista fica só com as que cruzam esta linha.
+                derramadas.retain(|&(_, _, r1, _)| r1 >= linha);
                 for celula in row.celulas() {
                     let Some(at) = parse_cell_ref(celula.attr("r").unwrap_or("")) else { continue };
                     if at.row < 0 || at.row >= 1_048_576 || at.col < 0 || at.col >= MAX_COLS {
                         continue;
                     }
-                    if derramadas.iter().any(|&(r0, c0, r1, c1)| (r0..=r1).contains(&at.row) && (c0..=c1).contains(&at.col)) {
+                    if !derramadas.is_empty() && derramadas.iter().any(|&(r0, c0, r1, c1)| (r0..=r1).contains(&at.row) && (c0..=c1).contains(&at.col)) {
                         continue;
                     }
                     if celula.attr("cm").is_some() {
                         if celula.f.get().is_some() && celula.f_t.get() == Some("array") {
                             let mut p = celula.f_ref.get().unwrap_or("").split(':');
+                            // Área de uma célula só (a própria âncora) não tem vizinha a pular.
                             if let (Some(a), Some(b)) = (p.next().and_then(parse_cell_ref), p.next().and_then(parse_cell_ref)) {
-                                derramadas.push((a.row, a.col, b.row, b.col));
+                                if (a.row, a.col) != (b.row, b.col) {
+                                    derramadas.push((a.row, a.col, b.row, b.col));
+                                }
                             }
                         }
                     }
@@ -745,6 +752,33 @@ mod tests {
         let shared = r#"<sst><si><t>0007</t></si></sst>"#;
         let (wb, _) = ler_xlsx_workbook(xlsx(xml, Some(shared))).unwrap();
         assert_eq!(wb.aba(0).unwrap().sheet.get_raw(0, 0), "0007");
+    }
+
+    #[test]
+    fn strings_vazias_tambem_contam_no_teto() {
+        // 12 milhões de `<si/>` passam de 256 MiB em cabeçalhos de `String`.
+        let mut sst = String::with_capacity(12_000_000 * 5 + 16);
+        sst.push_str("<sst>");
+        for _ in 0..12_000_000 {
+            sst.push_str("<si/>");
+        }
+        sst.push_str("</sst>");
+        let xml = r#"<worksheet><sheetData/></worksheet>"#;
+        assert!(ler_xlsx_workbook(xlsx(xml, Some(&sst))).is_err());
+    }
+
+    #[test]
+    fn muitas_matrizes_de_uma_celula_nao_ficam_quadraticas() {
+        use std::fmt::Write as _;
+        let mut xml = String::from("<worksheet><sheetData>");
+        for row in 1..=100_000 {
+            write!(xml, "<row r=\"{row}\"><c r=\"A{row}\" cm=\"1\"><f t=\"array\" ref=\"A{row}:A{row}\">1</f><v>1</v></c></row>").unwrap();
+        }
+        xml.push_str("</sheetData></worksheet>");
+        let inicio = std::time::Instant::now();
+        let (wb, _) = ler_xlsx_workbook(xlsx(&xml, None)).unwrap();
+        assert!(inicio.elapsed().as_secs() < 20, "{:?}", inicio.elapsed());
+        assert_eq!(wb.aba(0).unwrap().sheet.get_raw(99_999, 0), "=1");
     }
 
     #[test]

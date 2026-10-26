@@ -386,7 +386,13 @@ impl canvas::Program<Msg> for Grade<'_> {
                     let limite = if ajuste.vertical {
                         ((h - 8.0) / 11.0).floor().max(2.0) as usize
                     } else { ((w - 16.0)/7.1).floor().max(2.0) as usize };
-                    let curto = if !ajuste.reduzir && !ajuste.vertical {
+                    let curto = if ajuste.quebrar && !ajuste.reduzir && !ajuste.vertical {
+                        // shortcut: largura por caractere estimada (meia letra); medir o texto se a quebra sair torta.
+                        let letra = estilo.as_ref().and_then(|s| s.font_size).unwrap_or(self.tamanho_fonte_padrao as f32).max(6.0);
+                        let largura = (((w - 16.0) / (letra * 0.5)).floor().max(2.0)) as usize;
+                        let linhas = (((h - 4.0) / (letra * 1.3)).floor().max(1.0)) as usize;
+                        comentarios::quebrar(val.trim_end(), largura, linhas).join("\n")
+                    } else if !ajuste.reduzir && !ajuste.vertical {
                         val.split('\n').map(|linha| {
                             if linha.chars().count() > limite {
                                 format!("{}…", linha.chars().take(limite - 1).collect::<String>())
@@ -754,7 +760,13 @@ impl canvas::Program<Msg> for Grade<'_> {
                     let limite = if ajuste.vertical {
                         ((ht-8.)/11.).floor().max(2.) as usize
                     } else {((wt-16.)/7.1).floor().max(2.) as usize};
-                    let curto = if !ajuste.reduzir && !ajuste.vertical {
+                    let curto = if ajuste.quebrar && !ajuste.reduzir && !ajuste.vertical {
+                        // shortcut: largura por caractere estimada (meia letra); medir o texto se a quebra sair torta.
+                        let letra = estilo.as_ref().and_then(|s| s.font_size).unwrap_or(self.tamanho_fonte_padrao as f32).max(6.0);
+                        let largura = (((wt - 16.0) / (letra * 0.5)).floor().max(2.0)) as usize;
+                        let linhas = (((ht - 4.0) / (letra * 1.3)).floor().max(1.0)) as usize;
+                        comentarios::quebrar(valor.trim_end(), largura, linhas).join("\n")
+                    } else if !ajuste.reduzir && !ajuste.vertical {
                         valor.split('\n').map(|linha| {
                             if linha.chars().count() > limite {
                                 format!("{}…", linha.chars().take(limite - 1).collect::<String>())

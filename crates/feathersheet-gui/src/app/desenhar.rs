@@ -497,7 +497,6 @@ impl App {
             || self.orientacao_menu_aberto
             || self.faixa_grupo_aberto.is_some()
             || self.faixa_extras_aberto
-            || self.divisao_menu_aberto
             || self.bordas_menu_aberto
             || self.colar_menu_aberto
             || self.estatisticas.is_some()

@@ -131,9 +131,29 @@ pub fn fn_round(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         0
     };
 
-    let factor = 10.0f64.powi(digits);
-    let rounded = (n * factor).round() / factor;
-    Computed::Scalar(Value::Number(rounded))
+    Computed::Scalar(Value::Number(arredondar_casas(n, digits, f64::round)))
+}
+
+/// Arredonda `n` em `casas` decimais com `passo` (round/ceil/floor sobre o
+/// módulo, o sinal volta depois). Antes de arredondar, `n` deslocado passa por
+/// 15 algarismos significativos, como o Excel: `1,005 × 100` é
+/// 100,49999999999999 no binário e daria 1,00 em vez de 1,01. Casas fora do
+/// alcance do `f64` não estouram: 400 casas devolvem `n`, -400 devolvem 0.
+fn arredondar_casas(n: f64, casas: i32, passo: fn(f64) -> f64) -> f64 {
+    if !n.is_finite() || n == 0.0 || casas > 308 {
+        return n;
+    }
+    if casas < -308 {
+        return 0.0;
+    }
+    let fator = 10f64.powi(casas.abs());
+    let x = if casas >= 0 { n.abs() * fator } else { n.abs() / fator };
+    if !x.is_finite() || x >= 1e15 {
+        return n; // já não tem casa decimal a arredondar
+    }
+    let r = passo(crate::celulas::number::round_to_precision(x, 15));
+    let r = if casas >= 0 { r / fator } else { r * fator };
+    r.copysign(n)
 }
 
 /// `=INT(n)`
@@ -310,12 +330,7 @@ pub fn fn_roundup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     } else {
         0
     };
-    let factor = 10.0f64.powi(digits);
-    let res = if n >= 0.0 {
-        (n * factor).ceil() / factor
-    } else {
-        (n * factor).floor() / factor
-    };
+    let res = arredondar_casas(n, digits, f64::ceil);
     Computed::Scalar(Value::Number(res))
 }
 
@@ -336,12 +351,7 @@ pub fn fn_rounddown(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     } else {
         0
     };
-    let factor = 10.0f64.powi(digits);
-    let res = if n >= 0.0 {
-        (n * factor).floor() / factor
-    } else {
-        (n * factor).ceil() / factor
-    };
+    let res = arredondar_casas(n, digits, f64::floor);
     Computed::Scalar(Value::Number(res))
 }
 
@@ -1528,6 +1538,18 @@ mod testes_reescrita {
             Value::Error(e) => e.code,
             outro => panic!("{f} deu {outro:?}"),
         }
+    }
+
+    #[test]
+    fn arred_corrige_o_binario_e_nao_estoura() {
+        assert_eq!(num("ARRED(1,005;2)"), 1.01);
+        assert_eq!(num("ARRED(0,285;2)"), 0.29);
+        assert_eq!(num("ARRED(-1,005;2)"), -1.01);
+        assert_eq!(num("ARRED(1;400)"), 1.0);
+        assert_eq!(num("ARRED(1E300;-400)"), 0.0);
+        assert_eq!(num("ARRED(1234,5;-2)"), 1200.0);
+        assert_eq!(num("ARREDONDAR.PARA.CIMA(0,1*3;1)"), 0.3);
+        assert_eq!(num("ARREDONDAR.PARA.BAIXO(-1,99;1)"), -1.9);
     }
 
     #[test]

@@ -537,6 +537,7 @@ impl App {
             self.registrar_arquivo_recente(&path);
         }
         if ext == "xlsm" { self.ler_vba_do_xlsm(&path); } else { self.vba_pendente = None; }
+        self.bloquear_macros_do_arquivo();
     }
 
     /// Linhas de grade e painéis congelados de cada aba, como o Excel
@@ -744,6 +745,7 @@ impl App {
                 self.workbook = Self::pasta_nova();
                 self.vinculos_novo_documento();
                 self.recarregar_macros();
+                (self.macros_bloqueadas, self.aviso_macros) = (false, false);
                 self.inspecoes.clear();
                 self.eixos_grade.borrow_mut().limpar();
                 // O cache das regras é por id + versão da aba; uma pasta nova
@@ -1033,4 +1035,16 @@ impl App {
         // Exportar para Excel não altera o arquivo .fshz de trabalho.
     }
 
+}
+
+/// O destino do Salvar com `.fshz` no fim: acrescenta, não troca ("Relatório 2026.10"
+/// vira "Relatório 2026.10.fshz", não "Relatório 2026.fshz"). A janela de arquivo só
+/// perguntou sobre o nome digitado: se o nome final é outro arquivo que já existe, recusa.
+pub(super) fn com_extensao_fshz(path: PathBuf) -> Result<PathBuf, String> {
+    if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("fshz")) { return Ok(path); }
+    let mut nome = path.into_os_string();
+    nome.push(".fshz");
+    let destino = PathBuf::from(nome);
+    if destino.exists() { return Err(trf!("Já existe um arquivo com o nome {}", destino.display())); }
+    Ok(destino)
 }

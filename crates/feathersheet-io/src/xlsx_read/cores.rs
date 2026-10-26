@@ -116,7 +116,7 @@ fn ler_indexadas(styles_xml: &str) -> Option<Vec<u32>> {
     let lista = raiz.child("colors")?.child("indexedColors")?;
     let cores: Vec<u32> = lista
         .children_named("rgbColor")
-        .map(|c| c.attr("rgb").map(|v| if v.len() == 8 { &v[2..] } else { v }).and_then(|v| u32::from_str_radix(v, 16).ok()).unwrap_or(0))
+        .map(|c| c.attr("rgb").filter(|v| v.is_ascii()).map(|v| if v.len() == 8 { &v[2..] } else { v }).and_then(|v| u32::from_str_radix(v, 16).ok()).unwrap_or(0))
         .collect();
     (!cores.is_empty()).then_some(cores)
 }
@@ -289,6 +289,12 @@ fn familia(c: u32) -> &'static str {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn cor_indexada_com_acento_nao_entra_em_panico() {
+        let xml = r#"<styleSheet><colors><indexedColors><rgbColor rgb="Fé12345"/><rgbColor rgb="FF00FF00"/></indexedColors></colors></styleSheet>"#;
+        assert_eq!(ler_indexadas(xml), Some(vec![0, 0x00FF00]));
+    }
 
     #[test]
     fn familia_do_estilo_de_tabela() {

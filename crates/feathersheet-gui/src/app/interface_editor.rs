@@ -3,6 +3,10 @@ use super::*;
 /// Submenus do menu de contexto da célula.
 pub(super) const SUB_COLAR: u8 = 0;
 pub(super) const SUB_INSERIR: u8 = 1;
+/// Largura do botão Menu com a faixa recolhida (posição das listas do menu clássico).
+const LARGURA_BOTAO_MENU: f32 = 84.0;
+/// Largura de cada título do menu clássico (cabe "FERRAMENTAS").
+const LARGURA_TITULO_MENU: f32 = 96.0;
 use iced::widget::column;
 
 /// Editor nativo Iced com cursores e quebras de linha em uma única célula.
@@ -50,10 +54,16 @@ impl App {
         let topo: Element<'_, Msg> = if self.config.barra_propria {
             cromo::barra_integrada(barra, Self::acoes(id))
         } else { barra };
-        let abas_escolha = row![
-            button(row![feather_ui::icones::icone("menu-2", 14.0), text(tr!("Menu")).size(13)]
-                .spacing(6).align_y(Alignment::Center))
-                .padding([7, 12]).style(estilo_botao_secundario).on_press(Msg::Menu),
+        let botao_menu = button(row![feather_ui::icones::icone("menu-2", 14.0), text(tr!("Menu")).size(13)]
+            .spacing(6).align_y(Alignment::Center))
+            .padding([7, 12]).style(estilo_botao_secundario).on_press(Msg::Menu)
+            // Largura fixa com a faixa recolhida: a lista do menu clássico se alinha por ela.
+            .width(if self.config.faixa_recolhida { Length::Fixed(LARGURA_BOTAO_MENU) } else { Length::Shrink });
+        // Faixa recolhida: os menus clássicos (Arquivo, Editar…) tomam o lugar das abas.
+        let abas_escolha: Element<'_, Msg> = if self.config.faixa_recolhida {
+            row![botao_menu, self.barra_menu_classico()].spacing(4).align_y(Alignment::Center).into()
+        } else { row![
+            botao_menu,
             self.aba_faixa(tr!("Página Inicial"), AbaFaixa::Inicio),
             self.aba_faixa(tr!("Inserir"), AbaFaixa::Inserir),
             self.aba_faixa(tr!("Desenhar"), AbaFaixa::Desenhar),
@@ -76,7 +86,7 @@ impl App {
             // Contextual: "Editar forma" só enquanto houver forma selecionada.
             if self.tem_forma_selecionada() { self.aba_editar_forma() }
             else { Space::with_width(0).into() },
-        ].spacing(4).align_y(Alignment::Center);
+        ].spacing(4).align_y(Alignment::Center).into() };
         let abas = row![
             // Reservar altura própria para a rolagem das abas: não cobrir os títulos.
             scrollable(abas_escolha).direction(scrollable::Direction::Horizontal(
@@ -519,6 +529,18 @@ impl App {
                 ],
             ].height(Length::Fill).into()
         } else { base };
+        let base: Element<'_, Msg> = if self.barra_menu_aberta && self.config.faixa_recolhida {
+            // Topo (barra do título e menus) fica de fora: passar o mouse troca de menu.
+            let topo_lista = 43.0 + 52.0 - 4.0;
+            stack![
+                base,
+                column![
+                    Space::with_height(Length::Fixed(topo_lista)),
+                    iced::widget::mouse_area(Space::new(Length::Fill, Length::Fill)).on_press(Msg::FecharMenu),
+                ],
+                column![Space::with_height(Length::Fixed(topo_lista)), self.painel_menu_classico()],
+            ].height(Length::Fill).into()
+        } else { base };
         let base = self.sobrepor_condicional(base);
         let base = self.sobrepor_perfil_coluna(base);
         let base = self.sobrepor_estatisticas(base);
@@ -657,6 +679,7 @@ impl App {
             return self.sobrepor_explicacao_erro(base);
         }
         let base = self.sobrepor_aviso_xlsx(base);
+        let base = self.sobrepor_aviso_macros(base);
         let base = self.sobrepor_editar_links(base);
         // Validação de dados e o alerta de erro, no diálogo interno comum.
         let base = self.sobrepor_serie(base);
@@ -934,32 +957,30 @@ impl App {
             .width(Length::Fixed(largura)).style(estilo_popup_menu).into()
     }
 
-    /// Barra horizontal e popup compacto reproduzindo a geometria de menu.ts.
-    /// O catálogo de ações segue sendo o mesmo; submenus mantêm Voltar e teclado.
-    pub(super) fn view_menu_typescript(&self) -> Element<'_, Msg> {
+    /// Menus clássicos (Arquivo, Editar…) mostrados no lugar das abas com a faixa recolhida.
+    /// Passar o mouse troca de menu só quando algum já está aberto, como no Excel 2003.
+    pub(super) fn barra_menu_classico(&self) -> Element<'_, Msg> {
         let dados = menu_nativo::catalogo();
         let mut categorias = row![].spacing(2).align_y(Alignment::Center);
         for (i, menu) in dados.menus.iter().enumerate() {
-            categorias = categorias.push(
-                iced::widget::mouse_area(
-                    button(text(tr!(&menu.titulo).to_uppercase()).size(11.5))
-                        .height(Length::Fixed(22.0))
-                        .width(Length::Fixed(80.0))
-                        .padding([0, 5])
-                        .style(estilo_titulo_menu(self.menu_grupo == i))
-                        .on_press(Msg::MenuGrupo(i))
-                ).on_enter(Msg::MenuGrupo(i)),
-            );
+            let aberto = self.barra_menu_aberta && self.menu_grupo == i;
+            let botao = button(text(tr!(&menu.titulo).to_uppercase()).size(11.5)
+                    .align_x(iced::alignment::Horizontal::Center).width(Length::Fill))
+                .height(Length::Fixed(22.0))
+                .width(Length::Fixed(LARGURA_TITULO_MENU))
+                .padding([0, 5])
+                .style(estilo_titulo_menu(aberto))
+                .on_press(Msg::MenuGrupo(i));
+            categorias = categorias.push(if self.barra_menu_aberta {
+                iced::widget::mouse_area(botao).on_enter(Msg::MenuGrupo(i)).into()
+            } else { Element::from(botao) });
         }
-        // No TypeScript, a barra ocupa a largura da janela; o painel aberto,
-        // ao contrário do layout antigo, não se expande com essa barra.
-        let barra = container(scrollable(categorias)
-            .direction(scrollable::Direction::Horizontal(scrollable::Scrollbar::new()))
-            .height(Length::Fixed(34.0)))
-            .padding([3, 8])
-            .width(Length::Fill)
-            .style(estilo_barra_abas);
+        categorias.into()
+    }
 
+    /// Lista suspensa do menu clássico aberto, com submenus, Voltar e teclado.
+    pub(super) fn painel_menu_classico(&self) -> Element<'_, Msg> {
+        let dados = menu_nativo::catalogo();
         let mut conteudo = column![].spacing(0).padding([7, 6]);
         if !self.menu_caminho.is_empty() {
             let nivel = &self.menu_caminho;
@@ -1045,15 +1066,11 @@ impl App {
             .width(Length::Fixed(LARGURA_MENU))
             .style(estilo_popup_menu);
 
-        // A posição acompanha a categoria e vira para a esquerda se o
-        // menu encostaria na borda direita, como fitPanel() no TypeScript.
-        let x = (8.0 + self.menu_grupo as f32 * 82.0)
+        // A posição acompanha a categoria (depois do botão Menu) e vira para a
+        // esquerda se o menu encostaria na borda direita, como fitPanel() no TypeScript.
+        let x = (8.0 + LARGURA_BOTAO_MENU + 4.0 + self.menu_grupo as f32 * (LARGURA_TITULO_MENU + 2.0))
             .min((self.tamanho_principal.width - LARGURA_MENU - 8.0).max(0.0));
-        column![
-            barra,
-            Space::with_height(Length::Fixed(6.0)),
-            row![Space::with_width(Length::Fixed(x)), painel],
-        ].spacing(0).width(Length::Fill).into()
+        row![Space::with_width(Length::Fixed(x)), painel].into()
     }
 
     /// Marca visualmente opções de estado já refletidas pela grade/configuração.

@@ -52,7 +52,6 @@ impl App {
                     if self.orientacao_menu_aberto { return self.update(Msg::FecharMenuOrientacao); }
                     if self.faixa_grupo_aberto.is_some() { return self.update(Msg::FecharGrupoFaixa); }
                     if self.faixa_extras_aberto { return self.update(Msg::FecharMenuExtras); }
-                    if self.divisao_menu_aberto { return self.update(Msg::FecharMenuDivisao); }
                     if self.bordas_menu_aberto { return self.update(Msg::FecharMenuBordas); }
                     if self.borda_desenho.modo.is_some() {
                         return self.update(Msg::BordaDesenho(desenho_borda_ui::Evento::Sair));
@@ -226,15 +225,15 @@ impl App {
                     return Task::none();
                 }
                 if self.menu_aberto && !mods.control() && !mods.alt() {
-                    if self.menu_pagina != menu_principal::Pagina::Comandos {
-                        return match key {
-                            keyboard::Key::Named(keyboard::key::Named::Escape) =>
-                                self.update(Msg::FecharMenu),
-                            keyboard::Key::Named(keyboard::key::Named::Backspace) =>
-                                self.update(Msg::MenuPagina(menu_principal::Pagina::Inicio)),
-                            _ => Task::none(),
-                        };
-                    }
+                    return match key {
+                        keyboard::Key::Named(keyboard::key::Named::Escape) =>
+                            self.update(Msg::FecharMenu),
+                        keyboard::Key::Named(keyboard::key::Named::Backspace) =>
+                            self.update(Msg::MenuPagina(menu_principal::Pagina::Inicio)),
+                        _ => Task::none(),
+                    };
+                }
+                if self.barra_menu_aberta && !mods.control() && !mods.alt() {
                     use feather_ui::atalhos::AcaoGlobal;
                     match feather_ui::atalhos::acao_global(&key, mods) {
                         Some(AcaoGlobal::Ajuda) => return self.update(Msg::Ajuda),

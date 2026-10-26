@@ -11,6 +11,8 @@ use super::{LARGURA_PADRAO, ALTURA_PADRAO};
 pub(super) struct AjustesTexto {
     pub(super) vertical: bool,
     pub(super) reduzir: bool,
+    /// Quebrar texto automaticamente (faixa "Quebrar", `wrapText` do .xlsx).
+    pub(super) quebrar: bool,
     pub(super) recuo: f32,
     pub(super) sobrescrito: bool,
     pub(super) subscrito: bool,
@@ -28,6 +30,7 @@ pub(super) fn ajustes_texto(sheet: &Sheet, r: u32, c: u32) -> AjustesTexto {
     AjustesTexto {
         vertical: ativo("textVertical"),
         reduzir: ativo("shrinkToFit"),
+        quebrar: ativo("wrap"),
         recuo,
         sobrescrito: ativo("superscript"),
         subscrito: ativo("subscript"),

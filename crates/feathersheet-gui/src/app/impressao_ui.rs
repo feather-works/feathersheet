@@ -24,14 +24,37 @@ const PAGINA_A: f32 = 1043.0;
 pub enum Escopo { Planilha, Selecao, Area }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PapelUi { A4, Carta, Oficio }
+pub enum PapelUi { A4, Carta, Oficio, A3, A5, B4, B5, Executivo, Tabloide }
 impl PapelUi {
-    const TODOS: [PapelUi; 3] = [PapelUi::A4, PapelUi::Carta, PapelUi::Oficio];
+    pub(super) const TODOS: [PapelUi; 9] = [PapelUi::A4, PapelUi::Carta, PapelUi::Oficio, PapelUi::A3,
+        PapelUi::A5, PapelUi::B4, PapelUi::B5, PapelUi::Executivo, PapelUi::Tabloide];
     fn papel(self) -> Papel {
-        match self { Self::A4 => Papel::A4, Self::Carta => Papel::Carta, Self::Oficio => Papel::Oficio }
+        match self {
+            Self::A4 => Papel::A4, Self::Carta => Papel::Carta, Self::Oficio => Papel::Oficio,
+            Self::A3 => Papel::A3, Self::A5 => Papel::A5, Self::B4 => Papel::B4, Self::B5 => Papel::B5,
+            Self::Executivo => Papel::Executivo, Self::Tabloide => Papel::Tabloide,
+        }
     }
     fn sigla(self) -> &'static str {
-        match self { Self::A4 => "A4", Self::Carta => tr!("CARTA"), Self::Oficio => tr!("OFÍCIO") }
+        match self {
+            Self::A4 => "A4", Self::Carta => tr!("CARTA"), Self::Oficio => tr!("OFÍCIO"),
+            Self::A3 => "A3", Self::A5 => "A5", Self::B4 => "B4", Self::B5 => "B5",
+            Self::Executivo => tr!("EXECUTIVO"), Self::Tabloide => tr!("TABLOIDE"),
+        }
+    }
+    /// O rótulo do menu Tamanho (Layout da Página).
+    pub(super) fn rotulo_menu(self) -> &'static str {
+        match self {
+            Self::A4 => tr!("A4 · 210 × 297 mm"),
+            Self::Carta => tr!("Carta · 216 × 279 mm"),
+            Self::Oficio => tr!("Ofício · 216 × 356 mm"),
+            Self::A3 => tr!("A3 · 297 × 420 mm"),
+            Self::A5 => tr!("A5 · 148 × 210 mm"),
+            Self::B4 => tr!("B4 · 257 × 364 mm"),
+            Self::B5 => tr!("B5 · 182 × 257 mm"),
+            Self::Executivo => tr!("Executivo · 184 × 267 mm"),
+            Self::Tabloide => tr!("Tabloide · 279 × 432 mm"),
+        }
     }
 }
 impl std::fmt::Display for PapelUi {
@@ -40,6 +63,12 @@ impl std::fmt::Display for PapelUi {
             Self::A4 => tr!("A4 (210 x 297 mm)"),
             Self::Carta => tr!("Carta / Letter (216 x 279 mm)"),
             Self::Oficio => tr!("Ofício / Legal (216 x 356 mm)"),
+            Self::A3 => tr!("A3 (297 x 420 mm)"),
+            Self::A5 => tr!("A5 (148 x 210 mm)"),
+            Self::B4 => tr!("B4 (257 x 364 mm)"),
+            Self::B5 => tr!("B5 (182 x 257 mm)"),
+            Self::Executivo => tr!("Executivo / Executive (184 x 267 mm)"),
+            Self::Tabloide => tr!("Tabloide / Tabloid (279 x 432 mm)"),
         })
     }
 }
@@ -563,15 +592,16 @@ impl App {
         ].spacing(5);
         let area_botoes = iced::widget::column![
             secao(tr!("Área de Impressão")),
+            // Três numa linha não cabiam em 300 px: o terceiro quebrava letra a letra.
             row![
-                button(text(tr!("Definir Seleção")).size(12)).padding([6, 10])
+                button(text(tr!("Definir Seleção")).size(12)).padding([6, 10]).width(Length::Fill)
                     .style(estilo_botao_secundario).on_press(ev(Evento::DefinirArea)),
-                button(text(tr!("Adicionar Seleção")).size(12)).padding([6, 10])
+                button(text(tr!("Adicionar Seleção")).size(12)).padding([6, 10]).width(Length::Fill)
                     .style(estilo_botao_secundario).on_press(ev(Evento::AdicionarArea)),
-                button(text(tr!("Limpar Área")).size(12)).padding([6, 10])
-                    .style(estilo_botao_secundario)
-                    .on_press_maybe(area.is_some().then(|| ev(Evento::LimparArea))),
             ].spacing(8),
+            button(text(tr!("Limpar Área")).size(12)).padding([6, 10]).width(Length::Fill)
+                .style(estilo_botao_secundario)
+                .on_press_maybe(area.is_some().then(|| ev(Evento::LimparArea))),
         ].spacing(5);
         let orient = |rotulo: &str, o: Orientacao| button(text(rotulo.to_owned()).size(12))
             .padding([6, 12]).width(Length::Fill)
@@ -619,10 +649,12 @@ impl App {
             button(text(tr!("Cancelar")).size(13)).padding([8, 12]).width(Length::Fill)
                 .style(estilo_botao_secundario).on_press(ev(Evento::Fechar)),
         ].spacing(6);
-        let lateral = container(iced::widget::column![
+        // As opções rolam; os botões ficam sempre embaixo. Sem a rolagem, numa
+        // janela baixa as opções espremiam os botões até sumir o texto (19/10/2026).
+        let opcoes = iced::widget::scrollable(iced::widget::column![
             escopo, area_botoes, orientacao, papel, escala, exibicao, textos,
-            Space::with_height(Length::Fill), acoes,
-        ].spacing(10).height(Length::Fill))
+        ].spacing(10).padding(iced::Padding { right: 10.0, ..Default::default() })).height(Length::Fill);
+        let lateral = container(iced::widget::column![opcoes, acoes].spacing(10).height(Length::Fill))
             .padding(14).width(Length::Fixed(300.)).height(Length::Fill)
             .style(estilo_painel_faixa);
 

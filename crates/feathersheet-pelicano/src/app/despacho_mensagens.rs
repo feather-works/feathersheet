@@ -642,7 +642,6 @@ impl App {
                 if self.orientacao_menu_aberto {
                     self.bordas_menu_aberto = false;
                     self.colar_menu_aberto = false;
-                    self.divisao_menu_aberto = false;
                     self.condicional_menu_aberto = false;
                     self.menu_aberto = false;
                     self.cor_ativa = None;
@@ -664,7 +663,6 @@ impl App {
                 if self.bordas_menu_aberto {
                     self.menu_aberto = false;
                     self.colar_menu_aberto = false;
-                    self.divisao_menu_aberto = false;
                     self.orientacao_menu_aberto = false;
                     self.divisao_personalizada = false;
                     self.condicional_menu_aberto = false;
@@ -683,16 +681,10 @@ impl App {
             },
             // Compatibilidade com atalhos antigos: nunca mostrar o menu suspenso.
             Msg::AlternarMenuDivisao => self.abrir_assistente_divisao(),
-            Msg::FecharMenuDivisao => {
-                self.divisao_menu_aberto = false;
-                self.divisao_personalizada = false;
-                Task::none()
-            },
             Msg::DividirTextoAplicar => {
                 let separador = self.divisao_outro.clone();
                 self.dividir_texto(&separador);
                 if !separador.is_empty() {
-                    self.divisao_menu_aberto = false;
                     self.divisao_personalizada = false;
                 }
                 Task::none()
@@ -715,7 +707,6 @@ impl App {
                     };
                     self.bordas_menu_aberto = false;
                     self.colar_menu_aberto = false;
-                    self.divisao_menu_aberto = false;
                     self.tabelas_menu_aberto = false;
                     self.estilos_menu_aberto = false;
                     self.condicional_menu_aberto = false;
@@ -825,12 +816,10 @@ impl App {
                 self.menu_aberto = false;
                 self.dialogo_salvar_copia()
             }
-            Msg::DestinoCopia(Some(mut path)) => {
-                if path.extension().and_then(|s| s.to_str()) != Some("fshz") {
-                    path.set_extension("fshz");
-                }
-                self.salvar_copia(path)
-            }
+            Msg::DestinoCopia(Some(path)) => match documento_operacoes::com_extensao_fshz(path) {
+                Ok(path) => self.salvar_copia(path),
+                Err(e) => { self.status = e; Task::none() }
+            },
             Msg::DestinoCopia(None) => Task::none(),
             Msg::Gravado(path, copia, resultado) => self.gravacao_terminou(path, copia, resultado),
             Msg::Recuperacao(evento) => self.evento_recuperacao(evento),
@@ -873,10 +862,10 @@ impl App {
                 Task::none()
             }
             Msg::DestinoDelimitado(None,_) => Task::none(),
-            Msg::DestinoSalvar(Some(mut path)) => {
-                if path.extension().and_then(|s| s.to_str()) != Some("fshz") { path.set_extension("fshz"); }
-                self.gravar(path)
-            }
+            Msg::DestinoSalvar(Some(path)) => match documento_operacoes::com_extensao_fshz(path) {
+                Ok(path) => self.gravar(path),
+                Err(e) => { self.pendente = None; self.status = e; Task::none() }
+            },
             Msg::DestinoSalvar(None) => { self.pendente = None; Task::none() },
             Msg::TelaInteira => {
                 self.tela_inteira = !self.tela_inteira;
@@ -1191,8 +1180,15 @@ impl App {
                 // O Canvas faz a correção fina para a altura/zoom reais.
                 self.contexto = None;
                 let (fixas_linhas, _) = self.congelamento_atual();
-                self.linha_inicio = (self.linha_inicio as i64 + dr as i64)
-                    .clamp(fixas_linhas as i64, MAX_ROWS as i64-1) as u32;
+                // Com a grade já desenhada, o mesmo passo da roda sobre ela: salta linhas
+                // ocultas e para no fim visível. Somando cru, a roda sobre uma imagem ou
+                // gráfico movia o objeto com a grade parada (relato de 26/10/2026).
+                let altura = self.eixos_grade.borrow().tamanho_canvas.map(|t| t.height).filter(|h| *h > 0.0);
+                self.linha_inicio = match altura {
+                    Some(h) => self.grade().origem_apos_rolar(h, dr),
+                    None => (self.linha_inicio as i64 + dr as i64)
+                        .clamp(fixas_linhas as i64, MAX_ROWS as i64-1) as u32,
+                };
                 // Não atravessa colunas ocultas em passos de largura zero.
                 self.rolar_colunas_visiveis(dc);
                 Task::none()
@@ -1277,7 +1273,6 @@ impl App {
             Msg::AlternarMenuColagem => {
                 self.colar_menu_aberto = !self.colar_menu_aberto;
                 if self.colar_menu_aberto {
-                    self.divisao_menu_aberto = false;
                     self.divisao_personalizada = false;
                     self.bordas_menu_aberto = false;
                     self.menu_aberto = false;

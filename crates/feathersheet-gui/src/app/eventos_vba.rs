@@ -50,6 +50,7 @@ impl App {
     }
 
     fn rodar_evento(&mut self, aba: &str, evento: &str, alvo: Option<&str>) {
+        if self.macros_bloqueadas { return; }
         let Some(e) = self.eventos_vba.iter()
             .find(|e| e.evento == evento && e.aba.eq_ignore_ascii_case(aba)).cloned() else { return };
         let Some(m) = self.macro_catalogo.obter(&e.modulo) else { return };
@@ -70,6 +71,37 @@ impl App {
                 self.status = trf!("Evento {evento} da aba {aba}: {erro}. Escritas revertidas.");
             }
         }
+    }
+}
+
+impl App {
+    /// Arquivo aberto do disco com macros que rodam sozinhas (eventos de aba ou
+    /// botões): ficam bloqueadas até a pessoa ativar, como no Excel.
+    pub(super) fn bloquear_macros_do_arquivo(&mut self) {
+        let botoes = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i))
+            .any(|a| a.sheet.bt.as_deref().is_some_and(|t| !matches!(t.trim(), "" | "[]")));
+        self.macros_bloqueadas = botoes || !self.eventos_vba.is_empty();
+        self.aviso_macros = self.macros_bloqueadas;
+    }
+
+    /// Bloqueadas: reabre o "Ativar macros?" e devolve `false`.
+    pub(super) fn macros_liberadas(&mut self) -> bool {
+        if self.macros_bloqueadas { self.aviso_macros = true; }
+        !self.macros_bloqueadas
+    }
+
+    pub(super) fn sobrepor_aviso_macros<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
+        use super::dialogo_interno::dlg;
+        if !self.aviso_macros { return base; }
+        let corpo = text(tr!("Este arquivo tem macros que rodam sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Elas podem alterar a planilha e gravar arquivos. Ative só se você confia na origem do arquivo."))
+            .size(12.5).line_height(1.4);
+        self.dialogo(tr!("Ativar macros?"), corpo)
+            .icone("alert-triangle")
+            .largura(480.0)
+            .botao(dlg::botao_primario(tr!("Ativar macros"), Some(Msg::AtivarMacros)))
+            .botao(dlg::botao_secundario(tr!("Manter desativadas"), Some(Msg::AvisoMacrosFechar)))
+            .ao_fechar(Msg::AvisoMacrosFechar)
+            .sobre(base)
     }
 }
 
@@ -112,6 +144,23 @@ mod testes {
         let mut app = app_com_evento("aoAtivar", "sheet.set('A1', 'ativou');");
         app.eventos_vba[0].aba = "Dados".into();
         let outra = app.workbook.criar_aba("Dados");
+        app.update(Msg::Aba(outra));
+        assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(0, 0), "ativou");
+    }
+
+    /// Arquivo aberto com evento: nada roda até "Ativar macros".
+    #[test]
+    fn evento_de_arquivo_aberto_so_roda_depois_de_ativar() {
+        let mut app = app_com_evento("aoAtivar", "sheet.set('A1', 'ativou');");
+        app.eventos_vba[0].aba = "Dados".into();
+        let outra = app.workbook.criar_aba("Dados");
+        app.bloquear_macros_do_arquivo();
+        assert!(app.aviso_macros);
+        app.update(Msg::AvisoMacrosFechar);
+        app.update(Msg::Aba(outra));
+        assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(0, 0), "");
+        app.update(Msg::Aba(0));
+        app.update(Msg::AtivarMacros);
         app.update(Msg::Aba(outra));
         assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(0, 0), "ativou");
     }

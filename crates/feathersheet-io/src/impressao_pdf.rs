@@ -432,6 +432,10 @@ fn texto_exibido(valor: &Value, estilo: Option<&Style>) -> String {
 /// `#rgb` ou `#rrggbb`.
 fn cor_css(s: &str) -> Option<Cor> {
     let h = s.trim().strip_prefix('#')?;
+    // Não dividir UTF-8 por offsets de byte sem validar a entrada.
+    if !h.is_ascii() {
+        return None;
+    }
     let v = |a: &str| u8::from_str_radix(a, 16).ok();
     match h.len() {
         6 => Some(Cor::rgb(v(&h[0..2])?, v(&h[2..4])?, v(&h[4..6])?)),
@@ -464,6 +468,13 @@ fn data_hoje() -> String {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn cor_com_acento_nao_entra_em_panico() {
+        assert!(cor_css("#1é234").is_none());
+        assert!(cor_css("#aé").is_none());
+        assert!(cor_css("#ff8800").is_some());
+    }
 
     fn pasta(linhas: u32) -> Workbook {
         let mut wb = Workbook::new();

@@ -6,7 +6,7 @@ use iced::{mouse, widget::{canvas, text_input, tooltip}, Color, Point, Rectangle
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Pagina { Inicio, Recentes, Exportar, Comandos, Informacoes }
+pub enum Pagina { Inicio, Recentes, Exportar, Informacoes }
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -159,9 +159,6 @@ impl App {
                 self.menu_pagina == Pagina::Informacoes),
             self.menu_item(tr!("Opções"), "settings", Some(Msg::Configuracoes), false),
             self.menu_divisor(),
-            self.menu_item(tr!("Comandos"), "list-details",
-                Some(Msg::MenuPagina(Pagina::Comandos)),
-                self.menu_pagina == Pagina::Comandos),
             self.menu_item(tr!("Fechar"), "x", Some(Msg::FecharAplicativo), false),
         ].spacing(3).padding(11);
         container(scrollable(lista).height(Length::Fill))
@@ -233,12 +230,6 @@ impl App {
                 self.menu_lista_recentes(recents::MAX_RECENTES),
             ].spacing(12).into(),
             Pagina::Exportar => self.menu_exportar(),
-            Pagina::Comandos => iced::widget::column![
-                text(tr!("Comandos")).size(24),
-                text(tr!("Todas as ferramentas e submenus num lugar só."))
-                    .size(12).color(COR_TEXTO_MUTED()),
-                self.view_menu_typescript(),
-            ].spacing(12).into(),
             Pagina::Informacoes => iced::widget::column![
                 text(tr!("Informações")).size(24),
                 text(self.nome_documento()).size(17),
@@ -806,12 +797,14 @@ mod testes {
         assert!(app.menu_aberto);
         assert_eq!(app.menu_pagina, Pagina::Inicio);
         let _: Element<'_, Msg> = app.menu_conteudo();
-        app.update(Msg::MenuPagina(Pagina::Comandos));
-        let _: Element<'_, Msg> = app.menu_conteudo();
         assert_eq!(app.faixa_ativa, antes);
+        app.update(Msg::FecharMenu);
+        // Faixa recolhida: o menu clássico abre a lista sem abrir o menu principal.
+        app.update(Msg::MenuGrupo(1));
+        assert!(app.barra_menu_aberta && !app.menu_aberto);
+        let _: Element<'_, Msg> = app.painel_menu_classico();
         app.update(Msg::MenuVoltar);
-        assert_eq!(app.menu_pagina, Pagina::Inicio);
-        assert!(app.menu_aberto);
+        assert!(!app.barra_menu_aberta);
     }
 
     #[test]

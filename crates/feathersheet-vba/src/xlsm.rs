@@ -24,8 +24,9 @@ pub struct ProjetoVba {
 fn ler_parte(zip: &mut zip::ZipArchive<Cursor<&[u8]>>, nome: &str) -> Option<Vec<u8>> {
     let mut f = zip.by_name(nome).ok()?;
     let mut v = Vec::new();
-    f.read_to_end(&mut v).ok()?;
-    Some(v)
+    // Parte maior que o teto é tratada como ausente: o tamanho declarado no zip não é confiável.
+    f.take(ovba::LIMITE_DE_BYTES as u64 + 1).read_to_end(&mut v).ok()?;
+    (v.len() <= ovba::LIMITE_DE_BYTES).then_some(v)
 }
 
 /// Os atributos de um elemento como pares (nome local, valor).

@@ -353,6 +353,25 @@ impl<'r> Frame<'r> {
         }
         let tam = t.size.0;
         let medida = self.renderer.measure(&t.content, tam, t.font, None);
+        // O Iced alinha cada linha; o pelicano alinha o bloco. Centro/direita: uma linha por vez.
+        if t.horizontal_alignment != Align::Start && t.content.contains('\n') {
+            let n = t.content.split('\n').count() as f32;
+            let alto = self.renderer.measure("Ág", tam, t.font, None).height;
+            let topo = t.position.y - match t.vertical_alignment {
+                Align::Start => 0.0,
+                Align::Center => alto * n / 2.0,
+                Align::End => alto * n,
+            };
+            for (i, linha) in t.content.split('\n').enumerate() {
+                self.fill_text(Text {
+                    content: linha.to_owned(),
+                    position: Point::new(t.position.x, topo + i as f32 * alto),
+                    vertical_alignment: Align::Start,
+                    ..t.clone()
+                });
+            }
+            return;
+        }
         let dx = match t.horizontal_alignment {
             Align::Start => 0.0,
             Align::Center => -medida.width / 2.0,

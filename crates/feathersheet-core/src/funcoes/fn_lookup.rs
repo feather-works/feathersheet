@@ -2,9 +2,10 @@
 
 use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
-use crate::formula::evaluator::Evaluator;
+use crate::formula::evaluator::{broadcast_all, Evaluator};
+use crate::funcoes::fn_extra::posicao_xmatch;
 use crate::funcoes::fn_helpers::{arity, err_na, err_value, has, valores_iguais, LeitorFaixa};
-use crate::celulas::values::{compare, to_boolean, Computed, ErrorCode, Value};
+use crate::celulas::values::{compare, to_boolean, CellError, Computed, ErrorCode, Value};
 
 
 /// `=SE(teste; valor_se_verdadeiro; [valor_se_falso])` / `=IF(...)`
@@ -12,7 +13,19 @@ pub fn fn_if(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if let Some(err) = arity(args, 2, 3) {
         return Computed::Scalar(Value::Error(err));
     }
-    let cond_val = ev.eval(&args[0]);
+    let cond_val = match ev.eval_array(&args[0]) {
+        Computed::Scalar(v) => v,
+        // Teste em matriz (`SE(A1:A3>1;…)`): escolhe posição a posição. Só
+        // aqui os dois ramos são avaliados; com teste escalar fica preguiçoso.
+        matriz => {
+            let senao = if has(args, 2) { ev.eval_array(&args[2]) } else { Computed::Scalar(Value::Bool(false)) };
+            return broadcast_all(&[matriz, ev.eval_array(&args[1]), senao], |vs| match to_boolean(&vs[0]) {
+                Ok(true) => vs[1].clone(),
+                Ok(false) => vs[2].clone(),
+                Err(e) => Value::Error(e),
+            });
+        }
+    };
     let b = match to_boolean(&cond_val) {
         Ok(val) => val,
         Err(e) => return Computed::Scalar(Value::Error(e)),
@@ -111,33 +124,37 @@ pub fn fn_vlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::erro(ErrorCode::Ref));
     }
 
-    let exact_match = if has(args, 3) {
-        match to_boolean(&ev.eval(&args[3])) {
-            Ok(b) => !b,
-            Err(e) => return Computed::Scalar(Value::Error(e)),
-        }
-    } else {
-        true
+    let modo = match modo_procurar(args, 3, ev, &lookup_val) {
+        Ok(m) => m,
+        Err(e) => return Computed::Scalar(Value::Error(e)),
     };
-
     let target_col = rect.c0 + col_idx - 1;
-
-    for r in rect.r0..=rect.r1 {
-        let cell_val = ev.ctx.get_value(r, rect.c0, rect.sheet.as_deref());
-        if exact_match {
-            if cell_val == lookup_val {
-                let res = ev.ctx.get_value(r, target_col, rect.sheet.as_deref());
-                return Computed::Scalar(res);
-            }
-        } else {
-            if compare(&cell_val, &lookup_val) == Ok(std::cmp::Ordering::Equal) {
-                let res = ev.ctx.get_value(r, target_col, rect.sheet.as_deref());
-                return Computed::Scalar(res);
-            }
-        }
+    let n = (rect.r1 - rect.r0 + 1) as usize;
+    let aba = rect.sheet.as_deref();
+    match posicao_xmatch(n, |i| ev.ctx.get_value(rect.r0 + i as u32, rect.c0, aba), &lookup_val, modo, 1) {
+        Ok(i) => Computed::Scalar(ev.ctx.get_value(rect.r0 + i as u32, target_col, aba)),
+        Err(e) => Computed::Scalar(Value::Error(e)),
     }
+}
 
-    err_na()
+/// O `procurar_intervalo` de PROCV/PROCH (omitido = VERDADEIRO, aproximado,
+/// como no Excel) no `modo` do CORRESPX.
+fn modo_procurar(args: &[Node], i: usize, ev: &Evaluator<'_>, alvo: &Value) -> Result<i64, CellError> {
+    let aproximado = if has(args, i) { to_boolean(&ev.eval(&args[i]))? } else { true };
+    Ok(modo_corresp(if aproximado { 1 } else { 0 }, alvo))
+}
+
+/// Tipo de correspondência do CORRESP (1, 0, -1) no `modo` do CORRESPX: 1 é
+/// "igual ou o maior menor", -1 "igual ou o menor maior", e 0 exato, com
+/// curinga quando o texto tem `*` ou `?`. shortcut: varre tudo em vez da busca
+/// binária do Excel; com dados ordenados o resultado é o mesmo.
+fn modo_corresp(tipo: i64, alvo: &Value) -> i64 {
+    match tipo {
+        t if t > 0 => -1,
+        t if t < 0 => 1,
+        _ if matches!(alvo, Value::Text(t) if t.contains('*') || t.contains('?')) => 2,
+        _ => 0,
+    }
 }
 
 /// `=PROCH(valor_procurado; matriz_tabela; num_indice_linha; [procurar_intervalo])` / `=HLOOKUP(...)`
@@ -164,33 +181,17 @@ pub fn fn_hlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::erro(ErrorCode::Ref));
     }
 
-    let exact_match = if has(args, 3) {
-        match to_boolean(&ev.eval(&args[3])) {
-            Ok(b) => !b,
-            Err(e) => return Computed::Scalar(Value::Error(e)),
-        }
-    } else {
-        true
+    let modo = match modo_procurar(args, 3, ev, &lookup_val) {
+        Ok(m) => m,
+        Err(e) => return Computed::Scalar(Value::Error(e)),
     };
-
     let target_row = rect.r0 + row_idx - 1;
-
-    for c in rect.c0..=rect.c1 {
-        let cell_val = ev.ctx.get_value(rect.r0, c, rect.sheet.as_deref());
-        if exact_match {
-            if cell_val == lookup_val {
-                let res = ev.ctx.get_value(target_row, c, rect.sheet.as_deref());
-                return Computed::Scalar(res);
-            }
-        } else {
-            if compare(&cell_val, &lookup_val) == Ok(std::cmp::Ordering::Equal) {
-                let res = ev.ctx.get_value(target_row, c, rect.sheet.as_deref());
-                return Computed::Scalar(res);
-            }
-        }
+    let n = (rect.c1 - rect.c0 + 1) as usize;
+    let aba = rect.sheet.as_deref();
+    match posicao_xmatch(n, |i| ev.ctx.get_value(rect.r0, rect.c0 + i as u32, aba), &lookup_val, modo, 1) {
+        Ok(i) => Computed::Scalar(ev.ctx.get_value(target_row, rect.c0 + i as u32, aba)),
+        Err(e) => Computed::Scalar(Value::Error(e)),
     }
-
-    err_na()
 }
 
 /// `=CORRESP(valor_procurado; matriz_procurada; [tipo_corresp])` / `=MATCH(...)`
@@ -203,46 +204,41 @@ pub fn fn_match(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::Error(e));
     }
 
-    let rect = match node_rect(&args[1], ev) {
-        Some(r) => r,
-        None => return err_value(),
-    };
-
     let match_type = if has(args, 2) {
         match ev.number(&args[2]) {
-            Ok(n) => n.trunc() as i32,
+            Ok(n) => n.trunc() as i64,
             Err(e) => return Computed::Scalar(Value::Error(e)),
         }
     } else {
         1
     };
+    let modo = modo_corresp(match_type, &lookup_val);
 
-    let is_row_vector = rect.r0 == rect.r1;
-    let count = if is_row_vector {
-        rect.c1 - rect.c0 + 1
-    } else {
-        rect.r1 - rect.r0 + 1
-    };
-
-    for idx in 0..count {
-        let (r, c) = if is_row_vector {
-            (rect.r0, rect.c0 + idx)
-        } else {
-            (rect.r0 + idx, rect.c0)
-        };
-        let val = ev.ctx.get_value(r, c, rect.sheet.as_deref());
-        if match_type == 0 {
-            if val == lookup_val {
-                return Computed::Scalar(Value::Number((idx + 1) as f64));
-            }
-        } else {
-            if compare(&val, &lookup_val) == Ok(std::cmp::Ordering::Equal) {
-                return Computed::Scalar(Value::Number((idx + 1) as f64));
-            }
+    // Intervalo: lê célula a célula, sem copiar; matriz (`{1;2;3}`) vem inteira.
+    let achado = if let Some(rect) = node_rect(&args[1], ev) {
+        let (linha, aba) = (rect.r0 == rect.r1, rect.sheet.as_deref());
+        if !linha && rect.c0 != rect.c1 {
+            return err_na();
         }
+        let n = if linha { rect.c1 - rect.c0 + 1 } else { rect.r1 - rect.r0 + 1 } as usize;
+        posicao_xmatch(n, |i| {
+            let i = i as u32;
+            if linha { ev.ctx.get_value(rect.r0, rect.c0 + i, aba) } else { ev.ctx.get_value(rect.r0 + i, rect.c0, aba) }
+        }, &lookup_val, modo, 1)
+    } else {
+        match ev.matrix_arg(&args[1]) {
+            Ok(m) if m.rows().len() > 1 && m.rows().first().map_or(0, Vec::len) > 1 => return err_na(),
+            Ok(m) => {
+                let itens: Vec<Value> = m.rows().iter().flatten().cloned().collect();
+                posicao_xmatch(itens.len(), |i| itens[i].clone(), &lookup_val, modo, 1)
+            }
+            Err(e) => Err(e),
+        }
+    };
+    match achado {
+        Ok(i) => Computed::Scalar(Value::Number((i + 1) as f64)),
+        Err(e) => Computed::Scalar(Value::Error(e)),
     }
-
-    err_na()
 }
 
 /// `=ÍNDICE(matriz; num_linha; [num_coluna])` / `=INDEX(...)`
@@ -411,5 +407,40 @@ pub fn fn_xlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         ev.eval_array(&args[3])
     } else {
         err_na()
+    }
+}
+
+#[cfg(test)]
+mod testes {
+    use crate::celulas::values::{ErrorCode, Value};
+    use crate::funcoes::fn_helpers::apoio_teste::*;
+
+    fn n(x: f64) -> Value {
+        Value::Number(x)
+    }
+    fn t(s: &str) -> Value {
+        Value::Text(s.into())
+    }
+
+    #[test]
+    fn procv_e_corresp_aproximados_curinga_e_maiuscula() {
+        let cel = [("A1", n(0.0)), ("A2", n(100.0)), ("A3", n(500.0)),
+            ("B1", t("x")), ("B2", t("y")), ("B3", t("z")), ("D1", t("ABC")), ("D2", t("ABD"))];
+        is_text(calc_cel(&cel, "PROCV(250;A1:B3;2;VERDADEIRO)"), "y");
+        is_text(calc_cel(&cel, "PROCV(250;A1:B3;2)"), "y");
+        is_err(calc_cel(&cel, "PROCV(250;A1:B3;2;FALSO)"), ErrorCode::Na);
+        let lin = [("A1", n(0.0)), ("B1", n(100.0)), ("C1", n(500.0)), ("B2", t("y"))];
+        is_text(calc_cel(&lin, "PROCH(250;A1:C2;2)"), "y");
+        close(calc_cel(&cel, "CORRESP(250;A1:A3)"), 2.0);
+        close(calc_cel(&cel, "CORRESP(\"abc\";D1:D2;0)"), 1.0);
+        close(calc_cel(&cel, "CORRESP(\"AB?\";D1:D2;0)"), 1.0);
+        close(calc_cel(&cel, "CORRESP(250;{0;100;500})"), 2.0);
+        close(calc_cel(&[("A1", t("ABC")), ("B1", n(7.0))], "PROCV(\"ab*\";A1:B1;2;0)"), 7.0);
+    }
+
+    #[test]
+    fn se_com_teste_em_matriz_escolhe_por_posicao() {
+        close(calc_cel(&[("A3", n(1.0)), ("A4", n(2.0))], "SOMA(SE(A3:A4>1;1;0))"), 1.0);
+        assert_eq!(calc_matriz("SE({1;2;3}>1;1;0)"), vec![vec![n(0.0)], vec![n(1.0)], vec![n(1.0)]]);
     }
 }

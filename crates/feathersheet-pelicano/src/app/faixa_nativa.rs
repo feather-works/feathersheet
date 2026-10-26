@@ -423,8 +423,9 @@ impl App {
     pub(super) fn faixa_com_seta<'a>(&'a self, botao: Element<'a, Msg>, tipo: &'static str) -> Element<'a, Msg> {
         column![
             botao,
+            // Sem `.width(FILL)`: no pelicano o filho que enche estica a coluna `Shrink`
+            // até a largura da faixa (o Iced limitava à largura do botão de cima).
             button(feather_ui::icones::icone("chevron-down", 12.))
-                .width(Length::FILL)
                 .padding([1, 8])
                 .style(estilo_botao_pequeno(self.edicao_menu == Some(tipo)))
                 .on_press(Msg::AlternarMenuEdicao(tipo)),
@@ -442,8 +443,9 @@ impl App {
                 .padding([5, 8])
                 .style(estilo_botao_grande(mesclada))
                 .on_press(Msg::Mesclar),
+            // Sem `.width(FILL)`: no pelicano o filho que enche estica a coluna `Shrink`
+            // até a largura da faixa (o Iced limitava à largura do botão de cima).
             button(feather_ui::icones::icone("chevron-down", 12.))
-                .width(Length::FILL)
                 .padding([1, 8])
                 .style(estilo_botao_pequeno(self.edicao_menu == Some("mesclar")))
                 .on_press(Msg::AlternarMenuEdicao("mesclar")),
@@ -862,9 +864,7 @@ mod testes {
         let mut app = App::default();
         app.faixa_ativa = AbaFaixa::Dados;
         let _: Element<'_, Msg> = app.view_faixa();
-        assert!(!app.divisao_menu_aberto);
         app.update(Msg::AbrirAssistenteDivisao);
-        assert!(!app.divisao_menu_aberto);
         assert_eq!(app.assistente_divisao.as_ref().map(|e|e.etapa),Some(1));
     }
 

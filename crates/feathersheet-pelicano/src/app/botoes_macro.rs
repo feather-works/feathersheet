@@ -262,7 +262,7 @@ impl App {
     }
 
     pub(super) fn executar_botao_macro(&mut self, id: String) {
-        if !self.confirmar() { return; }
+        if !self.confirmar() || !self.macros_liberadas() { return; }
         let Some(aba) = self.workbook.aba(self.folha) else { return };
         let lista = match listar(&aba.sheet) {
             Ok(lista) => lista,

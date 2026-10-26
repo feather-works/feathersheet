@@ -460,52 +460,52 @@ pub fn fn_xmatch(args: &[Node], ev: &Evaluator<'_>) -> Computed {
             if !(-1..=2).contains(&modo) || !matches!(pesquisa, -2 | -1 | 1 | 2) {
                 return Err(e_valor());
             }
-            let ordem: Vec<usize> = if pesquisa < 0 {
-                (0..itens.len()).rev().collect()
-            } else {
-                (0..itens.len()).collect()
-            };
-            let curinga = match (&alvo, modo) {
-                (Value::Text(t), 2) if t.contains('*') || t.contains('?') => Some(make_predicate(&alvo)),
-                _ => None,
-            };
-            let mut melhor: Option<usize> = None;
-            for &i in &ordem {
-                let v = &itens[i];
-                if !mesmo_tipo(v, &alvo) {
-                    continue;
-                }
-                let c = match compare(v, &alvo) {
-                    Ok(c) => c,
-                    Err(_) => continue,
-                };
-                if c.is_eq() || curinga.as_ref().is_some_and(|p| p(v)) {
-                    return numero((i + 1) as f64);
-                }
-                let candidato = match modo {
-                    -1 => c.is_lt(),
-                    1 => c.is_gt(),
-                    _ => false,
-                };
-                if candidato {
-                    let melhor_atual = melhor.map(|m| &itens[m]);
-                    let troca = match melhor_atual {
-                        None => true,
-                        Some(m) => {
-                            let o = compare(v, m).unwrap_or(std::cmp::Ordering::Equal);
-                            if modo == -1 { o.is_gt() } else { o.is_lt() }
-                        }
-                    };
-                    if troca {
-                        melhor = Some(i);
-                    }
-                }
-            }
-            match melhor {
-                Some(i) => numero((i + 1) as f64),
-                None => Err(e_nd()),
-            }
+            numero((posicao_xmatch(itens.len(), |i| itens[i].clone(), &alvo, modo, pesquisa)? + 1) as f64)
     })
+}
+
+/// O miolo do `CORRESPX`: a posição (a partir de 0) de `alvo` em `itens`.
+/// Também usado por CORRESP, PROCV e PROCH (`fn_lookup.rs`), que só traduzem
+/// o tipo de correspondência para o `modo` daqui. `item(i)` lê o i-ésimo
+/// valor, para o PROCV não montar a coluna inteira num vetor a cada chamada.
+pub(crate) fn posicao_xmatch(n: usize, item: impl Fn(usize) -> Value, alvo: &Value, modo: i64, pesquisa: i64) -> Res<usize> {
+    let ordem: Box<dyn Iterator<Item = usize>> = if pesquisa < 0 { Box::new((0..n).rev()) } else { Box::new(0..n) };
+    let curinga = match (alvo, modo) {
+        (Value::Text(t), 2) if t.contains('*') || t.contains('?') => Some(make_predicate(alvo)),
+        _ => None,
+    };
+    let mut melhor: Option<usize> = None;
+    for i in ordem {
+        let v = &item(i);
+        if !mesmo_tipo(v, alvo) {
+            continue;
+        }
+        let c = match compare(v, alvo) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        if c.is_eq() || curinga.as_ref().is_some_and(|p| p(v)) {
+            return Ok(i);
+        }
+        let candidato = match modo {
+            -1 => c.is_lt(),
+            1 => c.is_gt(),
+            _ => false,
+        };
+        if candidato {
+            let troca = match melhor.map(&item) {
+                None => true,
+                Some(m) => {
+                    let o = compare(v, &m).unwrap_or(std::cmp::Ordering::Equal);
+                    if modo == -1 { o.is_gt() } else { o.is_lt() }
+                }
+            };
+            if troca {
+                melhor = Some(i);
+            }
+        }
+    }
+    melhor.ok_or_else(e_nd)
 }
 
 /// `=ENDEREÇO(lin; col; [abs]; [a1]; [planilha])` / `=ADDRESS(row_num, column_num, [abs_num], [a1], [sheet_text])`

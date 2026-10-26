@@ -514,10 +514,8 @@ fn modelo_orcamento_domestico_preenche_pasta_pelo_motor_real() {
         {
             // O Element toma empréstimo imutável do App. Soltar antes de
             // disparar as mutações do teste evita manter borrow ativo.
-            let _menu: Element<'_, Msg> = app.view_menu_typescript();
+            let _menu: Element<'_, Msg> = app.barra_menu_classico();
         }
-        app.update(Msg::Menu);
-        assert!(app.menu_aberto);
         let ver = catalogo.menus.iter().position(|m| m.titulo == "Ver").unwrap();
         app.update(Msg::MenuGrupo(ver));
         let mostrar = menu_nativo::itens(ver, &[]).unwrap()
@@ -530,7 +528,7 @@ fn modelo_orcamento_domestico_preenche_pasta_pelo_motor_real() {
         app.update(Msg::MenuVoltar);
         assert!(app.menu_caminho.is_empty());
         app.update(Msg::FecharMenu);
-        assert!(!app.menu_aberto);
+        assert!(!app.barra_menu_aberta);
     }
 
     #[test]

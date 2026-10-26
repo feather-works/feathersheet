@@ -142,7 +142,7 @@ impl Grade<'_> {
     /// A roda do mouse usa a origem real e salta as faixas ocultas.
     /// Sem isso, cada giro avançava três índices lógicos, mesmo que um
     /// milhão de linhas seguidas estivesse invisível (altura zero).
-    pub(super) fn origem_apos_rolar(&self, altura_canvas: f32, delta: i32) -> u32 {
+    pub(crate) fn origem_apos_rolar(&self, altura_canvas: f32, delta: i32) -> u32 {
         let inferior = self.limite_inferior_rolagem(altura_canvas)
             .max(self.congelar_linhas);
         let partida = self.linha_inicio.max(self.congelar_linhas).min(inferior);

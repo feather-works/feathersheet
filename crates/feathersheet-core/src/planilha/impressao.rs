@@ -17,6 +17,15 @@ pub enum Papel {
     Carta,
     /// Ofício, também chamado Legal.
     Oficio,
+    A3,
+    A5,
+    /// B4 e B5 na medida JIS, a do Excel.
+    B4,
+    B5,
+    /// Executive (7,25 × 10,5 pol.).
+    Executivo,
+    /// Tabloid (11 × 17 pol.).
+    Tabloide,
 }
 
 impl Papel {
@@ -26,6 +35,12 @@ impl Papel {
             Papel::A4 => (595.28, 841.89),
             Papel::Carta => (612.0, 792.0),
             Papel::Oficio => (612.0, 1008.0),
+            Papel::A3 => (841.89, 1190.55),
+            Papel::A5 => (419.53, 595.28),
+            Papel::B4 => (257.0 * PT_POR_MM, 364.0 * PT_POR_MM),
+            Papel::B5 => (182.0 * PT_POR_MM, 257.0 * PT_POR_MM),
+            Papel::Executivo => (522.0, 756.0),
+            Papel::Tabloide => (792.0, 1224.0),
         }
     }
 }
@@ -183,6 +198,10 @@ mod testes {
         assert_eq!(Papel::A4.tamanho_pt(), (595.28, 841.89));
         assert_eq!(Papel::Carta.tamanho_pt(), (612.0, 792.0));
         assert_eq!(Papel::Oficio.tamanho_pt(), (612.0, 1008.0));
+        // A3 é o dobro do A4 deitado; A5, a metade.
+        assert_eq!(Papel::A3.tamanho_pt().0, Papel::A4.tamanho_pt().1);
+        assert_eq!(Papel::A5.tamanho_pt().1, Papel::A4.tamanho_pt().0);
+        assert!((Papel::B5.tamanho_pt().0 - 515.91).abs() < 0.01);
     }
 
     #[test]

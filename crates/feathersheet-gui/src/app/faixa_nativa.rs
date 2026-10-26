@@ -862,9 +862,7 @@ mod testes {
         let mut app = App::default();
         app.faixa_ativa = AbaFaixa::Dados;
         let _: Element<'_, Msg> = app.view_faixa();
-        assert!(!app.divisao_menu_aberto);
         app.update(Msg::AbrirAssistenteDivisao);
-        assert!(!app.divisao_menu_aberto);
         assert_eq!(app.assistente_divisao.as_ref().map(|e|e.etapa),Some(1));
     }
 

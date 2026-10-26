@@ -91,17 +91,28 @@ fn pedidos_de_arquivo_ficam_anotados_com_caminho_resolvido() {
     let ctx = Contexto { arquivo: Some("/tmp/proj/Planilha.xlsm".into()), ..Default::default() };
     let r = executar_com(&mut wb, 0, r#"
         sheet.exportPdf("saida\\01-FORMULARIO");
-        wb.sheet("Dados").exportPdf("/tmp/fora/a.PDF");
+        wb.sheet("Dados").exportPdf("/tmp/proj/fora/../saida/./a.PDF");
         wb.saveSheetsAs(["dados", null, 1, "Dados"], wb.path + "\\09-UNIDADES.xlsx");
         wb.sheet("Dados").saveAs("copia.fshz");
     "#, ctx);
     assert!(r.erro.is_none(), "{:?}", r.erro);
     assert_eq!(r.arquivos, vec![
         PedidoArquivo::Pdf { aba: ids[0], caminho: "/tmp/proj/saida/01-FORMULARIO.pdf".into() },
-        PedidoArquivo::Pdf { aba: ids[1], caminho: "/tmp/fora/a.PDF".into() },
+        PedidoArquivo::Pdf { aba: ids[1], caminho: "/tmp/proj/saida/a.PDF".into() },
         PedidoArquivo::Abas { abas: vec![ids[1], ids[0]], caminho: "/tmp/proj/09-UNIDADES.xlsx".into() },
         PedidoArquivo::Abas { abas: vec![ids[1]], caminho: "/tmp/proj/copia.fshz".into() },
     ]);
+}
+
+#[test]
+fn pedido_de_arquivo_fora_da_pasta_do_documento_e_recusado() {
+    let mut wb = pasta_com_dados();
+    let ctx = || Contexto { arquivo: Some("/tmp/proj/P.xlsm".into()), ..Default::default() };
+    for alvo in ["/tmp/fora/a.pdf", "/home/x/.bashrc.pdf", "../a.pdf", "saida/../../a.pdf", "..\\a.pdf", "/tmp/proj"] {
+        let r = executar_com(&mut wb, 0, &format!("sheet.exportPdf({alvo:?});"), ctx());
+        assert!(r.erro.as_deref().is_some_and(|e| e.contains("só grava dentro")), "{alvo}: {:?}", r.erro);
+        assert!(r.arquivos.is_empty());
+    }
 }
 
 #[test]

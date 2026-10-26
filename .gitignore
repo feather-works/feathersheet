@@ -18,3 +18,6 @@ __pycache__/
 
 # Instaladores gerados por pacote/gerar.sh
 pacote/saida/
+
+# Trava do LibreOffice com um arquivo aberto
+.~lock.*#

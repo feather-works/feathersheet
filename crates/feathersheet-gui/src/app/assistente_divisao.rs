@@ -303,7 +303,6 @@ fn endereco(s:&str)->Option<(u32,u32)> {
 impl App {
     pub(super) fn abrir_assistente_divisao(&mut self)->Task<Msg> {
         self.confirmar();
-        self.divisao_menu_aberto=false;
         if self.janelas.aberta(Auxiliar::DividirTexto) {return Task::none();}
         self.assistente_divisao=Some(Estado::novo(self));
         self.alternar(Auxiliar::DividirTexto)

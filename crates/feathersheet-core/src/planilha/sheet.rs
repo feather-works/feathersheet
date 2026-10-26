@@ -1571,6 +1571,16 @@ impl Sheet {
         out
     }
 
+    /// `externas` anda junto com `cells` ao inserir/excluir linha ou coluna
+    /// (`None` = a célula foi excluída); senão a fórmula que lê nome ou outra
+    /// aba deixa de ser avisada quando a fonte muda.
+    fn reposicionar_externas(&mut self, nova: impl Fn(u32, u32) -> Option<(u32, u32)>) {
+        self.externas = std::mem::take(&mut self.externas).into_iter().filter_map(|k| {
+            let (r, c) = Self::key_to_coord(k);
+            nova(r, c).map(|(r, c)| Self::cell_key(r, c))
+        }).collect();
+    }
+
     pub fn insert_rows(&mut self, at: u32, count: u32) {
         self.rastro.borrow_mut().desconhecer();
         if count == 0 {
@@ -1587,6 +1597,7 @@ impl Sheet {
             }
         }
         self.cells = next_cells;
+        self.reposicionar_externas(|r, c| Some((if r >= at { r + count } else { r }, c)));
         // As âncoras andaram com o grafo; as áreas derramadas recalculam.
         self.descartar_derramamentos();
 
@@ -1643,6 +1654,7 @@ impl Sheet {
             }
         }
         self.cells = next_cells;
+        self.reposicionar_externas(|r, c| (r < at || r >= end).then(|| (if r >= end { r - count } else { r }, c)));
         // As âncoras andaram com o grafo; as áreas derramadas recalculam.
         self.descartar_derramamentos();
 
@@ -1698,6 +1710,7 @@ impl Sheet {
             }
         }
         self.cells = next_cells;
+        self.reposicionar_externas(|r, c| Some((r, if c >= at { c + count } else { c })));
         // As âncoras andaram com o grafo; as áreas derramadas recalculam.
         self.descartar_derramamentos();
 
@@ -1750,6 +1763,7 @@ impl Sheet {
             }
         }
         self.cells = next_cells;
+        self.reposicionar_externas(|r, c| (c < at || c >= end).then(|| (r, if c >= end { c - count } else { c })));
         // As âncoras andaram com o grafo; as áreas derramadas recalculam.
         self.descartar_derramamentos();
 
@@ -1970,11 +1984,22 @@ impl<'a> SheetCtx<'a> {
             Some(n) => self.host.and_then(|h| h.aba(n)),
         }
     }
+
+    /// O `alvo`, com as matrizes da outra aba já derramadas: a leitura de
+    /// fora (profundidade 0) só garante as âncoras da própria aba, e
+    /// `Dados!A2` coberta por `SEQUÊNCIA` em `Dados!A1` saía vazia.
+    fn alvo_derramado(&self, nome: Option<&str>) -> Option<&'a Sheet> {
+        let aba = self.alvo(nome)?;
+        if !std::ptr::eq(aba, self.sheet) && !aba.deps.array_cells.is_empty() {
+            aba.garantir_derramamentos_frio(self.host);
+        }
+        Some(aba)
+    }
 }
 
 impl<'a> EvalContext for SheetCtx<'a> {
     fn get_value(&self, row: u32, col: u32, sheet: Option<&str>) -> Value {
-        match self.alvo(sheet) {
+        match self.alvo_derramado(sheet) {
             Some(aba) => aba.get_value_em(row, col, self.host),
             None => Value::Error(CellError::com_motivo(
                 ErrorCode::Ref,
@@ -1984,7 +2009,7 @@ impl<'a> EvalContext for SheetCtx<'a> {
     }
 
     fn for_each_in_range(&self, rect: &Rect, visit: &mut dyn FnMut(&Value, u32, u32)) {
-        let Some(aba) = self.alvo(rect.sheet.as_deref()) else {
+        let Some(aba) = self.alvo_derramado(rect.sheet.as_deref()) else {
             return;
         };
         if !std::ptr::eq(aba, self.sheet) {

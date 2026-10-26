@@ -204,7 +204,6 @@ impl App {
                     _ => return Task::none(),
                 };
                 self.divisao_personalizada = false;
-                self.divisao_menu_aberto = false;
                 self.dividir_texto(separador);
                 Task::none()
             }

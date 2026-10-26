@@ -705,8 +705,7 @@ impl App {
             Msg::MenuGrupo(i) => {
                 self.contexto = None;
                 if i < menu_nativo::catalogo().menus.len() {
-                    self.menu_aberto = true;
-                    self.menu_pagina = menu_principal::Pagina::Comandos;
+                    self.barra_menu_aberta = true;
                     self.menu_grupo = i;
                     self.menu_caminho.clear();
                     self.menu_cursor = 0;
@@ -715,7 +714,7 @@ impl App {
             }
             Msg::MenuVoltar => {
                 if self.menu_caminho.pop().is_none() {
-                    self.menu_pagina = menu_principal::Pagina::Inicio;
+                    self.barra_menu_aberta = false;
                 }
                 self.menu_cursor = 0;
                 Task::none()
@@ -743,7 +742,7 @@ impl App {
                         self.menu_caminho.push(i);
                         self.menu_cursor = 0;
                     } else if let Some(msg) = item.acao.as_ref().and_then(|a| self.evento_menu(a)) {
-                        self.menu_aberto = false;
+                        self.barra_menu_aberta = false;
                         self.menu_caminho.clear();
                         return self.update(msg);
                     }
@@ -873,7 +872,10 @@ impl App {
                 }
                 if let Some(evento) = acao { self.update(evento) } else { Task::none() }
             }
-            Msg::FecharMenu => { self.menu_aberto = false; self.menu_caminho.clear(); Task::none() }
+            Msg::FecharMenu => {
+                (self.menu_aberto, self.barra_menu_aberta) = (false, false);
+                self.menu_caminho.clear(); Task::none()
+            }
             Msg::JanelaRedimensionada(id, size) => {
                 if self.janelas.principal == Some(id) { self.tamanho_principal = size; }
                 // O código das macros usa o tamanho da janela para a largura mínima.
@@ -890,7 +892,6 @@ impl App {
                     self.colar_menu_aberto=false;
                     self.orientacao_menu_aberto=false;
                     self.bordas_menu_aberto=false;
-                    self.divisao_menu_aberto=false;
                     self.condicional_menu_aberto=false;
                     self.tabelas_menu_aberto=false;
                     self.estilos_menu_aberto=false;
@@ -907,7 +908,6 @@ impl App {
                 if self.faixa_extras_aberto {
                     self.menu_aberto = false;
                     self.colar_menu_aberto = false;
-                    self.divisao_menu_aberto = false;
                     self.bordas_menu_aberto = false;
                     self.condicional_menu_aberto = false;
                     self.contexto = None;
@@ -926,7 +926,6 @@ impl App {
                 self.menu_aberto = false;
                 self.orientacao_menu_aberto = false;
                 self.colar_menu_aberto = false;
-                self.divisao_menu_aberto = false;
                 self.divisao_personalizada = false;
                 self.bordas_menu_aberto = false;
                 self.tabelas_menu_aberto = false;
@@ -959,6 +958,12 @@ impl App {
             Msg::Novidades(evento) => self.evento_novidades(evento),
             Msg::FaixaSalvamentoFechar => { self.faixa_salvamento = None; Task::none() }
             Msg::AvisoXlsxFechar => { self.aviso_xlsx = None; Task::none() }
+            Msg::AvisoMacrosFechar => { self.aviso_macros = false; Task::none() }
+            Msg::AtivarMacros => {
+                (self.macros_bloqueadas, self.aviso_macros) = (false, false);
+                self.status = tr!("Macros ativadas neste arquivo.").into();
+                Task::none()
+            }
             Msg::ProgressoPulso => { progresso_abertura::animar(); Task::none() },
             Msg::ResumoPulso => {
                 self.avancar_resumo();
@@ -1180,10 +1185,11 @@ impl App {
                             return self.preparar_captura_busca_macros();
                         }
                         // FEATHERSHEET_CAPTURAR_JANELA=primeiros:<passo 1–5>, novidades[:<versão 1–3>],
-                        // monitor (F12), config:<seção 1–7> ou formatar:<aba 1–6> (Formatar células).
+                        // monitor (F12), config:<seção 1–7>, formatar:<aba 1–6> (Formatar células) ou impressao.
                         if let Ok(janela) = std::env::var("FEATHERSHEET_CAPTURAR_JANELA") {
                             let (nome, numero) = janela.split_once(':').map_or((janela.as_str(), 1), |(n, i)| (n, i.parse().unwrap_or(1)));
                             match nome {
+                                "impressao" => return self.update(Msg::Impressao(impressao_ui::Evento::Abrir)),
                                 // Faixa "sem salvamento automático" (1 = .parquet, 2 = pasta grande).
                                 "faixa_salvamento" => {
                                     self.origem = Some(PathBuf::from("dados.parquet"));
@@ -1272,6 +1278,7 @@ impl App {
                                 Ok(j) if j.starts_with("primeiros") => self.janelas.id(Auxiliar::PrimeirosPassos),
                                 Ok(j) if j.starts_with("novidades") => self.janelas.id(Auxiliar::Novidades),
                                 Ok("monitor") => self.janelas.id(Auxiliar::Monitor),
+                                Ok("impressao") => self.janelas.id(Auxiliar::Imprimir),
                                 Ok(j) if j.starts_with("config") => self.janelas.id(Auxiliar::Configuracoes),
                                 Ok("pastas_macros") => self.janelas.id(Auxiliar::Macros),
                                 Ok(j) if j.starts_with("formatar") => self.janelas.id(Auxiliar::FormatarCelulas),
@@ -1470,6 +1477,7 @@ impl App {
                 Task::none()
             }
             Msg::Faixa => { self.config.faixa_recolhida = !self.config.faixa_recolhida;
+                self.barra_menu_aberta = false;
                 self.config.gravar(); Task::none() }
             Msg::SecaoConfig(c) => {
                 self.config_secao = c.min(configuracoes_ui::SECAO_SOBRE);
