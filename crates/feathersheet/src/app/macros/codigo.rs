@@ -104,38 +104,7 @@ pub enum EventoCodigo {
 
 // ---------------------------------------------------------------- funções puras
 
-/// Funções declaradas num módulo: (nome, linha a partir de 0). Reconhece
-/// `function f(`, `async function f(`, `const f = (…) =>`, `let f = function`.
-pub(in crate::app) fn funcoes_do_modulo(codigo: &str) -> Vec<(String, usize)> {
-    let mut saida = Vec::new();
-    for (i, linha) in codigo.lines().enumerate() {
-        let mut t = linha.trim_start();
-        for prefixo in ["export ", "async "] {
-            t = t.strip_prefix(prefixo).map(str::trim_start).unwrap_or(t);
-        }
-        let identificador = |s: &str| -> String {
-            s.chars().take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$').collect()
-        };
-        if let Some(resto) = t.strip_prefix("function") {
-            let nome = identificador(resto.trim_start_matches('*').trim_start());
-            if !nome.is_empty() { saida.push((nome, i)); }
-            continue;
-        }
-        for decl in ["const ", "let ", "var "] {
-            let Some(resto) = t.strip_prefix(decl) else { continue };
-            let nome = identificador(resto.trim_start());
-            let depois = resto.trim_start()[nome.len()..].trim_start();
-            let Some(valor) = depois.strip_prefix('=').filter(|v| !v.starts_with('=')) else { break };
-            let valor = valor.trim_start();
-            if !nome.is_empty() && (valor.starts_with("function") || valor.starts_with("async")
-                || valor.contains("=>")) {
-                saida.push((nome, i));
-            }
-            break;
-        }
-    }
-    saida
-}
+pub(in crate::app) use feathersheet_macros::procedimentos::funcoes_do_modulo;
 
 /// Um módulo na busca do Explorador, com as funções que bateram.
 #[derive(Debug, Clone, PartialEq)]

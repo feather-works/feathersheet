@@ -65,7 +65,9 @@ pub fn macro_(h: &mut dyn Hospede, args: &Json) -> Saida {
         "executar" => {
             let codigo = match (args.get("codigo").and_then(Json::as_str), nome) {
                 (Some(c), _) => c.to_string(),
-                (None, Some(n)) => catalogo.obter(n).map(|m| m.code.clone()).ok_or_else(|| format!("Não existe a macro \"{n}\"."))?,
+                // `Módulo.função` chama só aquela função do módulo.
+                (None, Some(n)) => feathersheet_macros::procedimentos::codigo_da_macro(&catalogo, n).map(|(_, c)| c)
+                    .ok_or_else(|| format!("Não existe a macro \"{n}\"."))?,
                 _ => return Err("Informe `nome` (macro guardada) ou `codigo`.".into()),
             };
             let aba = aba_do_arg(h, args)?;

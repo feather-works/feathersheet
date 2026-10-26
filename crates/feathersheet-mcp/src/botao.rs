@@ -33,7 +33,7 @@ fn descrever(v: &Json) -> String {
 fn conferir_macro(h: &dyn Hospede, nome: &str) -> Result<(), String> {
     let existe = h.pasta().macros.as_deref()
         .map(feather_macros::Catalogo::importar_json).transpose()?
-        .is_some_and(|c| c.obter(nome).is_some());
+        .is_some_and(|c| feathersheet_macros::procedimentos::codigo_da_macro(&c, nome).is_some());
     if existe { Ok(()) } else { Err(format!("Não existe a macro \"{nome}\": crie antes com sheet_macro acao escrever.")) }
 }
 

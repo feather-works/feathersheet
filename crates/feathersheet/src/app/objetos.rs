@@ -1043,11 +1043,10 @@ impl App {
         let Some(o) = lidos.obter(id) else { return };
         let Some(nome) = o.macro_nome.clone() else { return };
         let rotulo = trf!("forma {}", geometria::nome(&o.forma));
-        let Some(macro_atual) = self.macro_catalogo.obter(&nome) else {
+        let Some((nome, codigo)) = feathersheet_macros::procedimentos::codigo_da_macro(&self.macro_catalogo, &nome) else {
             self.status = trf!("Macro \"{nome}\" não encontrada na biblioteca.");
             return;
         };
-        let (codigo, nome) = (macro_atual.code.clone(), macro_atual.name.clone());
         let Some(resultado) = self.rodar_macro(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo, Vec::new()) else { return };
         self.macro_saida = resultado.saida.join("\n");
         self.status = if let Some(erro) = resultado.erro {

@@ -1,5 +1,6 @@
 //! Interpretador Rust para as macros JavaScript do documento.
 pub mod enderecos;
+pub mod procedimentos;
 mod operacoes_valores;
 mod funcoes_criterio;
 mod funcoes_busca;

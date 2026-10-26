@@ -33,7 +33,7 @@ pub fn formulario(h: &mut dyn Hospede, args: &Json) -> Saida {
             let nome = f.nome.clone();
             // A macro de cada botão precisa existir, senão o clique só daria erro.
             let catalogo = h.pasta().macros.as_deref().map(feather_macros::Catalogo::importar_json).transpose()?.unwrap_or_default();
-            if let Some(m) = f.controles.iter().filter_map(|c| c.macro_nome.as_deref()).find(|m| catalogo.obter(m).is_none()) {
+            if let Some(m) = f.controles.iter().filter_map(|c| c.macro_nome.as_deref()).find(|m| feathersheet_macros::procedimentos::codigo_da_macro(&catalogo, m).is_none()) {
                 return Err(format!("Não existe a macro \"{m}\": crie antes com sheet_macro acao escrever."));
             }
             match lista.iter_mut().find(|g| g.nome.trim().eq_ignore_ascii_case(nome.trim())) {

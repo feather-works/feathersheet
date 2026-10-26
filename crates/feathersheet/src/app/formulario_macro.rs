@@ -287,11 +287,10 @@ impl App {
         let Some(aberto) = self.formulario_macro.as_ref() else { return false };
         let Some(c) = aberto.form.controles.get(i) else { return false };
         let Some(nome) = c.macro_nome.as_deref().filter(|n| !n.trim().is_empty()) else { return true };
-        let Some(m) = self.macro_catalogo.obter(nome) else {
+        let Some((nome, codigo)) = feathersheet_macros::procedimentos::codigo_da_macro(&self.macro_catalogo, nome) else {
             self.status = trf!("Macro \"{nome}\" não encontrada na biblioteca.");
             return false;
         };
-        let (codigo, nome) = (m.code.clone(), m.name.clone());
         let rotulo = format!("{} › {}", aberto.form.nome, if c.texto.is_empty() { &c.nome } else { &c.texto });
         self.macro_valores = Some(valores_para_macro(&aberto.form, &aberto.valores));
         let Some(r) = self.rodar_macro(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo, Vec::new()) else { return false };

@@ -166,7 +166,7 @@ impl App {
     pub(super) fn guardar_botao_macro(&mut self) {
         if !self.confirmar() { return; }
         let Some(editor) = self.botao_macro_modal.clone() else { return };
-        if self.macro_catalogo.obter(&editor.macro_nome).is_none() {
+        if feathersheet_macros::procedimentos::codigo_da_macro(&self.macro_catalogo, &editor.macro_nome).is_none() {
             self.status = tr!("A macro selecionada não existe mais. Salve o módulo antes.").into();
             return;
         }
@@ -274,12 +274,10 @@ impl App {
             self.status = tr!("Este botão não possui uma macro atribuída.").into();
             return;
         };
-        let Some(macro_atual) = self.macro_catalogo.obter(nome) else {
+        let Some((nome, codigo)) = feathersheet_macros::procedimentos::codigo_da_macro(&self.macro_catalogo, nome) else {
             self.status = trf!("Macro \"{nome}\" não encontrada na biblioteca.");
             return;
         };
-        let codigo = macro_atual.code.clone();
-        let nome = macro_atual.name.clone();
         // A API de macros compartilhada já faz commit/rollback do host.
         let Some(resultado) = self.rodar_macro(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo, Vec::new()) else { return };
         self.macro_saida = resultado.saida.join("\n");
@@ -445,8 +443,8 @@ impl App {
                 .on_input(Msg::BotaoMacroRotulo),
             text(tr!("Macro a executar")).size(12),
         ].spacing(10);
-        for item in self.macro_catalogo.macros.iter().take(50) {
-            let nome = item.name.clone();
+        // Cada módulo e cada função dele (`Módulo.função`, como as Sub do VBA).
+        for nome in feathersheet_macros::procedimentos::executaveis(&self.macro_catalogo).into_iter().take(80) {
             conteudo = conteudo.push(
                 button(text(format!("{} {}", if nome == editor.macro_nome { "●" } else { "○" }, nome)))
                     .width(Length::FILL)

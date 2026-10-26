@@ -257,7 +257,9 @@ UserForm** (levantamento de 26/10): ordem de tabulação; importar `.frm`. **Apa
 (`formulario_macro::aparencia`, usado pela janela e pela prévia do designer: painel APARÊNCIA com paleta); `max`,
 `multilinha` (`text_editor` sobre `FormularioAberto::editores`), `dica` (balão); tipos `moldura` (arrastar no designer
 leva junto o que está dentro) e `imagem` (base64; foto acima de 1,4 MB vira JPEG de 1024 px); `field(n).backColor/
-foreColor/caption`.
+foreColor/caption`. **Várias funções num módulo (26/10):** `Módulo.função` (ex. `macro_1.gravar`) roda o
+módulo e chama só a função, como as Sub do VBA (`feathersheet_macros::procedimentos::codigo_da_macro`; botão,
+forma, formulário e `sheet_macro executar`); as listas de escolha mostram cada módulo e cada função (`executaveis`).
 3. Congelar painéis: `sheet_comando congelar {linhas, colunas}` (26/10/2026); os rótulos dos menus
    saem do `sheet_comando menus {filtro}`.
 4. `sheet_tela` **não mostra os painéis abertos** (seletor de gráfico, diálogo de formatação

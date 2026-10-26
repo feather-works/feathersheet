@@ -243,7 +243,7 @@ impl App {
         let d = &mut self.macro_visual.designer;
         let Some(form) = d.form.clone() else { return false };
         let mut lista = match formularios::ler(self.workbook.formularios.as_deref()) { Ok(l) => l, Err(e) => { d.aviso = e; return false } };
-        if let Some(m) = form.controles.iter().filter_map(|c| c.macro_nome.as_deref()).find(|m| self.macro_catalogo.obter(m).is_none()) {
+        if let Some(m) = form.controles.iter().filter_map(|c| c.macro_nome.as_deref()).find(|m| feathersheet_macros::procedimentos::codigo_da_macro(&self.macro_catalogo, m).is_none()) {
             d.aviso = trf!("Não existe a macro \"{m}\".");
             return false;
         }
@@ -516,7 +516,7 @@ pub(super) fn designer<'a>(app: &'a App) -> Element<'a, Msg> {
         }
         if !matches!(c.tipo, TipoControle::Rotulo | TipoControle::Moldura | TipoControle::Imagem) {
             let mut macros = vec![tr!("(nenhuma)").to_owned()];
-            macros.extend(app.macro_catalogo.macros.iter().map(|m| m.name.clone()));
+            macros.extend(feathersheet_macros::procedimentos::executaveis(&app.macro_catalogo));
             props = props.push(row![
                 text(if c.tipo == TipoControle::Botao { tr!("Macro") } else { tr!("Ao mudar") }).size(11).width(Length::Fixed(78.0)),
                 crate::compat::pick_list_vec(macros, Some(c.macro_nome.clone().unwrap_or_else(|| tr!("(nenhuma)").to_owned())),
