@@ -60,6 +60,7 @@ pub fn chamar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
         "sheet_condicional" => crate::condicional::condicional(h, args),
         "sheet_validacao" => crate::validacao::validacao(h, args),
         "sheet_grafico" => crate::grafico::grafico(h, args),
+        "sheet_botao" => crate::botao::botao(h, args),
         "sheet_dinamica" => {
             let texto = h.dinamica(args)?;
             if !crate::permissoes::so_le("sheet_dinamica", args) {

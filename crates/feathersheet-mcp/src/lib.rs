@@ -11,6 +11,7 @@ pub mod arquivo;
 pub mod condicional;
 pub mod validacao;
 pub mod grafico;
+pub mod botao;
 pub mod dados;
 pub mod edicao;
 pub mod esquemas;

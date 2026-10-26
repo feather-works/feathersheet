@@ -11,7 +11,7 @@ pub fn so_le(nome: &str, args: &Value) -> bool {
         | "sheet_localizar" | "sheet_tela" | "sheet_ver" => true,
         "sheet_aba" | "sheet_nomes" => acao == "listar",
         "sheet_macro" => matches!(acao, "listar" | "ler"),
-        "sheet_filtrar" | "sheet_dinamica" | "sheet_condicional" | "sheet_validacao" | "sheet_grafico" => acao == "listar",
+        "sheet_filtrar" | "sheet_dinamica" | "sheet_condicional" | "sheet_validacao" | "sheet_grafico" | "sheet_botao" => acao == "listar",
         // Sem destino a consulta só devolve a prévia.
         "sheet_consulta" => args.get("destino").is_none_or(Value::is_null),
         _ => false,

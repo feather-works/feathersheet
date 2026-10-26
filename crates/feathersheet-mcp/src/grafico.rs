@@ -28,7 +28,7 @@ fn tipo_do_motor(t: &str) -> Result<&'static str, String> {
 }
 
 /// O canto de cima à esquerda da célula, em px da folha (como `scroll_em_pixels` do app).
-fn pixels(sheet: &feathersheet_core::Sheet, linha: u32, coluna: u32) -> (f64, f64) {
+pub(crate) fn pixels(sheet: &feathersheet_core::Sheet, linha: u32, coluna: u32) -> (f64, f64) {
     let padrao = sheet.largura_padrao.map_or(LARGURA_PADRAO, f64::from);
     let x = f64::from(coluna) * padrao + sheet.col_widths.iter().filter(|(i, _)| **i < coluna).map(|(_, w)| f64::from(*w) - padrao).sum::<f64>();
     let y = f64::from(linha) * ALTURA_PADRAO + sheet.row_heights.iter().filter(|(i, _)| **i < linha).map(|(_, h)| f64::from(*h) - ALTURA_PADRAO).sum::<f64>();
