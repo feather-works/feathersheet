@@ -1,4 +1,4 @@
-//! Menu ancorado à Ribbon e janela modal de regras, sem ocupar a grade.
+//! Menu ancorado à Ribbon e janela própria de regras, sem cobrir a grade.
 use super::*;
 use pelicano::column; use pelicano::row;
 use feather_ui::seletor_cor;
@@ -114,7 +114,7 @@ impl App {
         (x, y, largura, altura)
     }
 
-    fn view_condicional(&self) -> Element<'_, Msg> {
+    pub(super) fn view_condicional(&self) -> Element<'_, Msg> {
         use feathersheet_core::operacoes::rules::Condition;
         use pelicano::pick_list; use pelicano::tooltip;
         let regras=condicional::regras(&self.workbook,self.folha);
@@ -131,7 +131,14 @@ impl App {
             ].spacing(6).align(pelicano::Align::Center)).width(Length::FILL).align_x(pelicano::Align::Center).padding([28, 12]));
         }
         let total = regras.len();
+        let selecao = self.area_selecionada();
+        let toca_selecao = |r: &feathersheet_core::operacoes::rules::ConditionalRule| r.ranges.iter()
+            .any(|a| a.r0 <= selecao.r1 && selecao.r0 <= a.r1 && a.c0 <= selecao.c1 && selecao.c0 <= a.c1);
+        let mut mostradas = 0;
         for (i,regra) in regras.iter().enumerate() {
+            // O índice continua o da aba: mover, editar e excluir agem na regra certa.
+            if self.condicional_so_selecao && !toca_selecao(regra) { continue; }
+            mostradas += 1;
             let faixas = regra.ranges.iter().map(|a| endereco_area(&Rect::new(a.r0, a.c0, a.r1, a.c1))).collect::<Vec<_>>().join(", ");
             let (descricao, amostra): (String, Element<'_, Msg>) = match &regra.condition {
                 Condition::Cell(c) => (
@@ -187,7 +194,18 @@ impl App {
                     ..Default::default()
                 }));
         }
+        if self.condicional_so_selecao && mostradas == 0 && total > 0 {
+            lista = lista.push(text(tr!("Nenhuma regra toca a seleção atual.")).size(11.5).color(COR_TEXTO_MUTED()));
+        }
+        let filtro = row![
+            text(tr!("Mostrar:")).size(11.5).color(COR_TEXTO_MUTED()),
+            button(text(tr!("Esta planilha")).size(11.5)).padding([4, 9])
+                .style(estilo_botao_pequeno(!self.condicional_so_selecao)).on_press(Msg::CondicionalSoSelecao(false)),
+            button(text(tr!("Seleção atual")).size(11.5)).padding([4, 9])
+                .style(estilo_botao_pequeno(self.condicional_so_selecao)).on_press(Msg::CondicionalSoSelecao(true)),
+        ].spacing(6).align(pelicano::Align::Center);
         let esquerda = column![
+            filtro,
             row![
                 text(trf!("REGRAS ({total})")).size(10.5).color(COR_TEXTO_MUTED()),
                 Space::new(Length::FILL, 0.0),
@@ -234,11 +252,24 @@ impl App {
         };
         let tipo = self.condicional_operador;
         let mut formulario = column![
-            text(if self.condicional_editando.is_some() { tr!("Editar regra") } else { tr!("Nova regra para a seleção") })
+            text(if self.condicional_editando.is_some() { tr!("Editar regra") } else { tr!("Nova regra") })
                 .size(15).font(negrito),
             campo(tr!("Tipo da regra"), pick_list(&TipoCondicional::TODOS[..], Some(tipo),
                 Msg::CondicionalTipo).padding([7, 10]).size(12.5)
                 .style(crate::compat::estilo_menu_da_faixa).handle_color(COR_AZUL_ACENTO()).width(Length::FILL).into()),
+            campo(tr!("Aplica-se a"), row![
+                text_input("A1:B10".to_owned(), self.condicional_intervalo.clone())
+                    .on_input(Msg::CondicionalIntervalo).padding([7, 9]).size(12.5).width(Length::FILL),
+                tooltip(
+                    button(row![feather_ui::icones::icone("pointer", 14.0),
+                            text(if self.condicional_pegando { tr!("Pronto") } else { tr!("Selecionar") }).size(12)]
+                            .spacing(5).align(pelicano::Align::Center))
+                        .padding([6, 10]).style(estilo_botao_pequeno(self.condicional_pegando))
+                        .on_press(Msg::CondicionalPegar),
+                    tr!("Selecione a área na planilha; o endereço vem para cá"),
+                    pelicano::TooltipPosition::Top,
+                ).padding([4, 8]).style(estilo_dica),
+            ].spacing(6).align(pelicano::Align::Center).into()),
         ].spacing(12);
         match tipo.aridade() {
             1 => formulario = formulario.push(campo(tr!("Valor, texto ou fórmula"),
@@ -340,7 +371,7 @@ impl App {
                 tr!("Salvar regra") } else { tr!("Criar regra") }).size(12.5))
             .padding([8, 18]).style(estilo_botao_primario).on_press(Msg::CondicionalAdicionar));
         let direita = column![
-            feather_ui::tema::rolagem(formulario.padding([2, 4])).height(Length::FILL),
+            feather_ui::tema::rolagem(formulario.padding([2, 14])).height(Length::FILL),
             botoes,
         ].spacing(12).padding([14, 18]).width(Length::FILL).height(Length::FILL);
 
@@ -352,18 +383,6 @@ impl App {
                 text(trf!("Regras da aba “{nome_aba}”, aplicadas de cima para baixo."))
                     .size(12).color(COR_TEXTO_MUTED()),
             ].spacing(3).width(Length::FILL),
-            tooltip(
-                button(container(feather_ui::icones::icone("x", 17.0)).width(Length::FILL).align_x(pelicano::Align::Center).height(Length::FILL).align_y(pelicano::Align::Center))
-                    .width(Length::Fixed(32.0)).height(Length::Fixed(32.0)).padding(0)
-                    .style(|tema, estado| {
-                        let mut e = estilo_botao_pequeno(false)(tema, estado);
-                        e.border.radius = [16.0; 4];
-                        e
-                    })
-                    .on_press(Msg::CondicionalFechar),
-                tr!("Fechar"),
-                pelicano::TooltipPosition::Left,
-            ).padding([4, 8]).style(estilo_dica),
         ].align(pelicano::Align::Center).padding([14, 18]);
         let divisor_h = container(Space::new(0.0, Length::Fixed(1.0))).width(Length::FILL).style(estilo_linha);
         let divisor_v = container(Space::new(Length::Fixed(1.0), 0.0)).height(Length::FILL).style(estilo_linha);
@@ -379,17 +398,9 @@ impl App {
                 direita,
             ].height(Length::FILL),
         ];
-        let largura = (self.tamanho_principal.width - 24.0).min(880.0).max(320.0);
-        let altura = (self.tamanho_principal.height - 32.0).min(600.0).max(300.0);
-        container(corpo)
-            .width(Length::Fixed(largura)).height(Length::Fixed(altura))
+        container(corpo).width(Length::FILL).height(Length::FILL)
             .style(|_: &pelicano::Theme| pelicano::Style {
                 background: Some(pelicano::Background::Color(COR_PAINEL())),
-                border: pelicano::Border { color: COR_BORDA(), width: 1.0, radius: [12.0; 4] },
-                shadow: Some(pelicano::Shadow {
-                    color: pelicano::Color::rgb8(0, 0, 0).alpha(0.22),
-                    offset: pelicano::Point::new(0.0, 6.0), blur: 24.0,
-                }),
                 ..Default::default()
             }).into()
     }
@@ -506,17 +517,9 @@ impl App {
             .into()
     }
 
-    /// Popup abaixo da Ribbon e editor modal centralizado sobre a planilha.
+    /// Popup abaixo da Ribbon (as regras abrem em janela própria).
     pub(super) fn sobrepor_condicional<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
-        if self.condicional_aberto {
-            let fora = pelicano::mouse_area(
-                Space::new(Length::FILL, Length::FILL)
-            ).on_press(Msg::CondicionalFechar);
-            let modal = container(self.view_condicional())
-                .width(Length::FILL).height(Length::FILL)
-                .width(Length::FILL).align_x(pelicano::Align::Center).height(Length::FILL).align_y(pelicano::Align::Center);
-            stack![base, fora, modal].height(Length::FILL).into()
-        } else if self.condicional_menu_aberto {
+        if self.condicional_menu_aberto {
             let fora = pelicano::mouse_area(
                 Space::new(Length::FILL, Length::FILL)
             ).on_press(Msg::CondicionalAbrir);
@@ -650,7 +653,7 @@ mod testes {
         for icone in [
             "sort-ascending", "arrow-down", "arrows-horizontal", "math-function",
             "search", "copy", "circle-check", "square", "palette", "chart-bar",
-            "plus", "settings", "eraser", "trash", "chevron-right",
+            "plus", "settings", "eraser", "trash", "chevron-right", "pointer",
         ] {
             assert!(feather_ui::icones::existe(icone), "Ícone ausente: {icone}");
         }
@@ -714,6 +717,29 @@ mod testes {
         assert!(x + largura <= 280.0 - MARGEM_MENU + 0.1);
         assert!(y >= MARGEM_MENU);
         assert!(y + altura <= 350.0 - MARGEM_MENU + 0.1);
+    }
+
+    #[test]
+    fn aplica_se_a_define_as_areas_da_regra_e_recusa_endereco_invalido() {
+        let mut app = App::default();
+        app.update(Msg::CondicionalNovaRegra);
+        assert!(app.condicional_aberto);
+        assert_eq!(app.condicional_intervalo, "A1", "começa pela seleção");
+        app.update(Msg::CondicionalIntervalo("B2:B5; D1".into()));
+        app.update(Msg::CondicionalAdicionar);
+        let regras = condicional::regras(&app.workbook, app.folha);
+        assert_eq!(regras.len(), 1);
+        let areas: Vec<_> = regras[0].ranges.iter().map(|a| (a.r0, a.c0, a.r1, a.c1)).collect();
+        assert_eq!(areas, vec![(1, 1, 4, 1), (0, 3, 0, 3)]);
+        // Editar traz as áreas de volta para o campo.
+        app.update(Msg::CondicionalEditar(0));
+        assert_eq!(app.condicional_intervalo, "B2:B5; D1");
+        app.update(Msg::CondicionalIntervalo("B2:xx".into()));
+        app.update(Msg::CondicionalAdicionar);
+        assert_eq!(condicional::regras(&app.workbook, app.folha)[0].ranges.len(), 2, "endereço inválido não grava");
+        // Só as regras que tocam a seleção (A1 não toca B2:B5 nem D1).
+        app.update(Msg::CondicionalSoSelecao(true));
+        let _: Element<'_, Msg> = app.view_condicional();
     }
 
     #[test]

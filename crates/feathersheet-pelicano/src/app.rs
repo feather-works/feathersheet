@@ -141,11 +141,11 @@ pub(crate) mod vinculos;
 use crate::condicional;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Auxiliar { Configuracoes, Ajuda, Monitor, Macros, FormatarCelulas, DividirTexto, RemoverDuplicados, Imprimir, OpenQuery, Inspecao, PrimeirosPassos, Novidades }
+pub enum Auxiliar { Configuracoes, Ajuda, Monitor, Macros, FormatarCelulas, DividirTexto, RemoverDuplicados, Imprimir, OpenQuery, Inspecao, PrimeirosPassos, Novidades, Condicional }
 impl Auxiliar {
-    const TODAS: [Auxiliar; 12] = [Self::Configuracoes, Self::Ajuda, Self::Monitor, Self::Macros, Self::FormatarCelulas,
+    const TODAS: [Auxiliar; 13] = [Self::Configuracoes, Self::Ajuda, Self::Monitor, Self::Macros, Self::FormatarCelulas,
         Self::DividirTexto, Self::RemoverDuplicados, Self::Imprimir, Self::OpenQuery, Self::Inspecao,
-        Self::PrimeirosPassos, Self::Novidades];
+        Self::PrimeirosPassos, Self::Novidades, Self::Condicional];
 }
 
 /// Opções da faixa Preencher, migradas dos gestos de preenchimento do TypeScript.
@@ -424,7 +424,7 @@ pub enum Msg {
     Pincel, AplicarPincel,
     CondicionalAbrir, CondicionalMostrar, CondicionalFechar, CondicionalNovaRegra,
     CondicionalPredefinida(TipoCondicional), CondicionalTipo(TipoCondicional), CondicionalValor(String),
-    CondicionalValor2(String), CondicionalCor(String), CondicionalCorTexto(String),
+    CondicionalValor2(String), CondicionalIntervalo(String), CondicionalPegar, CondicionalSoSelecao(bool), CondicionalCor(String), CondicionalCorTexto(String),
     CondicionalCorMin(String), CondicionalCorMeio(String), CondicionalCorNegativa(String),
     CondicionalCorAbrir(condicional_ui::CorRegra), CondicionalSeletorCor(feather_ui::seletor_cor::Evento),
     CondicionalPontoMeio(bool), CondicionalOcultarValor(bool),
@@ -767,6 +767,12 @@ pub struct App {
     congelar_popup: (f32, f32),
     perfil_geracao: u64,
     condicional_aberto: bool,
+    /// "Aplica-se a" da regra: um ou mais endereços separados por `;`.
+    condicional_intervalo: String,
+    /// Selecionar na grade preenche o "Aplica-se a" enquanto ligado.
+    condicional_pegando: bool,
+    /// A lista mostra só as regras que tocam a seleção atual.
+    condicional_so_selecao: bool,
     /// Campo de cor da regra com o seletor aberto, e o estado do seletor.
     condicional_cor_aberta: Option<condicional_ui::CorRegra>,
     condicional_hsva: [f32; 4],
@@ -1072,7 +1078,8 @@ impl Default for App {
             tinta: Default::default(),
             objetos: Default::default(),
             congelar_popup: (8., 120.),
-            condicional_aberto: false,
+            condicional_aberto: false, condicional_intervalo: String::new(),
+            condicional_pegando: false, condicional_so_selecao: false,
             condicional_cor_aberta: None,
             condicional_hsva: [0., 0., 0., 1.],
             condicional_hex: String::new(),
@@ -1293,6 +1300,7 @@ impl App {
             Some(Auxiliar::Inspecao) => tr!("Janela de inspeção — FeatherSheet").into(),
             Some(Auxiliar::PrimeirosPassos) => tr!("Primeiros passos — FeatherSheet").into(),
             Some(Auxiliar::Novidades) => tr!("O que há de novo — FeatherSheet").into(),
+            Some(Auxiliar::Condicional) => tr!("Formatação condicional — FeatherSheet").into(),
             None => format!("{}{} — FeatherSheet",
                 if self.alterado { "* " } else { "" }, self.nome_documento()),
         }
@@ -1343,6 +1351,7 @@ impl App {
             Auxiliar::OpenQuery => Size::new(1280., 800.),
             Auxiliar::Inspecao => Size::new(820., 360.),
             Auxiliar::PrimeirosPassos | Auxiliar::Novidades => Size::new(1100., 720.),
+            Auxiliar::Condicional => Size::new(900., 620.),
         }
     }
     /// O objeto selecionado sobre a grade (forma ou ícone, gráfico, imagem
@@ -1666,6 +1675,7 @@ impl App {
                 Auxiliar::Inspecao => self.view_inspecao(),
                 Auxiliar::PrimeirosPassos => self.view_primeiros_passos(),
                 Auxiliar::Novidades => self.view_novidades(),
+                Auxiliar::Condicional => self.view_condicional(),
             };
             return if self.config.barra_propria {
                 cromo::janela_com_barra(&self.titulo(id), body, Self::acoes(id))
@@ -1707,9 +1717,18 @@ impl pelicano::App for App {
 
     fn update(&mut self, msg: Msg) -> Task<Msg> {
         let tarefa = App::update(self, msg);
+        let mut tarefas = vec![tarefa];
+        // A formatação condicional mora numa janela própria: o estado manda, a janela acompanha.
+        if self.condicional_aberto != self.janelas.aberta(Auxiliar::Condicional) {
+            let tam = Self::tamanho_aux(Auxiliar::Condicional);
+            tarefas.push(self.janelas.alternar::<Msg>(Auxiliar::Condicional, tam, self.config.barra_propria).map(|_| Msg::AuxAberta));
+        }
+        if self.condicional_aberto && self.condicional_pegando {
+            let endereco = endereco_area(&self.area_selecionada());
+            if self.condicional_intervalo != endereco { self.condicional_intervalo = endereco; }
+        }
         // O título de cada janela segue o estado (o `title` do daemon do Iced).
         let mut titulos = self.titulos.borrow_mut();
-        let mut tarefas = vec![tarefa];
         for id in std::iter::once(WindowId::MAIN).chain(Auxiliar::TODAS.into_iter().filter_map(|a| self.janelas.id(a))) {
             let titulo = self.titulo(id);
             if titulos.get(&id) != Some(&titulo) {

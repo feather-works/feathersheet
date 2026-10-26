@@ -228,13 +228,10 @@ referência. **No `.xlsx` (19/10/2026):** `xlsx_write_vinculos.rs` grava `[N]Aba
 
 ### Bugs e melhorias anotados em 19/10/2026 (montando o "Painel de Vendas" pelo MCP ao vivo)
 
-**Pedidos do usuário:**
-- Formatação condicional vira **janela de verdade** (`GUIA-JANELAS.md`), não diálogo sobre a grade.
-- Não mostrar o código hexa da cor do lado de fora (só a amostra).
-- Mostrar a área selecionada e permitir **selecionar outra área** pela grade (seletor de intervalo).
-- O seletor "Tipo de gráfico" aberto pelo menu "Gráfico…" aparece num canto aleatório (embaixo do
-  Colar), solto do botão Gráfico da faixa; e ainda diz "Opções em cinza estarão disponíveis em
-  breve" — viola a regra 3.
+**Pedidos do usuário:** feitos em 26/10/2026 — formatação condicional em janela própria
+(`Auxiliar::Condicional`, aberta e fechada pelo `condicional_aberto` no `update` do `pelicano::App`),
+cor só pela amostra, campo "Aplica-se a" com "Selecionar" pela grade e filtro "Esta planilha /
+Seleção atual". O texto "em breve" do seletor de gráfico já tinha saído.
 
 **Motor (achados pelo MCP):**
 - Intervalo nomeado de outra aba (`TotalVendas = Vendas!$G$2:$G$241`) dá `#VALUE!` como
@@ -870,7 +867,7 @@ que veio de mim do que veio do Gemini ou do usuário.
 branco, fotografa a janela principal (1280×800) e fecha. `FEATHERSHEET_CAPTURAR_CELULA=XFD1`
 seleciona a célula antes da foto. Usar antes de devolver mudança visual ao usuário.
 `FEATHERSHEET_CAPTURAR_CELULAS='A1==SEQUÊNCIA(5)|E1=30'` escreve células antes da foto
-(endereço, `=`, conteúdo; itens separados por `|`). `FEATHERSHEET_CAPTURAR_ABA=2` mostra essa aba (índice a partir de 0; só no `feathersheet-pelicano`, útil com um arquivo na linha de comando). `FEATHERSHEET_CAPTURAR_CAIXAS=1` põe caixas de seleção (Inserir > Checkbox) na seleção de
+(endereço, `=`, conteúdo; itens separados por `|`). `FEATHERSHEET_CAPTURAR_MENU_CLASSICO=2` recolhe a faixa e abre esse menu clássico; `FEATHERSHEET_CAPTURAR_JANELA=condicional` cria uma regra de exemplo e fotografa a janela de formatação condicional. `FEATHERSHEET_CAPTURAR_ABA=2` mostra essa aba (índice a partir de 0; só no `feathersheet-pelicano`, útil com um arquivo na linha de comando). `FEATHERSHEET_CAPTURAR_CAIXAS=1` põe caixas de seleção (Inserir > Checkbox) na seleção de
 `FEATHERSHEET_CAPTURAR_CELULA`, uma sim, uma não marcada. `FEATHERSHEET_CAPTURAR_FAIXA=formulas` abre
 essa aba da faixa; `FEATHERSHEET_CAPTURAR_RASTREIO=ppd` traça níveis de precedentes (`p`) e
 dependentes (`d`) na célula ativa; `FEATHERSHEET_CAPTURAR_MENU=Lógica` abre o menu dessa categoria

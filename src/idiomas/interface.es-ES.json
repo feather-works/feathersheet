@@ -3874,5 +3874,15 @@
  "Manter desativadas": "Mantener deshabilitadas",
  "Macros ativadas neste arquivo.": "Macros habilitadas en este archivo.",
  "Este arquivo tem macros que rodam sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Elas podem alterar a planilha e gravar arquivos. Ative só se você confia na origem do arquivo.": "Este archivo tiene macros que se ejecutan solas (al cambiar celdas, al cambiar de hoja o al hacer clic en botones). Pueden modificar la hoja y guardar archivos. Habilítelas solo si confía en el origen del archivo.",
- "Este gráfico não pode ser editado aqui: {}": "Este gráfico no se puede editar aquí: {}"
+ "Este gráfico não pode ser editado aqui: {}": "Este gráfico no se puede editar aquí: {}",
+ "Formatação condicional — FeatherSheet": "Formato condicional — FeatherSheet",
+ "Selecione na planilha a área da regra.": "Seleccione en la hoja el área de la regla.",
+ "“Aplica-se a” inválido: use A1:B10, ou várias áreas separadas por ;": "“Se aplica a” no válido: use A1:B10, o varias áreas separadas por ;",
+ "Nenhuma regra toca a seleção atual.": "Ninguna regla toca la selección actual.",
+ "Mostrar:": "Mostrar:",
+ "Esta planilha": "Esta hoja",
+ "Seleção atual": "Selección actual",
+ "Aplica-se a": "Se aplica a",
+ "Selecione a área na planilha; o endereço vem para cá": "Seleccione el área en la hoja; la dirección viene aquí",
+ "Nova regra": "Nueva regla"
 }

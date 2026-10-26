@@ -212,15 +212,17 @@ fn auxiliar_por_nome(nome: &str) -> Option<Auxiliar> {
         "monitor" => Auxiliar::Monitor, "macros" => Auxiliar::Macros, "formatar" => Auxiliar::FormatarCelulas,
         "imprimir" => Auxiliar::Imprimir, "openquery" => Auxiliar::OpenQuery,
         "dividir" => Auxiliar::DividirTexto, "duplicados" => Auxiliar::RemoverDuplicados,
+        "condicional" => Auxiliar::Condicional,
         _ => return None,
     })
 }
 
-const AUXILIARES: [(Auxiliar, &str); 10] = [
+const AUXILIARES: [(Auxiliar, &str); 11] = [
     (Auxiliar::Configuracoes, "Configurações"), (Auxiliar::Ajuda, "Ajuda"), (Auxiliar::Monitor, "Monitor"),
     (Auxiliar::Macros, "Editor de macros"), (Auxiliar::FormatarCelulas, "Formatar células"),
     (Auxiliar::DividirTexto, "Dividir texto"), (Auxiliar::RemoverDuplicados, "Remover duplicados"),
     (Auxiliar::Imprimir, "Imprimir"), (Auxiliar::OpenQuery, "OpenQuery"), (Auxiliar::Inspecao, "Janela de inspeção"),
+    (Auxiliar::Condicional, "Formatação condicional"),
 ];
 
 /// O `App` visto pelas ferramentas. As tarefas que um comando gera (abrir
@@ -505,7 +507,7 @@ impl Hospede for HospedeApp<'_> {
         if a.congelar_menu_aberto { s.push_str("Menu aberto: Congelar\n"); }
         if a.menu_aberto { s.push_str("Menu principal aberto\n"); }
         // #12: painéis, seletores e menus flutuantes também cobrem a grade.
-        if a.condicional_aberto { s.push_str("Diálogo aberto: Formatação condicional\n"); }
+        if a.condicional_aberto { s.push_str("Janela aberta: Formatação condicional\n"); }
         if a.condicional_menu_aberto { s.push_str("Menu aberto: Formatação condicional\n"); }
         if a.graficos.seletor_aberto { s.push_str("Seletor aberto: Tipo de gráfico\n"); }
         if a.graficos.aberto { s.push_str("Painel aberto: Gráfico\n"); }

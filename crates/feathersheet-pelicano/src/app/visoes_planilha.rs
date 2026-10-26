@@ -93,6 +93,9 @@ impl App {
             }
         }
         self.condicional_aberto = true;
+        self.condicional_pegando = false;
+        self.condicional_intervalo = regra.ranges.iter()
+            .map(|a| endereco_area(&Rect::new(a.r0, a.c0, a.r1, a.c1))).collect::<Vec<_>>().join("; ");
         self.status = trf!("Editando regra {} de {}", indice + 1, regras.len());
     }
 
@@ -206,8 +209,17 @@ impl App {
                 }
             }
         };
-        let ranges = editando.map(|i| lista[i].ranges.clone())
-            .unwrap_or_else(|| vec![selecao]);
+        let ranges = if cores_alternadas || self.condicional_intervalo.trim().is_empty() {
+            vec![selecao]
+        } else {
+            match ler_intervalos(&self.condicional_intervalo) {
+                Some(v) => v,
+                None => {
+                    self.status = tr!("“Aplica-se a” inválido: use A1:B10, ou várias áreas separadas por ;").into();
+                    return;
+                }
+            }
+        };
         let regra = ConditionalRule {id,ranges,condition:condicao};
         if let Some(i) = editando {
             lista[i] = regra;
@@ -446,4 +458,14 @@ mod testes_aviso {
         assert_eq!(encurtar_aviso("Linhas 1/2 coladas", 60), "Linhas 1/2 coladas");
         assert_eq!(encurtar_aviso("Salvo em 14/10/2026", 60), "Salvo em 14/10/2026");
     }
+}
+
+/// "A1:B10; D2" do campo "Aplica-se a" em áreas; `None` se alguma não for endereço.
+fn ler_intervalos(texto: &str) -> Option<Vec<feathersheet_core::operacoes::rules::Faixa>> {
+    use feathersheet_core::operacoes::rules::Faixa;
+    texto.split([';', ',']).map(str::trim).filter(|t| !t.is_empty())
+        .map(|t| feathersheet_core::celulas::refs::parse_range_ref(t)
+            .map(|a| Faixa { r0: a.r0, c0: a.c0, r1: a.r1, c1: a.c1 }))
+        .collect::<Option<Vec<_>>>()
+        .filter(|v| !v.is_empty())
 }

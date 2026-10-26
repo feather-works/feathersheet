@@ -93,12 +93,14 @@ impl App {
                 self.condicional_menu_aberto = false;
                 self.condicional_aberto = true;
                 self.condicional_editando = None;
+                self.condicional_intervalo = endereco_area(&self.area_selecionada());
                 Task::none()
             }
             Msg::CondicionalFechar => {
                 self.condicional_cor_aberta = None;
                 self.condicional_menu_aberto = false;
                 self.condicional_aberto = false;
+                self.condicional_pegando = false;
                 self.condicional_editando = None;
                 Task::none()
             }
@@ -106,6 +108,7 @@ impl App {
                 self.condicional_menu_aberto = false;
                 self.condicional_aberto = true;
                 self.condicional_editando = None;
+                self.condicional_intervalo = endereco_area(&self.area_selecionada());
                 self.condicional_operador = TipoCondicional::Maior;
                 self.condicional_valor = "10".into();
                 self.condicional_valor2 = "20".into();
@@ -115,6 +118,7 @@ impl App {
                 self.condicional_menu_aberto = false;
                 self.condicional_aberto = true;
                 self.condicional_editando = None;
+                self.condicional_intervalo = endereco_area(&self.area_selecionada());
                 self.condicional_operador = tipo;
                 self.condicional_valor = match tipo {
                     TipoCondicional::Formula => "=A1>10".into(),
@@ -129,6 +133,19 @@ impl App {
             Msg::CondicionalSeletorCor(evento) => self.evento_cor_condicional(evento),
             Msg::CondicionalValor(valor) => {self.condicional_valor=valor;Task::none()}
             Msg::CondicionalValor2(valor) => {self.condicional_valor2=valor;Task::none()}
+            Msg::CondicionalIntervalo(valor) => {
+                self.condicional_intervalo = valor;
+                self.condicional_pegando = false;
+                Task::none()
+            }
+            Msg::CondicionalPegar => {
+                self.condicional_pegando = !self.condicional_pegando;
+                if self.condicional_pegando {
+                    self.status = tr!("Selecione na planilha a área da regra.").into();
+                }
+                Task::none()
+            }
+            Msg::CondicionalSoSelecao(sim) => { self.condicional_so_selecao = sim; Task::none() }
             Msg::CondicionalCor(cor) => {self.condicional_cor=cor;Task::none()}
             Msg::CondicionalCorTexto(cor) => {self.condicional_cor_texto=cor;Task::none()}
             Msg::CondicionalCorMin(cor) => {self.condicional_cor_min=cor;Task::none()}
@@ -1180,6 +1197,13 @@ impl App {
                         if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("inspecao") {
                             return self.evento_inspecao(inspecao_ui::Evento::Adicionar);
                         }
+                        // FEATHERSHEET_CAPTURAR_JANELA=condicional: uma regra de exemplo e a janela aberta.
+                        if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("condicional") {
+                            let _ = self.update(Msg::CondicionalPredefinida(TipoCondicional::Maior));
+                            let _ = self.update(Msg::CondicionalIntervalo("B2:B20".into()));
+                            let _ = self.update(Msg::CondicionalAdicionar);
+                            return self.update(Msg::CondicionalNovaRegra);
+                        }
                         // FEATHERSHEET_CAPTURAR_JANELA=historico_macros: roda macros de exemplo
                         // e fotografa o editor (Alt+F11) com o Histórico aberto.
                         if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("historico_macros") {
@@ -1279,6 +1303,7 @@ impl App {
                         } else {
                             match std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() {
                                 Ok("inspecao") => self.janelas.id(Auxiliar::Inspecao),
+                                Ok("condicional") => self.janelas.id(Auxiliar::Condicional),
                                 Ok("historico_macros" | "busca_macros") => self.janelas.id(Auxiliar::Macros),
                                 Ok(j) if j.starts_with("primeiros") => self.janelas.id(Auxiliar::PrimeirosPassos),
                                 Ok(j) if j.starts_with("novidades") => self.janelas.id(Auxiliar::Novidades),
@@ -1413,6 +1438,7 @@ impl App {
                     }
                     if self.janelas.tipo(id) == Some(Auxiliar::RemoverDuplicados) { self.duplicados = None; }
                     if self.janelas.tipo(id) == Some(Auxiliar::OpenQuery) { self.openquery = None; }
+                    if self.janelas.tipo(id) == Some(Auxiliar::Condicional) { self.condicional_aberto = false; self.condicional_pegando = false; }
                     self.janelas.retirar(id); Task::none()
                 }
             }
@@ -1426,6 +1452,7 @@ impl App {
                     }
                     if self.janelas.tipo(id) == Some(Auxiliar::RemoverDuplicados) { self.duplicados = None; }
                     if self.janelas.tipo(id) == Some(Auxiliar::OpenQuery) { self.openquery = None; }
+                    if self.janelas.tipo(id) == Some(Auxiliar::Condicional) { self.condicional_aberto = false; self.condicional_pegando = false; }
                     self.janelas.retirar(id); Task::window_of(id, pelicano::WindowCmd::Close)
                 }
             }

@@ -488,7 +488,6 @@ impl App {
             || self.macro_pergunta.is_some()
             || self.protecao_modal.is_some()
             || self.congelar_menu_aberto
-            || self.condicional_aberto
             || self.condicional_menu_aberto
             || self.tabelas_menu_aberto
             || self.estilos_menu_aberto
