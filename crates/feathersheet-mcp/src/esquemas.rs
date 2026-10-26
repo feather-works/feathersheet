@@ -6,6 +6,7 @@ fn f(nome: &str, descricao: &str, props: Value, obrigatorios: &[&str]) -> Value 
         "inputSchema": { "type": "object", "properties": props, "required": obrigatorios } })
 }
 
+const JANELAS: [&str; 12] = ["principal", "inspecao", "ajuda", "configuracoes", "monitor", "macros", "formatar", "imprimir", "openquery", "dividir", "duplicados", "condicional"];
 const ABA: &str = "Nome da aba (ou índice, base 0). Padrão: a ativa.";
 
 pub fn todas() -> Vec<Value> {
@@ -99,6 +100,8 @@ pub fn todas() -> Vec<Value> {
             json!({ "comando": { "type": "string" }, "args": { "type": "object" } }), &["comando"]),
         f("sheet_tela", "AO VIVO: o estado visível em texto: aba da faixa, menus, diálogos e janelas abertos, célula ativa, seleção e status.", json!({}), &[]),
         f("sheet_ver", "AO VIVO: foto (PNG) da janela principal ou de uma janela auxiliar, para conferir o visual.",
-            json!({ "janela": { "type": "string", "enum": ["principal", "inspecao", "ajuda", "configuracoes", "monitor", "macros", "formatar", "imprimir", "openquery"] } }), &[]),
+            json!({ "janela": { "type": "string", "enum": JANELAS } }), &[]),
+        f("sheet_mouse", "AO VIVO: move o mouse na tela e clica, mostrando o cursor \"Claude\". Um passo por linha: `mover x y [ms]` ou `mover \"rótulo\" [ms]` (acha o controle pelo nome acessível), `clicar`, `duplo`, `apertar`/`soltar` (arrastar), `digitar \"texto\"`, `tecla Ctrl+S`, `rolar px`, `esperar ms`. Volta na hora; o roteiro roda em seguida, então confira com sheet_tela/sheet_ver depois.",
+            json!({ "roteiro": { "type": "string" }, "janela": { "type": "string", "enum": JANELAS } }), &["roteiro"]),
     ]
 }

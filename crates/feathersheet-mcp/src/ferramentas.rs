@@ -43,7 +43,7 @@ pub fn chamar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
         }
         "sheet_comando" => comando(h, args),
         "sheet_tela" => h.tela().map(conteudo).ok_or_else(|| SO_AO_VIVO.into()),
-        "sheet_ver" => Err(SO_AO_VIVO.into()),
+        "sheet_ver" | "sheet_mouse" => Err(SO_AO_VIVO.into()),
         "sheet_estatistica" => crate::dados::estatistica(h, args),
         "sheet_amostra" => crate::dados::amostra(h, args),
         "sheet_localizar" => crate::dados::localizar(h, args),

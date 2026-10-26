@@ -561,6 +561,27 @@ impl App {
             };
             return Task::done(Msg::McpImagem(pedido, self.fotografar(id)));
         }
+        // `sheet_mouse`: o pelicano anda com o cursor desenhado "Claude" e clica de verdade
+        // na janela, passo a passo (o roteiro roda depois desta resposta).
+        if msg.get("method").and_then(Json::as_str) == Some("tools/call") && params["name"] == "sheet_mouse" {
+            let args = &params["arguments"];
+            let janela = args["janela"].as_str().unwrap_or("principal");
+            let alvo = if janela == "principal" { self.janelas.principal }
+                else { auxiliar_por_nome(janela).and_then(|a| self.janelas.id(a)) };
+            let roteiro = args["roteiro"].as_str().unwrap_or("");
+            let erro = match alvo {
+                None => Some(format!("A janela \"{janela}\" não está aberta.")),
+                Some(_) if roteiro.trim().is_empty() => Some("Falta o roteiro.".to_string()),
+                Some(_) => pelicano::validar_roteiro(roteiro).err().map(|e| format!("Roteiro inválido: {e}")),
+            };
+            if let Some(e) = erro {
+                pedido.responder_ferramenta(json!([{ "type": "text", "text": e }]), true);
+                return Task::none();
+            }
+            pedido.responder_ferramenta(json!([{ "type": "text", "text":
+                "Roteiro enviado; o cursor roda na tela agora. Confira o resultado com sheet_tela ou sheet_ver depois de esperar o tempo dos passos." }]), false);
+            return Task::window_of(alvo.unwrap(), pelicano::WindowCmd::Roteiro(roteiro.to_string()));
+        }
         // `sheet_macro` com acao "executar" roda a macro dentro do
         // feathersheet-mcp, sem passar pelo `rodar_macro`: mede aqui e anota
         // no histórico de macros pela resposta.

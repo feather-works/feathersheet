@@ -296,7 +296,10 @@ sem o app) ou `HospedeApp` (`feathersheet-gui/src/app/mcp_vivo.rs`, ao vivo). Ao
 em `$XDG_RUNTIME_DIR/feathersheet/mcp.sock`; a thread do canal entrega o pedido ao `update` por
 `Subscription::run` e espera a resposta. Só ao vivo: `sheet_selecionar`, `sheet_comando` (faixa,
 tecla de atalho, menu por rótulo, editar pela barra fx, comandos da aba Fórmulas…), `sheet_tela`
-(estado em texto) e `sheet_ver` (PNG da janela). `FEATHERSHEET_MCP=0` desliga o canal; o modo de
+(estado em texto) e `sheet_ver` (PNG da janela). `sheet_mouse` (26/10/2026, pelicano v0.1.11 + feather-ui v0.3.2) manda um roteiro do pelicano
+(`mover x y`/`mover "rótulo"`, `clicar`, `duplo`, `apertar`/`soltar`, `digitar`, `tecla`, `rolar`, `esperar`)
+para a janela principal ou uma auxiliar pelo `WindowCmd::Roteiro`: o cursor "Claude" anda e clica de verdade;
+a resposta volta antes de o roteiro terminar. Rótulos da faixa são achados pelo nome; teclas F1–F12 ainda não. `FEATHERSHEET_MCP=0` desliga o canal; o modo de
 captura não o abre. Registrado no Claude Code com `claude mcp add feathersheet --scope local`
 apontando para `target/release/feathersheet-mcp`; **mudou ferramenta, recompilar o MCP e o app**
 (o app embute a mesma biblioteca). Dívida (regra 3 da raiz): `ao_vivo.rs` é cópia adaptada do
