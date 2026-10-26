@@ -239,10 +239,10 @@ Seleção atual". O texto "em breve" do seletor de gráfico já tinha saído.
 **Dificuldades com o MCP:**
 1. Nenhum jeito de criar ou editar **gráfico** (nem ferramenta, nem `sheet_comando`, nem API das
    macros). O menu "Gráfico…" só abre o seletor, que pede clique.
-2. Sem ferramenta para **validação de dados** (lista suspensa), **botão de macro** (o menu abre um
-   diálogo) e **componente/formulário** de macro.
-3. Sem ferramenta para **congelar painéis**; pelo `sheet_comando menu` o rótulo é "1 linha", que
-   não dá para descobrir: o `comando=listar` não lista os itens de menu.
+2. Validação de dados: `sheet_validacao` (26/10/2026). Ainda sem ferramenta para **botão de macro**
+   (o menu abre um diálogo) e **componente/formulário** de macro.
+3. Congelar painéis: `sheet_comando congelar {linhas, colunas}` (26/10/2026); os rótulos dos menus
+   saem do `sheet_comando menus {filtro}`.
 4. `sheet_tela` **não mostra os painéis abertos** (seletor de gráfico, diálogo de formatação
    condicional) — só descobri pela foto do `sheet_ver`.
 5. `sheet_condicional` ao vivo **abriu o diálogo** de formatação condicional na tela.
