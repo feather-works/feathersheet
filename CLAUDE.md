@@ -252,8 +252,12 @@ da execução); `macro` num campo roda ao mudar (texto/número: no Enter); botã
 `desativado` esmaece, `oculto` some. Tipo `intervalo` = RefEdit (botão pega a seleção, valor `Aba!A1:B5`); lista com `fonte` = RowSource (lida ao abrir
 pelo `opcoes_da_lista` da validação). `listagem` = ListBox (`multipla`: caixas de seleção, valor = lista de textos;
 uma escolha: item em destaque sólido); lista com `livre` = ComboBox (campo + setinha). `sheet_tela` descreve o formulário aberto. **Falta para a paridade com o
-UserForm** (levantamento de 26/10): ordem de tabulação; importar `.frm`;
-MaxLength/MultiLine/dica/Frame/Image.
+UserForm** (levantamento de 26/10): ordem de tabulação; importar `.frm`. **Aparência (26/10):** `fundo`/`cor`/`borda`
+(#rrggbb), `raio`, `letra`, `negrito`/`italico`, `familia`, `alinhar` por controle e `fundo` do formulário
+(`formulario_macro::aparencia`, usado pela janela e pela prévia do designer: painel APARÊNCIA com paleta); `max`,
+`multilinha` (`text_editor` sobre `FormularioAberto::editores`), `dica` (balão); tipos `moldura` (arrastar no designer
+leva junto o que está dentro) e `imagem` (base64; foto acima de 1,4 MB vira JPEG de 1024 px); `field(n).backColor/
+foreColor/caption`.
 3. Congelar painéis: `sheet_comando congelar {linhas, colunas}` (26/10/2026); os rótulos dos menus
    saem do `sheet_comando menus {filtro}`.
 4. `sheet_tela` **não mostra os painéis abertos** (seletor de gráfico, diálogo de formatação

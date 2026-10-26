@@ -7,10 +7,13 @@ use serde::{Deserialize, Serialize};
 /// Tetos para um arquivo estranho não travar a janela.
 pub const MAX_FORMULARIOS: usize = 64;
 pub const MAX_CONTROLES: usize = 200;
+/// Imagem guardada em base64 (o `Picture` do VBA): até ~1,5 MB de arquivo.
+pub const MAX_IMAGEM: usize = 2_000_000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TipoControle {
+    #[default]
     Rotulo,
     Texto,
     Numero,
@@ -23,26 +26,32 @@ pub enum TipoControle {
     Listagem,
     /// Escolher um intervalo da planilha (o `RefEdit` do VBA): o valor é o endereço, ex. `Dados!A1:B5`.
     Intervalo,
+    /// Moldura com título que agrupa controles (o `Frame` do VBA); no designer, arrastar leva junto o que está dentro.
+    Moldura,
+    /// Figura (o `Image` do VBA), guardada em `imagem`.
+    Imagem,
 }
 
 impl TipoControle {
-    pub const TODOS: [TipoControle; 10] = [Self::Rotulo, Self::Texto, Self::Numero, Self::Senha, Self::Caixa, Self::Opcao, Self::Lista, Self::Listagem, Self::Intervalo, Self::Botao];
+    pub const TODOS: [TipoControle; 12] = [Self::Rotulo, Self::Texto, Self::Numero, Self::Senha, Self::Caixa, Self::Opcao, Self::Lista,
+        Self::Listagem, Self::Intervalo, Self::Botao, Self::Moldura, Self::Imagem];
 
     pub fn nome(self) -> &'static str {
         match self {
             Self::Rotulo => "rotulo", Self::Texto => "texto", Self::Numero => "numero", Self::Senha => "senha",
             Self::Caixa => "caixa", Self::Opcao => "opcao", Self::Lista => "lista", Self::Botao => "botao", Self::Intervalo => "intervalo", Self::Listagem => "listagem",
+            Self::Moldura => "moldura", Self::Imagem => "imagem",
         }
     }
 
     /// Entra em `valores` (rótulo e botão não guardam nada).
     pub fn tem_valor(self) -> bool {
-        !matches!(self, Self::Rotulo | Self::Botao)
+        !matches!(self, Self::Rotulo | Self::Botao | Self::Moldura | Self::Imagem)
     }
 }
 
 /// Um controle, com posição e tamanho em px dentro do formulário.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Controle {
     pub tipo: TipoControle,
     /// A chave em `valores`; nas opções, o grupo (todas do mesmo grupo têm o mesmo nome).
@@ -92,6 +101,49 @@ pub struct Controle {
     /// `Visible = False`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub oculto: bool,
+    /// Aparência; vazio segue o tema. Cores em `#rrggbb`: fundo (`BackColor`), texto (`ForeColor`) e borda.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub fundo: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub cor: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub borda: String,
+    /// Cantos arredondados, em px.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub raio: Option<f32>,
+    /// Tamanho da letra, em px.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub letra: Option<f32>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub negrito: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub italico: bool,
+    /// Família da letra: "serifa" ou "mono" (vazio = a do app).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub familia: String,
+    /// Alinhamento do texto: "centro" ou "direita" (vazio = esquerda; botão = centro).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub alinhar: String,
+    /// Campo de texto: limite de caracteres (`MaxLength`; 0 = sem limite).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub max: u32,
+    /// Campo de texto de várias linhas (`MultiLine`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub multilinha: bool,
+    /// Balão ao parar o mouse em cima (`ControlTipText`).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub dica: String,
+    /// Imagem em base64 (PNG ou JPEG) do controle Imagem.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub imagem: String,
+}
+
+fn is_zero(v: &u32) -> bool { *v == 0 }
+
+/// `#rgb`/`#rrggbb` (o `#` é opcional) ou vazio.
+pub fn cor_valida(c: &str) -> bool {
+    let h = c.trim().trim_start_matches('#');
+    c.trim().is_empty() || (matches!(h.len(), 3 | 6) && h.chars().all(|x| x.is_ascii_hexdigit()))
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -105,6 +157,9 @@ pub struct Formulario {
     pub altura: f32,
     #[serde(default)]
     pub controles: Vec<Controle>,
+    /// Cor de fundo do formulário (`BackColor`; vazio = tema).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub fundo: String,
 }
 
 fn largura_padrao() -> f32 { 360.0 }
@@ -112,7 +167,7 @@ fn altura_padrao() -> f32 { 260.0 }
 
 impl Formulario {
     pub fn novo(nome: &str) -> Self {
-        Self { nome: nome.into(), titulo: nome.into(), largura: largura_padrao(), altura: altura_padrao(), controles: Vec::new() }
+        Self { nome: nome.into(), titulo: nome.into(), largura: largura_padrao(), altura: altura_padrao(), controles: Vec::new(), fundo: String::new() }
     }
 
     /// Os valores iniciais de cada campo (o que `valores` traz sem ninguém mexer).
@@ -144,6 +199,7 @@ impl Formulario {
     fn conferir(&self) -> Result<(), String> {
         let nome = self.nome.trim();
         if nome.is_empty() { return Err("Formulário sem nome.".into()); }
+        if !cor_valida(&self.fundo) { return Err(format!("Cor de fundo \"{}\" inválida no formulário \"{nome}\".", self.fundo)); }
         if self.controles.len() > MAX_CONTROLES { return Err(format!("O formulário \"{nome}\" passa de {MAX_CONTROLES} controles.")); }
         if !(80.0..=2000.0).contains(&self.largura) || !(60.0..=2000.0).contains(&self.altura) {
             return Err(format!("O formulário \"{nome}\" tem tamanho fora de 80–2000 × 60–2000 px."));
@@ -155,6 +211,13 @@ impl Formulario {
             if ![c.x, c.y, c.largura, c.altura].iter().all(|v| v.is_finite() && *v >= 0.0) {
                 return Err(format!("O controle \"{}\" do formulário \"{nome}\" tem posição inválida.", c.nome));
             }
+            if let Some(cor) = [&c.fundo, &c.cor, &c.borda].into_iter().find(|x| !cor_valida(x)) {
+                return Err(format!("Cor \"{cor}\" inválida no formulário \"{nome}\": use #rrggbb."));
+            }
+            if c.raio.is_some_and(|r| !(0.0..=200.0).contains(&r)) || c.letra.is_some_and(|l| !(6.0..=96.0).contains(&l)) {
+                return Err(format!("O controle \"{}\" do formulário \"{nome}\" tem cantos (0–200) ou letra (6–96) fora do limite.", c.nome));
+            }
+            if c.imagem.len() > MAX_IMAGEM { return Err(format!("A imagem do formulário \"{nome}\" passa de 1,5 MB.")); }
         }
         // Mesmo nome só entre opções do mesmo grupo.
         let mut vistos = std::collections::BTreeMap::new();
@@ -202,8 +265,7 @@ mod testes {
     use super::*;
 
     fn controle(tipo: TipoControle, nome: &str, texto: &str, valor: &str) -> Controle {
-        Controle { tipo, nome: nome.into(), texto: texto.into(), x: 0.0, y: 0.0, largura: 100.0, altura: 24.0,
-            opcoes: Vec::new(), fonte: String::new(), livre: false, multipla: false, valor: valor.into(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
+        Controle { tipo, nome: nome.into(), texto: texto.into(), largura: 100.0, altura: 24.0, valor: valor.into(), ..Default::default() }
     }
 
     #[test]
@@ -230,7 +292,11 @@ mod testes {
         f.controles = vec![controle(TipoControle::Texto, "a", "", ""), controle(TipoControle::Caixa, "a", "", "")];
         assert!(gravar(&[f.clone()]).unwrap_err().contains("Dois controles"));
         f.controles = vec![controle(TipoControle::Texto, " ", "", "")];
-        assert!(gravar(&[f]).unwrap_err().contains("sem nome"));
+        assert!(gravar(&[f.clone()]).unwrap_err().contains("sem nome"));
+        f.controles = vec![Controle { fundo: "#12345".into(), ..controle(TipoControle::Rotulo, "", "", "") }];
+        assert!(gravar(&[f.clone()]).unwrap_err().contains("Cor"));
+        f.controles[0].fundo = "#abc".into();
+        assert!(gravar(&[f]).is_ok());
         assert!(gravar(&[Formulario::novo("a"), Formulario::novo("A")]).unwrap_err().contains("Dois formulários"));
     }
 }

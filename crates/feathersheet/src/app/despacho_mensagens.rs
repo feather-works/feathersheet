@@ -325,6 +325,7 @@ impl App {
                 self.selecionar_item_menu_macro(id, indice),
             // Busca, Localizar/Substituir e desfazer do código (macros/codigo.rs).
             Msg::MacroVisual(EventoVisual::Codigo(e)) => self.evento_codigo_macro(e),
+            Msg::MacroVisual(EventoVisual::Designer(macros::designer_formulario::EventoDesigner::EscolherImagem)) => self.escolher_imagem_designer(),
             Msg::MacroVisual(e) => {
                 let estava = self.macro_visual.renomeando.is_some();
                 self.evento_macro_visual(e);

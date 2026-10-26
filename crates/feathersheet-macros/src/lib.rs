@@ -132,7 +132,7 @@ impl HospedeiroMacros for HospedeiroSheet {
         } else if op == "campoFormulario" {
             let nome = dados[0].as_str().ok_or("field: o nome do campo precisa ser texto")?;
             let prop = dados[1].as_str().unwrap_or_default();
-            if !matches!(prop, "value" | "enabled" | "visible") { return Err(format!("field: propriedade \"{prop}\" desconhecida")); }
+            if !matches!(prop, "value" | "enabled" | "visible" | "backColor" | "foreColor" | "caption") { return Err(format!("field: propriedade \"{prop}\" desconhecida")); }
             if e.extra.campos.len() >= 1000 { return Err("field: mudanças demais no formulário numa execução".into()); }
             e.extra.campos.push((nome.to_owned(), prop.to_owned(), dados[2].clone()));
             Json::Null
@@ -949,7 +949,9 @@ function __sheet(i) {
         showComponent:(nome,dados)=>{__ft('mostrarFormulario',[String(nome),dados===undefined?null:dados]);return sheet;},
         hideComponent:()=>{__ft('fecharFormulario',[]);return sheet;},
         field:n=>{n=String(n);return {get value(){return (globalThis.__valores||{})[n];},set value(v){if(globalThis.__valores)globalThis.__valores[n]=v;__ft('campoFormulario',[n,'value',v===undefined?null:v]);},
-            set enabled(b){__ft('campoFormulario',[n,'enabled',!!b]);},set visible(b){__ft('campoFormulario',[n,'visible',!!b]);}};},
+            set enabled(b){__ft('campoFormulario',[n,'enabled',!!b]);},set visible(b){__ft('campoFormulario',[n,'visible',!!b]);},
+            set backColor(c){__ft('campoFormulario',[n,'backColor',c==null?'':String(c)]);},set foreColor(c){__ft('campoFormulario',[n,'foreColor',c==null?'':String(c)]);},
+            set caption(t){__ft('campoFormulario',[n,'caption',t==null?'':String(t)]);}};},
         log, name:__ft('nomes',[])[i]};
     sheet.cells=sheet.cell; sheet.worksheets=wb.sheet; sheet.sheets=wb.sheet; return sheet;
 }

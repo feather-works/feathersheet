@@ -568,6 +568,12 @@ impl<'a, T: Clone + PartialEq + ToString, M> ListaPropria<'a, T, M> {
     pub fn width(self, w: impl Into<pelicano::Length>) -> Self {
         self.trocar(|l| l.width(w))
     }
+    pub fn style(self, f: impl Fn(&pelicano::Theme, pelicano::Status) -> pelicano::Style + 'a) -> Self {
+        self.trocar(|l| l.style(f))
+    }
+    pub fn handle_color(self, c: pelicano::Color) -> Self {
+        self.trocar(|l| l.handle_color(c))
+    }
 }
 impl<'a, T: Clone + PartialEq + ToString + 'a, M> pelicano::Widget<M> for ListaPropria<'a, T, M> {
     fn size(&self) -> (pelicano::Length, pelicano::Length) {

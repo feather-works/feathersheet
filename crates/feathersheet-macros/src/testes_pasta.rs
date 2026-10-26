@@ -161,11 +161,12 @@ fn field_muda_o_formulario_aberto_e_hide_fecha() {
         n.value = n.value.toUpperCase();
         sheet.field("idade").enabled = false;
         sheet.field("obs").visible = 0;
+        sheet.field("ok").backColor = '#ff0000';
         sheet.hideComponent();
     "#, contexto);
     assert!(r.erro.is_none(), "{:?}", r.erro);
     assert_eq!(r.campos, vec![("nome".into(), "value".into(), "ANA".into()), ("idade".into(), "enabled".into(), false.into()),
-        ("obs".into(), "visible".into(), false.into())]);
+        ("obs".into(), "visible".into(), false.into()), ("ok".into(), "backColor".into(), "#ff0000".into())]);
     assert!(r.fechar_formulario);
     // Com erro, nada do formulário é aplicado.
     let r = executar(&mut wb, 0, r#"sheet.field("a").value = 1; throw new Error("x");"#);

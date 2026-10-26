@@ -3,7 +3,7 @@
 //! posições gravadas. O botão roda a macro dele com o que foi preenchido em
 //! `valores`; "limpar" zera os campos (cadastro em série) e "fechar" fecha.
 use super::*;
-use feathersheet_macros::formularios::{self, Formulario, TipoControle};
+use feathersheet_macros::formularios::{self, Controle, Formulario, TipoControle};
 use pelicano::{checkbox, radio};
 use serde_json::{Map, Value as Json};
 
@@ -15,6 +15,81 @@ pub(super) struct FormularioAberto {
     /// Campo → valor enquanto a pessoa preenche: texto, número (ainda texto), lista e
     /// grupo de opções como texto; caixa como lógico.
     pub valores: Map<String, Json>,
+    /// O texto dos campos de várias linhas (o `text_editor` edita um `Content`); `valores` segue igual.
+    pub editores: std::collections::HashMap<String, pelicano::Content>,
+}
+
+impl FormularioAberto {
+    fn novo(form: Formulario, valores: Map<String, Json>) -> Self {
+        let mut f = Self { form, valores, editores: Default::default() };
+        f.sincronizar_editores();
+        f
+    }
+    /// Refaz o texto dos campos de várias linhas a partir de `valores` (abrir, limpar, `field.value`).
+    fn sincronizar_editores(&mut self) {
+        self.editores = self.form.controles.iter().filter(|c| c.tipo == TipoControle::Texto && c.multilinha)
+            .map(|c| (c.nome.clone(), pelicano::Content::with_text(self.valores.get(&c.nome).and_then(Json::as_str).unwrap_or(""))))
+            .collect();
+    }
+}
+
+/// A aparência gravada no controle (vazio segue o tema), usada pela janela e pela prévia do designer.
+pub(in crate::app) mod aparencia {
+    use feathersheet_macros::formularios::{Controle, TipoControle};
+    use pelicano::{Align, Background, Color, Font, Style};
+
+    pub fn cor(hex: &str) -> Option<Color> {
+        let h = hex.trim().trim_start_matches('#');
+        let h: String = if h.len() == 3 { h.chars().flat_map(|c| [c, c]).collect() } else { h.to_owned() };
+        let n = (h.len() == 6).then(|| u32::from_str_radix(&h, 16).ok()).flatten()?;
+        Some(Color::rgb8((n >> 16) as u8, (n >> 8) as u8, n as u8))
+    }
+
+    pub fn fonte(c: &Controle) -> Font {
+        let familia = match c.familia.as_str() { "serifa" => Some("serif"), "mono" => Some("monospace"), _ => None };
+        Font { family: familia, weight: if c.negrito { 700 } else { 400 }, italic: c.italico }
+    }
+
+    pub fn letra(c: &Controle) -> f32 { c.letra.unwrap_or(13.0) }
+
+    pub fn alinhamento(c: &Controle) -> Align {
+        match c.alinhar.as_str() {
+            "centro" => Align::Center,
+            "direita" => Align::End,
+            "esquerda" => Align::Start,
+            _ if c.tipo == TipoControle::Botao => Align::Center,
+            _ => Align::Start,
+        }
+    }
+
+    /// Fundo, borda, cantos e cor do texto do controle por cima do estilo do tema.
+    pub fn sobre(c: &Controle, mut st: Style) -> Style {
+        if let Some(f) = cor(&c.fundo) { st.background = Some(Background::Color(f)); }
+        if let Some(b) = cor(&c.borda) { st.border.color = b; st.border.width = st.border.width.max(1.0); }
+        if let Some(r) = c.raio { st.border.radius = [r; 4]; }
+        if let Some(t) = cor(&c.cor) { st.text_color = Some(t); }
+        st
+    }
+
+    /// A imagem do controle, decodificada uma vez por conteúdo.
+    pub fn imagem(b64: &str) -> Option<pelicano::Image> {
+        use base64::Engine;
+        use std::hash::{Hash, Hasher};
+        thread_local! { static CACHE: std::cell::RefCell<std::collections::HashMap<u64, Option<pelicano::Image>>> = Default::default(); }
+        if b64.is_empty() { return None; }
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        b64.hash(&mut h);
+        let chave = h.finish();
+        CACHE.with(|c| {
+            let mut c = c.borrow_mut();
+            // shortcut: limpa tudo ao passar de 32 imagens; trocar por LRU se um formulário tiver mais que isso.
+            if c.len() > 32 { c.clear(); }
+            c.entry(chave).or_insert_with(|| {
+                let bytes = base64::engine::general_purpose::STANDARD.decode(b64.trim()).ok()?;
+                crate::compat::imagem_de_bytes(&bytes)
+            }).clone()
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -31,6 +106,8 @@ pub enum Evento {
     Item(usize, String),
     /// O botão do intervalo (RefEdit): o campo `i` recebe a seleção da planilha.
     PegarSelecao(usize),
+    /// O campo de várias linhas mudou (o nome dele).
+    Editor(String),
     /// Enter ou Esc na janela do formulário.
     Tecla { enter: bool },
     Fechar,
@@ -98,7 +175,7 @@ impl App {
             c.opcoes = self.workbook.opcoes_da_lista(self.folha, self.linha, self.coluna, &regra).unwrap_or_default();
         }
         let valores = valores_para_editar(&form, dados);
-        self.formulario_macro = Some(FormularioAberto { form, valores });
+        self.formulario_macro = Some(FormularioAberto::novo(form, valores));
     }
 
     pub(super) fn tamanho_formulario(&self) -> Size {
@@ -121,6 +198,7 @@ impl App {
         let desligado = |nome: &str| aberto.form.controles.iter().any(|c| c.nome == nome && (c.desativado || c.oculto));
         let bloqueado = match &evento {
             Evento::Texto(n, _) | Evento::Caixa(n, _) => desligado(n),
+            Evento::Editor(n) => desligado(n),
             Evento::Opcao(i) | Evento::Confirmar(i) | Evento::Botao(i) | Evento::PegarSelecao(i) | Evento::Item(i, _) => aberto.form.controles.get(*i).is_none_or(|c| c.desativado || c.oculto),
             _ => false,
         };
@@ -128,6 +206,9 @@ impl App {
         // O controle cuja macro roda depois da mudança (`Change` do VBA), se houver.
         let mudou = match evento {
             Evento::Texto(nome, t) => {
+                // MaxLength: o que passa do limite não entra.
+                let max = aberto.form.controles.iter().find(|c| c.nome == nome).map_or(0, |c| c.max as usize);
+                let t = if max > 0 { t.chars().take(max).collect() } else { t };
                 // A lista fechada roda a macro ao escolher; a que aceita digitar, só no Enter.
                 let lista = aberto.form.controles.iter().position(|c| c.nome == nome && c.tipo == TipoControle::Lista && !c.livre);
                 aberto.valores.insert(nome, Json::String(t));
@@ -142,6 +223,17 @@ impl App {
                 i
             }),
             Evento::Confirmar(i) => Some(i),
+            Evento::Editor(nome) => {
+                let max = aberto.form.controles.iter().find(|c| c.nome == nome).map_or(0, |c| c.max as usize);
+                let Some(conteudo) = aberto.editores.get_mut(&nome) else { return Task::none() };
+                let mut t = conteudo.text();
+                if max > 0 && t.chars().count() > max {
+                    t = t.chars().take(max).collect();
+                    *conteudo = pelicano::Content::with_text(&t);
+                }
+                aberto.valores.insert(nome, Json::String(t));
+                None
+            }
             Evento::Item(i, item) => {
                 let Some(c) = aberto.form.controles.get(i) else { return Task::none() };
                 let novo = if c.tipo == TipoControle::Listagem && c.multipla {
@@ -177,7 +269,10 @@ impl App {
                 if !self.rodar_macro_do_controle(i) { return Task::none() }
                 // A macro pode ter aberto outro formulário: limpar e fechar valem só para este.
                 let Some(aberto) = self.formulario_macro.as_mut().filter(|a| a.form.nome == nome_form) else { return Task::none() };
-                if c.limpar { aberto.valores = valores_para_editar(&aberto.form, &Json::Null); }
+                if c.limpar {
+                    aberto.valores = valores_para_editar(&aberto.form, &Json::Null);
+                    aberto.sincronizar_editores();
+                }
                 if c.fechar { self.formulario_macro = None; }
                 None
             }
@@ -223,134 +318,216 @@ impl App {
                     }
                 }
                 _ => for c in aberto.form.controles.iter_mut().filter(|c| c.nome == nome) {
-                    let ligado = v.as_bool().unwrap_or(false);
-                    if prop == "enabled" { c.desativado = !ligado } else { c.oculto = !ligado }
+                    let texto = v.as_str().unwrap_or("").to_owned();
+                    match prop.as_str() {
+                        "enabled" => c.desativado = !v.as_bool().unwrap_or(false),
+                        "visible" => c.oculto = !v.as_bool().unwrap_or(false),
+                        // Cor inválida não muda nada (a macro já terminou; o formulário fica como estava).
+                        "backColor" if formularios::cor_valida(&texto) => c.fundo = texto,
+                        "foreColor" if formularios::cor_valida(&texto) => c.cor = texto,
+                        "caption" => c.texto = texto,
+                        _ => {}
+                    }
                 },
             }
         }
+        aberto.sincronizar_editores();
     }
 
     pub(super) fn view_formulario_macro(&self) -> Element<'_, Msg> {
         let Some(aberto) = &self.formulario_macro else { return Space::new(0.0, 0.0).into() };
-        let ev = Msg::FormularioMacro;
-        let texto = |nome: &str| aberto.valores.get(nome).and_then(Json::as_str).unwrap_or("").to_owned();
-        let camadas = aberto.form.controles.iter().enumerate().filter(|(_, c)| !c.oculto).map(|(i, c)| {
-            let nome = c.nome.clone();
-            let ligado = !c.desativado;
-            let w: Element<'_, Msg> = match c.tipo {
-                TipoControle::Rotulo => text(c.texto.clone()).size(13).into(),
-                TipoControle::Intervalo => {
-                    let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
-                    let dica = if c.texto.is_empty() { tr!("Selecione na planilha") } else { &c.texto };
-                    let mut campo = text_input(dica, valor).size(13).width(Length::FILL);
-                    let mut pegar = button(feather_ui::icones::icone("table", 14.0)).padding([4, 6]).style(estilo_botao_secundario);
-                    if ligado {
-                        campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
-                        if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
-                        pegar = pegar.on_press(ev(Evento::PegarSelecao(i)));
-                    }
-                    pelicano::row![campo, pelicano::tooltip(pegar, tr!("Usar a seleção da planilha"), pelicano::TooltipPosition::Top)]
-                        .spacing(4).align(pelicano::Align::Center).into()
-                }
-                TipoControle::Texto | TipoControle::Numero | TipoControle::Senha => {
-                    let dica = if c.texto.is_empty() { &c.nome } else { &c.texto };
-                    let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
-                    let mut campo = text_input(dica, valor).secure(c.tipo == TipoControle::Senha).size(13).width(Length::FILL);
-                    if ligado {
-                        campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
-                        if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
-                    }
-                    campo.into()
-                }
-                TipoControle::Caixa => {
-                    let marcado = aberto.valores.get(&c.nome).and_then(Json::as_bool).unwrap_or(false);
-                    let caixa = checkbox(c.texto.clone(), marcado).size(13);
-                    if ligado { caixa.on_toggle(move |b| ev(Evento::Caixa(nome.clone(), b))).into() } else { caixa.into() }
-                }
-                TipoControle::Opcao => {
-                    let marcada = (texto(&c.nome) == c.texto).then_some(i);
-                    radio(c.texto.clone(), i, marcada, move |i| ev(Evento::Opcao(i))).size(13).into()
-                }
-                TipoControle::Listagem => {
-                    let marcadas: Vec<&str> = match aberto.valores.get(&c.nome) {
-                        Some(Json::Array(a)) => a.iter().filter_map(Json::as_str).collect(),
-                        Some(Json::String(s)) => vec![s.as_str()],
-                        _ => Vec::new(),
-                    };
-                    let linhas = c.opcoes.iter().map(|o| {
-                        let marcada = marcadas.contains(&o.as_str());
-                        if c.multipla {
-                            // Várias escolhas: caixas de seleção, como o ListStyle de opção do VBA.
-                            let mut caixa = checkbox(o.clone(), marcada).size(13);
-                            if ligado { let o = o.clone(); caixa = caixa.on_toggle(move |_| ev(Evento::Item(i, o.clone()))); }
-                            return container(caixa).padding([2, 6]).width(Length::FILL).into();
-                        }
-                        let linha = container(text(o.clone()).size(13).color(if marcada { pelicano::Color::WHITE } else { COR_TEXTO() }))
-                            .padding([3, 6]).width(Length::FILL)
-                            .style(move |_| pelicano::Style {
-                                background: marcada.then(|| pelicano::Background::Color(COR_AZUL_ACENTO())),
-                                ..Default::default()
-                            });
-                        let mut area = pelicano::mouse_area(linha);
-                        if ligado { area = area.on_press(ev(Evento::Item(i, o.clone()))); }
-                        area.into()
-                    }).collect::<Vec<Element<'_, Msg>>>();
-                    container(pelicano::scrollable(pelicano::column(linhas)).height(Length::FILL))
-                        .width(Length::FILL).height(Length::FILL).padding(1)
-                        .style(|_| pelicano::Style {
-                            background: Some(pelicano::Background::Color(COR_PAINEL())),
-                            border: pelicano::Border { color: COR_BORDA(), width: 1.0, radius: [4.0; 4] },
-                            ..Default::default()
-                        }).into()
-                }
-                TipoControle::Lista if c.livre => {
-                    // Aceita digitar: o campo, com a setinha da lista ao lado.
-                    let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
-                    let mut campo = text_input(&c.texto, valor).size(13).width(Length::FILL);
-                    let nome_setinha = i;
-                    let mut row = pelicano::row![].spacing(2).align(pelicano::Align::Center);
-                    if ligado {
-                        campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
-                        if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
-                    }
-                    row = row.push(campo);
-                    if ligado {
-                        row = row.push(crate::compat::pick_list_vec(c.opcoes.clone(), None, move |t| ev(Evento::Item(nome_setinha, t)))
-                            .width(Length::Fixed(30.0)));
-                    }
-                    row.into()
-                }
-                TipoControle::Lista => {
-                    let atual = Some(texto(&c.nome)).filter(|t| !t.is_empty());
-                    crate::compat::pick_list_vec(c.opcoes.clone(), atual, move |t| ev(Evento::Texto(nome.clone(), t)))
-                        .width(Length::FILL).into()
-                }
-                TipoControle::Botao => button(container(text(c.texto.clone()).size(13)).width(Length::FILL).height(Length::FILL)
-                    .align_x(pelicano::Align::Center).align_y(pelicano::Align::Center))
-                    .width(Length::FILL).height(Length::FILL)
-                    .style(if c.macro_nome.is_some() { estilo_botao_primario } else { estilo_botao_secundario })
-                    .on_press_maybe(ligado.then(|| ev(Evento::Botao(i)))).into(),
+        let fundo_form = aparencia::cor(&aberto.form.fundo).unwrap_or(COR_PAINEL());
+        // Molduras atrás: os controles de dentro ficam por cima, como no VBA.
+        let mut ordem: Vec<usize> = (0..aberto.form.controles.len()).filter(|&i| !aberto.form.controles[i].oculto).collect();
+        ordem.sort_by_key(|&i| aberto.form.controles[i].tipo != TipoControle::Moldura);
+        let camadas = ordem.into_iter().map(|i| {
+            let c = &aberto.form.controles[i];
+            let w = self.controle_formulario(aberto, i, c, fundo_form);
+            // ControlTipText: o balão ao parar o mouse.
+            let w: Element<'_, Msg> = if c.dica.is_empty() { w } else {
+                pelicano::tooltip(w, c.dica.clone(), pelicano::TooltipPosition::Top).into()
             };
             // Desativado: esmaecido, como no VBA.
-            let w: Element<'_, Msg> = if ligado { w } else {
-                let mut veu = COR_PAINEL();
+            let w: Element<'_, Msg> = if !c.desativado { w } else {
+                let mut veu = fundo_form;
                 veu.a = 0.55;
                 pelicano::stack(vec![w, container(Space::new(Length::FILL, Length::FILL)).width(Length::FILL).height(Length::FILL)
                     .style(move |_| pelicano::Style { background: Some(pelicano::Background::Color(veu)), ..Default::default() }).into()]).into()
             };
+            let alto = matches!(c.tipo, TipoControle::Moldura | TipoControle::Imagem | TipoControle::Listagem) || c.multilinha;
             pelicano::column![
                 Space::new(0.0, Length::Fixed(c.y)),
                 pelicano::row![
                     Space::new(Length::Fixed(c.x), 0.0),
-                    container(w).width(Length::Fixed(c.largura)).height(Length::Fixed(c.altura)).align_y(pelicano::Align::Center),
+                    container(w).width(Length::Fixed(c.largura)).height(Length::Fixed(c.altura))
+                        .align_y(if alto { pelicano::Align::Start } else { pelicano::Align::Center }),
                 ],
             ].into()
         });
         let area = pelicano::stack(camadas.collect::<Vec<Element<'_, Msg>>>())
             .width(Length::Fixed(aberto.form.largura)).height(Length::Fixed(aberto.form.altura));
         container(area).padding(MARGEM).width(Length::FILL).height(Length::FILL)
-            .style(|_| pelicano::Style { background: Some(pelicano::Background::Color(COR_PAINEL())), ..Default::default() })
+            .style(move |_| pelicano::Style { background: Some(pelicano::Background::Color(fundo_form)), ..Default::default() })
             .into()
+    }
+
+    /// Um controle do formulário aberto, com a aparência gravada nele.
+    fn controle_formulario<'a>(&'a self, aberto: &'a FormularioAberto, i: usize, c: &'a Controle, fundo_form: pelicano::Color) -> Element<'a, Msg> {
+        let ev = Msg::FormularioMacro;
+        let nome = c.nome.clone();
+        let ligado = !c.desativado;
+        let (tam, fonte) = (aparencia::letra(c), aparencia::fonte(c));
+        let cor_texto = aparencia::cor(&c.cor);
+        let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
+        let campo_estilo = move |t: &pelicano::Theme, s: pelicano::Status| aparencia::sobre(c, pelicano::input_default(t, s));
+        // Rótulo, caixa e opção: o fundo e a borda vão numa caixa em volta.
+        let caixa = move |w: Element<'a, Msg>| -> Element<'a, Msg> {
+            container(w).width(Length::FILL).height(Length::FILL).align_y(pelicano::Align::Center)
+                .align_x(aparencia::alinhamento(c)).padding([0, if c.fundo.is_empty() && c.borda.is_empty() { 0 } else { 6 }])
+                .style(move |_| aparencia::sobre(c, pelicano::Style::default())).into()
+        };
+        let rotulo = |t: &str| { let mut x = text(t.to_owned()).size(tam).font(fonte); if let Some(k) = cor_texto { x = x.color(k); } x };
+        match c.tipo {
+            TipoControle::Rotulo => caixa(rotulo(&c.texto).into()),
+            TipoControle::Moldura => {
+                // O título corta a borda, como no Frame do VBA.
+                let borda = aparencia::cor(&c.borda).unwrap_or(COR_BORDA());
+                let raio = c.raio.unwrap_or(4.0);
+                let fundo = aparencia::cor(&c.fundo);
+                let caixa = container(Space::new(Length::FILL, Length::FILL)).width(Length::FILL).height(Length::FILL)
+                    .style(move |_| pelicano::Style {
+                        background: fundo.map(pelicano::Background::Color),
+                        border: pelicano::Border { color: borda, width: 1.0, radius: [raio; 4] },
+                        ..Default::default()
+                    });
+                let mut camadas = vec![pelicano::column![Space::new(0.0, Length::Fixed(tam * 0.7)), caixa].into()];
+                if !c.texto.is_empty() {
+                    let atras = fundo.unwrap_or(fundo_form);
+                    camadas.push(pelicano::row![Space::new(Length::Fixed(10.0), 0.0),
+                        container(rotulo(&c.texto)).padding([0, 4])
+                            .style(move |_| pelicano::Style { background: Some(pelicano::Background::Color(atras)), ..Default::default() })].into());
+                }
+                pelicano::stack(camadas).width(Length::FILL).height(Length::FILL).into()
+            }
+            TipoControle::Imagem => match aparencia::imagem(&c.imagem) {
+                Some(img) => {
+                    let mut v = pelicano::image(img).width(Length::FILL).height(Length::FILL);
+                    if let Some(r) = c.raio { v = v.radius(r); }
+                    container(v).width(Length::FILL).height(Length::FILL)
+                        .style(move |_| aparencia::sobre(c, pelicano::Style::default())).into()
+                }
+                None => caixa(text(tr!("(sem imagem)")).size(11).color(COR_TEXTO_MUTED()).into()),
+            },
+            TipoControle::Intervalo => {
+                let dica = if c.texto.is_empty() { tr!("Selecione na planilha") } else { &c.texto };
+                let mut campo = text_input(dica, valor).size(tam).font(fonte).style(campo_estilo).width(Length::FILL);
+                let mut pegar = button(feather_ui::icones::icone("table", 14.0)).padding([4, 6]).style(estilo_botao_secundario);
+                if ligado {
+                    campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
+                    if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
+                    pegar = pegar.on_press(ev(Evento::PegarSelecao(i)));
+                }
+                pelicano::row![campo, pelicano::tooltip(pegar, tr!("Usar a seleção da planilha"), pelicano::TooltipPosition::Top)]
+                    .spacing(4).align(pelicano::Align::Center).into()
+            }
+            TipoControle::Texto if c.multilinha => match aberto.editores.get(&c.nome) {
+                Some(conteudo) => {
+                    let mut ed = pelicano::text_editor(conteudo).size(tam).font(fonte).padding([6, 8]).style(campo_estilo).idle_focus(false)
+                        .placeholder(&c.texto);
+                    if ligado { ed = ed.on_change(ev(Evento::Editor(nome))); }
+                    container(ed).width(Length::FILL).height(Length::FILL).into()
+                }
+                None => Space::new(0.0, 0.0).into(),
+            },
+            TipoControle::Texto | TipoControle::Numero | TipoControle::Senha => {
+                let dica = if c.texto.is_empty() { &c.nome } else { &c.texto };
+                let mut campo = text_input(dica, valor).secure(c.tipo == TipoControle::Senha).size(tam).font(fonte)
+                    .style(campo_estilo).width(Length::FILL);
+                if ligado {
+                    campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
+                    if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
+                }
+                campo.into()
+            }
+            TipoControle::Caixa => {
+                let marcado = aberto.valores.get(&c.nome).and_then(Json::as_bool).unwrap_or(false);
+                let mut x = checkbox(c.texto.clone(), marcado).size(tam);
+                if let Some(k) = cor_texto { x = x.color(k); }
+                if ligado { x = x.on_toggle(move |b| ev(Evento::Caixa(nome.clone(), b))); }
+                caixa(x.into())
+            }
+            TipoControle::Opcao => {
+                let marcada = (valor == c.texto).then_some(i);
+                let mut x = radio(c.texto.clone(), i, marcada, move |i| ev(Evento::Opcao(i))).size(tam);
+                if let Some(k) = cor_texto { x = x.color(k); }
+                caixa(x.into())
+            }
+            TipoControle::Listagem => {
+                let marcadas: Vec<&str> = match aberto.valores.get(&c.nome) {
+                    Some(Json::Array(a)) => a.iter().filter_map(Json::as_str).collect(),
+                    Some(Json::String(s)) => vec![s.as_str()],
+                    _ => Vec::new(),
+                };
+                let linhas = c.opcoes.iter().map(|o| {
+                    let marcada = marcadas.contains(&o.as_str());
+                    if c.multipla {
+                        // Várias escolhas: caixas de seleção, como o ListStyle de opção do VBA.
+                        let mut x = checkbox(o.clone(), marcada).size(tam);
+                        if let Some(k) = cor_texto { x = x.color(k); }
+                        if ligado { let o = o.clone(); x = x.on_toggle(move |_| ev(Evento::Item(i, o.clone()))); }
+                        return container(x).padding([2, 6]).width(Length::FILL).into();
+                    }
+                    let destaque = cor_texto.unwrap_or(COR_AZUL_ACENTO());
+                    let linha = container(text(o.clone()).size(tam).font(fonte)
+                        .color(if marcada { pelicano::Color::WHITE } else { cor_texto.unwrap_or(COR_TEXTO()) }))
+                        .padding([3, 6]).width(Length::FILL)
+                        .style(move |_| pelicano::Style {
+                            background: marcada.then(|| pelicano::Background::Color(destaque)),
+                            ..Default::default()
+                        });
+                    let mut area = pelicano::mouse_area(linha);
+                    if ligado { area = area.on_press(ev(Evento::Item(i, o.clone()))); }
+                    area.into()
+                }).collect::<Vec<Element<'_, Msg>>>();
+                container(pelicano::scrollable(pelicano::column(linhas)).height(Length::FILL))
+                    .width(Length::FILL).height(Length::FILL).padding(1)
+                    .style(move |_| aparencia::sobre(c, pelicano::Style {
+                        background: Some(pelicano::Background::Color(COR_PAINEL())),
+                        border: pelicano::Border { color: COR_BORDA(), width: 1.0, radius: [4.0; 4] },
+                        ..Default::default()
+                    })).into()
+            }
+            TipoControle::Lista if c.livre => {
+                // Aceita digitar: o campo, com a setinha da lista ao lado.
+                let mut campo = text_input(&c.texto, valor).size(tam).font(fonte).style(campo_estilo).width(Length::FILL);
+                let mut row = pelicano::row![].spacing(2).align(pelicano::Align::Center);
+                if ligado {
+                    campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
+                    if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
+                }
+                row = row.push(campo);
+                if ligado {
+                    row = row.push(crate::compat::pick_list_vec(c.opcoes.clone(), None, move |t| ev(Evento::Item(i, t)))
+                        .style(campo_estilo).width(Length::Fixed(30.0)));
+                }
+                row.into()
+            }
+            TipoControle::Lista => {
+                let atual = Some(valor.to_owned()).filter(|t| !t.is_empty());
+                crate::compat::pick_list_vec(c.opcoes.clone(), atual, move |t| ev(Evento::Texto(nome.clone(), t)))
+                    .size(tam).style(campo_estilo).width(Length::FILL).into()
+            }
+            TipoControle::Botao => {
+                let base = if c.macro_nome.is_some() { estilo_botao_primario } else { estilo_botao_secundario };
+                let mut t = text(c.texto.clone()).size(tam).font(fonte);
+                if let Some(k) = cor_texto { t = t.color(k); }
+                button(container(t).width(Length::FILL).height(Length::FILL)
+                    .align_x(aparencia::alinhamento(c)).align_y(pelicano::Align::Center))
+                    .width(Length::FILL).height(Length::FILL)
+                    .style(move |th, st| aparencia::sobre(c, base(th, st)))
+                    .on_press_maybe(ligado.then(|| ev(Evento::Botao(i)))).into()
+            }
+        }
     }
 }
 
@@ -360,8 +537,7 @@ mod testes {
     use feathersheet_macros::formularios::Controle;
 
     fn controle(tipo: TipoControle, nome: &str, texto: &str) -> Controle {
-        Controle { tipo, nome: nome.into(), texto: texto.into(), x: 10.0, y: 10.0, largura: 120.0, altura: 26.0,
-            opcoes: Vec::new(), fonte: String::new(), livre: false, multipla: false, valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
+        Controle { tipo, nome: nome.into(), texto: texto.into(), x: 10.0, y: 10.0, largura: 120.0, altura: 26.0, ..Default::default() }
     }
 
     /// Cadastro em série: a macro do botão recebe `valores`, grava na planilha,
@@ -468,6 +644,34 @@ mod testes {
         assert_eq!(texto_campo(&app, "uf"), "MG");
         let _ = app.evento_formulario_macro(Evento::Item(1, "SP".into()));
         assert_eq!(texto_campo(&app, "uf"), "SP");
+        let _ = app.view_formulario_macro();
+    }
+
+    #[test]
+    fn aparencia_limite_varias_linhas_e_cor_pela_macro() {
+        let mut app = App::default();
+        let mut form = Formulario::novo("f");
+        form.fundo = "#fff3e0".into();
+        let mut obs = controle(TipoControle::Texto, "obs", "");
+        (obs.multilinha, obs.max, obs.valor) = (true, 5, "a\nb".into());
+        let mut cod = controle(TipoControle::Texto, "cod", "");
+        (cod.max, cod.fundo, cod.raio, cod.negrito, cod.dica) = (3, "#e3f2fd".into(), Some(10.0), true, "Código".into());
+        let mut ok = controle(TipoControle::Botao, "", "OK");
+        (ok.fundo, ok.cor, ok.alinhar) = ("#43a047".into(), "#ffffff".into(), "direita".into());
+        form.controles = vec![controle(TipoControle::Moldura, "", "Dados"), obs, cod, ok, controle(TipoControle::Imagem, "", "")];
+        app.workbook.formularios = formularios::gravar(&[form]).unwrap();
+        app.abrir_formulario_macro("f", &Json::Null);
+        assert_eq!(app.formulario_macro.as_ref().unwrap().editores["obs"].text(), "a\nb");
+        // MaxLength corta o que passa.
+        let _ = app.evento_formulario_macro(Evento::Texto("cod".into(), "12345".into()));
+        assert_eq!(texto_campo(&app, "cod"), "123");
+        // sheet.field: cor e legenda mudam o formulário aberto; cor inválida é ignorada.
+        app.aplicar_campos_formulario(vec![("cod".into(), "backColor".into(), "#ff0000".into()), ("cod".into(), "foreColor".into(), "verde".into()),
+            ("obs".into(), "value".into(), "novo".into())]);
+        let aberto = app.formulario_macro.as_ref().unwrap();
+        assert_eq!((aberto.form.controles[2].fundo.as_str(), aberto.form.controles[2].cor.as_str()), ("#ff0000", ""));
+        assert_eq!(aberto.editores["obs"].text(), "novo");
+        assert_eq!(aparencia::cor("#abc"), Some(pelicano::Color::rgb8(0xaa, 0xbb, 0xcc)));
         let _ = app.view_formulario_macro();
     }
 
