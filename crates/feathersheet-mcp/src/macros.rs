@@ -77,9 +77,15 @@ pub fn macro_(h: &mut dyn Hospede, args: &Json) -> Saida {
                 None => s.push_str("\nMacro concluída."),
             }
             if let Some(st) = r.status { s.push_str(&format!("\nStatus: {st}")); }
-            if let Some((form, dados)) = r.formulario {
-                s.push_str(&if h.mostrar_formulario(&form, &dados) { format!("\nFormulário \"{form}\" aberto na tela.") }
-                    else { format!("\nA macro pediu o formulário \"{form}\", que só abre com o app.") });
+            let pedido = r.formulario.as_ref().map(|(f, _)| f.clone());
+            if r.fechar_formulario || pedido.is_some() || !r.campos.is_empty() {
+                let aberto = h.formulario(r.fechar_formulario, r.formulario, r.campos);
+                match pedido {
+                    Some(form) if aberto => s.push_str(&format!("\nFormulário \"{form}\" aberto na tela.")),
+                    Some(form) => s.push_str(&format!("\nA macro pediu o formulário \"{form}\", que só abre com o app.")),
+                    None if r.fechar_formulario => s.push_str("\nFormulário fechado."),
+                    None => {}
+                }
             }
             s.trim_start().to_string()
         }

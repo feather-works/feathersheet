@@ -26,6 +26,10 @@ const GRADE: f32 = 4.0;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Campo { FormNome, FormTitulo, FormLargura, FormAltura, Nome, Texto, X, Y, Largura, Altura, Opcoes, Valor, Macro }
 
+/// As propriedades liga/desliga do controle escolhido.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Marca { Limpar, Fechar, Padrao, Cancelar, Desativado, Oculto }
+
 #[derive(Debug, Clone)]
 pub enum EventoDesigner {
     Abrir(String),
@@ -37,8 +41,7 @@ pub enum EventoDesigner {
     ArrastoMover(f32, f32),
     ArrastoFim,
     Campo(Campo, String),
-    Limpar(bool),
-    Fechar(bool),
+    Marcar(Marca, bool),
     RemoverControle,
     Guardar,
     Testar,
@@ -99,7 +102,7 @@ impl App {
                     TipoControle::Caixa | TipoControle::Opcao => rotulo_tipo(tipo), _ => "" };
                 let nome = if tipo.tem_valor() { nome_livre(f, tipo) } else { String::new() };
                 f.controles.push(Controle { tipo, nome, texto: texto.into(), x: 12.0, y: y.min((f.altura - altura).max(0.0)),
-                    largura, altura, opcoes: Vec::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false });
+                    largura, altura, opcoes: Vec::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false });
                 d.sel = Some(f.controles.len() - 1);
             },
             EventoDesigner::Selecionar(i) => d.sel = i,
@@ -140,8 +143,16 @@ impl App {
                     },
                 }
             },
-            EventoDesigner::Limpar(b) => if let Some(c) = d.sel.and_then(|i| d.form.as_mut()?.controles.get_mut(i)) { c.limpar = b },
-            EventoDesigner::Fechar(b) => if let Some(c) = d.sel.and_then(|i| d.form.as_mut()?.controles.get_mut(i)) { c.fechar = b },
+            EventoDesigner::Marcar(m, b) => if let (Some(f), Some(i)) = (d.form.as_mut(), d.sel) {
+                // Um só botão padrão e um só de cancelar, como no VBA.
+                if b && matches!(m, Marca::Padrao | Marca::Cancelar) {
+                    for c in f.controles.iter_mut() { if m == Marca::Padrao { c.padrao = false } else { c.cancelar = false } }
+                }
+                if let Some(c) = f.controles.get_mut(i) {
+                    *match m { Marca::Limpar => &mut c.limpar, Marca::Fechar => &mut c.fechar, Marca::Padrao => &mut c.padrao,
+                        Marca::Cancelar => &mut c.cancelar, Marca::Desativado => &mut c.desativado, Marca::Oculto => &mut c.oculto } = b;
+                }
+            },
             EventoDesigner::RemoverControle => if let (Some(f), Some(i)) = (d.form.as_mut(), d.sel) {
                 if i < f.controles.len() { f.controles.remove(i); }
                 d.sel = None;
@@ -300,17 +311,26 @@ pub(super) fn designer<'a>(app: &'a App) -> Element<'a, Msg> {
             let dica = if matches!(c.tipo, TipoControle::Caixa | TipoControle::Opcao) { tr!("Marcado (1)") } else { tr!("Valor inicial") };
             props = props.push(campo(dica, c.valor.clone(), Campo::Valor));
         }
-        if c.tipo == TipoControle::Botao {
+        let marca = |rotulo: &str, valor: bool, m: Marca| -> Element<'a, Msg> {
+            checkbox(rotulo.to_owned(), valor).on_toggle(move |b| ev(EventoDesigner::Marcar(m, b))).size(12).into()
+        };
+        if c.tipo != TipoControle::Rotulo {
             let mut macros = vec![tr!("(nenhuma)").to_owned()];
             macros.extend(app.macro_catalogo.macros.iter().map(|m| m.name.clone()));
             props = props.push(row![
-                text(tr!("Macro")).size(11).width(Length::Fixed(78.0)),
+                text(if c.tipo == TipoControle::Botao { tr!("Macro") } else { tr!("Ao mudar") }).size(11).width(Length::Fixed(78.0)),
                 crate::compat::pick_list_vec(macros, Some(c.macro_nome.clone().unwrap_or_else(|| tr!("(nenhuma)").to_owned())),
                     |m| ev(EventoDesigner::Campo(Campo::Macro, m))).width(Length::FILL),
             ].spacing(6).align(pelicano::Align::Center));
-            props = props.push(checkbox(tr!("Limpar os campos depois"), c.limpar).on_toggle(|b| ev(EventoDesigner::Limpar(b))).size(12));
-            props = props.push(checkbox(tr!("Fechar o formulário"), c.fechar).on_toggle(|b| ev(EventoDesigner::Fechar(b))).size(12));
         }
+        if c.tipo == TipoControle::Botao {
+            props = props.push(marca(tr!("Limpar os campos depois"), c.limpar, Marca::Limpar));
+            props = props.push(marca(tr!("Fechar o formulário"), c.fechar, Marca::Fechar));
+            props = props.push(marca(tr!("Padrão (Enter)"), c.padrao, Marca::Padrao));
+            props = props.push(marca(tr!("Cancelar (Esc)"), c.cancelar, Marca::Cancelar));
+        }
+        props = props.push(marca(tr!("Desativado"), c.desativado, Marca::Desativado));
+        props = props.push(marca(tr!("Oculto ao abrir"), c.oculto, Marca::Oculto));
         props = props.push(button(text(tr!("Remover controle")).size(11)).on_press(ev(EventoDesigner::RemoverControle)));
     } else {
         props = props.push(text(tr!("Clique num controle para ver as propriedades.")).size(11).color(cor_secundaria(escuro)));

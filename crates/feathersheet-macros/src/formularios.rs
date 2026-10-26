@@ -56,7 +56,8 @@ pub struct Controle {
     /// Valor inicial ("1" marca a caixa ou a opção).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub valor: String,
-    /// Botão: a macro que roda com `valores`.
+    /// A macro que roda com `valores`: no botão, ao clicar; nos campos, quando o valor muda
+    /// (texto e número: ao confirmar com Enter), como o `Change`/`AfterUpdate` do VBA.
     #[serde(default, rename = "macro", skip_serializing_if = "Option::is_none")]
     pub macro_nome: Option<String>,
     /// Botão: fecha o formulário (depois de rodar a macro, se houver).
@@ -65,6 +66,18 @@ pub struct Controle {
     /// Botão: limpa os campos depois da macro (cadastro em série).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub limpar: bool,
+    /// Botão acionado pelo Enter (o `Default` do VBA).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub padrao: bool,
+    /// Botão acionado pelo Esc (o `Cancel` do VBA).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub cancelar: bool,
+    /// `Enabled = False`: aparece, mas não aceita mudança.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub desativado: bool,
+    /// `Visible = False`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub oculto: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -171,7 +184,7 @@ mod testes {
 
     fn controle(tipo: TipoControle, nome: &str, texto: &str, valor: &str) -> Controle {
         Controle { tipo, nome: nome.into(), texto: texto.into(), x: 0.0, y: 0.0, largura: 100.0, altura: 24.0,
-            opcoes: Vec::new(), valor: valor.into(), macro_nome: None, fechar: false, limpar: false }
+            opcoes: Vec::new(), valor: valor.into(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
     }
 
     #[test]

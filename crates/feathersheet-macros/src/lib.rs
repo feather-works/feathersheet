@@ -48,6 +48,11 @@ pub struct Resultado {
     /// Formulário a abrir (`sheet.showComponent`) com os dados que a macro
     /// passou; só se ela terminou bem.
     pub formulario: Option<(String, Json)>,
+    /// Mudanças no formulário aberto (`sheet.field(nome).value = …`): campo,
+    /// propriedade (`value`, `enabled`, `visible`) e valor; só se terminou bem.
+    pub campos: Vec<(String, String, Json)>,
+    /// `sheet.hideComponent()`: fecha o formulário aberto.
+    pub fechar_formulario: bool,
 }
 
 struct Estado {
@@ -123,6 +128,16 @@ impl HospedeiroMacros for HospedeiroSheet {
             let extra = if dados[1].is_object() || dados[1].is_null() { dados[1].clone() }
                 else { return Err("showComponent: os dados precisam ser um objeto { campo: valor }".into()) };
             e.extra.formulario = Some((f.nome.clone(), extra));
+            Json::Null
+        } else if op == "campoFormulario" {
+            let nome = dados[0].as_str().ok_or("field: o nome do campo precisa ser texto")?;
+            let prop = dados[1].as_str().unwrap_or_default();
+            if !matches!(prop, "value" | "enabled" | "visible") { return Err(format!("field: propriedade \"{prop}\" desconhecida")); }
+            if e.extra.campos.len() >= 1000 { return Err("field: mudanças demais no formulário numa execução".into()); }
+            e.extra.campos.push((nome.to_owned(), prop.to_owned(), dados[2].clone()));
+            Json::Null
+        } else if op == "fecharFormulario" {
+            e.extra.fechar_formulario = true;
             Json::Null
         } else if op == "appStatus" {
             let mensagem = dados.get(0).and_then(Json::as_str)
@@ -681,7 +696,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
     // O prelúdio fica na MESMA linha da 1ª linha do código: as linhas do erro
     // batem com as do editor; só a coluna da linha 1 anda (ver `posicoes`).
     let valores = estado.borrow().extra.contexto.valores.as_ref().map_or_else(|| "{}".to_string(), |v| Json::Object(v.clone()).to_string());
-    let prefixo = format!("(function() {{ const sheet=__sheet({aba}), planilha=sheet; const range=sheet.range, cell=sheet.cell, cells=sheet.cell, worksheets=wb.sheet, sheets=wb.sheet; const valores={valores}; __sel[{aba}]=__ft('selecaoInicial',[]); ");
+    let prefixo = format!("(function() {{ const sheet=__sheet({aba}), planilha=sheet; const range=sheet.range, cell=sheet.cell, cells=sheet.cell, worksheets=wb.sheet, sheets=wb.sheet; const valores={valores}; globalThis.__valores=valores; __sel[{aba}]=__ft('selecaoInicial',[]); ");
     let script = format!("{prefixo}{codigo}\n}})()");
     let mut resultado = feather_macros::executar_com_origem(host, API, &script, Some(posicoes::ORIGEM));
     resultado.erro = resultado.erro.map(|e| posicoes::ajustar_erro(&e, prefixo.chars().count(), codigo));
@@ -709,6 +724,8 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         aba_ativa: if vale { extra.ativou } else { None },
         arquivos: if vale { extra.arquivos } else { Vec::new() },
         formulario: if vale { extra.formulario } else { None },
+        campos: if vale { extra.campos } else { Vec::new() },
+        fechar_formulario: vale && extra.fechar_formulario,
         pergunta: extra.pergunta,
     }
 }
@@ -930,6 +947,9 @@ function __sheet(i) {
         status:m=>app.status(m),
         // Abre o formulário quando a macro terminar; `dados` preenche os campos.
         showComponent:(nome,dados)=>{__ft('mostrarFormulario',[String(nome),dados===undefined?null:dados]);return sheet;},
+        hideComponent:()=>{__ft('fecharFormulario',[]);return sheet;},
+        field:n=>{n=String(n);return {get value(){return (globalThis.__valores||{})[n];},set value(v){if(globalThis.__valores)globalThis.__valores[n]=v;__ft('campoFormulario',[n,'value',v===undefined?null:v]);},
+            set enabled(b){__ft('campoFormulario',[n,'enabled',!!b]);},set visible(b){__ft('campoFormulario',[n,'visible',!!b]);}};},
         log, name:__ft('nomes',[])[i]};
     sheet.cells=sheet.cell; sheet.worksheets=wb.sheet; sheet.sheets=wb.sheet; return sheet;
 }

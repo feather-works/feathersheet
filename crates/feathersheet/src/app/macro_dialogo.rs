@@ -78,7 +78,10 @@ impl App {
         }
         self.macro_valores = None;
         self.alterado |= r.alterou;
+        // Formulário: fechar (`hideComponent`), abrir (`showComponent`) e mudar campos (`field`), nessa ordem.
+        if r.fechar_formulario { self.formulario_macro = None; }
         if let Some((nome_form, dados)) = r.formulario.take() { self.abrir_formulario_macro(&nome_form, &dados); }
+        self.aplicar_campos_formulario(std::mem::take(&mut r.campos));
         // Os arquivos pedidos (PDF, abas num arquivo novo) só com a macro inteira bem.
         let mut arquivos = Vec::new();
         if r.erro.is_none() && !r.arquivos.is_empty() {

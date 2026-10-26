@@ -173,6 +173,16 @@ impl App {
                     if aux == Auxiliar::Macros {
                         return self.atalho_macro(&key, mods).unwrap_or_else(Task::none);
                     }
+                    // Formulário da macro: Enter aciona o botão padrão; Esc, o de cancelar.
+                    if aux == Auxiliar::Formulario && mods.is_empty() {
+                        match &key {
+                            keyboard::Key::Named(keyboard::key::Named::Enter) =>
+                                return self.update(Msg::FormularioMacro(formulario_macro::Evento::Tecla { enter: true })),
+                            keyboard::Key::Named(keyboard::key::Named::Escape) =>
+                                return self.update(Msg::FormularioMacro(formulario_macro::Evento::Tecla { enter: false })),
+                            _ => {}
+                        }
+                    }
                     // Ctrl+F dentro da Ajuda deve buscar no manual, não na grade.
                     if aux == Auxiliar::Ajuda && mods == keyboard::Modifiers::CTRL
                         && matches!(&key, keyboard::Key::Character(c)

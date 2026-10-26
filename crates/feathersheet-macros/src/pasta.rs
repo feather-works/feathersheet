@@ -46,6 +46,10 @@ pub(crate) struct Acumulado {
     pub arquivos: Vec<PedidoArquivo>,
     /// `sheet.showComponent(nome, dados)`: o último pedido vale.
     pub formulario: Option<(String, serde_json::Value)>,
+    /// `sheet.field(nome).value/enabled/visible = …`: (campo, propriedade, valor), na ordem.
+    pub campos: Vec<(String, String, serde_json::Value)>,
+    /// `sheet.hideComponent()`.
+    pub fechar_formulario: bool,
 }
 
 /// Mais que isto numa execução é laço descontrolado, não exportação.

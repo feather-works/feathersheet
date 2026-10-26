@@ -150,3 +150,24 @@ fn formula_r1c1_com_colunas_inteiras_faz_procv_na_outra_aba() {
     assert!(f.contains("VLOOKUP(MAIN!$E$29,inversores!$C:$M,10,0)"), "{f:?}");
     assert_eq!(wb.valor(1, 0, 0), Value::Text("MPPT RANGE:840 V".into()));
 }
+
+#[test]
+fn field_muda_o_formulario_aberto_e_hide_fecha() {
+    let mut wb = pasta_com_dados();
+    let contexto = Contexto { valores: Some(serde_json::json!({ "nome": "Ana" }).as_object().unwrap().clone()), ..Default::default() };
+    let r = executar_com(&mut wb, 0, r#"
+        const n = sheet.field("nome");
+        if (n.value !== "Ana") throw new Error(n.value);
+        n.value = n.value.toUpperCase();
+        sheet.field("idade").enabled = false;
+        sheet.field("obs").visible = 0;
+        sheet.hideComponent();
+    "#, contexto);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.campos, vec![("nome".into(), "value".into(), "ANA".into()), ("idade".into(), "enabled".into(), false.into()),
+        ("obs".into(), "visible".into(), false.into())]);
+    assert!(r.fechar_formulario);
+    // Com erro, nada do formulário é aplicado.
+    let r = executar(&mut wb, 0, r#"sheet.field("a").value = 1; throw new Error("x");"#);
+    assert!(r.campos.is_empty() && !r.fechar_formulario);
+}

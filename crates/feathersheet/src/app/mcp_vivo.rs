@@ -547,8 +547,10 @@ impl Hospede for HospedeApp<'_> {
         self.app.recarregar_macros();
         self.app.alterado = true;
     }
-    fn mostrar_formulario(&mut self, nome: &str, dados: &Json) -> bool {
-        self.app.abrir_formulario_macro(nome, dados);
+    fn formulario(&mut self, fechar: bool, abrir: Option<(String, Json)>, campos: Vec<(String, String, Json)>) -> bool {
+        if fechar { self.app.formulario_macro = None; }
+        if let Some((nome, dados)) = abrir { self.app.abrir_formulario_macro(&nome, &dados); }
+        self.app.aplicar_campos_formulario(campos);
         self.app.formulario_macro.is_some()
     }
 }

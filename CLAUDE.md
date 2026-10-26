@@ -246,9 +246,11 @@ Seleção atual". O texto "em breve" do seletor de gráfico já tinha saído.
 abre a janela `Auxiliar::Formulario` (`app/formulario_macro.rs`); o botão roda a macro dele com `valores`
 (`Contexto::valores`), e pode limpar/fechar. Designer no Alt+F11 (`app/macros/designer_formulario.rs`: caixa de
 ferramentas, arrastar/redimensionar com grade de 4 px, propriedades, Guardar/Testar). A janela soma a barra de título
-própria (`cromo::BARRA_ALTURA`) ao tamanho. **Falta para a paridade com o UserForm** (levantamento de 26/10): ler/escrever
-controle com o formulário aberto e evento Change; Enabled/Visible; botão Default (Enter)/Cancel (Esc); RefEdit (escolher
-intervalo); lista ligada a células (RowSource); ListBox/ComboBox livre; ordem de tabulação; importar `.frm`;
+própria (`cromo::BARRA_ALTURA`) ao tamanho. Na macro, `sheet.field("nome").value/enabled/visible`
+mexe no formulário aberto e `sheet.hideComponent()` fecha (`Resultado::campos`/`fechar_formulario`, aplicados depois
+da execução); `macro` num campo roda ao mudar (texto/número: no Enter); botão `padrao` (Enter) e `cancelar` (Esc);
+`desativado` esmaece, `oculto` some. **Falta para a paridade com o UserForm** (levantamento de 26/10): RefEdit
+(escolher intervalo); lista ligada a células (RowSource); ListBox/ComboBox livre; ordem de tabulação; importar `.frm`;
 MaxLength/MultiLine/dica/Frame/Image.
 3. Congelar painéis: `sheet_comando congelar {linhas, colunas}` (26/10/2026); os rótulos dos menus
    saem do `sheet_comando menus {filtro}`.

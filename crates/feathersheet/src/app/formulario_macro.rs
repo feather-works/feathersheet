@@ -23,7 +23,11 @@ pub enum Evento {
     Caixa(String, bool),
     /// O índice do controle de opção marcado.
     Opcao(usize),
+    /// Enter num campo de texto (o índice do controle): roda a macro dele.
+    Confirmar(usize),
     Botao(usize),
+    /// Enter ou Esc na janela do formulário.
+    Tecla { enter: bool },
     Fechar,
 }
 
@@ -92,63 +96,124 @@ impl App {
 
     pub(super) fn evento_formulario_macro(&mut self, evento: Evento) -> Task<Msg> {
         let Some(aberto) = self.formulario_macro.as_mut() else { return Task::none() };
-        match evento {
-            Evento::Texto(nome, t) => { aberto.valores.insert(nome, Json::String(t)); }
-            Evento::Caixa(nome, b) => { aberto.valores.insert(nome, Json::Bool(b)); }
-            Evento::Opcao(i) => if let Some(c) = aberto.form.controles.get(i) {
+        // `Enabled = False`: o rádio e a lista não têm modo desligado no pelicano; o clique para aqui.
+        let desligado = |nome: &str| aberto.form.controles.iter().any(|c| c.nome == nome && (c.desativado || c.oculto));
+        let bloqueado = match &evento {
+            Evento::Texto(n, _) | Evento::Caixa(n, _) => desligado(n),
+            Evento::Opcao(i) | Evento::Confirmar(i) | Evento::Botao(i) => aberto.form.controles.get(*i).is_none_or(|c| c.desativado || c.oculto),
+            _ => false,
+        };
+        if bloqueado { return Task::none() }
+        // O controle cuja macro roda depois da mudança (`Change` do VBA), se houver.
+        let mudou = match evento {
+            Evento::Texto(nome, t) => {
+                let lista = aberto.form.controles.iter().position(|c| c.nome == nome && c.tipo == TipoControle::Lista);
+                aberto.valores.insert(nome, Json::String(t));
+                lista
+            }
+            Evento::Caixa(nome, b) => {
+                aberto.valores.insert(nome.clone(), Json::Bool(b));
+                aberto.form.controles.iter().position(|c| c.nome == nome && c.tipo == TipoControle::Caixa)
+            }
+            Evento::Opcao(i) => aberto.form.controles.get(i).map(|c| {
                 aberto.valores.insert(c.nome.clone(), Json::String(c.texto.clone()));
-            },
-            Evento::Fechar => self.formulario_macro = None,
+                i
+            }),
+            Evento::Confirmar(i) => Some(i),
+            Evento::Tecla { enter } => {
+                // Enter aciona o botão padrão; Esc, o de cancelar (sem ele, fecha).
+                let alvo = aberto.form.controles.iter().position(|c| c.tipo == TipoControle::Botao && !c.desativado && !c.oculto
+                    && if enter { c.padrao } else { c.cancelar });
+                match alvo {
+                    Some(i) => return self.evento_formulario_macro(Evento::Botao(i)),
+                    None if !enter => self.formulario_macro = None,
+                    None => {}
+                }
+                None
+            }
+            Evento::Fechar => { self.formulario_macro = None; None }
             Evento::Botao(i) => {
                 let Some(c) = aberto.form.controles.get(i).cloned() else { return Task::none() };
                 let nome_form = aberto.form.nome.clone();
-                if let Some(nome) = c.macro_nome.as_deref().filter(|n| !n.trim().is_empty()) {
-                    let Some(m) = self.macro_catalogo.obter(nome) else {
-                        self.status = trf!("Macro \"{nome}\" não encontrada na biblioteca.");
-                        return Task::none();
-                    };
-                    let (codigo, nome) = (m.code.clone(), m.name.clone());
-                    self.macro_valores = Some(valores_para_macro(&aberto.form, &aberto.valores));
-                    let rotulo = format!("{nome_form} › {}", c.texto);
-                    let Some(r) = self.rodar_macro(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo, Vec::new()) else {
-                        // Esperando um Sim/Não: o formulário fica como está.
-                        return Task::none();
-                    };
-                    self.macro_saida = r.saida.join("\n");
-                    if let Some(erro) = r.erro {
-                        // Erro: nada foi gravado e o formulário continua preenchido.
-                        self.status = trf!("Erro ao executar {nome}: {erro}. Escritas revertidas.");
-                        return Task::none();
-                    }
-                    self.status = trf!("Macro {nome} executada pelo formulário.");
-                    self.trocar_selecao(self.linha, self.coluna);
-                }
+                if !self.rodar_macro_do_controle(i) { return Task::none() }
                 // A macro pode ter aberto outro formulário: limpar e fechar valem só para este.
                 let Some(aberto) = self.formulario_macro.as_mut().filter(|a| a.form.nome == nome_form) else { return Task::none() };
                 if c.limpar { aberto.valores = valores_para_editar(&aberto.form, &Json::Null); }
                 if c.fechar { self.formulario_macro = None; }
+                None
+            }
+        };
+        if let Some(i) = mudou { self.rodar_macro_do_controle(i); }
+        Task::none()
+    }
+
+    /// Roda a macro do controle `i` com o preenchido em `valores`. Falso se ela deu
+    /// erro ou ficou esperando um Sim/Não (o formulário fica como está).
+    fn rodar_macro_do_controle(&mut self, i: usize) -> bool {
+        let Some(aberto) = self.formulario_macro.as_ref() else { return false };
+        let Some(c) = aberto.form.controles.get(i) else { return false };
+        let Some(nome) = c.macro_nome.as_deref().filter(|n| !n.trim().is_empty()) else { return true };
+        let Some(m) = self.macro_catalogo.obter(nome) else {
+            self.status = trf!("Macro \"{nome}\" não encontrada na biblioteca.");
+            return false;
+        };
+        let (codigo, nome) = (m.code.clone(), m.name.clone());
+        let rotulo = format!("{} › {}", aberto.form.nome, if c.texto.is_empty() { &c.nome } else { &c.texto });
+        self.macro_valores = Some(valores_para_macro(&aberto.form, &aberto.valores));
+        let Some(r) = self.rodar_macro(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo, Vec::new()) else { return false };
+        self.macro_saida = r.saida.join("\n");
+        if let Some(erro) = r.erro {
+            // Erro: nada foi gravado e o formulário continua preenchido.
+            self.status = trf!("Erro ao executar {nome}: {erro}. Escritas revertidas.");
+            return false;
+        }
+        self.status = trf!("Macro {nome} executada pelo formulário.");
+        self.trocar_selecao(self.linha, self.coluna);
+        true
+    }
+
+    /// O que a macro mudou no formulário aberto (`sheet.field(nome).value/enabled/visible`).
+    pub(super) fn aplicar_campos_formulario(&mut self, campos: Vec<(String, String, Json)>) {
+        let Some(aberto) = self.formulario_macro.as_mut() else { return };
+        for (nome, prop, v) in campos {
+            match prop.as_str() {
+                "value" => {
+                    let um = Json::Object(std::iter::once((nome.clone(), v)).collect());
+                    if let Some(novo) = valores_para_editar(&aberto.form, &um).remove(&nome) {
+                        if aberto.form.controles.iter().any(|c| c.nome == nome && c.tipo.tem_valor()) { aberto.valores.insert(nome, novo); }
+                    }
+                }
+                _ => for c in aberto.form.controles.iter_mut().filter(|c| c.nome == nome) {
+                    let ligado = v.as_bool().unwrap_or(false);
+                    if prop == "enabled" { c.desativado = !ligado } else { c.oculto = !ligado }
+                },
             }
         }
-        Task::none()
     }
 
     pub(super) fn view_formulario_macro(&self) -> Element<'_, Msg> {
         let Some(aberto) = &self.formulario_macro else { return Space::new(0.0, 0.0).into() };
         let ev = Msg::FormularioMacro;
         let texto = |nome: &str| aberto.valores.get(nome).and_then(Json::as_str).unwrap_or("").to_owned();
-        let camadas = aberto.form.controles.iter().enumerate().map(|(i, c)| {
+        let camadas = aberto.form.controles.iter().enumerate().filter(|(_, c)| !c.oculto).map(|(i, c)| {
             let nome = c.nome.clone();
+            let ligado = !c.desativado;
             let w: Element<'_, Msg> = match c.tipo {
                 TipoControle::Rotulo => text(c.texto.clone()).size(13).into(),
                 TipoControle::Texto | TipoControle::Numero | TipoControle::Senha => {
                     let dica = if c.texto.is_empty() { &c.nome } else { &c.texto };
                     let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
-                    text_input(dica, valor).secure(c.tipo == TipoControle::Senha)
-                        .on_input(move |t| ev(Evento::Texto(nome.clone(), t))).size(13).width(Length::FILL).into()
+                    let mut campo = text_input(dica, valor).secure(c.tipo == TipoControle::Senha).size(13).width(Length::FILL);
+                    if ligado {
+                        campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
+                        if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
+                    }
+                    campo.into()
                 }
                 TipoControle::Caixa => {
                     let marcado = aberto.valores.get(&c.nome).and_then(Json::as_bool).unwrap_or(false);
-                    checkbox(c.texto.clone(), marcado).on_toggle(move |b| ev(Evento::Caixa(nome.clone(), b))).size(13).into()
+                    let caixa = checkbox(c.texto.clone(), marcado).size(13);
+                    if ligado { caixa.on_toggle(move |b| ev(Evento::Caixa(nome.clone(), b))).into() } else { caixa.into() }
                 }
                 TipoControle::Opcao => {
                     let marcada = (texto(&c.nome) == c.texto).then_some(i);
@@ -163,7 +228,14 @@ impl App {
                     .align_x(pelicano::Align::Center).align_y(pelicano::Align::Center))
                     .width(Length::FILL).height(Length::FILL)
                     .style(if c.macro_nome.is_some() { estilo_botao_primario } else { estilo_botao_secundario })
-                    .on_press(ev(Evento::Botao(i))).into(),
+                    .on_press_maybe(ligado.then(|| ev(Evento::Botao(i)))).into(),
+            };
+            // Desativado: esmaecido, como no VBA.
+            let w: Element<'_, Msg> = if ligado { w } else {
+                let mut veu = COR_PAINEL();
+                veu.a = 0.55;
+                pelicano::stack(vec![w, container(Space::new(Length::FILL, Length::FILL)).width(Length::FILL).height(Length::FILL)
+                    .style(move |_| pelicano::Style { background: Some(pelicano::Background::Color(veu)), ..Default::default() }).into()]).into()
             };
             pelicano::column![
                 Space::new(0.0, Length::Fixed(c.y)),
@@ -188,7 +260,7 @@ mod testes {
 
     fn controle(tipo: TipoControle, nome: &str, texto: &str) -> Controle {
         Controle { tipo, nome: nome.into(), texto: texto.into(), x: 10.0, y: 10.0, largura: 120.0, altura: 26.0,
-            opcoes: Vec::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false }
+            opcoes: Vec::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
     }
 
     /// Cadastro em série: a macro do botão recebe `valores`, grava na planilha,
@@ -219,6 +291,39 @@ mod testes {
         assert_eq!(texto_campo(&app, "nome"), "", "limpar zera os campos");
         assert!(app.formulario_macro.is_some(), "sem fechar, continua aberto");
         let _ = app.view_formulario_macro();
+    }
+
+    /// Change da caixa liga/desliga outro campo pela macro; Enter aciona o botão padrão
+    /// e Esc o de cancelar, que fecha com hideComponent.
+    #[test]
+    fn field_enter_esc_e_campo_desativado() {
+        let mut app = App::default();
+        let mut form = Formulario::novo("f");
+        let mut ativo = controle(TipoControle::Caixa, "ativo", "Ativo");
+        ativo.macro_nome = Some("Trocar".into());
+        let mut ok = controle(TipoControle::Botao, "", "OK");
+        (ok.macro_nome, ok.padrao) = (Some("Ok".into()), true);
+        let mut sair = controle(TipoControle::Botao, "", "Sair");
+        (sair.macro_nome, sair.cancelar) = (Some("Sair".into()), true);
+        form.controles = vec![controle(TipoControle::Texto, "nome", ""), ativo, ok, sair];
+        app.workbook.formularios = formularios::gravar(&[form]).unwrap();
+        for (nome, codigo) in [("Trocar", "sheet.field('nome').enabled = valores.ativo; sheet.field('nome').value = valores.ativo ? 'liberado' : '';"),
+            ("Ok", "sheet.set('A1', valores.nome);"), ("Sair", "sheet.hideComponent();")] {
+            app.macro_catalogo.macros.push(feather_macros::Macro { name: nome.into(), code: codigo.into(), auto: false });
+        }
+        app.abrir_formulario_macro("f", &Json::Null);
+        let _ = app.evento_formulario_macro(Evento::Caixa("ativo".into(), true));
+        assert_eq!(texto_campo(&app, "nome"), "liberado", "{}", app.status);
+        let _ = app.evento_formulario_macro(Evento::Caixa("ativo".into(), false));
+        assert!(app.formulario_macro.as_ref().unwrap().form.controles[0].desativado);
+        let _ = app.evento_formulario_macro(Evento::Texto("nome".into(), "x".into()));
+        assert_eq!(texto_campo(&app, "nome"), "", "campo desativado não aceita mudança");
+        let _ = app.view_formulario_macro();
+        let _ = app.evento_formulario_macro(Evento::Caixa("ativo".into(), true));
+        let _ = app.evento_formulario_macro(Evento::Tecla { enter: true });
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Text("liberado".into()));
+        let _ = app.evento_formulario_macro(Evento::Tecla { enter: false });
+        assert!(app.formulario_macro.is_none(), "Esc roda o Cancelar, que fecha");
     }
 
     fn texto_campo(app: &App, nome: &str) -> String {
