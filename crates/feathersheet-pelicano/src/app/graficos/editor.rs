@@ -399,8 +399,13 @@ impl App {
         let Some(v) = lista.iter().find(|v| v["id"].as_str() == Some(id)) else {
             return Task::none();
         };
-        let Ok(c) = serde_json::from_value::<ChartConfig>(v.clone()) else {
-            return Task::none();
+        let c = match serde_json::from_value::<ChartConfig>(v.clone()) {
+            Ok(c) => c,
+            // Antes saía calado: o duplo clique parecia não fazer nada.
+            Err(e) => {
+                self.status = trf!("Este gráfico não pode ser editado aqui: {}", e);
+                return Task::none();
+            }
         };
         let tipo = match c.tipo {
             ChartType::Column => TipoUi::Colunas,

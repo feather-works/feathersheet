@@ -597,3 +597,42 @@ fn nome_acompanha_inserir_e_excluir_linha_e_coluna() {
     w.inserir_linhas(0, 0, 5);
     assert_eq!(area(&w, "Nm"), Some((1, 2, 2, 2)));
 }
+
+#[test]
+fn somarproduto_eleva_matriz_por_dentro() {
+    let mut w = Workbook::new();
+    for (i, v) in [3, 7, 9, 1].iter().enumerate() {
+        w.escrever_celula(0, i as u32, 0, v.to_string());
+    }
+    w.escrever_celula(0, 0, 1, "=SOMARPRODUTO((A1:A4>5)*1)".into());
+    w.escrever_celula(0, 1, 1, "=SOMARPRODUTO(A1:A4*2)".into());
+    w.escrever_celula(0, 2, 1, "=SOMARPRODUTO(--(A1:A4>2))".into());
+    assert_eq!(w.valor(0, 0, 1), Value::Number(2.0));
+    assert_eq!(w.valor(0, 1, 1), Value::Number(40.0));
+    assert_eq!(w.valor(0, 2, 1), Value::Number(3.0));
+    // Datas de janeiro e março: MÊS também precisa virar matriz por dentro.
+    w.escrever_celula(0, 0, 2, "=DATA(2026;1;5)".into());
+    w.escrever_celula(0, 1, 2, "=DATA(2026;3;9)".into());
+    w.escrever_celula(0, 3, 1, "=SOMARPRODUTO(MÊS(C1:C2))".into());
+    assert_eq!(w.valor(0, 3, 1), Value::Number(4.0));
+}
+
+#[test]
+fn nome_de_outra_aba_serve_de_intervalo_em_somases_e_corresp() {
+    let mut w = Workbook::new();
+    w.inserir_aba("Vendas", 1);
+    for (i, (k, v)) in [("a", 10), ("b", 20), ("a", 5)].iter().enumerate() {
+        w.escrever_celula(1, i as u32, 0, k.to_string());
+        w.escrever_celula(1, i as u32, 1, v.to_string());
+    }
+    let mut chaves = Rect::new(0, 0, 2, 0); chaves.sheet = Some("Vendas".into());
+    let mut valores = Rect::new(0, 1, 2, 1); valores.sheet = Some("Vendas".into());
+    w.definir_nome("Chaves", chaves);
+    w.definir_nome("Valores", valores);
+    w.escrever_celula(0, 0, 0, "=SOMASES(Valores;Chaves;\"a\")".into());
+    w.escrever_celula(0, 1, 0, "=CORRESP(\"b\";Chaves;0)".into());
+    w.escrever_celula(0, 2, 0, "=SOMA(Valores)".into());
+    assert_eq!(w.valor(0, 2, 0), Value::Number(35.0));
+    assert_eq!(w.valor(0, 0, 0), Value::Number(15.0));
+    assert_eq!(w.valor(0, 1, 0), Value::Number(2.0));
+}

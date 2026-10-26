@@ -1070,3 +1070,78 @@ fn boletim_configurar_series_copiar_e_pizza_por_situacao() {
         }
         assert!(!acertos.is_empty(), "nenhum clique chegou ao gráfico");
     }
+
+    #[test]
+    fn duplo_clique_abre_o_editor_e_o_painel_responde() {
+        use pelicano::{Event, MouseButton, Point, Size};
+        let mut a = App::default();
+        let _ = a.update(Msg::Colar("Mês\tTotal\nmar\t1\nabr\t2".into()));
+        let g = serde_json::json!([{
+            "id": "chart_x", "type": "column", "title": "Gráfico",
+            "range": {"r0": 0, "c0": 0, "r1": 2, "c1": 1},
+            "seriesInColumns": true, "hasHeaders": true, "hasCategoryLabels": true,
+            "position": {"x": 300.0, "y": 100.0, "width": 400.0, "height": 200.0}
+        }]);
+        a.workbook.aba_mut(0).unwrap().sheet.g = Some(g.to_string());
+        let tela = Size::new(1280.0, 800.0);
+        // Clica (aperta e solta) num ponto, entregando ao App o que a tela mandou.
+        let clicar = |a: &mut App, p: Point| -> Vec<String> {
+            let mut r = pelicano::Renderer::new();
+            let mut st = pelicano::States::default();
+            let mut area = pelicano::MemoryClipboard::default();
+            let mut msgs = Vec::new();
+            {
+                let el = a.view(window::Id::MAIN);
+                r.begin(tela, 1.0, pelicano::Color::TRANSPARENT);
+                let n = pelicano::layout(&el, tela, &mut r, &st, &pelicano::Theme::light());
+                for ev in [Event::MousePressed(MouseButton::Left), Event::MouseReleased(MouseButton::Left)] {
+                    let mut cx = pelicano::EventCx { renderer: &mut r, states: &mut st, cursor: Some(p), messages: &mut msgs,
+                        window: &mut Vec::new(), redraw: false, clipboard: &mut area };
+                    pelicano::dispatch(&el, &n, &ev, &mut cx);
+                }
+            }
+            msgs.push(Msg::Grafico(Evento::Soltar));
+            let nomes = msgs.iter().map(|m| format!("{m:?}")).collect();
+            for m in msgs { let _ = a.update(m); }
+            nomes
+        };
+        // Meio da área que acerta o gráfico (o canto, selecionado, vira alça).
+        // Só a tela responde aqui: as mensagens não chegam ao App, para nada mudar de lugar.
+        let acertos: Vec<Point> = {
+            let mut r = pelicano::Renderer::new();
+            let mut st = pelicano::States::default();
+            let mut area = pelicano::MemoryClipboard::default();
+            let el = a.view(window::Id::MAIN);
+            r.begin(tela, 1.0, pelicano::Color::TRANSPARENT);
+            let n = pelicano::layout(&el, tela, &mut r, &st, &pelicano::Theme::light());
+            (0..800).step_by(20).flat_map(|y| (0..1280).step_by(20).map(move |x| (x, y)))
+                .map(|(x, y)| Point::new(x as f32, y as f32))
+                .filter(|p| {
+                    let mut msgs = Vec::new();
+                    let mut cx = pelicano::EventCx { renderer: &mut r, states: &mut st, cursor: Some(*p), messages: &mut msgs,
+                        window: &mut Vec::new(), redraw: false, clipboard: &mut area };
+                    pelicano::dispatch(&el, &n, &Event::MousePressed(MouseButton::Left), &mut cx);
+                    msgs.iter().any(|m| matches!(m, Msg::Grafico(Evento::Arrastar(_))))
+                })
+                .collect()
+        };
+        assert!(!acertos.is_empty(), "nenhum clique chegou ao gráfico");
+        let alvo = acertos[acertos.len() / 2];
+        a.graficos.ultimo_clique = None;
+        clicar(&mut a, alvo);
+        clicar(&mut a, alvo);
+        assert!(a.graficos.aberto, "duplo clique não abriu o editor");
+        // Painel aberto: cliques nele precisam virar mensagens do gráfico.
+        let mut respostas = std::collections::BTreeSet::new();
+        for y in (90..780).step_by(16) {
+            for x in (700..1280).step_by(16) {
+                for m in clicar(&mut a, Point::new(x as f32, y as f32)) {
+                    if m.starts_with("Grafico(") && !m.contains("Soltar") && !m.contains("Cursor") {
+                        respostas.insert(m.split(['(', ',']).nth(1).unwrap_or("").to_string());
+                    }
+                }
+                if !a.graficos.aberto { let _ = a.evento_grafico(Evento::Editar("chart_x".into())); }
+            }
+        }
+        assert!(!respostas.is_empty(), "o painel do gráfico não respondeu a nenhum clique");
+    }

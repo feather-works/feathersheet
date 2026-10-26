@@ -3878,5 +3878,6 @@
  "Ativar macros": "Enable macros",
  "Manter desativadas": "Keep disabled",
  "Macros ativadas neste arquivo.": "Macros enabled in this file.",
- "Este arquivo tem macros que rodam sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Elas podem alterar a planilha e gravar arquivos. Ative só se você confia na origem do arquivo.": "This file has macros that run by themselves (when cells change, when switching sheets or when clicking buttons). They can change the spreadsheet and write files. Enable them only if you trust where the file came from."
+ "Este arquivo tem macros que rodam sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Elas podem alterar a planilha e gravar arquivos. Ative só se você confia na origem do arquivo.": "This file has macros that run by themselves (when cells change, when switching sheets or when clicking buttons). They can change the spreadsheet and write files. Enable them only if you trust where the file came from.",
+ "Este gráfico não pode ser editado aqui: {}": "This chart cannot be edited here: {}"
 }

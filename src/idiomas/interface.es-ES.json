@@ -3873,5 +3873,6 @@
  "Ativar macros": "Habilitar macros",
  "Manter desativadas": "Mantener deshabilitadas",
  "Macros ativadas neste arquivo.": "Macros habilitadas en este archivo.",
- "Este arquivo tem macros que rodam sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Elas podem alterar a planilha e gravar arquivos. Ative só se você confia na origem do arquivo.": "Este archivo tiene macros que se ejecutan solas (al cambiar celdas, al cambiar de hoja o al hacer clic en botones). Pueden modificar la hoja y guardar archivos. Habilítelas solo si confía en el origen del archivo."
+ "Este arquivo tem macros que rodam sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Elas podem alterar a planilha e gravar arquivos. Ative só se você confia na origem do arquivo.": "Este archivo tiene macros que se ejecutan solas (al cambiar celdas, al cambiar de hoja o al hacer clic en botones). Pueden modificar la hoja y guardar archivos. Habilítelas solo si confía en el origen del archivo.",
+ "Este gráfico não pode ser editado aqui: {}": "Este gráfico no se puede editar aquí: {}"
 }
