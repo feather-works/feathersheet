@@ -523,6 +523,17 @@ impl Hospede for HospedeApp<'_> {
         if a.em_tela_inicio { s.push_str("Na tela inicial (sem planilha aberta)\n"); }
         let janelas: Vec<&str> = AUXILIARES.iter().filter(|(t, _)| a.janelas.aberta(*t)).map(|(_, n)| *n).collect();
         if !janelas.is_empty() { s.push_str(&format!("Janelas abertas: {}\n", janelas.join(", "))); }
+        if let Some(f) = &a.formulario_macro {
+            use feathersheet_macros::formularios::TipoControle;
+            let campos: Vec<String> = f.form.controles.iter().filter(|c| c.tipo.tem_valor()).map(|c| {
+                let mut t = format!("{}={}", c.nome, f.valores.get(&c.nome).map_or(String::new(), |v| v.as_str().map_or(v.to_string(), str::to_owned)));
+                if c.tipo == TipoControle::Lista { t.push_str(&format!(" ({} itens)", c.opcoes.len())); }
+                if c.desativado { t.push_str(" [desativado]"); }
+                if c.oculto { t.push_str(" [oculto]"); }
+                t
+            }).collect();
+            s.push_str(&format!("Formulário aberto: {} · {}\n", f.form.nome, campos.join(" · ")));
+        }
         let setas = a.setas_visiveis().len();
         if setas > 0 { s.push_str(&format!("Setas de rastreio: {setas}\n")); }
         if !a.inspecoes.is_empty() { s.push_str(&format!("Inspeções: {}\n", a.inspecoes.len())); }

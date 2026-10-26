@@ -249,8 +249,9 @@ ferramentas, arrastar/redimensionar com grade de 4 px, propriedades, Guardar/Tes
 própria (`cromo::BARRA_ALTURA`) ao tamanho. Na macro, `sheet.field("nome").value/enabled/visible`
 mexe no formulário aberto e `sheet.hideComponent()` fecha (`Resultado::campos`/`fechar_formulario`, aplicados depois
 da execução); `macro` num campo roda ao mudar (texto/número: no Enter); botão `padrao` (Enter) e `cancelar` (Esc);
-`desativado` esmaece, `oculto` some. **Falta para a paridade com o UserForm** (levantamento de 26/10): RefEdit
-(escolher intervalo); lista ligada a células (RowSource); ListBox/ComboBox livre; ordem de tabulação; importar `.frm`;
+`desativado` esmaece, `oculto` some. Tipo `intervalo` = RefEdit (botão pega a seleção, valor `Aba!A1:B5`); lista com `fonte` = RowSource (lida ao abrir
+pelo `opcoes_da_lista` da validação). `sheet_tela` descreve o formulário aberto. **Falta para a paridade com o
+UserForm** (levantamento de 26/10): ListBox/ComboBox livre; ordem de tabulação; importar `.frm`;
 MaxLength/MultiLine/dica/Frame/Image.
 3. Congelar painéis: `sheet_comando congelar {linhas, colunas}` (26/10/2026); os rótulos dos menus
    saem do `sheet_comando menus {filtro}`.

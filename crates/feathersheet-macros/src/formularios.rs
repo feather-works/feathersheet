@@ -19,15 +19,17 @@ pub enum TipoControle {
     Opcao,
     Lista,
     Botao,
+    /// Escolher um intervalo da planilha (o `RefEdit` do VBA): o valor é o endereço, ex. `Dados!A1:B5`.
+    Intervalo,
 }
 
 impl TipoControle {
-    pub const TODOS: [TipoControle; 8] = [Self::Rotulo, Self::Texto, Self::Numero, Self::Senha, Self::Caixa, Self::Opcao, Self::Lista, Self::Botao];
+    pub const TODOS: [TipoControle; 9] = [Self::Rotulo, Self::Texto, Self::Numero, Self::Senha, Self::Caixa, Self::Opcao, Self::Lista, Self::Intervalo, Self::Botao];
 
     pub fn nome(self) -> &'static str {
         match self {
             Self::Rotulo => "rotulo", Self::Texto => "texto", Self::Numero => "numero", Self::Senha => "senha",
-            Self::Caixa => "caixa", Self::Opcao => "opcao", Self::Lista => "lista", Self::Botao => "botao",
+            Self::Caixa => "caixa", Self::Opcao => "opcao", Self::Lista => "lista", Self::Botao => "botao", Self::Intervalo => "intervalo",
         }
     }
 
@@ -53,6 +55,10 @@ pub struct Controle {
     /// Itens da lista suspensa.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub opcoes: Vec<String>,
+    /// Lista: itens lidos destas células ao abrir (o `RowSource` do VBA), ex. `Dados!A2:A20`,
+    /// um nome ou `=INDIRETO(…)`; no lugar de `opcoes`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub fonte: String,
     /// Valor inicial ("1" marca a caixa ou a opção).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub valor: String,
@@ -184,7 +190,7 @@ mod testes {
 
     fn controle(tipo: TipoControle, nome: &str, texto: &str, valor: &str) -> Controle {
         Controle { tipo, nome: nome.into(), texto: texto.into(), x: 0.0, y: 0.0, largura: 100.0, altura: 24.0,
-            opcoes: Vec::new(), valor: valor.into(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
+            opcoes: Vec::new(), fonte: String::new(), valor: valor.into(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
     }
 
     #[test]

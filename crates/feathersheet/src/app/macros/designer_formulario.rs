@@ -24,7 +24,7 @@ pub(in crate::app) struct Designer {
 const GRADE: f32 = 4.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Campo { FormNome, FormTitulo, FormLargura, FormAltura, Nome, Texto, X, Y, Largura, Altura, Opcoes, Valor, Macro }
+pub enum Campo { FormNome, FormTitulo, FormLargura, FormAltura, Nome, Texto, X, Y, Largura, Altura, Opcoes, Fonte, Valor, Macro }
 
 /// As propriedades liga/desliga do controle escolhido.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,6 +54,7 @@ fn rotulo_tipo(t: TipoControle) -> &'static str {
         TipoControle::Numero => tr!("Campo numérico"), TipoControle::Senha => tr!("Senha"),
         TipoControle::Caixa => tr!("Caixa de seleção"), TipoControle::Opcao => tr!("Opção"),
         TipoControle::Lista => tr!("Lista suspensa"), TipoControle::Botao => tr!("Botão"),
+        TipoControle::Intervalo => tr!("Intervalo (RefEdit)"),
     }
 }
 
@@ -61,7 +62,7 @@ fn icone_tipo(t: TipoControle) -> &'static str {
     match t {
         TipoControle::Rotulo => "text-size", TipoControle::Texto => "input", TipoControle::Numero => "sum",
         TipoControle::Senha => "lock", TipoControle::Caixa => "checkbox", TipoControle::Opcao => "circle-dot",
-        TipoControle::Lista => "list-select", TipoControle::Botao => "square",
+        TipoControle::Lista => "list-select", TipoControle::Botao => "square", TipoControle::Intervalo => "table",
     }
 }
 
@@ -102,7 +103,7 @@ impl App {
                     TipoControle::Caixa | TipoControle::Opcao => rotulo_tipo(tipo), _ => "" };
                 let nome = if tipo.tem_valor() { nome_livre(f, tipo) } else { String::new() };
                 f.controles.push(Controle { tipo, nome, texto: texto.into(), x: 12.0, y: y.min((f.altura - altura).max(0.0)),
-                    largura, altura, opcoes: Vec::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false });
+                    largura, altura, opcoes: Vec::new(), fonte: String::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false });
                 d.sel = Some(f.controles.len() - 1);
             },
             EventoDesigner::Selecionar(i) => d.sel = i,
@@ -136,6 +137,7 @@ impl App {
                             Campo::Largura => c.largura = ler_numero(&t),
                             Campo::Altura => c.altura = ler_numero(&t),
                             Campo::Opcoes => c.opcoes = t.split(';').map(|o| o.trim().to_owned()).filter(|o| !o.is_empty()).collect(),
+                            Campo::Fonte => c.fonte = t,
                             Campo::Valor => c.valor = t,
                             Campo::Macro => c.macro_nome = Some(t).filter(|m| !m.is_empty() && m != tr!("(nenhuma)")),
                             _ => {}
@@ -215,12 +217,13 @@ fn previa<'a>(c: &Controle, escuro: bool, escolhido: bool) -> Element<'a, Msg> {
     let corpo = match c.tipo {
         TipoControle::Rotulo => c.texto.clone(),
         TipoControle::Texto | TipoControle::Numero | TipoControle::Senha => if c.texto.is_empty() { c.nome.clone() } else { c.texto.clone() },
+        TipoControle::Intervalo => format!("{}  ⊞", if c.texto.is_empty() { &c.nome } else { &c.texto }),
         TipoControle::Caixa => format!("☐ {}", c.texto),
         TipoControle::Opcao => format!("◯ {}", c.texto),
         TipoControle::Lista => format!("{} ▾", c.opcoes.first().cloned().unwrap_or_else(|| c.nome.clone())),
         TipoControle::Botao => c.texto.clone(),
     };
-    let caixa = matches!(c.tipo, TipoControle::Texto | TipoControle::Numero | TipoControle::Senha | TipoControle::Lista | TipoControle::Botao);
+    let caixa = matches!(c.tipo, TipoControle::Texto | TipoControle::Numero | TipoControle::Senha | TipoControle::Lista | TipoControle::Intervalo | TipoControle::Botao);
     let botao = c.tipo == TipoControle::Botao;
     container(text(corpo).size(12).color(if caixa && !botao { cor_secundaria(escuro) } else { cor_texto(escuro) }))
         .padding([0, 6]).width(Length::FILL).height(Length::FILL).align_y(pelicano::Align::Center)
@@ -301,12 +304,15 @@ pub(super) fn designer<'a>(app: &'a App) -> Element<'a, Msg> {
     if let Some(c) = d.sel.and_then(|i| f.controles.get(i)) {
         props = props.push(titulo(&rotulo_tipo(c.tipo).to_uppercase(), escuro));
         if c.tipo.tem_valor() { props = props.push(campo(tr!("Nome"), c.nome.clone(), Campo::Nome)); }
-        let rotulo_texto = match c.tipo { TipoControle::Texto | TipoControle::Numero | TipoControle::Senha => tr!("Dica"), _ => tr!("Texto") };
+        let rotulo_texto = match c.tipo { TipoControle::Texto | TipoControle::Numero | TipoControle::Senha | TipoControle::Intervalo => tr!("Dica"), _ => tr!("Texto") };
         if c.tipo != TipoControle::Lista { props = props.push(campo(rotulo_texto, c.texto.clone(), Campo::Texto)); }
         for (r, v, k) in [(tr!("X"), c.x, Campo::X), (tr!("Y"), c.y, Campo::Y), (tr!("Largura"), c.largura, Campo::Largura), (tr!("Altura"), c.altura, Campo::Altura)] {
             props = props.push(campo(r, numero(v), k));
         }
-        if c.tipo == TipoControle::Lista { props = props.push(campo(tr!("Itens (;)"), c.opcoes.join("; "), Campo::Opcoes)); }
+        if c.tipo == TipoControle::Lista {
+            props = props.push(campo(tr!("Itens (;)"), c.opcoes.join("; "), Campo::Opcoes));
+            props = props.push(campo(tr!("Itens de"), c.fonte.clone(), Campo::Fonte));
+        }
         if c.tipo.tem_valor() {
             let dica = if matches!(c.tipo, TipoControle::Caixa | TipoControle::Opcao) { tr!("Marcado (1)") } else { tr!("Valor inicial") };
             props = props.push(campo(dica, c.valor.clone(), Campo::Valor));

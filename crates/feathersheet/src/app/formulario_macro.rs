@@ -26,6 +26,8 @@ pub enum Evento {
     /// Enter num campo de texto (o índice do controle): roda a macro dele.
     Confirmar(usize),
     Botao(usize),
+    /// O botão do intervalo (RefEdit): o campo `i` recebe a seleção da planilha.
+    PegarSelecao(usize),
     /// Enter ou Esc na janela do formulário.
     Tecla { enter: bool },
     Fechar,
@@ -81,6 +83,12 @@ impl App {
             self.status = trf!("Formulário \"{nome}\" não encontrado.");
             return;
         };
+        let mut form = form;
+        // RowSource: a lista lê as células na abertura, pelo mesmo caminho da lista suspensa da validação.
+        for c in form.controles.iter_mut().filter(|c| c.tipo == TipoControle::Lista && !c.fonte.trim().is_empty()) {
+            let regra = feathersheet_core::operacoes::validation::Regra::Formula { formula: c.fonte.clone() };
+            c.opcoes = self.workbook.opcoes_da_lista(self.folha, self.linha, self.coluna, &regra).unwrap_or_default();
+        }
         let valores = valores_para_editar(&form, dados);
         self.formulario_macro = Some(FormularioAberto { form, valores });
     }
@@ -95,12 +103,17 @@ impl App {
     }
 
     pub(super) fn evento_formulario_macro(&mut self, evento: Evento) -> Task<Msg> {
+        // A seleção da planilha, para o botão do intervalo (calculada antes de emprestar o formulário).
+        let selecao = matches!(evento, Evento::PegarSelecao(_)).then(|| {
+            let aba = self.workbook.nomes().get(self.folha).cloned().unwrap_or_default();
+            format!("{}!{}", feathersheet_core::celulas::refs::quote_sheet(&aba), endereco_area(&self.area_selecionada()))
+        });
         let Some(aberto) = self.formulario_macro.as_mut() else { return Task::none() };
         // `Enabled = False`: o rádio e a lista não têm modo desligado no pelicano; o clique para aqui.
         let desligado = |nome: &str| aberto.form.controles.iter().any(|c| c.nome == nome && (c.desativado || c.oculto));
         let bloqueado = match &evento {
             Evento::Texto(n, _) | Evento::Caixa(n, _) => desligado(n),
-            Evento::Opcao(i) | Evento::Confirmar(i) | Evento::Botao(i) => aberto.form.controles.get(*i).is_none_or(|c| c.desativado || c.oculto),
+            Evento::Opcao(i) | Evento::Confirmar(i) | Evento::Botao(i) | Evento::PegarSelecao(i) => aberto.form.controles.get(*i).is_none_or(|c| c.desativado || c.oculto),
             _ => false,
         };
         if bloqueado { return Task::none() }
@@ -120,6 +133,11 @@ impl App {
                 i
             }),
             Evento::Confirmar(i) => Some(i),
+            Evento::PegarSelecao(i) => {
+                let Some(c) = aberto.form.controles.get(i) else { return Task::none() };
+                aberto.valores.insert(c.nome.clone(), Json::String(selecao.unwrap_or_default()));
+                Some(i)
+            }
             Evento::Tecla { enter } => {
                 // Enter aciona o botão padrão; Esc, o de cancelar (sem ele, fecha).
                 let alvo = aberto.form.controles.iter().position(|c| c.tipo == TipoControle::Botao && !c.desativado && !c.oculto
@@ -200,6 +218,19 @@ impl App {
             let ligado = !c.desativado;
             let w: Element<'_, Msg> = match c.tipo {
                 TipoControle::Rotulo => text(c.texto.clone()).size(13).into(),
+                TipoControle::Intervalo => {
+                    let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
+                    let dica = if c.texto.is_empty() { tr!("Selecione na planilha") } else { &c.texto };
+                    let mut campo = text_input(dica, valor).size(13).width(Length::FILL);
+                    let mut pegar = button(feather_ui::icones::icone("table", 14.0)).padding([4, 6]).style(estilo_botao_secundario);
+                    if ligado {
+                        campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
+                        if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
+                        pegar = pegar.on_press(ev(Evento::PegarSelecao(i)));
+                    }
+                    pelicano::row![campo, pelicano::tooltip(pegar, tr!("Usar a seleção da planilha"), pelicano::TooltipPosition::Top)]
+                        .spacing(4).align(pelicano::Align::Center).into()
+                }
                 TipoControle::Texto | TipoControle::Numero | TipoControle::Senha => {
                     let dica = if c.texto.is_empty() { &c.nome } else { &c.texto };
                     let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
@@ -260,7 +291,7 @@ mod testes {
 
     fn controle(tipo: TipoControle, nome: &str, texto: &str) -> Controle {
         Controle { tipo, nome: nome.into(), texto: texto.into(), x: 10.0, y: 10.0, largura: 120.0, altura: 26.0,
-            opcoes: Vec::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
+            opcoes: Vec::new(), fonte: String::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
     }
 
     /// Cadastro em série: a macro do botão recebe `valores`, grava na planilha,
@@ -324,6 +355,27 @@ mod testes {
         assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Text("liberado".into()));
         let _ = app.evento_formulario_macro(Evento::Tecla { enter: false });
         assert!(app.formulario_macro.is_none(), "Esc roda o Cancelar, que fecha");
+    }
+
+    /// RowSource: a lista lê as células (de outra aba) ao abrir; RefEdit: o botão pega a seleção.
+    #[test]
+    fn lista_de_celulas_e_intervalo_pela_selecao() {
+        let mut app = App::default();
+        app.workbook.inserir_aba("Dados", 1);
+        for (l, t) in ["SP", "", "RJ"].iter().enumerate() {
+            app.workbook.escrever_celula(1, l as u32, 0, t.to_string());
+        }
+        let mut form = Formulario::novo("f");
+        let mut uf = controle(TipoControle::Lista, "uf", "");
+        uf.fonte = "Dados!A1:A3".into();
+        form.controles = vec![uf, controle(TipoControle::Intervalo, "area", "")];
+        app.workbook.formularios = formularios::gravar(&[form]).unwrap();
+        app.abrir_formulario_macro("f", &Json::Null);
+        assert_eq!(app.formulario_macro.as_ref().unwrap().form.controles[0].opcoes, vec!["SP", "RJ"]);
+        (app.linha, app.coluna, app.fim_selecao) = (1, 1, (4, 2));
+        let _ = app.evento_formulario_macro(Evento::PegarSelecao(1));
+        assert_eq!(texto_campo(&app, "area"), "Planilha1!B2:C5");
+        let _ = app.view_formulario_macro();
     }
 
     fn texto_campo(app: &App, nome: &str) -> String {
