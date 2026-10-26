@@ -97,6 +97,7 @@ fn montar(lida: &PastaLida, colunas: Option<Vec<ColunasDaAba>>) -> Workbook {
         pasta.propriedades = propriedades_de_json(pr);
     }
     pasta.macros = lida.mc.as_ref().map(|v| v.to_string());
+    pasta.formularios = lida.fm.as_ref().map(|v| v.to_string());
     // Os últimos valores das pastas externas: valem até a origem abrir.
     if let Some(ex) = &lida.ex {
         pasta.instalar_externos_guardados(crate::externos_guardados::de_json(ex));
@@ -671,6 +672,7 @@ mod testes {
             pr: None,
             mc: None,
             ex: None,
+            fm: None,
             sheets: vec![AbaLida {
                 estilos: Default::default(),
                 n: "Planilha1".into(),
@@ -768,6 +770,7 @@ mod testes {
             pr: None,
             mc: None,
             ex: None,
+            fm: None,
             sheets: vec![AbaLida {
                 estilos: Default::default(),
                 n: "Planilha1".into(),

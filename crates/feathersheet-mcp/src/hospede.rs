@@ -57,6 +57,8 @@ pub trait Hospede {
     }
     /// O catálogo de macros mudou: o aplicativo recarrega o editor.
     fn macros_mudaram(&mut self) {}
+    /// A macro pediu `sheet.showComponent`: ao vivo abre a janela; devolve se abriu.
+    fn mostrar_formulario(&mut self, _nome: &str, _dados: &serde_json::Value) -> bool { false }
 }
 
 /// Sem o aplicativo: uma pasta na memória do servidor, aberta de um arquivo

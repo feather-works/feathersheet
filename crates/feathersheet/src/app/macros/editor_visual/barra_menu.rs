@@ -32,7 +32,7 @@ pub(super) fn menu_itens(id: u8) -> Vec<(&'static str, Option<Msg>)> {
             (tr!("Mostrar/ocultar saída"), event(EventoVisual::Console)),
         ],
         3 => vec![
-            (tr!("Módulo"), Some(Msg::MacroNovoModulo)), (tr!("Componente HTML/CSS"), event(EventoVisual::Documento("componente:previsao".into()))),
+            (tr!("Módulo"), Some(Msg::MacroNovoModulo)), (tr!("Formulário"), Some(Msg::MacroNovoFormulario)),
             (tr!("Procedimento"), None), (tr!("Evento da planilha"), None),
         ],
         4 => vec![
@@ -84,7 +84,7 @@ pub(super) fn icone_do_menu(rotulo: &str) -> Option<&'static str> {
         ("Mostrar/ocultar saída", "eye"),
         ("Histórico de macros", "clock"),
         ("Módulo", "file-code"),
-        ("Componente HTML/CSS", "forms"),
+        ("Formulário", "forms"),
         ("Procedimento", "code"),
         ("Evento da planilha", "bolt"),
         ("Executar", "player-play"),

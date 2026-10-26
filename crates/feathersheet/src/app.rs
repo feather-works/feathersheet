@@ -115,6 +115,7 @@ mod renomear_aba;
 mod mover_abas;
 mod cores_aba;
 mod condicional_ui;
+mod formulario_macro;
 mod estilos_popup;
 mod perfil_coluna_ui;
 mod estatisticas_ui;
@@ -141,11 +142,11 @@ pub(crate) mod vinculos;
 use crate::condicional;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Auxiliar { Configuracoes, Ajuda, Monitor, Macros, FormatarCelulas, DividirTexto, RemoverDuplicados, Imprimir, OpenQuery, Inspecao, PrimeirosPassos, Novidades, Condicional }
+pub enum Auxiliar { Configuracoes, Ajuda, Monitor, Macros, FormatarCelulas, DividirTexto, RemoverDuplicados, Imprimir, OpenQuery, Inspecao, PrimeirosPassos, Novidades, Condicional, Formulario }
 impl Auxiliar {
-    const TODAS: [Auxiliar; 13] = [Self::Configuracoes, Self::Ajuda, Self::Monitor, Self::Macros, Self::FormatarCelulas,
+    const TODAS: [Auxiliar; 14] = [Self::Configuracoes, Self::Ajuda, Self::Monitor, Self::Macros, Self::FormatarCelulas,
         Self::DividirTexto, Self::RemoverDuplicados, Self::Imprimir, Self::OpenQuery, Self::Inspecao,
-        Self::PrimeirosPassos, Self::Novidades, Self::Condicional];
+        Self::PrimeirosPassos, Self::Novidades, Self::Condicional, Self::Formulario];
 }
 
 /// Opções da faixa Preencher, migradas dos gestos de preenchimento do TypeScript.
@@ -513,6 +514,7 @@ pub enum Msg {
     /// Alt+↓: escolher da lista os valores já digitados na coluna.
     ListaDaColuna,
     ColarEspecialJanela(colar_especial::Evento),
+    FormularioMacro(formulario_macro::Evento),
     /// Ctrl+clique numa célula: acrescenta uma área à seleção.
     SelecionarAdicional(u32, u32),
     IrParaJanela(ir_para::Evento),
@@ -531,7 +533,7 @@ pub enum Msg {
     Zoom(u16), ZoomMinimo(u16), ZoomMaximo(u16),
     Macros, MacroVisual(EventoVisual), MacroEditar, MacroExecutar,
     MacroAbrir, MacroLido(Result<Option<String>,String>), MacroSalvar, MacroDestino(Option<PathBuf>),
-    MacroNome(String), MacroNovoModulo, MacroComponentes, MacroGuardarModulo, MacroAbrirModulo(String), MacroExcluirModulo,
+    MacroNome(String), MacroNovoModulo, MacroComponentes, MacroNovoFormulario, MacroGuardarModulo, MacroAbrirModulo(String), MacroExcluirModulo,
     MacroImportarCatalogo, MacroCatalogoLido(Result<Option<String>,String>),
     MacroExportarCatalogo, MacroDestinoCatalogo(Option<PathBuf>),
     MonitorPulso, ResumoPulso,
@@ -717,6 +719,10 @@ pub struct App {
     vba_pendente: Option<importar_vba::VbaPendente>,
     /// Pergunta Sim/Não de uma macro esperando a pessoa.
     macro_pergunta: Option<macro_dialogo::PerguntaMacro>,
+    /// O formulário aberto por `sheet.showComponent`.
+    formulario_macro: Option<formulario_macro::FormularioAberto>,
+    /// O `valores` da próxima execução (o botão do formulário).
+    macro_valores: Option<serde_json::Map<String, serde_json::Value>>,
     /// As últimas execuções de macro (só na memória), vistas no Alt+F11.
     historico_macros: historico_macros::Historico,
     /// Mensagens de `alert`/`MsgBox` ainda não lidas, uma por vez.
@@ -1059,7 +1065,7 @@ impl Default for App {
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,
-            vba_pendente: None, macro_pergunta: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
+            vba_pendente: None, macro_pergunta: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             comentario_editor: None, comentario_sobre: None, comentarios_todos: false,
             novo_estilo: None,
@@ -1301,6 +1307,8 @@ impl App {
             Some(Auxiliar::PrimeirosPassos) => tr!("Primeiros passos — FeatherSheet").into(),
             Some(Auxiliar::Novidades) => tr!("O que há de novo — FeatherSheet").into(),
             Some(Auxiliar::Condicional) => tr!("Formatação condicional — FeatherSheet").into(),
+            Some(Auxiliar::Formulario) => self.formulario_macro.as_ref()
+                .map_or_else(|| tr!("Formulário").to_string(), |f| if f.form.titulo.trim().is_empty() { f.form.nome.clone() } else { f.form.titulo.clone() }),
             None => format!("{}{} — FeatherSheet",
                 if self.alterado { "* " } else { "" }, self.nome_documento()),
         }
@@ -1352,6 +1360,7 @@ impl App {
             Auxiliar::Inspecao => Size::new(820., 360.),
             Auxiliar::PrimeirosPassos | Auxiliar::Novidades => Size::new(1100., 720.),
             Auxiliar::Condicional => Size::new(900., 620.),
+            Auxiliar::Formulario => Size::new(392., 292.),
         }
     }
     /// O objeto selecionado sobre a grade (forma ou ícone, gráfico, imagem
@@ -1676,6 +1685,7 @@ impl App {
                 Auxiliar::PrimeirosPassos => self.view_primeiros_passos(),
                 Auxiliar::Novidades => self.view_novidades(),
                 Auxiliar::Condicional => self.view_condicional(),
+                Auxiliar::Formulario => self.view_formulario_macro(),
             };
             return if self.config.barra_propria {
                 cromo::janela_com_barra(&self.titulo(id), body, Self::acoes(id))
@@ -1722,6 +1732,11 @@ impl pelicano::App for App {
         if self.condicional_aberto != self.janelas.aberta(Auxiliar::Condicional) {
             let tam = Self::tamanho_aux(Auxiliar::Condicional);
             tarefas.push(self.janelas.alternar::<Msg>(Auxiliar::Condicional, tam, self.config.barra_propria).map(|_| Msg::AuxAberta));
+        }
+        // O formulário das macros também: aberto enquanto `formulario_macro` existir.
+        if self.formulario_macro.is_some() != self.janelas.aberta(Auxiliar::Formulario) {
+            let tam = self.tamanho_formulario();
+            tarefas.push(self.janelas.alternar::<Msg>(Auxiliar::Formulario, tam, self.config.barra_propria).map(|_| Msg::AuxAberta));
         }
         if self.condicional_aberto && self.condicional_pegando {
             let endereco = endereco_area(&self.area_selecionada());

@@ -61,6 +61,7 @@ pub fn da_workbook(workbook: &Workbook, ativa: u32) -> PastaBruta {
         pr: crate::para_workbook::propriedades_para_json(&workbook.propriedades),
         mc: workbook.macros.as_deref().and_then(|t| serde_json::from_str(t).ok()),
         ex: crate::externos_guardados::para_json(&workbook.externos_para_gravar()),
+        fm: workbook.formularios.as_deref().and_then(|t| serde_json::from_str(t).ok()),
         sheets,
     }
 }
@@ -596,6 +597,16 @@ mod testes {
         let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
         let v: serde_json::Value = serde_json::from_str(crate::para_workbook::para_workbook(&lida).macros.as_deref().unwrap()).unwrap();
         assert_eq!(v["macros"][0]["name"], "Colorir");
+    }
+
+    #[test]
+    fn formularios_da_pasta_vao_e_voltam_no_fshz() {
+        let mut wb = Workbook::new();
+        assert!(crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap().fm.is_none());
+        wb.formularios = Some(r#"[{"nome":"cadastro","controles":[]}]"#.into());
+        let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
+        let v: serde_json::Value = serde_json::from_str(crate::para_workbook::para_workbook(&lida).formularios.as_deref().unwrap()).unwrap();
+        assert_eq!(v[0]["nome"], "cadastro");
     }
 
     /// Medida, não roda no `cargo test`: `cargo test --release -p sheet-io

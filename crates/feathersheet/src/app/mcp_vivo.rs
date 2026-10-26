@@ -213,17 +213,17 @@ fn auxiliar_por_nome(nome: &str) -> Option<Auxiliar> {
         "monitor" => Auxiliar::Monitor, "macros" => Auxiliar::Macros, "formatar" => Auxiliar::FormatarCelulas,
         "imprimir" => Auxiliar::Imprimir, "openquery" => Auxiliar::OpenQuery,
         "dividir" => Auxiliar::DividirTexto, "duplicados" => Auxiliar::RemoverDuplicados,
-        "condicional" => Auxiliar::Condicional,
+        "condicional" => Auxiliar::Condicional, "formulario" => Auxiliar::Formulario,
         _ => return None,
     })
 }
 
-const AUXILIARES: [(Auxiliar, &str); 11] = [
+const AUXILIARES: [(Auxiliar, &str); 12] = [
     (Auxiliar::Configuracoes, "Configurações"), (Auxiliar::Ajuda, "Ajuda"), (Auxiliar::Monitor, "Monitor"),
     (Auxiliar::Macros, "Editor de macros"), (Auxiliar::FormatarCelulas, "Formatar células"),
     (Auxiliar::DividirTexto, "Dividir texto"), (Auxiliar::RemoverDuplicados, "Remover duplicados"),
     (Auxiliar::Imprimir, "Imprimir"), (Auxiliar::OpenQuery, "OpenQuery"), (Auxiliar::Inspecao, "Janela de inspeção"),
-    (Auxiliar::Condicional, "Formatação condicional"),
+    (Auxiliar::Condicional, "Formatação condicional"), (Auxiliar::Formulario, "Formulário da macro"),
 ];
 
 /// O `App` visto pelas ferramentas. As tarefas que um comando gera (abrir
@@ -546,6 +546,10 @@ impl Hospede for HospedeApp<'_> {
         // O MCP grava as macros na própria pasta (`Workbook::macros`).
         self.app.recarregar_macros();
         self.app.alterado = true;
+    }
+    fn mostrar_formulario(&mut self, nome: &str, dados: &Json) -> bool {
+        self.app.abrir_formulario_macro(nome, dados);
+        self.app.formulario_macro.is_some()
     }
 }
 

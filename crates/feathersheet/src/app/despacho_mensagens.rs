@@ -372,7 +372,11 @@ impl App {
                     self.alternar(Auxiliar::Macros)
                 }
             },
-            // Faixa > Componentes: o editor de macros aberto no componente HTML/CSS.
+            Msg::MacroNovoFormulario => {
+                self.evento_designer(super::macros::designer_formulario::EventoDesigner::Novo);
+                self.update(Msg::MacroComponentes)
+            }
+            // Faixa > Componentes: o editor de macros aberto no desenho de formulários.
             Msg::MacroComponentes => {
                 self.evento_macro_visual(EventoVisual::Documento("componente:previsao".into()));
                 if self.janelas.aberta(Auxiliar::Macros) { Task::none() } else { self.alternar(Auxiliar::Macros) }

@@ -4,6 +4,7 @@ pub(in crate::app) mod editor_visual;
 pub(super) mod atalhos;
 pub(in crate::app) mod codigo;
 pub(in crate::app) mod organizacao;
+pub(in crate::app) mod designer_formulario;
 pub use codigo::EventoCodigo;
 
 /// Estado exclusivamente visual do editor de macros, inspirado na UI TS/VBE.
@@ -13,7 +14,8 @@ pub(super) struct EstadoVisual {
     pub(super) menu: Option<u8>,
     pub(super) documento: String,
     pub(super) painel: u8,
-    pub(super) componente_aba: u8,
+    /// O formulário em desenho (`designer_formulario.rs`).
+    pub(super) designer: designer_formulario::Designer,
     pub(super) propriedades_categoria: bool,
     pub(super) explorador: bool,
     pub(super) propriedades: bool,
@@ -55,7 +57,7 @@ impl Default for EstadoVisual {
             menu: None,
             documento: "modulo:Macro1".into(),
             painel: 0,
-            componente_aba: 0,
+            designer: Default::default(),
             propriedades_categoria: false,
             explorador: true,
             propriedades: true,
@@ -81,7 +83,6 @@ pub enum EventoVisual {
     SelecionarMenu(u8, usize),
     Documento(String),
     Painel(u8),
-    ComponenteAba(u8),
     PropriedadesCategoria(bool),
     Explorador,
     Propriedades,
@@ -109,6 +110,8 @@ pub enum EventoVisual {
     DivisoriaInicio(Divisoria),
     DivisoriaMover(f32),
     DivisoriaFim,
+    /// O desenho dos formulários (`designer_formulario.rs`).
+    Designer(designer_formulario::EventoDesigner),
 }
 
 impl App {
@@ -351,7 +354,7 @@ impl App {
                 self.macro_visual.painel = p;
                 self.macro_visual.console = true;
             }
-            EventoVisual::ComponenteAba(p) if p < 3 => self.macro_visual.componente_aba = p,
+            EventoVisual::Designer(e) => self.evento_designer(e),
             EventoVisual::PropriedadesCategoria(v) => self.macro_visual.propriedades_categoria = v,
             EventoVisual::Explorador => self.macro_visual.explorador = !self.macro_visual.explorador,
             EventoVisual::Propriedades => self.macro_visual.propriedades = !self.macro_visual.propriedades,
@@ -524,8 +527,6 @@ mod testes_visuais {
         assert!(!app.macro_visual.propriedades);
         app.evento_macro_visual(EventoVisual::Painel(2));
         assert_eq!(app.macro_visual.painel, 2);
-        app.evento_macro_visual(EventoVisual::ComponenteAba(1));
-        assert_eq!(app.macro_visual.componente_aba, 1);
         app.evento_macro_visual(EventoVisual::Documento("componente:previsao".into()));
         assert_eq!(app.macro_visual.documento, "componente:previsao");
         assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(3, 3), original);

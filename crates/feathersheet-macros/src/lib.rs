@@ -16,6 +16,7 @@ mod navegacao_intervalos;
 mod estrutura;
 mod mesclagem;
 mod pasta;
+pub mod formularios;
 pub use pasta::{Contexto, PedidoArquivo};
 use feather_macros::HospedeiroMacros;
 use feathersheet_core::{
@@ -44,6 +45,9 @@ pub struct Resultado {
     /// Arquivos pedidos (`sheet.exportPdf`, `wb.saveSheetsAs`), na ordem. A
     /// macro não grava nada: o aplicativo grava estes se ela terminou bem.
     pub arquivos: Vec<PedidoArquivo>,
+    /// Formulário a abrir (`sheet.showComponent`) com os dados que a macro
+    /// passou; só se ela terminou bem.
+    pub formulario: Option<(String, Json)>,
 }
 
 struct Estado {
@@ -111,6 +115,14 @@ impl HospedeiroMacros for HospedeiroSheet {
             let folha = e.pasta.aba_mut(aba)
                 .ok_or("app.calculate: aba ativa inexistente")?;
             folha.sheet.invalidar_todos_calculos();
+            Json::Null
+        } else if op == "mostrarFormulario" {
+            let nome = dados[0].as_str().ok_or("showComponent: o nome do formulário precisa ser texto")?;
+            let lista = formularios::ler(e.pasta.formularios.as_deref())?;
+            let f = formularios::obter(&lista, nome).ok_or_else(|| format!("showComponent: não existe o formulário \"{nome}\""))?;
+            let extra = if dados[1].is_object() || dados[1].is_null() { dados[1].clone() }
+                else { return Err("showComponent: os dados precisam ser um objeto { campo: valor }".into()) };
+            e.extra.formulario = Some((f.nome.clone(), extra));
             Json::Null
         } else if op == "appStatus" {
             let mensagem = dados.get(0).and_then(Json::as_str)
@@ -668,7 +680,8 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
     });
     // O prelúdio fica na MESMA linha da 1ª linha do código: as linhas do erro
     // batem com as do editor; só a coluna da linha 1 anda (ver `posicoes`).
-    let prefixo = format!("(function() {{ const sheet=__sheet({aba}), planilha=sheet; const range=sheet.range, cell=sheet.cell, cells=sheet.cell, worksheets=wb.sheet, sheets=wb.sheet; const valores={{}}; __sel[{aba}]=__ft('selecaoInicial',[]); ");
+    let valores = estado.borrow().extra.contexto.valores.as_ref().map_or_else(|| "{}".to_string(), |v| Json::Object(v.clone()).to_string());
+    let prefixo = format!("(function() {{ const sheet=__sheet({aba}), planilha=sheet; const range=sheet.range, cell=sheet.cell, cells=sheet.cell, worksheets=wb.sheet, sheets=wb.sheet; const valores={valores}; __sel[{aba}]=__ft('selecaoInicial',[]); ");
     let script = format!("{prefixo}{codigo}\n}})()");
     let mut resultado = feather_macros::executar_com_origem(host, API, &script, Some(posicoes::ORIGEM));
     resultado.erro = resultado.erro.map(|e| posicoes::ajustar_erro(&e, prefixo.chars().count(), codigo));
@@ -695,6 +708,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         mensagens: if extra.pergunta.is_none() { extra.mensagens } else { Vec::new() },
         aba_ativa: if vale { extra.ativou } else { None },
         arquivos: if vale { extra.arquivos } else { Vec::new() },
+        formulario: if vale { extra.formulario } else { None },
         pergunta: extra.pergunta,
     }
 }
@@ -914,6 +928,8 @@ function __sheet(i) {
         saveAs:path=>{__ft('salvarAbas',[[i+1],String(path)]);return sheet;},
         defineFunction:(nome)=>{log('Função '+nome+' definida só nesta macro: as fórmulas da planilha ainda não a usam.');},
         status:m=>app.status(m),
+        // Abre o formulário quando a macro terminar; `dados` preenche os campos.
+        showComponent:(nome,dados)=>{__ft('mostrarFormulario',[String(nome),dados===undefined?null:dados]);return sheet;},
         log, name:__ft('nomes',[])[i]};
     sheet.cells=sheet.cell; sheet.worksheets=wb.sheet; sheet.sheets=wb.sheet; return sheet;
 }

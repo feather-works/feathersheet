@@ -370,7 +370,7 @@ mod testes {
                 let t = std::time::Instant::now();
                 // Responde Sim a toda pergunta, para a macro andar até o fim.
                 let ctx = feathersheet_macros::Contexto { arquivo: Some(path.clone()),
-                    selecao: None, respostas: vec![true; 50] };
+                    selecao: None, respostas: vec![true; 50], valores: None };
                 let r = feathersheet_macros::executar_com(&mut app.workbook, app.folha, &m.codigo, ctx);
                 let ms = t.elapsed().as_millis();
                 match &r.erro {

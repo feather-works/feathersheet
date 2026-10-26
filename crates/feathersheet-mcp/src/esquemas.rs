@@ -6,7 +6,7 @@ fn f(nome: &str, descricao: &str, props: Value, obrigatorios: &[&str]) -> Value 
         "inputSchema": { "type": "object", "properties": props, "required": obrigatorios } })
 }
 
-const JANELAS: [&str; 12] = ["principal", "inspecao", "ajuda", "configuracoes", "monitor", "macros", "formatar", "imprimir", "openquery", "dividir", "duplicados", "condicional"];
+const JANELAS: [&str; 13] = ["principal", "inspecao", "ajuda", "configuracoes", "monitor", "macros", "formatar", "imprimir", "openquery", "dividir", "duplicados", "condicional", "formulario"];
 const ABA: &str = "Nome da aba (ou índice, base 0). Padrão: a ativa.";
 
 pub fn todas() -> Vec<Value> {
@@ -87,6 +87,9 @@ pub fn todas() -> Vec<Value> {
             json!({ "acao": { "type": "string", "enum": ["listar", "criar", "editar", "remover"] }, "aba": { "type": ["string", "integer"], "description": ABA },
                 "id": { "type": "string" }, "macro": { "type": "string" }, "rotulo": { "type": "string" }, "celula": { "type": "string" },
                 "largura": { "type": "number" }, "altura": { "type": "number" } }), &["acao"]),
+        f("sheet_formulario", "Formulários das macros (o UserForm do VBA; funciona sem o app). A macro abre com sheet.showComponent(\"nome\", dados?) numa janela; o botão do formulário roda a macro dele, que lê o preenchido em `valores` (campo → valor: texto, número ou null, lógico na caixa, texto da opção marcada no grupo). acao: listar, ler (nome), escrever (formulario: cria ou troca pelo nome) ou remover (nome). formulario: {nome, titulo, largura (360), altura (260), controles: [{tipo: rotulo|texto|numero|senha|caixa|opcao|lista|botao, nome (a chave em valores; opções do mesmo grupo têm o mesmo nome), texto (rótulo, texto do botão/caixa/opção, dica do campo), x, y, largura, altura em px, opcoes (lista), valor inicial (\"1\" marca caixa/opção), macro (botão), limpar (botão: zera os campos depois), fechar (botão: fecha)}]}. Crie as macros dos botões antes com sheet_macro.",
+            json!({ "acao": { "type": "string", "enum": ["listar", "ler", "escrever", "remover"] }, "nome": { "type": "string" },
+                "formulario": { "type": "object" } }), &["acao"]),
         f("sheet_dinamica", "AO VIVO: tabela dinâmica, como Inserir → Tabela dinâmica (um Ctrl+Z). acao: listar (as dinâmicas da pasta: id, aba, área, origem e campos), criar (origem com cabeçalho; linhas, colunas e valores pelo título do cabeçalho ou letra; nova_aba=true padrão), editar (id + o que muda: linhas, colunas, valores, layout), atualizar (id, ou todas sem id: recalcula da origem) ou excluir (id: apaga o resultado e a definição). valores: [{\"campo\":\"Vendas\",\"como\":\"soma\"}] com como = soma, contagem, media, min, max, desviopadrao, moda; vazio fica de fora (contagem conta texto). Sem o app, use sheet_consulta.",
             json!({ "acao": { "type": "string", "enum": ["listar", "criar", "editar", "atualizar", "excluir"] },
                 "origem": { "type": "string", "description": "a tabela com cabeçalho, ex.: A1:F5000 (ou uma célula dentro dela)" },
@@ -116,7 +119,7 @@ pub fn todas() -> Vec<Value> {
         f("sheet_tela", "AO VIVO: o estado visível em texto: aba da faixa, menus, diálogos e janelas abertos, célula ativa, seleção e status.", json!({}), &[]),
         f("sheet_ver", "AO VIVO: foto (PNG) da janela principal ou de uma janela auxiliar, para conferir o visual.",
             json!({ "janela": { "type": "string", "enum": JANELAS } }), &[]),
-        f("sheet_mouse", "AO VIVO: move o mouse na tela e clica, mostrando o cursor \"Claude\". Um passo por linha: `mover x y [ms]` ou `mover \"rótulo\" [ms]` (acha o controle pelo nome acessível), `clicar`, `duplo`, `apertar`/`soltar` (arrastar), `digitar \"texto\"`, `tecla Ctrl+S`, `rolar px`, `esperar ms`. Volta na hora; o roteiro roda em seguida, então confira com sheet_tela/sheet_ver depois.",
+        f("sheet_mouse", "AO VIVO: move o mouse na tela e clica, mostrando o cursor \"Claude\". Um passo por linha: `mover x y [ms]` ou `mover \"rótulo\" [ms]` (acha o controle pelo nome acessível), `clicar`, `duplo`, `apertar`/`soltar` (arrastar), `digitar texto` (o resto da linha, sem aspas), `tecla Ctrl+S`, `rolar px`, `esperar ms`. Volta na hora; o roteiro roda em seguida, então confira com sheet_tela/sheet_ver depois.",
             json!({ "roteiro": { "type": "string" }, "janela": { "type": "string", "enum": JANELAS } }), &["roteiro"]),
     ]
 }

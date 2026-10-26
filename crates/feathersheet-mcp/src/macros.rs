@@ -77,6 +77,10 @@ pub fn macro_(h: &mut dyn Hospede, args: &Json) -> Saida {
                 None => s.push_str("\nMacro concluída."),
             }
             if let Some(st) = r.status { s.push_str(&format!("\nStatus: {st}")); }
+            if let Some((form, dados)) = r.formulario {
+                s.push_str(&if h.mostrar_formulario(&form, &dados) { format!("\nFormulário \"{form}\" aberto na tela.") }
+                    else { format!("\nA macro pediu o formulário \"{form}\", que só abre com o app.") });
+            }
             s.trim_start().to_string()
         }
         outra => return Err(format!("Ação desconhecida: {outra}. Use listar, ler, escrever, excluir ou executar.")),

@@ -44,7 +44,7 @@ fn nome_aceita_aba_no_endereco() {
 fn selecao_inicial_e_arquivo_vem_do_contexto() {
     let mut wb = Workbook::new();
     let ctx = Contexto { arquivo: Some("/tmp/proj/Planilha.xlsm".into()),
-        selecao: Some("C5".into()), respostas: vec![] };
+        selecao: Some("C5".into()), respostas: vec![], valores: None };
     let r = executar_com(&mut wb, 0, r#"
         sheet.activeCell().set(wb.name + "|" + wb.path + "|" + sheet.value("C5"));
     "#, ctx);

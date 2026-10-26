@@ -33,6 +33,7 @@ impl App {
             Msg::VbaLido(lido) => { self.vba_lido(lido); Task::none() }
             Msg::NovoEstilo(evento) => self.evento_novo_estilo(evento),
             Msg::ColarEspecialJanela(evento) => self.evento_colar_especial(evento),
+            Msg::FormularioMacro(evento) => self.evento_formulario_macro(evento),
             Msg::SelecionarAdicional(r, c) => { self.selecionar_adicional(r, c); Task::none() }
             Msg::IrParaJanela(evento) => self.evento_ir_para(evento),
             Msg::Classificar(evento) => self.evento_classificar(evento),
@@ -1439,6 +1440,7 @@ impl App {
                     if self.janelas.tipo(id) == Some(Auxiliar::RemoverDuplicados) { self.duplicados = None; }
                     if self.janelas.tipo(id) == Some(Auxiliar::OpenQuery) { self.openquery = None; }
                     if self.janelas.tipo(id) == Some(Auxiliar::Condicional) { self.condicional_aberto = false; self.condicional_pegando = false; }
+                    if self.janelas.tipo(id) == Some(Auxiliar::Formulario) { self.formulario_macro = None; }
                     self.janelas.retirar(id); Task::none()
                 }
             }
@@ -1453,6 +1455,7 @@ impl App {
                     if self.janelas.tipo(id) == Some(Auxiliar::RemoverDuplicados) { self.duplicados = None; }
                     if self.janelas.tipo(id) == Some(Auxiliar::OpenQuery) { self.openquery = None; }
                     if self.janelas.tipo(id) == Some(Auxiliar::Condicional) { self.condicional_aberto = false; self.condicional_pegando = false; }
+                    if self.janelas.tipo(id) == Some(Auxiliar::Formulario) { self.formulario_macro = None; }
                     self.janelas.retirar(id); Task::window_of(id, pelicano::WindowCmd::Close)
                 }
             }
@@ -1706,6 +1709,7 @@ impl App {
             // tamanho de cada janela no `JanelaRedimensionada`.
             match self.janelas.tipo(id) {
                 Some(Auxiliar::Macros) => self.macro_visual.codigo.janela,
+                Some(Auxiliar::Formulario) => self.tamanho_formulario(),
                 Some(tipo) => Self::tamanho_aux(tipo),
                 None => Size::new(1280., 800.),
             }

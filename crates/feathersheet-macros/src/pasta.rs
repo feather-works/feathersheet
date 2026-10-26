@@ -29,6 +29,8 @@ pub struct Contexto {
     /// A pergunta sem resposta interrompe a execução: o aplicativo pergunta à
     /// pessoa e roda a macro de novo com a resposta acrescentada.
     pub respostas: Vec<bool>,
+    /// O que foi preenchido no formulário cujo botão rodou a macro (`valores`).
+    pub valores: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 /// O que a execução acumula para entregar ao aplicativo no fim.
@@ -42,6 +44,8 @@ pub(crate) struct Acumulado {
     pub nomes: Vec<(String, Rect)>,
     pub ativou: Option<usize>,
     pub arquivos: Vec<PedidoArquivo>,
+    /// `sheet.showComponent(nome, dados)`: o último pedido vale.
+    pub formulario: Option<(String, serde_json::Value)>,
 }
 
 /// Mais que isto numa execução é laço descontrolado, não exportação.

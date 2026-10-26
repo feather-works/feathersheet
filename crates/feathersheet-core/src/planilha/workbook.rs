@@ -110,6 +110,9 @@ pub struct Workbook {
     /// As macros desta pasta (catálogo JSON opaco, como os estilos de
     /// célula): cada arquivo leva as suas; o motor não as lê.
     pub macros: Option<String>,
+    /// Os formulários das macros (`sheet.showComponent`), JSON opaco como as
+    /// macros; o modelo mora no `feathersheet-macros`.
+    pub formularios: Option<String>,
 }
 
 /// Uma duplicação de aba, desfazível. `aba` é `Some` enquanto a cópia está
@@ -159,6 +162,7 @@ impl Workbook {
             estilos_celula: None,
             propriedades: Propriedades::default(),
             macros: None,
+            formularios: None,
         }
     }
 

@@ -45,6 +45,7 @@ impl App {
         let selecao = endereco_area(&Rect::new(self.linha, self.coluna, r1, c1));
         let contexto = feathersheet_macros::Contexto {
             arquivo: self.caminho.clone(), selecao: Some(selecao), respostas: respostas.clone(),
+            valores: self.macro_valores.clone(),
         };
         let mut r = feathersheet_macros::executar_com(&mut self.workbook, self.folha, codigo, contexto);
         // O que a macro escreveu não dispara os eventos do VBA.
@@ -75,7 +76,9 @@ impl App {
             });
             return None;
         }
+        self.macro_valores = None;
         self.alterado |= r.alterou;
+        if let Some((nome_form, dados)) = r.formulario.take() { self.abrir_formulario_macro(&nome_form, &dados); }
         // Os arquivos pedidos (PDF, abas num arquivo novo) só com a macro inteira bem.
         let mut arquivos = Vec::new();
         if r.erro.is_none() && !r.arquivos.is_empty() {

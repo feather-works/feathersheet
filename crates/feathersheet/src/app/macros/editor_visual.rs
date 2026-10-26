@@ -100,6 +100,14 @@ fn arvore<'a>(app: &'a App, altura: Length) -> Element<'a, Msg> {
         .map(|m| m.name.as_str())
         .filter(|n| !n.starts_with(super::organizacao::PASTA_EVENTOS)).collect();
     itens = modulos_da_pasta(app, itens, &nomes, "", 21.0);
+    let formularios = feathersheet_macros::formularios::ler(app.workbook.formularios.as_deref()).unwrap_or_default();
+    itens = itens.push(grupo_arvore(tr!("Formulários"), "forms", escuro));
+    for f in formularios {
+        let aberto = app.macro_visual.documento == "componente:previsao"
+            && app.macro_visual.designer.original.as_deref() == Some(f.nome.as_str());
+        itens = itens.push(item_arvore(&f.nome, "forms", 21.0,
+            event(EventoVisual::Designer(super::designer_formulario::EventoDesigner::Abrir(f.nome.clone()))), aberto));
+    }
     let rascunho = !app.macro_nome.starts_with(super::organizacao::PASTA_EVENTOS)
         && app.macro_catalogo.obter(&app.macro_nome).is_none();
     if rascunho {
@@ -255,7 +263,7 @@ fn abas_documento<'a>(app: &'a App) -> Element<'a, Msg> {
     } else if let Some(nome) = atual.strip_prefix("planilha:") {
         (nome.to_owned(), "table")
     } else if atual.starts_with("componente:") {
-        ("Componente1".to_string(), "forms")
+        (app.macro_visual.designer.form.as_ref().map_or_else(|| tr!("Formulário").to_string(), |f| f.nome.clone()), "forms")
     } else {
         (atual.strip_prefix("modulo:").unwrap_or(&app.macro_nome).to_owned(), "file-code")
     };
@@ -308,74 +316,9 @@ fn evento_planilha<'a>(app: &'a App) -> Element<'a, Msg> {
         .style(estilo_area(app.config.escuro)).into()
 }
 
-fn aba_componente<'a>(app: &'a App) -> Element<'a, Msg> {
-    let escuro = app.config.escuro;
-    let active = app.macro_visual.componente_aba;
-    let tabs = row![
-        botao_icone(tr!("Desenho"), "layout-grid", event(EventoVisual::ComponenteAba(0)), active == 0),
-        botao_icone("HTML", "code", event(EventoVisual::ComponenteAba(1)), active == 1),
-        botao_icone("CSS", "palette", event(EventoVisual::ComponenteAba(2)), active == 2),
-        Space::new(Length::FILL, 0.0),
-        botao_icone(tr!("Prévia"), "eye", None, false),
-        botao_icone(tr!("Soltar do desenho"), "arrows-maximize", None, false),
-    ].spacing(4).padding([4, 7]);
-    let corpo: Element<'a, Msg> = if active == 0 {
-        let toolbox = column![
-            titulo(tr!("CAIXA DE FERRAMENTAS"), escuro),
-            text(tr!("Controles do formulário")).size(11).color(cor_secundaria(escuro)),
-            botao_icone(tr!("Selecionar"), "pointer", None, false),
-            botao_icone(tr!("Rótulo"), "text-size", None, false),
-            botao_icone(tr!("Campo de texto"), "input", None, false),
-            botao_icone(tr!("Campo numérico"), "sum", None, false),
-            botao_icone(tr!("Senha"), "lock", None, false),
-            botao_icone(tr!("Caixa de seleção"), "checkbox", None, false),
-            botao_icone(tr!("Opção"), "circle-dot", None, false),
-            botao_icone(tr!("Lista suspensa"), "list-select", None, false),
-            botao_icone(tr!("Botão"), "square", None, false),
-        ].spacing(5).padding(8);
-        let formulario = container(column![
-            titulo(tr!("Formulário1  ·  desenho"), escuro),
-            text(tr!("Título do formulário")).size(17),
-            text(tr!("Nome")).size(12).color(cor_secundaria(escuro)),
-            botao(tr!("Campo de texto"), None, false),
-            row![
-                botao_icone(tr!("Confirmar"), "circle-check", None, true),
-                botao_icone(tr!("Cancelar"), "x", None, false),
-            ].spacing(6),
-            Space::new(0.0, Length::FILL),
-            text(tr!("Prévia visual; arrastar e configurar controles virá depois."))
-                .size(11).color(cor_secundaria(escuro)),
-        ].spacing(10).padding(24))
-        .width(Length::FILL).height(Length::FILL)
-        .style(estilo_area(escuro));
-        row![
-            container(toolbox).width(Length::Fixed(182.0)).height(Length::FILL)
-                .style(estilo_cabecalho(escuro)),
-            container(formulario).padding(18).width(Length::FILL).height(Length::FILL),
-        ].height(Length::FILL).into()
-    } else {
-        let linguagem = if active == 1 { tr!("HTML — editor do componente") } else { tr!("CSS — estilo do componente") };
-        row![
-            mensagem_visual(linguagem),
-            container(column![
-                titulo(tr!("PRÉVIA DO FORMULÁRIO"), escuro),
-                text(tr!("Formulário1")).size(14),
-                text(tr!("Nome")).size(11),
-                botao(tr!("Campo de texto"), None, false),
-                botao(tr!("Confirmar"), None, true),
-            ].spacing(8).padding(12))
-              .width(Length::Fixed(228.0)).height(Length::FILL).style(estilo_area(escuro)),
-        ].height(Length::FILL).into()
-    };
-    column![
-        container(tabs).style(estilo_cabecalho(escuro)),
-        corpo,
-    ].height(Length::FILL).into()
-}
-
 fn centro<'a>(app: &'a App) -> Element<'a, Msg> {
     let c: Element<'a, Msg> = if app.macro_visual.documento == "componente:previsao" {
-        aba_componente(app)
+        super::designer_formulario::designer(app)
     } else if app.macro_visual.documento.starts_with("modulo:") {
         edicao_codigo(app)
     } else if app.macro_visual.documento.starts_with("planilha:") {

@@ -427,7 +427,7 @@ impl App {
                     self.faixa_grande(tr!("Editor de macros"), "code", Some(Msg::Macros), false),
                     self.faixa_pilha(vec![
                         self.faixa_pequeno(tr!("Novo módulo"), "plus", Some(Msg::MacroNovoModulo), false),
-                        self.faixa_pequeno(tr!("Novo componente"), "plus", Some(Msg::MacroComponentes), false),
+                        self.faixa_pequeno(tr!("Novo componente"), "plus", Some(Msg::MacroNovoFormulario), false),
                         self.faixa_pequeno(tr!("Editar"), "edit", Some(Msg::Macros), false),
                     ]),
                 ])));

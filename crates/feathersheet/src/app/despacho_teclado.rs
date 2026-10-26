@@ -191,7 +191,7 @@ impl App {
                         Auxiliar::OpenQuery => None,
                         Auxiliar::Inspecao => None,
                         Auxiliar::PrimeirosPassos | Auxiliar::Novidades => None,
-                        Auxiliar::Condicional => None,
+                        Auxiliar::Condicional | Auxiliar::Formulario => None,
                         // Outros painéis não respondem a F1/F12, somente a Esc.
                         Auxiliar::Macros => None,
                     };
@@ -210,6 +210,7 @@ impl App {
                         if aux == Auxiliar::RemoverDuplicados { self.duplicados = None; }
                         if aux == Auxiliar::OpenQuery { self.openquery = None; }
                         if aux == Auxiliar::Condicional { self.condicional_aberto = false; self.condicional_pegando = false; }
+                        if aux == Auxiliar::Formulario { self.formulario_macro = None; }
                         // F1/F12 repetido logo depois de abrir não fecha (ver `alternancia_repetida`).
                         if painel.is_some() && key != keyboard::Key::Named(keyboard::key::Named::Escape)
                             && self.alternancia_repetida(aux) { return Task::none(); }
