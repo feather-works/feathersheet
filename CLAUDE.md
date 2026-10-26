@@ -27,7 +27,7 @@
 ## Interface no pelicano (22/10/2026); Iced aposentado em 26/10/2026
 
 - `crates/feathersheet` (binário `feathersheet`; até 26/10/2026 se chamava `feathersheet-pelicano`) é a interface, portada
-  1 pra 1 do antigo `feathersheet-gui` (Iced) para o pelicano v0.1.10 + feather-ui v0.3.1
+  1 pra 1 do antigo `feathersheet-gui` (Iced) para o pelicano v0.1.11 + feather-ui v0.3.2
   (por git + tag). `pacote/gerar.sh` e o CI do macOS montam o pacote a partir dela,
   instalando o binário como `feathersheet`. **O `feathersheet-gui` (Iced) foi apagado em
   26/10/2026** (fica no histórico do git); referências a ele abaixo são registro histórico.

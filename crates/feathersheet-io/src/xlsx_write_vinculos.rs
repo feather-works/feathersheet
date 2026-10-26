@@ -90,7 +90,8 @@ pub fn tipos_de_conteudo(livros: &[Livro]) -> String {
 /// vira `file:///…`; nome solto fica relativo à pasta do `.xlsx`.
 fn alvo(arquivo: &str, caminho: Option<&str>) -> String {
     let a = caminho.unwrap_or(arquivo).replace('\\', "/");
-    if a.starts_with('/') { format!("file://{a}") } else { a }
+    let unidade = a.as_bytes().get(1..3) == Some(b":/") && a.as_bytes()[0].is_ascii_alphabetic();
+    if a.starts_with('/') { format!("file://{a}") } else if unidade { format!("file:///{a}") } else { a }
 }
 
 /// As partes `externalLinkN.xml` e as relações de cada uma.
@@ -189,5 +190,49 @@ mod testes {
         assert!(s.get_raw(1, 0).contains("[Base.fshz]Meu Plano"), "{}", s.get_raw(1, 0));
         assert_eq!(lida.valor(0, 0, 0), Value::Number(42.0));
         assert_eq!(lida.valor(0, 1, 0), Value::Number(2.0));
+        // A troca de `[N]` pelo nome faz parte da leitura: não deixa Ctrl+Z (#32).
+        assert_eq!(s.profundidade_do_historico(), 0);
+    }
+
+    /// Reescreve partes do zip trocando texto (para montar casos que o gravador não gera).
+    fn trocar(bytes: &[u8], trocas: &[(&str, &str, &str)]) -> Vec<u8> {
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec())).unwrap();
+        let mut saida = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        for i in 0..zip.len() {
+            let mut f = zip.by_index(i).unwrap();
+            let nome = f.name().to_string();
+            let mut texto = Vec::new();
+            std::io::Read::read_to_end(&mut f, &mut texto).unwrap();
+            for (parte, de, para) in trocas {
+                if nome == *parte { texto = String::from_utf8(texto).unwrap().replace(de, para).into_bytes(); }
+            }
+            saida.start_file(nome, zip::write::SimpleFileOptions::default()).unwrap();
+            std::io::Write::write_all(&mut saida, &texto).unwrap();
+        }
+        saida.finish().unwrap().into_inner()
+    }
+
+    #[test]
+    fn vinculo_ilegivel_antes_nao_desloca_a_numeracao() {
+        let mut pasta = Workbook::vazia();
+        pasta.criar_aba("Planilha1");
+        pasta.escrever_celula(0, 0, 0, "=[Vendas.fshz]Dados!A1".into());
+        pasta.instalar_externo_com("Vendas.fshz", vec![aba_de_valores("Dados", &[(0, 0, Value::Number(7.0))])], None, None);
+        let bytes = crate::xlsx_write::gerar_xlsx(&pasta).unwrap();
+        // Um vínculo que não dá para ler (como um DDE) entra como o primeiro: o livro vira o [2] (#33).
+        let bytes = trocar(&bytes, &[
+            ("xl/workbook.xml", "<externalReferences>", "<externalReferences><externalReference r:id=\"rIdNaoExiste\"/>"),
+            ("xl/worksheets/sheet1.xml", "[1]Dados", "[2]Dados"),
+        ]);
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();
+        assert_eq!(lida.aba(0).unwrap().sheet.get_raw(0, 0), "=[Vendas.fshz]Dados!A1");
+        assert_eq!(lida.valor(0, 0, 0), Value::Number(7.0));
+    }
+
+    #[test]
+    fn caminho_do_windows_vira_file_url() {
+        assert_eq!(super::alvo("Vendas.fshz", Some("C:\\Pasta\\Vendas.fshz")), "file:///C:/Pasta/Vendas.fshz");
+        assert_eq!(super::alvo("Vendas.fshz", Some("/home/x/Vendas.fshz")), "file:///home/x/Vendas.fshz");
+        assert_eq!(super::alvo("Vendas.fshz", None), "Vendas.fshz");
     }
 }

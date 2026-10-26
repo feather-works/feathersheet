@@ -31,11 +31,13 @@ fn valor(celula: &xml::XmlNode) -> Value {
     }
 }
 
-/// Os livros externos na ordem do `[N]`, com nome, caminho e valores guardados.
-pub(super) fn ler(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, book: &xml::XmlNode, rels: &std::collections::HashMap<String, String>) -> Vec<LivroGuardado> {
+/// Os livros externos com o `N` de `[N]` (a posição em `<externalReferences>`,
+/// contando os vínculos DDE/OLE e os ilegíveis que ficam de fora), nome,
+/// caminho e valores guardados.
+pub(super) fn ler(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, book: &xml::XmlNode, rels: &std::collections::HashMap<String, String>) -> Vec<(usize, LivroGuardado)> {
     let Some(refs) = book.child("externalReferences") else { return Vec::new() };
     let mut livros = Vec::new();
-    for r in refs.children_named("externalReference") {
+    for (i, r) in refs.children_named("externalReference").enumerate() {
         let Some(alvo) = r.attr("r:id").and_then(|id| rels.get(id)) else { continue };
         let caminho = format!("xl/{}", alvo.trim_start_matches('/').trim_start_matches("xl/"));
         let Ok(raiz) = xml::parse_xml(&entry_text(arquivo, &caminho).unwrap_or_default()) else { continue };
@@ -58,17 +60,26 @@ pub(super) fn ler(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, book: 
                 }
             }
         }
-        livros.push(LivroGuardado { nome, caminho: caminho_origem, atualizado_em: None, abas });
+        livros.push((i + 1, LivroGuardado { nome, caminho: caminho_origem, atualizado_em: None, abas }));
     }
     livros
 }
 
 /// Troca `[N]` pelo nome do arquivo nas fórmulas e instala os valores.
-pub(super) fn instalar(workbook: &mut Workbook, livros: Vec<LivroGuardado>) {
+pub(super) fn instalar(workbook: &mut Workbook, livros: Vec<(usize, LivroGuardado)>) {
+    if livros.is_empty() { return; }
+    // A troca é parte da leitura: o Ctrl+Z logo depois de abrir não pode
+    // devolver `[1]Dados!B2`, que aponta para um arquivo chamado "1".
+    let antes: Vec<usize> = (0..workbook.len()).map(|i| workbook.aba_mut(i).map_or(0, |a| a.sheet.profundidade_do_historico())).collect();
     // De trás para a frente: se o livro 1 se chama "2", na ordem direta a
     // troca seguinte (`2` → livro 2) levaria as fórmulas dele junto.
-    for (i, livro) in livros.iter().enumerate().rev() {
-        workbook.trocar_origem_externa(&(i + 1).to_string(), &livro.nome);
+    let mut livros = livros;
+    livros.sort_by_key(|(n, _)| *n);
+    for (n, livro) in livros.iter().rev() {
+        workbook.trocar_origem_externa(&n.to_string(), &livro.nome);
     }
-    workbook.instalar_externos_guardados(livros);
+    for (i, profundidade) in antes.into_iter().enumerate() {
+        if let Some(aba) = workbook.aba_mut(i) { aba.sheet.truncar_historico(profundidade); }
+    }
+    workbook.instalar_externos_guardados(livros.into_iter().map(|(_, l)| l).collect());
 }
