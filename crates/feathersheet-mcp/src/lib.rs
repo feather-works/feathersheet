@@ -10,6 +10,7 @@ pub mod ao_vivo;
 pub mod arquivo;
 pub mod condicional;
 pub mod validacao;
+pub mod grafico;
 pub mod dados;
 pub mod edicao;
 pub mod esquemas;

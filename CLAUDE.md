@@ -237,7 +237,7 @@ Seleção atual". O texto "em breve" do seletor de gráfico já tinha saído.
 `SOMARPRODUTO` com matriz por dentro (testes no `1577c18`); `toLocaleString` nas macros (#7).
 
 **Dificuldades com o MCP:**
-1. Nenhum jeito de criar ou editar **gráfico** (nem ferramenta, nem `sheet_comando`, nem API das
+1. Gráfico: `sheet_grafico` (26/10/2026) cria, edita e remove. Antes não havia jeito (nem `sheet_comando`, nem API das
    macros). O menu "Gráfico…" só abre o seletor, que pede clique.
 2. Validação de dados: `sheet_validacao` (26/10/2026). Ainda sem ferramenta para **botão de macro**
    (o menu abre um diálogo) e **componente/formulário** de macro.
