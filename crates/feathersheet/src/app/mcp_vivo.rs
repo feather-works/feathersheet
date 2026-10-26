@@ -151,6 +151,7 @@ const COMANDOS: &[(&str, &str)] = &[
     ("criar_da_selecao_borda", "marca/desmarca uma borda: args {lado: 0 topo, 1 esquerda, 2 base, 3 direita}"),
     ("criar_da_selecao_confirmar", "botão Criar"),
     ("fechar", "fecha o menu ou diálogo aberto (Esc)"),
+    ("congelar", "congela painéis na aba ativa: args {linhas: 1, colunas: 0} (até 30 × 16; 0 e 0 descongela)"),
     ("selecionar_derramada", "Ctrl+/: seleciona a matriz derramada da célula ativa"),
     ("inspecao_abrir", "abre a Janela de inspeção"),
     ("inspecao_adicionar", "Adicionar inspeção (a seleção)"),
@@ -468,6 +469,7 @@ impl Hospede for HospedeApp<'_> {
                 let t = self.app.processar_teclado(id, keyboard::Key::Named(keyboard::key::Named::Escape), keyboard::Modifiers::empty());
                 self.tarefas.push(t);
             }
+            "congelar" => self.app.definir_congelamento(numero("linhas").min(999) as u32, numero("colunas").min(999) as u32),
             "selecionar_derramada" => self.enviar(Msg::Formulas(F::SelecionarDerramada)),
             "inspecao_abrir" => if !self.app.janelas.aberta(Auxiliar::Inspecao) { self.enviar(Msg::Inspecao(I::Abrir)) },
             "inspecao_adicionar" => self.enviar(Msg::Inspecao(I::Adicionar)),
@@ -702,6 +704,15 @@ mod testes {
         assert!(!erro && t.contains("› 1 linha"), "{t}");
         let (_, t) = chamar(&mut app, "sheet_comando", json!({ "comando": "menu", "args": { "texto": "Congelar linha superior" } }));
         assert!(t.contains("comando=\"menus\""), "o erro aponta o caminho: {t}");
+    }
+
+    #[test]
+    fn congelar_pelo_mcp() {
+        let mut app = App::default();
+        let (erro, t) = chamar(&mut app, "sheet_comando", json!({ "comando": "congelar", "args": { "linhas": 2, "colunas": 1 } }));
+        assert!(!erro && app.congelamento_atual() == (2, 1), "{t}");
+        chamar(&mut app, "sheet_comando", json!({ "comando": "congelar", "args": { "linhas": 0, "colunas": 0 } }));
+        assert_eq!(app.congelamento_atual(), (0, 0));
     }
 
     #[test]

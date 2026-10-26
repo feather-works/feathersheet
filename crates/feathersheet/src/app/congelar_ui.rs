@@ -33,11 +33,17 @@ impl App {
             11 => (0, 1),
             _ => return Task::none(),
         };
+        self.definir_congelamento(linhas, colunas);
+        Task::none()
+    }
+
+    /// Congela `linhas` × `colunas` na aba ativa (0 × 0 descongela). Também é o `congelar` do MCP.
+    pub(super) fn definir_congelamento(&mut self, linhas: u32, colunas: u32) {
         if linhas > 30 || colunas > 16 {
             self.status = tr!("Congelamento muito grande: escolha até 30 linhas e 16 colunas.").into();
-            return Task::none();
+            return;
         }
-        let Some(aba) = self.workbook.aba(self.folha) else { return Task::none(); };
+        let Some(aba) = self.workbook.aba(self.folha) else { return; };
         if linhas == 0 && colunas == 0 {
             self.congelados.remove(&aba.id);
             self.status = tr!("Painéis descongelados").into();
@@ -49,7 +55,6 @@ impl App {
         self.coluna_inicio = colunas;
         self.ancorar_rodape = false;
         // Visualização não altera células, versão da aba nem flag de salvar.
-        Task::none()
     }
 
     /// Item grande do menu, como no Excel: ícone, título em negrito e descrição.
