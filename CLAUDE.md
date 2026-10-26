@@ -26,7 +26,7 @@
 
 ## Interface no pelicano (22/10/2026); Iced aposentado em 26/10/2026
 
-- `crates/feathersheet-pelicano` (binário `feathersheet-pelicano`) é a interface, portada
+- `crates/feathersheet` (binário `feathersheet`; até 26/10/2026 se chamava `feathersheet-pelicano`) é a interface, portada
   1 pra 1 do antigo `feathersheet-gui` (Iced) para o pelicano v0.1.10 + feather-ui v0.3.1
   (por git + tag). `pacote/gerar.sh` e o CI do macOS montam o pacote a partir dela,
   instalando o binário como `feathersheet`. **O `feathersheet-gui` (Iced) foi apagado em
@@ -867,7 +867,7 @@ que veio de mim do que veio do Gemini ou do usuário.
 branco, fotografa a janela principal (1280×800) e fecha. `FEATHERSHEET_CAPTURAR_CELULA=XFD1`
 seleciona a célula antes da foto. Usar antes de devolver mudança visual ao usuário.
 `FEATHERSHEET_CAPTURAR_CELULAS='A1==SEQUÊNCIA(5)|E1=30'` escreve células antes da foto
-(endereço, `=`, conteúdo; itens separados por `|`). `FEATHERSHEET_CAPTURAR_MENU_CLASSICO=2` recolhe a faixa e abre esse menu clássico; `FEATHERSHEET_CAPTURAR_JANELA=condicional` cria uma regra de exemplo e fotografa a janela de formatação condicional. `FEATHERSHEET_CAPTURAR_ABA=2` mostra essa aba (índice a partir de 0; só no `feathersheet-pelicano`, útil com um arquivo na linha de comando). `FEATHERSHEET_CAPTURAR_CAIXAS=1` põe caixas de seleção (Inserir > Checkbox) na seleção de
+(endereço, `=`, conteúdo; itens separados por `|`). `FEATHERSHEET_CAPTURAR_MENU_CLASSICO=2` recolhe a faixa e abre esse menu clássico; `FEATHERSHEET_CAPTURAR_JANELA=condicional` cria uma regra de exemplo e fotografa a janela de formatação condicional. `FEATHERSHEET_CAPTURAR_ABA=2` mostra essa aba (índice a partir de 0; só no app, útil com um arquivo na linha de comando). `FEATHERSHEET_CAPTURAR_CAIXAS=1` põe caixas de seleção (Inserir > Checkbox) na seleção de
 `FEATHERSHEET_CAPTURAR_CELULA`, uma sim, uma não marcada. `FEATHERSHEET_CAPTURAR_FAIXA=formulas` abre
 essa aba da faixa; `FEATHERSHEET_CAPTURAR_RASTREIO=ppd` traça níveis de precedentes (`p`) e
 dependentes (`d`) na célula ativa; `FEATHERSHEET_CAPTURAR_MENU=Lógica` abre o menu dessa categoria

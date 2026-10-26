@@ -1,11 +1,11 @@
 [package]
-name = "feathersheet-pelicano"
+name = "feathersheet"
 version = "0.1.4"
 edition = "2021"
-description = "Interface nativa FeatherSheet no Pelicano, ao lado da versão Iced para comparar"
+description = "FeatherSheet: planilha nativa em Rust (interface no pelicano)"
 
 [[bin]]
-name = "feathersheet-pelicano"
+name = "feathersheet"
 path = "src/main.rs"
 
 [dependencies]

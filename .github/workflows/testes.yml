@@ -1,5 +1,5 @@
 # Testes do motor, da leitura/gravação de arquivos e das macros a cada push
-# e PR (#25). A interface (feathersheet-pelicano) fica de fora: compila em minutos
+# e PR (#25). A interface (crates/feathersheet) fica de fora: compila em minutos
 # e precisa das bibliotecas de janela do sistema.
 #
 # Como o macos.yml, só passa com o repositório compilando sozinho: um

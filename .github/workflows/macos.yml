@@ -38,16 +38,16 @@ jobs:
           rustup target add ${{ matrix.alvo }}
 
       - name: Compilar
-        working-directory: crates/feathersheet-pelicano
+        working-directory: crates/feathersheet
         run: cargo build --release --target ${{ matrix.alvo }}
 
       - name: Montar o .app e o .dmg
         run: |
           set -euo pipefail
-          versao="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/feathersheet-pelicano/Cargo.toml | head -1)"
+          versao="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/feathersheet/Cargo.toml | head -1)"
           app="dist-mac/FeatherSheet.app"
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-          cp "crates/feathersheet-pelicano/target/${{ matrix.alvo }}/release/feathersheet-pelicano" "$app/Contents/MacOS/feathersheet"
+          cp "crates/feathersheet/target/${{ matrix.alvo }}/release/feathersheet" "$app/Contents/MacOS/feathersheet"
           strip "$app/Contents/MacOS/feathersheet" || true
 
           # Ícone: o .icns sai dos PNG do pacote.

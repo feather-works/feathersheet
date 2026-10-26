@@ -1881,6 +1881,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "feathersheet"
+version = "0.1.4"
+dependencies = [
+ "arboard",
+ "base64 0.22.1",
+ "feather-charts",
+ "feather-draw",
+ "feather-image",
+ "feather-macros",
+ "feather-shapes",
+ "feather-tables",
+ "feather-ui",
+ "feathersheet-core",
+ "feathersheet-io",
+ "feathersheet-macros",
+ "feathersheet-mcp",
+ "feathersheet-vba",
+ "getrandom 0.2.17",
+ "image",
+ "libc",
+ "pbkdf2",
+ "pelicano",
+ "reqwest",
+ "resvg",
+ "rfd",
+ "scraper",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sys-locale",
+ "tokio",
+ "unicode-normalization",
+ "zip",
+]
+
+[[package]]
 name = "feathersheet-core"
 version = "0.0.2"
 dependencies = [
@@ -1923,42 +1959,6 @@ dependencies = [
  "feathersheet-io",
  "feathersheet-macros",
  "serde_json",
-]
-
-[[package]]
-name = "feathersheet-pelicano"
-version = "0.1.4"
-dependencies = [
- "arboard",
- "base64 0.22.1",
- "feather-charts",
- "feather-draw",
- "feather-image",
- "feather-macros",
- "feather-shapes",
- "feather-tables",
- "feather-ui",
- "feathersheet-core",
- "feathersheet-io",
- "feathersheet-macros",
- "feathersheet-mcp",
- "feathersheet-vba",
- "getrandom 0.2.17",
- "image",
- "libc",
- "pbkdf2",
- "pelicano",
- "reqwest",
- "resvg",
- "rfd",
- "scraper",
- "serde",
- "serde_json",
- "sha2",
- "sys-locale",
- "tokio",
- "unicode-normalization",
- "zip",
 ]
 
 [[package]]

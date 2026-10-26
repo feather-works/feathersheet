@@ -14,9 +14,9 @@ set -euo pipefail
 
 pacote="$(cd "$(dirname "$0")" && pwd)"
 raiz="$(dirname "$pacote")"
-# Desde a 0.1.4 a interface vai pelo pelicano; o binário `feathersheet-pelicano` é instalado como `feathersheet`.
-gui="$raiz/crates/feathersheet-pelicano"
-bin_nome="feathersheet-pelicano"
+# O aplicativo é o crate `crates/feathersheet` (interface no pelicano).
+gui="$raiz/crates/feathersheet"
+bin_nome="feathersheet"
 alvo_dir="${CARGO_TARGET_DIR:-$gui/target}"
 versao="${VERSAO:-$(sed -n 's/^version = "\(.*\)"/\1/p' "$gui/Cargo.toml" | head -1)}"
 perfil="${PERFIL:-release}"

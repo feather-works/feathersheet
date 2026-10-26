@@ -173,7 +173,7 @@ gravação pode virar uma versão consultável, sem servidor nenhum.
 |---|---|
 | [`feathersheet-core`](crates/feathersheet-core) | o motor: referências, valores, fórmulas e recálculo |
 | [`feathersheet-io`](crates/feathersheet-io) | `.fshz`, `.xlsx`, `.xlsm`, `.csv` e `.parquet` |
-| [`feathersheet-pelicano`](crates/feathersheet-pelicano) | a interface nativa (pelicano) |
+| [`feathersheet`](crates/feathersheet) | o aplicativo: a interface nativa (pelicano) |
 | [`feathersheet-macros`](crates/feathersheet-macros) | macros JavaScript no interpretador Boa |
 | [`feathersheet-vba`](crates/feathersheet-vba) | conversor de macros VBA para JavaScript |
 | [`feathersheet-mcp`](crates/feathersheet-mcp) | servidor MCP para IA local |
@@ -192,7 +192,7 @@ clonar este repositório.
 
 ```sh
 git clone https://github.com/feather-works/feathersheet
-cd feathersheet/crates/feathersheet-pelicano
+cd feathersheet/crates/feathersheet
 cargo run --release
 ```
 

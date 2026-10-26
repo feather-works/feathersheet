@@ -15,7 +15,7 @@ cargo test
 cargo clippy --all-targets
 ```
 
-O app: `cd crates/feathersheet-pelicano && cargo run --release`. Para medir velocidade sem esperar o build de lançamento, use o perfil `medir` (`--profile medir`).
+O app: `cd crates/feathersheet && cargo run --release`. Para medir velocidade sem esperar o build de lançamento, use o perfil `medir` (`--profile medir`).
 
 ## Regras do projeto
 
