@@ -233,12 +233,8 @@ referência. **No `.xlsx` (19/10/2026):** `xlsx_write_vinculos.rs` grava `[N]Aba
 cor só pela amostra, campo "Aplica-se a" com "Selecionar" pela grade e filtro "Esta planilha /
 Seleção atual". O texto "em breve" do seletor de gráfico já tinha saído.
 
-**Motor (achados pelo MCP):**
-- Intervalo nomeado de outra aba (`TotalVendas = Vendas!$G$2:$G$241`) dá `#VALUE!` como
-  argumento de intervalo em `SOMASES` e `CORRESP`; em `SOMA`/`MÁXIMO` funciona.
-- `SOMARPRODUTO` não eleva a matriz por dentro: `SOMARPRODUTO((E2:E241>5)*1)` = 0,
-  `SOMARPRODUTO(MÊS(A2:A241))` = 1.
-- Macros: `toLocaleString("pt-BR")` ignora a localidade (data sai em inglês).
+**Motor (achados pelo MCP):** resolvidos — nome de outra aba em `SOMASES`/`CORRESP` e
+`SOMARPRODUTO` com matriz por dentro (testes no `1577c18`); `toLocaleString` nas macros (#7).
 
 **Dificuldades com o MCP:**
 1. Nenhum jeito de criar ou editar **gráfico** (nem ferramenta, nem `sheet_comando`, nem API das
