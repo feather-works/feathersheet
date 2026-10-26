@@ -527,7 +527,7 @@ impl Hospede for HospedeApp<'_> {
             use feathersheet_macros::formularios::TipoControle;
             let campos: Vec<String> = f.form.controles.iter().filter(|c| c.tipo.tem_valor()).map(|c| {
                 let mut t = format!("{}={}", c.nome, f.valores.get(&c.nome).map_or(String::new(), |v| v.as_str().map_or(v.to_string(), str::to_owned)));
-                if c.tipo == TipoControle::Lista { t.push_str(&format!(" ({} itens)", c.opcoes.len())); }
+                if matches!(c.tipo, TipoControle::Lista | TipoControle::Listagem) { t.push_str(&format!(" ({} itens)", c.opcoes.len())); }
                 if c.desativado { t.push_str(" [desativado]"); }
                 if c.oculto { t.push_str(" [oculto]"); }
                 t

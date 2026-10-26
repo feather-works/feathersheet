@@ -19,17 +19,19 @@ pub enum TipoControle {
     Opcao,
     Lista,
     Botao,
+    /// Lista aberta de várias linhas (o `ListBox` do VBA); com `multipla`, o valor é a lista das marcadas.
+    Listagem,
     /// Escolher um intervalo da planilha (o `RefEdit` do VBA): o valor é o endereço, ex. `Dados!A1:B5`.
     Intervalo,
 }
 
 impl TipoControle {
-    pub const TODOS: [TipoControle; 9] = [Self::Rotulo, Self::Texto, Self::Numero, Self::Senha, Self::Caixa, Self::Opcao, Self::Lista, Self::Intervalo, Self::Botao];
+    pub const TODOS: [TipoControle; 10] = [Self::Rotulo, Self::Texto, Self::Numero, Self::Senha, Self::Caixa, Self::Opcao, Self::Lista, Self::Listagem, Self::Intervalo, Self::Botao];
 
     pub fn nome(self) -> &'static str {
         match self {
             Self::Rotulo => "rotulo", Self::Texto => "texto", Self::Numero => "numero", Self::Senha => "senha",
-            Self::Caixa => "caixa", Self::Opcao => "opcao", Self::Lista => "lista", Self::Botao => "botao", Self::Intervalo => "intervalo",
+            Self::Caixa => "caixa", Self::Opcao => "opcao", Self::Lista => "lista", Self::Botao => "botao", Self::Intervalo => "intervalo", Self::Listagem => "listagem",
         }
     }
 
@@ -55,7 +57,13 @@ pub struct Controle {
     /// Itens da lista suspensa.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub opcoes: Vec<String>,
-    /// Lista: itens lidos destas células ao abrir (o `RowSource` do VBA), ex. `Dados!A2:A20`,
+    /// Lista: aceita texto digitado além dos itens (o `ComboBox` do VBA).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub livre: bool,
+    /// Listagem: marca vários itens (`MultiSelect`); o valor vira uma lista.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub multipla: bool,
+    /// Lista e listagem: itens lidos destas células ao abrir (o `RowSource` do VBA), ex. `Dados!A2:A20`,
     /// um nome ou `=INDIRETO(…)`; no lugar de `opcoes`.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub fonte: String,
@@ -117,6 +125,11 @@ impl Formulario {
                 TipoControle::Opcao => {
                     let atual = v.entry(c.nome.clone()).or_insert_with(|| "".into());
                     if c.valor == "1" { *atual = c.texto.clone().into(); }
+                }
+                // Várias escolhas: "a;b" no valor inicial.
+                TipoControle::Listagem if c.multipla => {
+                    let marcadas: Vec<serde_json::Value> = c.valor.split(';').map(str::trim).filter(|t| !t.is_empty()).map(Into::into).collect();
+                    v.insert(c.nome.clone(), marcadas.into());
                 }
                 TipoControle::Numero => {
                     let n = c.valor.trim().replace(',', ".").parse::<f64>().ok();
@@ -190,7 +203,7 @@ mod testes {
 
     fn controle(tipo: TipoControle, nome: &str, texto: &str, valor: &str) -> Controle {
         Controle { tipo, nome: nome.into(), texto: texto.into(), x: 0.0, y: 0.0, largura: 100.0, altura: 24.0,
-            opcoes: Vec::new(), fonte: String::new(), valor: valor.into(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
+            opcoes: Vec::new(), fonte: String::new(), livre: false, multipla: false, valor: valor.into(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
     }
 
     #[test]

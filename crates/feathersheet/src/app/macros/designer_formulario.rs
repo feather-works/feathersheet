@@ -28,7 +28,7 @@ pub enum Campo { FormNome, FormTitulo, FormLargura, FormAltura, Nome, Texto, X, 
 
 /// As propriedades liga/desliga do controle escolhido.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Marca { Limpar, Fechar, Padrao, Cancelar, Desativado, Oculto }
+pub enum Marca { Limpar, Fechar, Padrao, Cancelar, Desativado, Oculto, Livre, Multipla }
 
 #[derive(Debug, Clone)]
 pub enum EventoDesigner {
@@ -54,7 +54,7 @@ fn rotulo_tipo(t: TipoControle) -> &'static str {
         TipoControle::Numero => tr!("Campo numérico"), TipoControle::Senha => tr!("Senha"),
         TipoControle::Caixa => tr!("Caixa de seleção"), TipoControle::Opcao => tr!("Opção"),
         TipoControle::Lista => tr!("Lista suspensa"), TipoControle::Botao => tr!("Botão"),
-        TipoControle::Intervalo => tr!("Intervalo (RefEdit)"),
+        TipoControle::Intervalo => tr!("Intervalo (RefEdit)"), TipoControle::Listagem => tr!("Caixa de listagem"),
     }
 }
 
@@ -63,6 +63,7 @@ fn icone_tipo(t: TipoControle) -> &'static str {
         TipoControle::Rotulo => "text-size", TipoControle::Texto => "input", TipoControle::Numero => "sum",
         TipoControle::Senha => "lock", TipoControle::Caixa => "checkbox", TipoControle::Opcao => "circle-dot",
         TipoControle::Lista => "list-select", TipoControle::Botao => "square", TipoControle::Intervalo => "table",
+        TipoControle::Listagem => "list",
     }
 }
 
@@ -98,12 +99,13 @@ impl App {
             EventoDesigner::Adicionar(tipo) => if let Some(f) = d.form.as_mut() {
                 // Abaixo do último controle, na margem esquerda.
                 let y = f.controles.iter().map(|c| c.y + c.altura).fold(0.0f32, f32::max) + 8.0;
-                let (largura, altura) = match tipo { TipoControle::Botao => (110.0, 30.0), TipoControle::Rotulo => (160.0, 20.0), _ => (200.0, 26.0) };
+                let (largura, altura) = match tipo { TipoControle::Botao => (110.0, 30.0), TipoControle::Rotulo => (160.0, 20.0),
+                    TipoControle::Listagem => (200.0, 96.0), _ => (200.0, 26.0) };
                 let texto = match tipo { TipoControle::Rotulo => tr!("Rótulo"), TipoControle::Botao => tr!("OK"),
                     TipoControle::Caixa | TipoControle::Opcao => rotulo_tipo(tipo), _ => "" };
                 let nome = if tipo.tem_valor() { nome_livre(f, tipo) } else { String::new() };
                 f.controles.push(Controle { tipo, nome, texto: texto.into(), x: 12.0, y: y.min((f.altura - altura).max(0.0)),
-                    largura, altura, opcoes: Vec::new(), fonte: String::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false });
+                    largura, altura, opcoes: Vec::new(), fonte: String::new(), livre: false, multipla: false, valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false });
                 d.sel = Some(f.controles.len() - 1);
             },
             EventoDesigner::Selecionar(i) => d.sel = i,
@@ -152,7 +154,8 @@ impl App {
                 }
                 if let Some(c) = f.controles.get_mut(i) {
                     *match m { Marca::Limpar => &mut c.limpar, Marca::Fechar => &mut c.fechar, Marca::Padrao => &mut c.padrao,
-                        Marca::Cancelar => &mut c.cancelar, Marca::Desativado => &mut c.desativado, Marca::Oculto => &mut c.oculto } = b;
+                        Marca::Cancelar => &mut c.cancelar, Marca::Desativado => &mut c.desativado, Marca::Oculto => &mut c.oculto,
+                        Marca::Livre => &mut c.livre, Marca::Multipla => &mut c.multipla } = b;
                 }
             },
             EventoDesigner::RemoverControle => if let (Some(f), Some(i)) = (d.form.as_mut(), d.sel) {
@@ -222,11 +225,13 @@ fn previa<'a>(c: &Controle, escuro: bool, escolhido: bool) -> Element<'a, Msg> {
         TipoControle::Opcao => format!("◯ {}", c.texto),
         TipoControle::Lista => format!("{} ▾", c.opcoes.first().cloned().unwrap_or_else(|| c.nome.clone())),
         TipoControle::Botao => c.texto.clone(),
+        TipoControle::Listagem => if c.opcoes.is_empty() { c.nome.clone() } else { c.opcoes.join("\n") },
     };
-    let caixa = matches!(c.tipo, TipoControle::Texto | TipoControle::Numero | TipoControle::Senha | TipoControle::Lista | TipoControle::Intervalo | TipoControle::Botao);
+    let caixa = matches!(c.tipo, TipoControle::Texto | TipoControle::Numero | TipoControle::Senha | TipoControle::Lista | TipoControle::Listagem | TipoControle::Intervalo | TipoControle::Botao);
     let botao = c.tipo == TipoControle::Botao;
     container(text(corpo).size(12).color(if caixa && !botao { cor_secundaria(escuro) } else { cor_texto(escuro) }))
-        .padding([0, 6]).width(Length::FILL).height(Length::FILL).align_y(pelicano::Align::Center)
+        .padding([if c.tipo == TipoControle::Listagem { 3 } else { 0 }, 6]).width(Length::FILL).height(Length::FILL)
+        .align_y(if c.tipo == TipoControle::Listagem { pelicano::Align::Start } else { pelicano::Align::Center })
         .align_x(if botao { pelicano::Align::Center } else { pelicano::Align::Start })
         .style(move |_| pelicano::Style {
             background: caixa.then(|| pelicano::Background::Color(if botao { cor_chrome(escuro) } else { cor_fundo(escuro) })),
@@ -305,21 +310,27 @@ pub(super) fn designer<'a>(app: &'a App) -> Element<'a, Msg> {
         props = props.push(titulo(&rotulo_tipo(c.tipo).to_uppercase(), escuro));
         if c.tipo.tem_valor() { props = props.push(campo(tr!("Nome"), c.nome.clone(), Campo::Nome)); }
         let rotulo_texto = match c.tipo { TipoControle::Texto | TipoControle::Numero | TipoControle::Senha | TipoControle::Intervalo => tr!("Dica"), _ => tr!("Texto") };
-        if c.tipo != TipoControle::Lista { props = props.push(campo(rotulo_texto, c.texto.clone(), Campo::Texto)); }
+        if !matches!(c.tipo, TipoControle::Lista | TipoControle::Listagem) { props = props.push(campo(rotulo_texto, c.texto.clone(), Campo::Texto)); }
         for (r, v, k) in [(tr!("X"), c.x, Campo::X), (tr!("Y"), c.y, Campo::Y), (tr!("Largura"), c.largura, Campo::Largura), (tr!("Altura"), c.altura, Campo::Altura)] {
             props = props.push(campo(r, numero(v), k));
         }
-        if c.tipo == TipoControle::Lista {
+        if matches!(c.tipo, TipoControle::Lista | TipoControle::Listagem) {
             props = props.push(campo(tr!("Itens (;)"), c.opcoes.join("; "), Campo::Opcoes));
             props = props.push(campo(tr!("Itens de"), c.fonte.clone(), Campo::Fonte));
-        }
-        if c.tipo.tem_valor() {
-            let dica = if matches!(c.tipo, TipoControle::Caixa | TipoControle::Opcao) { tr!("Marcado (1)") } else { tr!("Valor inicial") };
-            props = props.push(campo(dica, c.valor.clone(), Campo::Valor));
         }
         let marca = |rotulo: &str, valor: bool, m: Marca| -> Element<'a, Msg> {
             checkbox(rotulo.to_owned(), valor).on_toggle(move |b| ev(EventoDesigner::Marcar(m, b))).size(12).into()
         };
+        if c.tipo == TipoControle::Lista { props = props.push(marca(tr!("Aceita digitar"), c.livre, Marca::Livre)); }
+        if c.tipo == TipoControle::Listagem { props = props.push(marca(tr!("Várias escolhas"), c.multipla, Marca::Multipla)); }
+        if c.tipo.tem_valor() {
+            let dica = match c.tipo {
+                TipoControle::Caixa | TipoControle::Opcao => tr!("Marcado (1)"),
+                TipoControle::Listagem if c.multipla => tr!("Marcados (;)"),
+                _ => tr!("Valor inicial"),
+            };
+            props = props.push(campo(dica, c.valor.clone(), Campo::Valor));
+        }
         if c.tipo != TipoControle::Rotulo {
             let mut macros = vec![tr!("(nenhuma)").to_owned()];
             macros.extend(app.macro_catalogo.macros.iter().map(|m| m.name.clone()));

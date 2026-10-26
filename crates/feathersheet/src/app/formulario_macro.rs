@@ -26,6 +26,9 @@ pub enum Evento {
     /// Enter num campo de texto (o índice do controle): roda a macro dele.
     Confirmar(usize),
     Botao(usize),
+    /// Clique num item da listagem, ou escolha pela setinha da lista que aceita digitar
+    /// (controle, item): roda a macro do controle.
+    Item(usize, String),
     /// O botão do intervalo (RefEdit): o campo `i` recebe a seleção da planilha.
     PegarSelecao(usize),
     /// Enter ou Esc na janela do formulário.
@@ -45,6 +48,11 @@ fn valores_para_editar(form: &Formulario, dados: &Json) -> Map<String, Json> {
             let Some(c) = form.controles.iter().find(|c| &c.nome == k && c.tipo.tem_valor()) else { continue };
             let novo = match (c.tipo, valor) {
                 (TipoControle::Caixa, Json::Bool(b)) => Json::Bool(*b),
+                // Listagem de várias escolhas: lista de textos.
+                (TipoControle::Listagem, Json::Array(a)) if c.multipla =>
+                    Json::Array(a.iter().map(|x| Json::String(x.as_str().map_or_else(|| x.to_string(), str::to_owned))).collect()),
+                (TipoControle::Listagem, outro) if c.multipla =>
+                    Json::Array(outro.as_str().filter(|s| !s.is_empty()).map(|s| Json::String(s.into())).into_iter().collect()),
                 (TipoControle::Caixa, outro) => Json::Bool(!outro.is_null() && outro != &Json::from(0) && outro != &Json::from("")),
                 (_, Json::String(s)) => Json::String(s.clone()),
                 (_, Json::Number(n)) => Json::String(n.as_f64().map(numero_para_texto).unwrap_or_default()),
@@ -85,7 +93,7 @@ impl App {
         };
         let mut form = form;
         // RowSource: a lista lê as células na abertura, pelo mesmo caminho da lista suspensa da validação.
-        for c in form.controles.iter_mut().filter(|c| c.tipo == TipoControle::Lista && !c.fonte.trim().is_empty()) {
+        for c in form.controles.iter_mut().filter(|c| matches!(c.tipo, TipoControle::Lista | TipoControle::Listagem) && !c.fonte.trim().is_empty()) {
             let regra = feathersheet_core::operacoes::validation::Regra::Formula { formula: c.fonte.clone() };
             c.opcoes = self.workbook.opcoes_da_lista(self.folha, self.linha, self.coluna, &regra).unwrap_or_default();
         }
@@ -113,14 +121,15 @@ impl App {
         let desligado = |nome: &str| aberto.form.controles.iter().any(|c| c.nome == nome && (c.desativado || c.oculto));
         let bloqueado = match &evento {
             Evento::Texto(n, _) | Evento::Caixa(n, _) => desligado(n),
-            Evento::Opcao(i) | Evento::Confirmar(i) | Evento::Botao(i) | Evento::PegarSelecao(i) => aberto.form.controles.get(*i).is_none_or(|c| c.desativado || c.oculto),
+            Evento::Opcao(i) | Evento::Confirmar(i) | Evento::Botao(i) | Evento::PegarSelecao(i) | Evento::Item(i, _) => aberto.form.controles.get(*i).is_none_or(|c| c.desativado || c.oculto),
             _ => false,
         };
         if bloqueado { return Task::none() }
         // O controle cuja macro roda depois da mudança (`Change` do VBA), se houver.
         let mudou = match evento {
             Evento::Texto(nome, t) => {
-                let lista = aberto.form.controles.iter().position(|c| c.nome == nome && c.tipo == TipoControle::Lista);
+                // A lista fechada roda a macro ao escolher; a que aceita digitar, só no Enter.
+                let lista = aberto.form.controles.iter().position(|c| c.nome == nome && c.tipo == TipoControle::Lista && !c.livre);
                 aberto.valores.insert(nome, Json::String(t));
                 lista
             }
@@ -133,6 +142,18 @@ impl App {
                 i
             }),
             Evento::Confirmar(i) => Some(i),
+            Evento::Item(i, item) => {
+                let Some(c) = aberto.form.controles.get(i) else { return Task::none() };
+                let novo = if c.tipo == TipoControle::Listagem && c.multipla {
+                    // Várias escolhas: o clique marca ou desmarca, na ordem dos itens.
+                    let atuais: Vec<String> = aberto.valores.get(&c.nome).and_then(Json::as_array)
+                        .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect()).unwrap_or_default();
+                    let marcado = |o: &String| if o == &item { !atuais.contains(o) } else { atuais.contains(o) };
+                    Json::Array(c.opcoes.iter().filter(|o| marcado(o)).map(|o| Json::String(o.clone())).collect())
+                } else { Json::String(item) };
+                aberto.valores.insert(c.nome.clone(), novo);
+                Some(i)
+            }
             Evento::PegarSelecao(i) => {
                 let Some(c) = aberto.form.controles.get(i) else { return Task::none() };
                 aberto.valores.insert(c.nome.clone(), Json::String(selecao.unwrap_or_default()));
@@ -250,6 +271,55 @@ impl App {
                     let marcada = (texto(&c.nome) == c.texto).then_some(i);
                     radio(c.texto.clone(), i, marcada, move |i| ev(Evento::Opcao(i))).size(13).into()
                 }
+                TipoControle::Listagem => {
+                    let marcadas: Vec<&str> = match aberto.valores.get(&c.nome) {
+                        Some(Json::Array(a)) => a.iter().filter_map(Json::as_str).collect(),
+                        Some(Json::String(s)) => vec![s.as_str()],
+                        _ => Vec::new(),
+                    };
+                    let linhas = c.opcoes.iter().map(|o| {
+                        let marcada = marcadas.contains(&o.as_str());
+                        if c.multipla {
+                            // Várias escolhas: caixas de seleção, como o ListStyle de opção do VBA.
+                            let mut caixa = checkbox(o.clone(), marcada).size(13);
+                            if ligado { let o = o.clone(); caixa = caixa.on_toggle(move |_| ev(Evento::Item(i, o.clone()))); }
+                            return container(caixa).padding([2, 6]).width(Length::FILL).into();
+                        }
+                        let linha = container(text(o.clone()).size(13).color(if marcada { pelicano::Color::WHITE } else { COR_TEXTO() }))
+                            .padding([3, 6]).width(Length::FILL)
+                            .style(move |_| pelicano::Style {
+                                background: marcada.then(|| pelicano::Background::Color(COR_AZUL_ACENTO())),
+                                ..Default::default()
+                            });
+                        let mut area = pelicano::mouse_area(linha);
+                        if ligado { area = area.on_press(ev(Evento::Item(i, o.clone()))); }
+                        area.into()
+                    }).collect::<Vec<Element<'_, Msg>>>();
+                    container(pelicano::scrollable(pelicano::column(linhas)).height(Length::FILL))
+                        .width(Length::FILL).height(Length::FILL).padding(1)
+                        .style(|_| pelicano::Style {
+                            background: Some(pelicano::Background::Color(COR_PAINEL())),
+                            border: pelicano::Border { color: COR_BORDA(), width: 1.0, radius: [4.0; 4] },
+                            ..Default::default()
+                        }).into()
+                }
+                TipoControle::Lista if c.livre => {
+                    // Aceita digitar: o campo, com a setinha da lista ao lado.
+                    let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
+                    let mut campo = text_input(&c.texto, valor).size(13).width(Length::FILL);
+                    let nome_setinha = i;
+                    let mut row = pelicano::row![].spacing(2).align(pelicano::Align::Center);
+                    if ligado {
+                        campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
+                        if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
+                    }
+                    row = row.push(campo);
+                    if ligado {
+                        row = row.push(crate::compat::pick_list_vec(c.opcoes.clone(), None, move |t| ev(Evento::Item(nome_setinha, t)))
+                            .width(Length::Fixed(30.0)));
+                    }
+                    row.into()
+                }
                 TipoControle::Lista => {
                     let atual = Some(texto(&c.nome)).filter(|t| !t.is_empty());
                     crate::compat::pick_list_vec(c.opcoes.clone(), atual, move |t| ev(Evento::Texto(nome.clone(), t)))
@@ -291,7 +361,7 @@ mod testes {
 
     fn controle(tipo: TipoControle, nome: &str, texto: &str) -> Controle {
         Controle { tipo, nome: nome.into(), texto: texto.into(), x: 10.0, y: 10.0, largura: 120.0, altura: 26.0,
-            opcoes: Vec::new(), fonte: String::new(), valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
+            opcoes: Vec::new(), fonte: String::new(), livre: false, multipla: false, valor: String::new(), macro_nome: None, fechar: false, limpar: false, padrao: false, cancelar: false, desativado: false, oculto: false }
     }
 
     /// Cadastro em série: a macro do botão recebe `valores`, grava na planilha,
@@ -375,6 +445,29 @@ mod testes {
         (app.linha, app.coluna, app.fim_selecao) = (1, 1, (4, 2));
         let _ = app.evento_formulario_macro(Evento::PegarSelecao(1));
         assert_eq!(texto_campo(&app, "area"), "Planilha1!B2:C5");
+        let _ = app.view_formulario_macro();
+    }
+
+    #[test]
+    fn listagem_de_varias_escolhas_e_lista_que_aceita_digitar() {
+        let mut app = App::default();
+        let mut form = Formulario::novo("f");
+        let mut cores = controle(TipoControle::Listagem, "cores", "");
+        (cores.opcoes, cores.multipla, cores.valor) = (vec!["azul".into(), "verde".into(), "roxo".into()], true, "roxo".into());
+        let mut uf = controle(TipoControle::Lista, "uf", "");
+        (uf.opcoes, uf.livre) = (vec!["SP".into()], true);
+        form.controles = vec![cores, uf];
+        app.workbook.formularios = formularios::gravar(&[form]).unwrap();
+        app.abrir_formulario_macro("f", &Json::Null);
+        // Marca na ordem dos itens; o segundo clique desmarca.
+        let _ = app.evento_formulario_macro(Evento::Item(0, "azul".into()));
+        let _ = app.evento_formulario_macro(Evento::Item(0, "roxo".into()));
+        let _ = app.evento_formulario_macro(Evento::Item(0, "verde".into()));
+        assert_eq!(app.formulario_macro.as_ref().unwrap().valores["cores"], serde_json::json!(["azul", "verde"]));
+        let _ = app.evento_formulario_macro(Evento::Texto("uf".into(), "MG".into()));
+        assert_eq!(texto_campo(&app, "uf"), "MG");
+        let _ = app.evento_formulario_macro(Evento::Item(1, "SP".into()));
+        assert_eq!(texto_campo(&app, "uf"), "SP");
         let _ = app.view_formulario_macro();
     }
 

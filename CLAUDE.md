@@ -242,7 +242,7 @@ Seleção atual". O texto "em breve" do seletor de gráfico já tinha saído.
 2. Validação de dados: `sheet_validacao`; botão de macro: `sheet_botao`; formulário: `sheet_formulario` (26/10/2026).
 
 **Formulários das macros (26/10/2026, o UserForm do VBA):** modelo em `feathersheet-macros/src/formularios.rs`
-(8 tipos de controle, guardados em `Workbook::formularios` = `fm` no `.fshz`); `sheet.showComponent("nome", dados)`
+(10 tipos de controle, guardados em `Workbook::formularios` = `fm` no `.fshz`); `sheet.showComponent("nome", dados)`
 abre a janela `Auxiliar::Formulario` (`app/formulario_macro.rs`); o botão roda a macro dele com `valores`
 (`Contexto::valores`), e pode limpar/fechar. Designer no Alt+F11 (`app/macros/designer_formulario.rs`: caixa de
 ferramentas, arrastar/redimensionar com grade de 4 px, propriedades, Guardar/Testar). A janela soma a barra de título
@@ -250,8 +250,9 @@ própria (`cromo::BARRA_ALTURA`) ao tamanho. Na macro, `sheet.field("nome").valu
 mexe no formulário aberto e `sheet.hideComponent()` fecha (`Resultado::campos`/`fechar_formulario`, aplicados depois
 da execução); `macro` num campo roda ao mudar (texto/número: no Enter); botão `padrao` (Enter) e `cancelar` (Esc);
 `desativado` esmaece, `oculto` some. Tipo `intervalo` = RefEdit (botão pega a seleção, valor `Aba!A1:B5`); lista com `fonte` = RowSource (lida ao abrir
-pelo `opcoes_da_lista` da validação). `sheet_tela` descreve o formulário aberto. **Falta para a paridade com o
-UserForm** (levantamento de 26/10): ListBox/ComboBox livre; ordem de tabulação; importar `.frm`;
+pelo `opcoes_da_lista` da validação). `listagem` = ListBox (`multipla`: caixas de seleção, valor = lista de textos;
+uma escolha: item em destaque sólido); lista com `livre` = ComboBox (campo + setinha). `sheet_tela` descreve o formulário aberto. **Falta para a paridade com o
+UserForm** (levantamento de 26/10): ordem de tabulação; importar `.frm`;
 MaxLength/MultiLine/dica/Frame/Image.
 3. Congelar painéis: `sheet_comando congelar {linhas, colunas}` (26/10/2026); os rótulos dos menus
    saem do `sheet_comando menus {filtro}`.
