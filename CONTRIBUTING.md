@@ -1,6 +1,6 @@
 # Como contribuir
 
-Obrigado pelo interesse! O FeatherSheet é escrito em Rust, com interface nativa em Iced.
+Obrigado pelo interesse! O FeatherSheet é escrito em Rust, com interface nativa no pelicano.
 
 ## Defeitos e sugestões
 
@@ -15,7 +15,7 @@ cargo test
 cargo clippy --all-targets
 ```
 
-O app: `cd crates/feathersheet-gui && cargo run --release`. Para medir velocidade sem esperar o build de lançamento, use o perfil `medir` (`--profile medir`).
+O app: `cd crates/feathersheet-pelicano && cargo run --release`. Para medir velocidade sem esperar o build de lançamento, use o perfil `medir` (`--profile medir`).
 
 ## Regras do projeto
 

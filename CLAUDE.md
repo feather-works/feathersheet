@@ -24,14 +24,13 @@
   data, estilo, validação e bloco de várias linhas ainda param na última
   linha com dados.
 
-## Porta para o pelicano, lado a lado com o Iced (22/10/2026)
+## Interface no pelicano (22/10/2026); Iced aposentado em 26/10/2026
 
-- `crates/feathersheet-pelicano` (binário `feathersheet-pelicano`) é a cópia do
-  `feathersheet-gui` portada 1 pra 1 para o pelicano v0.1.9 + feather-ui v0.3.0 (por git +
-  tag), como o `featherslide-pelicano`. **Desde a v0.1.4 (22/10/2026) é a interface
-  lançada**: `pacote/gerar.sh` e o CI do macOS montam o pacote a partir dela, instalando o
-  binário como `feathersheet`. O `feathersheet-gui` (Iced) fica para comparar; **mudança
-  feita num lado precisa ser repetida no outro** enquanto os dois existirem.
+- `crates/feathersheet-pelicano` (binário `feathersheet-pelicano`) é a interface, portada
+  1 pra 1 do antigo `feathersheet-gui` (Iced) para o pelicano v0.1.10 + feather-ui v0.3.1
+  (por git + tag). `pacote/gerar.sh` e o CI do macOS montam o pacote a partir dela,
+  instalando o binário como `feathersheet`. **O `feathersheet-gui` (Iced) foi apagado em
+  26/10/2026** (fica no histórico do git); referências a ele abaixo são registro histórico.
 - Pacote: gerar de uma cópia limpa do commit (`git worktree`), porque o crate usa o
   `feathersheet-core` por caminho e pegaria mudança não commitada.
 - `src/compat.rs` imita o canvas do Iced 0.13 (`Frame`, `Text`, `Path`, `Stroke`,
@@ -43,8 +42,6 @@
   cursor ou selecionar tudo num `text_input` por tarefa (inserir referência na barra fx,
   F4, renomear aba), cor de seleção e modo só leitura no `text_editor`, `align_x` no
   `text_input`, cor do trilho na `progress_bar`, tamanho da letra na dica do `tooltip`.
-- A UI pequena do Codex dentro do `feathersheet-gui` (`--features pelicano`, commit
-  `f38c3ca`) fica superada por este crate e deve sair.
 
 ## Verificação antes do commit geral — 07/10/2026
 

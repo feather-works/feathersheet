@@ -1,6 +1,6 @@
 # FeatherSheet
 
-**Planilha da suíte FeatherWorks, escrita em Rust com interface nativa Iced.**
+**Planilha da suíte FeatherWorks, escrita em Rust com interface nativa no pelicano.**
 Abre arquivos enormes, calcula em paralelo, fala português nas fórmulas e roda
 inteira na sua máquina: sem conta, sem login, sem telemetria.
 
@@ -173,7 +173,7 @@ gravação pode virar uma versão consultável, sem servidor nenhum.
 |---|---|
 | [`feathersheet-core`](crates/feathersheet-core) | o motor: referências, valores, fórmulas e recálculo |
 | [`feathersheet-io`](crates/feathersheet-io) | `.fshz`, `.xlsx`, `.xlsm`, `.csv` e `.parquet` |
-| [`feathersheet-gui`](crates/feathersheet-gui) | a interface nativa em Iced |
+| [`feathersheet-pelicano`](crates/feathersheet-pelicano) | a interface nativa (pelicano) |
 | [`feathersheet-macros`](crates/feathersheet-macros) | macros JavaScript no interpretador Boa |
 | [`feathersheet-vba`](crates/feathersheet-vba) | conversor de macros VBA para JavaScript |
 | [`feathersheet-mcp`](crates/feathersheet-mcp) | servidor MCP para IA local |
@@ -193,17 +193,13 @@ clonar este repositório.
 
 ```sh
 git clone https://github.com/feather-works/feathersheet
-cd feathersheet/crates/feathersheet-gui
+cd feathersheet/crates/feathersheet-pelicano
 cargo run --release
 ```
 
-No Linux, o Iced precisa das bibliotecas de janela do sistema (`libxkbcommon`,
-`libwayland` ou `libx11`, `libfontconfig`).
-
-A nova interface em Pelicano pode ser executada com
-`cargo run --features pelicano -- --pelicano`. Está em migração; o executável
-padrão continua em Iced até a equivalência dos recursos. Comandos, testes e
-pendências estão em [Interface Pelicano](docs/INTERFACE-PELICANO.md).
+No Linux, a janela precisa das bibliotecas do sistema (`libxkbcommon`,
+`libwayland` ou `libx11`, `libfontconfig`). Comandos, testes e pendências da
+interface estão em [Interface Pelicano](docs/INTERFACE-PELICANO.md).
 
 ## Privacidade
 
