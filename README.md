@@ -177,7 +177,6 @@ gravação pode virar uma versão consultável, sem servidor nenhum.
 | [`feathersheet-macros`](crates/feathersheet-macros) | macros JavaScript no interpretador Boa |
 | [`feathersheet-vba`](crates/feathersheet-vba) | conversor de macros VBA para JavaScript |
 | [`feathersheet-mcp`](crates/feathersheet-mcp) | servidor MCP para IA local |
-| [`feathersheet-ponte`](crates/feathersheet-ponte) | camada de comandos da interface antiga (referência de paridade) |
 
 Bibliotecas comuns da suíte usadas aqui:
 [`feather-io`](https://github.com/feather-works/feather-io) (arquivos, tabelas, imagens e macros),
