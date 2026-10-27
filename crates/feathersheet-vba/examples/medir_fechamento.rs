@@ -17,7 +17,10 @@ fn main() {
         for (c, t) in v.iter().enumerate() { s.set_cell(i, c as u32, t); }
     }
     let t = std::time::Instant::now();
-    let r = feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo);
+    // FEATHERSHEET_JS=arquivo.js troca o código convertido (para medir uma versão instrumentada).
+    let codigo = std::env::var("FEATHERSHEET_JS").map_or_else(|_| c.macros[0].codigo.clone(), |p| std::fs::read_to_string(p).unwrap());
+    let r = feathersheet_macros::executar(&mut wb, 0, &codigo);
+    for l in &r.saida { println!("{l}"); }
     println!("{n} linhas: {:?}  erro {:?}  abas {:?}", t.elapsed(), r.erro, wb.nomes());
     println!("{:?}", r.mensagens);
 }

@@ -439,7 +439,9 @@ impl HospedeiroMacros for HospedeiroSheet {
             } else { area };
             // Leitura de uma única célula/metadata: sem percorrer A:A.
             if !matches!(op, "area" | "getText" | "getAddress" | "intersect" | "union" | "rowCount" | "columnCount" | "isMerged" | "unmerge" | "setDataValidation" | "clearDataValidation"
-                | "addConditionalFormat" | "addColorScale" | "addDataBar" | "clearConditionalFormats")
+                | "addConditionalFormat" | "addColorScale" | "addDataBar" | "clearConditionalFormats"
+                // Ordenar e tirar repetidas rodam inteiros no motor (nada volta célula a célula).
+                | "sort" | "removeDuplicates")
                 && u64::from(area.r1-area.r0+1) * u64::from(area.c1-area.c0+1) > 500_000 {
                 return Err("Restrinja o intervalo a 500.000 células".to_string());
             }

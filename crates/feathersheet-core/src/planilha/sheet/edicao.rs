@@ -765,6 +765,21 @@ impl Sheet {
         }
     }
 
+    /// Só as células com fórmula (as do mapa e as empacotadas em coluna), com o texto delas.
+    /// Literal nunca começa com `=`: quem procura fórmula não precisa varrer a coluna de dados.
+    pub fn for_each_formula(&self, visit: &mut dyn FnMut(u32, u32, &str)) {
+        for (&k, c) in &self.cells {
+            if c.raw.starts_with('=') {
+                visit(key_row(k), key_col(k), &c.raw);
+            }
+        }
+        for e in self.formulas.entries() {
+            if !self.cells.contains_key(&key(e.row, e.col)) {
+                visit(e.row, e.col, &e.raw);
+            }
+        }
+    }
+
     // ------------------------------------------------------------- limites
 
     /// A maior linha ocupada, como o `maxRow` do TypeScript (zero numa aba

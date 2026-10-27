@@ -429,12 +429,10 @@ impl Workbook {
         let antigo = std::mem::replace(&mut self.abas[indice].sheet.name, limpo.to_string());
         for i in 0..self.abas.len() {
             let mut edicoes = Vec::new();
-            self.abas[i].sheet.for_each_snapshot(&mut |row, col, snap| {
-                if snap.raw.starts_with('=') {
-                    let novo = reescrever_aba(&snap.raw, &antigo, limpo);
-                    if novo != snap.raw {
-                        edicoes.push((row, col, novo));
-                    }
+            self.abas[i].sheet.for_each_formula(&mut |row, col, raw| {
+                let novo = reescrever_aba(raw, &antigo, limpo);
+                if novo != raw {
+                    edicoes.push((row, col, novo));
                 }
             });
             if edicoes.is_empty() {
