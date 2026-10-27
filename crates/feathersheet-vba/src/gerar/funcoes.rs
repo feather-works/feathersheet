@@ -11,7 +11,8 @@ const CONSTANTES: &[(&str, &str, T)] = &[
     ("vbcritical", "16", T::Num), ("vbquestion", "32", T::Num), ("vbexclamation", "48", T::Num), ("vbinformation", "64", T::Num), ("vbdefaultbutton1", "0", T::Num), ("vbdefaultbutton2", "256", T::Num),
     ("vbcrlf", "'\\n'", T::Texto), ("vbnewline", "'\\n'", T::Texto), ("vblf", "'\\n'", T::Texto), ("vbcr", "'\\r'", T::Texto), ("vbtab", "'\\t'", T::Texto), ("vbnullstring", "''", T::Texto), ("vbnullchar", "'\\0'", T::Texto),
     ("vbblack", "0", T::Num), ("vbwhite", "16777215", T::Num), ("vbred", "255", T::Num), ("vbgreen", "65280", T::Num), ("vbblue", "16711680", T::Num), ("vbyellow", "65535", T::Num), ("vbmagenta", "16711935", T::Num), ("vbcyan", "16776960", T::Num),
-    ("vbbinarycompare", "0", T::Num), ("vbtextcompare", "1", T::Num), ("vbsunday", "1", T::Num), ("vbmonday", "2", T::Num),
+    ("vbbinarycompare", "0", T::Num), ("vbtextcompare", "1", T::Num), ("vbsunday", "1", T::Num), ("vbmonday", "2", T::Num), ("vbtuesday", "3", T::Num), ("vbwednesday", "4", T::Num), ("vbthursday", "5", T::Num), ("vbfriday", "6", T::Num), ("vbsaturday", "7", T::Num), ("vbusesystemdayofweek", "0", T::Num),
+    ("vbuppercase", "1", T::Num), ("vblowercase", "2", T::Num), ("vbpropercase", "3", T::Num),
     ("xldelimited", "1", T::Num), ("xlfixedwidth", "2", T::Num), ("xldoublequote", "1", T::Num), ("xlsinglequote", "2", T::Num),
     ("xltextqualifierdoublequote", "1", T::Num), ("xltextqualifiersinglequote", "2", T::Num), ("xltextqualifiernone", "-4142", T::Num),
     ("xlup", "-4162", T::Num), ("xldown", "-4121", T::Num), ("xltoleft", "-4159", T::Num), ("xltoright", "-4161", T::Num),
@@ -92,9 +93,9 @@ impl Gerador<'_> {
     /// Uma função embutida do VBA sem argumento (`Now`, `Date`, `Timer`), ou `None`.
     pub fn embutida_sem_args(&mut self, nome: &str) -> Option<V> {
         Some(match nome.to_lowercase().as_str() {
-            "now" => V::novo("new Date()", T::Var),
-            "date" => V::novo(format!("vba.{}()", self.ajuda("hoje")), T::Var),
-            "time" => V::novo("new Date()", T::Var),
+            "now" => V::novo(format!("vba.{}()", self.ajuda("agora")), T::Num),
+            "date" => V::novo(format!("vba.{}()", self.ajuda("hoje")), T::Num),
+            "time" => V::composto(format!("vba.{}() % 1", self.ajuda("agora")), T::Num),
             "timer" => V::composto("(Date.now() % 86400000) / 1000", T::Num),
             "rnd" => V::novo("Math.random()", T::Num),
             "doevents" | "beep" => V::novo("undefined", T::Var),
@@ -170,7 +171,7 @@ impl Gerador<'_> {
             "month" => self.chamar_ajuda("mes", a, T::Num),
             "day" => self.chamar_ajuda("dia", a, T::Num),
             "ubound" => self.chamar_ajuda("ubound", a, T::Num),
-            "lbound" => V::novo("0", T::Num),
+            "lbound" => self.chamar_ajuda("lbound", a, T::Num),
             _ => return None,
         })
     }
@@ -191,9 +192,19 @@ impl Gerador<'_> {
             "environ" => return Some(Err(Motivo::novo("variável de ambiente do Windows"))),
             "evaluate" => return Some(Err(Motivo::novo("Evaluate (avaliar fórmula em texto)"))),
             "typename" | "vartype" => return Some(Err(Motivo::novo(format!("{n} (tipo do VBA)")))),
-            "dateadd" | "datediff" | "datepart" | "dateserial" | "datevalue" | "cdate" | "weekday" | "hour" | "minute" | "second" => {
-                return Some(Err(Motivo::novo(format!("{n} (data — falta no conversor)"))))
-            }
+            "dateserial" => self.chamar_ajuda("serial", a, T::Num),
+            "timeserial" => V::novo(format!("(({}) * 3600 + ({}) * 60 + ({})) / 86400", a.first()?.js, a.get(1)?.js, a.get(2)?.js), T::Num),
+            "datevalue" => V::novo(format!("Math.floor(vba.{}({}))", self.ajuda("cdate"), a.first()?.js), T::Num),
+            "timevalue" => V::composto(format!("vba.{}({}) % 1", self.ajuda("cdate"), a.first()?.js), T::Num),
+            "cdate" => self.chamar_ajuda("cdate", a, T::Num),
+            "weekday" => self.chamar_ajuda("weekday", a, T::Num),
+            "hour" => self.chamar_ajuda("hora", a, T::Num),
+            "minute" => self.chamar_ajuda("minuto", a, T::Num),
+            "second" => self.chamar_ajuda("segundo", a, T::Num),
+            "dateadd" => self.chamar_ajuda("dateadd", a, T::Num),
+            "datediff" => self.chamar_ajuda("datediff", a, T::Num),
+            "datepart" => self.chamar_ajuda("datepart", a, T::Num),
+            "strconv" => self.chamar_ajuda("strconv", a, T::Texto),
             _ => return None,
         }))
     }

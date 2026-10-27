@@ -178,11 +178,24 @@ impl Gerador<'_> {
             }
             if let Some(dims) = d.dims.as_ref().filter(|x| !x.is_empty()) {
                 let js = self.var(&d.nome).map_or_else(|| d.nome.clone(), |v| v.js);
-                let lim: Vec<String> = dims.iter().map(|(_, ub)| self.valor(ub).map(|v| v.js)).collect::<R<_>>()?;
+                let lim = self.limites(dims)?;
                 saida.push(format!("{js} = vba.{}({});", self.ajuda("matriz"), lim.join(", ")));
             }
         }
         Ok(saida.join(" "))
+    }
+
+    /// Os limites de cada dimensão para o `vba.matriz`: `n`, ou `[1, n]` no `1 To n`.
+    fn limites(&mut self, dims: &[(Option<Expr>, Expr)]) -> R<Vec<String>> {
+        dims.iter()
+            .map(|(lb, ub)| {
+                let ub = self.valor(ub)?.js;
+                Ok(match lb {
+                    None | Some(Expr::Num(0.0)) => ub,
+                    Some(lb) => format!("[{}, {ub}]", self.valor(lb)?.js),
+                })
+            })
+            .collect()
     }
 
     fn constantes(&mut self, decls: &[Decl]) -> R<String> {
@@ -203,7 +216,7 @@ impl Gerador<'_> {
                 Some(v) => v.js,
                 None => self.declarar(&d.nome, Tipo::Valor(T::Matriz), true),
             };
-            let lim: Vec<String> = d.dims.iter().flatten().map(|(_, ub)| self.valor(ub).map(|v| v.js)).collect::<R<_>>()?;
+            let lim = self.limites(d.dims.as_deref().unwrap_or_default())?;
             saida.push(format!("{js} = vba.{}({js}, {preservar}, {});", self.ajuda("redim"), lim.join(", ")));
         }
         Ok(saida.join(" "))

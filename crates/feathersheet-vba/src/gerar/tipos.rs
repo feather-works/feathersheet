@@ -75,6 +75,8 @@ pub struct Faixa {
     /// `Cells(Rows.Count, c)`: a última célula da coluna `c` (código JS da coluna). O
     /// `.End(xlUp)` dela é o `getLastRow` da API — sem andar célula por célula.
     pub fundo_da_coluna: Option<String>,
+    /// É uma célula só mesmo com o endereço calculado (`Cells(i, 1)`, `Range("A" & i)`).
+    pub unica: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -87,17 +89,17 @@ pub enum Inteira {
 impl Faixa {
     /// Um endereço fixo (`"B3"`).
     pub fn fixa(aba: &str, end: &str) -> Self {
-        Self { aba: aba.into(), end: format!("{end:?}"), literal: Some(end.into()), inteira: Inteira::Nao, fundo_da_coluna: None }
+        Self { aba: aba.into(), end: format!("{end:?}"), literal: Some(end.into()), inteira: Inteira::Nao, fundo_da_coluna: None, unica: false }
     }
 
     /// Um endereço calculado em JS.
     pub fn dinamica(aba: &str, end: String) -> Self {
-        Self { aba: aba.into(), end, literal: None, inteira: Inteira::Nao, fundo_da_coluna: None }
+        Self { aba: aba.into(), end, literal: None, inteira: Inteira::Nao, fundo_da_coluna: None, unica: false }
     }
 
     /// O intervalo é uma célula só, com certeza (`Cells(l, c)`, `"B3"`)?
     pub fn uma_celula(&self) -> bool {
-        self.literal.as_deref().is_some_and(|l| !l.contains(':'))
+        self.unica || self.literal.as_deref().is_some_and(|l| !l.contains(':') && !l.contains(','))
     }
 }
 

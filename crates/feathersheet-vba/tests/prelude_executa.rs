@@ -37,3 +37,56 @@ fn outras_funcoes_de_texto_e_format_rodam_no_motor() {
     assert_eq!(wb.valor(0, 4, 0), Value::Number(3.0));
     assert_eq!(wb.valor(0, 5, 0), Value::Text("xxx".into()));
 }
+
+#[test]
+fn range_value_le_e_escreve_matriz_do_1() {
+    let wb = roda(
+        "Sub T()\n  Dim d As Variant, s() As Variant, i As Long\n  Range(\"A1\").Value = 1: Range(\"A2\").Value = 2: Range(\"A3\").Value = 3\n  Range(\"B1\").Value = \"a\": Range(\"B2\").Value = \"b\": Range(\"B3\").Value = \"c\"\n  d = Range(\"A1:B3\").Value\n  For i = 1 To UBound(d, 1)\n    d(i, 1) = d(i, 1) * 10\n  Next i\n  Range(\"D1:E3\").Value = d\n  ReDim s(1 To 10, 1 To 3)\n  s(1, 1) = LBound(s, 1): s(1, 2) = UBound(d, 2): s(2, 3) = \"z\"\n  Range(\"G1\").Resize(2, 3).Value = s\n  Range(\"J1:L2\").Value = Array(\"x\", \"y\", \"w\")\nEnd Sub\n",
+        "T",
+    );
+    assert_eq!(wb.valor(0, 0, 3), Value::Number(10.0));
+    assert_eq!(wb.valor(0, 2, 3), Value::Number(30.0));
+    assert_eq!(wb.valor(0, 2, 4), Value::Text("c".into()));
+    assert_eq!(wb.valor(0, 0, 6), Value::Number(1.0));
+    assert_eq!(wb.valor(0, 0, 7), Value::Number(2.0));
+    assert_eq!(wb.valor(0, 1, 8), Value::Text("z".into()));
+    // O recorte: a linha 3 da matriz (vazia) não entra.
+    assert_eq!(wb.valor(0, 2, 6), Value::Empty);
+    assert_eq!(wb.valor(0, 1, 11), Value::Text("w".into()));
+}
+
+// Lento no debug (passa do prazo de 30 s das macros): `cargo test --release -- --ignored`.
+#[test]
+#[ignore]
+fn range_value_acima_do_teto_de_uma_chamada_vai_em_blocos() {
+    let t = std::time::Instant::now();
+    let wb = roda(
+        "Sub T()\n  Dim s() As Variant, d As Variant, i As Long, c As Long\n  ReDim s(1 To 60000, 1 To 9)\n  For i = 1 To 60000\n    For c = 1 To 9\n      s(i, c) = i * 10 + c\n    Next c\n  Next i\n  Range(\"A1:I60000\").Value = s\n  d = Range(\"A1:I60000\").Value\n  Range(\"K1\").Value = UBound(d, 1)\n  Range(\"K2\").Value = d(60000, 9)\nEnd Sub\n",
+        "T",
+    );
+    eprintln!("60 mil × 9: {:?}", t.elapsed());
+    assert_eq!(wb.valor(0, 59_999, 8), Value::Number(600_009.0));
+    assert_eq!(wb.valor(0, 0, 10), Value::Number(60_000.0));
+    assert_eq!(wb.valor(0, 1, 10), Value::Number(600_009.0));
+}
+
+#[test]
+fn datas_do_vba_sao_seriais_como_na_planilha() {
+    let wb = roda(
+        "Sub T()\n  Dim d As Date\n  d = DateValue(\"15/01/2026\")\n  Range(\"A1\").Value = d\n  Range(\"A2\").Value = Weekday(d)\n  Range(\"A3\").Value = \"t \" & Format(d, \"dd/mm/yyyy\")\n  Range(\"A4\").Value = \"t \" & Format(DateAdd(\"m\", 1, #1/31/2026#), \"dd/mm/yyyy\")\n  Range(\"A5\").Value = DateDiff(\"d\", #1/1/2026#, d)\n  Range(\"A6\").Value = \"t \" & Day(d) & \"/\" & Month(d) & \"/\" & Year(d)\n  Range(\"A7\").Value = \"t \" & Format(DateSerial(2026, 13, 1) + TimeSerial(14, 5, 0), \"dd/mm/yyyy hh:mm\")\n  Range(\"A8\").Value = \"t \" & Hour(#2:30:00 PM#) & \":\" & Minute(#2:30:00 PM#)\n  Range(\"A9\").Value = StrConv(\"maria DA silva\", vbProperCase)\n  Range(\"A10\").Value = Weekday(d, vbMonday)\n  Range(\"A11\").Value = DatePart(\"y\", d)\n  Range(\"A12\").Value = DateSerial(2026, 1, 15)\n  Range(\"A13\").Value = \"t \" & Range(\"A12\").Text\nEnd Sub\n",
+        "T",
+    );
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(46037.0));
+    assert_eq!(wb.valor(0, 1, 0), Value::Number(5.0)); // quinta-feira
+    assert_eq!(wb.valor(0, 2, 0), Value::Text("t 15/01/2026".into()));
+    assert_eq!(wb.valor(0, 3, 0), Value::Text("t 28/02/2026".into()));
+    assert_eq!(wb.valor(0, 4, 0), Value::Number(14.0));
+    assert_eq!(wb.valor(0, 5, 0), Value::Text("t 15/1/2026".into()));
+    assert_eq!(wb.valor(0, 6, 0), Value::Text("t 01/01/2027 14:05".into()));
+    assert_eq!(wb.valor(0, 7, 0), Value::Text("t 14:30".into()));
+    assert_eq!(wb.valor(0, 8, 0), Value::Text("Maria Da Silva".into()));
+    assert_eq!(wb.valor(0, 9, 0), Value::Number(4.0));
+    assert_eq!(wb.valor(0, 10, 0), Value::Number(15.0));
+    assert_eq!(wb.valor(0, 11, 0), Value::Number(46037.0));
+    assert_eq!(wb.valor(0, 12, 0), Value::Text("t 15/01/2026".into()));
+}

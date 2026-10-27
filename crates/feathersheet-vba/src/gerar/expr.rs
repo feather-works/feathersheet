@@ -12,7 +12,7 @@ impl Gerador<'_> {
         match e {
             Expr::Num(n) => Ok(V::novo(num(*n), T::Num)),
             Expr::Texto(s) => Ok(V::novo(texto(s), T::Texto)),
-            Expr::Data(d) => Ok(V::novo(format!("vba.{}({})", self.ajuda("data"), texto(d)), T::Var)),
+            Expr::Data(d) => Ok(V::novo(format!("vba.{}({})", self.ajuda("cdate"), texto(&literal_de_data(d))), T::Num)),
             Expr::Bool(b) => Ok(V::novo(b.to_string(), T::Bool)),
             Expr::Nada | Expr::Nulo => Ok(V::novo("null", T::Obj)),
             Expr::Vazio => Ok(V::novo("undefined", T::Var)),
@@ -373,5 +373,41 @@ impl Gerador<'_> {
         } else {
             self.como_num(v)
         }
+    }
+}
+
+/// `#1/31/2024 2:30 PM#` (o literal do VBA é sempre mês/dia/ano) → `"2024-01-31 14:30:00"`,
+/// que o `vba.cdate` lê sem ambiguidade. Só hora (`#14:30#`) fica `"14:30:00"`.
+fn literal_de_data(d: &str) -> String {
+    let mut data = None;
+    let mut hora = None;
+    let mut tarde = None;
+    for p in d.split_whitespace() {
+        let n: Vec<u32> = p.split(['/', '-', ':']).filter_map(|x| x.parse().ok()).collect();
+        match p.to_ascii_uppercase().as_str() {
+            "AM" => tarde = Some(false),
+            "PM" => tarde = Some(true),
+            _ if p.contains(':') && n.len() >= 2 => hora = Some((n[0], n[1], n.get(2).copied().unwrap_or(0))),
+            _ if n.len() == 3 => data = Some(if p.split(['/', '-']).next().is_some_and(|x| x.len() == 4) { (n[0], n[1], n[2]) } else { (n[2], n[0], n[1]) }),
+            _ => return d.to_string(),
+        }
+    }
+    let hora = hora.map(|(h, m, s)| (match tarde { Some(true) if h < 12 => h + 12, Some(false) if h == 12 => 0, _ => h }, m, s));
+    match (data, hora) {
+        (Some((a, m, dia)), Some((h, n, s))) => format!("{a:04}-{m:02}-{dia:02} {h:02}:{n:02}:{s:02}"),
+        (Some((a, m, dia)), None) => format!("{a:04}-{m:02}-{dia:02}"),
+        (None, Some((h, n, s))) => format!("{h:02}:{n:02}:{s:02}"),
+        _ => d.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod testes_data {
+    #[test]
+    fn literal_de_data_do_vba() {
+        assert_eq!(super::literal_de_data("1/31/2024"), "2024-01-31");
+        assert_eq!(super::literal_de_data("1/31/2024 2:30:00 PM"), "2024-01-31 14:30:00");
+        assert_eq!(super::literal_de_data("12:00 AM"), "00:00:00");
+        assert_eq!(super::literal_de_data("2024-01-31"), "2024-01-31");
     }
 }

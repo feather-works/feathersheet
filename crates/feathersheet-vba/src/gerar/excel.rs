@@ -5,7 +5,7 @@
 use super::contexto::{js_nome, Gerador};
 use super::funcoes::{num, valor_da_constante};
 use super::tipos::{Faixa, Inteira, Motivo, Obj, Parte, Tipo, R, T, V};
-use crate::sintaxe::{Arg, Expr};
+use crate::sintaxe::{Arg, Expr, Op};
 
 /// Coluna (do 1) → letras.
 pub fn letra(mut c: u32) -> String {
@@ -158,7 +158,7 @@ impl Gerador<'_> {
             "thisworkbook" | "activeworkbook" => Obj::Pasta,
             "application" => Obj::App,
             "selection" => Obj::Faixa(Faixa::dinamica(&atual, format!("{atual}.selection().address"))),
-            "activecell" => Obj::Faixa(Faixa::dinamica(&atual, format!("{atual}.activeCell().address"))),
+            "activecell" => Obj::Faixa(Faixa { unica: true, ..Faixa::dinamica(&atual, format!("{atual}.activeCell().address")) }),
             "worksheets" | "sheets" => Obj::Abas,
             "worksheetfunction" => Obj::FuncoesDaPlanilha,
             "cells" => Obj::Faixa(Faixa::fixa(&implicita, "A1:XFD1048576")),
@@ -218,7 +218,7 @@ impl Gerador<'_> {
             "activesheet" => self.obj_atual(),
             "activeworkbook" | "thisworkbook" => Obj::Pasta,
             "selection" => Obj::Faixa(Faixa::dinamica(&atual, format!("{atual}.selection().address"))),
-            "activecell" => Obj::Faixa(Faixa::dinamica(&atual, format!("{atual}.activeCell().address"))),
+            "activecell" => Obj::Faixa(Faixa { unica: true, ..Faixa::dinamica(&atual, format!("{atual}.activeCell().address")) }),
             "worksheetfunction" => Obj::FuncoesDaPlanilha,
             "worksheets" | "sheets" if args.is_empty() => Obj::Abas,
             "worksheets" | "sheets" => self.aba_do_argumento(args)?,
@@ -306,7 +306,7 @@ impl Gerador<'_> {
                 }
                 let v = self.valor(e)?;
                 let end = self.como_texto(&v);
-                Ok(Faixa::dinamica(aba, end))
+                Ok(Faixa { unica: coluna_e_linha(e), ..Faixa::dinamica(aba, end) })
             }
             [a, b] => {
                 let fa = self.ponta(aba, a)?;
@@ -353,13 +353,13 @@ impl Gerador<'_> {
             (Expr::Num(n), Some(col)) => Faixa::fixa(aba, &format!("{col}{}", num(*n))),
             (_, Some(col)) => {
                 let v = self.valor(l)?;
-                Faixa::dinamica(aba, format!("`{col}${{{}}}`", v.js))
+                Faixa { unica: true, ..Faixa::dinamica(aba, format!("`{col}${{{}}}`", v.js)) }
             }
             _ => {
                 let vl = self.valor(l)?;
                 let vc = self.valor(c)?;
                 let h = self.ajuda("celula");
-                Faixa::dinamica(aba, format!("vba.{h}({}, {})", vl.js, vc.js))
+                Faixa { unica: true, ..Faixa::dinamica(aba, format!("vba.{h}({}, {})", vl.js, vc.js)) }
             }
         };
         if fundo {
@@ -444,11 +444,11 @@ impl Gerador<'_> {
             let l = self.ajuda("letra");
             let coluna = if col.starts_with('"') { col.clone() } else { format!("vba.{l}({col})") };
             let cel = if col.starts_with('"') { format!("`{}${{{}.getLastRow({coluna}) || 1}}`", col.trim_matches('"'), f.aba) } else { format!("`${{{coluna}}}${{{}.getLastRow({coluna}) || 1}}`", f.aba) };
-            return Ok(Obj::Faixa(Faixa::dinamica(&f.aba, cel)));
+            return Ok(Obj::Faixa(Faixa { unica: true, ..Faixa::dinamica(&f.aba, cel) }));
         }
         let d = self.valor(dir)?;
         let h = self.ajuda("fim");
-        Ok(Obj::Faixa(Faixa::dinamica(&f.aba, format!("vba.{h}({}, {}, {})", f.aba, f.end, d.js))))
+        Ok(Obj::Faixa(Faixa { unica: true, ..Faixa::dinamica(&f.aba, format!("vba.{h}({}, {}, {})", f.aba, f.end, d.js)) }))
     }
 
     // ------------------------------------------------------------------ ler
@@ -456,9 +456,18 @@ impl Gerador<'_> {
     /// O valor padrão de um objeto (`Range("A1")` sozinho é o valor da célula).
     pub fn valor_do_objeto(&mut self, o: Obj) -> R<V> {
         match o {
-            Obj::Faixa(f) => Ok(V::novo(format!("{}.value({})", f.aba, f.end), T::Var)),
+            Obj::Faixa(f) => Ok(self.valor_da_faixa(&f)),
             Obj::Controle(c) => Ok(V::novo(format!("sheet.field({c:?}).value"), T::Var)),
             _ => Err(Motivo::novo("objeto usado como valor")),
+        }
+    }
+
+    /// `Range.Value`: o valor da célula, ou a matriz (do 1, como no VBA) quando pode ser mais de uma.
+    fn valor_da_faixa(&mut self, f: &Faixa) -> V {
+        if f.uma_celula() {
+            V::novo(format!("{}.value({})", f.aba, f.end), T::Var)
+        } else {
+            V::novo(format!("vba.{}({}, {})", self.ajuda("ler"), f.aba, f.end), T::Var)
         }
     }
 
@@ -503,7 +512,7 @@ impl Gerador<'_> {
         let (aba, end) = (f.aba.clone(), f.end.clone());
         let fixa = f.literal.as_deref().and_then(celula);
         Ok(match n {
-            "value" | "value2" => V::novo(format!("{aba}.value({end})"), T::Var),
+            "value" | "value2" => self.valor_da_faixa(&f),
             "text" => V::novo(format!("{aba}.getText({end})"), T::Texto),
             "formula" | "formulalocal" => V::novo(format!("{aba}.formula({end})"), T::Texto),
             "row" => fixa.map_or_else(|| V::novo(format!("vba.{}({end})", self.ajuda("linha")), T::Num), |(l, _)| V::novo(l.to_string(), T::Num)),
@@ -579,5 +588,13 @@ impl Gerador<'_> {
     pub fn controle_do_modulo(&self, n: &str) -> Option<String> {
         let f = self.p.formulario_do_modulo(self.modulo)?;
         self.p.controle(f, n).map(String::from)
+    }
+}
+
+/// `Range("A" & i)`: uma letra de coluna e um número de linha, sem `:` nem `,`.
+fn coluna_e_linha(e: &Expr) -> bool {
+    match e {
+        Expr::Bin(Op::Concat, a, b) => matches!(&**a, Expr::Texto(t) if !t.is_empty() && t.chars().all(|c| c.is_ascii_alphabetic() || c == '$')) && !matches!(&**b, Expr::Texto(_) | Expr::Bin(Op::Concat, ..)),
+        _ => false,
     }
 }

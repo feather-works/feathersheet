@@ -4,7 +4,7 @@
 
 use super::contexto::Gerador;
 use super::funcoes::valor_da_constante;
-use super::tipos::{Faixa, Inteira, Motivo, Obj, Parte, R, V};
+use super::tipos::{Faixa, Inteira, Motivo, Obj, Parte, R, T, V};
 use crate::sintaxe::{Arg, Expr};
 
 /// Propriedades que só mexem no visual de um jeito que a planilha não tem (tom, padrão,
@@ -65,10 +65,14 @@ impl Gerador<'_> {
         let v = self.valor(valor)?;
         Ok(match n {
             "value" | "value2" => {
-                if f.uma_celula() || f.literal.is_none() && f.end.starts_with('`') {
+                if e_data(valor) {
+                    // A célula reconhece a data digitada e ganha o formato de data, como no Excel.
+                    format!("{aba}.set({end}, vba.{}({}));", self.ajuda("dataTexto"), v.js)
+                } else if f.uma_celula() || matches!(v.t, T::Num | T::Texto | T::Bool) {
                     format!("{aba}.set({end}, {});", v.js)
                 } else {
-                    format!("{aba}.range({end}).set({});", v.js)
+                    // Matriz (ou Variant que pode ser): tira o índice que o VBA não usa e recorta à área.
+                    format!("vba.{}({aba}, {end}, {});", self.ajuda("escrever"), v.js)
                 }
             }
             "formula" | "formulalocal" => format!("{aba}.setFormula({end}, {});", formula(valor, &v)),
@@ -582,4 +586,16 @@ fn formula(e: &Expr, v: &V) -> String {
         }
     }
     format!("{saida:?}")
+}
+
+/// `Date`, `Now`, `DateSerial(…)`, `#1/31/2024#`: o valor é uma data com certeza.
+fn e_data(e: &Expr) -> bool {
+    const DATAS: &[&str] = &["date", "now", "dateserial", "datevalue", "cdate", "dateadd"];
+    match e {
+        Expr::Data(_) => true,
+        Expr::Nome(n) => DATAS.contains(&n.to_lowercase().as_str()),
+        Expr::Chamada(f, _) => matches!(&**f, Expr::Nome(n) if DATAS.contains(&n.to_lowercase().as_str())),
+        Expr::Paren(x) => e_data(x),
+        _ => false,
+    }
 }
