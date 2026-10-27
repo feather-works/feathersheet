@@ -532,3 +532,32 @@ fn preencher_faixa_vazia_leva_o_formato_da_data() {
     assert!(!s.preencher_faixa_vazia(1, 1, 10, "16/10/2026", estilo.as_ref()));
     assert_eq!(s.get_value(1, 1), Value::Empty, "recusado não grava nada");
 }
+
+/// `Range.Value = matriz` numa área vazia: direto na coluna de dados, um Ctrl+Z; a fórmula
+/// e a data do meio passam pelo caminho de sempre, e área ocupada é recusada.
+#[test]
+fn gravar_bloco_vazio_grava_desfaz_e_refaz_num_passo() {
+    let mut s = Sheet::new("Plan1");
+    s.set_cell(0, 5, "1");
+    let linhas = vec![
+        vec!["7".to_string(), "abc".into(), "007".into()],
+        vec!["2,5".into(), "=A2*2".into(), "16/10/2026".into()],
+    ];
+    assert!(s.gravar_bloco_vazio(1, 0, linhas));
+    assert_eq!(s.get_value(1, 0), Value::Number(7.0));
+    assert_eq!(s.get_raw(1, 1), "abc");
+    assert_eq!(s.get_raw(1, 2), "007");
+    assert_eq!(s.get_value(2, 0), Value::Number(2.5));
+    assert_eq!(s.get_value(2, 1), Value::Number(14.0));
+    assert_eq!(s.get_raw(2, 2), "16/10/2026");
+    assert!(s.get_style(2, 2).is_some(), "a data ganha o formato de quem digita");
+    assert!(!s.gravar_bloco_vazio(1, 0, vec![vec!["9".into()]]), "área ocupada");
+    assert!(s.undo());
+    for (r, c) in [(1, 0), (1, 2), (2, 1), (2, 2)] {
+        assert_eq!(s.get_raw(r, c), "", "({r}, {c}) volta vazia");
+    }
+    assert_eq!(s.get_value(0, 5), Value::Number(1.0));
+    assert!(s.redo());
+    assert_eq!(s.get_value(2, 1), Value::Number(14.0));
+    assert_eq!(s.get_raw(1, 2), "007");
+}

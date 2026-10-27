@@ -785,7 +785,20 @@ impl HospedeiroMacros for HospedeiroSheet {
                             // Matriz (`Range.Value = m`): o caminho de escrita em lote (analisa uma vez,
                             // mesmo desfazer); a transação da macro já está aberta.
                             if op == "set" && dados[2].is_array() {
-                                for (r,c,texto) in escritas { sheet.set_cell_divisao(r,c,&texto); }
+                                let r1 = escritas.iter().map(|e| e.0).max().unwrap_or(area.r0);
+                                let c1 = escritas.iter().map(|e| e.1).max().unwrap_or(area.c0);
+                                if sheet.bloco_vazio(area.r0, area.c0, r1, c1) {
+                                    // Área vazia: direto na coluna de dados, um passo de desfazer.
+                                    let mut linhas: Vec<Vec<String>> = vec![Vec::new(); (r1 - area.r0 + 1) as usize];
+                                    for (r,c,texto) in escritas {
+                                        let l = &mut linhas[(r - area.r0) as usize];
+                                        l.resize((c - area.c0) as usize, String::new());
+                                        l.push(texto);
+                                    }
+                                    sheet.gravar_bloco_vazio(area.r0, area.c0, linhas);
+                                } else {
+                                    for (r,c,texto) in escritas { sheet.set_cell_divisao(r,c,&texto); }
+                                }
                             } else {
                                 for (r,c,texto) in escritas { sheet.set_cell(r,c,&texto); }
                             }

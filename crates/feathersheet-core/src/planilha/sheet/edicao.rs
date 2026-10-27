@@ -2131,6 +2131,75 @@ impl Sheet {
         true
     }
 
+    /// Grava o bloco `linhas` (textos, como digitados) a partir de (`r0`, `c0`) numa área
+    /// vazia e sem estilo, direto na coluna de dados: sem foto por célula, um passo de Ctrl+Z
+    /// (o do Texto para Colunas: desfazer limpa a área). É o `Range.Value = matriz` das
+    /// macros: 200 mil linhas × 14 colunas célula a célula levavam ~1 µs cada (27/10/2026).
+    /// Fórmula, erro e texto que pede formato (data, %) vão pelo [`Self::set_cell_divisao`],
+    /// sem histórico. `false` quando a área não está vazia: use o caminho de sempre.
+    pub fn gravar_bloco_vazio(&mut self, r0: u32, c0: u32, linhas: Vec<Vec<String>>) -> bool {
+        let nc = linhas.iter().map(Vec::len).max().unwrap_or(0) as u32;
+        if linhas.is_empty() || nc == 0 { return false; }
+        let (r1, c1) = (r0 + linhas.len() as u32 - 1, c0 + nc - 1);
+        if !self.bloco_vazio(r0, c0, r1, c1) { return false; }
+        let linhas = Arc::new(linhas);
+        let refazer = Refazer(Arc::new(move |s: &mut Sheet| {
+            // Como no `gravar_divisao`: a fórmula que cair no `set_cell` empilha num rascunho
+            // descartado no fim, não num passo de desfazer à parte.
+            let salvo = (s.hist.pendente.replace(Vec::new()), s.hist.profundidade);
+            s.hist.profundidade = 1;
+            for (i, linha) in linhas.iter().enumerate() {
+                let row = r0 + i as u32;
+                for (j, raw) in linha.iter().enumerate() {
+                    s.gravar_literal_sem_registro(row, c0 + j as u32, raw);
+                }
+            }
+            s.hist.pendente = salvo.0;
+            s.hist.profundidade = salvo.1;
+            s.cresce_limites(r0, c0);
+            s.cresce_limites(r1, c1);
+            s.rastro.borrow_mut().desconhecer();
+            if s.alguma_formula_le() { s.invalidar_todos_calculos(); }
+        }));
+        self.abrir_transacao();
+        if let Some(pendente) = self.hist.pendente.as_mut() {
+            pendente.push(Passo::Divisao { area: [r0, c0, r1, c1], antes: Vec::new(), refazer: refazer.clone() });
+        }
+        (refazer.0)(self);
+        self.fechar_transacao();
+        true
+    }
+
+    /// A condição do [`Self::gravar_bloco_vazio`]: nada na área, nem estilo de aba, de linha,
+    /// de coluna ou de célula.
+    pub fn bloco_vazio(&self, r0: u32, c0: u32, r1: u32, c1: u32) -> bool {
+        self.sheet_style.is_none() && self.row_styles.is_empty()
+            && (c0..=c1).all(|c| !self.col_styles.contains_key(&c) && self.faixa_vazia(c, r0, r1))
+            && !self.styles.alguma_no_retangulo(r0, c0, r1, c1, |_, _, _| true)
+    }
+
+    /// Uma célula do [`Self::gravar_bloco_vazio`]: célula vazia e sem estilo.
+    fn gravar_literal_sem_registro(&mut self, row: u32, col: u32, raw: &str) {
+        if raw.is_empty() { return; }
+        let analisado = crate::celulas::input::parse_literal(raw);
+        if raw.starts_with('=') || matches!(analisado.value, Value::Error(_))
+            || formato_do_literal(analisado.format).is_some() {
+            self.set_cell_divisao(row, col, raw);
+            return;
+        }
+        let preserva_raw = match &analisado.value {
+            Value::Text(texto) => texto != raw,
+            Value::Number(numero) => to_js_string(*numero) != raw,
+            Value::Bool(true) => raw != "VERDADEIRO",
+            Value::Bool(false) => raw != "FALSO",
+            _ => true,
+        };
+        self.data.set_cell_value(row, col, &analisado.value, &mut self.pool);
+        if preserva_raw {
+            self.textos.insert(key(row, col), raw);
+        }
+    }
+
     /// Dá o estilo `estilo` a `r0..=r1` da coluna `col` como uma faixa só
     /// (data ou moeda colada até o fim: um estilo por célula seriam milhões
     /// de entradas). Um passo de Ctrl+Z, que limpa a faixa. `false` se ali
