@@ -600,3 +600,43 @@ fn formatar_faixa_igual_a_celula_a_celula() {
         assert_eq!(a.get_style(r, 0), b.get_style(r, 0), "refeito: estilo linha {r}");
     }
 }
+
+/// `gravar_bloco_literais` dá o mesmo que gravar célula a célula por cima de literais (o
+/// estilo da coluna de data fica), e desfaz e refaz num passo.
+#[test]
+fn gravar_bloco_literais_igual_a_celula_a_celula() {
+    let montar = || {
+        let mut s = Sheet::new("Plan1");
+        for (r, (a, b)) in [("1", "16/10/2026"), ("abc", "17/10/2026"), ("", "45000"), ("007", "x")].iter().enumerate() {
+            s.set_cell(r as u32, 0, a);
+            s.set_cell(r as u32, 1, b);
+        }
+        s
+    };
+    let novas = || vec![
+        vec!["9".to_string(), "45100".into()],
+        vec!["texto".into(), "".into()],
+        vec!["=A1*2".into(), "18/10/2026".into()],
+        vec!["2,5".into(), "VERDADEIRO".into()],
+    ];
+    let (mut a, mut b, c) = (montar(), montar(), montar());
+    assert!(a.gravar_bloco_literais(0, 0, novas()));
+    b.abrir_transacao();
+    for (r, l) in novas().iter().enumerate() {
+        for (j, raw) in l.iter().enumerate() { b.set_cell_divisao(r as u32, j as u32, raw); }
+    }
+    b.fechar_transacao();
+    let confere = |x: &Sheet, y: &Sheet, quando: &str| for r in 0..4 { for col in 0..2 {
+        assert_eq!(x.get_raw(r, col), y.get_raw(r, col), "{quando}: raw ({r}, {col})");
+        assert_eq!(x.get_value(r, col), y.get_value(r, col), "{quando}: valor ({r}, {col})");
+        assert_eq!(x.get_style(r, col), y.get_style(r, col), "{quando}: estilo ({r}, {col})");
+    }};
+    confere(&a, &b, "gravado");
+    assert!(a.undo());
+    confere(&a, &c, "desfeito");
+    assert!(a.redo());
+    confere(&a, &b, "refeito");
+    let mut d = montar();
+    d.set_cell(5, 0, "=A1");
+    assert!(!d.gravar_bloco_literais(5, 0, vec![vec!["1".into()]]), "fórmula na área: caminho de sempre");
+}

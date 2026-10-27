@@ -350,6 +350,17 @@ enum Passo {
     /// Só o estilo de uma faixa de literais mudou ([`Sheet::formatar_faixa`]): o índice do
     /// estilo antes e depois de cada célula, sem foto do conteúdo.
     Estilos { area: [u32; 4], trocas: Vec<TrocaEstilo> },
+    /// Literais gravados por cima de literais ([`Sheet::gravar_bloco_literais`]): o que havia
+    /// em cada célula, coluna a coluna, e a receita para refazer.
+    Regravacao { area: [u32; 4], antes: Arc<Vec<LiteralAntes>>, refazer: Refazer },
+}
+
+/// O que havia numa célula antes do [`Passo::Regravacao`].
+#[derive(Debug, Clone)]
+pub struct LiteralAntes {
+    pub valor: Value,
+    pub texto: Option<Box<str>>,
+    pub estilo: Option<usize>,
 }
 
 /// Uma célula do [`Passo::Estilos`]. `texto`: o texto digitado passou a ser guardado à parte
@@ -1945,6 +1956,7 @@ impl Sheet {
                         Passo::Comentario { linha, coluna, .. } => [*linha, *coluna, *linha, *coluna],
                         Passo::Divisao { area, .. } => *area,
                         Passo::Estilos { area, .. } => *area,
+                        Passo::Regravacao { area, .. } => *area,
                         Passo::Imagens { .. } | Passo::Botoes { .. } | Passo::Tinta { .. } | Passo::Objetos { .. } | Passo::Graficos { .. }
                         | Passo::LarguraPadrao { .. }
                         | Passo::Topicos { .. } => [0, 0, 0, 0],
@@ -2004,6 +2016,7 @@ impl Sheet {
             Passo::Comentario { linha, coluna, antes, .. } =>
                 self.aplicar_comentario(*linha, *coluna, antes.as_deref().cloned()),
             Passo::Estilos { trocas, .. } => self.aplicar_trocas_de_estilo(trocas, false),
+            Passo::Regravacao { area, antes, .. } => self.devolver_literais(*area, antes),
             Passo::Divisao { area, antes, .. } => {
                 let t = std::time::Instant::now();
                 self.limpar_area_sem_registro(*area);
@@ -2053,6 +2066,7 @@ impl Sheet {
             Passo::Comentario { linha, coluna, depois, .. } =>
                 self.aplicar_comentario(*linha, *coluna, depois.as_deref().cloned()),
             Passo::Estilos { trocas, .. } => self.aplicar_trocas_de_estilo(trocas, true),
+            Passo::Regravacao { refazer, .. } => (refazer.0)(self),
             Passo::Divisao { refazer, .. } => {
                 let t = std::time::Instant::now();
                 (refazer.0)(self);
@@ -2307,6 +2321,126 @@ impl Sheet {
         (refazer.0)(self);
         self.fechar_transacao();
         true
+    }
+
+    /// `Range.Value = matriz` por cima de uma área só de literais (sem fórmula nem célula
+    /// especial; estilo de célula e de coluna ficam, como no Excel). Para o desfazer guarda
+    /// só valor, texto digitado e índice de estilo de cada célula ([`Passo::Regravacao`]):
+    /// regravar 200 mil linhas × 9 colunas célula a célula, com foto, levava ~1 s (27/10/2026).
+    /// `false` quando a área tem fórmula, célula especial ou estilo de linha/aba.
+    pub fn gravar_bloco_literais(&mut self, r0: u32, c0: u32, linhas: Vec<Vec<String>>) -> bool {
+        let nc = linhas.iter().map(Vec::len).max().unwrap_or(0) as u32;
+        if linhas.is_empty() || nc == 0 { return false; }
+        let (r1, c1) = (r0 + linhas.len() as u32 - 1, c0 + nc - 1);
+        if !self.so_literais(r0, c0, r1, c1) { return false; }
+        let mut antes = Vec::with_capacity(linhas.len() * nc as usize);
+        for col in c0..=c1 {
+            for row in r0..=r1 {
+                let k = key(row, col);
+                antes.push(LiteralAntes {
+                    valor: self.data.get_cell_value(row, col, &self.pool),
+                    texto: self.textos.get(&k).map(Box::from),
+                    estilo: self.styles.get(k),
+                });
+            }
+        }
+        let colunas: Vec<u32> = (0..nc).collect();
+        let analisadas = Arc::new(crate::paralelismo::por_coluna(&colunas, |j| {
+            linhas.iter().map(|l| l.get(j as usize).map_or(Literal::Vazio, |raw| analisar_literal(raw))).collect::<Vec<_>>()
+        }));
+        let linhas = Arc::new(linhas);
+        let refazer = Refazer(Arc::new(move |s: &mut Sheet| {
+            let salvo = (s.hist.pendente.replace(Vec::new()), s.hist.profundidade);
+            s.hist.profundidade = 1;
+            // O estilo de cada célula fica; só importa se ele tem formato (o número então
+            // guarda o texto digitado, como no `so_trocar_estilo`).
+            let mut tem_formato: HashMap<(u32, Option<usize>), bool> = HashMap::new();
+            for (j, coluna) in analisadas.iter().enumerate() {
+                let col = c0 + j as u32;
+                for (i, lit) in coluna.iter().enumerate() {
+                    let row = r0 + i as u32;
+                    let k = key(row, col);
+                    let raw = linhas[i].get(j).map_or("", String::as_str);
+                    match lit {
+                        // Vazio apaga também o estilo, como o `set_cell("")` do caminho de sempre.
+                        Literal::Vazio => {
+                            s.data.clear_cell(row, col);
+                            s.textos.remove(&k);
+                            s.styles.remove(&k);
+                        }
+                        Literal::Lento => s.set_cell_divisao(row, col, raw),
+                        Literal::Valor(valor, preserva) => {
+                            let estilo = s.styles.get(k);
+                            let formatado = match tem_formato.get(&(col, estilo)) {
+                                Some(&f) => f,
+                                None => {
+                                    let f = formato(s.estilo_mesclado(row, col).as_ref()).is_some_and(|f| f != "auto");
+                                    tem_formato.insert((col, estilo), f);
+                                    f
+                                }
+                            };
+                            let preserva = *preserva || (formatado && (matches!(valor, Value::Number(_))
+                                || !round_trips(raw, valor, s.estilo_mesclado(row, col).as_ref())));
+                            s.textos.remove(&k);
+                            s.data.set_cell_value(row, col, valor, &mut s.pool);
+                            if preserva { s.textos.insert(k, raw); }
+                        }
+                    }
+                }
+            }
+            s.hist.pendente = salvo.0;
+            s.hist.profundidade = salvo.1;
+            s.cresce_limites(r0, c0);
+            s.cresce_limites(r1, c1);
+            s.bounds_dirty = true;
+            s.rastro.borrow_mut().desconhecer();
+            if s.alguma_formula_le() { s.invalidar_todos_calculos(); }
+        }));
+        self.abrir_transacao();
+        self.tocar();
+        if let Some(pendente) = self.hist.pendente.as_mut() {
+            pendente.push(Passo::Regravacao { area: [r0, c0, r1, c1], antes: Arc::new(antes), refazer: refazer.clone() });
+        }
+        (refazer.0)(self);
+        self.fechar_transacao();
+        true
+    }
+
+    /// A condição do [`Self::gravar_bloco_literais`]: nenhuma fórmula nem célula especial na
+    /// área, e nenhum estilo de linha ou de aba.
+    pub fn so_literais(&self, r0: u32, c0: u32, r1: u32, c1: u32) -> bool {
+        let dentro = |k: &CellKey| (c0..=c1).contains(&key_col(*k)) && (r0..=r1).contains(&key_row(*k));
+        let mut formula = false;
+        self.formulas.for_each_in_range(r0, r1, c0, c1, |_, _| formula = true);
+        !formula && self.sheet_style.is_none() && self.row_styles.is_empty()
+            && !self.cells.keys().chain(self.externas.iter()).any(dentro)
+    }
+
+    /// O desfazer do [`Passo::Regravacao`]: cada célula volta ao que era. Uma fórmula que a
+    /// gravação pôs ali (o caminho do `set_cell_divisao`) sai antes.
+    fn devolver_literais(&mut self, area: [u32; 4], antes: &[LiteralAntes]) {
+        let [r0, c0, r1, c1] = area;
+        self.tocar();
+        let altura = (r1 - r0 + 1) as usize;
+        for col in c0..=c1 {
+            for row in r0..=r1 {
+                let a = &antes[(col - c0) as usize * altura + (row - r0) as usize];
+                let k = key(row, col);
+                if self.cells.contains_key(&k) || self.formulas.has(row, col) {
+                    self.set_cell_raw(row, col, String::new(), None);
+                }
+                self.textos.remove(&k);
+                match &a.valor {
+                    Value::Empty => self.data.clear_cell(row, col),
+                    v => self.data.set_cell_value(row, col, v, &mut self.pool),
+                }
+                if let Some(t) = &a.texto { self.textos.insert(k, t); }
+                match a.estilo { Some(i) => { self.styles.insert(k, i); } None => { self.styles.remove(&k); } }
+            }
+        }
+        self.bounds_dirty = true;
+        self.rastro.borrow_mut().desconhecer();
+        if self.alguma_formula_le() { self.invalidar_todos_calculos(); }
     }
 
     /// A condição do [`Self::gravar_bloco_vazio`]: nada na área, nem estilo de aba, de linha,
@@ -2651,7 +2785,7 @@ impl Sheet {
                 (a.and_then(|s| s.style) != d.and_then(|s| s.style)).then(|| pede(P::FormatarCelulas)).flatten()
             }),
             Passo::CompactoNoDisco(bloco) => area(&bloco.area),
-            Passo::Divisao { area: a, .. } => area(a),
+            Passo::Divisao { area: a, .. } | Passo::Regravacao { area: a, .. } => area(a),
             Passo::Permutacao { first, c0, c1, ordem, .. } => pede(P::Classificar)
                 .or_else(|| area(&[*first, *c0, first + ordem.len() as u32 - 1, *c1])),
             Passo::Dimensao { coluna: true, .. } | Passo::LarguraPadrao { .. }
