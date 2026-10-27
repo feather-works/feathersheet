@@ -1047,14 +1047,8 @@ impl App {
             self.status = trf!("Macro \"{nome}\" não encontrada na biblioteca.");
             return;
         };
-        let Some(resultado) = self.rodar_macro(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo, Vec::new()) else { return };
-        self.macro_saida = resultado.saida.join("\n");
-        self.status = if let Some(erro) = resultado.erro {
-            trf!("Erro ao executar {nome}: {erro}. Escritas revertidas.")
-        } else {
-            trf!("Macro {nome} executada pela forma (Ctrl+clique seleciona a forma).")
-        };
-        self.trocar_selecao(self.linha, self.coluna);
+        self.rodar_macro_em_fundo(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo,
+            macro_dialogo::em_fundo::DepoisDaMacro::Forma);
     }
 
     /// Delete com objeto selecionado: exclui (um Ctrl+Z). Devolve se havia.

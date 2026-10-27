@@ -31,6 +31,8 @@ pub struct Contexto {
     pub respostas: Vec<bool>,
     /// O que foi preenchido no formulário cujo botão rodou a macro (`valores`).
     pub valores: Option<serde_json::Map<String, serde_json::Value>>,
+    /// Prazo e sinal de parar (o app roda a macro do botão noutra thread, com mais tempo).
+    pub limites: feather_macros::Limites,
 }
 
 /// O que a execução acumula para entregar ao aplicativo no fim.

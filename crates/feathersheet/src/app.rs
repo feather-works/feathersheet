@@ -500,6 +500,8 @@ pub enum Msg {
     FecharMenu, Cancelar, Descartar, SalvarAntes, GuardarTemporariamente,
     /// Resposta à pergunta Sim/Não da macro; fecha a mensagem da macro.
     MacroResponder(bool), MacroMensagemOk,
+    /// A macro em segundo plano: conferir se terminou / o botão Parar.
+    MacroPulso, MacroParar,
     Busca, BuscaTexto(String), Substituicao(String), BuscaMaiusculas(bool),
     BuscaInteira(bool), BuscaFormulas(bool), BuscaPasta(bool), Localizar, LocalizarAnterior,
     LocalizarTodos, BuscaIrPara(usize), SubstituirAtual, SubstituirTudo, FecharBusca,
@@ -716,6 +718,8 @@ pub struct App {
     vba_pendente: Option<importar_vba::VbaPendente>,
     /// Pergunta Sim/Não de uma macro esperando a pessoa.
     macro_pergunta: Option<macro_dialogo::PerguntaMacro>,
+    /// A macro rodando noutra thread (botão, forma, Executar macro).
+    macro_rodando: Option<macro_dialogo::em_fundo::MacroRodando>,
     /// O formulário aberto por `sheet.showComponent`.
     formulario_macro: Option<formulario_macro::FormularioAberto>,
     /// O `valores` da próxima execução (o botão do formulário).
@@ -1062,7 +1066,7 @@ impl Default for App {
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,
-            vba_pendente: None, macro_pergunta: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
+            vba_pendente: None, macro_pergunta: None, macro_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             comentario_editor: None, comentario_sobre: None, comentarios_todos: false,
             novo_estilo: None,
@@ -1408,6 +1412,9 @@ impl App {
             Msg::Lote(lote) => return Task::batch(lote.into_iter().map(|m| self.update(m)).collect::<Vec<_>>()),
             msg => msg,
         };
+        if self.macro_rodando.is_some() && !Self::mensagem_liberada_durante_macro(&msg) {
+            return Task::none();
+        }
         // Toda mensagem pode mudar o que a grade mostra, menos as desta lista: o pulso
         // da soma do rodapé roda centenas de vezes numa seleção grande e só mexe no
         // rodapé. O tique dos vínculos só publica e confere origens (o que muda
@@ -1557,6 +1564,9 @@ impl App {
             } else { Subscription::none() },
             if self.carregando {
                 a_cada(16).map(|_| Msg::ProgressoPulso)
+            } else { Subscription::none() },
+            if self.macro_rodando.is_some() {
+                a_cada(200).map(|_| Msg::MacroPulso)
             } else { Subscription::none() },
             if self.grafico_em_transicao() {
                 // Transição da legenda do gráfico: um quadro por tela.

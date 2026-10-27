@@ -10,6 +10,7 @@ use super::*;
 use historico_macros::GatilhoMacro;
 
 mod arquivos;
+pub(super) mod em_fundo;
 
 pub(super) struct PerguntaMacro {
     nome: String,
@@ -39,15 +40,30 @@ impl App {
     fn rodar_macro_registrando(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str,
         respostas: Vec<bool>, continua: Option<(u64, u128)>) -> Option<feathersheet_macros::Resultado>
     {
-        use historico_macros::{Execucao, ResultadoExecucao};
         let inicio_execucao = std::time::Instant::now();
+        let contexto = self.contexto_da_macro(respostas.clone());
+        let r = feathersheet_macros::executar_com(&mut self.workbook, self.folha, codigo, contexto);
+        self.concluir_macro(gatilho, nome, codigo, respostas, continua, inicio_execucao, r)
+    }
+
+    /// O arquivo, a seleção, as respostas Sim/Não e os campos do formulário para a macro.
+    pub(super) fn contexto_da_macro(&self, respostas: Vec<bool>) -> feathersheet_macros::Contexto {
         let (r1, c1) = self.fim_selecao;
         let selecao = endereco_area(&Rect::new(self.linha, self.coluna, r1, c1));
-        let contexto = feathersheet_macros::Contexto {
-            arquivo: self.caminho.clone(), selecao: Some(selecao), respostas: respostas.clone(),
-            valores: self.macro_valores.clone(),
-        };
-        let mut r = feathersheet_macros::executar_com(&mut self.workbook, self.folha, codigo, contexto);
+        feathersheet_macros::Contexto {
+            arquivo: self.caminho.clone(), selecao: Some(selecao), respostas,
+            valores: self.macro_valores.clone(), ..Default::default()
+        }
+    }
+
+    /// O que vem depois da execução (aqui ou na thread do `em_fundo`): histórico, pergunta
+    /// Sim/Não, formulário, arquivos pedidos e mensagens.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn concluir_macro(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str,
+        respostas: Vec<bool>, continua: Option<(u64, u128)>, inicio_execucao: std::time::Instant,
+        mut r: feathersheet_macros::Resultado) -> Option<feathersheet_macros::Resultado>
+    {
+        use historico_macros::{Execucao, ResultadoExecucao};
         // O que a macro escreveu não dispara os eventos do VBA.
         self.macro_rodou = true;
         let (id_anterior, ms_anterior) = continua.unzip();

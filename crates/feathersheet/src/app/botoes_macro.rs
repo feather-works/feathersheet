@@ -279,12 +279,8 @@ impl App {
             return;
         };
         // A API de macros compartilhada já faz commit/rollback do host.
-        let Some(resultado) = self.rodar_macro(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo, Vec::new()) else { return };
-        self.macro_saida = resultado.saida.join("\n");
-        self.status = if let Some(erro) = resultado.erro {
-            trf!("Erro ao executar {nome}: {erro}. Escritas revertidas.")
-        } else { trf!("Macro {nome} executada pelo botão.") };
-        self.trocar_selecao(self.linha, self.coluna);
+        self.rodar_macro_em_fundo(historico_macros::GatilhoMacro::Botao { rotulo }, &nome, &codigo,
+            macro_dialogo::em_fundo::DepoisDaMacro::Botao);
     }
 
     /// Mouse-down apenas inicia o gesto; o clique executa a macro no mouse-up,

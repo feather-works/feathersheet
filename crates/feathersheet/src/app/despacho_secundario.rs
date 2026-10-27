@@ -24,6 +24,8 @@ impl App {
             Msg::Topicos(evento) => self.evento_topicos(evento),
             Msg::VbaImportar => self.importar_vba(),
             Msg::MacroResponder(sim) => { self.responder_macro(sim); Task::none() }
+            Msg::MacroPulso => { self.conferir_macro_em_fundo(false); Task::none() }
+            Msg::MacroParar => { self.parar_macro_em_fundo(); Task::none() }
             Msg::MacroMensagemOk => {
                 if !self.macro_mensagens.is_empty() { self.macro_mensagens.remove(0); }
                 Task::none()

@@ -592,6 +592,9 @@ impl App {
         let base = self.sobrepor_estilos(base);
         let base = self.sobrepor_menu_edicao(base);
         let base = self.sobrepor_menu_principal(base);
+        if self.macro_rodando.is_some() {
+            return self.sobrepor_macro_rodando(base);
+        }
         if self.macro_pergunta.is_some() || !self.macro_mensagens.is_empty() {
             return self.sobrepor_dialogo_macro(base);
         }

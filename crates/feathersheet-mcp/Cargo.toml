@@ -20,3 +20,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "feathersheet-mcp"
 path = "src/main.rs"
+
+# shortcut: [patch] provisório (Limites do feather-macros, 27/10/2026); trocar pela tag nova do feather-io antes de lançar.
+[patch."https://github.com/feather-works/feather-io"]
+feather-macros = { path = "../../../feather-io/crates/feather-macros" }

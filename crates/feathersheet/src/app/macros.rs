@@ -128,18 +128,8 @@ impl App {
             Some(n) => n.to_owned(),
             None => self.macro_nome.clone(),
         };
-        let Some(resultado) = self.rodar_macro(historico_macros::GatilhoMacro::manual(tr!("Executar macro")), &nome, &codigo, Vec::new()) else {
-            self.macro_saida = tr!("A macro fez uma pergunta: responda na janela.").into();
-            return;
-        };
-        self.trocar_selecao(self.linha,self.coluna);
-        self.macro_saida = resultado.saida.join("\n");
-        if let Some(e) = resultado.erro {
-            self.macro_saida.push_str(&trf!("\nErro: {e}\nAs escritas desta execução foram revertidas."));
-        } else { self.macro_saida.push_str(tr!("\nMacro concluída.")); }
-        if let Some(mensagem) = resultado.status {
-            self.status = mensagem;
-        }
+        self.rodar_macro_em_fundo(historico_macros::GatilhoMacro::manual(tr!("Executar macro")), &nome, &codigo,
+            macro_dialogo::em_fundo::DepoisDaMacro::Editor);
     }
 
     pub(super) fn abrir_macro() -> Task<Msg> {

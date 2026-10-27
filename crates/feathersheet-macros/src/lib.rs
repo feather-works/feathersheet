@@ -821,7 +821,8 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
     let valores = estado.borrow().extra.contexto.valores.as_ref().map_or_else(|| "{}".to_string(), |v| Json::Object(v.clone()).to_string());
     let prefixo = format!("(function() {{ const sheet=__sheet({aba}), planilha=sheet; const range=sheet.range, cell=sheet.cell, cells=sheet.cell, worksheets=wb.sheet, sheets=wb.sheet; const valores={valores}; globalThis.__valores=valores; __sel[sheet.__id]=__ft('selecaoInicial',[]); ");
     let script = format!("{prefixo}{codigo}\n}})()");
-    let mut resultado = feather_macros::executar_com_origem(host, API, &script, Some(posicoes::ORIGEM));
+    let limites = estado.borrow().extra.contexto.limites.clone();
+    let mut resultado = feather_macros::executar_com_limites(host, API, &script, Some(posicoes::ORIGEM), &limites);
     resultado.erro = resultado.erro.map(|e| posicoes::ajustar_erro(&e, prefixo.chars().count(), codigo));
     let mut e = estado.borrow_mut();
     let extra = std::mem::take(&mut e.extra);
@@ -1172,3 +1173,5 @@ mod testes_pasta;
 
 #[cfg(test)]
 mod testes;
+// O app roda a macro do botão noutra thread, levando a pasta junto.
+const _: fn() = || { fn envia<T: Send>() {} envia::<Workbook>(); envia::<Contexto>(); envia::<Resultado>(); };
