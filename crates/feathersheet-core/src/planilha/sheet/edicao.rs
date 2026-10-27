@@ -347,6 +347,19 @@ enum Passo {
     /// receita de novo — o estado depois do desfazer é o de antes, então dá
     /// o mesmo resultado. Eram 87 milhões de fotos no CSV do Spotify (31 s).
     Divisao { area: [u32; 4], antes: Vec<Passo>, refazer: Refazer },
+    /// Só o estilo de uma faixa de literais mudou ([`Sheet::formatar_faixa`]): o índice do
+    /// estilo antes e depois de cada célula, sem foto do conteúdo.
+    Estilos { area: [u32; 4], trocas: Vec<TrocaEstilo> },
+}
+
+/// Uma célula do [`Passo::Estilos`]. `texto`: o texto digitado passou a ser guardado à parte
+/// (número que ganhou formato de data/moeda/%), e o desfazer o tira.
+#[derive(Debug, Clone)]
+pub struct TrocaEstilo {
+    pub k: CellKey,
+    pub antes: Option<usize>,
+    pub depois: Option<usize>,
+    pub texto: bool,
 }
 
 /// Um texto do [`Sheet::gravar_bloco_vazio`] já analisado (pode ser feito fora da thread
@@ -984,6 +997,88 @@ impl Sheet {
             self.textos.insert(k, &raw);
         }
         true
+    }
+
+    /// `set_style` de uma faixa grande célula a célula, mas guardando para o desfazer só o
+    /// índice do estilo de antes e de depois ([`Passo::Estilos`]): o `NumberFormat` de 200 mil
+    /// células tirava uma foto do conteúdo de cada uma (1,4 s, 27/10/2026). Fórmula, célula
+    /// do `Map` e estilo de linha ou de aba vão pelo [`Self::estilizar_celula`].
+    pub fn formatar_faixa(&mut self, area: &Rect, patch: &EstiloParcial) {
+        let r = area.normalized();
+        self.abrir_transacao();
+        self.tocar();
+        let simples = self.sheet_style.is_none() && self.row_styles.is_empty();
+        let com_formato = formato(Some(patch)).is_some_and(|f| f != "auto");
+        // O estilo novo só depende da coluna e do estilo de antes.
+        let mut memo: HashMap<(u32, Option<usize>), (Option<usize>, bool)> = HashMap::new();
+        let mut trocas = Vec::new();
+        for col in r.c0..=r.c1 {
+            for row in r.r0..=r.r1 {
+                let k = key(row, col);
+                if !simples || self.cells.contains_key(&k) || self.formulas.has(row, col) {
+                    self.estilizar_celula(row, col, patch);
+                    continue;
+                }
+                let antes = self.styles.get(k);
+                let (depois, formato_antes) = match memo.get(&(col, antes)) {
+                    Some(&m) => m,
+                    None => {
+                        let atual = self.estilo_mesclado(row, col);
+                        let formato_antes = formato(atual.as_ref()).is_some_and(|f| f != "auto");
+                        let m = (self.registrar_parcial(mesclar(atual.as_ref(), patch)), formato_antes);
+                        memo.insert((col, antes), m);
+                        m
+                    }
+                };
+                if depois == antes { continue; }
+                // Como o `so_trocar_estilo`: número que ganha formato guarda o texto digitado.
+                // Se já tinha formato, o texto de antes não é o da coluna de dados: célula a célula.
+                let mut texto = false;
+                if self.data.has_cell(row, col) && !self.textos.contains_key(&k) {
+                    let v = self.data.get_cell_value(row, col, &self.pool);
+                    if matches!(v, Value::Number(_)) {
+                        if formato_antes {
+                            self.estilizar_celula(row, col, patch);
+                            continue;
+                        }
+                        if com_formato {
+                            let raw = self.data.get_raw(row, col, &self.pool);
+                            self.textos.insert(k, &raw);
+                            texto = true;
+                        }
+                    }
+                }
+                match depois { Some(i) => { self.styles.insert(k, i); } None => { self.styles.remove(&k); } }
+                self.cresce_limites(row, col);
+                trocas.push(TrocaEstilo { k, antes, depois, texto });
+            }
+        }
+        if !trocas.is_empty() {
+            self.rastro.borrow_mut().desconhecer();
+            if let Some(p) = self.hist.pendente.as_mut() {
+                p.push(Passo::Estilos { area: [r.r0, r.c0, r.r1, r.c1], trocas });
+            }
+        }
+        self.fechar_transacao();
+        self.sujar_volateis();
+    }
+
+    fn aplicar_trocas_de_estilo(&mut self, trocas: &[TrocaEstilo], refazer: bool) {
+        self.tocar();
+        self.rastro.borrow_mut().desconhecer();
+        for t in trocas {
+            let idx = if refazer { t.depois } else { t.antes };
+            match idx { Some(i) => { self.styles.insert(t.k, i); } None => { self.styles.remove(&t.k); } }
+            if t.texto {
+                if refazer {
+                    let raw = self.data.get_raw(key_row(t.k), key_col(t.k), &self.pool);
+                    self.textos.insert(t.k, &raw);
+                } else {
+                    self.textos.remove(&t.k);
+                }
+            }
+        }
+        self.sujar_volateis();
     }
 
     /// Mescla `patch` no estilo da célula, com desfazer, sem mexer no conteúdo (a transação
@@ -1849,6 +1944,7 @@ impl Sheet {
                         Passo::Condicionais { area, .. } => *area,
                         Passo::Comentario { linha, coluna, .. } => [*linha, *coluna, *linha, *coluna],
                         Passo::Divisao { area, .. } => *area,
+                        Passo::Estilos { area, .. } => *area,
                         Passo::Imagens { .. } | Passo::Botoes { .. } | Passo::Tinta { .. } | Passo::Objetos { .. } | Passo::Graficos { .. }
                         | Passo::LarguraPadrao { .. }
                         | Passo::Topicos { .. } => [0, 0, 0, 0],
@@ -1907,6 +2003,7 @@ impl Sheet {
             Passo::Graficos { antes, .. } => self.g = antes.clone(),
             Passo::Comentario { linha, coluna, antes, .. } =>
                 self.aplicar_comentario(*linha, *coluna, antes.as_deref().cloned()),
+            Passo::Estilos { trocas, .. } => self.aplicar_trocas_de_estilo(trocas, false),
             Passo::Divisao { area, antes, .. } => {
                 let t = std::time::Instant::now();
                 self.limpar_area_sem_registro(*area);
@@ -1955,6 +2052,7 @@ impl Sheet {
             Passo::Graficos { depois, .. } => self.g = depois.clone(),
             Passo::Comentario { linha, coluna, depois, .. } =>
                 self.aplicar_comentario(*linha, *coluna, depois.as_deref().cloned()),
+            Passo::Estilos { trocas, .. } => self.aplicar_trocas_de_estilo(trocas, true),
             Passo::Divisao { refazer, .. } => {
                 let t = std::time::Instant::now();
                 (refazer.0)(self);
@@ -2561,7 +2659,7 @@ impl Sheet {
             Passo::OcultasDesde { coluna: false, .. } => pede(P::FormatarLinhas),
             // O filtro também esconde linhas.
             Passo::Dimensao { coluna: false, .. } => (!prot.permite(P::AutoFiltro)).then(|| pede(P::FormatarLinhas)).flatten(),
-            Passo::Mesclas { .. } | Passo::Condicionais { .. } => pede(P::FormatarCelulas),
+            Passo::Mesclas { .. } | Passo::Condicionais { .. } | Passo::Estilos { .. } => pede(P::FormatarCelulas),
             Passo::Tabelas { .. } => (!prot.permite(P::AutoFiltro)).then(Recusa::planilha_protegida),
             Passo::Dinamicas { .. } => pede(P::TabelaDinamica),
             Passo::Imagens { .. } | Passo::Botoes { .. } | Passo::Tinta { .. } | Passo::Objetos { .. } | Passo::Graficos { .. }

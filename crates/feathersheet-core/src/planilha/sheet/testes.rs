@@ -561,3 +561,42 @@ fn gravar_bloco_vazio_grava_desfaz_e_refaz_num_passo() {
     assert_eq!(s.get_value(2, 1), Value::Number(14.0));
     assert_eq!(s.get_raw(1, 2), "007");
 }
+
+/// `formatar_faixa` dá o mesmo que o caminho célula a célula (número, texto, vazia, fórmula,
+/// data já formatada), e desfaz e refaz num passo.
+#[test]
+fn formatar_faixa_igual_a_celula_a_celula() {
+    let montar = || {
+        let mut s = Sheet::new("Plan1");
+        for (r, raw) in ["45000", "abc", "", "=A1+1", "16/10/2026", "1234,5", "VERDADEIRO"].iter().enumerate() {
+            s.set_cell(r as u32, 0, raw);
+        }
+        s
+    };
+    let mut patch = EstiloParcial::new();
+    patch.insert("format".into(), crate::celulas::estilo_parcial::Campo::Texto("currency".into()));
+    patch.insert("decimals".into(), crate::celulas::estilo_parcial::Campo::Numero(2.0));
+    let (mut a, mut b) = (montar(), montar());
+    a.abrir_transacao();
+    a.formatar_faixa(&Rect::new(0, 0, 7, 0), &patch);
+    a.fechar_transacao();
+    b.abrir_transacao();
+    for r in 0..=7 { b.estilizar_celula(r, 0, &patch); }
+    b.fechar_transacao();
+    for r in 0..=7 {
+        assert_eq!(a.get_raw(r, 0), b.get_raw(r, 0), "raw linha {r}");
+        assert_eq!(a.get_style(r, 0), b.get_style(r, 0), "estilo linha {r}");
+        assert_eq!(a.get_value(r, 0), b.get_value(r, 0), "valor linha {r}");
+    }
+    let c = montar();
+    assert!(a.undo());
+    for r in 0..=7 {
+        assert_eq!(a.get_raw(r, 0), c.get_raw(r, 0), "desfeito: raw linha {r}");
+        assert_eq!(a.get_style(r, 0), c.get_style(r, 0), "desfeito: estilo linha {r}");
+    }
+    assert!(a.redo());
+    for r in 0..=7 {
+        assert_eq!(a.get_raw(r, 0), b.get_raw(r, 0), "refeito: raw linha {r}");
+        assert_eq!(a.get_style(r, 0), b.get_style(r, 0), "refeito: estilo linha {r}");
+    }
+}

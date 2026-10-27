@@ -719,13 +719,9 @@ impl HospedeiroMacros for HospedeiroSheet {
                         e.pasta.aba_mut(aba).unwrap().sheet.abrir_transacao();
                     }
                     e.pasta.editar(aba, |sheet| {
-                        // set_style() abre e fecha a própria transação; célula a célula o
-                        // UNDO da macro inteira fica um passo só, como em set().
-                        for linha in area.r0..=area.r1 {
-                            for coluna in area.c0..=area.c1 {
-                                sheet.estilizar_celula(linha, coluna, &patch);
-                            }
-                        }
+                        // Célula a célula (inclusive as vazias), na transação da macro: o UNDO
+                        // da macro inteira fica um passo só, como em set().
+                        sheet.formatar_faixa(&area, &patch);
                     });
                     Json::Null
                 }
