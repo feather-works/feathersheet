@@ -1,6 +1,6 @@
 [package]
 name = "feathersheet"
-version = "0.1.5"
+version = "0.2.0"
 edition = "2021"
 description = "FeatherSheet: planilha nativa em Rust (interface no pelicano)"
 
@@ -18,22 +18,23 @@ feather-draw = { git = "https://github.com/feather-works/feather-draw", tag = "v
 # Formas, ícones e SmartArt comuns da suíte (camada de objetos soltos, app/objetos).
 feather-shapes = { git = "https://github.com/feather-works/feather-shapes", tag = "v0.1.2" }
 # Efeitos RGBA compartilhados com FeatherDocs; codecs ficam na GUI.
-feather-image = { git = "https://github.com/feather-works/feather-io", tag = "v0.1.4" }
+feather-image = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.0" }
 base64 = "0.22"
 # Senha da proteção de planilha: o hash SHA-512 com sal do Excel (protecao_ui.rs).
 sha2 = "0.10"
 getrandom = "0.2"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp"] }
 # Apenas representacao/algoritmos de borda no Canvas; engine colunar permanece no core.
-feather-tables = { git = "https://github.com/feather-works/feather-io", tag = "v0.1.4" }
+feather-tables = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.0" }
 feathersheet-core = { path = "../feathersheet-core" }
 feathersheet-io = { path = "../feathersheet-io" }
-feathersheet-macros = { path = "../feathersheet-macros" }
+# Macros no motor Falcão (27/10/2026): a macro do vídeo cai de ~30 s (Boa) para ~9 s.
+feathersheet-macros = { path = "../feathersheet-macros", features = ["falcao"] }
 # Leitor de .xlsm: VBA do Excel convertido para as macros em JavaScript.
 feathersheet-vba = { path = "../feathersheet-vba" }
 # MCP ao vivo: as ferramentas da IA agem na planilha da tela (canal local, sem rede).
 feathersheet-mcp = { path = "../feathersheet-mcp" }
-feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v0.1.4" }
+feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.0" }
 # Rasterizar o gráfico uma vez e recortar a imagem na rolagem (o canvas não
 # recorta SVG). A mesma versão e recursos que o Iced já usa: nada novo compila.
 resvg = { version = "0.42", default-features = false, features = ["text"] }
@@ -80,7 +81,3 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 3
-
-# shortcut: [patch] provisório (Limites do feather-macros, 27/10/2026); trocar pela tag nova do feather-io antes de lançar.
-[patch."https://github.com/feather-works/feather-io"]
-feather-macros = { path = "../../../feather-io/crates/feather-macros" }

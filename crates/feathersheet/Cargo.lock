@@ -1771,6 +1771,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "falcao-bytecode"
+version = "0.1.0"
+source = "git+https://github.com/feather-works/falcao?tag=v0.1.1#34f204374743314d822ed13e39b8255de1921bd1"
+dependencies = [
+ "falcao-sintaxe",
+]
+
+[[package]]
+name = "falcao-runtime"
+version = "0.1.0"
+source = "git+https://github.com/feather-works/falcao?tag=v0.1.1#34f204374743314d822ed13e39b8255de1921bd1"
+dependencies = [
+ "falcao-bytecode",
+ "falcao-sintaxe",
+]
+
+[[package]]
+name = "falcao-sintaxe"
+version = "0.1.0"
+source = "git+https://github.com/feather-works/falcao?tag=v0.1.1#34f204374743314d822ed13e39b8255de1921bd1"
+
+[[package]]
 name = "fancy-regex"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1825,16 +1847,16 @@ source = "git+https://github.com/feather-works/feather-draw?tag=v0.1.1#17404b4da
 
 [[package]]
 name = "feather-image"
-version = "0.1.4"
-source = "git+https://github.com/feather-works/feather-io?tag=v0.1.4#803ef32c1aaa3c17fd498176ea863cd574ffe4b2"
+version = "0.2.0"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
 dependencies = [
  "image",
 ]
 
 [[package]]
 name = "feather-io"
-version = "0.1.4"
-source = "git+https://github.com/feather-works/feather-io?tag=v0.1.4#803ef32c1aaa3c17fd498176ea863cd574ffe4b2"
+version = "0.2.0"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
 dependencies = [
  "feather-charts",
  "feather-draw",
@@ -1846,10 +1868,12 @@ dependencies = [
 
 [[package]]
 name = "feather-macros"
-version = "0.1.4"
+version = "0.2.0"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
 dependencies = [
  "boa_engine",
  "boa_gc",
+ "falcao-runtime",
  "serde",
  "serde_json",
 ]
@@ -1865,8 +1889,8 @@ dependencies = [
 
 [[package]]
 name = "feather-tables"
-version = "0.1.4"
-source = "git+https://github.com/feather-works/feather-io?tag=v0.1.4#803ef32c1aaa3c17fd498176ea863cd574ffe4b2"
+version = "0.2.0"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
 
 [[package]]
 name = "feather-ui"
@@ -1880,7 +1904,7 @@ dependencies = [
 
 [[package]]
 name = "feathersheet"
-version = "0.1.5"
+version = "0.2.0"
 dependencies = [
  "arboard",
  "base64 0.22.1",

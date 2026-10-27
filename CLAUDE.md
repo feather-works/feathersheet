@@ -2,6 +2,26 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.0 — 27/10/2026: macros do Excel
+
+- **Motor das macros: Falcão** (`feather-works/falcao`, tag v0.1.1; repositório próprio desde
+  27/10, extraído de `FeatherOffice/falcao`), pelo feather-io v0.2.0 (opção `falcao`, padrão no
+  `feathersheet-macros`; sem ela volta o Boa). Ponte direta Valor↔JSON, prazo e Parar
+  (`Motor::interromper`), pilha com `api:L:C`/`macro:L:C` (a coluna do Falcão é a do começo da
+  expressão; os testes de `posicoes.rs` marcam a diferença por `cfg!(feature = "falcao")`).
+  Não tirar as checagens de limite da gaiola nem da pilha: são a segurança do FeatherWeb.
+- **Conversor VBA**: matrizes com limite de baixo (`lb`), `Range.Value` em blocos, datas como
+  série, `RemoveDuplicates`, `FormatConditions`, `On Error Resume Next`, várias áreas,
+  `Worksheets.Add`; prelúdio `vba` com caminhos rápidos (cache de máscara, memo).
+- **Macro do botão noutra thread** (`app/macro_dialogo/em_fundo.rs`): "Executando… N s" e Parar,
+  prazo de 10 min; a tela usa um espelho vazio da pasta enquanto ela roda.
+- **Escrita em lote** (macro de 200 mil linhas, `docs/planejamento/video-v0.2/Fechamento.bas`:
+  30 s no Boa → 7,9 s no app; Excel 25 s): `Sheet::gravar_bloco_vazio`/`gravar_bloco_literais`
+  (`Passo::Divisao`/`Passo::Regravacao`, só o que havia vai para o desfazer, análise do texto em
+  paralelo por coluna), `formatar_faixa` (`Passo::Estilos`, só índices de estilo),
+  `RemoveDuplicates` por permutação. Medir: `medir_fechamento` no `feathersheet-vba`
+  (`FEATHERSHEET_XLSX` aceita `.xlsx` e `.fshz`; com LTO, como o app).
+
 ## v0.1.5 — 26/10/2026
 
 Primeira versão só no pelicano depois do Iced apagado: formulários das macros

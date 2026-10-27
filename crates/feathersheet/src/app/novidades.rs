@@ -21,6 +21,24 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.0",
+        data: "27/10/2026",
+        resumo: "Macros do Excel, rápidas",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("bolt", "Motor JavaScript próprio", "As macros rodam no Falcão, o motor da suíte escrito em Rust: ~4× mais rápidas."),
+            ("player-play", "Macro longa sem travar", "O botão mostra \"Executando… N s\" e tem Parar; o que a macro escreveu é desfeito."),
+            ("code", "Conversor VBA mais completo", "Matrizes no Range.Value, datas, RemoveDuplicates, FormatConditions e On Error."),
+            ("clock", "200 mil linhas em segundos", "A macro de fechamento do mês do vídeo roda em ~8 s; no Excel, 25 s."),
+        ],
+        tambem: &[
+            "Macros novas: wb.addSheet, wb.deleteSheet, wb.renameSheet e sheet.autoFitColumns.",
+            "Gravar matriz, formatar coluna e remover duplicadas em planilha grande: um Ctrl+Z só.",
+            "Borda sem listra branca entre células (#69); \"VERDADEIRO\" continua texto (#66); célula mesclada não anda ao rolar (#36).",
+            "Limites conhecidos: inserir/excluir linhas ainda não entra no Ctrl+Z (#65); no erro da macro, a coluna é a do começo da expressão.",
+        ],
+    },
+    Versao {
         numero: "0.1.5",
         data: "26/10/2026",
         resumo: "Formulários nas macros",
@@ -30,7 +48,7 @@ pub const VERSOES: &[Versao] = &[
             ("table", "UserForm do .xlsm convertido", "O formulário do Excel vem com o desenho, as listas e o código dos botões."),
             ("code", "Várias funções num módulo", "Botões e formulários chamam Módulo.função, como as Sub do VBA."),
             ("palette", "Formatação condicional em janela própria", "\"Aplica-se a\" com Selecionar pela grade e filtro por planilha ou seleção."),
-            ("link", "Vínculos e macros mais seguros", "Arquivo do disco só lê vínculos depois de \"Atualizar valores\"; forma com macro respeita o bloqueio."),
+            ("link", "Vínculos e macros mais seguros", "Vínculos do disco só depois de \"Atualizar valores\"; forma com macro respeita o bloqueio."),
             ("math-function", "Fórmulas e datas corrigidas", "CONT.SE com \"2\" e \"=2\", DATAM fora do ano 9999 e aba com nome de célula."),
         ],
         tambem: &[

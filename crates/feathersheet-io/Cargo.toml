@@ -10,7 +10,7 @@ edition = "2021"
 # e reescrever o leitor/escritor de IPC Arrow à mão seria o tipo de risco que
 # a regra "portar é traduzir, não melhorar" existe para evitar.
 [dependencies]
-feather-io = { git = "https://github.com/feather-works/feather-io", tag = "v0.1.4" }
+feather-io = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.0" }
 feather-charts = { git = "https://github.com/feather-works/feather-charts", tag = "v0.3.2" }
 feather-draw = { git = "https://github.com/feather-works/feather-draw", tag = "v0.1.1" }
 feathersheet-core = { path = "../feathersheet-core" }

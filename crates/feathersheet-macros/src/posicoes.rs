@@ -56,6 +56,9 @@ fn separar_local(linha: &str) -> Option<(&str, &str)> {
 pub(crate) fn ajustar_erro(erro: &str, prefixo: usize, codigo: &str) -> String {
     let linhas = codigo.split('\n').count();
     let mut saida: Vec<String> = Vec::new();
+    // No Falcão o corpo da macro é a função anônima do invólucro: o último quadro anônimo
+    // do código do usuário (o de fora de todos).
+    let mut anonima: Option<usize> = None;
     for (i, linha) in erro.split('\n').enumerate() {
         let quadro = linha.trim_start().strip_prefix("at ");
         match (quadro, separar_local(linha)) {
@@ -65,6 +68,7 @@ pub(crate) fn ajustar_erro(erro: &str, prefixo: usize, codigo: &str) -> String {
                 let nome = antes.trim_start().trim_start_matches("at ");
                 let nome = if nome == "<main>" { "corpo da macro" } else { nome };
                 saida.push(format!("    em {nome} ({novo})"));
+                if nome == "<anônima>" && local.starts_with(&format!("{ORIGEM}:")) { anonima = Some(saida.len() - 1); }
             }
             // Cabeçalho com local: tira o local do invólucro, traduz o resto.
             (None, Some((antes, local))) if i == 0 && (local.starts_with(ORIGEM) || local.starts_with("api:")) => {
@@ -76,13 +80,18 @@ pub(crate) fn ajustar_erro(erro: &str, prefixo: usize, codigo: &str) -> String {
             _ => saida.push(ajustar_sintaxe(linha, prefixo)),
         }
     }
+    if let Some(i) = anonima {
+        saida[i] = saida[i].replacen("<anônima>", "corpo da macro", 1);
+    }
     saida.join("\n")
 }
 
 /// Erro de sintaxe: "... at line L, col C" — só a coluna da linha 1 anda.
 fn ajustar_sintaxe(linha: &str, prefixo: usize) -> String {
-    let Some(i) = linha.find("at line 1, col ") else { return linha.to_owned() };
-    let inicio = i + "at line 1, col ".len();
+    // Boa: "at line 1, col C"; Falcão: "(linha 1, coluna C)".
+    let Some((i, marca)) = ["at line 1, col ", "(linha 1, coluna "].iter()
+        .find_map(|m| linha.find(m).map(|i| (i, *m))) else { return linha.to_owned() };
+    let inicio = i + marca.len();
     let fim = linha[inicio..].find(|c: char| !c.is_ascii_digit()).map_or(linha.len(), |f| inicio + f);
     let Ok(coluna) = linha[inicio..fim].parse::<usize>() else { return linha.to_owned() };
     match coluna.checked_sub(prefixo).filter(|c| *c >= 1) {
@@ -105,28 +114,34 @@ mod testes {
     fn linha_do_erro_bate_com_a_do_editor() {
         // Linha 3 do editor; a chamada do invólucro (linha 4) não aparece.
         let e = erro("log(1);\nlet o = null;\nlog(o.a);");
-        assert!(e.contains("em corpo da macro (linha 3, coluna 7)"), "{e}");
+        // A coluna depende do motor: o Boa aponta a propriedade (`a`), o Falcão a expressão (`o.a`).
+        let coluna = if cfg!(feature = "falcao") { 5 } else { 7 };
+        assert!(e.contains(&format!("em corpo da macro (linha 3, coluna {coluna})")), "{e}");
         assert!(!e.contains("linha 4") && !e.contains("unknown at"), "{e}");
         let e = erro("log(1);\nfunction g(){\n  throw new Error('x');\n}\ng();");
         assert!(e.starts_with("Error: x"), "{e}");
-        assert!(e.contains("em g (linha 3, coluna 9)") && e.contains("(linha 5, coluna 2)"), "{e}");
+        let coluna = if cfg!(feature = "falcao") { 1 } else { 2 };
+        assert!(e.contains("em g (linha 3, coluna 9)") && e.contains(&format!("(linha 5, coluna {coluna})")), "{e}");
     }
 
     #[test]
     fn coluna_da_primeira_linha_desconta_o_preludio() {
         let e = erro("throw new Error('um');");
         assert!(e.contains("(linha 1, coluna 7)"), "{e}");
+        // Boa: "at line L, col C"; Falcão: "(linha L, coluna C)".
         let e = erro("let a = ;");
-        assert!(e.contains("at line 1, col 9"), "{e}");
+        assert!(e.contains("at line 1, col 9") || e.contains("(linha 1, coluna 9)"), "{e}");
         let e = erro("log(1);\n\nlog(2)\nlet a = ;");
-        assert!(e.contains("at line 4, col 9"), "{e}");
+        assert!(e.contains("at line 4, col 9") || e.contains("(linha 4, coluna 9)"), "{e}");
     }
 
     #[test]
     fn quadro_da_api_nao_se_passa_por_linha_da_macro() {
         let e = erro("log(1);\n\nsheet.range('ZZZ').value = 1;\n");
         assert!(e.contains("em range (API do FeatherSheet)"), "{e}");
-        assert!(e.contains("em corpo da macro (linha 3, coluna 12)"), "{e}");
+        // O Falcão aponta o começo do comando; o Boa, a chamada.
+        let coluna = if cfg!(feature = "falcao") { 1 } else { 12 };
+        assert!(e.contains(&format!("em corpo da macro (linha 3, coluna {coluna})")), "{e}");
     }
 
     #[test]
