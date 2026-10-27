@@ -303,7 +303,10 @@ enum Passo {
     /// `ordem[i]` foi para `first + i` (o ordenar). Guardar a permutação, e
     /// não a foto de cada célula, é o que deixa ordenar dois milhões de
     /// linhas caber na memória: eram 22 milhões de fotos (5,5 GB).
-    Permutacao { first: u32, c0: u32, c1: u32, ordem: Vec<u32> },
+    /// `quebradas`: fórmulas que o deslocamento transformou em `#REF!`
+    /// (linha de origem, coluna, texto e estilo de antes): a permutação inversa
+    /// não as conserta, então o desfazer regrava o texto original.
+    Permutacao { first: u32, c0: u32, c1: u32, ordem: Vec<u32>, quebradas: Vec<(u32, u32, String, Option<usize>)> },
     /// Largura/altura são propriedades da grade e precisam do mesmo undo das células.
     Dimensao { coluna: bool, indice: u32, antes: Option<u32>, depois: Option<u32> },
     /// Largura padrão das colunas da aba.
@@ -1738,7 +1741,7 @@ impl Sheet {
                         Passo::Celula(c) => [key_row(c.k), key_col(c.k), key_row(c.k), key_col(c.k)],
                         Passo::Compacto(bloco) => bloco.area,
                         Passo::CompactoNoDisco(bloco) => bloco.area,
-                        Passo::Permutacao { first, c0, c1, ordem } => [*first, *c0, first + ordem.len() as u32 - 1, *c1],
+                        Passo::Permutacao { first, c0, c1, ordem, .. } => [*first, *c0, first + ordem.len() as u32 - 1, *c1],
                         Passo::Dimensao { coluna: true, indice, .. } => [0, *indice, 0, *indice],
                         Passo::Dimensao { coluna: false, indice, .. } => [*indice, 0, *indice, 0],
                         Passo::Mesclas { area, .. } => *area,
@@ -1778,13 +1781,16 @@ impl Sheet {
                         dados.reconstruir(ch.antes), false);
                 }
             }
-            Passo::Permutacao { first, c0, c1, ordem } => {
+            Passo::Permutacao { first, c0, c1, ordem, quebradas } => {
                 // A inversa: quem foi de `ordem[i]` para `first + i` volta.
                 let mut volta = vec![0u32; ordem.len()];
                 for (i, &origem) in ordem.iter().enumerate() {
                     volta[(origem - first) as usize] = first + i as u32;
                 }
                 self.permutar_sem_registro(*first, *c0, *c1, &volta);
+                for (row, col, raw, estilo) in quebradas {
+                    self.set_cell_raw(*row, *col, raw.clone(), *estilo);
+                }
             }
             Passo::Dimensao { coluna, indice, antes, .. } =>
                 self.aplicar_dimensao(*coluna, *indice, *antes),
@@ -1833,7 +1839,7 @@ impl Sheet {
                         dados.reconstruir(ch.depois), false);
                 }
             }
-            Passo::Permutacao { first, c0, c1, ordem } => self.permutar_sem_registro(*first, *c0, *c1, ordem),
+            Passo::Permutacao { first, c0, c1, ordem, .. } => { self.permutar_sem_registro(*first, *c0, *c1, ordem); }
             Passo::Dimensao { coluna, indice, depois, .. } =>
                 self.aplicar_dimensao(*coluna, *indice, *depois),
             Passo::Mesclas { depois, .. } => self.mc = depois.clone(),
@@ -2236,14 +2242,15 @@ impl Sheet {
             return;
         }
         self.abrir_transacao();
-        self.permutar_sem_registro(first, c0, c1, ordem);
+        let quebradas = self.permutar_sem_registro(first, c0, c1, ordem);
         if let Some(p) = self.hist.pendente.as_mut() {
-            p.push(Passo::Permutacao { first, c0, c1, ordem: ordem.to_vec() });
+            p.push(Passo::Permutacao { first, c0, c1, ordem: ordem.to_vec(), quebradas });
         }
         self.fechar_transacao();
     }
 
-    fn permutar_sem_registro(&mut self, first: u32, c0: u32, c1: u32, ordem: &[u32]) {
+    /// Devolve as fórmulas que o deslocamento levou a `#REF!` (ver [`Passo::Permutacao`]).
+    fn permutar_sem_registro(&mut self, first: u32, c0: u32, c1: u32, ordem: &[u32]) -> Vec<(u32, u32, String, Option<usize>)> {
         self.rastro.borrow_mut().desconhecer();
         let last = first + ordem.len() as u32 - 1;
         let mut destino_de = vec![0u32; ordem.len()];
@@ -2296,18 +2303,26 @@ impl Sheet {
         self.permutar_comentarios(first, c0, c1, &destino_de);
 
         // 3) As que voltam: a fórmula com o texto deslocado para a linha nova.
+        let mut quebradas = Vec::new();
+        let quebrou = |antes: &str, depois: &str| depois.matches("#REF!").count() > antes.matches("#REF!").count();
         for (k, origem, cell) in voltam {
             let (row, col) = (key_row(k), key_col(k));
             if cell.raw.starts_with('=') {
                 let raw = crate::operacoes::fill::shift_formula(&cell.raw, row as i32 - origem as i32, 0);
+                if quebrou(&cell.raw, &raw) {
+                    quebradas.push((origem, col, cell.raw.to_string(), cell.style_idx));
+                }
                 self.set_cell_raw(row, col, raw, cell.style_idx);
             } else {
                 self.cells.insert(k, cell);
             }
         }
         for (destino, origem, col, raw) in regravar {
-            let raw = crate::operacoes::fill::shift_formula(&raw, destino as i32 - origem as i32, 0);
-            self.set_cell_raw(destino, col, raw, None);
+            let novo = crate::operacoes::fill::shift_formula(&raw, destino as i32 - origem as i32, 0);
+            if quebrou(&raw, &novo) {
+                quebradas.push((origem, col, raw.to_string(), None));
+            }
+            self.set_cell_raw(destino, col, novo, None);
         }
 
         // 4) Quem lia o que andou recalcula: o cálculo é preguiçoso, só o que
@@ -2320,6 +2335,17 @@ impl Sheet {
             calc.evaluating.clear();
         }
         self.bounds_dirty = true;
+        quebradas
+    }
+
+    /// Depois de inserir/excluir linhas ou colunas: o deslocamento não entra
+    /// no desfazer, então nenhum passo anterior (nem os da transação aberta,
+    /// de uma macro) pode ser repetido nas coordenadas velhas.
+    pub fn esquecer_historico(&mut self) {
+        self.clear_history();
+        if let Some(pendente) = self.hist.pendente.as_mut() {
+            pendente.clear();
+        }
     }
 
     pub fn clear_history(&mut self) {
@@ -2369,7 +2395,7 @@ impl Sheet {
             }),
             Passo::CompactoNoDisco(bloco) => area(&bloco.area),
             Passo::Divisao { area: a, .. } => area(a),
-            Passo::Permutacao { first, c0, c1, ordem } => pede(P::Classificar)
+            Passo::Permutacao { first, c0, c1, ordem, .. } => pede(P::Classificar)
                 .or_else(|| area(&[*first, *c0, first + ordem.len() as u32 - 1, *c1])),
             Passo::Dimensao { coluna: true, .. } | Passo::LarguraPadrao { .. }
             | Passo::OcultasDesde { coluna: true, .. } => pede(P::FormatarColunas),

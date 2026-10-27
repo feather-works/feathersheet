@@ -750,8 +750,11 @@ impl Workbook {
     /// 3. reescrever o texto das anotadas, já na posição nova. A referência
     ///    que caiu no que foi excluído vira `#REF!`.
     ///
-    /// O deslocamento não entra no desfazer (como no TypeScript); o
-    /// conserto do texto entra.
+    /// O deslocamento não entra no desfazer (como no TypeScript); por isso o
+    /// histórico desta aba e das que tiveram fórmula consertada é esquecido
+    /// no fim: um Ctrl+Z velho cairia na célula errada. shortcut: inserir e
+    /// excluir não se desfazem; um `Passo::Estrutura` com a fatia removida
+    /// resolveria.
     pub fn mover_estrutura(
         &mut self,
         indice: usize,
@@ -830,6 +833,7 @@ impl Workbook {
 
         // 3) o texto, na posição nova.
         let eixo = if coluna { crate::formula::formula_text::Axis::Col } else { crate::formula::formula_text::Axis::Row };
+        let mexidas: Vec<usize> = consertos.iter().map(|(j, _)| *j).chain([indice]).collect();
         for (j, lista) in consertos {
             let mesma = j == indice;
             let alvo = &mut self.abas[j];
@@ -867,6 +871,9 @@ impl Workbook {
             if !mesma {
                 alvo.versao = proxima_versao(alvo.versao);
             }
+        }
+        for j in mexidas {
+            self.abas[j].sheet.esquecer_historico();
         }
         // Estrutura: tudo pode ter mudado de lugar.
         self.mudar_com_alcance(indice, vec![sujo], None, |_| {})

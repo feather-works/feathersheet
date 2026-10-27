@@ -223,7 +223,8 @@ mod testes {
         let valores=json!([[2,6],[9,null],["texto",20]]);
         assert_eq!(executar("worksheetCountIf",&json!([valores,">5"])).unwrap(),json!(3));
         assert_eq!(executar("worksheetCountIf",&json!([[5,"5",null],"5"])).unwrap(),json!(1));
-        assert_eq!(executar("worksheetCountIf",&json!([[5,"5",null,6],"<>5"])).unwrap(),json!(3));
+        // "<>5" é o contrário de "=5", que no motor casa também o texto "5" (#57).
+        assert_eq!(executar("worksheetCountIf",&json!([[5,"5",null,6],"<>5"])).unwrap(),json!(2));
         assert_eq!(executar("worksheetSumIf",&json!([[5,6],">5",null])).unwrap(),json!(0.0));
     }
 

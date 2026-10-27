@@ -302,6 +302,17 @@ fn renomear_reescreve_as_formulas_que_citam_a_aba() {
 }
 
 #[test]
+fn renomear_para_nome_que_parece_celula_poe_aspas() {
+    let mut w = Workbook::new();
+    let d = w.criar_aba("Dados1");
+    w.escrever_celula(d, 0, 1, "4".into());
+    w.escrever_celula(0, 0, 0, "=Dados1!B1*2".into());
+    assert!(w.renomear_aba(d, "AB12"));
+    assert_eq!(w.aba(0).unwrap().sheet.get_raw(0, 0), "='AB12'!B1*2");
+    assert_eq!(w.valor(0, 0, 0), crate::celulas::values::Value::Number(8.0));
+}
+
+#[test]
 fn reescrever_nao_pega_pedaco_de_outro_nome() {
     assert_eq!(reescrever_aba("=XDados!A1+Dados!B2", "Dados", "D"), "=XDados!A1+D!B2");
 }
@@ -635,4 +646,15 @@ fn nome_de_outra_aba_serve_de_intervalo_em_somases_e_corresp() {
     assert_eq!(w.valor(0, 2, 0), Value::Number(35.0));
     assert_eq!(w.valor(0, 0, 0), Value::Number(15.0));
     assert_eq!(w.valor(0, 1, 0), Value::Number(2.0));
+}
+
+#[test]
+fn ctrl_z_depois_de_inserir_linhas_nao_apaga_a_celula_errada() {
+    let mut w = Workbook::new();
+    w.escrever_celula(0, 2, 0, "manter".into());
+    w.escrever_celula(0, 4, 0, "x".into());
+    w.inserir_linhas(0, 0, 2);
+    assert!(!w.aba_mut(0).unwrap().sheet.undo(), "o histórico velho foi esquecido");
+    assert_eq!(w.aba(0).unwrap().sheet.get_raw(4, 0), "manter");
+    assert_eq!(w.aba(0).unwrap().sheet.get_raw(6, 0), "x");
 }

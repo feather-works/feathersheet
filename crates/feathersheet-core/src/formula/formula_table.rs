@@ -958,13 +958,20 @@ impl FormulaTable {
         let salva = PartesColuna { slots, payload, bitmap };
         let mut novos_slots = vec![0i32; length];
         let mut novo_payload = vec![0.0f64; length];
+        let mut bitmap = salva.bitmap.to_vec();
+        let padroes = self.patterns.len();
         let usados = self.used_by_col.entry(col).or_default();
 
         for r in 0..length {
-            if salva.bitmap[r >> 3] & (1 << (r & 7)) == 0 {
+            if bitmap[r >> 3] & (1 << (r & 7)) == 0 {
                 continue;
             }
             let slot = salva.slots[r];
+            // Arquivo corrompido: padrão que não existe derrubaria o app na primeira edição.
+            if slot < 0 || (slot >> KIND_BITS) as usize >= padroes {
+                bitmap[r >> 3] &= !(1 << (r & 7));
+                continue;
+            }
             let kind = slot & KIND_MASK;
             novos_slots[r] = slot;
             usados.insert(slot >> KIND_BITS);
@@ -979,8 +986,8 @@ impl FormulaTable {
             };
         }
         let entry = self.column(col);
-        entry.slot.load_flat(&novos_slots, &salva.bitmap, length);
-        entry.payload.load_flat(&novo_payload, &salva.bitmap, length);
+        entry.slot.load_flat(&novos_slots, &bitmap, length);
+        entry.payload.load_flat(&novo_payload, &bitmap, length);
         entry.invalidada.store(false, Ordering::Relaxed);
         self.recontar_externas();
     }

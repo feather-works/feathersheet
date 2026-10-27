@@ -1726,6 +1726,39 @@ mod tests {
 }
 
 #[cfg(test)]
+mod testes_criterio_excel {
+    use crate::celulas::values::Value;
+    use crate::planilha::sheet::Sheet;
+
+    /// A1:A3 = 1, 2, texto "2"; B1:B3 = "abc", "b", vazio.
+    fn calc(f: &str) -> Value {
+        let mut s = Sheet::new("Plan1");
+        s.set_cell_raw(0, 0, "1".into(), None);
+        s.set_cell_raw(1, 0, "2".into(), None);
+        s.set_cell_raw(2, 0, "=\"2\"".into(), None);
+        s.set_cell_raw(0, 1, "abc".into(), None);
+        s.set_cell_raw(1, 1, "b".into(), None);
+        s.set_cell_raw(0, 5, format!("={f}"), None);
+        s.get_value(0, 5)
+    }
+
+    #[test]
+    fn dois_e_igual_dois_contam_o_mesmo() {
+        assert_eq!(calc("CONT.SE(A1:A3;\"2\")"), Value::Number(2.0));
+        assert_eq!(calc("CONT.SE(A1:A3;\"=2\")"), Value::Number(2.0));
+        assert_eq!(calc("SOMASE(A1:A3;\"2\")"), Value::Number(2.0));
+        assert_eq!(calc("CONT.SE(A1:A3;\"<>2\")"), Value::Number(1.0));
+    }
+
+    #[test]
+    fn comparacao_so_olha_o_mesmo_tipo() {
+        assert_eq!(calc("CONT.SE(B1:B3;\">0\")"), Value::Number(0.0));
+        assert_eq!(calc("CONT.SE(B1:B3;\"<c\")"), Value::Number(2.0));
+        assert_eq!(calc("CONT.SE(A1:B3;\"<5\")"), Value::Number(2.0));
+    }
+}
+
+#[cfg(test)]
 mod testes_reescrita {
     use crate::celulas::values::{ErrorCode, Value};
     use crate::planilha::sheet::Sheet;

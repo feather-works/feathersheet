@@ -167,7 +167,9 @@ impl ChaveCriterio {
             Value::Text(t) => {
                 let aparado = t.trim();
                 if aparado.is_empty() || t.contains('*') || t.contains('?')
-                    || aparado.starts_with(['<', '>', '=']) {
+                    || aparado.starts_with(['<', '>', '='])
+                    // `"2"` casa também o número 2: fica com a varredura.
+                    || crate::celulas::number::from_js_string(&aparado.replacen(',', ".", 1)).is_some() {
                     return None;
                 }
                 Some(ChaveCriterio::Texto(minusculas(t)))

@@ -14,12 +14,15 @@ use crate::celulas::values::{CellError, Computed, ErrorCode, Value};
 
 /// Converte (Ano, Mês, Dia) em serial numérico do Excel/FeatherSheet.
 pub fn ymd_to_serial(y: i32, m: i32, d: i32) -> f64 {
+    // Mês fora de 1..12 vira ano (DATA(2023;15;1) = 01/03/2024); em i64, sem estouro.
+    let (y, m, d) = (i64::from(y), i64::from(m), i64::from(d));
+    let (y, m) = (y + (m - 1).div_euclid(12), (m - 1).rem_euclid(12) + 1);
     let (year, month) = if m <= 2 { (y - 1, m + 12) } else { (y, m) };
-    let era = (if year >= 0 { year } else { year - 399 }) / 400;
-    let yoe = (year - era * 400) as i64;
+    let era = year.div_euclid(400);
+    let yoe = year - era * 400;
     let doy = (153 * (month - 3) + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy as i64;
-    let days = era as i64 * 146097 + doe - 719468;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe - 719468;
     let ms = (days as f64) * 86_400_000.0;
     timestamp_to_serial(ms)
 }
@@ -248,7 +251,8 @@ pub fn fn_datedif(args: &[Node], ev: &Evaluator<'_>) -> Computed {
                 (d2 - d1) as f64
             } else {
                 let prev_last = days_in_month(y2, if m2 == 1 { 12 } else { m2 - 1 });
-                (prev_last - d1 + d2) as f64
+                // 31/01 → 01/03: o mês anterior (fevereiro) é mais curto que o dia inicial.
+                (i64::from(prev_last) - i64::from(d1) + i64::from(d2)).max(0) as f64
             }
         }
         _ => return err_num(),
@@ -272,8 +276,11 @@ pub fn fn_edate(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     };
 
     let (y, m, d) = serial_to_ymd(start as i64);
-    let total_months = (m as i32 - 1) + months;
-    let target_y = y + total_months.div_euclid(12);
+    let total_months = (i64::from(m) - 1) + i64::from(months);
+    let Ok(target_y) = i32::try_from(i64::from(y) + total_months.div_euclid(12)) else { return err_num() };
+    if !(0..=9999).contains(&target_y) {
+        return err_num();
+    }
     let target_m = (total_months.rem_euclid(12) + 1) as u32;
     let max_day = days_in_month(target_y, target_m);
     let target_d = d.min(max_day);
@@ -296,8 +303,11 @@ pub fn fn_eomonth(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     };
 
     let (y, m, _) = serial_to_ymd(start as i64);
-    let total_months = (m as i32 - 1) + months;
-    let target_y = y + total_months.div_euclid(12);
+    let total_months = (i64::from(m) - 1) + i64::from(months);
+    let Ok(target_y) = i32::try_from(i64::from(y) + total_months.div_euclid(12)) else { return err_num() };
+    if !(0..=9999).contains(&target_y) {
+        return err_num();
+    }
     let target_m = (total_months.rem_euclid(12) + 1) as u32;
     let max_day = days_in_month(target_y, target_m);
 
@@ -797,6 +807,24 @@ mod tests {
         let mut sheet = Sheet::new("Plan1");
         sheet.set_cell_raw(0, 0, format!("={f}"), None);
         sheet.get_value(0, 0)
+    }
+
+    #[test]
+    fn mes_fora_de_1_a_12_e_argumento_enorme() {
+        assert_eq!(calc("DATA(2023; 15; 1)"), calc("DATA(2024; 3; 1)"));
+        assert_eq!(calc("DATA(2027; 26; 1)"), calc("DATA(2029; 2; 1)"));
+        assert_eq!(calc("DATA(2026; -20; 1)"), calc("DATA(2024; 4; 1)"));
+        assert_eq!(calc("DATA(2026; 0; 1)"), calc("DATA(2025; 12; 1)"));
+        // Não estouram (antes: pânico em debug, lixo em release).
+        let _ = calc("DATA(2026; 3000000000; 1)");
+        assert!(matches!(calc("DATAM(1; 1E10)"), Value::Error(_)));
+        assert!(matches!(calc("FIMMÊS(1; -1E10)"), Value::Error(_)));
+    }
+
+    #[test]
+    fn datadif_md_com_mes_anterior_curto_nao_fica_negativo() {
+        let Value::Number(n) = calc("DATADIF(DATA(2026; 1; 31); DATA(2026; 3; 1); \"md\")") else { panic!() };
+        assert!((0.0..31.0).contains(&n), "{n}");
     }
 
     #[test]

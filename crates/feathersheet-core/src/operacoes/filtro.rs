@@ -384,9 +384,9 @@ mod testes {
 
     #[test]
     fn criterio_classico_do_cont_se() {
-        // Conferido contra o `makePredicate` do TypeScript: texto e lógico
-        // passam em ">5" (na ordem do Excel, vêm depois dos números).
-        assert_eq!(escondidas(Criterio::Classico(Value::Text(">5".into()))), vec![(3, 3), (5, 5)]);
+        // Como o CONT.SE do Excel: ">5" só olha número; texto, vazio e
+        // lógico ficam de fora (o TypeScript deixava texto e lógico passar).
+        assert_eq!(escondidas(Criterio::Classico(Value::Text(">5".into()))), vec![(0, 1), (3, 6)]);
     }
 
     // ---- cor, 10 primeiros, média e datas ------------------------------

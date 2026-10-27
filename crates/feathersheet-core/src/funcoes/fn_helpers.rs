@@ -148,18 +148,30 @@ pub fn make_predicate(criterion: &Value) -> Predicate {
         if let Some((op, resto)) = partir_comparacao(texto.trim()) {
             let alvo = alvo_do_criterio(resto);
             return Box::new(move |v| {
+                match op {
+                    Comparacao::Eq => return criterio_igual(v, &alvo),
+                    Comparacao::Ne => return !criterio_igual(v, &alvo),
+                    _ => {}
+                }
+                // Como o Excel: `">0"` só olha número e `"<b"` só olha texto;
+                // vazio, lógico e o outro tipo ficam de fora.
+                if !matches!((v, &alvo), (Value::Number(_), Value::Number(_)) | (Value::Text(_), Value::Text(_))) {
+                    return false;
+                }
                 let Ok(ordem) = compare(v, &alvo) else {
                     return false;
                 };
                 match op {
-                    Comparacao::Eq => ordem.is_eq(),
-                    Comparacao::Ne => !ordem.is_eq(),
                     Comparacao::Lt => ordem == Ordering::Less,
                     Comparacao::Le => ordem != Ordering::Greater,
                     Comparacao::Gt => ordem == Ordering::Greater,
-                    Comparacao::Ge => ordem != Ordering::Less,
+                    _ => ordem != Ordering::Less,
                 }
             });
+        }
+        // `"2"` é o mesmo que `"=2"`: casa o número 2 e o texto "2".
+        if let alvo @ Value::Number(_) = alvo_do_criterio(texto.trim()) {
+            return Box::new(move |v| criterio_igual(v, &alvo));
         }
         if texto.contains('*') || texto.contains('?') {
             let padrao = compilar_curinga(texto);
@@ -249,6 +261,17 @@ fn partir_comparacao(texto: &str) -> Option<(Comparacao, &str)> {
 }
 
 /// O que vem depois do operador: número quando dá, texto quando não dá.
+/// A igualdade de um critério (`"=2"`, `"2"`, `"=Sul"`): alvo numérico casa
+/// o número e o texto que lê como esse número; vazio só casa com `"="`.
+fn criterio_igual(v: &Value, alvo: &Value) -> bool {
+    match (v, alvo) {
+        (Value::Number(y), Value::Number(x)) => y == x,
+        (Value::Text(s), Value::Number(x)) => alvo_do_criterio(s.trim()) == Value::Number(*x),
+        (_, Value::Number(_)) => false,
+        _ => compare(v, alvo) == Ok(Ordering::Equal),
+    }
+}
+
 fn alvo_do_criterio(resto: &str) -> Value {
     if resto.is_empty() || resto.trim().is_empty() {
         return Value::Text(resto.to_string());

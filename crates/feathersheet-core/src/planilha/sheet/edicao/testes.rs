@@ -638,3 +638,23 @@ fn desfazer_varias_celulas_de_uma_vez_recalcula_quem_depende() {
     assert!(s.redo());
     assert_eq!(s.get_value(1, 1), Value::Number(60.0));
 }
+
+#[test]
+fn desfazer_ordenacao_devolve_formula_que_virou_ref() {
+    let mut s = Sheet::new("Plan1");
+    for (r, v) in ["3", "1", "2"].iter().enumerate() {
+        s.set_cell_raw(r as u32, 0, (*v).into(), None);
+    }
+    s.set_cell_raw(0, 3, "100".into(), None);
+    s.set_cell_raw(2, 1, "=D1".into(), None);
+    s.set_cell_raw(2, 2, "=SOMA(D1:D2)".into(), None);
+    s.clear_history();
+    s.permutar_linhas(0, 0, 2, &[2, 0, 1]);
+    assert!(s.undo());
+    assert_eq!(s.get_raw(2, 1), "=D1");
+    assert_eq!(s.get_raw(2, 2), "=SOMA(D1:D2)");
+    assert_eq!(s.get_raw(0, 0), "3");
+    assert!(s.redo());
+    assert!(s.undo());
+    assert_eq!(s.get_raw(2, 1), "=D1");
+}

@@ -207,3 +207,22 @@ fn salvar_guarda_o_erro_repetido_uma_vez_e_volta_igual() {
         assert_eq!(&lida.value_at(r, 1, &pool), v, "linha {r}");
     }
 }
+
+#[test]
+fn padrao_inexistente_no_arquivo_e_descartado_na_carga() {
+    let mut pool = StringPool::default();
+    let mut t = FormulaTable::new();
+    for r in 0..3 {
+        assert!(t.set(r, 1, &format!("=A{}", r + 1), |_| true));
+    }
+    let mut salva = t.save_column(1, 3, &pool).unwrap();
+    salva.slots[1] = (99 << KIND_BITS) | (salva.slots[1] & KIND_MASK);
+    salva.slots[2] = -5;
+    let mut lida = FormulaTable::new();
+    lida.load_patterns(&t.patterns);
+    lida.load_column(1, &salva, 3, &mut pool);
+    assert!(lida.raw_at(0, 1).is_some());
+    assert_eq!(lida.raw_at(1, 1), None);
+    assert_eq!(lida.raw_at(2, 1), None);
+    let _ = lida.columns_in_use();
+}

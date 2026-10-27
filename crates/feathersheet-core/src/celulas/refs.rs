@@ -154,7 +154,12 @@ pub fn quote_sheet(name: &str) -> String {
             && arquivo.chars().all(|c| c.is_ascii_alphanumeric() || ('\u{C0}'..='\u{FF}').contains(&c) || matches!(c, '_' | '.' | '-'))
             && nome_simples(aba)
     });
-    if externo_simples || nome_simples(name) {
+    // `AB12!B1` seria lido como a célula AB12 seguida de `!`: precisa de aspas.
+    let parece_celula = |nome: &str| nome.find(|c: char| c.is_ascii_digit()).is_some_and(|i| {
+        col_index(&nome[..i]).is_some() && nome[i..].bytes().all(|b| b.is_ascii_digit())
+    });
+    let aba = name.strip_prefix('[').and_then(|resto| resto.split_once(']')).map_or(name, |(_, aba)| aba);
+    if (externo_simples || nome_simples(name)) && !parece_celula(aba) {
         name.to_owned()
     } else {
         format!("'{}'", name.replace('\'', "''"))
@@ -319,6 +324,16 @@ mod testes {
         assert_eq!(quote_sheet("[Vendas.fshz]Meu Plano"), "'[Vendas.fshz]Meu Plano'");
         assert_eq!(quote_sheet("/home/x/[Vendas.fshz]Dados"), "'/home/x/[Vendas.fshz]Dados'");
         assert_eq!(quote_sheet("[d'água.fshz]P"), "'[d''água.fshz]P'");
+        assert_eq!(quote_sheet("[Vendas.fshz]S2"), "'[Vendas.fshz]S2'");
+    }
+
+    #[test]
+    fn nome_que_parece_celula_tem_aspas() {
+        assert_eq!(quote_sheet("AB12"), "'AB12'");
+        assert_eq!(quote_sheet("S2"), "'S2'");
+        assert_eq!(quote_sheet("Plan1"), "Plan1");
+        assert_eq!(quote_sheet("Dados1"), "Dados1");
+        assert_eq!(quote_sheet("A1B"), "A1B");
     }
 
     #[test]
