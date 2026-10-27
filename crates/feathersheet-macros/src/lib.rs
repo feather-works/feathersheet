@@ -19,6 +19,7 @@ mod mesclagem;
 mod pasta;
 pub mod formularios;
 pub use pasta::{Contexto, PedidoArquivo};
+pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;
 use feathersheet_core::{
     celulas::{refs::parse_range_ref, estilo_parcial::{Campo, EstiloParcial, mesclar, nome_do_formato}},
@@ -172,6 +173,11 @@ fn bruto(v: &Json) -> String {
         Json::Null => String::new(),
         Json::String(s) => s.clone(),
         Json::Bool(b) => if *b { "VERDADEIRO" } else { "FALSO" }.into(),
+        // Conta do JS chega como 9980.0: a célula guarda "9980", como o número digitado.
+        Json::Number(n) => match n.as_f64() {
+            Some(x) if x.fract() == 0.0 && x.abs() < 1e15 => format!("{}", x as i64),
+            _ => n.to_string(),
+        },
         outro => outro.to_string(),
     }
 }
