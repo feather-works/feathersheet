@@ -349,6 +349,33 @@ enum Passo {
     Divisao { area: [u32; 4], antes: Vec<Passo>, refazer: Refazer },
 }
 
+/// Um texto do [`Sheet::gravar_bloco_vazio`] já analisado (pode ser feito fora da thread
+/// da planilha).
+enum Literal {
+    Vazio,
+    /// Fórmula, erro ou texto que pede formato (data, %): vai pelo `set_cell_divisao`.
+    Lento,
+    /// O valor e se o texto digitado precisa ser guardado à parte.
+    Valor(Value, bool),
+}
+
+fn analisar_literal(raw: &str) -> Literal {
+    if raw.is_empty() { return Literal::Vazio; }
+    let analisado = crate::celulas::input::parse_literal(raw);
+    if raw.starts_with('=') || matches!(analisado.value, Value::Error(_))
+        || formato_do_literal(analisado.format).is_some() {
+        return Literal::Lento;
+    }
+    let preserva = match &analisado.value {
+        Value::Text(texto) => texto != raw,
+        Value::Number(numero) => to_js_string(*numero) != raw,
+        Value::Bool(true) => raw != "VERDADEIRO",
+        Value::Bool(false) => raw != "FALSO",
+        _ => true,
+    };
+    Literal::Valor(analisado.value, preserva)
+}
+
 /// A receita do refazer de um [`Passo::Divisao`].
 #[derive(Clone)]
 pub struct Refazer(pub Arc<dyn Fn(&mut Sheet) + Send + Sync>);
@@ -2148,10 +2175,24 @@ impl Sheet {
             // descartado no fim, não num passo de desfazer à parte.
             let salvo = (s.hist.pendente.replace(Vec::new()), s.hist.profundidade);
             s.hist.profundidade = 1;
-            for (i, linha) in linhas.iter().enumerate() {
-                let row = r0 + i as u32;
-                for (j, raw) in linha.iter().enumerate() {
-                    s.gravar_literal_sem_registro(row, c0 + j as u32, raw);
+            // Analisar o texto é o caro e não mexe na planilha: uma coluna por núcleo. Pôr na
+            // coluna de dados fica em série (o depósito de textos é um só).
+            let colunas: Vec<u32> = (0..nc).collect();
+            let analisadas = crate::paralelismo::por_coluna(&colunas, |j| {
+                linhas.iter().map(|l| l.get(j as usize).map_or(Literal::Vazio, |raw| analisar_literal(raw))).collect::<Vec<_>>()
+            });
+            for (j, coluna) in analisadas.into_iter().enumerate() {
+                let col = c0 + j as u32;
+                for (i, lit) in coluna.into_iter().enumerate() {
+                    let row = r0 + i as u32;
+                    match lit {
+                        Literal::Vazio => {}
+                        Literal::Lento => s.set_cell_divisao(row, col, &linhas[i][j]),
+                        Literal::Valor(valor, preserva) => {
+                            s.data.set_cell_value(row, col, &valor, &mut s.pool);
+                            if preserva { s.textos.insert(key(row, col), &linhas[i][j]); }
+                        }
+                    }
                 }
             }
             s.hist.pendente = salvo.0;
@@ -2176,28 +2217,6 @@ impl Sheet {
         self.sheet_style.is_none() && self.row_styles.is_empty()
             && (c0..=c1).all(|c| !self.col_styles.contains_key(&c) && self.faixa_vazia(c, r0, r1))
             && !self.styles.alguma_no_retangulo(r0, c0, r1, c1, |_, _, _| true)
-    }
-
-    /// Uma célula do [`Self::gravar_bloco_vazio`]: célula vazia e sem estilo.
-    fn gravar_literal_sem_registro(&mut self, row: u32, col: u32, raw: &str) {
-        if raw.is_empty() { return; }
-        let analisado = crate::celulas::input::parse_literal(raw);
-        if raw.starts_with('=') || matches!(analisado.value, Value::Error(_))
-            || formato_do_literal(analisado.format).is_some() {
-            self.set_cell_divisao(row, col, raw);
-            return;
-        }
-        let preserva_raw = match &analisado.value {
-            Value::Text(texto) => texto != raw,
-            Value::Number(numero) => to_js_string(*numero) != raw,
-            Value::Bool(true) => raw != "VERDADEIRO",
-            Value::Bool(false) => raw != "FALSO",
-            _ => true,
-        };
-        self.data.set_cell_value(row, col, &analisado.value, &mut self.pool);
-        if preserva_raw {
-            self.textos.insert(key(row, col), raw);
-        }
     }
 
     /// Dá o estilo `estilo` a `r0..=r1` da coluna `col` como uma faixa só

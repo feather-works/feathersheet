@@ -21,7 +21,11 @@ fn main() {
     // FEATHERSHEET_XLSX=arquivo.xlsx: roda nos dados desse arquivo (aba "Vendas") em vez dos sintéticos.
     if let Ok(x) = std::env::var("FEATHERSHEET_XLSX") {
         let t = std::time::Instant::now();
-        wb = feathersheet_io::xlsx_read::ler_xlsx_arquivo(std::path::Path::new(&x)).expect("ler .xlsx").0;
+        wb = if x.ends_with(".fshz") {
+            feathersheet_io::para_workbook::para_workbook_soltando(feathersheet_io::fshz_read::ler_fshz_arquivo(std::path::Path::new(&x)).expect("ler .fshz"))
+        } else {
+            feathersheet_io::xlsx_read::ler_xlsx_arquivo(std::path::Path::new(&x)).expect("ler .xlsx").0
+        };
         println!("lido em {:?}", t.elapsed());
     }
     let t = std::time::Instant::now();
