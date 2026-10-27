@@ -227,3 +227,14 @@ fn macro_copia_para_outra_aba() {
     assert_eq!(d.get_raw(8,0),"7");
     assert!(executar(&mut wb,0,"sheet.range('A1').copy('B1', {sheet: 'Nada'});").erro.is_some());
 }
+
+#[test]
+fn macro_ajusta_a_largura_pelo_conteudo_e_aceita_inteiro_vindo_como_fracao() {
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, "sheet.set('B1', 'um texto bem comprido para a coluna B ficar larga'); sheet.set('C1', 'x'); sheet.autoFitColumns('B:C'); sheet.set('D1', sheet.resize('A1', 0.5 * 4, 1).address);");
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    let s = &wb.aba(0).unwrap().sheet;
+    assert!(s.col_widths.get(&1).is_some_and(|&l| l > 200), "{:?}", s.col_widths);
+    assert!(s.col_widths.get(&2).is_some_and(|&l| l < 122), "{:?}", s.col_widths);
+    assert_eq!(wb.valor(0, 0, 3), feathersheet_core::Value::Text("A1:A2".into()));
+}

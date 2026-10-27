@@ -133,3 +133,12 @@ fn sem_resume_next_o_erro_para_a_macro() {
     assert!(r.erro.is_some());
     assert_eq!(wb.valor(0, 0, 0), Value::Empty);
 }
+
+#[test]
+fn intervalo_com_varias_areas_repete_a_instrucao_em_cada_uma() {
+    let wb = roda("Sub T()\n  Dim u As Long\n  u = 3\n  Range(\"A1:A\" & u & \",C2\").Value = 5\n  Range(\"A1,C2\").Font.Bold = True\nEnd Sub\n", "T");
+    for (l, c) in [(0, 0), (2, 0), (1, 2)] {
+        assert_eq!(wb.valor(0, l, c), Value::Number(5.0));
+    }
+    assert_eq!(wb.valor(0, 1, 1), Value::Empty);
+}

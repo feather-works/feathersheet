@@ -267,6 +267,7 @@
       "setShowGridlines": "Shows or hides the gridlines.",
       "setRowHeight": "Row height (the first is 1), in **pixels**.",
       "setColumnWidth": "Column width (letter or number), in **pixels**.",
+      "autoFitColumns": "Fits the column width to the content, like double-clicking the border (`\"A:F\"`, `\"B\"`).",
       "autoFitColumn": "Fits the column width to its content. Only on the sheet on screen.",
       "hideRow": "Hides the row (or shows it again with `false`).",
       "hideColumn": "Hides the column (or shows it again with `false`).",

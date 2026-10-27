@@ -267,6 +267,7 @@
       "setShowGridlines": "Mostra ou esconde as linhas de grade.",
       "setRowHeight": "Altura da linha (a primeira é 1), em **pixels**.",
       "setColumnWidth": "Largura da coluna (letra ou número), em **pixels**.",
+      "autoFitColumns": "Ajusta a largura das colunas ao conteúdo, como o duplo clique na borda (`\"A:F\"`, `\"B\"`).",
       "autoFitColumn": "Ajusta a largura da coluna ao conteúdo. Só na aba que está na tela.",
       "hideRow": "Oculta a linha (ou reexibe, com `false`).",
       "hideColumn": "Oculta a coluna (ou reexibe, com `false`).",

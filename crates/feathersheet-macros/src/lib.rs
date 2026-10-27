@@ -343,6 +343,32 @@ impl HospedeiroMacros for HospedeiroSheet {
                 }
                 return Ok(Json::Null);
             }
+            if op == "autoFitColumns" {
+                // A mesma medida do duplo clique na borda da coluna (`operacoes::autoajuste`).
+                let endereco = dados[1].as_str().ok_or("autoFitColumns: informe as colunas (\"A:F\")")?;
+                let area = parse_range_ref(endereco).ok_or_else(|| format!("Endereço inválido: {endereco}"))?.normalized();
+                let sheet = &e.pasta.aba(aba).unwrap().sheet;
+                let padrao = sheet.largura_padrao.unwrap_or(122);
+                let larguras = feathersheet_core::operacoes::autoajuste::larguras_ideais(&e.pasta, aba, area.c0, area.c1, padrao, &mesclagem::ler(sheet));
+                let iniciou = e.alteradas.insert(aba);
+                if iniciou { e.pasta.aba_mut(aba).unwrap().sheet.abrir_transacao(); }
+                let mut mudou = false;
+                let mut erro = None;
+                e.pasta.editar(aba, |sheet| {
+                    for (indice, pixels) in larguras {
+                        match estrutura::aplicar(sheet, estrutura::Acao::Definir { coluna: true, indice, pixels }) {
+                            Ok(m) => mudou |= m,
+                            Err(x) => { erro = Some(x); break; }
+                        }
+                    }
+                });
+                if let Some(x) = erro { return Err(x); }
+                if iniciou && !mudou {
+                    e.pasta.aba_mut(aba).unwrap().sheet.reverter_transacao();
+                    e.alteradas.remove(&aba);
+                }
+                return Ok(Json::Null);
+            }
             if matches!(op, "offset" | "resize" | "columnOf" | "rowOf") {
                 return navegacao_intervalos::executar(op, dados);
             }
@@ -958,6 +984,8 @@ function __sheet(indice) {
         columnCount:a=>__ft('columnCount',[i,a]),
         setRowHeight:(r,px)=>{__ft('setRowHeight',[i,r,px]);return sheet;},
         setColumnWidth:(c,px)=>{__ft('setColumnWidth',[i,c,px]);return sheet;},
+        // Largura pelo conteúdo, como o duplo clique na borda: "A:F", "B" ou "B2:D9".
+        autoFitColumns:a=>{a=String(a);__ft('autoFitColumns',[i,/^[A-Z]+$/i.test(a)?a+':'+a:a]);return sheet;},
         hideRow:(r,hide=true)=>{__ft('hideRow',[i,r,hide]);return sheet;},
         hideColumn:(c,hide=true)=>{__ft('hideColumn',[i,c,hide]);return sheet;},
         getDataRange:()=>{

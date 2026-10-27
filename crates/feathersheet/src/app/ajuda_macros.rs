@@ -84,6 +84,7 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
     ("excel-estrutura", &[
         ("setRowHeight", "sheet.setRowHeight(row, px)", "sheet.setRowHeight(1, 28);"),
         ("setColumnWidth", "sheet.setColumnWidth(col, px)", "sheet.setColumnWidth(\"A\", 120);"),
+        ("autoFitColumns", "sheet.autoFitColumns(cols)", "sheet.autoFitColumns(\"A:F\");"),
         ("autoFitColumn", "sheet.autoFitColumn(col)", "sheet.autoFitColumn(\"A\");"),
         ("hideRow", "sheet.hideRow(row, hide = true)", "sheet.hideRow(5);"),
         ("hideColumn", "sheet.hideColumn(col, hide = true)", "sheet.hideColumn(\"B\");"),
@@ -194,7 +195,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),137);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),138);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {

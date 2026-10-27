@@ -4,7 +4,9 @@ use feathersheet_core::celulas::refs::{parse_range_ref, Rect, MAX_ROWS, MAX_COLS
 use serde_json::{json,Value as Json};
 
 fn argumento_int(args:&Json,i:usize,op:&str)->Result<i64,String> {
-    args[i].as_i64().ok_or_else(||format!("{op}: parâmetro deve ser inteiro"))
+    // Conta feita no JS (`k / 2 * 2`, `Math.round`) chega como 5.0, não 5.
+    args[i].as_i64().or_else(||args[i].as_f64().filter(|x|x.fract()==0.0&&x.abs()<9e15).map(|x|x as i64))
+        .ok_or_else(||format!("{op}: parâmetro deve ser inteiro"))
 }
 fn retangulo(args:&Json)->Result<Rect,String> {
     let s=args[1].as_str().ok_or("Informe um intervalo A1")?;

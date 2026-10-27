@@ -10,7 +10,7 @@ use feathersheet_core::{
 
 /// Mantém a normalização própria do macro legado (sem nome de aba),
 /// mas reusa o mesmo saneamento geométrico que a GUI Rust.
-fn ler(sheet:&Sheet)->Vec<Rect> {
+pub(crate) fn ler(sheet:&Sheet)->Vec<Rect> {
     let registros: Vec<Rect>=sheet.mc.as_deref()
         .and_then(|txt|serde_json::from_str(txt).ok()).unwrap_or_default();
     let registros=registros.into_iter().map(|mut r|{ r.sheet=None; r }).collect();

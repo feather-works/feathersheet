@@ -267,6 +267,7 @@
    "setShowGridlines": "Muestra u oculta las líneas de la cuadrícula.",
    "setRowHeight": "Altura de la fila (la primera es 1), en **píxeles**.",
    "setColumnWidth": "Ancho de la columna (letra o número), en **píxeles**.",
+   "autoFitColumns": "Ajusta el ancho de las columnas al contenido, como el doble clic en el borde (`\"A:F\"`, `\"B\"`).",
    "autoFitColumn": "Ajusta el ancho de la columna a su contenido. Solo en la hoja en pantalla.",
    "hideRow": "Oculta la fila (o la muestra de nuevo con `false`).",
    "hideColumn": "Oculta la columna (o la muestra de nuevo con `false`).",

@@ -31,6 +31,10 @@ impl Gerador<'_> {
         if n == "onaction" {
             return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)"));
         }
+        if let Some((o, end)) = por_area(&o) {
+            let js = self.atribuir_propriedade(o, prop, valor)?;
+            return Ok(format!("for (const $area of String({end}).split(',')) {{ {js} }}"));
+        }
         match o {
             Obj::Faixa(f) => self.escrever_na_faixa(&f, &n, valor),
             Obj::Parte(f, Parte::Interior) => self.escrever_fundo(&f, &n, valor),
@@ -418,6 +422,10 @@ impl Gerador<'_> {
     /// `obj.Metodo args` → a instrução JS.
     pub fn metodo(&mut self, o: Obj, nome: &str, args: &[Arg]) -> R<String> {
         let n = nome.to_lowercase();
+        if let Some((o, end)) = por_area(&o) {
+            let js = self.metodo(o, nome, args)?;
+            return Ok(format!("for (const $area of String({end}).split(',')) {{ {js} }}"));
+        }
         match o {
             Obj::Faixa(f) => self.metodo_da_faixa(&f, &n, args),
             Obj::Formulario(f) => match n.as_str() {
@@ -488,7 +496,7 @@ impl Gerador<'_> {
                 };
                 format!("vba.{}({aba}, {end}, {modo});", self.ajuda("colar"))
             }
-            "autofit" if f.inteira == Inteira::Colunas => format!("{aba}.autoFitColumn(vba.{}({end}));", self.ajuda("coluna")),
+            "autofit" if f.inteira == Inteira::Colunas => format!("{aba}.autoFitColumns({end});"),
             "autofit" => String::new(),
             "replace" => {
                 let p: Vec<&Expr> = args.iter().filter_map(|a| a.valor.as_ref()).collect();
@@ -645,4 +653,32 @@ fn e_data(e: &Expr) -> bool {
         Expr::Paren(x) => e_data(x),
         _ => false,
     }
+}
+
+/// `Range("A1:A9,C1:C9")`: a API das macros fala de uma área por vez, então a instrução
+/// repete para cada uma (`$area`). `None` quando o endereço é de uma área só.
+fn por_area(o: &Obj) -> Option<(Obj, String)> {
+    let f = match o {
+        Obj::Faixa(f) | Obj::Parte(f, _) => f,
+        _ => return None,
+    };
+    // Só texto ou modelo de texto: numa chamada (`vba.fim(ws, …)`) a vírgula separa argumentos.
+    let fora_de_chaves = f.end.starts_with(['"', '`']) && {
+        let mut nivel = 0;
+        f.end.chars().any(|c| match c {
+            '{' => { nivel += 1; false }
+            '}' => { nivel -= 1; false }
+            ',' => nivel == 0,
+            _ => false,
+        })
+    };
+    if !fora_de_chaves {
+        return None;
+    }
+    let um = Faixa { end: "$area".into(), literal: None, ..f.clone() };
+    let end = f.end.clone();
+    Some((match o {
+        Obj::Parte(_, p) => Obj::Parte(um, p.clone()),
+        _ => Obj::Faixa(um),
+    }, end))
 }
