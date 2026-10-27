@@ -913,8 +913,13 @@ class __CellError {
     }
     toString(){return this.code;}
 }
+// No próprio array que veio da ponte, e só desce em objeto: com `map`, cada célula lida
+// era uma chamada de função (0,8 s em 200 mil linhas, 27/10/2026).
 const __ftRevive = v => {
-    if(Array.isArray(v)) return v.map(__ftRevive);
+    if(Array.isArray(v)) {
+        for(let i=0;i<v.length;i++){ const x=v[i]; if(x!==null && typeof x==='object') v[i]=__ftRevive(x); }
+        return v;
+    }
     if(v!==null && typeof v==='object' && __codigosErro.has(v.__ftCellError))
         return new __CellError(v.__ftCellError,v.detail);
     return v;
