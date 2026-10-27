@@ -750,7 +750,7 @@ mod tests {
         let sh = &wb.aba(0).unwrap().sheet;
         assert_eq!(sh.get_value(0, 0), Value::Text("00123".into()));
         // shortcut: o texto "VERDADEIRO" ainda volta lógico — a coluna de dados
-        // guarda o lógico como esse mesmo texto no pool (data_table.rs).
+        // guarda o lógico como esse mesmo texto no pool (data_table.rs, #66).
         assert_eq!(sh.get_value(0, 2), Value::Text("=SOMA(1;2)".into()));
         assert_eq!(sh.get_value(0, 3), Value::Text("R$ 5".into()));
     }

@@ -151,6 +151,19 @@ mod testes {
         assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(0, 0), "ativou");
     }
 
+    /// #59: o que a macro de evento escreve numa aba protegida é desfeito,
+    /// como o que a pessoa ou um botão de macro escreveria.
+    #[test]
+    fn evento_nao_escreve_em_aba_protegida() {
+        use feathersheet_core::planilha::sheet::protecao::ProtecaoPlanilha;
+        let mut app = app_com_evento("aoAtivar", "sheet.set('A1', 'ativou');");
+        app.eventos_vba[0].aba = "Dados".into();
+        let outra = app.workbook.criar_aba("Dados");
+        app.workbook.editar(outra, |s| { s.proteger(ProtecaoPlanilha { senha: None, permitidas: Default::default() }); });
+        app.update(Msg::Aba(outra));
+        assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(0, 0), "", "célula bloqueada não muda");
+    }
+
     /// Arquivo aberto com evento: nada roda até "Ativar macros".
     #[test]
     fn evento_de_arquivo_aberto_so_roda_depois_de_ativar() {

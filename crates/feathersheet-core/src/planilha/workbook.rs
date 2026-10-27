@@ -754,7 +754,7 @@ impl Workbook {
     /// histórico desta aba e das que tiveram fórmula consertada é esquecido
     /// no fim: um Ctrl+Z velho cairia na célula errada. shortcut: inserir e
     /// excluir não se desfazem; um `Passo::Estrutura` com a fatia removida
-    /// resolveria.
+    /// resolveria (#65).
     pub fn mover_estrutura(
         &mut self,
         indice: usize,
