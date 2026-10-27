@@ -21,6 +21,28 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.1.5",
+        data: "26/10/2026",
+        resumo: "Formulários nas macros",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("code", "Formulários nas macros", "O UserForm do VBA: designer no Alt+F11, janela própria e sheet.showComponent."),
+            ("table", "UserForm do .xlsm convertido", "O formulário do Excel vem com o desenho, as listas e o código dos botões."),
+            ("code", "Várias funções num módulo", "Botões e formulários chamam Módulo.função, como as Sub do VBA."),
+            ("palette", "Formatação condicional em janela própria", "\"Aplica-se a\" com Selecionar pela grade e filtro por planilha ou seleção."),
+            ("link", "Vínculos e macros mais seguros", "Arquivo do disco só lê vínculos depois de \"Atualizar valores\"; forma com macro respeita o bloqueio."),
+            ("math-function", "Fórmulas e datas corrigidas", "CONT.SE com \"2\" e \"=2\", DATAM fora do ano 9999 e aba com nome de célula."),
+        ],
+        tambem: &[
+            "Texto do .xlsx que parece número ou fórmula continua texto ao abrir.",
+            "Abrir e salvar não troca mais as fórmulas de lugar.",
+            "Ctrl+Z depois de ordenar devolve as fórmulas; inserir ou excluir linhas limpa o histórico em vez de desfazer errado.",
+            "Macro presa num laço sem fim para sozinha em 30 segundos.",
+            "Recuperação de cada janela aberta fica separada.",
+            "Limites conhecidos: inserir/excluir linhas ainda não entra no Ctrl+Z (#65); o texto \"VERDADEIRO\" do .xlsx volta como lógico (#66).",
+        ],
+    },
+    Versao {
         numero: "0.1.4",
         data: "22/10/2026",
         resumo: "Agora estamos com a biblioteca pelicano",

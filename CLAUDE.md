@@ -2,6 +2,14 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.1.5 — 26/10/2026
+
+Primeira versão só no pelicano depois do Iced apagado: formulários das macros
+(e o UserForm do `.xlsm`, #67), `Módulo.função`, formatação condicional em
+janela própria, e as correções da auditoria (#45–#64). Dependências: feather-io
+v0.1.4 (prazo de 30 s nas macros), feather-charts v0.3.2, feather-ui v0.3.2,
+pelicano v0.1.11.
+
 ## v0.1.0 lançada — 17/10/2026
 
 - **Dependências só por tag:** feather-io v0.1.1, feather-charts v0.3.1,
