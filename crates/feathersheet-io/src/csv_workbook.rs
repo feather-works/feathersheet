@@ -141,7 +141,8 @@ pub fn exportar_delimitado<W: std::io::Write>(
             if coluna > 0 { destino.write_all(&sep)?; }
             let celula = match workbook.valor(indice, linha, coluna) {
                 Value::Empty => String::new(),
-                Value::Number(v) => v.to_string(),
+                // A mesma escrita da tela (1e21, 1e-7), não a do Rust.
+                Value::Number(v) => feathersheet_core::celulas::number::to_js_string(v),
                 Value::Text(s) => s,
                 Value::Bool(true) => "VERDADEIRO".to_owned(),
                 Value::Bool(false) => "FALSO".to_owned(),

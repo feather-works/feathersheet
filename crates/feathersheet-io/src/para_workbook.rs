@@ -263,6 +263,13 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
         })
     };
 
+    // 0) a tabela de padrões do arquivo antes das avulsas: as colunas
+    //    empacotadas apontam para esses números, e uma avulsa que registrasse
+    //    o seu padrão antes tomaria o número 0 de outra coluna (#45).
+    if !aba.padroes_formula.is_empty() {
+        sheet.formulas.load_patterns(&aba.padroes_formula);
+    }
+
     // 1) as avulsas primeiro. Ver a nota de ordem acima.
     use feathersheet_core::planilha::sheet::carga::{CelulaPreparada, Padroes};
     let mut padroes = Padroes::default();
@@ -289,8 +296,8 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
     // Com as colunas próprias, cada uma é solta logo depois de carregada
     // (fim da volta do `for`); emprestadas, ficam com quem chamou.
     match proprias {
-        Some((num, txt, fx)) => carregar_colunas(sheet, aba, num, txt, fx),
-        None => carregar_colunas(sheet, aba, &aba.colunas_num, &aba.colunas_txt, &aba.colunas_formula),
+        Some((num, txt, fx)) => carregar_colunas(sheet, num, txt, fx),
+        None => carregar_colunas(sheet, &aba.colunas_num, &aba.colunas_txt, &aba.colunas_formula),
     }
 
     // 5) o estilo direto: por faixa (arquivos de 16/10/2026 em diante) e por
@@ -316,7 +323,7 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
 }
 
 /// Passos 2 a 4 do [`carregar_aba`]: números, textos e fórmulas empacotadas.
-fn carregar_colunas<N, T, F>(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &AbaLida,
+fn carregar_colunas<N, T, F>(sheet: &mut feathersheet_core::planilha::sheet::Sheet,
     num: impl IntoIterator<Item = N>, txt: impl IntoIterator<Item = T>, fx: impl IntoIterator<Item = F>)
 where N: std::borrow::Borrow<ColunaNumLida>, T: std::borrow::Borrow<ColunaTxtLida>, F: std::borrow::Borrow<ColunaFormulaLida> {
     // 2) as colunas de número, inteiras de uma vez (eram 6 milhões de
@@ -335,11 +342,8 @@ where N: std::borrow::Borrow<ColunaNumLida>, T: std::borrow::Borrow<ColunaTxtLid
         crate::progresso::etapa_somar(coluna.indices.len() as u64);
     }
 
-    // 4) as fórmulas empacotadas: padrão e valor direto na tabela colunar,
-    //    emprestando os vetores lidos (sem cópia de 1 milhão de linhas).
-    if !aba.padroes_formula.is_empty() {
-        sheet.formulas.load_patterns(&aba.padroes_formula);
-    }
+    // 4) as fórmulas empacotadas: padrão (já carregado no passo 0) e valor
+    //    direto na tabela colunar, emprestando os vetores lidos.
     let mut vazia = sheet.is_empty();
     for coluna in fx {
         let coluna = coluna.borrow();

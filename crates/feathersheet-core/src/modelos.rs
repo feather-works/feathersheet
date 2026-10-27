@@ -7,7 +7,7 @@
 //! Larguras e alturas em pixels, como a grade lê. Nada aqui lê arquivo externo.
 
 use crate::celulas::estilo_parcial::{Campo, EstiloParcial};
-use crate::celulas::refs::Rect;
+use crate::celulas::refs::{col_name as letra, Rect};
 use crate::planilha::sheet::Sheet;
 use crate::planilha::workbook::Workbook;
 use std::collections::BTreeMap;
@@ -199,17 +199,6 @@ fn estilo() -> EstiloParcial {
 }
 
 // ------------------------------------------------------- referências
-
-fn letra(c: u32) -> String {
-    let mut n = c + 1;
-    let mut s = String::new();
-    while n > 0 {
-        let m = (n - 1) % 26;
-        s.insert(0, (b'A' + m as u8) as char);
-        n = (n - 1) / 26;
-    }
-    s
-}
 
 /// Referência A1 a partir de linha e coluna base zero: `(7, 1)` -> `"B8"`.
 fn a1(r: u32, c: u32) -> String {

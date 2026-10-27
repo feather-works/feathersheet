@@ -1,6 +1,6 @@
 //! Importação XLSX para o motor colunar sem mapa de células nem JSON intermediário.
 //! XML de cada worksheet e sharedStrings são consumidos direto das entradas ZIP.
-use super::{anexar_elementos, em_paralelo, entry_text, sheet, styles, xml, LIMITE_XLSX_BYTES};
+use super::{anexar_elementos, em_paralelo, entry_text, sheet, styles, xml};
 use super::refs::{parse_cell_ref, MAX_COLS};
 use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
 use feathersheet_core::celulas::values::Value;
@@ -16,7 +16,11 @@ use zip::{result::ZipError, ZipArchive};
 // de RAM escolhido nas Configurações. Os tetos abaixo protegem só contra
 // XLSX malicioso (bomba de ZIP, formatação vazia sem fim).
 const MAX_CELULAS_VAZIAS_FORMATADAS: usize = 300_000;
-const MAX_WORKSHEET_XML: u64 = 2 * 1024 * 1024 * 1024;
+/// O mesmo teto do gravador (`zip_write`: 4 GB por parte, ZIP sem ZIP64):
+/// o que o app salva ele abre de volta (#61). A aba é lida em fluxo.
+const MAX_WORKSHEET_XML: u64 = 4 * 1024 * 1024 * 1024;
+/// O arquivo compactado inteiro, também o teto do ZIP sem ZIP64.
+const LIMITE_XLSX_NATIVO: u64 = 4 * 1024 * 1024 * 1024;
 const MAX_SHARED_STRINGS_XML: u64 = 1024 * 1024 * 1024;
 const MAX_TEXTO_COMPARTILHADO: usize = 256 * 1024 * 1024;
 
@@ -85,13 +89,22 @@ const ABAS_SIMULTANEAS: usize = 4;
 /// Marca, no texto bruto do lote, o que a leitura deixou para converter
 /// aqui, em paralelo: fórmula a traduzir do Excel e número a formatar pelo
 /// estilo. Sem marca, o texto já é o final.
+/// Soma das imagens "Colocar na célula" de uma aba (ver `bytes_de_imagem`).
+const MAX_BYTES_IMAGEM_NA_ABA: usize = 512 << 20;
+
 const MARCA_FORMULA: char = '\u{1}';
 const MARCA_NUMERO: char = '\u{2}';
+/// Texto do Excel (`t="s"`, `str`, `inlineStr`): entra como texto, sem passar
+/// pelo analisador do que se digita ("00123" não vira 123, "=x" não vira fórmula).
+const MARCA_TEXTO: char = '\u{3}';
 
 /// O texto final da célula a partir do bruto que a leitura guardou.
 fn converter<'a>(bruto: &'a str, xf: usize, xfs: &[styles::XfStyle]) -> std::borrow::Cow<'a, str> {
     if let Some(f) = bruto.strip_prefix(MARCA_FORMULA) {
         return sheet::formula_da_celula(f).into();
+    }
+    if let Some(t) = bruto.strip_prefix(MARCA_TEXTO) {
+        return t.into();
     }
     if let Some(n) = bruto.strip_prefix(MARCA_NUMERO) {
         // Na linha com estilo próprio o índice vem somado de `xfs.len()`.
@@ -213,6 +226,12 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
                         preparo: Preparo::Formula { padrao: Some(padrao.clone()), arvore, volatil: *volatil }, guardado: v };
                 }
             }
+            if let Some(t) = bruto.strip_prefix(MARCA_TEXTO) {
+                let inicio = saida.len() as u32;
+                saida.push_str(t);
+                return CelulaPreparada { row: r, col: c, estilo: xf, faixa: (inicio, saida.len() as u32),
+                    preparo: Preparo::Literal(feathersheet_core::Value::Text(t.into())), guardado: v };
+            }
             let raw = converter(bruto, xf, xfs);
             let inicio = saida.len() as u32;
             saida.push_str(&raw);
@@ -272,12 +291,15 @@ fn ler_aba(
         Err(e) => return Err(format!("XLSX: erro ao ler {caminho}: {e}")),
     };
     if arquivo.size() > MAX_WORKSHEET_XML {
-        return Err(format!("XLSX: '{caminho}' excede 2 GiB de XML descomprimido"));
+        return Err(format!("XLSX: '{caminho}' excede 4 GiB de XML descomprimido"));
     }
     let mut shared = HashMap::<String, sheet::SharedFormula>::new();
     let mut alturas = Vec::<sheet::AlturaLida>::new();
     let mut ultima_visivel = -1_i64;
     let mut so_formatadas = 0usize;
+    // Cada célula com a imagem leva uma cópia da data URL: uma figura citada
+    // por 100 mil células pediria terabytes (#53).
+    let mut bytes_de_imagem = 0usize;
     // Áreas de matriz dinâmica (`cm`): as células derramadas vêm só com valor e
     // não podem virar literais, senão bloqueiam o derrame (#SPILL!).
     let mut derramadas = Vec::<(i64, i64, i64, i64)>::new();
@@ -394,6 +416,10 @@ fn ler_aba(
                     let imagem = celula.f.get().is_none().then(|| celula.vm.get()).flatten()
                         .and_then(|vm| vm.parse::<u32>().ok()).and_then(|vm| imagens.get(&vm));
                     if let Some(url) = imagem {
+                        bytes_de_imagem += url.len();
+                        if bytes_de_imagem > MAX_BYTES_IMAGEM_NA_ABA {
+                            return Err(format!("XLSX: imagens nas células da aba '{nome}' passam de {} MB.", MAX_BYTES_IMAGEM_NA_ABA >> 20));
+                        }
                         bruto.push_str(url);
                     } else if let Some(f) = formula_comum {
                         bruto.push(MARCA_FORMULA);
@@ -402,6 +428,12 @@ fn ler_aba(
                         if let Some(v) = celula.v.get().filter(|v| !v.trim().is_empty()) {
                             bruto.push(MARCA_NUMERO);
                             bruto.push_str(v);
+                        }
+                    } else if celula.f.get().is_none() && matches!(tipo, "s" | "str" | "inlineStr") {
+                        let texto = sheet::cell_raw(celula, strings, xf, &mut shared, at.row, at.col);
+                        if !texto.is_empty() {
+                            bruto.push(MARCA_TEXTO);
+                            bruto.push_str(&texto);
                         }
                     } else {
                         bruto.push_str(&sheet::cell_raw(celula, strings, xf, &mut shared, at.row, at.col));
@@ -453,11 +485,14 @@ fn ler_aba(
     }
     // Estilo de coluna inteira (`<col style="..">`).
     if let Some(cols) = raiz.child("cols") {
+        // Faixas em ordem e sem sobreposição, como em `ler_metadados` (#53).
+        let mut proxima = 0u32;
         for col in cols.children_named("col") {
             let Some(Some(e)) = col.attr("style").and_then(|v| v.parse::<usize>().ok()).and_then(|s| estilos.get(s)) else { continue };
-            let min = col.attr("min").and_then(|v| v.parse::<u32>().ok()).unwrap_or(1).max(1) - 1;
-            let max = col.attr("max").and_then(|v| v.parse::<u32>().ok()).unwrap_or(1).max(1) - 1;
-            for c in min..=max.min(MAX_COLS as u32 - 1) { folha.col_styles.insert(c, e.clone()); }
+            let min = (col.attr("min").and_then(|v| v.parse::<u32>().ok()).unwrap_or(1).max(1) - 1).max(proxima);
+            let max = (col.attr("max").and_then(|v| v.parse::<u32>().ok()).unwrap_or(1).max(1) - 1).min(MAX_COLS as u32 - 1);
+            proxima = proxima.max(max.saturating_add(1));
+            for c in min..=max { folha.col_styles.insert(c, e.clone()); }
         }
     }
 
@@ -508,10 +543,10 @@ pub fn ler_xlsx_arquivo(path: &std::path::Path) -> Result<(Workbook, usize), Str
     let tamanho = std::fs::metadata(path)
         .map_err(|e| format!("Não foi possível acessar {}: {e}", path.display()))?
         .len();
-    if tamanho > LIMITE_XLSX_BYTES as u64 {
+    if tamanho > LIMITE_XLSX_NATIVO {
         return Err(format!(
             "Arquivo XLSX possui {} MiB, acima do limite de {} MiB compactados",
-            tamanho / 1_048_576, LIMITE_XLSX_BYTES / 1_048_576,
+            tamanho / 1_048_576, LIMITE_XLSX_NATIVO / 1_048_576,
         ));
     }
     let bytes = std::fs::read(path)
@@ -522,8 +557,8 @@ pub fn ler_xlsx_arquivo(path: &std::path::Path) -> Result<(Workbook, usize), Str
 /// Abre XLSX grande no Workbook nativo. Não há segunda cópia dos dados em JSON.
 /// Retorna a pasta pronta e a aba ativa, como os outros codecs da GUI.
 pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
-    if bytes.len() > LIMITE_XLSX_BYTES {
-        return Err(format!("Arquivo XLSX excede {} MiB compactados", LIMITE_XLSX_BYTES / 1_048_576));
+    if bytes.len() as u64 > LIMITE_XLSX_NATIVO {
+        return Err(format!("Arquivo XLSX excede {} MiB compactados", LIMITE_XLSX_NATIVO / 1_048_576));
     }
     let mut arquivo = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes)))
         .map_err(|e| format!("Não parece um arquivo XLSX/ZIP válido: {e}"))?;
@@ -697,6 +732,27 @@ mod tests {
             zip.finish().unwrap();
         }
         saida.into_inner()
+    }
+
+    #[test]
+    fn col_repetido_nao_multiplica_as_larguras() {
+        let cols = r#"<col min="2" max="16383" hidden="1"/><col min="1" max="16384" width="20" customWidth="1"/>"#.repeat(2000);
+        let xml = format!(r#"<worksheet><cols>{cols}</cols><sheetData><row r="1"><c r="A1"><v>1</v></c></row></sheetData></worksheet>"#);
+        let (wb, _) = ler_xlsx_workbook(xlsx(&xml, None)).unwrap();
+        assert!(wb.aba(0).unwrap().sheet.col_widths.len() <= 16_384);
+    }
+
+    #[test]
+    fn texto_do_excel_continua_texto() {
+        let xml = r#"<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="inlineStr"><is><t>=SOMA(1;2)</t></is></c><c r="D1" t="s"><v>2</v></c></row></sheetData></worksheet>"#;
+        let sst = r#"<sst><si><t>00123</t></si><si><t>VERDADEIRO</t></si><si><t>R$ 5</t></si></sst>"#;
+        let (wb, _) = ler_xlsx_workbook(xlsx(xml, Some(sst))).unwrap();
+        let sh = &wb.aba(0).unwrap().sheet;
+        assert_eq!(sh.get_value(0, 0), Value::Text("00123".into()));
+        // shortcut: o texto "VERDADEIRO" ainda volta lógico — a coluna de dados
+        // guarda o lógico como esse mesmo texto no pool (data_table.rs).
+        assert_eq!(sh.get_value(0, 2), Value::Text("=SOMA(1;2)".into()));
+        assert_eq!(sh.get_value(0, 3), Value::Text("R$ 5".into()));
     }
 
     #[test]

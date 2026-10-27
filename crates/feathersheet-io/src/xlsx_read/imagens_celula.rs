@@ -106,7 +106,12 @@ fn data_url(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &st
         return None;
     }
     let mut bytes = Vec::with_capacity(entrada.size() as usize);
-    entrada.read_to_end(&mut bytes).ok()?;
+    // O tamanho do cabeçalho do zip é o que o arquivo *diz*: o teto vale para
+    // o que sai de fato da descompressão (#53).
+    (&mut entrada).take(MAX_BYTES_IMAGEM + 1).read_to_end(&mut bytes).ok()?;
+    if bytes.len() as u64 > MAX_BYTES_IMAGEM {
+        return None;
+    }
     let ext = caminho.rsplit('.').next().unwrap_or_default().to_ascii_lowercase();
     let tipo = match ext.as_str() {
         "png" => "png",

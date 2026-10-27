@@ -250,7 +250,9 @@ fn figura(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &str) -> 
     let mut f = zip.by_name(caminho).ok()?;
     if f.size() as usize > MAX_FIGURA { return None; }
     let mut bytes = Vec::with_capacity(f.size() as usize);
-    f.read_to_end(&mut bytes).ok()?;
+    // Teto no que a descompressão entrega, não no tamanho declarado (#53).
+    (&mut f).take(MAX_FIGURA as u64 + 1).read_to_end(&mut bytes).ok()?;
+    if bytes.len() > MAX_FIGURA { return None; }
     Some(format!("data:{mime};base64,{}", base64(&bytes)))
 }
 

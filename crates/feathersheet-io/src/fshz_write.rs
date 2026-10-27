@@ -508,6 +508,23 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
     let mut campos: Vec<(String, Campo<'a>)> = Vec::new();
     let linhas = aba.linhas;
 
+    // Texto: derramado vira avulsa crua e é reanalisado ao abrir ("2024" volta
+    // número, "=x" volta fórmula). Coluna com texto assim fica em Arrow, que o
+    // leitor aceita de qualquer tamanho (#55).
+    for col in &aba.colunas_txt {
+        let derrama = linhas < LINHAS_MINIMAS || !denso_o_bastante(&col.bitmap, linhas);
+        if derrama && !tem_texto_ambiguo(col, linhas) {
+            derramar_texto(col, linhas, &mut avulsas);
+            continue;
+        }
+        let f = format!("t{}", col.col);
+        let (dict, remapa) = remapa_local(&col.indices, &col.bitmap, |id| {
+            col.dict.get(id as usize).map(String::as_str).unwrap_or_default()
+        });
+        campos.push((f.clone(), Campo::Int { values: &col.indices, bitmap: &col.bitmap, remapa }));
+        colunas_meta.push(ColunaMeta { f, c: col.col, k: "txt", d: Some(dict), e: None, fv: None });
+    }
+
     if linhas >= LINHAS_MINIMAS {
         for col in &aba.colunas_num {
             if !denso_o_bastante(&col.bitmap, linhas) {
@@ -517,25 +534,6 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
             let f = format!("n{}", col.col);
             campos.push((f.clone(), Campo::Float { values: &col.values, bitmap: &col.bitmap }));
             colunas_meta.push(ColunaMeta { f, c: col.col, k: "num", d: None, e: None, fv: None });
-        }
-        for col in &aba.colunas_txt {
-            if !denso_o_bastante(&col.bitmap, linhas) {
-                derramar_texto(col, linhas, &mut avulsas);
-                continue;
-            }
-            let f = format!("t{}", col.col);
-            let (dict, remapa) = remapa_local(&col.indices, &col.bitmap, |id| {
-                col.dict.get(id as usize).map(String::as_str).unwrap_or_default()
-            });
-            campos.push((f.clone(), Campo::Int { values: &col.indices, bitmap: &col.bitmap, remapa }));
-            colunas_meta.push(ColunaMeta {
-                f,
-                c: col.col,
-                k: "txt",
-                d: Some(dict),
-                e: None,
-                fv: None,
-            });
         }
         // Fórmula: sempre vira coluna Arrow nesta primeira versão — ver o
         // comentário de topo do arquivo, "derrama_formula".
@@ -570,9 +568,6 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
         // ponte a devolvia vazia.
         for col in &aba.colunas_num {
             derramar_numerica(col, linhas, &mut avulsas);
-        }
-        for col in &aba.colunas_txt {
-            derramar_texto(col, linhas, &mut avulsas);
         }
         for col in &aba.colunas_formula {
             derramar_formula(col, &aba.padroes_formula, linhas, &mut avulsas);
@@ -659,6 +654,20 @@ fn derramar_numerica(col: &ColunaNumBruta, linhas: u32, avulsas: &mut Vec<Celula
         // digitado é sempre `String(valor)` para essas células.
         avulsas.push(CelulaAvulsaMeta { k, v: Cow::Owned(feathersheet_core::celulas::number::to_js_string(col.values[r as usize])), s: None });
     }
+}
+
+/// Algum texto da coluna voltaria diferente se fosse lido como digitado?
+fn tem_texto_ambiguo(col: &ColunaTxtBruta, linhas: u32) -> bool {
+    let mut vistos = vec![false; col.dict.len()];
+    (0..linhas.min(col.indices.len() as u32)).filter(|&r| bit_ligado(&col.bitmap, r)).any(|r| {
+        let Some(i) = usize::try_from(col.indices[r as usize]).ok().filter(|&i| i < vistos.len()) else { return false };
+        if std::mem::replace(&mut vistos[i], true) {
+            return false;
+        }
+        let t = col.dict[i].as_str();
+        t.trim_start().starts_with('=')
+            || feathersheet_core::celulas::input::parse_literal(t).value != feathersheet_core::Value::Text(t.to_owned())
+    })
 }
 
 fn derramar_texto<'a>(col: &'a ColunaTxtBruta, linhas: u32, avulsas: &mut Vec<CelulaAvulsaMeta<'a>>) {

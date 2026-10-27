@@ -481,18 +481,26 @@ fn aplicar_metadados(
     }
 
     if let Some(cols) = root.child("cols") {
+        // O Excel grava os `<col>` em ordem e sem sobreposição: o que já foi
+        // coberto é pulado, e mil cópias de `min=1 max=16383` num arquivo
+        // malicioso custam uma volta só, não bilhões de larguras (#53).
+        let mut proximo_topico = 0u32;
+        let mut proxima_largura = 0i64;
         for col in cols.children_named("col") {
             let (nivel, recolhida) = topico_do_no(col);
             if nivel > 0 || recolhida {
-                let min = col.attr("min").and_then(|s| s.parse::<u32>().ok()).unwrap_or(1).max(1) - 1;
-                let max = col.attr("max").and_then(|s| s.parse::<u32>().ok()).unwrap_or(1).max(1) - 1;
-                for c in min..=max.min(min + 16_384) {
+                let min = (col.attr("min").and_then(|s| s.parse::<u32>().ok()).unwrap_or(1).max(1) - 1).max(proximo_topico);
+                let max = (col.attr("max").and_then(|s| s.parse::<u32>().ok()).unwrap_or(1).max(1) - 1).min(MAX_COLS as u32 - 1);
+                proximo_topico = proximo_topico.max(max.saturating_add(1));
+                for c in min..=max {
                     if nivel > 0 { sheet.topicos.colunas.niveis.insert(c, nivel); }
                     if recolhida { sheet.topicos.colunas.recolhidas.insert(c); }
                 }
             }
-            let min = col.attr("min").and_then(|s| s.parse::<i64>().ok()).unwrap_or(1) - 1;
+            let min = (col.attr("min").and_then(|s| s.parse::<i64>().ok()).unwrap_or(1) - 1).max(proxima_largura);
             let max = (col.attr("max").and_then(|s| s.parse::<i64>().ok()).unwrap_or(1) - 1).min(MAX_COLS - 1);
+            if min > max { continue; }
+            proxima_largura = max + 1;
             // Coluna oculta = largura 0 (como a linha oculta). O Excel oculta
             // de J até XFD numa linha só: aqui não há o teto de 1000.
             if verdade(col.attr("hidden")) {

@@ -19,6 +19,10 @@ pub fn col_name(col: i64) -> String {
 
 /// "A" -> 0, "AA" -> 26. -1 se inválido.
 pub fn col_index(name: &str) -> i64 {
+    // Mais de 3 letras passa de XFD (e 14 estourariam o i64).
+    if name.len() > 3 {
+        return -1;
+    }
     let mut n: i64 = 0;
     for ch in name.chars() {
         let c = (ch as u32) & !32; // maiúscula
