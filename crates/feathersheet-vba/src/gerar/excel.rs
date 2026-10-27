@@ -22,7 +22,8 @@ pub fn celula(end: &str) -> Option<(u32, u32)> {
     let e = end.replace('$', "");
     let i = e.find(|c: char| c.is_ascii_digit())?;
     let (l, n) = e.split_at(i);
-    if l.is_empty() || !l.chars().all(|c| c.is_ascii_alphabetic()) {
+    // Mais de 3 letras passa de XFD (`Range("Faixa1")` é nome, não célula) e estouraria a conta.
+    if l.is_empty() || l.len() > 3 || !l.chars().all(|c| c.is_ascii_alphabetic()) {
         return None;
     }
     let col = l.to_ascii_uppercase().bytes().fold(0u32, |a, b| a * 26 + u32::from(b - b'A' + 1));
@@ -137,6 +138,12 @@ impl Gerador<'_> {
         if let Some((var, nome)) = self.aba_por_codename(n) {
             return Ok(Obj::Aba(var, Some(nome)));
         }
+        if let Some(f) = self.formulario_por_nome(n) {
+            return Ok(Obj::Formulario(f));
+        }
+        if let Some(c) = self.controle_do_modulo(n) {
+            return Ok(Obj::Controle(c));
+        }
         let atual = self.atual.clone();
         let implicita = match self.obj_implicito() {
             Obj::Aba(a, _) => a,
@@ -196,6 +203,11 @@ impl Gerador<'_> {
             },
             Obj::AbasNovas(p) if n == "item" => self.aba_nova(p, args),
             Obj::AbasNovas(_) | Obj::AbaNova(..) => Err(Motivo::novo(format!("membro {nome} da pasta nova"))),
+            Obj::Formulario(f) => match self.p.controle(&f, nome) {
+                Some(c) => Ok(Obj::Controle(c.to_string())),
+                None => Err(Motivo::novo(format!("{f}.{nome} do formulário"))),
+            },
+            Obj::Controle(c) => Err(Motivo::novo(format!("{c}.{nome} do controle do formulário"))),
             Obj::Dimensao(..) | Obj::Contagem(..) | Obj::Parte(..) | Obj::FuncoesDaPlanilha | Obj::Nomes | Obj::Ordem(_) | Obj::Validacao(_) => Err(Motivo::novo(format!("membro {nome}"))),
         }
     }
@@ -445,6 +457,7 @@ impl Gerador<'_> {
     pub fn valor_do_objeto(&mut self, o: Obj) -> R<V> {
         match o {
             Obj::Faixa(f) => Ok(V::novo(format!("{}.value({})", f.aba, f.end), T::Var)),
+            Obj::Controle(c) => Ok(V::novo(format!("sheet.field({c:?}).value"), T::Var)),
             _ => Err(Motivo::novo("objeto usado como valor")),
         }
     }
@@ -454,6 +467,11 @@ impl Gerador<'_> {
         let n = nome.to_lowercase();
         match o {
             Obj::Faixa(f) => self.propriedade_da_faixa(f, &n, args),
+            Obj::Controle(c) => propriedade_do_controle(&c, &n),
+            Obj::Formulario(f) => match self.p.controle(&f, nome) {
+                Some(c) => Ok(V::novo(format!("sheet.field({c:?}).value"), T::Var)),
+                None => Err(Motivo::novo(format!("{f}.{nome} do formulário"))),
+            },
             Obj::Aba(aba, nome_aba) => match n.as_str() {
                 "name" | "codename" => Ok(nome_aba.map_or_else(|| V::novo(format!("{aba}.name"), T::Texto), |x| V::novo(format!("{x:?}"), T::Texto))),
                 _ => {
@@ -533,5 +551,33 @@ impl Gerador<'_> {
             _ => return Err(Motivo::novo(format!("WorksheetFunction.{n} (sem equivalente em app.fn)"))),
         };
         Ok(V::novo(format!("app.fn.{api}({})", vs.join(", ")), T::Var))
+    }
+}
+
+/// `TextBox1.Value`, `.Text`, `.Caption`, `.Enabled`, `.Visible` → `sheet.field("TextBox1")`.
+fn propriedade_do_controle(c: &str, n: &str) -> R<V> {
+    let (p, t) = match n {
+        "value" | "text" => ("value", T::Var),
+        "caption" => ("caption", T::Texto),
+        "enabled" => ("enabled", T::Bool),
+        "visible" => ("visible", T::Bool),
+        _ => return Err(Motivo::novo(format!("{c}.{n} do controle do formulário"))),
+    };
+    Ok(V::novo(format!("sheet.field({c:?}).{p}"), t))
+}
+
+impl Gerador<'_> {
+    /// `UserForm1` (ou `Me` no código do formulário) → o nome do formulário.
+    pub fn formulario_por_nome(&self, n: &str) -> Option<String> {
+        if n.eq_ignore_ascii_case("me") {
+            return self.p.formulario_do_modulo(self.modulo).map(String::from);
+        }
+        self.p.formulario(n).map(String::from)
+    }
+
+    /// Um controle do formulário cujo código está sendo escrito (`TextBox1` sozinho).
+    pub fn controle_do_modulo(&self, n: &str) -> Option<String> {
+        let f = self.p.formulario_do_modulo(self.modulo)?;
+        self.p.controle(f, n).map(String::from)
     }
 }

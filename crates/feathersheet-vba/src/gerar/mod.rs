@@ -55,10 +55,22 @@ pub struct Botao {
     pub macro_: String,
 }
 
+/// Um formulário (UserForm) convertido: o desenho e o que cada controle roda.
+#[derive(Clone, Debug, Default)]
+pub struct FormularioConvertido {
+    pub desenho: crate::formulario::FormularioVba,
+    /// (controle, função JS do módulo do formulário): o botão roda no clique; o campo,
+    /// quando muda. A macro do controle é `<formulário>.<função>`.
+    pub macros: Vec<(String, String)>,
+}
+
 /// O resultado da conversão.
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Conversao {
     pub macros: Vec<MacroGerada>,
+    /// Os formulários, cada um com o seu módulo em `macros` (o nome do módulo é o do formulário).
+    #[serde(skip)]
+    pub formularios: Vec<FormularioConvertido>,
     pub eventos: Vec<EventoGerado>,
     pub botoes: Vec<Botao>,
     /// O que não foi convertido (e os avisos), uma vez cada.
@@ -87,7 +99,10 @@ fn montar_programa(projeto: &ProjetoVba) -> Programa {
     for (c, nome) in &projeto.abas {
         codenames.entry(c.to_lowercase()).or_insert_with(|| (js_nome(c), nome.clone()));
     }
-    Programa { modulos, codenames }
+    let formularios = projeto.formularios.iter()
+        .map(|f| (f.nome.to_lowercase(), (f.nome.clone(), f.controles.iter().map(|c| c.nome.clone()).collect())))
+        .collect();
+    Programa { modulos, codenames, formularios }
 }
 
 /// O que cada procedimento rendeu na primeira vez que foi escrito (para o total não contar
@@ -278,6 +293,122 @@ fn converter_eventos(p: &Programa, totais: &mut Totais, arquivo: &str, c: &mut C
     }
 }
 
+/// Eventos de controle que viram a macro do controle (`CommandButton1_Click`, `TextBox1_Change`).
+const EVENTOS_DE_CONTROLE: [&str; 5] = ["click", "change", "afterupdate", "dblclick", "exit"];
+/// Os do formulário que rodam ao abrir: dobrados no desenho quando são só valores fixos.
+const AO_ABRIR: [&str; 2] = ["userform_initialize", "userform_activate"];
+
+/// Cada formulário: o desenho, um módulo com o código dele e a macro de cada controle.
+fn converter_formularios(p: &Programa, projeto: &ProjetoVba, totais: &mut Totais, arquivo: &str, c: &mut Conversao) {
+    for form in &projeto.formularios {
+        let mut desenho = form.clone();
+        for ctl in &form.controles {
+            if let crate::formulario::TipoVba::Outro(k) = ctl.tipo {
+                c.pendencias.push(Pendencia { modulo: form.nome.clone(), linha: 0, vba: ctl.nome.clone(), motivo: format!("controle do formulário sem equivalente (tipo {k})"), aviso: false });
+            }
+        }
+        let mut macros = Vec::new();
+        if let Some(mi) = p.modulos.iter().position(|m| m.nome.eq_ignore_ascii_case(&form.nome)) {
+            let modulo = &p.modulos[mi];
+            let mut resto = Vec::new();
+            for (pi, pr) in modulo.ast.procs.iter().enumerate() {
+                if AO_ABRIR.contains(&pr.nome.to_lowercase().as_str()) {
+                    dobrar_ao_abrir(p, mi, &pr.corpo, &mut desenho, &mut c.pendencias);
+                } else {
+                    resto.push((mi, pi));
+                }
+            }
+            if let Some((&primeira, outras)) = resto.split_first() {
+                let mut ligados = Vec::new();
+                let mut avisos = Vec::new();
+                let codigo = montar_macro(p, totais, primeira, &cabecalho(&format!("o formulário {}", form.nome), arquivo), |m, _| {
+                    for &r in std::iter::once(&primeira).chain(outras) {
+                        let js = m.pedir(p, r);
+                        let nome = &p.proc(r).nome;
+                        let ligado = nome.rsplit_once('_').filter(|(ctl, ev)| EVENTOS_DE_CONTROLE.contains(&ev.to_lowercase().as_str()) && p.controle(&form.nome, ctl).is_some());
+                        match ligado {
+                            Some((ctl, _)) => ligados.push((p.controle(&form.nome, ctl).unwrap_or(ctl).to_string(), js)),
+                            None if nome.to_lowercase().starts_with("userform_") => avisos.push(Pendencia {
+                                modulo: form.nome.clone(), linha: p.proc(r).linha, vba: format!("Sub {nome}"),
+                                motivo: "evento do formulário sem equivalente (a função fica no módulo)".into(), aviso: true,
+                            }),
+                            None => {}
+                        }
+                    }
+                    // Só as funções: cada controle chama a sua (`Formulário.função`).
+                    String::new()
+                });
+                // Um controle com dois eventos (Click e Change) fica com o primeiro.
+                ligados.dedup_by(|a, b| a.0 == b.0);
+                c.pendencias.extend(avisos);
+                macros = ligados;
+                c.macros.push(MacroGerada { nome: form.nome.clone(), modulo: form.nome.clone(), codigo });
+            }
+        }
+        c.formularios.push(FormularioConvertido { desenho, macros });
+    }
+}
+
+/// `UserForm_Initialize` com valores fixos (`ComboBox1.AddItem "Sul"`, `TextBox1.Value = "0"`,
+/// `Me.Caption = "Cadastro"`) vira o desenho; o resto, pendência.
+fn dobrar_ao_abrir(p: &Programa, mi: usize, corpo: &[Instr], desenho: &mut crate::formulario::FormularioVba, pendencias: &mut Vec<Pendencia>) {
+    let form = desenho.nome.clone();
+    // O controle de `TextBox1`, `Me.TextBox1`, `UserForm1.TextBox1`.
+    let controle = |e: &Expr| -> Option<String> {
+        match e {
+            Expr::Nome(n) => p.controle(&form, n).map(String::from),
+            Expr::Membro(b, n) if matches!(&**b, Expr::Nome(x) if x.eq_ignore_ascii_case("me") || x.eq_ignore_ascii_case(&form)) => p.controle(&form, n).map(String::from),
+            _ => None,
+        }
+    };
+    let literal = |e: &Expr| match e {
+        Expr::Texto(t) => Some(t.clone()),
+        Expr::Num(n) => Some(funcoes::num(*n)),
+        Expr::Bool(b) => Some(if *b { "1" } else { "0" }.into()),
+        _ => None,
+    };
+    for i in corpo {
+        let feito = match &i.k {
+            TipoInstr::Chamar(Expr::Chamada(f, args)) => match (&**f, args.as_slice()) {
+                (Expr::Membro(b, m), [a]) if m.eq_ignore_ascii_case("additem") => controle(b).zip(a.valor.as_ref().and_then(literal)).map(|(c, t)| {
+                    desenho.controles.iter_mut().filter(|x| x.nome == c).for_each(|x| x.itens.push(t.clone()));
+                }),
+                _ => None,
+            },
+            TipoInstr::Atribuir { alvo, valor, .. } => {
+                let (alvo_ctl, prop) = match alvo {
+                    Expr::Membro(b, prop) if controle(b).is_some() => (controle(b), prop.to_lowercase()),
+                    Expr::Membro(b, prop) if matches!(&**b, Expr::Nome(x) if x.eq_ignore_ascii_case("me")) && prop.eq_ignore_ascii_case("caption") => (None, "titulo".into()),
+                    _ => (controle(alvo), "value".into()),
+                };
+                literal(valor).and_then(|v| match (alvo_ctl, prop.as_str()) {
+                    (None, "titulo") => {
+                        desenho.titulo = v;
+                        Some(())
+                    }
+                    (Some(c), "value" | "text") => {
+                        desenho.controles.iter_mut().filter(|x| x.nome == c).for_each(|x| x.valor = v.clone());
+                        Some(())
+                    }
+                    (Some(c), "caption") => {
+                        desenho.controles.iter_mut().filter(|x| x.nome == c).for_each(|x| x.texto = v.clone());
+                        Some(())
+                    }
+                    _ => None,
+                })
+            }
+            TipoInstr::Dim(_) | TipoInstr::Const(_) => Some(()),
+            _ => None,
+        };
+        if feito.is_none() {
+            pendencias.push(Pendencia {
+                modulo: p.modulos[mi].nome.clone(), linha: i.linha, vba: p.fonte(mi, i).join("\n"),
+                motivo: "UserForm_Initialize: só AddItem e valores fixos convertem (o formulário abre sem rodar código)".into(), aviso: false,
+            });
+        }
+    }
+}
+
 /// A macro que registra as `Function` públicas dos módulos comuns como funções de planilha.
 fn converter_funcoes(p: &Programa, totais: &mut Totais, arquivo: &str) -> Option<MacroGerada> {
     let funcoes: Vec<RefProc> = p
@@ -369,6 +500,7 @@ pub fn converter(projeto: &ProjetoVba, arquivo: &str) -> Conversao {
         c.macros.push(MacroGerada { nome, modulo, codigo });
     }
     converter_eventos(&p, &mut totais, arquivo, &mut c);
+    converter_formularios(&p, projeto, &mut totais, arquivo, &mut c);
     c.macros.extend(converter_funcoes(&p, &mut totais, arquivo));
     for m in &p.modulos {
         for pr in &m.ast.procs {

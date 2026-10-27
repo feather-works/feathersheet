@@ -19,6 +19,8 @@ pub struct ProjetoVba {
     pub abas: HashMap<String, String>,
     /// Os nomes das abas, na ordem da pasta.
     pub nomes_das_abas: Vec<String>,
+    /// O desenho de cada formulário (UserForm), com o nome do módulo dele.
+    pub formularios: Vec<crate::formulario::FormularioVba>,
 }
 
 fn ler_parte(zip: &mut zip::ZipArchive<Cursor<&[u8]>>, nome: &str) -> Option<Vec<u8>> {
@@ -110,7 +112,8 @@ pub fn ler(bytes: &[u8]) -> Result<ProjetoVba, String> {
     let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| "Este arquivo não é um .xlsm (não é um ZIP).".to_string())?;
     let bin = ler_parte(&mut zip, "xl/vbaProject.bin").ok_or_else(|| "Este arquivo não tem macros VBA (falta xl/vbaProject.bin). Só o .xlsm, o .xlsb e o .xlam guardam macros.".to_string())?;
     let modulos = ovba::ler_projeto(&bin)?;
-    let mut projeto = ProjetoVba { modulos, ..ProjetoVba::default() };
+    let formularios = crate::formulario::ler_do_projeto(&bin, &modulos);
+    let mut projeto = ProjetoVba { modulos, formularios, ..ProjetoVba::default() };
     for (nome, caminho) in abas_da_pasta(&mut zip) {
         if let Some(c) = ler_parte(&mut zip, &caminho).and_then(|xml| codename(&xml)) {
             projeto.abas.insert(c, nome.clone());

@@ -87,7 +87,69 @@ fn veio_do_arquivo(m: &feather_macros::Macro, arquivo: &str) -> bool {
 }
 
 fn resumo(c: &Conversao) -> String {
-    trf!("{} macro(s), {} evento(s), {} pendência(s)", c.macros.len(), c.eventos.len(), c.pendencias.len())
+    trf!("{} macro(s), {} evento(s), {} formulário(s), {} pendência(s)", c.macros.len(), c.eventos.len(), c.formularios.len(), c.pendencias.len())
+}
+
+/// O formulário do VBA no modelo dos formulários das macros. `modulo` é o nome que o módulo
+/// com o código do formulário recebeu na biblioteca: cada controle chama `modulo.função`.
+fn formulario_da_conversao(f: &feathersheet_vba::gerar::FormularioConvertido, modulo: Option<&str>) -> feathersheet_macros::formularios::Formulario {
+    use feathersheet_macros::formularios::{Controle, Formulario, TipoControle as T, MAX_CONTROLES, MAX_IMAGEM};
+    use feathersheet_vba::formulario::TipoVba as V;
+    use base64::Engine;
+    let d = &f.desenho;
+    let mut form = Formulario::novo(&d.nome);
+    form.titulo = d.titulo.clone();
+    (form.largura, form.altura) = (d.largura.max(120.0), d.altura.max(80.0));
+    form.fundo = d.fundo.clone();
+    for c in d.controles.iter().take(MAX_CONTROLES) {
+        let tipo = match c.tipo {
+            V::Rotulo => T::Rotulo,
+            V::Texto if c.senha => T::Senha,
+            V::Texto => T::Texto,
+            V::Lista => T::Lista,
+            V::Listagem => T::Listagem,
+            V::Caixa | V::Alternar => T::Caixa,
+            V::Opcao => T::Opcao,
+            V::Botao => T::Botao,
+            V::Moldura => T::Moldura,
+            V::Imagem => T::Imagem,
+            V::Outro(_) => continue,
+        };
+        let marcado = matches!(c.valor.trim().to_ascii_lowercase().as_str(), "1" | "-1" | "true" | "verdadeiro");
+        let imagem = (tipo == T::Imagem && (c.figura.starts_with(&[0x89, b'P', b'N', b'G']) || c.figura.starts_with(&[0xFF, 0xD8])))
+            .then(|| base64::engine::general_purpose::STANDARD.encode(&c.figura))
+            .filter(|b| b.len() <= MAX_IMAGEM)
+            .unwrap_or_default();
+        form.controles.push(Controle {
+            tipo,
+            // As opções sem GroupName formam um grupo só, como no VBA.
+            nome: if tipo == T::Opcao { if c.grupo.is_empty() { tr!("Opcoes").into() } else { c.grupo.clone() } } else { c.nome.clone() },
+            texto: c.texto.clone(),
+            x: c.x, y: c.y,
+            largura: c.largura.max(16.0), altura: c.altura.max(12.0),
+            opcoes: c.itens.clone(),
+            livre: tipo == T::Lista && !c.so_lista,
+            multipla: c.multipla,
+            fonte: c.fonte.clone(),
+            valor: match tipo {
+                T::Caixa | T::Opcao => if marcado { "1".into() } else { String::new() },
+                _ => c.valor.clone(),
+            },
+            macro_nome: modulo.and_then(|m| f.macros.iter().find(|(ctl, _)| *ctl == c.nome).map(|(_, js)| format!("{m}.{js}"))),
+            padrao: c.padrao, cancelar: c.cancelar,
+            desativado: c.desativado, oculto: c.oculto,
+            fundo: c.fundo.clone(), cor: c.cor.clone(),
+            // Pontos do VBA → px.
+            letra: c.letra.map(|pt| (pt * 4.0 / 3.0).round()),
+            negrito: c.negrito, italico: c.italico,
+            alinhar: c.alinhar.clone(),
+            max: c.max, multilinha: c.multilinha,
+            dica: c.dica.clone(),
+            imagem,
+            ..Default::default()
+        });
+    }
+    form
 }
 
 /// A macro que a forma chama, no nome que o módulo convertido recebe: a do
@@ -140,7 +202,7 @@ impl App {
         let conversao = feathersheet_vba::converter_xlsm(&bytes, &arquivo);
         self.botoes_das_formas(&bytes, conversao.as_ref().ok());
         match conversao {
-            Ok(conversao) if !conversao.macros.is_empty() || !conversao.eventos.is_empty() => {
+            Ok(conversao) if !conversao.macros.is_empty() || !conversao.eventos.is_empty() || !conversao.formularios.is_empty() => {
                 // As macros entram sozinhas no editor (Alt+F11) desta pasta,
                 // sem rodar. Só abrir o arquivo não o deixa "alterado".
                 let alterado = self.alterado;
@@ -183,12 +245,37 @@ impl App {
         }
     }
 
+    /// Os formulários convertidos entram na pasta, no lugar dos de mesmo nome. `novos` são os
+    /// módulos na ordem de `c.macros` (com o nome que cada um recebeu na biblioteca).
+    fn instalar_formularios(&mut self, c: &Conversao, novos: &[feather_macros::Macro]) {
+        use feathersheet_macros::formularios;
+        if c.formularios.is_empty() { return; }
+        let mut lista = formularios::ler(self.workbook.formularios.as_deref()).unwrap_or_default();
+        for f in &c.formularios {
+            let modulo = c.macros.iter().position(|m| m.nome.eq_ignore_ascii_case(&f.desenho.nome) && m.modulo.eq_ignore_ascii_case(&f.desenho.nome))
+                .and_then(|i| novos.get(i)).map(|m| m.name.as_str());
+            let form = formulario_da_conversao(f, modulo);
+            lista.retain(|x| !x.nome.eq_ignore_ascii_case(&form.nome));
+            lista.push(form);
+        }
+        lista.truncate(formularios::MAX_FORMULARIOS);
+        match formularios::gravar(&lista) {
+            Ok(json) => { self.workbook.formularios = json; self.alterado = true; }
+            Err(e) => self.status = e,
+        }
+    }
+
     fn instalar_vba(&mut self, arquivo: &str, c: &Conversao, abrir_no_editor: bool) {
         // Reabrir o mesmo arquivo substitui os módulos dele em vez de
         // acrescentar cópias "_2" (cada módulo diz na 1ª linha de onde veio).
         let mut base = self.macro_catalogo.clone();
         base.macros.retain(|m| !veio_do_arquivo(m, arquivo));
         let novos = modulos_da_conversao(&base, arquivo, c);
+        self.instalar_formularios(c, &novos);
+        if novos.is_empty() && !c.formularios.is_empty() {
+            self.status = trf!("{} formulário(s) do VBA de {arquivo} importado(s): Macros → Formulários (Alt+F11).", c.formularios.len());
+            return;
+        }
         if novos.is_empty() {
             self.status = tr!("O VBA deste arquivo não tem macros para importar.").into();
             return;
@@ -451,5 +538,39 @@ mod testes {
                 }
             }
         }
+    }
+
+    /// #67: o formulário do VBA entra na pasta, e o botão chama a função do módulo dele.
+    #[test]
+    fn formulario_do_vba_entra_com_a_macro_do_botao() {
+        use feathersheet_vba::formulario::{ControleVba, FormularioVba, TipoVba};
+        use feathersheet_vba::{ModuloVba, ProjetoVba, TipoDeModulo};
+        let ctl = |nome: &str, tipo| ControleVba { nome: nome.into(), tipo, largura: 80.0, altura: 20.0, ..Default::default() };
+        let projeto = ProjetoVba {
+            modulos: vec![
+                ModuloVba { nome: "Modulo1".into(), tipo: TipoDeModulo::Padrao, codigo: "Sub Abrir()\n  UserForm1.Show\nEnd Sub\n".into() },
+                ModuloVba { nome: "UserForm1".into(), tipo: TipoDeModulo::Classe, codigo:
+                    "Private Sub UserForm_Initialize()\n  ComboBox1.AddItem \"Sul\"\nEnd Sub\nPrivate Sub CommandButton1_Click()\n  Range(\"A1\").Value = TextBox1.Value\n  Unload Me\nEnd Sub\n".into() },
+            ],
+            formularios: vec![FormularioVba { nome: "UserForm1".into(), titulo: "Cadastro".into(), largura: 300.0, altura: 200.0,
+                controles: vec![ctl("TextBox1", TipoVba::Texto), ctl("ComboBox1", TipoVba::Lista), ControleVba { padrao: true, ..ctl("CommandButton1", TipoVba::Botao) }],
+                ..Default::default() }],
+            ..Default::default()
+        };
+        let c = feathersheet_vba::converter(&projeto, "Cadastro");
+        let mut app = App::default();
+        app.instalar_vba("Cadastro", &c, false);
+        let lista = feathersheet_macros::formularios::ler(app.workbook.formularios.as_deref()).unwrap();
+        let f = feathersheet_macros::formularios::obter(&lista, "UserForm1").expect("formulário");
+        assert_eq!(f.titulo, "Cadastro");
+        assert_eq!(f.controles[1].opcoes, vec!["Sul"]);
+        assert!(f.controles[1].livre);
+        let botao = &f.controles[2];
+        assert!(botao.padrao);
+        let macro_nome = botao.macro_nome.clone().expect("o botão roda a macro");
+        let (_, codigo) = feathersheet_macros::procedimentos::codigo_da_macro(&app.macro_catalogo, &macro_nome).expect("a macro existe na biblioteca");
+        assert!(codigo.contains("sheet.hideComponent();"), "{codigo}");
+        let abrir = feathersheet_macros::procedimentos::codigo_da_macro(&app.macro_catalogo, "Abrir").unwrap().1;
+        assert!(abrir.contains("sheet.showComponent(\"UserForm1\")"), "{abrir}");
     }
 }

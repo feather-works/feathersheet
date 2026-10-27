@@ -254,6 +254,11 @@ impl Gerador<'_> {
         let var = match self.var(n).or_else(|| self.global(n)) {
             Some(v) => v,
             None if self.p.codenames.contains_key(&chave) => return Err(Motivo::novo("atribuir a uma aba")),
+            // `TextBox1 = "x"` no código do formulário: o valor padrão do controle.
+            None if self.controle_do_modulo(n).is_some() => {
+                let c = self.controle_do_modulo(n).unwrap_or_default();
+                return self.escrever_no_controle(&c, "value", valor);
+            }
             None if set => {
                 // `Set rng = Range(…)` sem `Dim`: o tipo vem do que é atribuído. Se não dá para
                 // converter, a variável fica marcada: o que a usa depois cai no mesmo motivo.
@@ -370,6 +375,16 @@ impl Gerador<'_> {
                 Err(Motivo::novo(format!("{n} sem equivalente")))
             }
             Expr::Chamada(f, args) => match &**f {
+                // `Unload Me` / `Unload UserForm1` fecha o formulário; `Load` não tem o que fazer.
+                Expr::Nome(n) if n.eq_ignore_ascii_case("unload") || n.eq_ignore_ascii_case("load") => {
+                    let alvo = args.first().and_then(|a| a.valor.as_ref());
+                    match alvo {
+                        Some(Expr::Nome(f)) if self.formulario_por_nome(f).is_some() => {
+                            Ok(if n.eq_ignore_ascii_case("unload") { "sheet.hideComponent();".into() } else { String::new() })
+                        }
+                        _ => Err(Motivo::novo(format!("{n} de algo que não é formulário"))),
+                    }
+                }
                 Expr::Nome(_) => Ok(format!("{};", self.valor(e)?.js)),
                 Expr::Membro(base, m) => self.chamar_membro(base, m, args),
                 Expr::MembroDoCom(m) => {

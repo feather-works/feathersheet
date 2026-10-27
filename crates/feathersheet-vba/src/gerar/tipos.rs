@@ -139,6 +139,10 @@ pub enum Obj {
     AbasNovas(String),
     /// Uma aba da pasta nova: (pasta, posição do 1 em JS).
     AbaNova(String, String),
+    /// Um formulário (UserForm), pelo nome: `UserForm1.Show`, `Me.Hide`.
+    Formulario(String),
+    /// Um controle do formulário aberto (`TextBox1`, `Me.TextBox1`): `sheet.field("TextBox1")`.
+    Controle(String),
 }
 
 /// A parte de um intervalo.

@@ -252,7 +252,7 @@ da execução); `macro` num campo roda ao mudar (texto/número: no Enter); botã
 `desativado` esmaece, `oculto` some. Tipo `intervalo` = RefEdit (botão pega a seleção, valor `Aba!A1:B5`); lista com `fonte` = RowSource (lida ao abrir
 pelo `opcoes_da_lista` da validação). `listagem` = ListBox (`multipla`: caixas de seleção, valor = lista de textos;
 uma escolha: item em destaque sólido); lista com `livre` = ComboBox (campo + setinha). `sheet_tela` descreve o formulário aberto. **Falta para a paridade com o
-UserForm** (levantamento de 26/10): ordem de tabulação; importar `.frm`. **Aparência (26/10):** `fundo`/`cor`/`borda`
+UserForm** (levantamento de 26/10): ordem de tabulação; importar `.frm` solto. **UserForm do `.xlsm` (#67, 26/10):** `feathersheet-vba/src/formulario.rs` lê o desenho (fluxos `f`/`o` do MS-OFORMS, molduras em `i<ID>`) e o gerador converte o código do formulário: `UserForm1.Show` → `showComponent`, `TextBox1.Value` → `sheet.field`, `Unload Me` → `hideComponent`, `Controle_Click/_Change` → macro do controle (`UserForm1.função`), `AddItem`/valores fixos do `UserForm_Initialize` → opções e valores do desenho; `importar_vba.rs::formulario_da_conversao` grava em `Workbook::formularios`. Testado com os UserForms dos arquivos de teste do LibreOffice (`CheckOptionToggleValue.xls`, `MiscControlTests.xls`); falta um `.xlsm` real do usuário. **Aparência (26/10):** `fundo`/`cor`/`borda`
 (#rrggbb), `raio`, `letra`, `negrito`/`italico`, `familia`, `alinhar` por controle e `fundo` do formulário
 (`formulario_macro::aparencia`, usado pela janela e pela prévia do designer: painel APARÊNCIA com paleta); `max`,
 `multilinha` (`text_editor` sobre `FormularioAberto::editores`), `dica` (balão); tipos `moldura` (arrastar no designer

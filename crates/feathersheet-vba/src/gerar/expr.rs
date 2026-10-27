@@ -66,6 +66,9 @@ impl Gerador<'_> {
         if let Some(r) = self.p.achar(self.modulo, n) {
             return self.chamar_proc(r, &[]);
         }
+        if let Some(c) = self.controle_do_modulo(n) {
+            return Ok(V::novo(format!("sheet.field({c:?}).value"), T::Var));
+        }
         if let Some(c) = constante(n) {
             return Ok(c);
         }

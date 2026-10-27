@@ -5,6 +5,7 @@
 //! `wb`, `app` — `src/macros/guia.ts`). O que não tem equivalente não some: vira
 //! comentário `// VBA não convertido` no código e entra na lista de pendências.
 
+pub mod formulario;
 pub mod gerar;
 pub mod lexico;
 pub mod ovba;
@@ -38,6 +39,6 @@ pub fn converter_texto(modulos: &[(&str, &str)], abas: &[(&str, &str)]) -> Conve
             ModuloVba { nome: (*nome).to_string(), tipo, codigo: codigo.replace("\r\n", "\n") }
         })
         .collect();
-    let projeto = ProjetoVba { modulos, abas: mapa, nomes_das_abas: abas.iter().map(|(_, n)| (*n).to_string()).collect() };
+    let projeto = ProjetoVba { modulos, abas: mapa, nomes_das_abas: abas.iter().map(|(_, n)| (*n).to_string()).collect(), formularios: Vec::new() };
     gerar::converter(&projeto, "")
 }

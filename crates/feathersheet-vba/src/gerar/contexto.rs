@@ -23,6 +23,8 @@ pub struct Programa {
     pub modulos: Vec<InfoModulo>,
     /// Codename em minúsculas → (nome da variável JS, nome da aba).
     pub codenames: HashMap<String, (String, String)>,
+    /// Formulário em minúsculas → (nome como escrito, nomes dos controles).
+    pub formularios: HashMap<String, (String, Vec<String>)>,
 }
 
 /// Um procedimento: (módulo, índice em `procs`).
@@ -47,6 +49,21 @@ impl Programa {
     pub fn achar_qualificado(&self, modulo: &str, nome: &str) -> Option<RefProc> {
         let mi = self.modulos.iter().position(|m| m.nome.eq_ignore_ascii_case(modulo))?;
         self.modulos[mi].ast.procs.iter().position(|p| p.nome.eq_ignore_ascii_case(nome)).map(|pi| (mi, pi))
+    }
+
+    /// O formulário (UserForm) com esse nome, como escrito.
+    pub fn formulario(&self, nome: &str) -> Option<&str> {
+        self.formularios.get(&nome.to_lowercase()).map(|(n, _)| n.as_str())
+    }
+
+    /// O controle `nome` do formulário `form`, como escrito.
+    pub fn controle(&self, form: &str, nome: &str) -> Option<&str> {
+        self.formularios.get(&form.to_lowercase())?.1.iter().find(|c| c.eq_ignore_ascii_case(nome)).map(String::as_str)
+    }
+
+    /// O formulário cujo código é o módulo `mi`.
+    pub fn formulario_do_modulo(&self, mi: usize) -> Option<&str> {
+        self.formulario(&self.modulos[mi].nome)
     }
 
     /// A função da API do Windows (`Declare`) com esse nome, em algum módulo.

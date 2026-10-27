@@ -37,6 +37,11 @@ impl Gerador<'_> {
             Obj::Parte(f, Parte::Fonte) => self.escrever_fonte(&f, &n, valor),
             Obj::Parte(f, Parte::Bordas(lado)) => self.escrever_borda(&f, lado.as_deref(), &n, valor),
             Obj::App => self.escrever_no_app(&n, valor),
+            Obj::Controle(c) => self.escrever_no_controle(&c, &n, valor),
+            Obj::Formulario(f) => match self.p.controle(&f, prop).map(String::from) {
+                Some(c) => self.escrever_no_controle(&c, "value", valor),
+                None => Err(Motivo::novo(format!("{f}.{prop} do formulário"))),
+            },
             Obj::Aba(aba, nome) => self.escrever_na_aba(&aba, nome, &n, valor),
             Obj::Janela => self.escrever_na_janela(&n),
             Obj::Ordem(aba) => match n.as_str() {
@@ -375,6 +380,19 @@ impl Gerador<'_> {
         })
     }
 
+    /// `TextBox1.Value = x` → `sheet.field("TextBox1").value = x;`.
+    pub fn escrever_no_controle(&mut self, c: &str, n: &str, valor: &Expr) -> R<String> {
+        let p = match n {
+            "value" | "text" => "value",
+            "caption" => "caption",
+            "enabled" => "enabled",
+            "visible" => "visible",
+            _ => return Err(Motivo::novo(format!("{c}.{n} do controle do formulário"))),
+        };
+        let v = self.valor(valor)?;
+        Ok(format!("sheet.field({c:?}).{p} = {};", v.js))
+    }
+
     // ------------------------------------------------------------------ métodos
 
     /// `obj.Metodo args` → a instrução JS.
@@ -382,6 +400,15 @@ impl Gerador<'_> {
         let n = nome.to_lowercase();
         match o {
             Obj::Faixa(f) => self.metodo_da_faixa(&f, &n, args),
+            Obj::Formulario(f) => match n.as_str() {
+                "show" => Ok(format!("sheet.showComponent({f:?});")),
+                "hide" => Ok("sheet.hideComponent();".into()),
+                _ => Err(Motivo::novo(format!("{f}.{nome} do formulário"))),
+            },
+            Obj::Controle(c) => match n.as_str() {
+                "setfocus" => Ok(String::new()),
+                _ => Err(Motivo::novo(format!("{c}.{nome}: a lista do formulário mudada pela macro (só AddItem com texto fixo no UserForm_Initialize converte)"))),
+            },
             Obj::Aba(aba, nome_aba) => self.metodo_da_aba(&aba, nome_aba, &n, args),
             Obj::Nomes if n == "add" => self.nome_novo(args),
             // Rolar, ativar outra janela, zoom: a planilha da macro não tem janela.
