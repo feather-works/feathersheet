@@ -1,8 +1,5 @@
 //! Auxiliares compartilhados pelas operações (texto no estilo JavaScript, escrita e foto de linha).
 
-use crate::celulas::estilo_parcial::EstiloParcial;
-use crate::celulas::refs::Rect;
-use crate::planilha::sheet::Sheet;
 
 // ------------------------------------------------ as operações por linha
 //
@@ -34,19 +31,4 @@ pub(super) fn trim_js(texto: &str) -> &str {
     texto.trim_matches(espaco_js)
 }
 
-/// O `write` do `ops.ts`: o texto por `setCell`, depois o estilo por cima.
-pub(super) fn escrever(sheet: &mut Sheet, row: u32, col: u32, raw: &str, style: Option<&EstiloParcial>) {
-    if !raw.is_empty() {
-        sheet.set_cell(row, col, raw);
-    }
-    if let Some(e) = style {
-        sheet.set_style(&Rect::new(row, col, row, col), e);
-    }
-}
-
-/// A foto de uma linha: o texto digitado e o estilo que vale em cada célula
-/// (`getStyle`, com coluna e linha mescladas — é o que o TypeScript copia).
-pub(super) fn foto_da_linha(sheet: &Sheet, row: u32, c0: u32, c1: u32) -> Vec<(String, Option<EstiloParcial>)> {
-    (c0..=c1).map(|c| (sheet.get_raw(row, c), sheet.estilo_mesclado(row, c))).collect()
-}
 

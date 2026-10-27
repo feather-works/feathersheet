@@ -360,6 +360,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "falcao-bytecode"
+version = "0.1.0"
+dependencies = [
+ "falcao-sintaxe",
+]
+
+[[package]]
+name = "falcao-runtime"
+version = "0.1.0"
+dependencies = [
+ "falcao-bytecode",
+ "falcao-sintaxe",
+]
+
+[[package]]
+name = "falcao-sintaxe"
+version = "0.1.0"
+
+[[package]]
 name = "fast-float2"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -377,6 +396,7 @@ version = "0.1.4"
 dependencies = [
  "boa_engine",
  "boa_gc",
+ "falcao-runtime",
  "serde",
  "serde_json",
 ]

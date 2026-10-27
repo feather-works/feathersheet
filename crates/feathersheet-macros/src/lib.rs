@@ -22,8 +22,8 @@ pub use pasta::{Contexto, PedidoArquivo};
 pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;
 use feathersheet_core::{
-    celulas::{refs::parse_range_ref, estilo_parcial::{Campo, EstiloParcial, mesclar, nome_do_formato}},
-    planilha::{workbook::Workbook, sheet::edicao::Snap},
+    celulas::{refs::parse_range_ref, estilo_parcial::{Campo, EstiloParcial, nome_do_formato}},
+    planilha::workbook::Workbook,
     Value, MAX_COLS, MAX_ROWS,
 };
 use serde_json::{json, Value as Json};
@@ -719,19 +719,11 @@ impl HospedeiroMacros for HospedeiroSheet {
                         e.pasta.aba_mut(aba).unwrap().sheet.abrir_transacao();
                     }
                     e.pasta.editar(aba, |sheet| {
+                        // set_style() abre e fecha a própria transação; célula a célula o
+                        // UNDO da macro inteira fica um passo só, como em set().
                         for linha in area.r0..=area.r1 {
                             for coluna in area.c0..=area.c1 {
-                                // set_style() abre e fecha a própria transação;
-                                // aplicar snapshots mantém o UNDO da macro
-                                // inteira como um só passo, como em set().
-                                let raw = sheet.get_raw(linha,coluna);
-                                let estilo = mesclar(
-                                    sheet.estilo_mesclado(linha,coluna).as_ref(),
-                                    &patch,
-                                );
-                                sheet.apply(linha,coluna,Some(Snap {
-                                    raw, style: Some(estilo),
-                                }),true);
+                                sheet.estilizar_celula(linha, coluna, &patch);
                             }
                         }
                     });

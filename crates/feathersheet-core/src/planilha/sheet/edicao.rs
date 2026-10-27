@@ -959,6 +959,25 @@ impl Sheet {
         true
     }
 
+    /// Mescla `patch` no estilo da célula, com desfazer, sem mexer no conteúdo (a transação
+    /// é de quem chama). A foto de antes é tirada uma vez só.
+    pub fn estilizar_celula(&mut self, row: u32, col: u32, patch: &EstiloParcial) {
+        let antes = self.snapshot(row, col);
+        let raw = antes.as_ref().map(|a| a.raw.clone()).unwrap_or_default();
+        let next = Some(Snap { raw, style: Some(mesclar(self.estilo_mesclado(row, col).as_ref(), patch)) });
+        if let (Some(a), Some(n)) = (&antes, &next) {
+            if a.style == n.style { return; }
+        }
+        self.tocar();
+        if self.so_trocar_estilo(row, col, antes.as_ref(), next.as_ref()) {
+            if let Some(p) = self.hist.pendente.as_mut() {
+                p.push(Passo::Celula(Change { k: key(row, col), antes, depois: next }));
+            }
+            return;
+        }
+        self.apply(row, col, next, true);
+    }
+
     /// Só o estilo de um literal muda: troca o índice do estilo sem regravar a célula.
     /// Vale para o literal que mora só na coluna de dados (sem fórmula, fora do `Map`, sem
     /// texto digitado à parte). Formatar 200 mil
@@ -972,8 +991,11 @@ impl Sheet {
             return false;
         }
         // Como no fim do `apply`: o estilo que não reconstrói o texto (data) guarda o digitado.
+        // Número com formato (data, moeda, %) quase nunca volta igual: guarda sem formatar
+        // para conferir (guardar à toa só custa memória; o `get_raw` dá o mesmo texto).
         let valor = crate::celulas::input::parse_literal(&n.raw).value;
-        if !round_trips(&n.raw, &valor, n.style.as_ref()) {
+        let com_formato = formato(n.style.as_ref()).is_some_and(|f| f != "auto");
+        if (com_formato && matches!(valor, Value::Number(_))) || !round_trips(&n.raw, &valor, n.style.as_ref()) {
             self.textos.insert(k, &n.raw);
         }
         match n.style.clone().and_then(|s| self.registrar_parcial(s)) {
@@ -1206,10 +1228,7 @@ impl Sheet {
                 self.chaves_no_retangulo(&r)
             };
             for k in chaves {
-                let (row, col) = (key_row(k), key_col(k));
-                let raw = self.get_raw(row, col);
-                let style = mesclar(self.estilo_mesclado(row, col).as_ref(), patch);
-                self.apply(row, col, Some(Snap { raw, style: Some(style) }), true);
+                self.estilizar_celula(key_row(k), key_col(k), patch);
             }
         }
         self.fechar_transacao();
@@ -1269,15 +1288,20 @@ impl Sheet {
     fn soltar_para_literal(&mut self, row: u32, col: u32) {
         let k = key(row, col);
         self.rastro.borrow_mut().anotar(k);
-        self.deps.unlink(k, &mut |_, _| {});
-        self.formulas.clear_cell(row, col);
-        self.textos.remove(&k);
-        self.externas.remove(&k);
-        self.cells.remove(&k);
-        self.styles.remove(&k);
+        // Mapa vazio não precisa de `remove` (cada um calcula o hash): numa aba nova são
+        // oito hashes por célula à toa (gravar 200 mil linhas pela macro, 27/10/2026).
+        if !self.deps.precedents.is_empty() || !self.deps.array_cells.is_empty()
+            || !self.deps.range_deps.is_empty() || !self.deps.volatiles.is_empty() {
+            self.deps.unlink(k, &mut |_, _| {});
+        }
+        if self.formulas.size() > 0 { self.formulas.clear_cell(row, col); }
+        if !self.textos.is_empty() { self.textos.remove(&k); }
+        if !self.externas.is_empty() { self.externas.remove(&k); }
+        if !self.cells.is_empty() { self.cells.remove(&k); }
+        if !self.styles.is_empty() { self.styles.remove(&k); }
         let mut calc = self.calc.borrow_mut();
-        calc.cache.remove(&k);
-        calc.dirty.remove(&k);
+        if !calc.cache.is_empty() { calc.cache.remove(&k); }
+        if !calc.dirty.is_empty() { calc.dirty.remove(&k); }
     }
 
     /// Se existe fórmula nesta aba que leia outra célula: o grafo (fórmula
