@@ -3961,5 +3961,19 @@
  "Altura:": "Height:",
  "Escala:": "Scale:",
  "Ajustada": "Fitted",
- "Tamanho da Célula": "Cell Size"
+ "Tamanho da Célula": "Cell Size",
+ "Obter e Transformar Dados": "Get & Transform Data",
+ "Obter Dados": "Get Data",
+ "De Texto/CSV": "From Text/CSV",
+ "De Tabela/Intervalo": "From Table/Range",
+ "Fontes Recentes": "Recent Sources",
+ "Conexões Existentes": "Existing Connections",
+ "De Texto/CSV, Excel ou JSON…": "From Text/CSV, Excel or JSON…",
+ "Da Web…": "From Web…",
+ "De uma tabela da pasta…": "From a table in this workbook…",
+ "Abrir o OpenQuery": "Open OpenQuery",
+ "CONSULTAS DESTA PASTA": "QUERIES IN THIS WORKBOOK",
+ "FONTES RECENTES": "RECENT SOURCES",
+ "Nenhuma consulta salva nesta pasta.": "No saved queries in this workbook.",
+ "Nenhuma fonte usada ainda.": "No sources used yet."
 }

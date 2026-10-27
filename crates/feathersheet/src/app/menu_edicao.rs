@@ -11,6 +11,8 @@ const LARGURA: f32 = 262.0;
 enum Item {
     Titulo(&'static str),
     Acao(&'static str, &'static str, Msg),
+    /// Item com texto que vem da pasta ou das preferências (fontes recentes, conexões).
+    Dinamico(String, &'static str, Msg),
     Divisor,
 }
 
@@ -140,6 +142,18 @@ fn itens(tipo: &str) -> Vec<Item> {
             Acao(tr!("Adicionar à área de impressão"), "plus", Msg::Impressao(EventoImpressao::AdicionarArea)),
             Acao(tr!("Limpar área de impressão"), "limpar_tudo", Msg::Impressao(EventoImpressao::LimparArea)),
         ],
+        "obter_dados" => {
+            let abrir = |e: EventoOpenQuery| Msg::OpenQuery(EventoOpenQuery::AbrirCom(Box::new(e)));
+            vec![
+                Titulo(tr!("OBTER DADOS")),
+                Acao(tr!("De Texto/CSV, Excel ou JSON…"), "folder-open", abrir(EventoOpenQuery::ImportarArquivo)),
+                Acao(tr!("Da Web…"), "link", abrir(EventoOpenQuery::MostrarWeb)),
+                Acao(tr!("De Tabela/Intervalo"), "table", abrir(EventoOpenQuery::CarregarSelecao)),
+                Acao(tr!("De uma tabela da pasta…"), "table", abrir(EventoOpenQuery::MostrarTabelas)),
+                Divisor,
+                Acao(tr!("Abrir o OpenQuery"), "table", Msg::OpenQuery(EventoOpenQuery::Abrir)),
+            ]
+        }
         "pg_largura" | "pg_altura" => {
             let largura = tipo == "pg_largura";
             let mut v = vec![Titulo(if largura { tr!("LARGURA") } else { tr!("ALTURA") })];
@@ -178,19 +192,37 @@ fn itens(tipo: &str) -> Vec<Item> {
 }
 
 /// Altura estimada do painel, para não deixá-lo passar da borda da janela.
-fn altura(tipo: &str) -> f32 {
+fn altura(tipo: &str, itens: &[Item]) -> f32 {
     if let Some(g) = grade(tipo) {
         return 20.0 + g.iter().map(|(_, s)| 22.0 + s.len().div_ceil(POR_LINHA) as f32 * 33.0).sum::<f32>();
     }
-    20.0 + itens(tipo).iter().map(|item| match item {
+    20.0 + itens.iter().map(|item| match item {
         Item::Titulo(_) => 22.0,
-        Item::Acao(..) => 37.0,
+        Item::Acao(..) | Item::Dinamico(..) => 37.0,
         Item::Divisor => 9.0,
     }).sum::<f32>()
 }
 
 impl App {
     /// O menu fica junto ao botão acionado, sem ocupar a área de trabalho.
+    /// Os itens fixos de [`itens`] mais os que dependem do estado.
+    fn itens_menu(&self, tipo: &str) -> Vec<Item> {
+        let reabrir = |e: EventoOpenQuery| Msg::OpenQuery(EventoOpenQuery::AbrirCom(Box::new(e)));
+        let lista: Vec<Item> = match tipo {
+            "fontes_recentes" => self.config.fontes_recentes.iter().map(|f| Item::Dinamico(
+                f.clone(), if f.starts_with("http") { "link" } else { "file" },
+                reabrir(EventoOpenQuery::AbrirRecente(f.clone())))).collect(),
+            "conexoes" => self.conexoes_existentes().into_iter().map(|(id, nome)| Item::Dinamico(
+                nome, "table", reabrir(EventoOpenQuery::EditarSalva(id)))).collect(),
+            _ => return itens(tipo),
+        };
+        let titulo = if tipo == "conexoes" { tr!("CONSULTAS DESTA PASTA") } else { tr!("FONTES RECENTES") };
+        let vazio = if tipo == "conexoes" { tr!("Nenhuma consulta salva nesta pasta.") } else { tr!("Nenhuma fonte usada ainda.") };
+        let mut v = vec![Item::Titulo(titulo)];
+        if lista.is_empty() { v.push(Item::Titulo(vazio)); } else { v.extend(lista); }
+        v
+    }
+
     fn menu_edicao(&self, tipo: &'static str) -> Element<'_, Msg> {
         let mut coluna = pelicano::column(Vec::<pelicano::Element<_>>::new()).spacing(3);
         for (secao, simbolos) in grade(tipo).unwrap_or_default() {
@@ -205,13 +237,23 @@ impl App {
                 })).spacing(2));
             }
         }
-        for (i, item) in itens(tipo).into_iter().enumerate() {
+        for (i, item) in self.itens_menu(tipo).into_iter().enumerate() {
             coluna = match item {
                 Item::Titulo(titulo) => coluna.push(
                     container(text(titulo).size(11).color(COR_TEXTO_MUTED()))
                         .padding(pelicano::Padding { top: if i == 0 { 0.0 } else { 6.0 }, ..Default::default() }),
                 ),
                 Item::Acao(rotulo, icone, msg) => coluna.push(
+                    button(row![
+                        feather_ui::icones::icone(icone, 17.),
+                        text(rotulo).size(12),
+                    ].spacing(9).align(pelicano::Align::Center))
+                        .width(Length::FILL)
+                        .padding([8, 10])
+                        .style(estilo_botao_pequeno(false))
+                        .on_press(Msg::EdicaoMenuAcao(Box::new(msg))),
+                ),
+                Item::Dinamico(rotulo, icone, msg) => coluna.push(
                     button(row![
                         feather_ui::icones::icone(icone, 17.),
                         text(rotulo).size(12),
@@ -234,7 +276,7 @@ impl App {
         &'a self, base: Element<'a, Msg>,
     ) -> Element<'a, Msg> {
         let Some(tipo) = self.edicao_menu else { return base; };
-        let altura = altura(tipo);
+        let altura = altura(tipo, &self.itens_menu(tipo));
         let x = self.edicao_popup_x.clamp(
             8.0, (self.tamanho_principal.width - LARGURA - 8.0).max(8.0),
         );
@@ -278,7 +320,7 @@ mod testes {
     #[test]
     fn icones_dos_menus_existem_no_catalogo() {
         for tipo in ["autosoma", "preencher", "classificar", "formatar", "mesclar", "validacao", "limpar", "sublinhado",
-            "pg_margens", "pg_orientacao", "pg_tamanho", "pg_area", "pg_escala", "pg_largura", "pg_altura"] {
+            "pg_margens", "pg_orientacao", "pg_tamanho", "pg_area", "pg_escala", "pg_largura", "pg_altura", "obter_dados"] {
             for item in itens(tipo) {
                 if let Item::Acao(rotulo, icone, _) = item {
                     assert!(feather_ui::icones::existe(icone), "{tipo}: {rotulo} ({icone})");

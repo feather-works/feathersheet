@@ -316,6 +316,23 @@ impl App {
             // Contextual: só com forma selecionada (objetos/interface.rs).
             AbaFaixa::EditarForma => grupos.extend(self.grupos_editar_forma()),
             AbaFaixa::Dados => {
+                // Obter e Transformar Dados do Excel: tudo passa pelo OpenQuery.
+                let abrir = |e: EventoOpenQuery| Some(Msg::OpenQuery(EventoOpenQuery::AbrirCom(Box::new(e))));
+                let menu = |rotulo: &str, icone: &str, tipo: &'static str| self.faixa_pequeno(
+                    rotulo, icone, Some(Msg::AlternarMenuEdicao(tipo)), self.edicao_menu == Some(tipo));
+                grupos.push(self.faixa_grupo(tr!("Obter e Transformar Dados"), self.faixa_linha(vec![
+                    self.faixa_grande_seta(tr!("Obter Dados"), "database",
+                        Some(Msg::AlternarMenuEdicao("obter_dados")), self.edicao_menu == Some("obter_dados")),
+                    self.faixa_pilha(vec![
+                        self.faixa_pequeno(tr!("De Texto/CSV"), "file", abrir(EventoOpenQuery::ImportarArquivo), false),
+                        self.faixa_pequeno(tr!("Da Web"), "link", abrir(EventoOpenQuery::MostrarWeb), false),
+                        self.faixa_pequeno(tr!("De Tabela/Intervalo"), "table", abrir(EventoOpenQuery::CarregarSelecao), false),
+                    ]),
+                    self.faixa_pilha(vec![
+                        menu(tr!("Fontes Recentes"), "history", "fontes_recentes"),
+                        menu(tr!("Conexões Existentes"), "link", "conexoes"),
+                    ]),
+                ])));
                 grupos.push(self.faixa_grupo(tr!("Classificar e filtrar"), self.faixa_linha(vec![
                     self.faixa_grande("AutoFiltro", "filter",
                         Some(Msg::TabelaAcao(tabelas::Acao::AlternarAutoFiltro)), false),
@@ -703,5 +720,6 @@ fn em_breve<'a>(botao: Element<'a, Msg>, dica: &'static str) -> Element<'a, Msg>
     .padding([4, 8]).style(estilo_dica)
     .into()
 }
+
 
 

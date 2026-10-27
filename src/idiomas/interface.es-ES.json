@@ -3956,5 +3956,19 @@
  "Altura:": "Alto:",
  "Escala:": "Escala:",
  "Ajustada": "Ajustada",
- "Tamanho da Célula": "Tamaño de celda"
+ "Tamanho da Célula": "Tamaño de celda",
+ "Obter e Transformar Dados": "Obtener y transformar datos",
+ "Obter Dados": "Obtener datos",
+ "De Texto/CSV": "Desde texto/CSV",
+ "De Tabela/Intervalo": "Desde tabla/rango",
+ "Fontes Recentes": "Fuentes recientes",
+ "Conexões Existentes": "Conexiones existentes",
+ "De Texto/CSV, Excel ou JSON…": "Desde texto/CSV, Excel o JSON…",
+ "Da Web…": "Desde la web…",
+ "De uma tabela da pasta…": "Desde una tabla del libro…",
+ "Abrir o OpenQuery": "Abrir OpenQuery",
+ "CONSULTAS DESTA PASTA": "CONSULTAS DE ESTE LIBRO",
+ "FONTES RECENTES": "FUENTES RECIENTES",
+ "Nenhuma consulta salva nesta pasta.": "No hay consultas guardadas en este libro.",
+ "Nenhuma fonte usada ainda.": "Aún no se ha usado ninguna fuente."
 }

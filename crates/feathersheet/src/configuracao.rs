@@ -41,6 +41,8 @@ pub struct Configuracao {
     pub calculo_manual: bool,
     /// Fórmulas → Usadas recentemente, a mais nova primeiro.
     pub funcoes_recentes: Vec<String>,
+    /// Dados → Fontes recentes do OpenQuery (caminho ou URL), a mais nova primeiro.
+    pub fontes_recentes: Vec<String>,
     /// Gravação periódica apenas de documentos .fshz já salvos.
     pub auto_salvar: bool,
     pub intervalo_auto_salvar: u16,
@@ -134,7 +136,7 @@ impl Default for Configuracao {
             faixa_recolhida: false, faixa_aba: "inicio".into(), linhas_visiveis: 28, colunas_visiveis: 12, zoom: 100, zoom_minimo: 50, zoom_maximo: 200,
             fonte_grade: "sans".into(), tamanho_fonte_grade: 13,
             realce_eixos: true, linhas_grade: true, barra_formulas: true,
-            mostrar_formulas: false, calculo_manual: false, funcoes_recentes: Vec::new(), auto_salvar: false, intervalo_auto_salvar: 15, recuperacao_automatica: true,
+            mostrar_formulas: false, calculo_manual: false, funcoes_recentes: Vec::new(), fontes_recentes: Vec::new(), auto_salvar: false, intervalo_auto_salvar: 15, recuperacao_automatica: true,
             limite_memoria_gb: 6,
             nucleos: 0,
             atalhos: std::collections::BTreeMap::new(),

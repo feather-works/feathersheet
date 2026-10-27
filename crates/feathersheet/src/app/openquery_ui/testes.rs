@@ -389,3 +389,23 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
     assert!(app.openquery.as_ref().unwrap().editor_avancado.is_none());
     assert_eq!(app.openquery.as_ref().unwrap().codigo.text(), original);
 }
+
+    #[test]
+    fn de_tabela_intervalo_abre_com_a_regiao_da_celula() {
+        let mut app = App::default();
+        let _ = app.update(Msg::Colar("Cidade\tMWh\nVitória\t42\nSerra\t7".into()));
+        let _ = app.update(Msg::IrPara("B2".into()));
+        let _ = app.update(Msg::OpenQuery(Evento::AbrirCom(Box::new(Evento::CarregarSelecao))));
+        let e = app.openquery.as_ref().expect("OpenQuery aberto");
+        assert_eq!(e.fonte.cabecalho, ["Cidade", "MWh"]);
+        assert_eq!(e.fonte.linhas.len(), 2);
+    }
+
+    #[test]
+    fn fontes_recentes_sem_repetir_e_a_mais_nova_primeiro() {
+        let mut app = App::default();
+        app.lembrar_fonte("/tmp/a.csv".into());
+        app.lembrar_fonte("https://x.org/t".into());
+        app.lembrar_fonte("/tmp/a.csv".into());
+        assert_eq!(app.config.fontes_recentes, ["/tmp/a.csv", "https://x.org/t"]);
+    }

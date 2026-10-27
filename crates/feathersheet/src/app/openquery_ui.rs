@@ -85,6 +85,12 @@ pub enum Evento {
     ConfirmarTabelaWeb,
     CancelarSelecaoWeb,
     MostrarTabelas,
+    /// Abre o OpenQuery (se fechado) e segue com o evento: os botões da aba Dados.
+    AbrirCom(Box<Evento>),
+    /// De Tabela/Intervalo: a seleção (ou a região em volta da célula) vira a fonte.
+    CarregarSelecao,
+    /// Fontes recentes: reabre um arquivo ou uma URL já usados.
+    AbrirRecente(String),
     CarregarTabela(usize, String),
     FonteTabela(usize, String),
     ReimportarArquivo,
@@ -436,7 +442,53 @@ impl Estado {
 impl App {
     /// Roteia o evento e mantém a janela própria do OpenQuery em sincronia
     /// com o estado: abre quando a consulta nasce, fecha quando termina.
+    /// Põe a área `area` da aba `aba` como fonte da consulta aberta (tabela ou intervalo).
+    fn carregar_fonte_openquery(&mut self, aba: usize, area: Rect, nome: &str) {
+        let Some(origem_aba) = self.workbook.aba(aba).map(|a| a.sheet.name.clone()) else { return };
+        match ler_tabela(&self.workbook, aba, area.clone()) {
+            Ok(fonte) => if let Some(e) = &mut self.openquery {
+                e.fonte = fonte;
+                e.origem_aba = origem_aba;
+                e.origem = area;
+                e.passos.clear();
+                e.fontes.clear();
+                e.edicao = None;
+                e.nome = format!("Consulta_{nome}");
+                e.exibir_codigo = true;
+                e.exibir_script = false;
+                e.mostrar_tabelas = false;
+                e.mostrar_web = false;
+                e.mostrar_manual = false;
+                e.assistente = None;
+                e.registrar_passos();
+                self.status = trf!("OpenQuery: tabela '{nome}' carregada");
+            },
+            Err(erro) => if let Some(e) = &mut self.openquery { e.erro = erro; }
+        }
+    }
+
+    /// Dados → Conexões existentes: as consultas salvas na pasta (id, nome).
+    pub(super) fn conexoes_existentes(&self) -> Vec<(String, String)> {
+        registro::listar(&self.workbook).unwrap_or_default().into_iter().filter_map(|item| Some((
+            item.dados["id"].as_str()?.to_string(),
+            item.dados["nome"].as_str()?.to_string(),
+        ))).collect()
+    }
+
+    /// Guarda arquivo ou URL nas Fontes recentes da aba Dados.
+    pub(super) fn lembrar_fonte(&mut self, fonte: String) {
+        let lista = &mut self.config.fontes_recentes;
+        lista.retain(|f| *f != fonte);
+        lista.insert(0, fonte);
+        lista.truncate(8);
+        self.config.gravar();
+    }
+
     pub(super) fn evento_openquery_janela(&mut self, evento: Evento) -> Task<Msg> {
+        if let Evento::AbrirCom(dentro) = evento {
+            let abrir = if self.openquery.is_none() { self.evento_openquery_janela(Evento::Abrir) } else { Task::none() };
+            return Task::batch([abrir, self.evento_openquery_janela(*dentro)]);
+        }
         let reabrir = matches!(evento, Evento::Abrir);
         let mut tarefa = self.evento_openquery(evento);
         let aberta = self.janelas.aberta(Auxiliar::OpenQuery);
@@ -502,32 +554,44 @@ impl App {
                 let encontrada = tabelas_existentes(&self.workbook).into_iter()
                     .find(|(i, n, _)| *i == indice && n == &nome);
                 if let Some((i, _, area)) = encontrada {
-                    if let Some(aba) = self.workbook.aba(i) {
-                        let origem_aba = aba.sheet.name.clone();
-                        match ler_tabela(&self.workbook, i, area.clone()) {
-                            Ok(fonte) => if let Some(e) = &mut self.openquery {
-                                e.fonte = fonte;
-                                e.origem_aba = origem_aba;
-                                e.origem = area;
-                                e.passos.clear();
-                                e.fontes.clear();
-                                e.edicao = None;
-                                e.nome = format!("Consulta_{nome}");
-                                e.exibir_codigo = true;
-                                e.exibir_script = false;
-                                e.mostrar_tabelas = false;
-                                e.mostrar_web = false;
-                                e.mostrar_manual = false;
-                                e.assistente = None;
-                                e.registrar_passos();
-                                self.status = trf!("OpenQuery: tabela '{nome}' carregada");
-                            },
-                            Err(erro) => if let Some(e) = &mut self.openquery { e.erro = erro; }
-                        }
-                    }
+                    self.carregar_fonte_openquery(i, area, &nome);
                 } else if let Some(e) = &mut self.openquery {
                     e.erro = trf!("A tabela '{nome}' não existe mais nesta pasta");
                 }
+            }
+            // Normalmente tratado no `evento_openquery_janela`, que também abre a janela.
+            Evento::AbrirCom(dentro) => {
+                if self.openquery.is_none() { let _ = self.evento_openquery(Evento::Abrir); }
+                return self.evento_openquery(*dentro);
+            }
+            Evento::CarregarSelecao => {
+                let Some(aba) = self.workbook.aba(self.folha) else { return Task::none() };
+                let selecao = self.area_selecionada();
+                let usada = aba.sheet.used_rect();
+                let area = if selecao.r0 == selecao.r1 && selecao.c0 == selecao.c1 {
+                    feathersheet_core::operacoes::ops::regiao_atual(&aba.sheet, selecao)
+                } else {
+                    Rect::new(selecao.r0, selecao.c0, selecao.r1.min(usada.r1), selecao.c1.min(usada.c1))
+                };
+                let nome = aba.sheet.name.clone();
+                self.carregar_fonte_openquery(self.folha, area, &nome);
+            }
+            Evento::AbrirRecente(fonte) => {
+                if fonte.starts_with("http://") || fonte.starts_with("https://") {
+                    if let Some(e) = &mut self.openquery {
+                        e.url_web = fonte;
+                        e.mostrar_web = true;
+                        e.mostrar_tabelas = false;
+                        e.mostrar_manual = false;
+                    }
+                    return self.evento_openquery(Evento::ImportarWeb);
+                }
+                let Some(e) = &mut self.openquery else { return Task::none() };
+                e.limpar_previa_web();
+                e.importacao_preservar = false;
+                let ticket = IMPORTACAO_SEQ.fetch_add(1, Ordering::Relaxed);
+                e.importacao_pendente = Some(ticket);
+                return self.evento_openquery(Evento::ArquivoEscolhido(ticket, Some(fonte.into())));
             }
             Evento::FonteTabela(indice, nome) => {
                 let encontrada = tabelas_existentes(&self.workbook).into_iter()
@@ -558,6 +622,8 @@ impl App {
                 }
                 let url = e.url_web.clone();
                 let ticket = IMPORTACAO_SEQ.fetch_add(1, Ordering::Relaxed);
+                self.lembrar_fonte(url.trim().to_owned());
+                let Some(e) = &mut self.openquery else { return Task::none() };
                 e.limpar_previa_web();
                 e.importacao_pendente = Some(ticket);
                 // reqwest normaliza URLs (ex.: https://site => https://site/).
@@ -827,6 +893,7 @@ impl App {
                     if let Some(e) = &mut self.openquery { e.importacao_pendente = None; }
                     return Task::none();
                 };
+                self.lembrar_fonte(caminho.display().to_string());
                 self.status = tr!("OpenQuery: importando fonte em tarefa separada").into();
                 return Task::perform(async move {
                     tokio::task::spawn_blocking(move || importador::ler(&caminho))
