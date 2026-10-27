@@ -790,7 +790,13 @@ impl HospedeiroMacros for HospedeiroSheet {
                     if !escritas.is_empty() {
                         if e.alteradas.insert(aba) { e.pasta.aba_mut(aba).unwrap().sheet.abrir_transacao(); }
                         e.pasta.editar(aba, |sheet| {
-                            for (r,c,texto) in escritas { sheet.set_cell(r,c,&texto); }
+                            // Matriz (`Range.Value = m`): o caminho de escrita em lote (analisa uma vez,
+                            // mesmo desfazer); a transação da macro já está aberta.
+                            if op == "set" && dados[2].is_array() {
+                                for (r,c,texto) in escritas { sheet.set_cell_divisao(r,c,&texto); }
+                            } else {
+                                for (r,c,texto) in escritas { sheet.set_cell(r,c,&texto); }
+                            }
                         });
                     }
                     Json::Null
