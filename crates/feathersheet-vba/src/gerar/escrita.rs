@@ -55,6 +55,22 @@ impl Gerador<'_> {
                 _ => Err(Motivo::novo(format!("Sort.{prop}"))),
             },
             // Mensagens, ícone e seta da lista: a validação da API não guarda esses detalhes.
+            Obj::EstiloCondicao(c, parte) => {
+                let v = self.valor(valor)?;
+                let campo = match (&parte, n.as_str()) {
+                    (Parte::Interior, "color") => "fill",
+                    (Parte::Fonte, "color") => "color",
+                    (Parte::Fonte, "bold") => "bold",
+                    (Parte::Fonte, "italic") => "italic",
+                    (Parte::Interior | Parte::Fonte, "colorindex") => {
+                        return Ok(format!("{c}.o.{} = vba.{}({});", if parte == Parte::Interior { "fill" } else { "color" }, self.ajuda("corIndice"), v.js));
+                    }
+                    _ => return Err(Motivo::novo(format!("estilo da formatação condicional: {prop}"))),
+                };
+                Ok(format!("{c}.o.{campo} = {};", v.js))
+            }
+            // Parar se verdadeiro e prioridade: a planilha aplica todas as regras em ordem.
+            Obj::Condicao(_) if matches!(n.as_str(), "stopiftrue" | "priority") => Ok(String::new()),
             Obj::Validacao(_) if matches!(n.as_str(), "ignoreblank" | "incelldropdown" | "inputtitle" | "errortitle" | "inputmessage" | "errormessage" | "showinput" | "showerror" | "imemode") => Ok(String::new()),
             _ => Err(Motivo::novo(format!("escrever {prop}"))),
         }
@@ -415,11 +431,17 @@ impl Gerador<'_> {
             },
             Obj::Aba(aba, nome_aba) => self.metodo_da_aba(&aba, nome_aba, &n, args),
             Obj::Nomes if n == "add" => self.nome_novo(args),
+            Obj::Abas if n == "add" => Ok(format!("{};", self.aba_nova_da_pasta(args)?)),
             // Rolar, ativar outra janela, zoom: a planilha da macro não tem janela.
             Obj::Janela if n == "close" => Err(Motivo::novo("fechar a janela do Excel")),
             Obj::Janela => Ok(String::new()),
             Obj::Ordem(aba) => self.metodo_da_ordem(&aba, &n, args),
             Obj::Validacao(f) => self.metodo_da_validacao(&f, &n, args),
+            Obj::Condicoes(f) if n == "delete" => Ok(format!("vba.{}({}, {});", self.ajuda("condApagar"), f.aba, f.end)),
+            Obj::Condicoes(f) if n == "add" => {
+                let c = self.condicao_nova(&f, args)?;
+                Ok(format!("{c}; vba.{}();", self.ajuda("condAplicar")))
+            }
             Obj::NovaPasta(p) => self.metodo_da_nova_pasta(&p, &n, args),
             Obj::Pastas if n == "open" => Err(Motivo::novo("abrir outra pasta de trabalho (Workbooks.Open)")),
             Obj::Pastas => Err(Motivo::novo(format!("Workbooks.{nome} (só Set x = Workbooks.Add converte)"))),
@@ -476,8 +498,33 @@ impl Gerador<'_> {
             }
             "copypicture" => return Err(Motivo::novo("copiar como imagem (CopyPicture)")),
             "texttocolumns" => self.texto_para_colunas(f, args)?,
+            "removeduplicates" => {
+                let cols = self.arg_js(args, &["columns"], 0)?;
+                let cab = self.arg_js(args, &["header"], 1)?;
+                format!("vba.{}({aba}, {end}, {cols}, {cab});", self.ajuda("repetidas"))
+            }
             _ => return Err(Motivo::novo(format!("Range.{n}"))),
         })
+    }
+
+    /// `FormatConditions.Add Type, Operator, Formula1, Formula2` → `vba.condNova(…)` (o JS da regra).
+    pub fn condicao_nova(&mut self, f: &Faixa, args: &[Arg]) -> R<String> {
+        let tipo = self.arg_js(args, &["type"], 0)?;
+        if !matches!(constante(&Self::arg_de(args, &["type"], 0).unwrap_or(Expr::Num(1.0))), Some(1 | 2)) {
+            return Err(Motivo::novo("formatação condicional que não é por valor nem por fórmula (escala, barra, ícones: há sheet.addColorScale/addDataBar)"));
+        }
+        let op = self.arg_js(args, &["operator"], 1)?;
+        let mut fs = Vec::new();
+        for (nome, pos) in [("formula1", 2), ("formula2", 3)] {
+            fs.push(match Self::arg_de(args, &[nome], pos) {
+                Some(e) => {
+                    let v = self.valor(&e)?;
+                    formula(&e, &v)
+                }
+                None => "undefined".into(),
+            });
+        }
+        Ok(format!("vba.{}({}, {}, {tipo}, {op}, {})", self.ajuda("condNova"), f.aba, f.end, fs.join(", ")))
     }
 
     /// `Names.Add Name:=…, RefersTo:=Range(…)` → `wb.addName(nome, endereço)`.

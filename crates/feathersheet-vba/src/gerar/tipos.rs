@@ -145,6 +145,13 @@ pub enum Obj {
     Formulario(String),
     /// Um controle do formulário aberto (`TextBox1`, `Me.TextBox1`): `sheet.field("TextBox1")`.
     Controle(String),
+    /// `Range.FormatConditions`: `.Delete` e `.Add`.
+    Condicoes(Faixa),
+    /// Uma regra de `FormatConditions.Add` (código JS que dá a regra, montada por `vba.condNova`):
+    /// o estilo vem depois (`.Interior.Color`), e a regra entra na planilha no fim do `With`.
+    Condicao(String),
+    /// `.Interior`/`.Font` da regra.
+    EstiloCondicao(String, Parte),
 }
 
 /// A parte de um intervalo.

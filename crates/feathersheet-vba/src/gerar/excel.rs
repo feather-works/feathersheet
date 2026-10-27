@@ -180,6 +180,7 @@ impl Gerador<'_> {
             Obj::App | Obj::Pasta => self.membro_da_pasta(&n, args),
             Obj::Abas => match n.as_str() {
                 "item" => self.aba_do_argumento(args),
+                "add" => self.aba_nova_da_pasta(args).map(|js| Obj::Aba(js, None)),
                 _ => Err(Motivo::novo(format!("Worksheets.{nome}"))),
             },
             Obj::Aba(aba, nome_aba) => self.membro_da_aba(&aba, nome_aba, &n, args),
@@ -208,8 +209,31 @@ impl Gerador<'_> {
                 None => Err(Motivo::novo(format!("{f}.{nome} do formulário"))),
             },
             Obj::Controle(c) => Err(Motivo::novo(format!("{c}.{nome} do controle do formulário"))),
+            Obj::Condicoes(f) if n == "add" => self.condicao_nova(&f, args).map(Obj::Condicao),
+            Obj::Condicao(c) if n == "interior" => Ok(Obj::EstiloCondicao(c, Parte::Interior)),
+            Obj::Condicao(c) if n == "font" => Ok(Obj::EstiloCondicao(c, Parte::Fonte)),
+            Obj::Condicoes(_) | Obj::Condicao(_) | Obj::EstiloCondicao(..) => Err(Motivo::novo(format!("FormatConditions: {nome} (só Add, Delete, Interior e Font convertem)"))),
             Obj::Dimensao(..) | Obj::Contagem(..) | Obj::Parte(..) | Obj::FuncoesDaPlanilha | Obj::Nomes | Obj::Ordem(_) | Obj::Validacao(_) => Err(Motivo::novo(format!("membro {nome}"))),
         }
+    }
+
+    /// `Worksheets.Add(Before, After, Count, Type)` → `wb.addSheet(null, { after: … })` (a aba nova).
+    pub fn aba_nova_da_pasta(&mut self, args: &[Arg]) -> R<String> {
+        let achar = |chaves: &[&str], pos: usize| args.iter().find(|a| a.nome.as_deref().is_some_and(|n| chaves.iter().any(|c| n.eq_ignore_ascii_case(c)))).or_else(|| args.get(pos).filter(|a| a.nome.is_none())).and_then(|a| a.valor.clone());
+        if achar(&["count"], 2).is_some_and(|c| c != Expr::Num(1.0)) || achar(&["type"], 3).is_some() {
+            return Err(Motivo::novo("Worksheets.Add com Count ou Type (uma aba de planilha por vez)"));
+        }
+        let mut pos = Vec::new();
+        for (chave, p) in [("before", 0), ("after", 1)] {
+            if let Some(e) = achar(&[chave], p) {
+                let aba = match self.objeto(&e)? {
+                    Obj::Aba(js, _) => js,
+                    _ => return Err(Motivo::novo(format!("Worksheets.Add {chave}:= que não é uma aba"))),
+                };
+                pos.push(format!("{chave}: {aba}"));
+            }
+        }
+        Ok(format!("wb.addSheet(null, {{ {} }})", pos.join(", ")))
     }
 
     fn membro_da_pasta(&mut self, n: &str, args: &[Arg]) -> R<Obj> {
@@ -420,7 +444,7 @@ impl Gerador<'_> {
             "validation" => Obj::Validacao(f),
             "sort" => return Err(Motivo::novo("Range.Sort usado como objeto")),
             "autofilter" => return Err(Motivo::novo("filtro do Excel (AutoFilter — converter à mão)")),
-            "formatconditions" => return Err(Motivo::novo("formatação condicional (há sheet.addConditionalFormat — converter à mão)")),
+            "formatconditions" => Obj::Condicoes(f),
             "specialcells" => return Err(Motivo::novo("SpecialCells (converter à mão)")),
             _ => return Err(Motivo::novo(format!("Range.{n}"))),
         })

@@ -180,6 +180,9 @@ pub struct Gerador<'a> {
     pub atual_nome: Option<String>,
     /// Rótulos com bloco aberto (`rotulo_x: { … }`): um `GoTo x` vira `break rotulo_x;`.
     pub rotulos: Vec<String>,
+    /// Depois de `On Error Resume Next` (até o `On Error GoTo 0`): cada instrução vai num
+    /// `try`, e o erro só fica anotado no `Err`.
+    pub pular_erro: bool,
 }
 
 /// Palavras que não podem ser nome de variável no JavaScript (ou que o código gerado usa).

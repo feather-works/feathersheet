@@ -80,7 +80,15 @@ impl Gerador<'_> {
             TipoInstr::ParaCada { var, em, corpo } => self.para_cada(var, em, corpo),
             TipoInstr::Faca { antes, depois, corpo } => self.faca(antes.as_ref(), depois.as_ref(), corpo),
             TipoInstr::Com { obj, corpo } => self.bloco_com(obj, corpo),
-            _ => self.simples(i).map(|js| self.linha(js)),
+            _ => self.simples(i).map(|js| {
+                // shortcut: só a instrução simples é protegida; erro na condição de um If/For ainda para a macro.
+                if self.pular_erro && !js.is_empty() && !js.starts_with("//") && !js.starts_with("const ") && !js.starts_with("let ") {
+                    let e = self.ajuda("erro");
+                    self.linha(format!("try {{ {js} }} catch ($e) {{ vba.{e}($e); }}"));
+                } else {
+                    self.linha(js);
+                }
+            }),
         };
         match r {
             Ok(()) => self.m.convertidas += 1,
@@ -100,10 +108,13 @@ impl Gerador<'_> {
                 self.avisar(i.linha, "End", "End parava a macro inteira; aqui só sai deste procedimento");
                 "return;".into()
             }
-            TipoInstr::EmErro(t) if t == "goto 0" || t == "goto -1" => String::new(),
+            TipoInstr::EmErro(t) if t == "goto 0" || t == "goto -1" => {
+                self.pular_erro = false;
+                String::new()
+            }
             TipoInstr::EmErro(t) if t == "resume next" => {
-                self.avisar(i.linha, "On Error Resume Next", "On Error Resume Next: no JavaScript um erro para a macro (não pula para a próxima linha)");
-                "// On Error Resume Next (sem equivalente: um erro aqui para a macro)".into()
+                self.pular_erro = true;
+                "// On Error Resume Next: um erro nas linhas seguintes só fica anotado no Err".into()
             }
             // Rótulo que ninguém chama (ou já tratado pelo bloco): não faz nada.
             TipoInstr::Rotulo(_) => String::new(),
@@ -621,9 +632,21 @@ impl Gerador<'_> {
 
     fn bloco_com(&mut self, obj: &Expr, corpo: &[Instr]) -> R<()> {
         let o = self.objeto(obj)?;
-        self.com.push(Ok(o));
         self.linha("{");
+        // `With .FormatConditions.Add(…)`: a regra fica numa constante e entra na planilha no fim.
+        let regra = if let Obj::Condicao(js) = &o {
+            let nome = format!("$regra{}", self.novo_id());
+            self.linha(&format!("  const {nome} = {js};"));
+            Some(nome)
+        } else {
+            None
+        };
+        self.com.push(Ok(regra.clone().map_or(o, Obj::Condicao)));
         self.bloco(corpo);
+        if regra.is_some() {
+            let a = self.ajuda("condAplicar");
+            self.linha(&format!("  vba.{a}();"));
+        }
         self.linha("}");
         self.com.pop();
         Ok(())

@@ -130,7 +130,7 @@ fn pedido_de_arquivo(op: &str, dados: &Json, a: &mut Acumulado, nomes_abas: &[St
     }
     let caminho = resolver_caminho(&texto(dados, 1), a.contexto.arquivo.as_deref())?;
     let pedido = if op == "exportarPdf" {
-        let aba = dados[0].as_u64().map(|i| i as usize).filter(|&i| i < ids.len())
+        let aba = dados[0].as_u64().and_then(|id| ids.iter().position(|&x| u64::from(x) == id))
             .ok_or("Aba inexistente")?;
         PedidoArquivo::Pdf { aba: ids[aba], caminho: com_extensao(caminho, &["pdf"])? }
     } else {
@@ -179,7 +179,8 @@ pub(crate) fn executar(
             }
         }
         "ativar" => {
-            let i = dados[0].as_u64().map(|i| i as usize).filter(|&i| i < nomes_abas.len());
+            // O JavaScript manda o id da aba.
+            let i = dados[0].as_u64().and_then(|id| ids.iter().position(|&x| u64::from(x) == id));
             match i {
                 Some(i) => { a.ativou = Some(i); Ok(Json::Null) }
                 None => Err("Aba inexistente".into()),

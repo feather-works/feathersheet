@@ -62,6 +62,91 @@ struct Estado {
     status: Option<String>,
     aba_ativa: usize,
     extra: pasta::Acumulado,
+    /// Abas criadas, apagadas e renomeadas, para desfazer na ordem inversa se a macro der erro.
+    estrutura: Vec<PassoAba>,
+}
+
+enum PassoAba {
+    Criou(u32),
+    /// A aba apagada inteira, onde estava e se a macro já tinha mexido nela (transação aberta).
+    Apagou { indice: usize, aba: feathersheet_core::planilha::workbook::AbaViva, aberta: bool },
+    Renomeou(u32, String),
+}
+
+impl Estado {
+    /// Os índices guardados andam quando uma aba entra (`+1` a partir de `em`) ou sai (`-1` depois de `em`).
+    fn deslocar_indices(&mut self, em: usize, entrou: bool) {
+        let mover = |i: usize| if entrou { if i >= em { i + 1 } else { i } } else if i > em { i - 1 } else { i };
+        self.alteradas = self.alteradas.iter().filter(|&&i| entrou || i != em).map(|&i| mover(i)).collect();
+        self.aba_ativa = mover(self.aba_ativa).min(self.pasta.len().saturating_sub(1));
+        self.extra.ativou = self.extra.ativou.filter(|&i| entrou || i != em).map(mover);
+    }
+
+    /// Desfaz as abas criadas, apagadas e renomeadas (a macro deu erro).
+    fn desfazer_estrutura(&mut self) {
+        while let Some(p) = self.estrutura.pop() {
+            match p {
+                PassoAba::Criou(id) => {
+                    if let Some(i) = self.pasta.indice_do_id(id) {
+                        self.pasta.retirar_aba(i);
+                        self.deslocar_indices(i, false);
+                    }
+                }
+                PassoAba::Apagou { indice, aba, aberta } => {
+                    self.pasta.devolver_aba(indice, aba);
+                    self.deslocar_indices(indice, true);
+                    if aberta { self.alteradas.insert(indice); }
+                }
+                PassoAba::Renomeou(id, antigo) => {
+                    if let Some(i) = self.pasta.indice_do_id(id) { self.pasta.renomear_aba(i, &antigo); }
+                }
+            }
+        }
+    }
+}
+
+/// `wb.addSheet`, `wb.deleteSheet`, `wb.renameSheet`: as abas entram e saem pelo id
+/// (o índice das outras muda).
+fn estrutura_de_abas(e: &mut Estado, op: &str, dados: &Json) -> Result<Json, String> {
+    let indice = |e: &Estado, v: &Json| v.as_u64().and_then(|id| e.pasta.indice_do_id(id as u32)).ok_or_else(|| "Aba inexistente".to_string());
+    match op {
+        "criarAba" => {
+            let nomes = e.pasta.nomes();
+            let livre = |n: &str| !nomes.iter().any(|x| x.eq_ignore_ascii_case(n));
+            let nome = match dados[0].as_str() {
+                Some(n) if !livre(n.trim()) => return Err(format!("Já existe uma aba chamada \"{}\"", n.trim())),
+                Some(n) => n.trim().to_string(),
+                None => (nomes.len() + 1..).map(|k| format!("Planilha{k}")).find(|n| livre(n)).unwrap_or_default(),
+            };
+            if nome.is_empty() || nome.contains('!') { return Err("Nome de aba inválido".into()); }
+            // Como o Excel: antes da aba pedida, depois dela, ou antes da aba ativa.
+            let em = if !dados[1].is_null() { indice(e, &dados[1])? }
+                else if !dados[2].is_null() { indice(e, &dados[2])? + 1 }
+                else { e.extra.ativou.unwrap_or(e.aba_ativa) };
+            let em = e.pasta.inserir_aba(nome, em);
+            e.deslocar_indices(em, true);
+            let id = e.pasta.ids()[em];
+            e.estrutura.push(PassoAba::Criou(id));
+            e.extra.ativou = Some(em);
+            Ok(json!(em))
+        }
+        "apagarAba" => {
+            let i = indice(e, &dados[0])?;
+            let aberta = e.alteradas.contains(&i);
+            let aba = e.pasta.retirar_aba(i).ok_or("A pasta precisa ficar com pelo menos uma aba visível")?;
+            e.deslocar_indices(i, false);
+            e.estrutura.push(PassoAba::Apagou { indice: i, aba, aberta });
+            Ok(Json::Null)
+        }
+        _ => {
+            let i = indice(e, &dados[0])?;
+            let antigo = e.pasta.nomes()[i].clone();
+            let novo = dados[1].as_str().unwrap_or_default();
+            if !e.pasta.renomear_aba(i, novo) { return Err(format!("Nome de aba inválido ou repetido: \"{novo}\"")); }
+            e.estrutura.push(PassoAba::Renomeou(e.pasta.ids()[i], antigo));
+            Ok(Json::Null)
+        }
+    }
 }
 
 /// Adaptador específico do Sheet para o motor de macros compartilhado.
@@ -103,6 +188,14 @@ impl HospedeiroMacros for HospedeiroSheet {
         }
         let resposta = if op == "nomes" {
             json!(e.pasta.nomes())
+        } else if op == "idAba" {
+            let i = dados[0].as_u64().ok_or("Índice de aba inválido")? as usize;
+            json!(e.pasta.ids().get(i).ok_or("Aba inexistente")?)
+        } else if op == "nomeAba" {
+            let i = dados[0].as_u64().and_then(|id| e.pasta.indice_do_id(id as u32)).ok_or("Aba inexistente")?;
+            json!(e.pasta.nomes()[i])
+        } else if matches!(op, "criarAba" | "apagarAba" | "renomearAba") {
+            estrutura_de_abas(&mut e, op, dados)?
         } else if op == "indiceAba" {
             // API wb.sheet de api-pasta.ts: nomes sem distinção
             // de maiúsculas/minúsculas, usando Workbook::indice_por_nome.
@@ -164,8 +257,9 @@ impl HospedeiroMacros for HospedeiroSheet {
             let n = dados[0].as_i64().ok_or("Cor VBA exige numero inteiro")?;
             json!(enderecos::vba_cor_hex(n as u32))
         } else {
-            let aba = dados[0].as_u64().ok_or_else(|| "Índice de aba inválido".to_string())? as usize;
-            if aba >= e.pasta.len() { return Err("Aba inexistente".to_string()); }
+            // O objeto da aba no JavaScript guarda o id: o índice muda quando se cria ou apaga aba.
+            let id = dados[0].as_u64().ok_or_else(|| "Aba inválida".to_string())?;
+            let aba = e.pasta.indice_do_id(id as u32).ok_or_else(|| "Aba inexistente".to_string())?;
             // API de navegação: cada comando é escalar; nunca gera
             // uma matriz 10M x 16K para devolver metadados.
             if matches!(op, "lastRow" | "lastColumn" | "getLastRow"
@@ -687,7 +781,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
     }
     // O compartilhado apenas executa JS. O Sheet é dono do Workbook e do undo.
     let estado = Rc::new(RefCell::new(Estado {
-        pasta: std::mem::take(pasta), alteradas: BTreeSet::new(), status: None,
+        pasta: std::mem::take(pasta), alteradas: BTreeSet::new(), status: None, estrutura: Vec::new(),
         aba_ativa: aba,
         extra: pasta::Acumulado { contexto, ..Default::default() },
     }));
@@ -697,7 +791,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
     // O prelúdio fica na MESMA linha da 1ª linha do código: as linhas do erro
     // batem com as do editor; só a coluna da linha 1 anda (ver `posicoes`).
     let valores = estado.borrow().extra.contexto.valores.as_ref().map_or_else(|| "{}".to_string(), |v| Json::Object(v.clone()).to_string());
-    let prefixo = format!("(function() {{ const sheet=__sheet({aba}), planilha=sheet; const range=sheet.range, cell=sheet.cell, cells=sheet.cell, worksheets=wb.sheet, sheets=wb.sheet; const valores={valores}; globalThis.__valores=valores; __sel[{aba}]=__ft('selecaoInicial',[]); ");
+    let prefixo = format!("(function() {{ const sheet=__sheet({aba}), planilha=sheet; const range=sheet.range, cell=sheet.cell, cells=sheet.cell, worksheets=wb.sheet, sheets=wb.sheet; const valores={valores}; globalThis.__valores=valores; __sel[sheet.__id]=__ft('selecaoInicial',[]); ");
     let script = format!("{prefixo}{codigo}\n}})()");
     let mut resultado = feather_macros::executar_com_origem(host, API, &script, Some(posicoes::ORIGEM));
     resultado.erro = resultado.erro.map(|e| posicoes::ajustar_erro(&e, prefixo.chars().count(), codigo));
@@ -705,6 +799,8 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
     let extra = std::mem::take(&mut e.extra);
     // Pergunta sem resposta: a macro seguiu com "Não", então nada fica.
     let vale = resultado.erro.is_none() && extra.pergunta.is_none();
+    if !vale { e.desfazer_estrutura(); }
+    let estrutura_mudou = !e.estrutura.is_empty();
     let alteradas: Vec<_> = e.alteradas.iter().copied().collect();
     for aba in &alteradas {
         e.pasta.editar(*aba, |sheet| {
@@ -716,7 +812,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
     }
     *pasta = std::mem::take(&mut e.pasta);
     Resultado {
-        alterou: vale && (!alteradas.is_empty() || !extra.nomes.is_empty()),
+        alterou: vale && (!alteradas.is_empty() || !extra.nomes.is_empty() || estrutura_mudou),
         saida: resultado.saida,
         status: if vale {e.status.take()} else {None},
         // A pergunta vem antes do erro: ele pode ser só o caminho do "Não".
@@ -790,7 +886,8 @@ const __ftRevive = v => {
         return new __CellError(v.__ftCellError,v.detail);
     return v;
 };
-function __sheet(i) {
+function __sheet(indice) {
+    const i = __ft('idAba',[indice]);
     const range = address => {
         const a = __ft('area',[i,address]);
         const x = {
@@ -943,7 +1040,7 @@ function __sheet(i) {
         activate:()=>{__ft('ativar',[i]);return sheet;},
         // Arquivos: só anotados; o aplicativo grava se a macro terminar bem.
         exportPdf:path=>{__ft('exportarPdf',[i,String(path)]);return sheet;},
-        saveAs:path=>{__ft('salvarAbas',[[i+1],String(path)]);return sheet;},
+        saveAs:path=>{__ft('salvarAbas',[[__ft('nomeAba',[i])],String(path)]);return sheet;},
         defineFunction:(nome)=>{log('Função '+nome+' definida só nesta macro: as fórmulas da planilha ainda não a usam.');},
         status:m=>app.status(m),
         // Abre o formulário quando a macro terminar; `dados` preenche os campos.
@@ -953,7 +1050,7 @@ function __sheet(i) {
             set enabled(b){__ft('campoFormulario',[n,'enabled',!!b]);},set visible(b){__ft('campoFormulario',[n,'visible',!!b]);},
             set backColor(c){__ft('campoFormulario',[n,'backColor',c==null?'':String(c)]);},set foreColor(c){__ft('campoFormulario',[n,'foreColor',c==null?'':String(c)]);},
             set caption(t){__ft('campoFormulario',[n,'caption',t==null?'':String(t)]);}};},
-        log, name:__ft('nomes',[])[i]};
+        log, __id:i, get name(){return __ft('nomeAba',[i]);}};
     sheet.cells=sheet.cell; sheet.worksheets=wb.sheet; sheet.sheets=wb.sheet; return sheet;
 }
 const __sel = {};
@@ -976,7 +1073,12 @@ const wb = {
         : __ft('indiceAba',[String(name).trim()]);
     if(i===null||i<0||i>=names.length)throw new Error('Aba inexistente: '+name);
     return __sheet(i);
-},sheetNames:()=>__ft('nomes',[]),get sheetCount(){return __ft('nomes',[]).length;}};
+},sheetNames:()=>__ft('nomes',[]),get sheetCount(){return __ft('nomes',[]).length;},
+    // Aba nova (nome opcional) antes/depois de outra (aba ou nome); sem posição, antes da ativa. Fica ativa.
+    addSheet:(name,o={})=>{const id=s=>s==null?null:(typeof s==='object'?s:wb.sheet(s)).__id;
+        return __sheet(__ft('criarAba',[name==null?null:String(name),id(o.before),id(o.after)]));},
+    deleteSheet:s=>{__ft('apagarAba',[(typeof s==='object'?s:wb.sheet(s)).__id]);},
+    renameSheet:(s,name)=>{__ft('renomearAba',[(typeof s==='object'?s:wb.sheet(s)).__id,String(name)]);}};
 const app = {
     batch: fn => fn(),
     // Eventos e redesenho da tela do Excel: sem efeito aqui.

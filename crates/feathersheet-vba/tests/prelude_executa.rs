@@ -90,3 +90,46 @@ fn datas_do_vba_sao_seriais_como_na_planilha() {
     assert_eq!(wb.valor(0, 11, 0), Value::Number(46037.0));
     assert_eq!(wb.valor(0, 12, 0), Value::Text("t 15/01/2026".into()));
 }
+
+#[test]
+fn remove_duplicates_conta_as_colunas_do_intervalo() {
+    let wb = roda(
+        "Sub T()\n  Range(\"B1\").Value = \"id\": Range(\"C1\").Value = \"x\"\n  Range(\"B2\").Value = 1: Range(\"C2\").Value = \"a\"\n  Range(\"B3\").Value = 1: Range(\"C3\").Value = \"b\"\n  Range(\"B4\").Value = 2: Range(\"C4\").Value = \"c\"\n  Range(\"B1:C4\").RemoveDuplicates Columns:=1, Header:=xlYes\nEnd Sub\n",
+        "T",
+    );
+    assert_eq!(wb.valor(0, 2, 1), Value::Number(2.0));
+    assert_eq!(wb.valor(0, 2, 2), Value::Text("c".into()));
+    assert_eq!(wb.valor(0, 3, 1), Value::Empty);
+}
+
+#[test]
+fn format_conditions_add_com_estilo_vira_regra_da_planilha() {
+    let wb = roda(
+        "Sub T()\n  With Range(\"M2:M9\").FormatConditions\n    .Delete\n    With .Add(Type:=xlCellValue, Operator:=xlEqual, Formula1:=\"=\"\"Meta batida\"\"\")\n      .Interior.Color = RGB(198, 239, 206)\n      .Font.Color = RGB(0, 97, 0)\n      .Font.Bold = True\n    End With\n    With .Add(Type:=xlExpression, Formula1:=\"=AND($M2<>\"\"\"\",$M2<>\"\"x\"\")\")\n      .Interior.Color = RGB(255, 199, 206)\n    End With\n  End With\n  Range(\"A1:A3\").FormatConditions.Add Type:=xlCellValue, Operator:=xlGreater, Formula1:=\"=10\"\nEnd Sub\n",
+        "T",
+    );
+    let r = wb.aba(0).unwrap().sheet.r.clone().expect("regras");
+    assert_eq!(r.matches("cf_macro_").count(), 3, "{r}");
+    let txt = r.to_lowercase();
+    assert!(txt.contains("meta batida") && txt.contains("#c6efce") && txt.contains("and($m2"), "{r}");
+}
+
+#[test]
+fn on_error_resume_next_pula_a_linha_que_falha_ate_o_goto_0() {
+    let wb = roda(
+        "Sub T()\n  Dim rel As Worksheet\n  Application.DisplayAlerts = False\n  On Error Resume Next\n  Worksheets(\"Nao existe\").Delete\n  Range(\"A1\").Value = Err.Number <> 0\n  On Error GoTo 0\n  Set rel = Worksheets.Add(After:=ActiveSheet)\n  rel.Name = \"Fechamento\"\n  rel.Range(\"A1\").Value = \"novo\"\nEnd Sub\n",
+        "T",
+    );
+    assert_eq!(wb.valor(0, 0, 0), Value::Bool(true));
+    assert_eq!(wb.nomes()[1], "Fechamento");
+    assert_eq!(wb.valor(1, 0, 0), Value::Text("novo".into()));
+}
+
+#[test]
+fn sem_resume_next_o_erro_para_a_macro() {
+    let c = converter_texto(&[("Módulo1", "Sub T()\n  Worksheets(\"Nao existe\").Delete\n  Range(\"A1\").Value = 1\nEnd Sub\n")], &[]);
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo);
+    assert!(r.erro.is_some());
+    assert_eq!(wb.valor(0, 0, 0), Value::Empty);
+}

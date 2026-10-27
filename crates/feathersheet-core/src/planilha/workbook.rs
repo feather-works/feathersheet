@@ -265,16 +265,31 @@ impl Workbook {
 
     /// Tira a aba. Recusa a última: uma pasta sempre tem uma aba.
     pub fn remover_aba(&mut self, indice: usize) -> bool {
+        self.retirar_aba(indice).is_some()
+    }
+
+    /// Como [`Self::remover_aba`], mas devolve a aba inteira (a macro a guarda para
+    /// desfazer se der erro: [`Self::devolver_aba`]).
+    pub fn retirar_aba(&mut self, indice: usize) -> Option<AbaViva> {
         if self.abas.len() <= 1 || indice >= self.abas.len() {
-            return false;
+            return None;
         }
         if !self.abas[indice].sheet.oculta && self.abas_visiveis().count() <= 1 {
-            return false;
+            return None;
         }
-        self.abas.remove(indice);
+        let aba = self.abas.remove(indice);
         self.hist_abas = HistoricoAbas::default();
         self.depois_de_mudar(usize::MAX);
-        true
+        Some(aba)
+    }
+
+    /// Põe de volta, no lugar, a aba que o [`Self::retirar_aba`] tirou (com o mesmo `id`).
+    pub fn devolver_aba(&mut self, indice: usize, aba: AbaViva) {
+        let em = indice.min(self.abas.len());
+        self.abas.insert(em, aba);
+        self.abas[em].sheet.manual.set(self.manual);
+        self.hist_abas = HistoricoAbas::default();
+        self.depois_de_mudar(usize::MAX);
     }
 
     /// Muda a aba de lugar.

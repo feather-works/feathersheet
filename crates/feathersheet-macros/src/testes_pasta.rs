@@ -172,3 +172,54 @@ fn field_muda_o_formulario_aberto_e_hide_fecha() {
     let r = executar(&mut wb, 0, r#"sheet.field("a").value = 1; throw new Error("x");"#);
     assert!(r.campos.is_empty() && !r.fechar_formulario);
 }
+
+#[test]
+fn macro_cria_renomeia_e_apaga_aba_e_as_referencias_seguem_a_aba() {
+    let mut wb = pasta_com_dados();
+    wb.inserir_aba("Velha", 0);
+    let r = executar(&mut wb, 1, r#"
+        const dados = wb.sheet('Dados');
+        const rel = wb.addSheet(null, { after: sheet });
+        wb.renameSheet(rel, 'Fechamento');
+        wb.deleteSheet('Velha');
+        rel.set('A1', 'ok');
+        dados.set('A1', rel.name);
+        const fim = wb.addSheet('Fim', { after: wb.sheet(wb.sheetCount) });
+        fim.set('B2', 7);
+    "#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert!(r.alterou);
+    assert_eq!(wb.nomes(), ["Planilha1", "Fechamento", "Dados", "Fim"]);
+    assert_eq!(wb.valor(1, 0, 0), Value::Text("ok".into()));
+    assert_eq!(wb.valor(2, 0, 0), Value::Text("Fechamento".into()));
+    assert_eq!(wb.valor(3, 1, 1), Value::Number(7.0));
+    assert_eq!(r.aba_ativa, Some(3));
+}
+
+#[test]
+fn erro_na_macro_desfaz_as_abas_criadas_apagadas_e_renomeadas() {
+    let mut wb = pasta_com_dados();
+    wb.inserir_aba("Velha", 0);
+    wb.aba_mut(0).unwrap().sheet.set_cell(0, 0, "guardado");
+    let r = executar(&mut wb, 1, r#"
+        wb.sheet('Velha').set('A1', 'mudado');
+        const nova = wb.addSheet('Nova');
+        nova.set('A1', 1);
+        wb.renameSheet('Dados', 'Outra');
+        wb.deleteSheet('Velha');
+        throw new Error('falhou');
+    "#);
+    assert!(r.erro.is_some());
+    assert_eq!(wb.nomes(), ["Velha", "Planilha1", "Dados"]);
+    assert_eq!(wb.valor(0, 0, 0), Value::Text("guardado".into()));
+}
+
+#[test]
+fn nao_apaga_a_ultima_aba_nem_cria_nome_repetido() {
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, "wb.deleteSheet(sheet);");
+    assert!(r.erro.as_deref().is_some_and(|e| e.contains("pelo menos uma aba")), "{:?}", r.erro);
+    let r = executar(&mut wb, 0, "wb.addSheet(sheet.name);");
+    assert!(r.erro.as_deref().is_some_and(|e| e.contains("Já existe")), "{:?}", r.erro);
+    assert_eq!(wb.len(), 1);
+}

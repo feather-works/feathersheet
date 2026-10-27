@@ -761,6 +761,11 @@ que veio de mim do que veio do Gemini ou do usuário.
 
 ## Cuidados ao mexer
 
+- **Nas macros, o objeto de aba guarda o id, não o índice** (27/10/2026): `__sheet(i)` troca o
+  índice pelo id (`idAba`) e o hospedeiro traduz de volta em cada chamada, porque
+  `wb.addSheet`/`deleteSheet` mudam os índices. Quem guarda índice no `Estado` (`alteradas`,
+  `aba_ativa`, `ativou`) anda junto no `deslocar_indices`; se a macro dá erro, `desfazer_estrutura`
+  volta as abas (a apagada volta inteira, `Workbook::devolver_aba`) antes de reverter as transações.
 - **Inserir/excluir linhas ou colunas esquece o histórico** das abas mexidas
   (`Sheet::esquecer_historico`, auditoria de 26/10/2026, #46): o deslocamento
   não é um passo do desfazer, e um Ctrl+Z velho apagava a célula errada. Quem

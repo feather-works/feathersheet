@@ -137,6 +137,9 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("wb.freezePanes", "wb.freezePanes({ rows, cols })", "wb.freezePanes({ rows: 1, cols: 0 });"),
         ("wb.addName", "wb.addName(name, address)", "wb.addName(\"Vendas\", \"Plan1!A1:A10\");"),
         ("wb.sheetCount", "wb.sheetCount", "sheet.log(wb.sheetCount);"),
+        ("wb.addSheet", "wb.addSheet(name?, { before?, after? })", "const rel = wb.addSheet(\"Fechamento\", { after: sheet });"),
+        ("wb.deleteSheet", "wb.deleteSheet(sheet)", "wb.deleteSheet(\"Rascunho\");"),
+        ("wb.renameSheet", "wb.renameSheet(sheet, name)", "wb.renameSheet(sheet, \"Vendas 2026\");"),
         ("wb.name", "wb.name", "sheet.log(wb.name);"),
         ("sheet.exportPdf", "sheet.exportPdf(path)", "sheet.exportPdf(\"relatorios/resumo.pdf\");"),
         ("sheet.saveAs", "sheet.saveAs(path)", "sheet.saveAs(\"copias/vendas.xlsx\");"),
@@ -191,7 +194,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),134);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),137);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {
