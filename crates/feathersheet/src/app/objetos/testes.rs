@@ -399,3 +399,24 @@ fn caixa_de_texto_nasce_branca_e_editando() {
     let id = criar(&mut app, "retangulo", Retangulo::novo(200.0, 10.0, 50.0, 50.0));
     assert_ne!(lidos(&app).objetos.iter().find(|o| o.id == id).unwrap().aparencia.preenchimento.as_deref(), Some("#ffffff"));
 }
+
+/// #49: arquivo do disco com forma ligada a macro fica bloqueado, e o clique
+/// na forma não roda a macro até a pessoa ativar.
+#[test]
+fn forma_com_macro_respeita_o_bloqueio_de_macros() {
+    let mut app = app();
+    app.macro_catalogo.macros.push(feather_macros::Macro { name: "Marcar".into(), code: "sheet.set('A1','RODOU')".into(), auto: false });
+    let id = criar(&mut app, "retangulo", Retangulo::novo(100.0, 100.0, 200.0, 100.0));
+    let _ = app.update(Msg::Objetos(Evento::AtribuirMacro));
+    let _ = app.update(Msg::Objetos(Evento::MacroEscolher(Some("Marcar".into()))));
+    let _ = app.update(Msg::Objetos(Evento::MacroConfirmar));
+    app.bloquear_macros_do_arquivo();
+    assert!(app.macros_bloqueadas, "a forma com macro conta para o aviso");
+    app.aviso_macros = false;
+    let _ = app.update(Msg::Objetos(Evento::ExecutarMacro(id)));
+    assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(0, 0), "", "bloqueada: não roda");
+    assert!(app.aviso_macros, "o clique reabre o Ativar macros?");
+    app.macros_bloqueadas = false;
+    let _ = app.update(Msg::Objetos(Evento::ExecutarMacro(id)));
+    assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(0, 0), "RODOU");
+}

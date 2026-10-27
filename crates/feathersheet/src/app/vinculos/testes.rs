@@ -190,3 +190,27 @@ fn referencia_pronta_troca_a_apontada_antes() {
     assert!(app.editor_formula.referencia_pronta(&mut app.edicao, "[Vendas.fshz]Dados!B2"));
     assert_eq!(app.edicao, "=[Vendas.fshz]Dados!B2");
 }
+
+/// #50: pasta aberta do disco não lê a origem sozinha; "Atualizar valores" lê.
+#[test]
+fn pasta_do_disco_espera_atualizar_valores() {
+    let dir = std::env::temp_dir().join(format!("fs-vinculos-permissao-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut origem = Workbook::new();
+    origem.escrever_celula(0, 0, 0, "42".into());
+    feathersheet_io::da_workbook::pasta_gravar_arquivo(&origem, 0, &dir.join("Origem.fshz")).unwrap();
+    let mut app = App::default();
+    app.caminho = Some(dir.join("Destino.fshz"));
+    app.workbook.escrever_celula(0, 0, 0, "=[Origem.fshz]Planilha1!A1".into());
+    let _ = app.workbook.valor(0, 0, 0);
+    app.vinculos_pedir_permissao();
+    let _ = app.pulso_vinculos();
+    assert_eq!(app.vinculos.origens.len(), 1);
+    assert!(app.vinculos.lendo.is_empty(), "não leu do disco sozinha");
+    let o = app.vinculos.origens[0].clone();
+    assert_eq!(app.situacao_origem(&o), Situacao::SemValores);
+    assert!(app.aviso_vinculos().is_some_and(|(_, alerta)| alerta), "a faixa pede Atualizar valores");
+    let _ = app.update(Msg::Vinculos(Evento::AtualizarValores(None)));
+    assert!(app.vinculos.lendo.contains(&o.chave), "o clique lê");
+    let _ = std::fs::remove_dir_all(&dir);
+}
