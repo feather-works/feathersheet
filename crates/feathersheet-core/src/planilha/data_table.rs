@@ -13,6 +13,21 @@ use crate::celulas::pool::StringPool;
 use crate::celulas::refs::Rect;
 use crate::celulas::values::Value;
 
+/// O lógico mora no pool como o texto `VERDADEIRO`/`FALSO` (assim estão os `.fshz` que já
+/// existem). O *texto* "VERDADEIRO"/"FALSO" (vindo do `.xlsx`, de uma colagem) vai com esta
+/// marca na frente, para não voltar lógico (#66). Quem lê o pool direto tira com [`sem_marca`].
+pub const MARCA_TEXTO: char = '\u{3}';
+
+/// O texto da célula, sem a [`MARCA_TEXTO`].
+pub fn sem_marca(s: &str) -> &str {
+    s.strip_prefix(MARCA_TEXTO).unwrap_or(s)
+}
+
+/// O id no pool de um texto de célula (com a marca, se o texto é "VERDADEIRO"/"FALSO").
+fn id_do_texto(pool: &mut StringPool, s: &str) -> i32 {
+    if s == "VERDADEIRO" || s == "FALSO" { pool.get_or_create(&format!("{MARCA_TEXTO}{s}")) } else { pool.get_or_create(s) }
+}
+
 /// O conteúdo de uma célula da tabela, sem montar o `Value`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Cru {
@@ -221,7 +236,7 @@ impl DataTable {
         match texto {
             "VERDADEIRO" => Value::Bool(true),
             "FALSO" => Value::Bool(false),
-            _ => Value::Text(texto.to_string()),
+            _ => Value::Text(sem_marca(texto).to_string()),
         }
     }
 
@@ -263,7 +278,7 @@ impl DataTable {
             if tc.has(row) {
                 if let Some(id) = tc.get(row) {
                     if id >= 0 {
-                        return pool.get(id).to_string();
+                        return sem_marca(pool.get(id)).to_string();
                     }
                 }
             }
@@ -307,7 +322,7 @@ impl DataTable {
                 }
             }
             Value::Text(s) => {
-                let id = pool.get_or_create(s);
+                let id = id_do_texto(pool, s);
                 if id >= 0 {
                     let tc = entry.text_col.get_or_insert_with(ChunkedInt32Column::new);
                     tc.set(row, id);
@@ -511,7 +526,7 @@ impl DataTable {
         let id_texto = match val {
             Value::Number(_) => None,
             Value::Bool(b) => Some(pool.get_or_create(if *b { "VERDADEIRO" } else { "FALSO" })),
-            Value::Text(t) if !t.is_empty() => Some(pool.get_or_create(t)),
+            Value::Text(t) if !t.is_empty() => Some(id_do_texto(pool, t)),
             _ => return false,
         };
         if id_texto.is_some_and(|id| id < 0) { return false; }
@@ -636,6 +651,13 @@ mod testes {
 
         assert_eq!(tabela.get_cell_value(0, 0, &pool), Value::Number(42.0));
         assert_eq!(tabela.get_cell_value(1, 0, &pool), Value::Text("olá".to_string()));
+        assert_eq!(tabela.get_cell_value(2, 0, &pool), Value::Bool(true));
+        // #66: o texto "VERDADEIRO" continua texto; o lógico continua lógico.
+        tabela.set_cell_value(3, 0, &Value::Text("VERDADEIRO".into()), &mut pool);
+        tabela.set_cell_value(4, 0, &Value::Text("FALSO".into()), &mut pool);
+        assert_eq!(tabela.get_cell_value(3, 0, &pool), Value::Text("VERDADEIRO".into()));
+        assert_eq!(tabela.get_cell_value(4, 0, &pool), Value::Text("FALSO".into()));
+        assert_eq!(tabela.get_raw(3, 0, &pool), "VERDADEIRO");
         assert_eq!(tabela.get_cell_value(2, 0, &pool), Value::Bool(true));
         assert_eq!(tabela.get_cell_value(9, 9, &pool), Value::Empty);
     }

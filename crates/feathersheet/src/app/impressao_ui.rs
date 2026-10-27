@@ -42,24 +42,9 @@ impl PapelUi {
             Self::Executivo => tr!("EXECUTIVO"), Self::Tabloide => tr!("TABLOIDE"),
         }
     }
-    /// O rótulo do menu Tamanho (Layout da Página).
-    pub(super) fn rotulo_menu(self) -> &'static str {
+    /// O rótulo da prévia de impressão e do menu Layout da Página › Tamanho.
+    pub(super) fn rotulo(self) -> &'static str {
         match self {
-            Self::A4 => tr!("A4 · 210 × 297 mm"),
-            Self::Carta => tr!("Carta · 216 × 279 mm"),
-            Self::Oficio => tr!("Ofício · 216 × 356 mm"),
-            Self::A3 => tr!("A3 · 297 × 420 mm"),
-            Self::A5 => tr!("A5 · 148 × 210 mm"),
-            Self::B4 => tr!("B4 · 257 × 364 mm"),
-            Self::B5 => tr!("B5 · 182 × 257 mm"),
-            Self::Executivo => tr!("Executivo · 184 × 267 mm"),
-            Self::Tabloide => tr!("Tabloide · 279 × 432 mm"),
-        }
-    }
-}
-impl std::fmt::Display for PapelUi {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
             Self::A4 => tr!("A4 (210 x 297 mm)"),
             Self::Carta => tr!("Carta / Letter (216 x 279 mm)"),
             Self::Oficio => tr!("Ofício / Legal (216 x 356 mm)"),
@@ -69,7 +54,12 @@ impl std::fmt::Display for PapelUi {
             Self::B5 => tr!("B5 (182 x 257 mm)"),
             Self::Executivo => tr!("Executivo / Executive (184 x 267 mm)"),
             Self::Tabloide => tr!("Tabloide / Tabloid (279 x 432 mm)"),
-        })
+        }
+    }
+}
+impl std::fmt::Display for PapelUi {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.rotulo())
     }
 }
 

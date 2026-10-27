@@ -928,6 +928,11 @@ impl Escritor<'_> {
         if raw.is_empty() || raw.starts_with('=') {
             return MemoTexto::Geral;
         }
+        // Texto "VERDADEIRO" (#66): sai como texto, não pelo analisador.
+        if let Some(t) = raw.strip_prefix(feathersheet_core::planilha::data_table::MARCA_TEXTO) {
+            let (xf, _) = self.xf(None, formato_do_literal(None), None);
+            return MemoTexto::Compartilhado { indice: self.textos.add(t) as u32, xf: xf as u32 };
+        }
         let lit = parse_literal(raw);
         let (xf, _) = self.xf(None, formato_do_literal(lit.format), None);
         let xf = xf as u32;
@@ -1793,7 +1798,7 @@ pub fn gerar_delimitado(pasta: &mut Workbook, indice: usize, separador: char) ->
             if sem_estilo_de_fora && !sheet.cells.contains_key(&k) && !sheet.styles.contains_key(&k) {
                 match sheet.data.cru_em(r, c) {
                     Some(Cru::Texto(id)) => {
-                        escrever_campo(&mut out, sheet.pool.get(id));
+                        escrever_campo(&mut out, feathersheet_core::planilha::data_table::sem_marca(sheet.pool.get(id)));
                         continue;
                     }
                     Some(Cru::Numero(n)) => {

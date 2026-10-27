@@ -211,6 +211,10 @@ impl canvas::Program<Msg> for Grade<'_> {
         let texto_mesclado = mesclas_visuais::mascarar(
             &mesclas, &linhas_visiveis, &colunas_visiveis,
         );
+        // As bordas das células vão por último, centradas na linha de grade: a célula vizinha
+        // (desenhada depois) e a própria grade não as cobrem, e duas bordas no mesmo lado
+        // viram uma linha só (#69).
+        let mut tracos_borda: Vec<(Point, Size, Color)> = Vec::new();
         for (ic, &(c, x, desenhar_w)) in colunas_visiveis.iter().enumerate() {
             let w = larguras_inteiras[ic];
             if c == coluna_atual {
@@ -637,12 +641,18 @@ impl canvas::Program<Msg> for Grade<'_> {
                         Some("Grossa") => 4.0,
                         _ => segmento.largura.min(segmento.altura),
                     }.min(desenhar_w).min(desenhar_h).max(0.1);
+                    // A divisa entre duas células é o pixel da linha de grade (x + w - 1).
+                    let meio = esp / 2.0;
                     let (sx, sy, largura, altura) = match lado {
-                        0 => (x, y, desenhar_w, esp),
-                        1 => (x + desenhar_w - esp, y, esp, desenhar_h),
-                        2 => (x, y + desenhar_h - esp, desenhar_w, esp),
-                        _ => (x, y, esp, desenhar_h),
+                        0 => (x - 0.5 - meio, y - 0.5 - meio, desenhar_w + esp, esp),
+                        1 => (x + desenhar_w - 0.5 - meio, y - 0.5 - meio, esp, desenhar_h + esp),
+                        2 => (x - 0.5 - meio, y + desenhar_h - 0.5 - meio, desenhar_w + esp, esp),
+                        _ => (x - 0.5 - meio, y - 0.5 - meio, esp, desenhar_h + esp),
                     };
+                    // Sem invadir os cabeçalhos de linha e de coluna.
+                    let (sx, largura) = (sx.max(CABECALHO_LINHA), largura - (CABECALHO_LINHA - sx).max(0.0));
+                    let (sy, altura) = (sy.max(CABECALHO_COLUNA), altura - (CABECALHO_COLUNA - sy).max(0.0));
+                    if largura <= 0.0 || altura <= 0.0 { continue; }
                     if tipo_traco.as_deref() == Some("Tracejada") {
                         let horizontal = lado == 0 || lado == 2;
                         let comprimento = if horizontal {largura} else {altura};
@@ -650,17 +660,14 @@ impl canvas::Program<Msg> for Grade<'_> {
                         while deslocamento < comprimento {
                             let parte = (comprimento - deslocamento).min(6.0);
                             if horizontal {
-                                f.fill_rectangle(Point::new(sx + deslocamento, sy),
-                                    Size::new(parte, altura), cor);
+                                tracos_borda.push((Point::new(sx + deslocamento, sy), Size::new(parte, altura), cor));
                             } else {
-                                f.fill_rectangle(Point::new(sx, sy + deslocamento),
-                                    Size::new(largura, parte), cor);
+                                tracos_borda.push((Point::new(sx, sy + deslocamento), Size::new(largura, parte), cor));
                             }
                             deslocamento += 10.0;
                         }
                     } else {
-                        f.fill_rectangle(Point::new(sx, sy),
-                            Size::new(largura, altura), cor);
+                        tracos_borda.push((Point::new(sx, sy), Size::new(largura, altura), cor));
                     }
                 }
                 if self.linhas_grade {
@@ -671,6 +678,9 @@ impl canvas::Program<Msg> for Grade<'_> {
                 f.fill_rectangle(Point::new(x+desenhar_w-1.0,CABECALHO_COLUNA),
                     Size::new(1.0,bounds.height-CABECALHO_COLUNA),borda);
             }
+        }
+        for (p, t, cor) in tracos_borda {
+            f.fill_rectangle(p, t, cor);
         }
         // Numeração das linhas é desenhada uma única vez (não por coluna).
         for (il, &(r, y, desenhar_h)) in linhas_visiveis.iter().enumerate() {

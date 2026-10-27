@@ -133,7 +133,7 @@ fn itens(tipo: &str) -> Vec<Item> {
         "pg_tamanho" => vec![
             Titulo(tr!("TAMANHO DO PAPEL")),
         ].into_iter().chain(PapelUi::TODOS.into_iter().map(|p|
-            Acao(p.rotulo_menu(), "arrows-maximize", Msg::Impressao(EventoImpressao::Papel(p))))).collect(),
+            Acao(p.rotulo(), "arrows-maximize", Msg::Impressao(EventoImpressao::Papel(p))))).collect(),
         "pg_area" => vec![
             Titulo(tr!("ÁREA DE IMPRESSÃO")),
             Acao(tr!("Definir área de impressão"), "area_impressao", Msg::Impressao(EventoImpressao::DefinirArea)),

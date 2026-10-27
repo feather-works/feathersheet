@@ -124,8 +124,9 @@ impl<'a> LeitorChaves<'a> {
             Some(c) if c != NAO_VISTO => return Ok(Some(c)),
             _ => {}
         }
-        let texto = (self.texto_do_pool)(id);
-        let codigo = if texto.is_empty() || (literal && (texto == "VERDADEIRO" || texto == "FALSO")) {
+        let bruto = (self.texto_do_pool)(id);
+        let texto = crate::planilha::data_table::sem_marca(bruto);
+        let codigo = if texto.is_empty() || (literal && (bruto == "VERDADEIRO" || bruto == "FALSO")) {
             NAO_CASA
         } else {
             self.codigo(ChaveCriterio::Texto(minusculas(texto)))

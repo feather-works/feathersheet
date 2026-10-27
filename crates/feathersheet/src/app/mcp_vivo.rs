@@ -701,6 +701,18 @@ mod testes {
     /// sheet_filtrar ao vivo: liga o AutoFiltro, esconde as linhas como as
     /// setas do cabeçalho, lista, limpa e remove.
     #[test]
+    fn regra_condicional_pela_ia_nao_abre_janela() {
+        // #11: a regra entra na aba sem abrir a janela de formatação condicional.
+        let mut app = App::default();
+        app.janelas.principal = Some(window::novo_id());
+        let (erro, t) = chamar(&mut app, "sheet_condicional", json!({ "acao": "criar", "intervalo": "A1:A3", "tipo": "maior", "valores": [5], "fundo": "#ff0000" }));
+        assert!(!erro, "{t}");
+        assert!(!app.condicional_aberto && !app.condicional_menu_aberto);
+        assert!(!app.janelas.aberta(Auxiliar::Condicional));
+        assert!(app.workbook.aba(0).unwrap().sheet.r.is_some());
+    }
+
+    #[test]
     fn tela_diz_os_paineis_e_seletores_abertos() {
         // #12: o seletor de gráfico e o diálogo de formatação condicional não apareciam.
         let mut app = App::default();

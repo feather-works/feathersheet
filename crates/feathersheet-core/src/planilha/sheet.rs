@@ -1209,7 +1209,7 @@ impl Sheet {
         if let Some(raw) = self.textos.get(&k) { return Some(raw); }
         if let Some(celula) = self.cells.get(&k) { return Some(&celula.raw); }
         match self.data.cru_em(row, col) {
-            Some(Cru::Texto(id)) => Some(self.pool.get(id)),
+            Some(Cru::Texto(id)) => Some(crate::planilha::data_table::sem_marca(self.pool.get(id))),
             _ => None,
         }
     }

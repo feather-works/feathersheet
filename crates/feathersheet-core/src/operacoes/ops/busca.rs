@@ -135,7 +135,7 @@ impl Colunas<'_> {
             let bate = match (digitado, cru) {
                 (Some(t), _) => consulta.bate(t),
                 (None, Cru::Numero(n)) => consulta.numero_bate(n, &mut por_numero),
-                (None, Cru::Texto(id)) => *por_id.entry(id).or_insert_with(|| consulta.bate(self.pool.get(id))),
+                (None, Cru::Texto(id)) => *por_id.entry(id).or_insert_with(|| consulta.bate(crate::planilha::data_table::sem_marca(self.pool.get(id)))),
             };
             if bate {
                 achadas.push(SearchMatch { row, col });
@@ -154,7 +154,7 @@ impl Colunas<'_> {
             // A fórmula já calculada guarda o resultado cru.
             let bate = match self.formulas.cru_at(row, col) {
                 Some(Cru::Numero(n)) => consulta.numero_bate(n, &mut por_numero),
-                Some(Cru::Texto(id)) => *por_id.entry(id).or_insert_with(|| consulta.bate(self.pool.get(id))),
+                Some(Cru::Texto(id)) => *por_id.entry(id).or_insert_with(|| consulta.bate(crate::planilha::data_table::sem_marca(self.pool.get(id)))),
                 None => {
                     calcular.push(SearchMatch { row, col });
                     false
