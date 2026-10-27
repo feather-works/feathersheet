@@ -100,7 +100,8 @@ impl App {
     /// Enquanto a macro roda, só passa o que não mexe na pasta.
     pub(in crate::app) fn mensagem_liberada_durante_macro(msg: &Msg) -> bool {
         matches!(msg, Msg::MacroPulso | Msg::MacroParar | Msg::MonitorPulso | Msg::ProgressoPulso
-            | Msg::CapturarTela | Msg::JanelaRedimensionada(..) | Msg::AuxAberta | Msg::AuxFechada(_))
+            | Msg::CapturarTela | Msg::JanelaRedimensionada(..) | Msg::RedimensionarJanela(..)
+            | Msg::AuxAberta | Msg::AuxFechada(_))
     }
 
     pub(in crate::app) fn sobrepor_macro_rodando<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {

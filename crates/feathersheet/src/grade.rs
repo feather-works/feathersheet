@@ -208,6 +208,29 @@ impl canvas::Program<Msg> for Grade<'_> {
         let caixas = self.workbook.aba(self.aba)
             .map(|aba| crate::caixas::Regras::da(&aba.sheet))
             .unwrap_or_default();
+        // Depois do "ocultar até o fim" sobra uma área sem células: cinza, como no Excel,
+        // para não parecer planilha vazia (#77).
+        let folha_oculta = self.workbook.aba(self.aba).map(|a| &a.sheet);
+        let fora = if self.escuro { Color::rgb8(24, 26, 30) } else { Color::rgb8(214, 219, 225) };
+        if let Some(sheet) = folha_oculta {
+            if let (Some(n), Some((i, &(c, x, _)))) = (sheet.colunas_ocultas_desde, colunas_visiveis.iter().enumerate().last()) {
+                let fim = x + larguras_inteiras[i];
+                if c + 1 == n && fim < bounds.width {
+                    f.fill_rectangle(Point::new(fim, 0.0), Size::new(bounds.width - fim, bounds.height), fora);
+                }
+            }
+            if let (Some(n), Some((i, &(r, y, _)))) = (sheet.linhas_ocultas_desde, linhas_visiveis.iter().enumerate().last()) {
+                let fim = y + alturas_inteiras[i];
+                if r + 1 == n && fim < bounds.height {
+                    f.fill_rectangle(Point::new(0.0, fim), Size::new(bounds.width, bounds.height - fim), fora);
+                }
+            }
+        }
+        // Linha dupla no cabeçalho onde há linha/coluna oculta antes (#77).
+        let marca_oculta = |f: &mut Frame, p: Point, t: Size, meio: Size| {
+            f.fill_rectangle(p, t, fraco);
+            f.fill_rectangle(Point::new(p.x + (t.width - meio.width) / 2.0, p.y + (t.height - meio.height) / 2.0), meio, header);
+        };
         let texto_mesclado = mesclas_visuais::mascarar(
             &mesclas, &linhas_visiveis, &colunas_visiveis,
         );
@@ -228,6 +251,10 @@ impl canvas::Program<Msg> for Grade<'_> {
                     Size::new(espessura, CABECALHO_COLUNA.min(bounds.height)),
                     divisoria,
                 );
+            }
+            if c > 0 && folha_oculta.is_some_and(|s| s.coluna_oculta(c - 1)) {
+                marca_oculta(&mut f, Point::new(x - espessura, 0.0),
+                    Size::new(3.0 * espessura, CABECALHO_COLUNA), Size::new(espessura, CABECALHO_COLUNA));
             }
             // Recortada na coluna: a letra da última, cortada, não invade a
             // barra de rolagem (texto do Canvas fica por cima das trilhas).
@@ -695,6 +722,10 @@ impl canvas::Program<Msg> for Grade<'_> {
                     Size::new(CABECALHO_LINHA.min(bounds.width), espessura),
                     divisoria,
                 );
+            }
+            if r > 0 && folha_oculta.is_some_and(|s| s.linha_oculta(r - 1)) {
+                marca_oculta(&mut f, Point::new(0.0, y - espessura),
+                    Size::new(CABECALHO_LINHA, 3.0 * espessura), Size::new(CABECALHO_LINHA, espessura));
             }
             // Centrado na altura INTEIRA e recortado no pedaço visível: a última
             // linha, cortada, mostra o número no tamanho normal (só cortado),

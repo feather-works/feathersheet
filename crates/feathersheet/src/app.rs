@@ -25,7 +25,6 @@ mod tabela_dados;
 mod cenarios_ui;
 mod selecao_regiao;
 mod preenchimento_ui;
-mod ordenacao_pagina;
 mod validacao_ui;
 mod validacao_dialogo;
 mod serie_ui;
@@ -489,6 +488,8 @@ pub enum Msg {
     MonitorEvento(EventoMonitor),
     Fechar(window::Id), FecharAux(Auxiliar), Minimizar(window::Id),
     Maximizar(window::Id), Arrastar(window::Id),
+    /// Puxar a borda da janela com barra própria (`cromo::moldura_redimensionavel`).
+    RedimensionarJanela(window::Id, pelicano::ResizeDirection),
     Teclado(window::Id, keyboard::Key, keyboard::Modifiers),
     /// Atalho de macros consumido pelo editor de texto Iced. Nunca alcança a grade.
     MacroTeclado(window::Id, keyboard::Key, keyboard::Modifiers),
@@ -521,7 +522,7 @@ pub enum Msg {
     AtingirMeta(atingir_meta::Evento),
     TabelaDados(tabela_dados::Evento),
     Cenarios(cenarios_ui::Evento),
-    Ordenar(bool), OrdenarPagina(bool), CabecalhoDados(bool), RemoverDuplicados, Duplicados(EventoDuplicados), Impressao(EventoImpressao), ApararEspacos, AutoSoma, AutoConta(&'static str),
+    Ordenar(bool), CabecalhoDados(bool), RemoverDuplicados, Duplicados(EventoDuplicados), Impressao(EventoImpressao), ApararEspacos, AutoSoma, AutoConta(&'static str),
     DividirTextoOutro(String), DividirTextoAplicar,
     AbrirAssistenteDivisao, AssistenteDivisao(EventoAssistenteDivisao),
     OpenQuery(EventoOpenQuery),
@@ -1487,7 +1488,7 @@ impl App {
             Msg::ColarEspecial(..) | Msg::Limpar | Msg::Desfazer | Msg::Refazer |
             Msg::Formatar(_) | Msg::Estrutura(_) | Msg::TabelaAcao(_) |
             Msg::AlternarEstilo(_) | Msg::CondicionalAdicionar | Msg::CondicionalRemover(_)
-            | Msg::Ordenar(_) | Msg::OrdenarPagina(_) | Msg::Preencher(_) | Msg::PreencherAlca(_) | Msg::PreenchimentoRelampago | Msg::Serie(_) | Msg::CaixasInserir | Msg::CaixaAlternar(..) | Msg::MoverAba(..)
+            | Msg::Ordenar(_) | Msg::Preencher(_) | Msg::PreencherAlca(_) | Msg::PreenchimentoRelampago | Msg::Serie(_) | Msg::CaixasInserir | Msg::CaixaAlternar(..) | Msg::MoverAba(..)
             | Msg::OcultarDimensoes(_) | Msg::ReexibirDimensoes(_)
             | Msg::MesclarModo(_) | Msg::AjustarAltura | Msg::Dimensao(_)
             | Msg::LimparTudo | Msg::AlterarRecuo(_) | Msg::AplicarPincel | Msg::LimparHiperlinks);
@@ -1670,7 +1671,12 @@ impl App {
     }
 
     pub fn view(&self, id: window::Id) -> Element<'_, Msg> {
-        let janela = feather_ui::cromo::moldura_janela(self.view_conteudo(id));
+        // Com a barra própria não há moldura do sistema: a borda do app redimensiona.
+        let janela = if self.config.barra_propria {
+            feather_ui::cromo::moldura_redimensionavel(self.view_conteudo(id), move |d| Msg::RedimensionarJanela(id, d))
+        } else {
+            feather_ui::cromo::moldura_janela(self.view_conteudo(id))
+        };
         // A ponta da caneta como clique (a leitura acompanha só a principal).
         let fonte = self.tinta.fonte_pressao.as_ref().filter(|_| self.janelas.tipo(id).is_none() && eh_janela_principal(id));
         feather_ui::clique_caneta::clique_caneta(janela, fonte).into()

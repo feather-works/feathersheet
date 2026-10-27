@@ -254,10 +254,16 @@ impl App {
 
     pub(super) fn ordenar(&mut self, crescente: bool) {
         self.confirmar();
-        let area = self.area_selecionada();
+        let mut area = self.area_selecionada();
         let Some(aba) = self.workbook.aba(self.folha) else { return; };
+        let mut cabecalho = self.cabecalho_dados;
+        // Uma célula só: classifica a região em volta, com o cabeçalho adivinhado (como o Excel).
+        if area.r0 == area.r1 && area.c0 == area.c1 {
+            area = ops::regiao_atual(&aba.sheet, area);
+            cabecalho = ops::parece_cabecalho(area.clone(), |r,c| self.workbook.valor(self.folha,r,c));
+        }
         let plano = ops::planejar_ordenacao(area.clone(), &[ops::SortKey { col:self.coluna, ascending:crescente }],
-            self.cabecalho_dados, aba.sheet.used_rect().r1, |r,c| self.workbook.valor(self.folha,r,c));
+            cabecalho, aba.sheet.used_rect().r1, |r,c| self.workbook.valor(self.folha,r,c));
         if let Some(plano) = plano {
             self.workbook.editar(self.folha, |sheet| ops::aplicar_ordenacao(sheet,area.c0,area.c1,&plano));
             self.alterado = true;
@@ -731,6 +737,17 @@ mod testes {
         assert_eq!(app.workbook.valor(0,1,1),Value::Number(1.));
         let _ = app.update(Msg::Desfazer);
         assert_eq!(app.workbook.valor(0,1,0),Value::Text("b".into()));
+    }
+
+    #[test]
+    fn ordenar_numa_celula_classifica_a_regiao_com_cabecalho() {
+        let mut app = App::default();
+        let _ = app.update(Msg::Colar("Nome\tValor\nc\t3\na\t1\nb\t2".into()));
+        let _ = app.update(Msg::IrPara("B3".into()));
+        let _ = app.update(Msg::Ordenar(true));
+        assert_eq!(app.workbook.valor(0,0,0),Value::Text("Nome".into()));
+        assert_eq!(app.workbook.valor(0,1,0),Value::Text("a".into()));
+        assert_eq!(app.workbook.valor(0,3,1),Value::Number(3.));
     }
 
     #[test]

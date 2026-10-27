@@ -788,12 +788,6 @@ impl App {
             .into()
     }
 
-    /// Larguras estimadas dos grupos da aba Editar forma (mesma contagem de
-    /// [`Self::grupos_editar_forma`]).
-    pub(in crate::app) fn larguras_editar_forma(&self) -> &'static [f32] {
-        if self.tem_forma_selecionada() { &[230., 200., 290., 300., 240., 280., 120.] } else { &[300.] }
-    }
-
     /// Os grupos da aba contextual "Editar forma".
     pub(in crate::app) fn grupos_editar_forma(&self) -> Vec<Element<'_, Msg>> {
         let Some(o) = self.objeto_selecionado() else {

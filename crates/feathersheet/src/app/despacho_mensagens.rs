@@ -633,7 +633,6 @@ impl App {
             Msg::SubstituirAtual => self.substituir_atual(),
             Msg::SubstituirTudo => { self.substituir_tudo(); Task::none() },
             Msg::Ordenar(crescente) => { self.ordenar(crescente); Task::none() },
-            Msg::OrdenarPagina(crescente) => { self.ordenar_pagina(crescente); Task::none() },
             Msg::CabecalhoDados(v) => { self.cabecalho_dados = v; Task::none() },
             Msg::RemoverDuplicados => self.abrir_duplicados(),
             Msg::Duplicados(ev) => self.evento_duplicados(ev),

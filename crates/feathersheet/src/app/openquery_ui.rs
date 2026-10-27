@@ -1041,3 +1041,4 @@ fn passo_rotulo(p: &Passo) -> &'static str {
         Passo::Limite { .. } => tr!("Manter linhas"),
     }
 }
+

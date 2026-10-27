@@ -1109,6 +1109,7 @@ impl App {
             "save" => Msg::Salvar,
             "saveAs" => Msg::SalvarComo,
             "makeCopy" => Msg::MenuSalvarCopia,
+            "exportar" if texto == "fshz" => Msg::MenuSalvarCopia,
             "exportar" if texto == "xlsx" => Msg::ExportarXlsx,
             "exportar" if texto == "json" => Msg::ExportarJson,
             "exportar" if texto == "csv" => Msg::ExportarDelimitado(false),
@@ -1154,6 +1155,20 @@ impl App {
                     Msg::CondicionalMostrar,
                 "limpar-selecao" => Msg::CondicionalLimparSelecao,
                 "limpar-planilha" => Msg::CondicionalLimparTudo,
+                "realcar:greaterThan" => Msg::CondicionalPredefinida(TipoCondicional::Maior),
+                "realcar:lessThan" => Msg::CondicionalPredefinida(TipoCondicional::Menor),
+                "realcar:between" => Msg::CondicionalPredefinida(TipoCondicional::Entre),
+                "realcar:equal" => Msg::CondicionalPredefinida(TipoCondicional::Igual),
+                "realcar:textContains" => Msg::CondicionalPredefinida(TipoCondicional::Contem),
+                "realcar:duplicate" => Msg::CondicionalPredefinida(TipoCondicional::Duplicado),
+                "realcar:unique" => Msg::CondicionalPredefinida(TipoCondicional::Unico),
+                "realcar:isEmpty" => Msg::CondicionalPredefinida(TipoCondicional::Vazia),
+                "realcar:aboveAverage" => Msg::CondicionalPredefinida(TipoCondicional::AcimaMedia),
+                "realcar:belowAverage" => Msg::CondicionalPredefinida(TipoCondicional::AbaixoMedia),
+                // Pintar a linha inteira é uma regra por fórmula (=$A1>10).
+                "linha" => Msg::CondicionalPredefinida(TipoCondicional::Formula),
+                "barra" => Msg::CondicionalPredefinida(TipoCondicional::Barra),
+                "escala" => Msg::CondicionalPredefinida(TipoCondicional::Escala),
                 _ => return None,
             },
             "clearContents" => Msg::Limpar,
@@ -1162,6 +1177,10 @@ impl App {
             "findReplace" => Msg::BuscaAba(true),
             "goTo" => Msg::IrParaJanela(ir_para::Evento::Abrir),
             "customSort" => Msg::Classificar(classificar::Evento::Abrir),
+            "novoModulo" => Msg::MacroNovoModulo,
+            "novoComponente" => Msg::MacroNovoFormulario,
+            "insertMacroButton" => Msg::BotaoMacroNovo,
+            "openMacroHelp" => Msg::AjudaAbrirSecao("macros"),
             "goalSeek" => Msg::AtingirMeta(atingir_meta::Evento::Abrir),
             "dataTable" => Msg::TabelaDados(tabela_dados::Evento::Abrir),
             "scenarios" => Msg::Cenarios(cenarios_ui::Evento::Abrir),
@@ -1202,7 +1221,8 @@ impl App {
             "setFontSize" => Msg::EstiloMenu("fontSize".into(), Campo::Numero(arg?.as_f64()?)),
             "setTheme" if texto == "dark" || texto == "light" => Msg::Tema(texto == "dark"),
             "setTheme" if texto == "auto" => Msg::TemaAuto,
-            "sort" if texto == "range" =>
+            // "sheet" era a antiga Classificar página: hoje A–Z já expande para a região.
+            "sort" =>
                 Msg::Ordenar(acao.args.get(1)?.as_bool()?),
             // Msg::Mesclar alterna: só serve ao item certo conforme a seleção já mesclada.
             "mesclar" | "desmesclar" => {

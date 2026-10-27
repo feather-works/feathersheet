@@ -207,14 +207,6 @@ impl App {
                 self.dividir_texto(separador);
                 Task::none()
             }
-            "ordenar" => self.update(match opcao {
-                "Página A → Z" => Msg::OrdenarPagina(true),
-                "Página Z → A" => Msg::OrdenarPagina(false),
-                // Mantém compatibilidade com comandos antigos da Ribbon.
-                "Intervalo A → Z" | "Intervalo A–Z" => Msg::Ordenar(true),
-                "Intervalo Z → A" | "Intervalo Z–A" => Msg::Ordenar(false),
-                _ => return Task::none(),
-            }),
             "tema" => match opcao {
                 "Automático" | "Auto" => self.update(Msg::TemaAuto),
                 "Claro" => self.update(Msg::Tema(false)),

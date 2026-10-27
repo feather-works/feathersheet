@@ -81,3 +81,7 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 3
+
+# shortcut: [patch] provisório (borda que redimensiona, 27/10/2026); trocar pela tag v0.3.3 do feather-ui antes de lançar.
+[patch."https://github.com/feather-works/feather-ui.git"]
+feather-ui = { path = "../../../feather-ui-pelicano" }

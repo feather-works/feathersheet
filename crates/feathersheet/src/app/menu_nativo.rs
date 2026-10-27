@@ -165,6 +165,24 @@ mod testes {
     }
 
     #[test]
+    fn todo_item_com_acao_vira_comando() {
+        fn mortos(app: &crate::app::App, itens: &[Item], saida: &mut Vec<String>) {
+            for item in itens {
+                // Dependem do estado: desmesclar só com mescla, excluir aba só com duas.
+                let do_estado = item.acao.as_ref().is_some_and(|a| matches!(a.id.as_str(), "desmesclar" | "deleteSheet"));
+                if !do_estado && item.acao.as_ref().is_some_and(|a| app.evento_menu(a).is_none()) {
+                    saida.push(format!("{} ({})", item.rotulo, item.acao.as_ref().unwrap().id));
+                }
+                mortos(app, &item.filhos, saida);
+            }
+        }
+        let app = crate::app::App::default();
+        let mut saida = Vec::new();
+        for menu in &catalogo().menus { mortos(&app, &menu.itens, &mut saida); }
+        assert!(saida.is_empty(), "itens de menu mortos: {saida:#?}");
+    }
+
+    #[test]
     fn catalogo_mantem_ordem_e_submenus_originais() {
         let dados = catalogo();
         assert_eq!(dados.menus.first().unwrap().titulo, "Arquivo");

@@ -26,7 +26,6 @@ pub(super) static CATEGORIAS: std::sync::LazyLock<Vec<&'static str>> =
         .collect());
 pub(super) const LINHAS: &[&str] = &["Inserir acima", "Inserir abaixo", "Excluir linhas"];
 pub(super) const COLUNAS: &[&str] = &["Inserir à esquerda", "Inserir à direita", "Excluir colunas"];
-pub(super) const ORDENAR: &[&str] = &["Página A → Z", "Página Z → A"];
 pub(super) const TEMA: &[&str] = &["Claro", "Escuro"];
 pub(super) const NUM_FORMAT: &str = "Número";
 
@@ -580,34 +579,27 @@ impl App {
         saida
     }
 
-    /// Larguras conservadoras por grupo, incluindo padding e borda divisória.
-    /// São limites estimados dos controles efetivos, e não percentuais da tela.
-    /// Quando um grupo não cabe, ele vai inteiro ao menu Mais (sem corte).
-    pub(super) fn faixa_larguras(&self) -> &'static [f32] {
-        match self.faixa_ativa {
-            AbaFaixa::Inicio => &[198., 332., 310., 225., 406., 323., 279.],
-            AbaFaixa::Inserir => &[
-                184., 207., 121., 507., 261., 223., 99., 146.,
-                474., 159., 372., 430.,
-            ],
-            AbaFaixa::Desenhar => &feather_ui::tinta::LARGURAS_GRUPOS,
-            AbaFaixa::Layout => &[410., 130., 250., 120.],
-            AbaFaixa::Formulas => &[500., 245., 330., 170.],
-            AbaFaixa::Dados => &[285., 450., 330., 230., 300.],
-            AbaFaixa::Revisao => &[440., 120.],
-            AbaFaixa::Exibir => &[425., 335., 174., 121., 304.],
-            AbaFaixa::Macros => &[278., 224., 131., 143.],
-            AbaFaixa::Tabela => {
-                if tabelas::sob_celula(&self.workbook, self.folha, self.linha, self.coluna).is_some() {
-                    &[252., 384., 439., 189.]
-                } else {
-                    &[230.]
-                }
-            },
-            AbaFaixa::Ferramentas => &[230., 235., 246., 312.],
-            AbaFaixa::EditarForma => self.larguras_editar_forma(),
-            AbaFaixa::Dinamica => if self.dinamica_na_faixa() { &[330., 300., 140., 260., 130., 240.] } else { &[300.] },
+    /// Largura real de cada grupo, medida pelo layout do pelicano (as estimativas à mão
+    /// erravam por centenas de px e a Inserir estourava a janela). Quando um grupo não
+    /// cabe, ele vai inteiro ao menu Mais (sem corte). Guardada por aba, nº de grupos e
+    /// idioma: o conteúdo de um grupo quase não muda a largura dele.
+    pub(super) fn faixa_larguras(&self) -> Vec<f32> {
+        thread_local! {
+            static MEDIDAS: std::cell::RefCell<(Option<pelicano::Renderer>, std::collections::HashMap<(u8, usize, u8), Vec<f32>>)> =
+                std::cell::RefCell::new((None, std::collections::HashMap::new()));
         }
+        let grupos = self.montar_grupos_faixa();
+        let chave = (self.faixa_ativa as u8, grupos.len(), crate::idioma::lingua() as u8);
+        MEDIDAS.with_borrow_mut(|(medidor, guardadas)| {
+            guardadas.entry(chave).or_insert_with(|| {
+                let r = medidor.get_or_insert_with(pelicano::Renderer::new);
+                let estados = pelicano::States::default();
+                let tela = Size::new(5000.0, ALTURA_CONTROLES_FAIXA);
+                grupos.iter().map(|g|
+                    pelicano::layout(g, tela, r, &estados, &pelicano::Theme::light()).rect.width.ceil()
+                ).collect()
+            }).clone()
+        })
     }
 
     /// Abre só os comandos adicionais de UMA seção da Ribbon.
@@ -815,7 +807,7 @@ impl App {
         let limite = (disponivel - RESERVA_BOTAO_MAIS).max(0.0);
         let mut ocupado = 0.0;
         let mut quantidade = 0;
-        for &largura in larguras {
+        for &largura in &larguras {
             let proximo = ocupado + if quantidade > 0 { 2.0 } else { 0.0 } + largura;
             if proximo > limite { break; }
             ocupado = proximo;

@@ -1470,6 +1470,7 @@ impl App {
             },
             Msg::Minimizar(id) => Task::window_of(id, pelicano::WindowCmd::Minimize),
             Msg::Maximizar(id) => Task::window_of(id, pelicano::WindowCmd::ToggleMaximize),
+            Msg::RedimensionarJanela(id, d) => Task::window_of(id, pelicano::WindowCmd::DragResize(d)),
             Msg::Arrastar(id) => feather_ui::janelas::arrastar_ou_maximizar(id, &mut self.ultimo_clique_barra),
             Msg::MacroTeclado(id,key,mods) => {
                 if self.janelas.tipo(id) == Some(Auxiliar::Macros) {

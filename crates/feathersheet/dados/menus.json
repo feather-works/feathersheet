@@ -631,19 +631,6 @@
               "filhos": []
             },
             {
-              "rotulo": "Faixas alternadas",
-              "icone": "",
-              "dica": "",
-              "atalho": "",
-              "separador": false,
-              "catalogo": false,
-              "acao": {
-                "id": "toggleFaixas",
-                "args": []
-              },
-              "filhos": []
-            },
-            {
               "rotulo": "Barra de fórmulas",
               "icone": "",
               "dica": "",
@@ -1247,7 +1234,10 @@
               "atalho": "",
               "separador": false,
               "catalogo": true,
-              "acao": null,
+              "acao": {
+                "id": "openFunctions",
+                "args": []
+              },
               "filhos": []
             }
           ]
@@ -2558,32 +2548,6 @@
           "filhos": []
         },
         {
-          "rotulo": "Proteger intervalo…",
-          "icone": "cadeado",
-          "dica": "",
-          "atalho": "",
-          "separador": false,
-          "catalogo": false,
-          "acao": {
-            "id": "protegerIntervalo",
-            "args": []
-          },
-          "filhos": []
-        },
-        {
-          "rotulo": "Intervalos protegidos…",
-          "icone": "cadeado",
-          "dica": "",
-          "atalho": "",
-          "separador": false,
-          "catalogo": false,
-          "acao": {
-            "id": "intervalosProtegidos",
-            "args": []
-          },
-          "filhos": []
-        },
-        {
           "rotulo": "",
           "icone": "",
           "dica": "",
@@ -3095,7 +3059,10 @@
               "atalho": "",
               "separador": false,
               "catalogo": true,
-              "acao": null,
+              "acao": {
+                "id": "openFunctions",
+                "args": []
+              },
               "filhos": []
             }
           ]

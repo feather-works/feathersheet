@@ -652,22 +652,21 @@ fn botao_ribbon(
 ) -> Element<'static, Msg> {
     let conteudo = column![
         feather_ui::icones::icone_colorido(icone, 24.0, cor),
-        container(text(rotulo).size(11))
-            .width(Length::FILL).align_x(pelicano::Align::Center),
+        text(rotulo).size(11).align_x(pelicano::Align::Center),
     ].align(pelicano::Align::Center).spacing(7);
-    button(conteudo).padding([9, 3]).height(Length::Fixed(80.0))
-        .width(Length::Fixed(76.0))
+    // Largura pelo rótulo: com 76 px fixos a faixa passava de 1000 px de janela.
+    button(conteudo).padding([9, 8]).height(Length::Fixed(80.0))
         .on_press(om(evento)).style(ide::estilo_botao_ide(ativo)).into()
 }
 
 fn grupo_ribbon<'a>(
     rotulo: &'static str, acoes: Vec<Element<'a, Msg>>, escuro: bool,
 ) -> Element<'a, Msg> {
+    // Sem `.width(FILL)` no rótulo: no pelicano ele esticava o grupo até a largura da janela.
     let conteudo = column![
         row(acoes).spacing(0).align(pelicano::Align::Center),
-        container(text(rotulo).size(10).color(ide::cor_secundaria(escuro)))
-            .width(Length::FILL).align_x(pelicano::Align::Center),
-    ].spacing(5);
+        text(rotulo).size(10).color(ide::cor_secundaria(escuro)),
+    ].spacing(5).align(pelicano::Align::Center);
     container(conteudo).padding([1, 4]).into()
 }
 

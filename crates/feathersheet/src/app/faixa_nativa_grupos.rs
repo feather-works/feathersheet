@@ -159,12 +159,12 @@ impl App {
                 // a legenda explica a ação executada ao clicar.
                 grupos.push(self.faixa_grupo(tr!("Células"), self.faixa_linha(vec![
                     self.faixa_com_seta(self.faixa_grande_destaque(
-                        "Inserir\nlinha", "plus", "#21865c",
+                        tr!("Inserir"), "plus", "#21865c",
                         (222, 245, 233),
                         Some(Msg::InserirMenu(Estrutura::InserirLinha, false)), false,
                     ), "inserir"),
                     self.faixa_com_seta(self.faixa_grande_destaque(
-                        "Excluir\nlinha", "trash", "#ca5555",
+                        tr!("Excluir"), "trash", "#ca5555",
                         (253, 232, 232),
                         Some(Msg::Estrutura(Estrutura::ExcluirLinha)), false,
                     ), "excluir"),
@@ -322,7 +322,8 @@ impl App {
                     self.faixa_pilha(vec![
                         self.faixa_pequeno("A–Z", "sort-ascending", Some(Msg::Ordenar(true)), false),
                         self.faixa_pequeno("Z–A", "sort-descending", Some(Msg::Ordenar(false)), false),
-                        self.faixa_lista(tr!("Classificar página"), "ordenar", ORDENAR, None, 140.),
+                        self.faixa_pequeno(tr!("Classificar"), "sort-filter",
+                            Some(Msg::Classificar(classificar::Evento::Abrir)), self.classificar.is_some()),
                     ]),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Ferramentas de dados"), self.faixa_linha(vec![
@@ -579,7 +580,7 @@ impl App {
                 .padding([7, 12])
                 .style(estilo_botao_grande(self.faixa_extras_aberto))
                 .on_press(Msg::AlternarMenuExtras);
-            grupos.push(ui::grupo_faixa_compacto(botao_mais.into(), tr!("Ferramentas")));
+            grupos.push(ui::grupo_faixa_compacto(botao_mais.into(), tr!("Mais opções")));
         }
         // Sem widget Scrollable: nunca aparece uma barra horizontal na Ribbon.
         let conteudo = row(grupos)
@@ -702,3 +703,5 @@ fn em_breve<'a>(botao: Element<'a, Msg>, dica: &'static str) -> Element<'a, Msg>
     .padding([4, 8]).style(estilo_dica)
     .into()
 }
+
+
