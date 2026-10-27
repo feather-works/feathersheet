@@ -1036,7 +1036,7 @@ impl App {
     /// Clique na forma com macro: o mesmo caminho dos botões de macro
     /// (histórico do Alt+F11, erros com linha/coluna, escritas revertidas).
     fn executar_macro_da_forma(&mut self, id: u64) {
-        if !self.confirmar() {
+        if !self.confirmar() || !self.macros_liberadas() {
             return;
         }
         let Some((_, lidos)) = self.objetos_da_aba() else { return };

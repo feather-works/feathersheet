@@ -135,11 +135,18 @@ impl App {
             self.status = recusa.0;
             return Task::none();
         }
+        self.vigiar_protecao(|app| app.processar_mensagem(msg))
+    }
+
+    /// Roda `acao` e desfaz o que ela escreveu nas abas protegidas sem
+    /// permissão. Vale também para as macros de evento (aoMudar/aoAtivar),
+    /// que rodam depois da mensagem (#59).
+    pub(super) fn vigiar_protecao<R>(&mut self, acao: impl FnOnce(&mut Self) -> R) -> R {
         let marcas: Vec<(usize, usize)> = (0..self.workbook.len())
             .filter_map(|i| self.workbook.aba(i).filter(|a| a.sheet.protegida())
                 .map(|a| (i, a.sheet.profundidade_do_historico())))
             .collect();
-        let tarefa = self.processar_mensagem(msg);
+        let resultado = acao(self);
         for (i, marca) in marcas {
             let recusa = self.workbook.aba(i).and_then(|a| a.sheet.examinar_protecao(marca));
             if let Some(r) = recusa {
@@ -147,7 +154,7 @@ impl App {
                 self.status = r.0;
             }
         }
-        tarefa
+        resultado
     }
 
     pub(super) fn evento_protecao(&mut self, evento: Evento) -> Task<Msg> {

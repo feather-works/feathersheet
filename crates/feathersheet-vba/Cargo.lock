@@ -838,6 +838,7 @@ version = "0.0.2"
 dependencies = [
  "feather-macros",
  "feathersheet-core",
+ "serde",
  "serde_json",
 ]
 

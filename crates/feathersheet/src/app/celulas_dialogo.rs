@@ -83,6 +83,9 @@ impl App {
         }
         let tabela = tabelas::refluir(&mut self.workbook, self.folha, coluna, at, quantas, !inserir);
         let mescla = mesclas::refluir(&mut self.workbook, self.folha, coluna, at, quantas, !inserir);
+        // Tabelas e mesclas reajustadas também guardam o "antes": um Ctrl+Z
+        // as poria nas coordenadas velhas, com as células já deslocadas (#46).
+        if let Some(aba) = self.workbook.aba_mut(self.folha) { aba.sheet.esquecer_historico(); }
         self.alterado = true;
         self.trocar_selecao(self.linha, self.coluna);
         let nome = if coluna { format!("{}:{}", col_name(at), col_name(at + quantas - 1)) }

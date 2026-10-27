@@ -75,12 +75,15 @@ impl App {
 }
 
 impl App {
-    /// Arquivo aberto do disco com macros que rodam sozinhas (eventos de aba ou
-    /// botões): ficam bloqueadas até a pessoa ativar, como no Excel.
+    /// Arquivo aberto do disco com macros que rodam sozinhas (eventos de aba,
+    /// botões ou formas com macro): ficam bloqueadas até a pessoa ativar, como no Excel.
     pub(super) fn bloquear_macros_do_arquivo(&mut self) {
-        let botoes = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i))
-            .any(|a| a.sheet.bt.as_deref().is_some_and(|t| !matches!(t.trim(), "" | "[]")));
-        self.macros_bloqueadas = botoes || !self.eventos_vba.is_empty();
+        let abas = || (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i));
+        let botoes = abas().any(|a| a.sheet.bt.as_deref().is_some_and(|t| !matches!(t.trim(), "" | "[]")));
+        // Uma forma transparente sobre a grade rodaria a macro no primeiro clique (#49).
+        let formas = abas().any(|a| feathersheet_io::objetos_aba::ler_da_aba(&a.sheet)
+            .objetos.iter().any(|o| o.macro_nome.is_some()));
+        self.macros_bloqueadas = botoes || formas || !self.eventos_vba.is_empty();
         self.aviso_macros = self.macros_bloqueadas;
     }
 

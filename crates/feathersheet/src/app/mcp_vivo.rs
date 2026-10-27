@@ -339,6 +339,8 @@ impl Hospede for HospedeApp<'_> {
         // As mesmas duas etapas do botão Inserir/Excluir da faixa.
         let tabela = tabelas::refluir(&mut self.app.workbook, aba, coluna, at, quantas, removendo);
         let mescla = mesclas::refluir(&mut self.app.workbook, aba, coluna, at, quantas, removendo);
+        // Como no botão: o Ctrl+Z não volta para antes da estrutura (#46).
+        if let Some(a) = self.app.workbook.aba_mut(aba) { a.sheet.esquecer_historico(); }
         if aba == self.app.folha { self.app.trocar_selecao(self.app.linha, self.app.coluna); }
         match (tabela, mescla) {
             (Ok(()), Ok(())) => Ok(()),

@@ -116,6 +116,11 @@ pub(crate) struct Estado {
     lendo: BTreeSet<String>,
     /// Origens já lidas sozinhas do disco nesta sessão (não repete).
     tentou_disco: BTreeSet<String>,
+    /// Pasta aberta do disco: nada é lido de outro arquivo (nem de outra
+    /// janela) até a pessoa clicar em "Atualizar valores", como o "Habilitar
+    /// conteúdo" do Excel. Um arquivo de estranho poderia citar
+    /// `'/home/x/[salarios.xlsx]Plan1'!A1` numa aba oculta (#50).
+    aguardando_permissao: bool,
     ultima_tentativa: Option<Instant>,
     /// Esta janela anunciou que está apontando (digitando uma fórmula).
     anunciando_apontar: bool,
@@ -388,6 +393,7 @@ impl App {
         self.vinculos.versoes_citadas.clear();
         self.vinculos.tentou_disco.clear();
         self.vinculos.lendo.clear();
+        self.vinculos.aguardando_permissao = false;
         self.vinculos.faixa_fechada = false;
         self.vinculos.editar_aberto = false;
         self.vinculos.ultima_tentativa = None;
@@ -474,6 +480,9 @@ impl App {
             }
             self.vinculos.origens = novas;
         }
+        if self.vinculos.aguardando_permissao {
+            return Task::none();
+        }
         let agora = Instant::now();
         let tentar = refez || self.vinculos.ultima_tentativa.is_none_or(|t| agora.duration_since(t) >= INTERVALO_TENTATIVA);
         if !tentar {
@@ -500,6 +509,11 @@ impl App {
             }
         }
         Task::batch(tarefas)
+    }
+
+    /// A pasta veio do disco: os vínculos esperam o "Atualizar valores".
+    pub(super) fn vinculos_pedir_permissao(&mut self) {
+        self.vinculos.aguardando_permissao = true;
     }
 
     /// As origens citadas agora, com o estado da conexão das de antes.
@@ -560,6 +574,7 @@ impl App {
     /// "Atualizar valores": a origem aberta em outra janela manda o retrato
     /// de novo; fechada, lê do disco.
     fn atualizar_valores_externos(&mut self, alvo: Option<String>) -> Task<Msg> {
+        self.vinculos.aguardando_permissao = false;
         if self.vinculos.origens.is_empty() {
             self.vinculos.versoes_citadas.clear();
             let _ = self.pulso_vinculos();

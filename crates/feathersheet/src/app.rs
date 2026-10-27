@@ -69,9 +69,6 @@ mod menu_nativo;
 mod nomes_ui;
 mod dialogo_interno;
 pub(crate) mod link_ui;
-// Base criptográfica migrada; não habilitar UI antes do bloqueio de escrita.
-#[allow(dead_code)]
-mod protecao_senha;
 mod congelar_ui;
 mod formulas_ui;
 mod inspecao_ui;
@@ -1446,7 +1443,7 @@ impl App {
                 tarefa = Task::batch([tarefa, crate::campo_fx::desfocar()]);
             }
         }
-        if let Some(antes) = antes { self.disparar_eventos(antes); }
+        if let Some(antes) = antes { self.vigiar_protecao(|app| app.disparar_eventos(antes)); }
         if let Some(antes) = paineis { self.um_painel_lateral_por_vez(antes); }
         if self.profundidade_update == 0 { self.cuidar_apontar(selecao_antes); }
         // O rodapé decide aqui se vai somar em lotes: decidido só no desenho,

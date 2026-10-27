@@ -1,4 +1,5 @@
-# Testes do motor, da leitura/gravação de arquivos e das macros a cada push
+# Testes do motor, da leitura/gravação de arquivos, das macros, do conversor
+# VBA e do MCP a cada push
 # e PR (#25). A interface (crates/feathersheet) fica de fora: compila em minutos
 # e precisa das bibliotecas de janela do sistema.
 #
@@ -16,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        crate: [feathersheet-core, feathersheet-io, feathersheet-macros]
+        crate: [feathersheet-core, feathersheet-io, feathersheet-macros, feathersheet-vba, feathersheet-mcp]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

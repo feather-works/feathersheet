@@ -753,6 +753,17 @@ que veio de mim do que veio do Gemini ou do usuário.
 
 ## Cuidados ao mexer
 
+- **Inserir/excluir linhas ou colunas esquece o histórico** das abas mexidas
+  (`Sheet::esquecer_historico`, auditoria de 26/10/2026, #46): o deslocamento
+  não é um passo do desfazer, e um Ctrl+Z velho apagava a célula errada. Quem
+  reajusta tabelas/mesclas depois (`refluir`) esquece de novo, senão o "antes"
+  delas volta nas coordenadas velhas. Desfazer a estrutura de verdade pede um
+  `Passo::Estrutura` com a fatia removida.
+- **Vínculo externo de pasta aberta do disco não lê nada sozinho** (#50): nem do
+  disco nem de outra janela, até "Atualizar valores" (`aguardando_permissao`).
+- **Texto do `.xlsx` entra com a `MARCA_TEXTO`** (#48) e não passa pelo
+  `parse_literal`; o texto "VERDADEIRO"/"FALSO" ainda volta lógico porque a
+  coluna de dados guarda o lógico como esse texto no pool.
 - Ao acrescentar uma barra na tela, conferir que `.grid-host` continua sendo o
   único item flexível.
 - Ao acrescentar função que devolve matriz, incluir o nome em

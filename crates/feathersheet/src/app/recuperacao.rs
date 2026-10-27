@@ -58,8 +58,17 @@ pub(super) fn pasta() -> PathBuf {
     }
     App::pasta_temporarios().join("Recuperacao")
 }
+/// Esta sessão: o pid sozinho se repete depois de reiniciar o PC, e a cópia
+/// da sessão que morreu seria tomada como "minha" e sobrescrita (#54).
+fn sessao() -> &'static str {
+    static SESSAO: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    SESSAO.get_or_init(|| {
+        let ms = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+        format!("{}-{ms}", std::process::id())
+    })
+}
 fn minhas() -> (PathBuf, PathBuf) {
-    let id = std::process::id();
+    let id = sessao();
     (pasta().join(format!("{id}.fshz")), pasta().join(format!("{id}.json")))
 }
 fn agora_s() -> u64 {
@@ -68,7 +77,6 @@ fn agora_s() -> u64 {
 
 /// As cópias que ficaram de sessões mortas, a mais nova primeiro.
 pub(super) fn procurar_orfas() -> Vec<Orfa> {
-    let meu = std::process::id();
     let Ok(entradas) = std::fs::read_dir(pasta()) else { return Vec::new() };
     let mut orfas: Vec<Orfa> = entradas.filter_map(Result::ok).filter_map(|e| {
         let json = e.path();
@@ -76,7 +84,7 @@ pub(super) fn procurar_orfas() -> Vec<Orfa> {
             return None;
         }
         let meta: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&json).ok()?).ok()?;
-        if meta["pid"].as_u64() == Some(u64::from(meu)) {
+        if meta["sessao"].as_str() == Some(sessao()) {
             return None;
         }
         // Pulso recente: outra janela do FeatherSheet está viva com ela.
@@ -116,6 +124,7 @@ impl App {
         let (_, json) = minhas();
         let meta = serde_json::json!({
             "pid": std::process::id(),
+            "sessao": sessao(),
             "nome": self.nome_documento(),
             "origem": self.caminho.as_ref().or(self.origem.as_ref()).map(|p| p.to_string_lossy().to_string()),
             "pulso": agora_s(),
@@ -315,5 +324,19 @@ mod testes {
         for o in ["999999991", "999999992"] {
             apagar(&dir.join(format!("{o}.fshz")), &dir.join(format!("{o}.json")));
         }
+    }
+
+    /// Depois de reiniciar, o app novo pode ganhar o pid da sessão que morreu.
+    #[test]
+    fn orfa_com_o_mesmo_pid_de_outra_sessao_e_oferecida() {
+        let dir = pasta();
+        std::fs::create_dir_all(&dir).unwrap();
+        let pid = std::process::id();
+        let json = dir.join(format!("{pid}.json"));
+        std::fs::write(dir.join(format!("{pid}.fshz")), b"x").unwrap();
+        std::fs::write(&json, serde_json::json!({"pid": pid, "nome": "Antes da queda.fshz", "pulso": agora_s() - 600}).to_string()).unwrap();
+        assert!(procurar_orfas().iter().any(|o| o.nome == "Antes da queda.fshz"));
+        assert_ne!(minhas().1, json, "a cópia desta sessão não cai em cima da órfã");
+        apagar(&dir.join(format!("{pid}.fshz")), &json);
     }
 }
