@@ -64,24 +64,50 @@ impl std::fmt::Display for PapelUi {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EscalaUi { Cem, Pagina, Largura }
+pub enum EscalaUi {
+    Porcentagem(u16),
+    /// Dimensionar para Ajustar: páginas de largura e de altura (0 = automático).
+    Paginas(u16, u16),
+}
 impl EscalaUi {
-    const TODAS: [EscalaUi; 3] = [EscalaUi::Cem, EscalaUi::Pagina, EscalaUi::Largura];
+    pub const CEM: EscalaUi = EscalaUi::Porcentagem(100);
+    pub const PAGINA: EscalaUi = EscalaUi::Paginas(1, 1);
+    pub const LARGURA: EscalaUi = EscalaUi::Paginas(1, 0);
+    const TODAS: [EscalaUi; 3] = [EscalaUi::CEM, EscalaUi::PAGINA, EscalaUi::LARGURA];
     fn escala(self) -> Escala {
         match self {
-            Self::Cem => Escala::Porcentagem(100),
-            Self::Pagina => Escala::AjustarPagina,
-            Self::Largura => Escala::AjustarLargura,
+            Self::Porcentagem(p) => Escala::Porcentagem(p),
+            Self::Paginas(largura, altura) => Escala::Paginas { largura, altura },
         }
+    }
+    /// Muda só a largura ou só a altura; as duas em automático voltam a 100%.
+    fn com_paginas(self, largura: Option<u16>, altura: Option<u16>) -> Self {
+        let (l, a) = match self { Self::Paginas(l, a) => (l, a), Self::Porcentagem(_) => (0, 0) };
+        match (largura.unwrap_or(l), altura.unwrap_or(a)) {
+            (0, 0) => Self::CEM,
+            (l, a) => Self::Paginas(l, a),
+        }
+    }
+    pub(super) fn largura(self) -> u16 { match self { Self::Paginas(l, _) => l, _ => 0 } }
+    pub(super) fn altura(self) -> u16 { match self { Self::Paginas(_, a) => a, _ => 0 } }
+}
+/// "Automático", "1 página", "2 páginas"… como nas listas do Excel.
+pub(super) fn rotulo_paginas(n: u16) -> &'static str {
+    match n {
+        0 => tr!("Automático"), 1 => tr!("1 página"), 2 => tr!("2 páginas"), 3 => tr!("3 páginas"),
+        4 => tr!("4 páginas"), 5 => tr!("5 páginas"), 6 => tr!("6 páginas"), 7 => tr!("7 páginas"),
+        8 => tr!("8 páginas"), _ => tr!("9 páginas"),
     }
 }
 impl std::fmt::Display for EscalaUi {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Cem => tr!("100% - Tamanho real"),
-            Self::Pagina => tr!("Ajustar à 1 página"),
-            Self::Largura => tr!("Ajustar largura das colunas"),
-        })
+        match *self {
+            Self::CEM => f.write_str(tr!("100% - Tamanho real")),
+            Self::PAGINA => f.write_str(tr!("Ajustar à 1 página")),
+            Self::LARGURA => f.write_str(tr!("Ajustar largura das colunas")),
+            Self::Porcentagem(p) => write!(f, "{p}%"),
+            Self::Paginas(l, a) => write!(f, "{} × {}", rotulo_paginas(l), rotulo_paginas(a)),
+        }
     }
 }
 
@@ -114,7 +140,7 @@ pub(super) struct Pagina {
 impl Default for Pagina {
     fn default() -> Self {
         Pagina {
-            orientacao: Orientacao::Retrato, papel: PapelUi::A4, escala: EscalaUi::Cem,
+            orientacao: Orientacao::Retrato, papel: PapelUi::A4, escala: EscalaUi::CEM,
             margem: MargemUi::Normal, grade: true, cabecalhos: true,
         }
     }
@@ -131,6 +157,8 @@ pub enum Evento {
     Orientacao(Orientacao),
     Papel(PapelUi),
     Escala(EscalaUi),
+    LarguraPaginas(u16),
+    AlturaPaginas(u16),
     Grade(bool),
     Cabecalhos(bool),
     /// Textos do cabeçalho e do rodapé da página (vazios = os padrões).
@@ -339,8 +367,22 @@ impl App {
                 self.faixa_grande(tr!("Quebras"), "quebra_pagina",
                     Some(Msg::Impressao(Evento::AlternarQuebras)), self.quebras_mostradas()),
             ])),
-            self.faixa_grupo(tr!("Dimensionar"), self.faixa_linha(vec![
-                menu(tr!("Escala"), "zoom-out", "pg_escala"),
+            // Dimensionar para Ajustar do Excel: Largura, Altura e Escala.
+            self.faixa_grupo(tr!("Dimensionar para Ajustar"), self.faixa_pilha(vec![
+                self.faixa_escolha_pagina(tr!("Largura:"), rotulo_paginas(p.escala.largura()).into(), "pg_largura"),
+                self.faixa_escolha_pagina(tr!("Altura:"), rotulo_paginas(p.escala.altura()).into(), "pg_altura"),
+                self.faixa_escolha_pagina(tr!("Escala:"), match p.escala {
+                    EscalaUi::Porcentagem(n) => format!("{n}%"),
+                    EscalaUi::Paginas(..) => tr!("Ajustada").into(),
+                }, "pg_escala"),
+            ])),
+            self.faixa_grupo(tr!("Tamanho da Célula"), self.faixa_pilha(vec![
+                self.faixa_pequeno(tr!("Largura da coluna…"), "arrows-horizontal",
+                    Some(Msg::Dimensao(dimensao_dialogo::Evento::Abrir(true))), false),
+                self.faixa_pequeno(tr!("Altura da linha…"), "arrows-vertical",
+                    Some(Msg::Dimensao(dimensao_dialogo::Evento::Abrir(false))), false),
+                self.faixa_pequeno(tr!("AutoAjuste da largura da coluna"), "arrow-autofit-width",
+                    Some(Msg::AjustarLargura), false),
             ])),
             self.faixa_grupo(tr!("Opções de Planilha"), self.faixa_pilha(vec![
                 self.faixa_pequeno(tr!("Imprimir linhas de grade"), "linhas_grade",
@@ -353,6 +395,20 @@ impl App {
                     self.janelas.aberta(Auxiliar::Imprimir)),
             ])),
         ]
+    }
+
+    /// "Largura: [Automático ▾]": rótulo à esquerda e o valor abre o menu.
+    fn faixa_escolha_pagina(&self, rotulo: &'static str, valor: String, tipo: &'static str) -> Element<'_, Msg> {
+        row![
+            text(rotulo).size(12).width(Length::Fixed(54.0)),
+            button(row![
+                text(valor).size(12).width(Length::Fixed(82.0)),
+                feather_ui::icones::icone("chevron-down", 11.0),
+            ].spacing(4).align(pelicano::Align::Center))
+                .padding([3, 6])
+                .style(estilo_botao_pequeno(self.edicao_menu == Some(tipo)))
+                .on_press(Msg::AlternarMenuEdicao(tipo)),
+        ].spacing(4).align(pelicano::Align::Center).into()
     }
 
     pub(super) fn quebras_mostradas(&self) -> bool {
@@ -477,6 +533,8 @@ impl App {
             Evento::Orientacao(o) => self.mudar_pagina(|p| p.orientacao = o),
             Evento::Papel(v) => self.mudar_pagina(|p| p.papel = v),
             Evento::Escala(s) => self.mudar_pagina(|p| p.escala = s),
+            Evento::LarguraPaginas(n) => self.mudar_pagina(|p| p.escala = p.escala.com_paginas(Some(n), None)),
+            Evento::AlturaPaginas(n) => self.mudar_pagina(|p| p.escala = p.escala.com_paginas(None, Some(n))),
             Evento::Grade(b) => self.mudar_pagina(|p| p.grade = b),
             Evento::Cabecalhos(b) => self.mudar_pagina(|p| p.cabecalhos = b),
             Evento::TextoCabecalho(t) => self.mudar_textos(|e| e.cabecalho = t),
@@ -913,8 +971,13 @@ mod testes {
         assert_eq!((e.orientacao, e.papel, e.grade), (Orientacao::Paisagem, PapelUi::Oficio, false));
         assert_eq!(e.config().margens.esquerda_mm, 25.4);
         // Mudar no diálogo volta para a faixa.
-        let _ = app.update(Msg::Impressao(Evento::Escala(EscalaUi::Pagina)));
-        assert_eq!(app.pagina_atual().escala, EscalaUi::Pagina);
+        let _ = app.update(Msg::Impressao(Evento::Escala(EscalaUi::PAGINA)));
+        assert_eq!(app.pagina_atual().escala, EscalaUi::PAGINA);
+        // Dimensionar para Ajustar: largura e altura independentes; as duas em automático = 100%.
+        let _ = app.update(Msg::Impressao(Evento::AlturaPaginas(0)));
+        assert_eq!(app.pagina_atual().escala, EscalaUi::Paginas(1, 0));
+        let _ = app.update(Msg::Impressao(Evento::LarguraPaginas(0)));
+        assert_eq!(app.pagina_atual().escala, EscalaUi::CEM);
         // Outra aba começa no padrão.
         app.update(Msg::AdicionarAba);
         assert_eq!(app.pagina_atual(), Pagina::default());

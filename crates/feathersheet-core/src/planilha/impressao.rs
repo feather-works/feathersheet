@@ -58,10 +58,9 @@ pub enum Orientacao {
 pub enum Escala {
     /// Porcentagem fixa, por exemplo 100 para tamanho natural.
     Porcentagem(u16),
-    /// Ajusta a largura da aba à largura da folha.
-    AjustarLargura,
-    /// Ajusta a aba inteira para caber numa única página.
-    AjustarPagina,
+    /// Dimensionar para Ajustar do Excel: no máximo `largura` páginas de largura e
+    /// `altura` de altura; 0 = automático (sem limite nessa direção). Nunca amplia.
+    Paginas { largura: u16, altura: u16 },
 }
 
 impl Default for Escala {

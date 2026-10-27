@@ -116,9 +116,9 @@ fn plano_da_area(wb: &Workbook, folha: usize, area: AreaImpressao, config: &Conf
     let total_a = alt_cab_coluna + linhas.iter().map(|l| l.1).sum::<f32>();
     let escala = match config.escala {
         Escala::Porcentagem(p) => (p as f32 / 100.0).clamp(0.1, 4.0),
-        Escala::AjustarLargura => (util_l / total_l.max(1.0)).min(1.0),
-        Escala::AjustarPagina => {
-            (util_l / total_l.max(1.0)).min(util_a / total_a.max(1.0)).min(1.0)
+        Escala::Paginas { largura, altura } => {
+            let limite = |n: u16, util: f32, total: f32| if n == 0 { 1.0 } else { util * n as f32 / total.max(1.0) };
+            limite(largura, util_l, total_l).min(limite(altura, util_a, total_a)).min(1.0)
         }
     }
     .max(0.05);
@@ -515,7 +515,7 @@ mod testes {
         cfg.cabecalhos = true;
         let pdf = gerar(&wb, 0, area(199, 1), &cfg).unwrap();
         assert!(contar(&pdf) > 3, "{}", contar(&pdf));
-        let pdf = gerar(&wb, 0, area(199, 1), &ConfigPagina { escala: Escala::AjustarPagina, ..cfg.clone() }).unwrap();
+        let pdf = gerar(&wb, 0, area(199, 1), &ConfigPagina { escala: Escala::Paginas { largura: 1, altura: 1 }, ..cfg.clone() }).unwrap();
         assert_eq!(contar(&pdf), 1);
     }
 
@@ -527,8 +527,10 @@ mod testes {
         }
         let pdf = gerar(&wb, 0, area(2, 11), &ConfigPagina::default()).unwrap();
         assert!(contar(&pdf) >= 4);
-        let pdf = gerar(&wb, 0, area(2, 11), &ConfigPagina { escala: Escala::AjustarLargura, ..Default::default() }).unwrap();
+        let pdf = gerar(&wb, 0, area(2, 11), &ConfigPagina { escala: Escala::Paginas { largura: 1, altura: 0 }, ..Default::default() }).unwrap();
         assert_eq!(contar(&pdf), 1);
+        let pdf = gerar(&wb, 0, area(2, 11), &ConfigPagina { escala: Escala::Paginas { largura: 2, altura: 0 }, ..Default::default() }).unwrap();
+        assert_eq!(contar(&pdf), 2);
     }
 
     #[test]

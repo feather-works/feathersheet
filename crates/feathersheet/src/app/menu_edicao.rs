@@ -2,7 +2,7 @@
 //! Formatar (grupo Células) e Mesclar.
 //! Painéis ancorados à Ribbon, sem substituir o conteúdo da planilha.
 use super::*;
-use super::impressao_ui::{EscalaUi, MargemUi, PapelUi};
+use super::impressao_ui::{rotulo_paginas, EscalaUi, MargemUi, PapelUi};
 use feathersheet_core::planilha::impressao::Orientacao;
 
 const LARGURA: f32 = 262.0;
@@ -140,12 +140,20 @@ fn itens(tipo: &str) -> Vec<Item> {
             Acao(tr!("Adicionar à área de impressão"), "plus", Msg::Impressao(EventoImpressao::AdicionarArea)),
             Acao(tr!("Limpar área de impressão"), "limpar_tudo", Msg::Impressao(EventoImpressao::LimparArea)),
         ],
-        "pg_escala" => vec![
-            Titulo(tr!("DIMENSIONAR PARA AJUSTAR")),
-            Acao(tr!("100% · tamanho real"), "zoom-in", Msg::Impressao(EventoImpressao::Escala(EscalaUi::Cem))),
-            Acao(tr!("Ajustar a planilha a 1 página"), "zoom-out", Msg::Impressao(EventoImpressao::Escala(EscalaUi::Pagina))),
-            Acao(tr!("Ajustar todas as colunas à largura"), "arrow-autofit-width", Msg::Impressao(EventoImpressao::Escala(EscalaUi::Largura))),
-        ],
+        "pg_largura" | "pg_altura" => {
+            let largura = tipo == "pg_largura";
+            let mut v = vec![Titulo(if largura { tr!("LARGURA") } else { tr!("ALTURA") })];
+            v.extend((0..=9).map(|n| Acao(rotulo_paginas(n), if largura { "arrows-horizontal" } else { "arrows-vertical" },
+                Msg::Impressao(if largura { EventoImpressao::LarguraPaginas(n) } else { EventoImpressao::AlturaPaginas(n) }))));
+            v
+        }
+        "pg_escala" => {
+            const PORCENTAGENS: [(&str, u16); 12] = [("25%", 25), ("50%", 50), ("70%", 70), ("75%", 75), ("80%", 80),
+                ("90%", 90), ("100%", 100), ("110%", 110), ("125%", 125), ("150%", 150), ("200%", 200), ("400%", 400)];
+            let mut v = vec![Titulo(tr!("ESCALA"))];
+            v.extend(PORCENTAGENS.iter().map(|&(r, n)| Acao(r, "zoom-in", Msg::Impressao(EventoImpressao::Escala(EscalaUi::Porcentagem(n))))));
+            v
+        }
         "mesclar" => vec![
             Titulo("MESCLAR"),
             Acao(tr!("Mesclar e centralizar"), "align-center",
@@ -270,7 +278,7 @@ mod testes {
     #[test]
     fn icones_dos_menus_existem_no_catalogo() {
         for tipo in ["autosoma", "preencher", "classificar", "formatar", "mesclar", "validacao", "limpar", "sublinhado",
-            "pg_margens", "pg_orientacao", "pg_tamanho", "pg_area", "pg_escala"] {
+            "pg_margens", "pg_orientacao", "pg_tamanho", "pg_area", "pg_escala", "pg_largura", "pg_altura"] {
             for item in itens(tipo) {
                 if let Item::Acao(rotulo, icone, _) = item {
                     assert!(feather_ui::icones::existe(icone), "{tipo}: {rotulo} ({icone})");

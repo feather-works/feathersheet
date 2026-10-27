@@ -784,6 +784,7 @@ impl App {
                     None,
                     Some((tr!("Limpar conteúdo").into(), Msg::Limpar)),
                     None,
+                    Some((tr!("Altura da linha…").into(), Msg::Dimensao(dimensao_dialogo::Evento::Abrir(false)))),
                     Some((tr!("Ocultar linhas").into(), Msg::OcultarDimensoes(false))),
                     Some((tr!("Reexibir linhas").into(), Msg::ReexibirDimensoes(false))),
                 ]);
@@ -798,6 +799,7 @@ impl App {
                     None,
                     Some((tr!("Perfil da coluna").into(), Msg::PerfilColunaAbrir)),
                     None,
+                    Some((tr!("Largura da coluna…").into(), Msg::Dimensao(dimensao_dialogo::Evento::Abrir(true)))),
                     Some((tr!("Ocultar colunas").into(), Msg::OcultarDimensoes(true))),
                     Some((tr!("Reexibir colunas").into(), Msg::ReexibirDimensoes(true))),
                 ]);
