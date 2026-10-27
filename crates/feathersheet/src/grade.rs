@@ -746,6 +746,15 @@ impl canvas::Program<Msg> for Grade<'_> {
                     .filter(|((i,_,_),_)| *i >= m.c0 && *i <= m.c1).map(|(_,l)| *l).sum::<f32>().max(w);
                 let ht = linhas_visiveis.iter().zip(&alturas_inteiras)
                     .filter(|((i,_,_),_)| *i >= m.r0 && *i <= m.r1).map(|(_,a)| *a).sum::<f32>().max(h);
+                // #36: rolada para a direita (ou para baixo), a mesclada começa fora da tela; o
+                // texto se posiciona pela região inteira, como no Excel, e só o recorte é o visível.
+                let (xo, yo, wt, ht) = {
+                    let (xa, ya) = (modelo::inicio_x_da(&aba.sheet, primeira_col.0), modelo::inicio_y_da(&aba.sheet, primeira_linha.0));
+                    let (x0, y0) = (modelo::inicio_x_da(&aba.sheet, m.c0), modelo::inicio_y_da(&aba.sheet, m.r0));
+                    let wt_toda = modelo::inicio_x_da(&aba.sheet, m.c1 + 1) - x0;
+                    let ht_toda = modelo::inicio_y_da(&aba.sheet, m.r1 + 1) - y0;
+                    (x - (xa - x0).max(0.0), y - (ya - y0).max(0.0), wt_toda.max(wt), ht_toda.max(ht))
+                };
                 let estilo = aba.sheet.estilo_resolvido(m.r0, m.c0);
                 let visual = crate::estilos_comuns::projetar_estilo(estilo.as_ref(), None);
                 let cor_fundo = visual.comum.basico.fundo
@@ -789,9 +798,9 @@ impl canvas::Program<Msg> for Grade<'_> {
                     };
                     let alinhar = self.alinhar(m.r0, m.c0);
                     let tx = match alinhar {
-                        pelicano::Align::End => x+wt-8.0-ajuste.recuo*7.,
-                        pelicano::Align::Center => x+wt/2.0,
-                        _ => x+8.0+ajuste.recuo*7.,
+                        pelicano::Align::End => xo+wt-8.0-ajuste.recuo*7.,
+                        pelicano::Align::Center => xo+wt/2.0,
+                        _ => xo+8.0+ajuste.recuo*7.,
                     };
                     let cor_texto = visual.comum.basico.texto
                         .map(|[r,g,b,a]| Color::rgb8(r, g, b).alpha(a as f32 / 255.0))
@@ -810,7 +819,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                                 .clamp(6.,tamanho_fonte);
                         }
                     }
-                    let mut y_texto=y+ht/2.0;
+                    let mut y_texto=yo+ht/2.0;
                     if ajuste.sobrescrito || ajuste.subscrito {
                         tamanho_fonte*=0.75;
                         y_texto+=if ajuste.subscrito {ht*0.18} else {-ht*0.18};
@@ -845,7 +854,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                             let inicio=match alinhar {
                                 pelicano::Align::End => (tx-largura_texto).max(x+4.0),
                                 pelicano::Align::Center => (tx-largura_texto/2.0).max(x+4.0),
-                                _ => tx,
+                                _ => tx.max(x+4.0),
                             };
                             let base=y_texto+tamanho_fonte*0.42;
                             f.fill_rectangle(Point::new(inicio,base.min(y+h-2.0)),
