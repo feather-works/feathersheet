@@ -238,9 +238,7 @@ pub fn comentarios_para_json(m: &feathersheet_core::planilha::sheet::comentarios
 /// A proteção da aba no `.fshz` (e no meio do caminho do `.xlsx`).
 pub fn protecao_para_json(p: &feathersheet_core::planilha::sheet::protecao::ProtecaoPlanilha) -> serde_json::Value {
     serde_json::json!({
-        "senha": p.senha.as_ref().map(|s| serde_json::json!({
-            "alg": s.algoritmo, "hash": s.hash, "sal": s.sal, "giros": s.giros,
-        })),
+        "senha": p.senha.as_ref().map(crate::para_workbook::senha_para_json),
         "p": p.permitidas.iter().map(|x| x.chave()).collect::<Vec<_>>(),
     })
 }
@@ -580,12 +578,27 @@ mod testes {
         assert!(!String::from_utf8_lossy(&xlsx).contains("docProps/core.xml"));
         wb.propriedades = Propriedades {
             autor: "Ana & Cia".into(), modificado_por: "João".into(), organizacao: "Feather <Ltda>".into(),
+            protecao_estrutura: None,
         };
         let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
         assert_eq!(crate::para_workbook::para_workbook(&lida).propriedades, wb.propriedades);
         let xlsx = crate::xlsx_write::gerar_xlsx(&wb).unwrap();
         let (de_volta, _) = crate::xlsx_read::ler_xlsx_workbook(xlsx).unwrap();
         assert_eq!(de_volta.propriedades, wb.propriedades);
+    }
+
+    #[test]
+    fn protecao_da_pasta_vai_e_volta_no_fshz_e_no_xlsx() {
+        use feathersheet_core::planilha::{sheet::protecao::SenhaPlanilha, workbook::ProtecaoPasta};
+        let senha = SenhaPlanilha { algoritmo: "SHA-512".into(), hash: "aGFzaA==".into(), sal: "c2Fs".into(), giros: 100_000 };
+        for protecao in [ProtecaoPasta { senha: None }, ProtecaoPasta { senha: Some(senha) }] {
+            let mut wb = Workbook::new();
+            wb.propriedades.protecao_estrutura = Some(protecao);
+            let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
+            assert_eq!(crate::para_workbook::para_workbook(&lida).propriedades, wb.propriedades);
+            let (de_volta, _) = crate::xlsx_read::ler_xlsx_workbook(crate::xlsx_write::gerar_xlsx(&wb).unwrap()).unwrap();
+            assert_eq!(de_volta.propriedades.protecao_estrutura, wb.propriedades.protecao_estrutura);
+        }
     }
 
     #[test]

@@ -64,12 +64,16 @@ pub enum Evento {
     Fechar,
     /// Formatar ▾ → Bloquear célula: alterna o `locked` da seleção.
     AlternarBloqueio,
+    /// Revisão › Proteger Pasta de Trabalho: protege ou desprotege a estrutura.
+    AbrirPasta,
 }
 
 #[derive(Debug, Clone)]
 pub(super) struct Estado {
     /// `true` = janela de Desproteger (só a senha).
     pub desproteger: bool,
+    /// `true` = proteção da pasta (estrutura), não da aba.
+    pub pasta: bool,
     pub senha: String,
     pub confirmacao: String,
     pub permitidas: BTreeSet<Permissao>,
@@ -83,6 +87,11 @@ impl App {
 
     /// A metade "antes" do portão. `None`: pode seguir.
     pub(super) fn recusa_antes(&self, msg: &Msg) -> Option<Recusa> {
+        if self.workbook.propriedades.protecao_estrutura.is_some() && matches!(msg,
+            Msg::AdicionarAba | Msg::DuplicarAba | Msg::MoverAba(..) | Msg::OcultarAba(_) | Msg::ReexibirAba(_)
+            | Msg::EditarNomeAba | Msg::RenomearAba | Msg::RemoverAba | Msg::AlternarPaletaAba | Msg::PintarAba(_)) {
+            return Some(Recusa(tr!("A pasta de trabalho está protegida: não é possível criar, excluir, renomear, mover, ocultar ou colorir abas (Revisão, Proteger Pasta de Trabalho).").into()));
+        }
         let s = self.aba_protegida()?;
         let proibe = |p: Permissao| s.proibe(p).then(|| Recusa::sem_permissao(p));
         let a = self.area_selecionada();
@@ -168,10 +177,24 @@ impl App {
                         self.alterado = true;
                         self.status = tr!("Planilha desprotegida.").into();
                     }
-                    Some(_) => self.protecao_modal = Some(Estado { desproteger: true, senha: String::new(),
+                    Some(_) => self.protecao_modal = Some(Estado { desproteger: true, pasta: false, senha: String::new(),
                         confirmacao: String::new(), permitidas: BTreeSet::new(), erro: None }),
-                    None => self.protecao_modal = Some(Estado { desproteger: false, senha: String::new(),
+                    None => self.protecao_modal = Some(Estado { desproteger: false, pasta: false, senha: String::new(),
                         confirmacao: String::new(), permitidas: Permissao::padrao(), erro: None }),
+                }
+                self.edicao_menu = None;
+                self.contexto = None;
+            }
+            Evento::AbrirPasta => {
+                if !self.confirmar() { return Task::none(); }
+                match &self.workbook.propriedades.protecao_estrutura {
+                    Some(p) if p.senha.is_none() => {
+                        self.workbook.propriedades.protecao_estrutura = None;
+                        self.alterado = true;
+                        self.status = tr!("Pasta de trabalho desprotegida.").into();
+                    }
+                    protegida => self.protecao_modal = Some(Estado { desproteger: protegida.is_some(), pasta: true,
+                        senha: String::new(), confirmacao: String::new(), permitidas: BTreeSet::new(), erro: None }),
                 }
                 self.edicao_menu = None;
                 self.contexto = None;
@@ -196,6 +219,9 @@ impl App {
 
     fn aplicar_protecao(&mut self) {
         let Some(e) = self.protecao_modal.clone() else { return };
+        if e.pasta {
+            return self.aplicar_protecao_pasta(e);
+        }
         if e.desproteger {
             let senha = self.aba_protegida().and_then(|s| s.protecao.as_ref()).and_then(|p| p.senha.clone());
             let ok = match senha { Some(g) => conferir(&e.senha, &g), None => Ok(true) };
@@ -228,6 +254,32 @@ impl App {
         self.status = tr!("Planilha protegida. Só as células desbloqueadas (menu Formatar, Bloquear célula) aceitam digitação.").into();
     }
 
+    fn aplicar_protecao_pasta(&mut self, e: Estado) {
+        let erro = |app: &mut Self, texto: String| if let Some(m) = &mut app.protecao_modal { m.erro = Some(texto); };
+        if e.desproteger {
+            let guardada = self.workbook.propriedades.protecao_estrutura.as_ref().and_then(|p| p.senha.clone());
+            match guardada.map_or(Ok(true), |g| conferir(&e.senha, &g)) {
+                Ok(true) => {
+                    self.workbook.propriedades.protecao_estrutura = None;
+                    self.protecao_modal = None;
+                    self.alterado = true;
+                    self.status = tr!("Pasta de trabalho desprotegida.").into();
+                }
+                Ok(false) => erro(self, tr!("Senha incorreta.").into()),
+                Err(texto) => erro(self, texto),
+            }
+            return;
+        }
+        if e.senha != e.confirmacao { return erro(self, tr!("A confirmação não confere com a senha.").into()); }
+        let senha = if e.senha.is_empty() { None } else {
+            match criar_senha(&e.senha) { Ok(s) => Some(s), Err(texto) => return erro(self, texto) }
+        };
+        self.workbook.propriedades.protecao_estrutura = Some(feathersheet_core::planilha::workbook::ProtecaoPasta { senha });
+        self.protecao_modal = None;
+        self.alterado = true;
+        self.status = tr!("Pasta de trabalho protegida: as abas não podem ser criadas, excluídas, renomeadas, movidas nem ocultadas.").into();
+    }
+
     fn view_protecao(&self) -> super::dialogo_interno::Dialogo<'_, Msg> {
         let e = self.protecao_modal.as_ref().expect("janela de proteção aberta");
         let campo = |dica: &str, valor: &str, msg: fn(String) -> Msg| {
@@ -237,6 +289,11 @@ impl App {
         let mut painel = pelicano::column(Vec::<Element<_>>::new()).spacing(10);
         if e.desproteger {
             painel = painel.push(campo(tr!("Senha"), &e.senha, |t| Msg::Protecao(Evento::Senha(t))));
+        } else if e.pasta {
+            painel = painel
+                .push(text(tr!("Senha para desproteger (opcional)")).size(12).color(COR_TEXTO_MUTED()))
+                .push(campo(tr!("Sem senha"), &e.senha, |t| Msg::Protecao(Evento::Senha(t))))
+                .push(campo(tr!("Confirme a senha"), &e.confirmacao, |t| Msg::Protecao(Evento::Confirmacao(t))));
         } else {
             let mut lista = pelicano::column(Vec::<Element<_>>::new()).spacing(7);
             for (p, rotulo, _) in Permissao::TODAS {
@@ -256,7 +313,11 @@ impl App {
                 text(erro.clone()).size(12).color(COR_ERRO())]
                 .spacing(6).align(pelicano::Align::Center));
         }
-        let (titulo, sub) = if e.desproteger {
+        let (titulo, sub) = if e.pasta && e.desproteger {
+            (tr!("Desproteger pasta de trabalho"), tr!("Digite a senha usada para proteger a pasta."))
+        } else if e.pasta {
+            (tr!("Proteger pasta de trabalho"), tr!("Protege a estrutura: ninguém cria, exclui, renomeia, move, oculta ou colore abas. As células continuam editáveis."))
+        } else if e.desproteger {
             (tr!("Desproteger planilha"), tr!("Digite a senha usada para proteger a aba."))
         } else {
             (tr!("Proteger planilha"), tr!("Células bloqueadas não mudam. Desbloqueie antes as que devem aceitar \
@@ -289,6 +350,32 @@ mod testes {
         let _ = app.update(Msg::Protecao(Evento::Confirmacao(senha.into())));
         let _ = app.update(Msg::Protecao(Evento::Aplicar));
         assert!(app.workbook.aba(0).unwrap().sheet.protegida(), "{}", app.status);
+    }
+
+    #[test]
+    fn pasta_protegida_recusa_mexer_nas_abas_e_desprotege_com_a_senha() {
+        let mut app = App::default();
+        let _ = app.update(Msg::Protecao(Evento::AbrirPasta));
+        let _ = app.update(Msg::Protecao(Evento::Senha("x1".into())));
+        let _ = app.update(Msg::Protecao(Evento::Confirmacao("x1".into())));
+        let _ = app.update(Msg::Protecao(Evento::Aplicar));
+        assert!(app.workbook.propriedades.protecao_estrutura.is_some(), "{}", app.status);
+        let _ = app.update(Msg::AdicionarAba);
+        let _ = app.update(Msg::DuplicarAba);
+        assert_eq!(app.workbook.len(), 1);
+        assert!(app.status.contains("protegida"));
+        // As células continuam editáveis.
+        let _ = app.update(Msg::Colar("5".into()));
+        assert_eq!(raw(&app, 0, 0), "5");
+        let _ = app.update(Msg::Protecao(Evento::AbrirPasta));
+        let _ = app.update(Msg::Protecao(Evento::Senha("errada".into())));
+        let _ = app.update(Msg::Protecao(Evento::Aplicar));
+        assert!(app.workbook.propriedades.protecao_estrutura.is_some());
+        let _ = app.update(Msg::Protecao(Evento::Senha("x1".into())));
+        let _ = app.update(Msg::Protecao(Evento::Aplicar));
+        assert!(app.workbook.propriedades.protecao_estrutura.is_none());
+        let _ = app.update(Msg::AdicionarAba);
+        assert_eq!(app.workbook.len(), 2);
     }
 
     #[test]

@@ -73,11 +73,21 @@ pub struct Propriedades {
     pub autor: String,
     pub modificado_por: String,
     pub organizacao: String,
+    /// Revisão › Proteger Pasta de Trabalho (`<workbookProtection lockStructure>` do Excel):
+    /// com `Some`, a interface não cria, exclui, renomeia, move, oculta nem colore abas.
+    pub protecao_estrutura: Option<ProtecaoPasta>,
+}
+
+/// A senha usa o mesmo hash da proteção da aba (SHA-512 do Excel); `None` = sem senha.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ProtecaoPasta {
+    pub senha: Option<crate::planilha::sheet::protecao::SenhaPlanilha>,
 }
 
 impl Propriedades {
     pub fn vazia(&self) -> bool {
         self.autor.is_empty() && self.modificado_por.is_empty() && self.organizacao.is_empty()
+            && self.protecao_estrutura.is_none()
     }
 }
 

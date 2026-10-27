@@ -535,6 +535,7 @@ fn propriedades(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> feath
     let app = ler("docProps/app.xml", &["Company"]);
     feathersheet_core::planilha::workbook::Propriedades {
         autor: core[0].clone(), modificado_por: core[1].clone(), organizacao: app[0].clone(),
+        protecao_estrutura: None,
     }
 }
 
@@ -627,6 +628,17 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     }
     if workbook.is_empty() { workbook.criar_aba("Planilha1"); }
     workbook.propriedades = propriedades(&mut arquivo);
+    workbook.propriedades.protecao_estrutura = book.child("workbookProtection").and_then(|no| {
+        matches!(no.attr("lockStructure"), Some("1" | "true")).then(|| feathersheet_core::planilha::workbook::ProtecaoPasta {
+            // O `workbookPassword` antigo (16 bits) não é guardado: abre protegida sem senha.
+            senha: (|| Some(feathersheet_core::planilha::sheet::protecao::SenhaPlanilha {
+                algoritmo: no.attr("workbookAlgorithmName")?.to_string(),
+                hash: no.attr("workbookHashValue")?.to_string(),
+                sal: no.attr("workbookSaltValue")?.to_string(),
+                giros: no.attr("workbookSpinCount")?.parse().ok()?,
+            }))(),
+        })
+    });
     // Aba com desenho: linhas na altura do arquivo, antes de ancorar
     // gráficos e formas (ver `desenho_objetos::alturas_das_abas_com_desenho`).
     {

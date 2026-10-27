@@ -125,9 +125,30 @@ pub fn nomes_de_json(pasta: &mut Workbook, nomes: &serde_json::Value) {
 /// Propriedades do arquivo como vão no `.fshz` (`pr`); `None` se vazias,
 /// para o arquivo sem autor não ganhar o campo.
 pub fn propriedades_para_json(p: &feathersheet_core::planilha::workbook::Propriedades) -> Option<serde_json::Value> {
-    (!p.vazia()).then(|| serde_json::json!({
-        "autor": p.autor, "modificadoPor": p.modificado_por, "organizacao": p.organizacao,
-    }))
+    (!p.vazia()).then(|| {
+        let mut v = serde_json::json!({
+            "autor": p.autor, "modificadoPor": p.modificado_por, "organizacao": p.organizacao,
+        });
+        // A proteção da estrutura vai junto: no Excel ela também é da pasta (workbook.xml).
+        if let Some(pp) = &p.protecao_estrutura {
+            v["protecaoEstrutura"] = serde_json::json!({ "senha": pp.senha.as_ref().map(senha_para_json) });
+        }
+        v
+    })
+}
+
+/// A senha no formato da proteção da aba (`alg`, `hash`, `sal`, `giros`).
+pub fn senha_para_json(s: &feathersheet_core::planilha::sheet::protecao::SenhaPlanilha) -> serde_json::Value {
+    serde_json::json!({ "alg": s.algoritmo, "hash": s.hash, "sal": s.sal, "giros": s.giros })
+}
+
+fn senha_de_json(s: &serde_json::Value) -> Option<feathersheet_core::planilha::sheet::protecao::SenhaPlanilha> {
+    Some(feathersheet_core::planilha::sheet::protecao::SenhaPlanilha {
+        algoritmo: s.get("alg")?.as_str()?.to_string(),
+        hash: s.get("hash")?.as_str()?.to_string(),
+        sal: s.get("sal")?.as_str()?.to_string(),
+        giros: u32::try_from(s.get("giros")?.as_u64()?).ok()?,
+    })
 }
 
 /// O contrário de [`propriedades_para_json`]; campo ausente ou estranho fica vazio.
@@ -135,6 +156,8 @@ pub fn propriedades_de_json(v: &serde_json::Value) -> feathersheet_core::planilh
     let campo = |nome: &str| v[nome].as_str().unwrap_or_default().to_owned();
     feathersheet_core::planilha::workbook::Propriedades {
         autor: campo("autor"), modificado_por: campo("modificadoPor"), organizacao: campo("organizacao"),
+        protecao_estrutura: v.get("protecaoEstrutura").filter(|x| x.is_object()).map(|x|
+            feathersheet_core::planilha::workbook::ProtecaoPasta { senha: x.get("senha").and_then(senha_de_json) }),
     }
 }
 
@@ -200,14 +223,9 @@ pub fn topicos_de_json(v: &serde_json::Value) -> feathersheet_core::planilha::sh
 /// desconhecida é ignorada; senha sem os campos todos invalida a proteção
 /// inteira não: a aba fica protegida sem senha.
 pub fn protecao_de_json(v: &serde_json::Value) -> Option<feathersheet_core::planilha::sheet::protecao::ProtecaoPlanilha> {
-    use feathersheet_core::planilha::sheet::protecao::{Permissao, ProtecaoPlanilha, SenhaPlanilha};
+    use feathersheet_core::planilha::sheet::protecao::{Permissao, ProtecaoPlanilha};
     if !v.is_object() { return None; }
-    let senha = v.get("senha").and_then(|s| Some(SenhaPlanilha {
-        algoritmo: s.get("alg")?.as_str()?.to_string(),
-        hash: s.get("hash")?.as_str()?.to_string(),
-        sal: s.get("sal")?.as_str()?.to_string(),
-        giros: u32::try_from(s.get("giros")?.as_u64()?).ok()?,
-    }));
+    let senha = v.get("senha").and_then(senha_de_json);
     let permitidas = v.get("p").and_then(|p| p.as_array()).into_iter().flatten()
         .filter_map(|x| Permissao::da_chave(x.as_str()?)).collect();
     Some(ProtecaoPlanilha { senha, permitidas })

@@ -1641,6 +1641,12 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
     } else {
         String::new()
     };
+    // Revisão › Proteger Pasta de Trabalho: só a estrutura (abas), como o Excel grava.
+    let protecao_pasta = pasta.propriedades.protecao_estrutura.as_ref().map(|p| match &p.senha {
+        Some(s) => format!("<workbookProtection workbookAlgorithmName=\"{}\" workbookHashValue=\"{}\" workbookSaltValue=\"{}\" workbookSpinCount=\"{}\" lockStructure=\"1\"/>",
+            escape_xml(&s.algoritmo), escape_xml(&s.hash), escape_xml(&s.sal), s.giros),
+        None => "<workbookProtection lockStructure=\"1\"/>".to_string(),
+    }).unwrap_or_default();
     // Propriedades do arquivo (Arquivo → Informações no Excel): só quando há autor.
     let props = &pasta.propriedades;
     let (tipo_props, rel_props) = if props.vazia() {
@@ -1679,7 +1685,7 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
         (
             "xl/workbook.xml".into(),
             format!(
-                "{XML_DECL}<workbook xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\"><bookViews><workbookView activeTab=\"{aba_ativa}\" firstSheet=\"{aba_ativa}\"/></bookViews><sheets>{entradas_abas}</sheets>{externas}{nomes_definidos}{caches_dinamicas}</workbook>"
+                "{XML_DECL}<workbook xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\">{protecao_pasta}<bookViews><workbookView activeTab=\"{aba_ativa}\" firstSheet=\"{aba_ativa}\"/></bookViews><sheets>{entradas_abas}</sheets>{externas}{nomes_definidos}{caches_dinamicas}</workbook>"
             )
             .into_bytes(),
         ),

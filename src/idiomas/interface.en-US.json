@@ -3975,5 +3975,12 @@
  "CONSULTAS DESTA PASTA": "QUERIES IN THIS WORKBOOK",
  "FONTES RECENTES": "RECENT SOURCES",
  "Nenhuma consulta salva nesta pasta.": "No saved queries in this workbook.",
- "Nenhuma fonte usada ainda.": "No sources used yet."
+ "Nenhuma fonte usada ainda.": "No sources used yet.",
+ "A pasta de trabalho está protegida: não é possível criar, excluir, renomear, mover, ocultar ou colorir abas (Revisão, Proteger Pasta de Trabalho).": "The workbook is protected: sheets can't be added, deleted, renamed, moved, hidden or colored (Review, Protect Workbook).",
+ "Pasta de trabalho desprotegida.": "Workbook unprotected.",
+ "Pasta de trabalho protegida: as abas não podem ser criadas, excluídas, renomeadas, movidas nem ocultadas.": "Workbook protected: sheets can't be added, deleted, renamed, moved or hidden.",
+ "Desproteger pasta de trabalho": "Unprotect Workbook",
+ "Digite a senha usada para proteger a pasta.": "Enter the password used to protect the workbook.",
+ "Proteger pasta de trabalho": "Protect Workbook",
+ "Protege a estrutura: ninguém cria, exclui, renomeia, move, oculta ou colore abas. As células continuam editáveis.": "Protects the structure: nobody can add, delete, rename, move, hide or color sheets. Cells stay editable."
 }
