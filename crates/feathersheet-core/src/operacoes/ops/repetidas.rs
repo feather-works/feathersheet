@@ -4,7 +4,6 @@ use std::collections::HashSet;
 use crate::celulas::refs::Rect;
 use crate::celulas::values::{to_text, Value};
 use crate::planilha::sheet::Sheet;
-use super::comum::{escrever, foto_da_linha};
 
 /// O que o `removeDuplicates` decidiu: as linhas que ficam, na ordem.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,23 +60,17 @@ pub fn planejar_repetidas(
     (removidas > 0).then_some(PlanoDeRepetidas { first, max_r, ficam, removidas })
 }
 
-/// A metade que escreve: compacta no lugar, copiando para cima cada linha
-/// que fica. O texto vai como estava, sem ajustar referência — igual ao
-/// `write` do TypeScript (uma fórmula que sobe continua apontando para onde
-/// apontava). Traduzido, não consertado.
+/// A metade que escreve: as linhas que ficam sobem na ordem (uma permutação com as
+/// repetidas no fim, direto nas colunas como o ordenar) e o fim é apagado. Um passo
+/// só no desfazer. Regravar célula a célula levava 3,6 s em 200 mil linhas (27/10/2026).
 pub fn aplicar_repetidas(sheet: &mut Sheet, c0: u32, c1: u32, plano: &PlanoDeRepetidas) {
+    let mut fica = vec![false; (plano.max_r - plano.first + 1) as usize];
+    for &r in &plano.ficam { fica[(r - plano.first) as usize] = true; }
+    let ordem: Vec<u32> = plano.ficam.iter().copied()
+        .chain((plano.first..=plano.max_r).filter(|r| !fica[(r - plano.first) as usize]))
+        .collect();
     sheet.abrir_transacao();
-    for (i, &origem) in plano.ficam.iter().enumerate() {
-        let destino = plano.first + i as u32;
-        if origem == destino {
-            continue;
-        }
-        let foto = foto_da_linha(sheet, origem, c0, c1);
-        sheet.clear(&Rect::new(destino, c0, destino, c1));
-        for (c, (raw, estilo)) in (c0..=c1).zip(foto) {
-            escrever(sheet, destino, c, &raw, estilo.as_ref());
-        }
-    }
+    sheet.permutar_linhas(plano.first, c0, c1, &ordem);
     let ultima = plano.first + plano.ficam.len() as u32 - 1;
     if ultima < plano.max_r {
         sheet.clear(&Rect::new(ultima + 1, c0, plano.max_r, c1));

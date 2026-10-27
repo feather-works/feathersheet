@@ -902,6 +902,14 @@ impl Sheet {
                 return false;
             }
         }
+        if self.so_trocar_estilo(row, col, antes.as_ref(), next.as_ref()) {
+            if record {
+                if let Some(p) = self.hist.pendente.as_mut() {
+                    p.push(Passo::Celula(Change { k, antes, depois: next }));
+                }
+            }
+            return true;
+        }
         if record {
             if let Some(p) = self.hist.pendente.as_mut() {
                 p.push(Passo::Celula(Change { k, antes, depois: next.clone() }));
@@ -947,6 +955,30 @@ impl Sheet {
         // devolveria o número de série — foi o 46288 no lugar da data (23/09/2026).
         if self.data.has_cell(row, col) && (!volta || self.data.get_raw(row, col, &self.pool) != raw) {
             self.textos.insert(k, &raw);
+        }
+        true
+    }
+
+    /// Só o estilo de um literal muda: troca o índice do estilo sem regravar a célula.
+    /// Vale para o literal que mora só na coluna de dados (sem fórmula, fora do `Map`, sem
+    /// texto digitado à parte). Formatar 200 mil
+    /// células regravando cada uma levava 2,2 s (27/10/2026).
+    fn so_trocar_estilo(&mut self, row: u32, col: u32, antes: Option<&Snap>, next: Option<&Snap>) -> bool {
+        let (Some(a), Some(n)) = (antes, next) else { return false };
+        let k = key(row, col);
+        if a.raw != n.raw || a.raw.is_empty() || a.raw.starts_with('=') || self.cells.contains_key(&k)
+            || self.textos.contains_key(&k) || !self.data.has_cell(row, col)
+            || self.data.get_raw(row, col, &self.pool) != a.raw {
+            return false;
+        }
+        // Como no fim do `apply`: o estilo que não reconstrói o texto (data) guarda o digitado.
+        let valor = crate::celulas::input::parse_literal(&n.raw).value;
+        if !round_trips(&n.raw, &valor, n.style.as_ref()) {
+            self.textos.insert(k, &n.raw);
+        }
+        match n.style.clone().and_then(|s| self.registrar_parcial(s)) {
+            Some(i) => { self.styles.insert(k, i); }
+            None => { self.styles.remove(&k); }
         }
         true
     }
