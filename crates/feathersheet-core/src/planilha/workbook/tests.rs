@@ -882,3 +882,89 @@ fn medir_criterios_de_coluna_inteira() {
     }
     eprintln!("total: {:?}", total.elapsed());
 }
+
+/// Blocos de 200 km por trecho (pedido do usuário, 28/10/2026): chave
+/// EH|Curva|Ramal|Linha, mín/máx do _KM pelo `MÍNIMOSES`/`MÁXIMOSES` e a faixa
+/// alinhada em múltiplos de 200. Confere cada linha contra a conta feita à mão
+/// e mede coluna a coluna: `FEATHERSHEET_LINHAS=1000000 cargo test --release
+/// --lib blocos_de_200_por_trecho -- --nocapture`.
+#[test]
+fn blocos_de_200_por_trecho() {
+    use crate::celulas::values::Value;
+    let n: u32 = std::env::var("FEATHERSHEET_LINHAS").ok().and_then(|v| v.parse().ok()).unwrap_or(3000);
+    let mut w = Workbook::new();
+    let a = w.criar_aba("Trechos");
+    // Mínimos de propósito: múltiplo de 200 (400), qualquer (350), ponto único.
+    let mut semente = 12345u64;
+    let mut sorteio = |m: u64| { semente = semente.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407); (semente >> 33) % m };
+    let mut linhas = vec![vec!["EH".into(), "Curva ou tangente".into(), "Ramal".into(), "Linha".into(), "_KM".into()]];
+    for _ in 0..n {
+        let (eh, ct, ramal, linha) = (sorteio(2), sorteio(2), sorteio(3) + 1, sorteio(5) + 1);
+        let chave = (eh * 2 + ct) * 15 + (ramal - 1) * 5 + (linha - 1);
+        let base = [350, 400, 0, 1999, 200][chave as usize % 5];
+        let km = if chave == 7 { 800 } else { base + sorteio(1200) };
+        linhas.push(vec![format!("EH{}", eh + 1), ["Curva", "Tangente"][ct as usize].into(),
+            ramal.to_string(), linha.to_string(), km.to_string()]);
+    }
+    let kms: Vec<f64> = linhas[1..].iter().map(|l| l[4].parse().unwrap()).collect();
+    let chaves: Vec<String> = linhas[1..].iter().map(|l| l[..4].join("|")).collect();
+    let t = std::time::Instant::now();
+    w.aba_mut(a).unwrap().sheet.gravar_bloco_literais(0, 0, linhas);
+    eprintln!("dados: {:?}", t.elapsed());
+    let formulas = ["=A2&\"|\"&B2&\"|\"&C2&\"|\"&D2", "=MÍNIMOSES(E:E;F:F;F2)", "=MÁXIMOSES(E:E;F:F;F2)",
+        "=(MÁXIMO(TETO.MAT(H2;200);ARREDMULTB.MAT(G2;200)+200)-ARREDMULTB.MAT(G2;200))/200",
+        "=MÁXIMO(TETO.MAT(E2;200);ARREDMULTB.MAT(G2;200)+200)", "=(J2-ARREDMULTB.MAT(G2;200))/200",
+        "=MÁXIMO(G2;J2-200)&\" - \"&MÍNIMO(H2;J2)"];
+    let t = std::time::Instant::now();
+    // O caminho do Ctrl+D do app (`preencher_formulas_em_bloco`): a coluna
+    // empacotada, quando a fórmula cabe nela.
+    for (i, f) in formulas.iter().enumerate() {
+        let c = 5 + i as u32;
+        w.escrever_celula(a, 1, c, f.to_string());
+        let sheet = &mut w.aba_mut(a).unwrap().sheet;
+        let primeira = crate::operacoes::fill::shift_formula(f, 1, 0);
+        assert!(sheet.formula_cabe_em_bloco(c, 2, &primeira), "não cabe no bloco: {f}");
+        sheet.preencher_formula_faixa_vazia(c, 2, n, &primeira);
+    }
+    eprintln!("fórmulas preenchidas: {:?}", t.elapsed());
+    if std::env::var("FEATHERSHEET_PARALELO").is_ok() {
+        let t = std::time::Instant::now();
+        w.calcular_em_paralelo();
+        eprintln!("calcular em paralelo: {:?}", t.elapsed());
+    }
+    // Esperado, pela conta à mão.
+    let mut lim: std::collections::HashMap<&str, (f64, f64)> = Default::default();
+    for (c, &k) in chaves.iter().zip(&kms) {
+        let e = lim.entry(c).or_insert((k, k)); e.0 = e.0.min(k); e.1 = e.1.max(k);
+    }
+    let piso = |x: f64| (x / 200.).floor() * 200.;
+    let teto = |x: f64| (x / 200.).ceil() * 200.;
+    for col in 5..12u32 {
+        let t = std::time::Instant::now();
+        let v: Vec<Value> = (1..=n).map(|r| w.valor(a, r, col)).collect();
+        eprintln!("coluna {}: {:?}", (b'A' + col as u8) as char, t.elapsed());
+        for (i, valor) in v.iter().enumerate() {
+            let (mn, mx) = lim[chaves[i].as_str()];
+            let tb = teto(kms[i]).max(piso(mn) + 200.);
+            let esperado = match col {
+                5 => Value::Text(chaves[i].clone()),
+                6 => Value::Number(mn), 7 => Value::Number(mx),
+                8 => Value::Number((teto(mx).max(piso(mn) + 200.) - piso(mn)) / 200.),
+                9 => Value::Number(tb), 10 => Value::Number((tb - piso(mn)) / 200.),
+                _ => Value::Text(format!("{} - {}", mn.max(tb - 200.), mx.min(tb))),
+            };
+            assert_eq!(valor, &esperado, "linha {} coluna {col}, chave {} km {}", i + 2, chaves[i], kms[i]);
+        }
+    }
+    // O exemplo do pedido: mín 350, máx 753 → 350-400, 400-600, 600-753.
+    let mut w = Workbook::new();
+    let a = w.criar_aba("Ex");
+    for (r, km) in ["350", "380", "400", "401", "600", "650", "753"].iter().enumerate() {
+        w.escrever_celula(a, r as u32, 0, km.to_string());
+        w.escrever_celula(a, r as u32, 1, format!("=MÁXIMO(TETO.MAT(A{0};200);ARREDMULTB.MAT(350;200)+200)", r + 1));
+        w.escrever_celula(a, r as u32, 2, format!("=MÁXIMO(350;B{0}-200)&\" - \"&MÍNIMO(753;B{0})", r + 1));
+    }
+    let faixas: Vec<Value> = (0..7).map(|r| w.valor(a, r, 2)).collect();
+    let t = |s: &str| Value::Text(s.into());
+    assert_eq!(faixas, [t("350 - 400"), t("350 - 400"), t("350 - 400"), t("400 - 600"), t("400 - 600"), t("600 - 753"), t("600 - 753")]);
+}
