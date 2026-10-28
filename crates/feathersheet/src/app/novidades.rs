@@ -378,6 +378,22 @@ impl App {
 mod testes {
     use super::*;
 
+    /// Os textos ficam nesta tabela e passam por `tr!` em tempo de execução: a varredura
+    /// das chaves do `idioma` não os enxerga, então a 0.1.5 e a 0.2.0 saíram sem tradução.
+    #[test]
+    fn toda_versao_tem_traducao() {
+        use crate::idioma::{dicionario_de, Lingua};
+        let faltam: Vec<String> = VERSOES.iter().flat_map(|v| {
+            std::iter::once(v.resumo)
+                .chain(v.destaques.iter().flat_map(|(_, t, d)| [*t, *d]))
+                .chain(v.tambem.iter().copied())
+                .flat_map(move |k| [Lingua::En, Lingua::Es].into_iter()
+                    .filter(move |l| !dicionario_de(*l).contains_key(k))
+                    .map(move |l| format!("{} {}: {k:?}", v.numero, l.codigo())))
+        }).collect();
+        assert!(faltam.is_empty(), "{} sem tradução:\n{}", faltam.len(), faltam.join("\n"));
+    }
+
     #[test]
     fn versao_desta_compilacao_e_a_primeira_e_todas_desenham() {
         assert_eq!(VERSOES[0].numero, super::super::atualizacao::versao_atual(),
