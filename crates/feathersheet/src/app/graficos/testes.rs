@@ -1193,6 +1193,27 @@ fn pizza_tem_um_valor_so_e_escolha_unica() {
     assert!(!painel::Grupo::Legenda.existe_em(TipoUi::Gantt));
 }
 
+/// Issue #113: a rosca tem furo e um anel por série, grava `doughnut` com o
+/// `holeSize` e volta rosca ao reabrir (antes virava pizza cheia).
+#[test]
+fn rosca_tem_um_anel_por_serie_e_guarda_o_furo() {
+    let mut app = editor_de("Região\t2025\t2026\nNorte\t18\t22\nSul\t12\t9", TipoUi::Rosca);
+    let previa = app.graficos.svg.clone().expect("a rosca desenha");
+    assert_eq!(previa.matches("class=\"fatia\"").count(), 4, "duas fatias em cada um dos dois anéis");
+    {
+        let _painel: Element<'_, Msg> = app.view_graficos();
+    }
+    let _ = app.evento_grafico(Evento::Furo(70));
+    let _ = app.inserir_grafico();
+    let aba = app.workbook.aba(0).unwrap();
+    let salvos = feathersheet_io::graficos_salvos::listar(&aba.sheet).unwrap();
+    assert_eq!(salvos[0]["type"], "doughnut");
+    assert_eq!(salvos[0]["holeSize"], 70);
+    let gravado = svg_do_grafico_salvo(&aba.sheet, &salvos[0]).unwrap();
+    assert_eq!(gravado.matches("class=\"fatia\"").count(), 4);
+    assert!(!painel::Grupo::Eixos.existe_em(TipoUi::Rosca));
+}
+
 /// Gantt com as colunas fora de ordem (Fim antes de Início): escolher o
 /// papel de cada coluna reordena as séries, na prévia e no gravado.
 #[test]

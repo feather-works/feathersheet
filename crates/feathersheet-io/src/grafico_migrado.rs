@@ -28,7 +28,7 @@ pub fn tipo_compartilhado(tipo: ChartType) -> Option<TipoGrafico> {
         ChartType::StepArea => TipoGrafico::AreaDegraus,
         ChartType::StepAreaStacked => TipoGrafico::AreaDegrausEmpilhada,
         ChartType::StepAreaStacked100 => TipoGrafico::AreaDegraus100,
-        ChartType::Pie => TipoGrafico::Pizza,
+        ChartType::Pie | ChartType::Doughnut => TipoGrafico::Pizza,
         ChartType::Scatter => TipoGrafico::Dispersao,
         ChartType::Bubble => TipoGrafico::Bolhas,
         ChartType::Combo => TipoGrafico::Combinado,

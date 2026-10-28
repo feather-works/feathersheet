@@ -30,6 +30,8 @@ pub enum TipoUi {
     AreaDegrausEmpilhada,
     AreaDegraus100,
     Pizza,
+    /// Pizza com furo; cada série é um anel (ChartType::Doughnut).
+    Rosca,
     Dispersao,
     Bolhas,
     Combinado,
@@ -42,7 +44,7 @@ pub enum TipoUi {
 }
 impl TipoUi {
     #[cfg(test)]
-    const TODOS: [Self; 25] = [
+    const TODOS: [Self; 26] = [
         Self::Colunas,
         Self::ColunasEmpilhadas,
         Self::Colunas100,
@@ -59,6 +61,7 @@ impl TipoUi {
         Self::AreaDegrausEmpilhada,
         Self::AreaDegraus100,
         Self::Pizza,
+        Self::Rosca,
         Self::Dispersao,
         Self::Bolhas,
         Self::Combinado,
@@ -87,6 +90,7 @@ impl TipoUi {
             Self::AreaDegrausEmpilhada => ChartType::StepAreaStacked,
             Self::AreaDegraus100 => ChartType::StepAreaStacked100,
             Self::Pizza => ChartType::Column,
+            Self::Rosca => ChartType::Doughnut,
             Self::Dispersao => ChartType::Scatter,
             Self::Bolhas => ChartType::Bubble,
             Self::Combinado => ChartType::Combo,
@@ -124,6 +128,7 @@ impl std::fmt::Display for TipoUi {
             Self::AreaDegrausEmpilhada => tr!("Área empilhada"),
             Self::AreaDegraus100 => tr!("Área 100%"),
             Self::Pizza => tr!("Pizza"),
+            Self::Rosca => tr!("Rosca"),
             Self::Dispersao => tr!("Dispersão"),
             Self::Bolhas => tr!("Bolhas"),
             Self::Combinado => tr!("Combinado"),
@@ -195,6 +200,8 @@ pub enum Evento {
     /// Linha 3D: a coluna (dentro do intervalo) de X, Y, Z ou da descrição
     /// (0 a 3); `None` tira o Z ou a descrição.
     Eixo3d(usize, Option<u32>),
+    /// Rosca: o furo em % do raio (10 a 90).
+    Furo(u8),
     /// Intervalo = a seleção atual da planilha.
     UsarSelecao,
     /// Copia o gráfico (menu do botão direito ou Ctrl+C).
@@ -366,6 +373,8 @@ pub(super) struct Estado {
     ocultas: Vec<u32>,
     /// Linha 3D: as colunas de X, Y, Z e descrição; `None` = as do motor.
     eixos3d: Option<feathersheet_core::grafico::chart::Eixos3d>,
+    /// Rosca: o furo em % do raio (`holeSize`); `None` = 50.
+    furo: Option<u8>,
     /// Conta de cada série quando as categorias iguais são juntadas.
     contas: std::collections::BTreeMap<u32, AggregateFn>,
     /// Séries de texto (pela ordem de origem), com a chave do que foi olhado
@@ -570,21 +579,11 @@ fn renomear_series_dados(d: &mut feathersheet_core::grafico::chart::ChartData, o
     }
 }
 
-/// Bolhas, velas e Gantt leem as séries pela posição (Y e depois Tamanho;
-/// Abertura, Máxima, Mínima e Fechamento; Início e Fim): põe as visíveis na
-/// ordem dos papéis escolhidos no painel, e não na das colunas.
+/// Bolhas, velas e Gantt: as séries na ordem dos papéis escolhidos no painel,
+/// e não na das colunas (ver `ordem_dos_papeis`; o gravador `.xlsx` usa a mesma).
 fn ordenar_papeis(d: &mut feathersheet_core::grafico::chart::ChartData, tipo: ChartType, ocultas: &[u32], papeis: &[u32]) {
-    if papeis.is_empty() || !matches!(tipo, ChartType::Bubble | ChartType::Candlestick | ChartType::Gantt) {
-        return;
-    }
-    let origens: Vec<u32> = (0u32..).filter(|o| !ocultas.contains(o)).take(d.series.len()).collect();
-    let mut series: Vec<_> = std::mem::take(&mut d.series).into_iter().map(Some).collect();
-    let mut nova: Vec<_> = papeis.iter()
-        .filter_map(|p| origens.iter().position(|o| o == p))
-        .filter_map(|i| series[i].take())
-        .collect();
-    nova.extend(series.into_iter().flatten());
-    d.series = nova;
+    let ordem = feathersheet_core::grafico::chart::ordem_dos_papeis(tipo, ocultas, papeis, d.series.len());
+    d.series = ordem.into_iter().map(|i| d.series[i].clone()).collect();
 }
 
 /// Os números de um gráfico como o desenho os pede. Dispersão com a coluna
@@ -641,6 +640,7 @@ fn rota_especial(t: ChartType) -> Option<Rota> {
         ChartType::StepArea => Rota::Basico(Tipo::Area, E::Nenhum, true),
         ChartType::StepAreaStacked => Rota::Basico(Tipo::Area, E::Empilhado, true),
         ChartType::StepAreaStacked100 => Rota::Basico(Tipo::Area, E::Cem, true),
+        ChartType::Doughnut => Rota::Basico(Tipo::Pizza, E::Nenhum, false),
         ChartType::Combo => Rota::Avancado(A::Combinado),
         ChartType::Histogram => Rota::Avancado(A::Histograma),
         ChartType::Waterfall => Rota::Avancado(A::Cascata),
@@ -682,6 +682,9 @@ pub(super) fn desenhar_especial(
             g.tipo = tipo;
             e.empilhar = emp;
             e.degraus = degraus;
+            if config.tipo == ChartType::Doughnut {
+                e.rosca = Some(f32::from(config.hole_size.unwrap_or(50).clamp(10, 90)) / 100.0);
+            }
             g.exportar_svg_formatado_com_mapa(largura, altura, &e).map_err(falha)?
         }
         Rota::Avancado(tipo) => {
@@ -1007,6 +1010,7 @@ impl App {
                 aggregate_fn: Some(AggregateFn::Sum),
                 aggregate_by_series: self.graficos.contas.clone(),
                 eixos_3d: self.graficos.eixos3d,
+                hole_size: self.graficos.furo,
                 style: feathersheet_core::grafico::chart::ChartStyle {
                     hidden_series: self.graficos.ocultas.clone(),
                     ..Default::default()
@@ -1637,6 +1641,10 @@ impl App {
                 g.ocultas = (0..total).filter(|o| !papeis.contains(o)).collect();
                 g.aparencia.papeis = papeis;
                 self.editar_ao_vivo(None);
+            }
+            Evento::Furo(v) => {
+                self.graficos.furo = Some(v.clamp(10, 90));
+                self.editar_ao_vivo(Some("furo"));
             }
             Evento::Eixo3d(k, coluna) => {
                 let Some(mut e) = self.graficos.eixos3d.or_else(|| self.eixos3d_padrao()) else { return Task::none() };

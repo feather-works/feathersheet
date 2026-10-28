@@ -235,6 +235,32 @@ fn filtro_sem_espaco_acima_vai_nos_itens_e_volta() {
 }
 
 #[test]
+fn campo_em_filtros_e_linhas_vai_como_linha_com_os_itens_ocultos() {
+    // O painel deixa o mesmo campo em Filtros e Linhas (`paginaTambem`); o
+    // Excel não (um campo é página OU linha). Vai como linha, com os itens
+    // que o filtro tira ocultos: a mesma tabela, sem página repetida.
+    let original = meta(json!({
+        "linhas": [0],
+        "filtros": [{"col": 0, "valores": ["Sul"], "excluir": true}],
+        "paginaTambem": [0],
+        "destino": {"row": 3, "col": 0},
+        "areaResultado": {"r0": 3, "c0": 0, "r1": 6, "c1": 1},
+    }));
+    let w = com_dinamica(&original);
+    let p = partes(&w);
+    todas_bem_formadas(&p);
+    let tabela = &p["xl/pivotTables/pivotTable1.xml"];
+    assert!(!tabela.contains("<pageFields") && !tabela.contains("axisPage") && !tabela.contains("rowPageCount"), "{tabela}");
+    assert!(tabela.contains("<pivotField axis=\"axisRow\""), "{tabela}");
+    // Leste, Norte, Sul: só o Sul oculto.
+    assert!(tabela.contains("<item x=\"0\"/><item x=\"1\"/><item h=\"1\" x=\"2\"/>"), "{tabela}");
+
+    let (_, d) = ida_e_volta(&w);
+    assert_eq!(d["linhas"], json!([0]));
+    assert_eq!(d["filtros"], json!([{"col": 0, "valores": ["Sul"], "excluir": true}]));
+}
+
+#[test]
 fn mostrar_como_com_item_base_classificacao_e_ordem_por_valor_vao_e_voltam() {
     let base = CampoBase { eixo: Eixo::Linhas, posicao: 0 };
     let extras_originais = Extras {

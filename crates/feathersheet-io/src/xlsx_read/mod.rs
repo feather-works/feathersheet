@@ -646,6 +646,12 @@ fn anexar_elementos(
                         } else if let Some(n) = plot_area.child("radarChart") {
                             type_node = Some(n);
                             chart_type = "radar";
+                        } else if let Some(n) = plot_area.child("bubbleChart") {
+                            type_node = Some(n);
+                            chart_type = "bubble";
+                        } else if let Some(n) = plot_area.child("stockChart") {
+                            type_node = Some(n);
+                            chart_type = "candlestick";
                         }
 
                         let title_text = chart_node.child("title").map(extract_text_node).filter(|s| !s.is_empty()).unwrap_or_else(|| "Gráfico".to_string());
@@ -693,8 +699,10 @@ fn anexar_elementos(
                                     }
                                 }
 
-                                for section in ["tx", "cat", "val"] {
+                                // Dispersão e bolhas: o X faz as vezes da categoria; Y e tamanho, de valores.
+                                for (section, papel) in [("tx", "tx"), ("cat", "cat"), ("val", "val"), ("xVal", "cat"), ("yVal", "val"), ("bubbleSize", "val")] {
                                     if let Some(sec_node) = ser.child(section) {
+                                        let section = papel;
                                         if section == "tx" { has_headers = true; }
                                         if section == "cat" { has_category_labels = true; }
                                         let ref_node = sec_node.child("numRef").or_else(|| sec_node.child("strRef"));
@@ -774,6 +782,9 @@ fn anexar_elementos(
                                 "position": posicao
                             });
 
+                            if let Some(furo) = type_node.and_then(|n| n.child("holeSize")).and_then(|n| n.attr("val")).and_then(|v| v.parse::<u8>().ok()) {
+                                chart_json["holeSize"] = serde_json::json!(furo.clamp(10, 90));
+                            }
                             if !series_point_shapes.is_empty() || !series_point_sizes.is_empty() {
                                 chart_json["style"] = serde_json::json!({
                                     "seriesPointShapes": series_point_shapes,
@@ -786,6 +797,18 @@ fn anexar_elementos(
                                 if let Some(l) = lugar { excel["z"] = serde_json::json!(l.z); }
                                 chart_json["_featherNative"] = nativa;
                                 chart_json["_excel"] = excel;
+                            }
+                            // Bolhas e velas leem as séries pela posição: a ordem das `ser`
+                            // vira a dos campos do painel (`papeis`), que o gráfico desenha.
+                            if matches!(chart_type, "bubble" | "candlestick") && !val_refs.is_empty() && val_refs.iter().all(|(a, b)| a.col == b.col) {
+                                let colunas: Vec<i64> = val_refs.iter().map(|(a, _)| a.col).collect();
+                                let mut ordenadas = colunas.clone();
+                                ordenadas.sort_unstable();
+                                ordenadas.dedup();
+                                let papeis: Vec<usize> = colunas.iter().filter_map(|c| ordenadas.iter().position(|o| o == c)).collect();
+                                if papeis.windows(2).any(|w| w[0] > w[1]) {
+                                    chart_json["_featherNative"]["papeis"] = serde_json::json!(papeis);
+                                }
                             }
                             // `<c:plotVisOnly val="1"/>`: o Excel não desenha a linha escondida pelo filtro.
                             if chart_node.child("plotVisOnly").is_some_and(|n| !matches!(n.attr("val"), Some("0") | Some("false"))) {
