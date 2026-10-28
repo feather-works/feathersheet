@@ -256,6 +256,13 @@ impl EvalContext for Contexto<'_, '_> {
         (rect.c1 - rect.c0 + 1) as u64 * (rect.r1 - rect.r0 + 1) as u64
     }
 
+    /// O `usado` da vista, tirado antes do cálculo: as fórmulas sujas já
+    /// estão na `FormulaTable` (contam no retângulo), e depois dele `ler`
+    /// só acharia vazio. Aba que não existe: `None` (a leitura marca a falha).
+    fn ultima_linha_usada(&self, sheet: Option<&str>) -> Option<u32> {
+        Some(self.abas[self.indice(sheet)?].usado.as_ref().map_or(0, |u| u.r1))
+    }
+
     /// O agregado por critério também no cálculo paralelo: montado das
     /// faixas lidas (compartilhadas entre as threads), uma vez por conjunto
     /// de faixas. Sem isto cada `SOMASES` da Resumo varria 1 milhão de

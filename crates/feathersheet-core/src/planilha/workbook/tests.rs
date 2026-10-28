@@ -677,3 +677,171 @@ fn cont_ses_de_coluna_inteira_conta_as_vazias_depois_da_area_usada() {
     assert_eq!(w.valor(0, 0, 1), Value::Number(linhas - 2.0));
     assert_eq!(w.valor(0, 0, 2), Value::Number(2.0 * linhas - 2.0));
 }
+
+/// Pasta com uma aba "Dados" pequena para as funções de critério sobre
+/// coluna inteira: A tem texto, número e vazio (A5 vazia, com B5 = 10), C tem
+/// um `=""`, e o resto da coluna (1 milhão de linhas) é vazio.
+fn pasta_de_criterios() -> Workbook {
+    let mut w = Workbook::new();
+    let dados = w.criar_aba("Dados");
+    let linhas: [(&str, &str, &str); 6] = [
+        ("x", "1", "a"), ("y", "2", "=\"\""), ("x", "3", ""), ("5", "4", "b"), ("", "10", ""), ("-2", "7", ""),
+    ];
+    for (r, (a, b, c)) in linhas.iter().enumerate() {
+        for (col, v) in [a, b, c].iter().enumerate() {
+            if !v.is_empty() {
+                w.escrever_celula(dados, r as u32, col as u32, v.to_string());
+            }
+        }
+    }
+    w
+}
+
+#[test]
+fn funcoes_de_criterio_em_coluna_inteira_dao_o_mesmo_que_a_faixa_curta() {
+    use crate::celulas::values::Value;
+    let mut w = pasta_de_criterios();
+    let max = f64::from(crate::celulas::refs::MAX_ROWS);
+    // (fórmula com coluna inteira, valor esperado; 0 = conferido só pela
+    // mesma fórmula com `1:20`)
+    let casos: &[(&str, f64)] = &[
+        ("SOMASE(Dados!A:A;\"<>x\";Dados!B:B)", 2.0 + 4.0 + 10.0 + 7.0),
+        ("SOMASE(Dados!A:A;\"\";Dados!B:B)", 10.0),
+        ("SOMASE(Dados!A:A;\"=\";Dados!B:B)", 10.0),
+        ("SOMASE(Dados!A:A;\">0\";Dados!B:B)", 4.0),
+        ("SOMASE(Dados!B:B;\">2\")", 3.0 + 4.0 + 10.0 + 7.0),
+        ("SOMASES(Dados!B:B;Dados!A:A;\"<>x\";Dados!B:B;\"<10\")", 2.0 + 4.0 + 7.0),
+        ("CONT.SE(Dados!A:A;\"<>x\")", 0.0),
+        ("CONT.SE(Dados!A:A;\"\")", 0.0),
+        ("CONT.SE(Dados!A:A;\"=\")", 0.0),
+        ("CONT.SE(Dados!A:A;\"<0\")", 1.0),
+        ("CONT.SE(Dados!A:A;\"x\")", 2.0),
+        ("MÉDIASE(Dados!A:A;\"<>x\";Dados!B:B)", (2.0 + 4.0 + 10.0 + 7.0) / 4.0),
+        ("MÉDIASE(Dados!A:A;\"\";Dados!B:B)", 10.0),
+        ("MÉDIASES(Dados!B:B;Dados!A:A;\"<>x\")", (2.0 + 4.0 + 10.0 + 7.0) / 4.0),
+        ("MÁXIMOSES(Dados!B:B;Dados!A:A;\"<>x\";Dados!C:C;\"\")", 10.0),
+        ("MÍNIMOSES(Dados!B:B;Dados!A:A;\"<>x\")", 2.0),
+        ("SOMARPRODUTO(Dados!A:A;Dados!B:B)", 5.0 * 4.0 - 2.0 * 7.0),
+        ("SOMARPRODUTO(Dados!B:C;Dados!B:C)", 1.0 + 4.0 + 9.0 + 16.0 + 100.0 + 49.0),
+        ("CONTAR.VAZIO(Dados!C:C)", 0.0),
+        ("CONTAR.VAZIO(Dados!A:C)", 0.0),
+    ];
+    // As contagens que aceitam vazio somam as linhas depois da faixa curta.
+    let mais = |f: &str| match f {
+        f if f.starts_with("CONT.SE(Dados!A:A;\"<>x") || f.starts_with("CONT.SE(Dados!A:A;\"\"")
+            || f.starts_with("CONT.SE(Dados!A:A;\"=") || f.starts_with("CONTAR.VAZIO(Dados!C") => max - 20.0,
+        f if f.starts_with("CONTAR.VAZIO(Dados!A:C") => 3.0 * (max - 20.0),
+        _ => 0.0,
+    };
+    let curta = |f: &str| f.replace("A:A", "A1:A20").replace("B:B", "B1:B20").replace("C:C", "C1:C20")
+        .replace("B:C", "B1:C20").replace("A:C", "A1:C20");
+    for (i, (f, _)) in casos.iter().enumerate() {
+        w.escrever_celula(0, i as u32, 0, format!("={f}"));
+        w.escrever_celula(0, i as u32, 1, format!("={}", curta(f)));
+    }
+    for (i, (f, esperado)) in casos.iter().enumerate() {
+        let (inteira, Value::Number(curta)) = (w.valor(0, i as u32, 0), w.valor(0, i as u32, 1)) else {
+            panic!("{f}: a faixa curta não deu número");
+        };
+        assert_eq!(inteira, Value::Number(curta + mais(f)), "{f}");
+        if *esperado != 0.0 {
+            assert_eq!(inteira, Value::Number(*esperado), "{f}");
+        }
+    }
+    // Faixa curta, contada à mão: A1:A20 tem 2 "x" e 15 vazias.
+    assert_eq!(w.valor(0, 6, 1), Value::Number(18.0));
+    assert_eq!(w.valor(0, 7, 1), Value::Number(15.0));
+    // C1:C20: só "a" e "b" não são vazias (o `=""` conta como vazia).
+    assert_eq!(w.valor(0, 18, 1), Value::Number(18.0));
+    assert_eq!(w.valor(0, 19, 1), Value::Number(60.0 - 5.0 - 6.0 - 2.0));
+}
+
+#[test]
+fn somarproduto_de_formatos_diferentes_continua_lendo_tudo() {
+    use crate::celulas::values::Value;
+    let mut w = pasta_de_criterios();
+    // Tamanhos diferentes: #VALOR!, como antes; o mesmo número de células
+    // em formatos diferentes fica no caminho de sempre (pareia pela ordem).
+    w.escrever_celula(0, 0, 0, "=SOMARPRODUTO(Dados!B:B;Dados!B1:B10)".into());
+    assert!(matches!(w.valor(0, 0, 0), Value::Error(_)));
+    w.escrever_celula(0, 1, 0, "=SOMARPRODUTO(Dados!B1:B4;Dados!B1:C2)".into());
+    assert_eq!(w.valor(0, 1, 0), Value::Number(1.0 * 1.0 + 2.0 * 0.0 + 3.0 * 2.0 + 4.0 * 0.0));
+    // Erro dentro da área usada continua aparecendo.
+    w.escrever_celula(1, 2, 1, "=1/0".into());
+    w.escrever_celula(0, 2, 0, "=SOMARPRODUTO(Dados!B:B;Dados!A:A)".into());
+    assert!(matches!(w.valor(0, 2, 0), Value::Error(_)));
+}
+
+#[test]
+fn criterios_de_coluna_inteira_no_calculo_paralelo() {
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    // Os dados de `pasta_de_criterios` em F:H, e colunas de fórmula
+    // empacotada (o mesmo padrão em 200 linhas) lendo F:F inteira: vão para
+    // o cálculo paralelo, que também para na área usada (aqui, a linha 200).
+    // Faixa de outra aba ainda fica avulsa (`pattern_check`).
+    let dados: [(&str, &str, &str); 6] = [
+        ("x", "1", "a"), ("y", "2", "=\"\""), ("x", "3", ""), ("5", "4", "b"), ("", "10", ""), ("-2", "7", ""),
+    ];
+    for (r, linha) in dados.iter().enumerate() {
+        for (col, v) in [linha.0, linha.1, linha.2].iter().enumerate() {
+            if !v.is_empty() {
+                w.escrever_celula(0, r as u32, 5 + col as u32, v.to_string());
+            }
+        }
+    }
+    for r in 0..200u32 {
+        w.escrever_celula(0, r, 1, "=SOMASE(F:F;\"<>x\";G:G)".into());
+        w.escrever_celula(0, r, 2, "=CONT.SE(F:F;\"<>x\")".into());
+        w.escrever_celula(0, r, 3, "=CONTAR.VAZIO(H:H)".into());
+    }
+    // Mexer nos dados suja as colunas, que o paralelo recalcula.
+    w.escrever_celula(0, 0, 6, "1".into());
+    assert!(w.calcular_em_paralelo() >= 600);
+    let max = f64::from(crate::celulas::refs::MAX_ROWS);
+    for r in [0u32, 1, 117, 199] {
+        assert_eq!(w.valor(0, r, 1), Value::Number(23.0), "linha {}", r + 1);
+        assert_eq!(w.valor(0, r, 2), Value::Number(max - 2.0), "linha {}", r + 1);
+        assert_eq!(w.valor(0, r, 3), Value::Number(max - 2.0), "linha {}", r + 1);
+    }
+}
+
+/// Medição do passo 6a (`ABRIR-XLSX-RAPIDO.md`): 100 mil linhas e fórmulas
+/// de critério sobre coluna inteira, 4 de cada. Rodar com
+/// `cargo test --release --lib medir_criterios_de_coluna_inteira -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn medir_criterios_de_coluna_inteira() {
+    let mut w = Workbook::new();
+    let dados = w.criar_aba("Dados");
+    for r in 0..100_000u32 {
+        w.escrever_celula(dados, r, 0, format!("{}", r as i64 % 7 - 3));
+        w.escrever_celula(dados, r, 1, format!("{}", r % 100));
+        if r % 3 == 0 {
+            w.escrever_celula(dados, r, 2, "c".into());
+        }
+    }
+    let formulas = [
+        "=SOMASE(Dados!A:A;\">0\";Dados!B:B)",
+        "=SOMASES(Dados!B:B;Dados!A:A;\"<>0\")",
+        "=CONT.SE(Dados!A:A;\"<>0\")",
+        "=MÉDIASE(Dados!A:A;\">0\";Dados!B:B)",
+        "=MÉDIASES(Dados!B:B;Dados!A:A;\"<>0\")",
+        "=MÁXIMOSES(Dados!B:B;Dados!A:A;\"<>0\")",
+        "=MÍNIMOSES(Dados!B:B;Dados!A:A;\"<>0\")",
+        "=CONTAR.VAZIO(Dados!C:C)",
+        "=SOMARPRODUTO(Dados!A:A;Dados!B:B)",
+    ];
+    for (i, f) in formulas.iter().enumerate() {
+        for k in 0..4u32 {
+            w.escrever_celula(0, k, i as u32, f.replace(">0", &format!(">{k}")).replace("<>0", &format!("<>{k}")));
+        }
+    }
+    let total = std::time::Instant::now();
+    for (i, f) in formulas.iter().enumerate() {
+        let t = std::time::Instant::now();
+        let v: Vec<_> = (0..4u32).map(|k| w.valor(0, k, i as u32)).collect();
+        eprintln!("{f} ×4: {:?} → {:?}", t.elapsed(), v);
+    }
+    eprintln!("total: {:?}", total.elapsed());
+}

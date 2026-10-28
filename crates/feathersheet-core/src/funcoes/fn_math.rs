@@ -4,7 +4,7 @@
 use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
-use crate::funcoes::fn_helpers::{arity, collect, err_num, err_value, has, make_predicate, LeitorFaixa};
+use crate::funcoes::fn_helpers::{arity, collect, err_num, err_value, has, linhas_com_conteudo, make_predicate, LeitorFaixa};
 use crate::celulas::refs::Rect;
 use crate::funcoes::fn_helpers::{concluir, concluir_matriz, e_div0, e_nd, e_num, e_valor, matriz_de, num, numero, por_elemento, texto, valores_de, Res};
 use crate::celulas::values::to_number;
@@ -44,8 +44,11 @@ pub fn fn_sumif(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 
     let criterio = LeitorFaixa::novo(ev, &range_rect);
     let soma = LeitorFaixa::novo(ev, &sum_rect);
+    // Depois da última linha usada da faixa somada a soma é vazia e não
+    // acrescenta nada, passe o critério ou não: `A:A` para ali.
+    let linhas = linhas_com_conteudo(ev, range_rect.r1 - range_rect.r0 + 1, [&sum_rect]);
     let mut sum = 0.0;
-    for r in range_rect.r0..=range_rect.r1 {
+    for r in range_rect.r0..range_rect.r0 + linhas {
         for c in range_rect.c0..=range_rect.c1 {
             let val = criterio.valor(ev, r, c);
             if pred(&val) {
@@ -516,8 +519,11 @@ pub fn fn_sumifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         .collect();
 
     let soma = LeitorFaixa::novo(ev, &sum_rect);
+    // Como no SOMASE: depois da última linha usada da faixa somada não há
+    // o que somar.
+    let linhas = linhas_com_conteudo(ev, sum_rect.r1 - sum_rect.r0 + 1, [&sum_rect]);
     let mut sum = 0.0;
-    for r in sum_rect.r0..=sum_rect.r1 {
+    for r in sum_rect.r0..sum_rect.r0 + linhas {
         for c in sum_rect.c0..=sum_rect.c1 {
             let r_off = r - sum_rect.r0;
             let c_off = c - sum_rect.c0;
@@ -549,15 +555,27 @@ pub fn fn_sumproduct(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if args.is_empty() {
         return err_value();
     }
+    let rects: Vec<Option<Rect>> = args.iter().map(|a| node_rect(a, ev)).collect();
+    // Só retângulos do mesmo tamanho: a linha toda vazia multiplica 0 e não
+    // tem erro, então `A:A` para na última linha usada de todas as faixas.
+    let corte = match rects.iter().map(Option::as_ref).collect::<Option<Vec<&Rect>>>() {
+        Some(todas) => {
+            let tamanho = |r: &Rect| (r.r1 - r.r0 + 1, r.c1 - r.c0 + 1);
+            let (linhas, _) = tamanho(todas[0]);
+            todas.iter().all(|r| tamanho(r) == tamanho(todas[0]))
+                .then(|| linhas_com_conteudo(ev, linhas, todas.iter().copied()))
+        }
+        None => None,
+    };
     let mut cols: Vec<Vec<f64>> = Vec::with_capacity(args.len());
-    for a in args {
+    for (a, rect) in args.iter().zip(&rects) {
         let mut list = Vec::new();
-        if let Some(rect) = node_rect(a, ev) {
-            for r in rect.r0..=rect.r1 {
+        if let Some(rect) = rect {
+            let leitor = LeitorFaixa::novo(ev, rect);
+            for r in rect.r0..rect.r0 + corte.unwrap_or(rect.r1 - rect.r0 + 1) {
                 for c in rect.c0..=rect.c1 {
-                    let v = ev.ctx.get_value(r, c, rect.sheet.as_deref());
-                    match v {
-                        Value::Error(e) => return Computed::Scalar(Value::Error(e)),
+                    match *leitor.valor(ev, r, c) {
+                        Value::Error(ref e) => return Computed::Scalar(Value::Error(e.clone())),
                         Value::Number(n) => list.push(n),
                         _ => list.push(0.0),
                     }

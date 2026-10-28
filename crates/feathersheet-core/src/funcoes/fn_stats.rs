@@ -3,7 +3,7 @@
 use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
-use crate::funcoes::fn_helpers::{arity, collect, err_na, err_num, err_value, has, make_predicate, LeitorFaixa};
+use crate::funcoes::fn_helpers::{arity, collect, err_na, err_num, err_value, has, linhas_com_conteudo, make_predicate, LeitorFaixa};
 use crate::celulas::refs::Rect;
 use crate::funcoes::fn_helpers::{concluir, concluir_matriz, e_div0, e_nd, e_num, e_valor, numero, numeros_de, numeros_de_todos, por_elemento, valores_de, Res};
 use crate::funcoes::fn_math::pares_numericos;
@@ -122,8 +122,15 @@ pub fn fn_countif(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     let pred = make_predicate(&crit_val);
 
     let criterio = LeitorFaixa::novo(ev, &range_rect);
+    // Coluna inteira: depois da última linha usada tudo é vazio, e conta
+    // de uma vez se o vazio passa no critério (`"<>x"`, `""`).
+    let linhas = range_rect.r1 - range_rect.r0 + 1;
+    let usadas = linhas_com_conteudo(ev, linhas, [&range_rect]);
     let mut count = 0.0;
-    for r in range_rect.r0..=range_rect.r1 {
+    if usadas < linhas && pred(&Value::Empty) {
+        count += (linhas - usadas) as f64 * (range_rect.c1 - range_rect.c0 + 1) as f64;
+    }
+    for r in range_rect.r0..range_rect.r0 + usadas {
         for c in range_rect.c0..=range_rect.c1 {
             let val = criterio.valor(ev, r, c);
             if pred(&val) {
@@ -324,18 +331,21 @@ pub fn fn_averageif(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         };
     }
 
+    let teste = LeitorFaixa::novo(ev, &test_rect);
+    let alvo = LeitorFaixa::novo(ev, &avg_rect);
+    // Depois da última linha usada da faixa da média não há número: nada
+    // entra na soma nem na contagem.
+    let linhas = linhas_com_conteudo(ev, test_rect.r1 - test_rect.r0 + 1, [&avg_rect]);
     let mut sum = 0.0;
     let mut count = 0;
-    for r in test_rect.r0..=test_rect.r1 {
+    for r in test_rect.r0..test_rect.r0 + linhas {
         for c in test_rect.c0..=test_rect.c1 {
-            let val = ev.ctx.get_value(r, c, test_rect.sheet.as_deref());
-            if pred(&val) {
+            if pred(&teste.valor(ev, r, c)) {
                 let r_off = r - test_rect.r0;
                 let c_off = c - test_rect.c0;
                 let avg_r = avg_rect.r0 + r_off;
                 let avg_c = avg_rect.c0 + c_off;
-                let avg_val = ev.ctx.get_value(avg_r, avg_c, avg_rect.sheet.as_deref());
-                if let Value::Number(n) = avg_val {
+                if let Value::Number(n) = *alvo.valor(ev, avg_r, avg_c) {
                     sum += n;
                     count += 1;
                 }
@@ -380,7 +390,10 @@ pub fn fn_averageifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     let mut sum = 0.0;
     let mut count = 0;
     let alvo = LeitorFaixa::novo(ev, &avg_rect);
-    for r in avg_rect.r0..=avg_rect.r1 {
+    // Só número da faixa da média conta: depois da última linha usada dela
+    // não há mais nada.
+    let linhas = linhas_com_conteudo(ev, avg_rect.r1 - avg_rect.r0 + 1, [&avg_rect]);
+    for r in avg_rect.r0..avg_rect.r0 + linhas {
         for c in avg_rect.c0..=avg_rect.c1 {
             let r_off = r - avg_rect.r0;
             let c_off = c - avg_rect.c0;
@@ -438,11 +451,7 @@ pub fn fn_countifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     // abrir um .xlsx leve, 28/10/2026). Depois da última linha usada de
     // todas as faixas tudo é vazio: conta de uma vez, se o vazio passa.
     let linhas = base_rect.r1 - base_rect.r0 + 1;
-    let usadas = pairs.iter()
-        .map(|p| ev.ctx.ultima_linha_usada(p.rect.sheet.as_deref()).map(|u| (u + 1).saturating_sub(p.rect.r0)))
-        .collect::<Option<Vec<u32>>>()
-        .and_then(|v| v.into_iter().max())
-        .map_or(linhas, |u| u.min(linhas));
+    let usadas = linhas_com_conteudo(ev, linhas, pairs.iter().map(|p| &p.rect));
     let mut count = 0;
     if usadas < linhas && pairs.iter().all(|p| (p.pred)(&Value::Empty)) {
         count += (linhas - usadas) as usize * (base_rect.c1 - base_rect.c0 + 1) as usize;
@@ -495,7 +504,9 @@ pub fn fn_maxifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     let mut max_val = f64::NEG_INFINITY;
     let mut count = 0;
     let alvo = LeitorFaixa::novo(ev, &max_rect);
-    for r in max_rect.r0..=max_rect.r1 {
+    // Só número da faixa do máximo conta: para na última linha usada dela.
+    let linhas = linhas_com_conteudo(ev, max_rect.r1 - max_rect.r0 + 1, [&max_rect]);
+    for r in max_rect.r0..max_rect.r0 + linhas {
         for c in max_rect.c0..=max_rect.c1 {
             let r_off = r - max_rect.r0;
             let c_off = c - max_rect.c0;
@@ -554,7 +565,9 @@ pub fn fn_minifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     let mut min_val = f64::INFINITY;
     let mut count = 0;
     let alvo = LeitorFaixa::novo(ev, &min_rect);
-    for r in min_rect.r0..=min_rect.r1 {
+    // Só número da faixa do mínimo conta: para na última linha usada dela.
+    let linhas = linhas_com_conteudo(ev, min_rect.r1 - min_rect.r0 + 1, [&min_rect]);
+    for r in min_rect.r0..min_rect.r0 + linhas {
         for c in min_rect.c0..=min_rect.c1 {
             let r_off = r - min_rect.r0;
             let c_off = c - min_rect.c0;
@@ -599,11 +612,19 @@ pub fn fn_countblank(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         None => return err_value(),
     };
 
+    let vazia = |v: &Value| matches!(v, Value::Empty) || matches!(v, Value::Text(t) if t.is_empty());
+    // A área menos as não vazias: `for_each_in_range` só visita o que tem
+    // conteúdo, e `C:C` não vira 1 milhão de leituras. Aba que não responde
+    // (não existe) fica na leitura célula a célula, que dá o erro de antes.
+    if ev.ctx.ultima_linha_usada(rect.sheet.as_deref()).is_some() {
+        let mut cheias = 0u64;
+        ev.ctx.for_each_in_range(&rect, &mut |v, _, _| if !vazia(v) { cheias += 1 });
+        return Computed::Scalar(Value::Number((rect.r1 - rect.r0 + 1) as f64 * (rect.c1 - rect.c0 + 1) as f64 - cheias as f64));
+    }
     let mut count = 0;
     for r in rect.r0..=rect.r1 {
         for c in rect.c0..=rect.c1 {
-            let val = ev.ctx.get_value(r, c, rect.sheet.as_deref());
-            if matches!(val, Value::Empty) || val == Value::Text(String::new()) {
+            if vazia(&ev.ctx.get_value(r, c, rect.sheet.as_deref())) {
                 count += 1;
             }
         }

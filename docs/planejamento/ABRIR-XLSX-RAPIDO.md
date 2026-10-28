@@ -65,7 +65,8 @@ Primeiro o que corta trabalho (vale em qualquer máquina), depois paralelismo.
    busca do nome da função (`lookup`, mapa).
 
    Levantamento (28/10, pela leitura do código, falta medir por família):
-   - **6a. Parar na área usada** — o laço de SOMASE/SOMASES/CONT.SE/
+   - **6a. Parar na área usada** (feito em 28/10/2026: `fn_helpers::linhas_com_conteudo`;
+     100 mil linhas × 36 fórmulas de coluna inteira, 84,7 s → 51 ms) — o laço de SOMASE/SOMASES/CONT.SE/
      MÉDIASE(S)/MÁXIMOSES/MÍNIMOSES fora do `agregado` (critério `">0"`,
      `"<>x"`, curinga) vai até a linha 1.048.576; MÉDIASE ainda lê por
      `get_value` sem `LeitorFaixa`; CONTAR.VAZIO e SOMARPRODUTO percorrem o

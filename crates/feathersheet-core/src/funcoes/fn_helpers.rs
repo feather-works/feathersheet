@@ -89,6 +89,22 @@ impl LeitorFaixa {
     }
 }
 
+/// Quantas das `linhas` (contadas do `r0` de cada faixa) podem ter conteúdo:
+/// depois da última linha usada das abas de todas as `faixas` tudo é vazio, e
+/// quem varre uma coluna inteira (`E:E`, 1.048.576 linhas) para ali. Se
+/// alguma aba não sabe responder, `linhas` (varre tudo, como antes).
+pub fn linhas_com_conteudo<'r>(ev: &Evaluator<'_>, linhas: u32,
+    faixas: impl IntoIterator<Item = &'r crate::celulas::refs::Rect>) -> u32 {
+    let mut usadas = 0;
+    for f in faixas {
+        match ev.ctx.ultima_linha_usada(f.sheet.as_deref()) {
+            Some(u) => usadas = usadas.max((u + 1).saturating_sub(f.r0)),
+            None => return linhas,
+        }
+    }
+    usadas.min(linhas)
+}
+
 /// Os pares `(faixa; critério)` de `args[inicio..]`: as faixas e os
 /// critérios já avaliados. Erro de critério ou faixa inválida vira `#VALOR!`
 /// (ou o erro do critério), como as funções faziam uma a uma.
