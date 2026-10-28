@@ -364,9 +364,60 @@ pub(super) fn estilo_excel(raiz: &XmlNode) -> Option<(serde_json::Value, serde_j
     Some((nativa, excel))
 }
 
+/// Séries que pulam colunas no `.xlsx`: a coluna da categoria (dentro do
+/// retângulo), as do meio que ficam ocultas e a coluna de origem de cada `ser`.
+pub(super) struct Saltos {
+    pub categoria: u32,
+    pub ocultas: Vec<u32>,
+    pub origens: Vec<u32>,
+}
+
+/// O Excel guarda cada série com o próprio intervalo (`B` categoria, `L`, `M`,
+/// `N` valores); o modelo tem um retângulo só (`B:N`). Sem isto as colunas
+/// `C`–`K` viravam séries. `None` quando o retângulo já é o gráfico.
+// shortcut: só séries em colunas; em linhas o retângulo continua inteiro, até aparecer um arquivo assim.
+pub(super) fn series_salteadas(
+    em_colunas: bool,
+    (_, c0, _, c1): (i64, i64, i64, i64),
+    cat: Option<(refs::CellRef, refs::CellRef)>,
+    vals: &[(refs::CellRef, refs::CellRef)],
+) -> Option<Saltos> {
+    if !em_colunas || vals.iter().any(|(a, b)| a.col != b.col) {
+        return None;
+    }
+    let cat = cat.filter(|(a, b)| a.col == b.col).map(|(a, _)| a.col);
+    let usadas: Vec<i64> = vals.iter().map(|(a, _)| a.col).collect();
+    let origem = |c: i64| (c - c0 - i64::from(cat.is_some_and(|k| k < c))) as u32;
+    let ocultas: Vec<u32> = (c0..=c1).filter(|c| Some(*c) != cat && !usadas.contains(c)).map(origem).collect();
+    let categoria = cat.map_or(0, |k| (k - c0) as u32);
+    if ocultas.is_empty() && categoria == 0 {
+        return None;
+    }
+    Some(Saltos { categoria, ocultas, origens: usadas.into_iter().map(origem).collect() })
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn series_que_pulam_colunas_escondem_as_do_meio() {
+        let r = |t: &str| refs::parse_cell_ref(t).unwrap();
+        let faixa = |a: &str, b: &str| (r(a), r(b));
+        // Categoria B, valores L, M, N (o "Gráfico Status x Objeto" do usuário).
+        let vals = [faixa("L3", "L60"), faixa("M3", "M60"), faixa("N3", "N60")];
+        let s = series_salteadas(true, (1, 1, 59, 13), Some(faixa("B3", "B60")), &vals).unwrap();
+        assert_eq!(s.categoria, 0);
+        assert_eq!(s.ocultas, (0..9).collect::<Vec<u32>>());
+        assert_eq!(s.origens, vec![9, 10, 11]);
+        // Retângulo contíguo: nada muda.
+        let vals = [faixa("C3", "C9"), faixa("D3", "D9")];
+        assert!(series_salteadas(true, (1, 1, 8, 3), Some(faixa("B3", "B9")), &vals).is_none());
+        // Categoria no meio: o índice dela muda e as séries pulam a coluna dela.
+        let vals = [faixa("B3", "B9"), faixa("D3", "D9")];
+        let s = series_salteadas(true, (1, 1, 8, 3), Some(faixa("C3", "C9")), &vals).unwrap();
+        assert_eq!((s.categoria, s.ocultas.len(), s.origens), (1, 0, vec![0, 1]));
+    }
 
     #[test]
     fn posicao_pela_ancora_com_larguras_proprias() {

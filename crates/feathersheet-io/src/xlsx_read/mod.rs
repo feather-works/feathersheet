@@ -662,6 +662,8 @@ fn anexar_elementos(
                         let mut in_cols_count = 0;
 
                         let mut ser_idx_count = 0;
+                        let mut cat_ref = None;
+                        let mut val_refs = Vec::new();
                         let mut series_point_shapes = std::collections::BTreeMap::<u32, String>::new();
                         let mut series_point_sizes = std::collections::BTreeMap::<u32, f64>::new();
 
@@ -717,7 +719,9 @@ fn anexar_elementos(
                                                     min_c = min_c.min(start.col);
                                                     max_c = max_c.max(end.col);
 
+                                                    if section == "cat" { cat_ref = Some((start, end)); }
                                                     if section == "val" {
+                                                        val_refs.push((start, end));
                                                         if start.row == end.row && start.col != end.col {
                                                             in_rows_count += 1;
                                                         } else if start.col == end.col && start.row != end.row {
@@ -752,6 +756,11 @@ fn anexar_elementos(
                                 serde_json::json!({ "r0": 0, "c0": 0, "r1": 9, "c1": 1 })
                             };
                             let series_in_columns = in_rows_count <= in_cols_count;
+                            let saltos = if found_range {
+                                graficos_ancora::series_salteadas(series_in_columns, (min_r, min_c, max_r, max_c), cat_ref, &val_refs)
+                            } else {
+                                None
+                            };
 
                             let mut chart_json = serde_json::json!({
                                 "id": format!("chart_{}", rand_id()),
@@ -777,6 +786,19 @@ fn anexar_elementos(
                                 if let Some(l) = lugar { excel["z"] = serde_json::json!(l.z); }
                                 chart_json["_featherNative"] = nativa;
                                 chart_json["_excel"] = excel;
+                            }
+                            if let Some(s) = saltos {
+                                chart_json["categoryColumnIndex"] = serde_json::json!(s.categoria);
+                                if !chart_json["style"].is_object() { chart_json["style"] = serde_json::json!({}); }
+                                chart_json["style"]["hiddenSeries"] = serde_json::json!(s.ocultas);
+                                // Cores e pontos do Excel vêm pela ordem das `ser`; aqui a chave é a coluna de origem.
+                                for caminho in ["/_featherNative/cores", "/style/seriesPointShapes", "/style/seriesPointSizes"] {
+                                    if let Some(m) = chart_json.pointer_mut(caminho).and_then(|v| v.as_object_mut()) {
+                                        *m = std::mem::take(m).into_iter()
+                                            .filter_map(|(k, v)| Some((s.origens.get(k.parse::<usize>().ok()?)?.to_string(), v)))
+                                            .collect();
+                                    }
+                                }
                             }
                             sheet.charts.push(chart_json);
                         }
