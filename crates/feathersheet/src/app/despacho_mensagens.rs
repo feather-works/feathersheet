@@ -1136,9 +1136,9 @@ impl App {
             }
             Msg::AceitarSugestao(i) => {
                 if self.editor_formula.aceitar_sugestao(&mut self.edicao,i,self.config.idioma=="en-US") {
-                    // shortcut: o text_input do pelicano não recebe a posição do cursor por Task: ele fica onde
-                    // estava (ou no fim). Melhorar quando o pelicano tiver mover cursor por id.
-                    Task::focus("feathersheet.fx")
+                    // O caret vai para depois do "(" (=HO + Tab → =HOJE(|).
+                    let pos = self.editor_formula.cursor.unwrap_or(self.edicao.chars().count());
+                    crate::campo_fx::posicionar(pos)
                 } else { Task::none() }
             }
             Msg::NavegarSugestao(delta) => {

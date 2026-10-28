@@ -1,6 +1,6 @@
 //! Adaptador fino do TextInput do pelicano para observar o caret real.
  //! Não redesenha nem reimplementa o editor; delega todos os eventos ao pelicano.
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use pelicano::{
     Captured, DrawCx, Element, Event, EventCx, Key, LayoutCx, Length, Limits, MouseButton, NamedKey,
@@ -14,6 +14,9 @@ const RECUO: f32 = 8.0;
 
 /// Pedido de [`desfocar`], atendido pelo campo no próximo evento.
 static DESFOCAR: AtomicBool = AtomicBool::new(false);
+
+/// Pedido de [`posicionar`] (índice em caracteres; `usize::MAX` = nenhum).
+static CURSOR: AtomicUsize = AtomicUsize::new(usize::MAX);
 
 /// Onde o último clique no campo começou (índice em caracteres).
 #[derive(Default)]
@@ -54,6 +57,17 @@ impl Widget<Msg> for CampoFx<'_> {
         if let Event::Key { key: Key::Named(NamedKey::Enter), modifiers, pressed: true, .. } = evento {
             if modifiers.alt_key() && cx.states.focus == Some(n.key) { return Captured::Yes; }
         }
+        // O pelicano não move o cursor do TextInput por Task: o campo leva o
+        // caret até lá com Home + → antes de o TextInput ver o evento.
+        if cx.states.focus == Some(n.key) {
+            let pos = CURSOR.swap(usize::MAX, Ordering::Relaxed);
+            if pos != usize::MAX {
+                let tecla = |k| Event::Key { key: Key::Named(k), text: None, modifiers: Default::default(), pressed: true };
+                Widget::event(&self.input, n, &tecla(NamedKey::Home), cx);
+                for _ in 0..pos { Widget::event(&self.input, n, &tecla(NamedKey::ArrowRight), cx); }
+                cx.redraw = true;
+            }
+        }
         let dentro=cx.cursor.is_some_and(|p| n.rect.contains(p));
         let indice = match evento {
             Event::MousePressed(MouseButton::Left) | Event::MouseReleased(MouseButton::Left) if dentro => {
@@ -84,6 +98,12 @@ impl Widget<Msg> for CampoFx<'_> {
 pub fn desfocar() -> pelicano::Task<Msg> {
     DESFOCAR.store(true, Ordering::Relaxed);
     pelicano::Task::none()
+}
+
+/// Põe o caret do campo fx no caractere `pos` (depois do foco, no próximo evento).
+pub fn posicionar(pos: usize) -> pelicano::Task<Msg> {
+    CURSOR.store(pos, Ordering::Relaxed);
+    pelicano::Task::focus("feathersheet.fx")
 }
 
 /// Transfere o foco do campo fx para o editor multilinha (o foco é um só:
