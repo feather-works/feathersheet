@@ -211,11 +211,20 @@ impl App {
                     * (self.config.tamanho_fonte_grade as f32 * 1.45))
                     .max(edi.altura).clamp(90.0, 300.0)
             } else { edi.altura.max(24.0) };
-            let fundo = if escuro_resolvido(self.config.tema_auto, self.config.escuro) {
-                pelicano::Color::rgb8(34, 37, 42)
-            } else { pelicano::Color::WHITE };
-            let fonte = (self.config.tamanho_fonte_grade as f32
+            // A aparência da própria célula (#90): letra, tamanho, negrito,
+            // itálico, cor e fundo, como no Excel.
+            let visual = crate::estilos_comuns::projetar_estilo(self.workbook.aba(edi.folha)
+                .and_then(|a| a.sheet.estilo_resolvido(edi.linha, edi.coluna)).as_ref(), None);
+            let basico = &visual.comum.basico;
+            let cor_rgba = |[r, g, b, a]: [u8; 4]| pelicano::Color::rgb8(r, g, b).alpha(a as f32 / 255.0);
+            let fundo = basico.fundo.map(cor_rgba).unwrap_or(
+                if escuro_resolvido(self.config.tema_auto, self.config.escuro) {
+                    pelicano::Color::rgb8(34, 37, 42)
+                } else { pelicano::Color::WHITE });
+            let cor_texto = basico.texto.map(cor_rgba);
+            let fonte = (basico.tamanho.unwrap_or(self.config.tamanho_fonte_grade as f32)
                 * self.config.zoom as f32 / 100.0).max(11.0);
+            let letra = crate::estilos_comuns::fonte_da_celula(&visual, &self.config.fonte_grade);
             let entrada: Element<'_, Msg> = if let Some(conteudo) = multiline {
                 editor_multilinha(conteudo, fonte, altura - 4.0)
             } else {
@@ -223,10 +232,12 @@ impl App {
                     text_input("", &self.edicao)
                         .id("feathersheet.celula")
                         .on_input(Msg::Editar).on_submit(Msg::EnviarEditor)
-                        .size(fonte).padding([3, 5]).width(Length::FILL)
+                        .size(fonte).font(letra).padding([3, 5]).width(Length::FILL)
                         // Sem a borda arredondada e o fundo do campo: a moldura é a
                         // do container, do tamanho da célula (o campo parecia menor).
-                        .style(|t, _| pelicano::Style::default().text_color(t.text)),
+                        // shortcut: o text_input do pelicano não tem align_x; célula
+                        // centralizada edita à esquerda até o pelicano ganhar isso.
+                        .style(move |t, _| pelicano::Style::default().text_color(cor_texto.unwrap_or(t.text))),
                     &self.edicao,
                 ).into()
             };
