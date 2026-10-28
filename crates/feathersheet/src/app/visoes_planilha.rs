@@ -270,7 +270,8 @@ impl App {
             congelar_colunas: self.congelamento_atual().1,
             selecionada: (self.linha,self.coluna),
             area: self.area_selecionada(),
-            escuro: escuro_resolvido(self.config.tema_auto, self.config.escuro),
+            // As células ficam claras no tema escuro, como no Excel: só a interface escurece.
+            escuro: false,
             linhas_grade: self.linhas_grade_visiveis(),
             mostrar_formulas: self.mostrar_formulas,
             fonte_padrao: &self.config.fonte_grade,

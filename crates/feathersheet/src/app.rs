@@ -345,6 +345,8 @@ pub enum Msg {
     AlternarMenuTabelas, AlternarMenuEstilos, FecharMenusEstilos, LogoPadrao,
     TabelaCriarPeloMenu, TabelaEstiloEscolher(&'static str), EstiloCelulaAplicar(&'static str),
     JanelaRedimensionada(window::Id, Size),
+    /// A janela entrou/saiu de maximizada (a moldura arredonda só fora dela).
+    JanelaMaximizada(window::Id, bool),
     ImagemLaboratorioAbrir,
     /// Seleciona o objeto e inicia gesto de mover/redimensionar na grade.
     ImagemPressionar(String, imagens_importadas::Gesto),
@@ -928,6 +930,8 @@ pub struct App {
     pendente: Option<Pendente>,
     /// Há uma gravação de .fshz rodando em segundo plano.
     salvando: bool,
+    /// Janelas maximizadas agora (`Event::Maximized`).
+    maximizadas: std::collections::HashSet<window::Id>,
     /// O que fazer quando a gravação em andamento terminar (fechar, abrir…).
     apos_gravar: Option<Pendente>,
     busca: dados::Busca,
@@ -1151,7 +1155,7 @@ impl Default for App {
             faixa_ativa: AbaFaixa::Inicio,
             formulas_menu: None, formulas_menu_x: 8.0, formulas_menu_y: 140.0, rastreio: formulas_ui::Rastreio::default(), criar_nomes: None, avaliar: None, inspecoes: Vec::new(), inspecao_selecionada: None,
             faixa_extras_aberto: false, faixa_grupo_aberto: None,
-            config_secao: 0, atalho_captura: None, auto_salvar_desde: None, auto_salvar_ultimo_custo_ms: 0, pendente: None, salvando: false, apos_gravar: None, busca: dados::Busca::default(), validacao_formulario: None, erro_explicando: None, validacao_erro: None, validacao_editando: None, validacao_aba: Default::default(), validacao_alerta: None, validacao_aceita: false, validacao_circulos: None, serie: None, lista_aberta: false, lista_coluna: None, lista_pagina: 0, lista_destaque: 0, cabecalho_dados: false,
+            config_secao: 0, atalho_captura: None, auto_salvar_desde: None, auto_salvar_ultimo_custo_ms: 0, pendente: None, salvando: false, maximizadas: Default::default(), apos_gravar: None, busca: dados::Busca::default(), validacao_formulario: None, erro_explicando: None, validacao_erro: None, validacao_editando: None, validacao_aba: Default::default(), validacao_alerta: None, validacao_aceita: false, validacao_circulos: None, serie: None, lista_aberta: false, lista_coluna: None, lista_pagina: 0, lista_destaque: 0, cabecalho_dados: false,
             assistente_divisao: None,
             divisao_personalizada: false, divisao_outro: String::new(),
             macro_codigo: pelicano::Content::with_text("// Execute apenas quando desejar alterar a planilha.\nlog(sheet.range(\"A1\").value);"),
@@ -1256,6 +1260,8 @@ impl App {
                 .unwrap_or(Size::new(1280., 800.)),
             min_size: Some(Size::new(760., 520.)),
             decorations: !app.config.barra_propria, close_on_request: false,
+            // Os cantos arredondados da barra própria (moldura_redimensionavel_com).
+            transparent: app.config.barra_propria,
             ..Default::default()
         }));
         app.janelas.principal = Some(id);
@@ -1642,6 +1648,7 @@ impl App {
                 if self.openquery.is_some() { msgs.push(Msg::OpenQuery(openquery_ui::Evento::Modificadores(*m))); }
             }
             Event::Resized(size) => msgs.push(Msg::JanelaRedimensionada(id, *size)),
+            Event::Maximized(m) => msgs.push(Msg::JanelaMaximizada(id, *m)),
             // A roda chega em pixels; 40 px valem um passo (como o `ScrollDelta::Pixels` do Iced).
             Event::Wheel { dy, .. } if livre && (dy / 40.0).abs() >= 0.1 => msgs.push(Msg::Roda(dy.signum() as i32)),
             Event::CloseRequested => msgs.push(Msg::Fechar(id)),
@@ -1681,7 +1688,7 @@ impl App {
     pub fn view(&self, id: window::Id) -> Element<'_, Msg> {
         // Com a barra própria não há moldura do sistema: a borda do app redimensiona.
         let janela = if self.config.barra_propria {
-            feather_ui::cromo::moldura_redimensionavel(self.view_conteudo(id), move |d| Msg::RedimensionarJanela(id, d))
+            feather_ui::cromo::moldura_redimensionavel_com(self.view_conteudo(id), self.maximizadas.contains(&id), move |d| Msg::RedimensionarJanela(id, d))
         } else {
             feather_ui::cromo::moldura_janela(self.view_conteudo(id))
         };

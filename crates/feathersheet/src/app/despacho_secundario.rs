@@ -893,6 +893,10 @@ impl App {
                 (self.menu_aberto, self.barra_menu_aberta) = (false, false);
                 self.menu_caminho.clear(); Task::none()
             }
+            Msg::JanelaMaximizada(id, m) => {
+                if m { self.maximizadas.insert(id); } else { self.maximizadas.remove(&id); }
+                Task::none()
+            }
             Msg::JanelaRedimensionada(id, size) => {
                 if self.janelas.principal == Some(id) { self.tamanho_principal = size; }
                 // O código das macros usa o tamanho da janela para a largura mínima.

@@ -217,11 +217,9 @@ impl App {
                 .and_then(|a| a.sheet.estilo_resolvido(edi.linha, edi.coluna)).as_ref(), None);
             let basico = &visual.comum.basico;
             let cor_rgba = |[r, g, b, a]: [u8; 4]| pelicano::Color::rgb8(r, g, b).alpha(a as f32 / 255.0);
-            let fundo = basico.fundo.map(cor_rgba).unwrap_or(
-                if escuro_resolvido(self.config.tema_auto, self.config.escuro) {
-                    pelicano::Color::rgb8(34, 37, 42)
-                } else { pelicano::Color::WHITE });
-            let cor_texto = basico.texto.map(cor_rgba);
+            // A célula é clara mesmo no tema escuro (a grade não escurece).
+            let fundo = basico.fundo.map(cor_rgba).unwrap_or(pelicano::Color::WHITE);
+            let cor_texto = basico.texto.map(cor_rgba).or(Some(pelicano::Color::rgb8(32, 33, 36)));
             let fonte = (basico.tamanho.unwrap_or(self.config.tamanho_fonte_grade as f32)
                 * self.config.zoom as f32 / 100.0).max(11.0);
             let letra = crate::estilos_comuns::fonte_da_celula(&visual, &self.config.fonte_grade);
