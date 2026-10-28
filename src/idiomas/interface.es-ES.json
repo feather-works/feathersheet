@@ -4028,5 +4028,10 @@
  "Usar cabeçalho como 1ª linha": "Usar encabezado como 1.ª fila",
  "Número decimal": "Número decimal",
  "Data/Hora": "Fecha/Hora",
- "Verdadeiro/Falso": "Verdadero/Falso"
+ "Verdadeiro/Falso": "Verdadero/Falso",
+ "Do sistema": "Del sistema",
+ "Fuso": "Zona horaria",
+ "Fuso horário": "Zona horaria",
+ "Mesa digitalizadora": "Tableta digitalizadora",
+ "Usado por AGORA() e HOJE(). O do sistema agora é {}.": "Usada por AHORA() y HOY(). La del sistema ahora es {}."
 }

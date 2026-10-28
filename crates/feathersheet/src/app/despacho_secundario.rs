@@ -1577,6 +1577,12 @@ impl App {
                 self.status = trf!("Abrir e calcular: {usado} núcleos");
                 Task::none()
             }
+            Msg::Fuso(minutos) => {
+                self.config.fuso_minutos = minutos;
+                fuso::aplicar(minutos);
+                self.config.gravar();
+                Task::none()
+            }
             Msg::LimiteMemoriaGb(gb) => {
                 self.config.limite_memoria_gb = limite_memoria::normalizar_limite(gb as f64);
                 feathersheet_io::memoria::definir_limite_gb(self.config.limite_memoria_gb);

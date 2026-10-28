@@ -130,6 +130,7 @@ pub use comentarios_ui::Evento as EventoComentario;
 mod estilo_novo;
 mod visibilidade_eixos;
 mod openquery_ui;
+mod fuso;
 pub use openquery_ui::Evento as EventoOpenQuery;
 pub use formulas_ui::Seta as SetaRastreio;
 pub(crate) mod dinamica_ui;
@@ -496,7 +497,7 @@ pub enum Msg {
     TecladoNoCampo(window::Id, keyboard::Key, keyboard::Modifiers),
     Tema(bool), TemaAuto, Acento(usize), BarraPropria(bool), Faixa, SecaoConfig(usize),
     Idioma(&'static str), CsvDetectarSeparador(bool),
-    AutoSalvar(bool), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), CalcularPulso, FonteGrade(&'static str), CorpoGrade(u16),
+    AutoSalvar(bool), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), Fuso(Option<i32>), CalcularPulso, FonteGrade(&'static str), CorpoGrade(u16),
     CapturarAtalho(&'static str), RestaurarAtalhos,
     FecharMenu, Cancelar, Descartar, SalvarAntes, GuardarTemporariamente,
     /// Resposta à pergunta Sim/Não da macro; fecha a mensagem da macro.
@@ -1207,6 +1208,7 @@ impl App {
         // A vigia de memória da suíte segue o limite das Configurações.
         feathersheet_io::memoria::definir_limite_gb(app.config.limite_memoria_gb);
         feathersheet_core::paralelismo::definir(app.config.nucleos as usize);
+        fuso::aplicar(app.config.fuso_minutos);
         feathersheet_core::set_locale_config(app.regionalizacao());
         ajuda::definir_idioma(&app.config.idioma);
         // Modo de captura: FEATHERSHEET_CAPTURAR_IDIOMA=en-US mostra a tela

@@ -137,11 +137,21 @@ pub(super) fn amostras_acento(app: &App) -> Element<'_, Msg> {
 }
 
 /// Índices das seções no menu à esquerda (a ordem de `secoes` em `visualizar`).
-pub(super) const SECAO_MCP: usize = 5;
-pub(super) const SECAO_SOBRE: usize = 6;
+pub(super) const SECAO_MCP: usize = 7;
+pub(super) const SECAO_SOBRE: usize = 8;
+
+/// "Do sistema" e os fusos de UTC−12 a UTC+14, de hora em hora.
+const FUSOS: [&str; 28] = ["Do sistema", "UTC−12:00", "UTC−11:00", "UTC−10:00", "UTC−09:00", "UTC−08:00", "UTC−07:00", "UTC−06:00", "UTC−05:00", "UTC−04:00", "UTC−03:00", "UTC−02:00", "UTC−01:00", "UTC+00:00", "UTC+01:00", "UTC+02:00", "UTC+03:00", "UTC+04:00", "UTC+05:00", "UTC+06:00", "UTC+07:00", "UTC+08:00", "UTC+09:00", "UTC+10:00", "UTC+11:00", "UTC+12:00", "UTC+13:00", "UTC+14:00"];
+
+fn minutos_do_rotulo(r: &str) -> i32 {
+    let sinal = if r.contains('−') { -1 } else { 1 };
+    let numeros: String = r.chars().filter(|c| c.is_ascii_digit() || *c == ':').collect();
+    let (h, m) = numeros.split_once(':').unwrap_or((&numeros, "0"));
+    sinal * (h.parse::<i32>().unwrap_or(0) * 60 + m.parse::<i32>().unwrap_or(0))
+}
 
 pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
-    let secoes = [tr!("Aparência"), tr!("Salvamento"), tr!("Planilha"), "OpenQuery", tr!("Atalhos"), tr!("IA (MCP)"), tr!("Sobre")];
+    let secoes = [tr!("Aparência"), tr!("Salvamento"), tr!("Planilha"), tr!("Sistema"), tr!("Mesa digitalizadora"), "OpenQuery", tr!("Atalhos"), tr!("IA (MCP)"), tr!("Sobre")];
     let menu = feather_ui::configuracoes::menu(
         tr!("Configurações"),
         secoes.iter().enumerate().map(|(i, nome)|
@@ -246,6 +256,20 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                 toggler("", app.config.realce_eixos).on_toggle(Msg::RealceEixos).color(COR_AZUL_ACENTO())),
             linha(tr!("Faixa de opções"), tr!("Ctrl+F1 recolhe ou expande a faixa."),
                 toggler("", !app.config.faixa_recolhida).on_toggle(|_| Msg::Faixa).color(COR_AZUL_ACENTO())),
+            text(tr!("Largura e altura padrão e estilo inicial de tabelas: em breve."))
+                .size(11).color(COR_TEXTO_MUTED()),
+        ].spacing(0).into(),
+        3 => pelicano::column![
+            linha(tr!("Fuso horário"), &trf!("Usado por AGORA() e HOJE(). O do sistema agora é {}.", super::fuso::rotulo(super::fuso::do_sistema())),
+                feather_ui::componentes::lista_suspensa(
+                    tr!("Fuso"), crate::idioma::lista(&FUSOS),
+                    match app.config.fuso_minutos {
+                        None => Some(tr!("Do sistema")),
+                        Some(m) => FUSOS.iter().copied().find(|f| *f == super::fuso::rotulo(m)),
+                    },
+                    |v| Msg::Fuso((v != tr!("Do sistema")).then(|| minutos_do_rotulo(v))),
+                    165.0,
+                )),
             linha(tr!("Monitor de atividade"), tr!("CPU, memória e informações da sessão."),
                 opcao(tr!("Abrir monitor"), "device-desktop", false, Msg::Monitor)),
             linha(tr!("Vigia de memória ao abrir"),
@@ -268,6 +292,8 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                     |v| Msg::Nucleos(v.parse().unwrap_or(0)),
                     165.0,
                 )),
+        ].spacing(0).into(),
+        4 => pelicano::column![
             linha(tr!("Janela no Linux (Wayland)"),
                 tr!("Com mesa digitalizadora a janela abre pelo XWayland: no Wayland nativo a ponta da caneta não clica. Vale na próxima abertura."),
                 feather_ui::componentes::lista_suspensa(
@@ -299,17 +325,15 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                 tr!("Encostar a ponta na planilha já risca (a borracha da caneta apaga); o mouse ou Esc voltam à seleção. Faixa, menus e janelas continuam recebendo clique."),
                 toggler("", app.config.caneta_auto_desenhar)
                     .on_toggle(|v| Msg::Caneta(super::desenhar::AjusteCaneta::AutoDesenhar(v))).color(COR_AZUL_ACENTO())),
-            text(tr!("Largura e altura padrão e estilo inicial de tabelas: em breve."))
-                .size(11).color(COR_TEXTO_MUTED()),
         ].spacing(0).into(),
-        3 => pelicano::column![
+        5 => pelicano::column![
             text("OpenQuery").size(16).color(COR_TEXTO()),
             text(tr!("O editor de consultas ainda não foi integrado às Configurações."))
                 .size(12).color(COR_TEXTO_MUTED()),
             text(tr!("O limite padrão de pré-visualização será configurável quando o executor de consultas estiver disponível. Nenhuma consulta será modificada por esta tela."))
                 .size(12).color(COR_TEXTO_MUTED()),
         ].spacing(12).into(),
-        4 => {
+        6 => {
             let mut col = pelicano::column![
                 linha(tr!("Personalizar atalhos"),
                     tr!("Selecione uma combinação e pressione o novo atalho. Esc cancela."),
@@ -486,6 +510,15 @@ pub(super) fn atalho_valido(app: &App, id: &str, combo: &str) -> Result<(), &'st
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn fuso_escolhido_vira_minutos() {
+        assert_eq!(super::minutos_do_rotulo("UTC−03:00"), -180);
+        assert_eq!(super::minutos_do_rotulo("UTC+14:00"), 840);
+        assert!(super::FUSOS.iter().skip(1).all(|f| crate::app::fuso::rotulo(super::minutos_do_rotulo(f)) == *f));
+    }
+
+
     use feathersheet_core::Value;
 
     #[test]

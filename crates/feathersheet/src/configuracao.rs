@@ -62,6 +62,8 @@ pub struct Configuracao {
     /// Linux/Wayland: onde abrir a janela — `auto` (XWayland se houver mesa,
     /// para a caneta clicar), `x11` ou `wayland`. Vale na próxima abertura.
     pub janela_linux: String,
+    /// Fuso de AGORA()/HOJE(), em minutos a leste de UTC; `None` = o do sistema.
+    pub fuso_minutos: Option<i32>,
     /// Curva de resposta da pressão (gama) aplicada ao capturar.
     pub caneta_gama: f32,
     /// Sem mesa: espessura pela velocidade (rápido = mais fino).
@@ -142,6 +144,7 @@ impl Default for Configuracao {
             atalhos: std::collections::BTreeMap::new(),
             caneta_pressao: true,
             janela_linux: "auto".into(),
+            fuso_minutos: None,
             caneta_gama: CURVAS_CANETA[1].1,
             caneta_velocidade: true,
             caneta_mostrar_pressao: false,

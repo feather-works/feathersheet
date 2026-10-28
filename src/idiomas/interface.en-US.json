@@ -4033,5 +4033,10 @@
  "Usar cabeçalho como 1ª linha": "Use headers as first row",
  "Número decimal": "Decimal number",
  "Data/Hora": "Date/Time",
- "Verdadeiro/Falso": "True/False"
+ "Verdadeiro/Falso": "True/False",
+ "Do sistema": "System",
+ "Fuso": "Time zone",
+ "Fuso horário": "Time zone",
+ "Mesa digitalizadora": "Drawing tablet",
+ "Usado por AGORA() e HOJE(). O do sistema agora é {}.": "Used by NOW() and TODAY(). The system's is currently {}."
 }
