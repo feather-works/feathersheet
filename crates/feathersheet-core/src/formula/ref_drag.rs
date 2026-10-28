@@ -23,7 +23,7 @@ pub use super::assistente::{format_box, reference_boxes, Caixa, Travas};
 pub enum Pegada {
     /// Pela borda: a área anda inteira.
     Mover,
-    /// Pela quina de baixo à direita: a área estica.
+    /// Por uma das quatro quinas: a área estica, a quina oposta fica.
     Redimensionar,
 }
 
@@ -63,7 +63,14 @@ pub fn resize_rect(rect: &Rect, linha: i64, coluna: i64) -> Rect {
 pub fn drag_rect(rect: &Rect, pegada: Pegada, de: (u32, u32), alvo: (u32, u32)) -> Rect {
     match pegada {
         Pegada::Mover => move_rect(rect, alvo.0 as i64 - de.0 as i64, alvo.1 as i64 - de.1 as i64),
-        Pegada::Redimensionar => resize_rect(rect, alvo.0 as i64, alvo.1 as i64),
+        Pegada::Redimensionar => {
+            // Qualquer quina estica (como no Excel): a quina oposta à pega
+            // fica parada. Área de uma linha/coluna conta como pega embaixo/à direita.
+            let de_cima = de.0 == rect.r0 && rect.r0 != rect.r1;
+            let da_esquerda = de.1 == rect.c0 && rect.c0 != rect.c1;
+            let fixa = Rect::cell(if de_cima { rect.r1 } else { rect.r0 }, if da_esquerda { rect.c1 } else { rect.c0 });
+            resize_rect(&fixa, alvo.0 as i64, alvo.1 as i64)
+        }
     }
 }
 
@@ -241,6 +248,19 @@ mod testes {
         let dois = rewrite_box(original, caixa, &move_rect(&caixa.rect, 2, 0));
         assert_eq!(um, "=MÉDIA(C4:D5)");
         assert_eq!(dois, "=MÉDIA(C5:D6)");
+    }
+
+    #[test]
+    fn qualquer_quina_estica_com_a_oposta_parada() {
+        let r = Rect::new(2, 2, 5, 4); // C3:E6
+        // Quina de cima à esquerda puxada para A1: a de baixo à direita fica.
+        assert_eq!(drag_rect(&r, Pegada::Redimensionar, (2, 2), (0, 0)), Rect::new(0, 0, 5, 4));
+        // De cima à direita, para a direita e para baixo de nada: só a coluna cresce.
+        assert_eq!(drag_rect(&r, Pegada::Redimensionar, (2, 4), (2, 6)), Rect::new(2, 2, 5, 6));
+        // De baixo à esquerda, para cima: encolhe.
+        assert_eq!(drag_rect(&r, Pegada::Redimensionar, (5, 2), (3, 2)), Rect::new(2, 2, 3, 4));
+        // De baixo à direita: como sempre foi.
+        assert_eq!(drag_rect(&r, Pegada::Redimensionar, (5, 4), (7, 5)), Rect::new(2, 2, 7, 5));
     }
 
     #[test]

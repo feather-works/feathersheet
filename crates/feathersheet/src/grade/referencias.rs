@@ -12,7 +12,7 @@ pub(super) struct ReferenciaAtiva {
     pub destino: (u32, u32),
 }
 
-/// Aceita a borda externa ou a alça inferior direita, não o interior.
+/// Aceita a borda externa ou uma das quatro quinas (esticar), não o interior.
 fn reconhecer(
     area: &Rect, celula: (u32, u32), x: f32, y: f32, w: f32, h: f32,
     borda: f32, alca: f32,
@@ -21,7 +21,9 @@ fn reconhecer(
     if !area.contains(r,c) || w <= 0.0 || h <= 0.0 { return None; }
     let dx = x.clamp(0.0, w);
     let dy = y.clamp(0.0, h);
-    if r == area.r1 && c == area.c1 && w-dx <= alca && h-dy <= alca {
+    let perto_lin = (r == area.r0 && dy <= alca) || (r == area.r1 && h-dy <= alca);
+    let perto_col = (c == area.c0 && dx <= alca) || (c == area.c1 && w-dx <= alca);
+    if perto_lin && perto_col {
         return Some(Pegada::Redimensionar);
     }
     if (r == area.r0 && dy <= borda) ||
@@ -69,6 +71,10 @@ mod testes {
         assert_eq!(reconhecer(&a,(3,2),95.,25.,100.,28.,5.,10.),Some(Pegada::Redimensionar));
         assert_eq!(reconhecer(&a,(3,1),50.,27.,100.,28.,5.,10.),Some(Pegada::Mover));
         assert_eq!(reconhecer(&a,(4,2),95.,25.,100.,28.,5.,10.),None);
+        // As outras três quinas também esticam.
+        assert_eq!(reconhecer(&a,(1,1),2.,2.,100.,28.,5.,10.),Some(Pegada::Redimensionar));
+        assert_eq!(reconhecer(&a,(1,2),98.,2.,100.,28.,5.,10.),Some(Pegada::Redimensionar));
+        assert_eq!(reconhecer(&a,(3,1),2.,26.,100.,28.,5.,10.),Some(Pegada::Redimensionar));
     }
     #[test]
     fn arraste_compartilha_motor_rust_e_preserva_travas() {
