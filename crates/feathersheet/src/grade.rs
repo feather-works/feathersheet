@@ -788,8 +788,8 @@ impl canvas::Program<Msg> for Grade<'_> {
                 };
                 // #97: cruzando o painel congelado, o pedaço fixo e o rolado não são uma faixa
                 // contínua da planilha; centralizar pela região inteira tirava o texto da tela.
-                let cruza_linhas = self.congelar_linhas > m.r0 && self.congelar_linhas <= m.r1;
-                let cruza_colunas = self.congelar_colunas > m.c0 && self.congelar_colunas <= m.c1;
+                let cruza_linhas = mesclas_visuais::cruza_congelado(self.congelar_linhas, m.r0, m.r1);
+                let cruza_colunas = mesclas_visuais::cruza_congelado(self.congelar_colunas, m.c0, m.c1);
                 let (yo, ht) = if cruza_linhas { (y, h) } else { (yo, ht) };
                 let (xo, wt) = if cruza_colunas { (x, w) } else { (xo, wt) };
                 let estilo = aba.sheet.estilo_resolvido(m.r0, m.c0);

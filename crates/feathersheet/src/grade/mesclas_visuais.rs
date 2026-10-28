@@ -28,9 +28,25 @@ pub(super) fn mascarar(
     ocultar
 }
 
+/// A mescla tem um pedaço no painel congelado e outro no rolado (`congeladas`
+/// = quantas linhas ou colunas estão fixas; `inicio..=fim` = a mescla nesse eixo).
+pub(super) fn cruza_congelado(congeladas: u32, inicio: u32, fim: u32) -> bool {
+    congeladas > inicio && congeladas <= fim
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn mescla_que_cruza_o_painel_congelado() {
+        // 3 linhas congeladas (1 a 3) e a mescla AA3:AM15 (linhas 2..=14 em base 0): cruza.
+        assert!(cruza_congelado(3, 2, 14));
+        // Toda dentro do painel fixo, toda abaixo dele, ou sem congelar: não cruza.
+        assert!(!cruza_congelado(3, 0, 2));
+        assert!(!cruza_congelado(3, 3, 14));
+        assert!(!cruza_congelado(0, 0, 14));
+    }
 
     #[test]
     fn duas_linhas_mescladas_nao_recebem_texto_individual() {
