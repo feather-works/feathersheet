@@ -452,16 +452,12 @@ impl App {
                         .style(estilo_botao_primario),
                 ].spacing(10),
             ].spacing(10);
+            // No meio da tela, como os outros diálogos (antes ficava preso sob a faixa).
             stack![
                 base,
-                column![
-                    Space::new(0.0, Length::Fixed(175.)),
-                    row![
-                        Space::new(Length::Fixed(180.), 0.0),
-                        container(proposta).width(Length::Fixed(380.))
-                            .padding(16).style(estilo_painel_faixa),
-                    ]
-                ]
+                container(container(proposta).width(Length::Fixed(380.))
+                    .padding(16).style(estilo_painel_faixa))
+                    .center(),
             ].height(Length::FILL).into()
         } else { base };
         // Dois popups independentes: o principal preserva valores e ações

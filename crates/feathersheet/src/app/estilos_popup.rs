@@ -349,7 +349,8 @@ impl App {
         };
         stack![base, fora, pelicano::column![
             Space::new(0.0, Length::Fixed(y)),
-            row![Space::new(Length::Fixed(x), 0.0), menu],
+            // `opaque`: a roda no fim da lista não passa para a planilha (como no #105).
+            row![Space::new(Length::Fixed(x), 0.0), pelicano::opaque(menu)],
         ]].height(Length::FILL).into()
     }
     pub(super) fn aplicar_preset_celula(&mut self, id: &'static str) {
