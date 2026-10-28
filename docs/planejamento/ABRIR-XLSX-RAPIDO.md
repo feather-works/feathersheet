@@ -64,6 +64,30 @@ Primeiro o que corta trabalho (vale em qualquer máquina), depois paralelismo.
    medido. Já feitos: `CONT.SES` de coluna inteira (para na área usada);
    busca do nome da função (`lookup`, mapa).
 
+   Levantamento (28/10, pela leitura do código, falta medir por família):
+   - **6a. Parar na área usada** — o laço de SOMASE/SOMASES/CONT.SE/
+     MÉDIASE(S)/MÁXIMOSES/MÍNIMOSES fora do `agregado` (critério `">0"`,
+     `"<>x"`, curinga) vai até a linha 1.048.576; MÉDIASE ainda lê por
+     `get_value` sem `LeitorFaixa`; CONTAR.VAZIO e SOMARPRODUTO percorrem o
+     retângulo declarado. E o `Contexto` do cálculo paralelo
+     (`calculo_paralelo.rs`) não tem `ultima_linha_usada` (o conserto do
+     CONT.SES não vale lá).
+   - **6b. Memorizar por (retângulo, geração)** — SOMA/MÉDIA/MÁXIMO/MÍNIMO/
+     CONT.NÚM sobre coluna fixa (`=B2/SOMA(B:B)`) refazem 1 M por linha;
+     ORDEM/MAIOR/MENOR/PERCENTIL/MED ordenam tudo por chamada (vetor ordenado
+     guardado + busca binária).
+   - **6c. Intervalo que cresce** (`SOMA($B$2:B2)`, `CONT.SE($A$2:A2;A2)`):
+     O(n²) — soma de prefixos servida da faixa da coluna.
+   - **6d. Volátil desliga os atalhos da aba inteira** (`HOJE()`, SUBTOTAL,
+     DESLOC… em `sheet.rs:1346/1449`): invalidar por geração em vez de desligar.
+   - **6e. PROCV/PROCH/CORRESP aproximados**: busca binária (o exato é o passo 1).
+   - **6f. Custos fixos por célula**: `to_uppercase` do nome em todo `Call`
+     (`evaluator.rs:301`), clone da árvore inteira por célula
+     (`modelo_padrao.rs:96`), `padrao.to_string()` por célula no paralelo.
+   - **Resultado errado** (antes da velocidade): #114 (`MATRIX_LIMIT` de 50 mil
+     células vira só a 1ª célula, sem aviso) e #115 (CORREL e afins pareiam
+     errado com vazios).
+
 ## Regras para mexer
 
 - **Resultado idêntico.** O leitor rápido tem teste de comparação com o
