@@ -1041,6 +1041,21 @@ impl Grade<'_> {
         if let Some(a) = _state.dimensao {
             return if a.coluna { mouse::Interaction::EwResize } else { mouse::Interaction::NsResize };
         }
+        // Borda e quinas de uma referência (ou do contorno do gráfico): agarrar.
+        let referencia = _state.referencia.or_else(|| local(cursor, bounds)
+            .and_then(|p| self.pegar_referencia(p, bounds.size())));
+        if let Some(r) = referencia {
+            return match r.pegada {
+                feathersheet_core::formula::ref_drag::Pegada::Mover if _state.referencia.is_some() => mouse::Interaction::Grabbing,
+                feathersheet_core::formula::ref_drag::Pegada::Mover => mouse::Interaction::Grab,
+                feathersheet_core::formula::ref_drag::Pegada::Redimensionar => {
+                    let area = self.refs_formula.iter().find(|c| c.start == r.start).map(|c| &c.rect);
+                    // Quina de cima à esquerda ou de baixo à direita: diagonal ↖↘.
+                    let diagonal = area.is_none_or(|a| (r.inicio.0 == a.r0) == (r.inicio.1 == a.c0));
+                    if diagonal { mouse::Interaction::NwseResize } else { mouse::Interaction::NeswResize }
+                }
+            };
+        }
         if let Some(p) = local(cursor, bounds) {
             let p = Point::new(p.x / self.zoom, p.y / self.zoom);
             let perto = |inicio: f32, tamanho: f32, ponto: f32| (ponto - (inicio + tamanho)).abs() <= FOLGA_DIVISORIA;
