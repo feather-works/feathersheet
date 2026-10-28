@@ -400,6 +400,8 @@ impl App {
         self.seguir_graficos_dinamicos(destino, &meta_novo);
         // A aba, a seleção e a rolagem ficam onde a pessoa estava (#106): antes
         // cada mudança no painel selecionava a tabela inteira e rolava até ela.
+        // Mas a célula ativa pode ter mudado de conteúdo: a barra fx acompanha.
+        if self.folha == destino { self.recarregar_barra_fx(); }
         self.status = trf!("Tabela dinâmica atualizada: {} linhas × {} colunas.",altura,largura);
         Ok(())
     }

@@ -368,10 +368,14 @@ pub(super) struct Estado {
     eixos3d: Option<feathersheet_core::grafico::chart::Eixos3d>,
     /// Conta de cada série quando as categorias iguais são juntadas.
     contas: std::collections::BTreeMap<u32, AggregateFn>,
-    /// Séries de texto (pela ordem de origem), com a chave do que foi olhado
-    /// (aba, versão, intervalo, orientação, categoria): só se recalcula
-    /// quando isso muda, nunca a cada desenho do painel.
-    tipos: Option<(String, std::collections::BTreeSet<u32>)>,
+    /// Séries de texto e séries sem nenhum número (pela ordem de origem),
+    /// com a chave do que foi olhado (aba, versão, intervalo, orientação,
+    /// categoria): só se recalcula quando isso muda, nunca a cada desenho do painel.
+    tipos: Option<(String, painel::TiposSeries)>,
+    /// Em que numeração estão `ocultas`/`contas`/nomes/papéis: `Some(true)`
+    /// todas as séries (resumindo por categoria), `Some(false)` só as com
+    /// número (como o motor sem resumir); `None` = ainda não olhado.
+    series_todas: Option<bool>,
     /// Os números já extraídos de cada gráfico (ver [`CacheDados`]).
     pub(super) dados: CacheDados,
     /// Aba de onde vêm os dados (`sourceSheet` no gráfico do `.xlsx`).
@@ -396,7 +400,7 @@ pub(super) struct Estado {
 impl Estado {
     /// A série `n` (ordem de origem) tem texto: só pode ser contada.
     pub(super) fn serie_texto(&self, n: u32) -> bool {
-        self.tipos.as_ref().is_some_and(|(_, texto)| texto.contains(&n))
+        self.tipos.as_ref().is_some_and(|(_, t)| t.texto.contains(&n))
     }
 
     /// A conta que a série `n` usa ao resumir: a escolhida, se serve ao tipo
@@ -885,21 +889,52 @@ impl App {
         if g.tipos.as_ref().is_some_and(|(c, _)| *c == chave) {
             return;
         }
-        let texto = self.series_de_texto();
-        self.graficos.tipos = Some((chave, texto));
+        let tipos = self.series_de_texto();
+        self.graficos.tipos = Some((chave, tipos));
+    }
+
+    /// Ligar/desligar o resumo troca a numeração das séries (sem resumir o
+    /// motor pula as sem número): leva as escolhas do painel para a nova.
+    fn renumerar_series(&mut self) {
+        let g = &mut self.graficos;
+        let todas = g.agrupar && g.colunas && g.categorias;
+        if g.series_todas.replace(todas) != Some(!todas) {
+            return;
+        }
+        let Some((_, t)) = &g.tipos else { return };
+        let sem = &t.sem_numero;
+        let trocar = |o: u32| -> Option<u32> {
+            if todas {
+                (0u32..).filter(|i| !sem.contains(i)).nth(o as usize)
+            } else {
+                (!sem.contains(&o)).then(|| o - sem.range(..o).count() as u32)
+            }
+        };
+        g.ocultas = g.ocultas.iter().filter_map(|&o| trocar(o)).collect();
+        if todas {
+            // As sem número não estavam no desenho: continuam fora até alguém marcar.
+            g.ocultas.extend(sem.iter().copied());
+            g.ocultas.sort_unstable();
+            g.ocultas.dedup();
+        }
+        g.contas = std::mem::take(&mut g.contas).into_iter().filter_map(|(o, c)| Some((trocar(o)?, c))).collect();
+        let a = &mut g.aparencia;
+        a.nomes_origem = std::mem::take(&mut a.nomes_origem).into_iter().filter_map(|(o, n)| Some((trocar(o)?, n))).collect();
+        a.papeis = a.papeis.iter().filter_map(|&o| trocar(o)).collect();
     }
 
     /// Série de texto não soma: com o resumo ligado, a conta guardada que
     /// não serve (Soma, Média…) ou a que falta vira Contar. Devolve se mudou.
     fn normalizar_contas(&mut self) -> bool {
         self.atualizar_tipos_series();
+        self.renumerar_series();
         let g = &mut self.graficos;
         if !g.agrupar {
             return false;
         }
-        let Some((_, texto)) = &g.tipos else { return false };
+        let Some((_, tipos)) = &g.tipos else { return false };
         let mut mudou = false;
-        for &n in texto {
+        for &n in &tipos.texto {
             if !g.contas.get(&n).is_some_and(|c| c.serve_para_texto()) {
                 g.contas.insert(n, AggregateFn::Count);
                 mudou = true;
@@ -1026,7 +1061,13 @@ impl App {
                 let medida = |s: &str, padrao: f32| s.trim().replace(',', ".").parse::<f32>().ok()
                     .filter(|v| v.is_finite()).unwrap_or(padrao).clamp(120., 3200.);
                 let (w, h) = (medida(&self.graficos.aparencia.largura, 480.), medida(&self.graficos.aparencia.altura, 300.));
-                let (svg, _, g, _) = desenhar_especial(&config, &dados, &self.graficos.aparencia, None, w, h)?;
+                // As cores que o gravado leva no `seriesColors` (`editor.rs`):
+                // sem isto a prévia saía na paleta e o gráfico inserido, noutra cor.
+                let mut config = config.clone();
+                let a = &self.graficos.aparencia;
+                config.style.series_colors = std::iter::once((0, a.cor.clone()))
+                    .chain(a.cores.iter().map(|(i, c)| (*i as u32, c.clone()))).collect();
+                let (svg, _, g, _) = desenhar_especial(&config, &dados, a, None, w, h)?;
                 self.graficos.painel.cores_base = g.series.iter().map(|s| s.cor).collect();
                 self.graficos.mensagem = dados.aviso.unwrap_or_else(|| trf!(
                     "{} categorias, {} séries. Tipo {} em Rust.",

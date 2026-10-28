@@ -246,8 +246,9 @@ impl App {
             .map(|t| (t.indice, t.progresso()))
     }
 
-    /// A dica flutuante do ponto sob o mouse, já na posição dentro do gráfico.
-    pub(super) fn dica_do_grafico<'a>(&self, id: &str, largura: f32, altura: f32) -> Option<Element<'a, Msg>> {
+    /// A dica flutuante do ponto sob o mouse, já na posição dentro da parte
+    /// visível do gráfico (`corte`: o que ficou fora à esquerda e em cima).
+    pub(super) fn dica_do_grafico<'a>(&self, id: &str, largura: f32, altura: f32, corte: (f32, f32)) -> Option<Element<'a, Msg>> {
         let p = self.graficos.interacao.pairar.as_ref().filter(|p| p.id == id)?;
         let d = p.dica.clone()?;
         let amostra = container(Space::new(Length::Fixed(10.), Length::Fixed(10.)))
@@ -287,8 +288,9 @@ impl App {
         });
         // À direita e abaixo do cursor; vira para o outro lado perto da borda.
         let (lw, lh) = (210.0f32, 34.0f32 + 18.0 * d.linhas.len() as f32);
-        let x = if p.tela.x + 14.0 + lw > largura { (p.tela.x - 14.0 - lw).max(0.0) } else { p.tela.x + 14.0 };
-        let y = if p.tela.y + 16.0 + lh > altura { (p.tela.y - 10.0 - lh).max(0.0) } else { p.tela.y + 16.0 };
+        let (px, py) = (p.tela.x - corte.0, p.tela.y - corte.1);
+        let x = if px + 14.0 + lw > largura { (px - 14.0 - lw).max(0.0) } else { px + 14.0 };
+        let y = if py + 16.0 + lh > altura { (py - 10.0 - lh).max(0.0) } else { py + 16.0 };
         Some(
             pelicano::column![
                 Space::new(0.0, Length::Fixed(y)),

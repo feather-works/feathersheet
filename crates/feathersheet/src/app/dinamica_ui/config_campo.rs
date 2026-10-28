@@ -441,6 +441,48 @@ impl App {
     }
 }
 
+/// Rótulo de item que veio de número sem formato (ano, código): o Geral
+/// daqui agrupa o milhar ("2.024"); o Excel mostra o item como na origem
+/// ("2024"). Vale para as colunas de rótulo e a linha de cabeçalho (itens de
+/// Colunas); trechos seguidos de uma coluna viram um retângulo só.
+// shortcut: o formato fica na célula se uma atualização puser ali um valor
+// (layout trocado); limpar a área inteira antes, se isso aparecer.
+fn rotulos_numericos_sem_milhar(
+    sheet: &mut feathersheet_core::planilha::sheet::Sheet,
+    area: &Rect,
+    resultado: &dinamica_layout::Resultado,
+) {
+    use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
+    use feathersheet_core::dinamica::dinamica_layout::TipoLinha;
+    let mut patch = EstiloParcial::new();
+    // `#` no fim some quando não há casa: 2024 → "2024", 1,5 → "1,5".
+    patch.insert("numFmt".into(), Campo::Texto("0.##########".into()));
+    let numerico = |v: &Value| matches!(v, Value::Text(t) if {
+        let l = feathersheet_core::celulas::input::parse_literal(t);
+        matches!(l.value, Value::Number(_)) && l.format.is_none()
+    });
+    let linhas = resultado.matriz.rows();
+    let largura = linhas.iter().map(Vec::len).max().unwrap_or(0);
+    for c in 0..largura {
+        let mut inicio: Option<usize> = None;
+        for r in 0..=linhas.len() {
+            let rotulo = r < linhas.len() && {
+                let cabecalho = resultado.linhas.get(r).map_or(r == 0, |l| l.tipo == TipoLinha::Cabecalho);
+                (cabecalho || c < resultado.colunas_de_rotulo) && linhas[r].get(c).is_some_and(numerico)
+            };
+            match (rotulo, inicio) {
+                (true, None) => inicio = Some(r),
+                (false, Some(i)) => {
+                    let col = area.c0 + c as u32;
+                    sheet.set_style(&Rect::new(area.r0 + i as u32, col, area.r0 + r as u32 - 1, col), &patch);
+                    inicio = None;
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
 /// Põe nas colunas de valor do resultado (`area`, cabeçalho na 1ª linha) o
 /// formato que o "Mostrar valores como" pede: porcentagem, inteiro da
 /// classificação, duas casas do índice. A coluna que voltou a "Sem cálculo"
@@ -454,6 +496,7 @@ pub(super) fn formatar_valores(
 ) {
     use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
     use feathersheet_core::celulas::style::NumberFormat;
+    rotulos_numericos_sem_milhar(sheet, area, resultado);
     if area.r1 <= area.r0 {
         return;
     }
@@ -558,6 +601,37 @@ mod testes {
         app.evento_dinamica(Evento::FaixaTexto(2, "25".into()));
         let depois = avancado::extras_vigentes(app.dinamica.as_ref().unwrap()).campo(EixoExtra::Linhas, 0);
         assert_eq!(depois.agrupamento, Some(Agrupamento::Faixas(Faixas { inicio: 0.0, fim: 100.0, intervalo: 25.0 })));
+    }
+
+    #[test]
+    fn ano_numerico_nos_rotulos_sai_sem_milhar() {
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0, 0, "Região"); s.set_cell(0, 1, "Ano"); s.set_cell(0, 2, "Valor");
+            s.set_cell(1, 0, "Norte"); s.set_cell(1, 1, "2023"); s.set_cell(1, 2, "1500");
+            s.set_cell(2, 0, "Sul"); s.set_cell(2, 1, "2024"); s.set_cell(2, 2, "30");
+        });
+        app.fim_selecao = (2, 2);
+        app.evento_dinamica(Evento::Abrir);
+        let e = app.dinamica.as_mut().unwrap();
+        // Ano em Colunas (linha de cabeçalho) e de novo em Linhas (coluna de rótulo).
+        e.linhas = vec![1];
+        e.colunas = vec![1];
+        e.valores = vec![MedidaDinamica { coluna: 2, op: AgregacaoOp::Soma }];
+        app.evento_dinamica(Evento::Criar);
+        let sheet = &app.workbook.aba(app.folha).unwrap().sheet;
+        let u = sheet.used_rect();
+        let mut textos = Vec::new();
+        for r in u.r0..=u.r1 {
+            for c in u.c0..=u.c1 {
+                let v = app.workbook.valor(app.folha, r, c);
+                textos.push(feathersheet_core::planilha::bloco::texto_formatado(&v, sheet.estilo_resolvido(r, c).as_ref()));
+            }
+        }
+        // Em Linhas o item é o número; em Colunas o cabeçalho leva a medida ("2024 (Valor)").
+        assert!(textos.iter().any(|t| t == "2024"), "{textos:?}");
+        assert!(!textos.iter().any(|t| t == "2.024" || t == "2.023"), "{textos:?}");
+        assert!(textos.iter().any(|t| t == "1.500"), "o valor continua com milhar: {textos:?}");
     }
 
     #[test]

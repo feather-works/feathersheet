@@ -396,6 +396,14 @@ pub(super) fn contas_da_serie(texto: bool, resumo_obrigatorio: bool) -> Vec<(&'s
 const AMOSTRA_TIPO: u32 = 2048;
 
 /// A célula tem letra: texto que não é número (`"12"` e `"1,5"` são números).
+/// As séries de texto e as sem nenhum número, pela ordem de origem
+/// (ver [`App::series_de_texto`]).
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct TiposSeries {
+    pub texto: std::collections::BTreeSet<u32>,
+    pub sem_numero: std::collections::BTreeSet<u32>,
+}
+
 fn celula_de_texto(v: &feathersheet_core::celulas::values::Value) -> bool {
     match v {
         feathersheet_core::celulas::values::Value::Text(t) => {
@@ -1164,30 +1172,37 @@ impl App {
 
     /// As séries possíveis: (ordem de origem, rótulo), sem a coluna das
     /// categorias — a mesma ordem do `hiddenSeries`/`aggregateBySeries`.
+    /// Sem resumir por categoria, o motor (`extract_chart_data`) pula a
+    /// série sem nenhum número e numera só as que ficam; aqui também.
     pub(super) fn series_da_origem(&self) -> Vec<(u32, String)> {
         let g = &self.graficos;
+        let conta_todas = g.agrupar && g.colunas && g.categorias;
+        let sem_numero = g.tipos.as_ref().filter(|_| !conta_todas).map(|(_, t)| &t.sem_numero);
         self.rotulos_do_intervalo().into_iter().enumerate()
             .filter(|&(k, _)| !(g.categorias && k as u32 == g.coluna_categoria))
             .enumerate()
-            .map(|(ordem, (_, nome))| (ordem as u32, nome))
+            .filter(|(ordem, _)| !sem_numero.is_some_and(|s| s.contains(&(*ordem as u32))))
+            .enumerate()
+            .map(|(ordem, (_, (_, nome)))| (ordem as u32, nome))
             .collect()
     }
 
-    /// As séries de texto, pela ordem de origem (a de [`Self::series_da_origem`]):
-    /// as que têm alguma célula com letra. Vazio e o cabeçalho não contam.
+    /// As séries de texto, pela ordem de origem com todas as séries (a de
+    /// [`Self::series_da_origem`] resumindo): as que têm alguma célula com
+    /// letra, e as que não têm nenhum número. Vazio e o cabeçalho não contam.
     /// Até 200 mil células olha tudo; acima, uma amostra espalhada de cada
     /// série ([`AMOSTRA_TIPO`]), e só até a última linha/coluna usada.
-    pub(super) fn series_de_texto(&self) -> std::collections::BTreeSet<u32> {
+    pub(super) fn series_de_texto(&self) -> TiposSeries {
         let g = &self.graficos;
-        let mut texto = std::collections::BTreeSet::new();
-        let Some(r) = parse_range_ref(g.intervalo.trim()).map(|r| r.normalized()) else { return texto };
+        let mut tipos = TiposSeries::default();
+        let Some(r) = parse_range_ref(g.intervalo.trim()).map(|r| r.normalized()) else { return tipos };
         let Some(aba) = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i)).find(|a| Some(a.id) == g.aba_id) else {
-            return texto;
+            return tipos;
         };
         let s = &aba.sheet;
         let n = if g.colunas { r.c1 - r.c0 + 1 } else { r.r1 - r.r0 + 1 };
         // A mesma lista do painel: tabela larga demais não tem escolha por série.
-        if n > 200 || s.is_empty() { return texto; }
+        if n > 200 || s.is_empty() { return tipos; }
         // Os valores de cada série: sem o cabeçalho (e, em linhas, sem a
         // coluna dos nomes), até a última célula usada da aba.
         let (inicio, fim) = if g.colunas {
@@ -1195,7 +1210,7 @@ impl App {
         } else {
             (r.c0 + u32::from(g.cabecalho || g.categorias), r.c1.min(s.max_col))
         };
-        if fim < inicio { return texto; }
+        if fim < inicio { return tipos; }
         let total = fim - inicio + 1;
         let passo = if u64::from(total) * u64::from(n) <= super::editor::MAX_CELULAS_GRAFICO {
             1
@@ -1205,14 +1220,21 @@ impl App {
         let mut ordem = 0;
         for k in 0..n {
             if g.categorias && k == g.coluna_categoria { continue; }
-            let tem_letra = (inicio..=fim).step_by(passo as usize).any(|i| {
+            let (mut tem_letra, mut tem_numero) = (false, false);
+            for i in (inicio..=fim).step_by(passo as usize) {
                 let (lr, lc) = if g.colunas { (i, r.c0 + k) } else { (r.r0 + k, i) };
-                celula_de_texto(&s.get_value(lr, lc))
-            });
-            if tem_letra { texto.insert(ordem); }
+                let v = s.get_value(lr, lc);
+                use feathersheet_core::celulas::values::Value as V;
+                // O `parece_numero` do motor: número, ou texto que lê como número.
+                if celula_de_texto(&v) { tem_letra = true; }
+                else if matches!(&v, V::Number(_)) || matches!(&v, V::Text(t) if !t.trim().is_empty()) { tem_numero = true; }
+                if tem_letra && tem_numero { break; }
+            }
+            if tem_letra { tipos.texto.insert(ordem); }
+            if !tem_numero { tipos.sem_numero.insert(ordem); }
             ordem += 1;
         }
-        texto
+        tipos
     }
 
     /// O valor desenhado nos tipos de valor único (pizza, histograma,
@@ -1991,7 +2013,7 @@ impl App {
                 let _ = self.evento_grafico(Evento::SerieVisivel(1, true));
                 let _ = self.evento_grafico(Evento::SerieConta(1, Some(AggregateFn::Count)));
             } else {
-                for n in [0, 4, 5] {
+                for n in [0, 4] {
                     let _ = self.evento_grafico(Evento::SerieVisivel(n, false));
                 }
                 let _ = self.evento_grafico(Evento::SerieNome(3, tr!("Trabalho em grupo").into()));

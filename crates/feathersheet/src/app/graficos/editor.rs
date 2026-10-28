@@ -596,14 +596,19 @@ impl App {
             };
 
             let (x, y) = posicionamento::origem_tela(quadro, scroll, zoom);
-            // Widget Iced 0.13 não posiciona crianças em coordenadas negativas.
-            // Ao chegar à borda superior/esquerda, ocultar o embed em vez de
-            // deslocá-lo artificialmente ou pintá-lo sobre os cabeçalhos.
-            if x < 0. || y < 0. || x > 100_000. || y > 100_000. {
+            // O pelicano não posiciona filhos em coordenada negativa: com o
+            // gráfico cortado pela borda de cima/esquerda, a área de clique
+            // cobre só a parte que aparece (#112); o desenho já vem recortado
+            // pela camada de objetos.
+            let Some((x, y, largura, altura, corte_x, corte_y)) = posicionamento::parte_visivel(
+                x, y,
+                (quadro.largura * zoom).clamp(120., 3200.),
+                (quadro.altura * zoom).clamp(100., 3200.),
+            ) else {
                 continue;
-            }
-            let largura = (quadro.largura * zoom).clamp(120., 3200.) as f32;
-            let altura = (quadro.altura * zoom).clamp(100., 3200.) as f32;
+            };
+            let (largura, altura) = (largura as f32, altura as f32);
+            let (corte_x, corte_y) = (corte_x as f32, corte_y as f32);
 
             // O desenho de todo gráfico sai na camada de objetos
             // (`graficos_da_camada`, intercalado com as formas e recortado
@@ -620,7 +625,7 @@ impl App {
             // O ponto do `Pairar` é relativo ao gráfico (o `on_move` do pelicano dá o da janela).
             let item = pelicano::mouse_area(crate::compat::ao_mover_relativo(
                 Space::new(Length::FILL, Length::FILL),
-                move |p| Msg::Grafico(Evento::Pairar(id_mover.clone(), p)),
+                move |p| Msg::Grafico(Evento::Pairar(id_mover.clone(), pelicano::Point::new(p.x + corte_x, p.y + corte_y))),
             ))
                 .on_exit(Msg::Grafico(Evento::SairDoGrafico(id.clone())))
                 .on_press(Msg::Grafico(Evento::Arrastar(id.clone())))
@@ -681,7 +686,7 @@ impl App {
                 painel.into()
             };
             // Dica do ponto sob o mouse, por cima de tudo (sem pegar o clique).
-            let conteudo: Element<'_, Msg> = match self.dica_do_grafico(&id, largura, altura) {
+            let conteudo: Element<'_, Msg> = match self.dica_do_grafico(&id, largura, altura, (corte_x, corte_y)) {
                 Some(dica) => pelicano::stack![conteudo, dica].into(),
                 None => conteudo,
             };

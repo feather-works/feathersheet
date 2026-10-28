@@ -131,10 +131,8 @@ impl App {
         self.folha = indice;
         self.linha_inicio = 0;
         self.coluna_inicio = 0;
-        self.linha = 0;
-        self.coluna = 0;
+        self.trocar_selecao(0, 0);
         self.fim_selecao = (linhas.len() as u32, largura.saturating_sub(1));
-        self.endereco = cell_name(0, 0);
         self.status = if cortado {
             trf!("Detalhes em {nome}: as primeiras {} de {} linhas da origem.", linhas.len(), achadas.len())
         } else {
