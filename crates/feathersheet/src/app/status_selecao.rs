@@ -42,6 +42,8 @@ struct Chave {
     /// (ou emendava os lotes dos dois) e mostrava como terminada.
     usado: Rect,
     celulas: usize,
+    /// As outras áreas do Ctrl+clique.
+    extras: Vec<Rect>,
 }
 /// Folha, versão, linha e coluna da célula cujo erro está em cache.
 type ChaveErro = (usize, u32, u32, u32);
@@ -91,7 +93,7 @@ impl App {
         let (usado, celulas) = self.workbook.aba(self.folha)
             .map(|a| (a.sheet.used_rect(), a.sheet.len()))
             .unwrap_or((Rect::new(0, 0, 0, 0), 0));
-        let chave = Chave { folha: self.folha, versao, area: area.clone(), usado, celulas };
+        let chave = Chave { folha: self.folha, versao, area: area.clone(), usado, celulas, extras: self.selecoes_extras.clone() };
         let mut estado = self.resumo_selecao.borrow_mut();
         if estado.chave.as_ref() == Some(&chave) {
             return;
@@ -105,20 +107,29 @@ impl App {
             return;
         }
         let usado = aba.sheet.used_rect();
-        let r0 = area.r0.max(usado.r0);
-        let c0 = area.c0.max(usado.c0);
-        let r1 = area.r1.min(usado.r1);
-        let c1 = area.c1.min(usado.c1);
-        if r1 < r0 || c1 < c0 {
-            estado.fora_da_area = true;
-            return;
+        let recorte = |a: &Rect| {
+            let (r0, c0, r1, c1) = (a.r0.max(usado.r0), a.c0.max(usado.c0), a.r1.min(usado.r1), a.c1.min(usado.c1));
+            (r1 >= r0 && c1 >= c0).then(|| Rect::new(r0, c0, r1, c1))
+        };
+        // As áreas do Ctrl+clique somam junto, como no Excel (a que se repete conta duas vezes).
+        // shortcut: as extras contam direto, sem lotes; uma coluna inteira de milhões trava o quadro.
+        let mut extras = false;
+        for a in self.selecoes_extras.iter().filter_map(recorte) {
+            let parte = aba.sheet.contar_selecao(&a, Some(&self.workbook));
+            estado.conta.somar_lote(&parte);
+            extras = true;
         }
+        let Some(Rect { r0, c0, r1, c1, .. }) = recorte(&area) else {
+            estado.fora_da_area = !extras;
+            return;
+        };
         let recortada = Rect::new(r0, c0, r1, c1);
         // A chave corresponde à seleção original; o processo usa o recorte.
         let celulas = (r1 as u64 - r0 as u64 + 1) * (c1 as u64 - c0 as u64 + 1);
         let diretas = if tem_formula(&aba.sheet, c0, c1) { CELULAS_DIRETAS_COM_FORMULA } else { CELULAS_DIRETAS };
         if celulas <= diretas {
-            estado.conta = aba.sheet.contar_selecao(&recortada, Some(&self.workbook));
+            let parte = aba.sheet.contar_selecao(&recortada, Some(&self.workbook));
+            estado.conta.somar_lote(&parte);
         } else {
             // Redefine a área processada, mantendo a chave da seleção original.
             estado.primeira = r0;
@@ -188,7 +199,7 @@ impl App {
     pub(super) fn contas_da_selecao(&self) -> (ContagemSelecao, u64) {
         self.sincronizar_resumo();
         let estado = self.resumo_selecao.borrow();
-        let celulas = estado.chave.as_ref().map_or(0, |c| celulas_da_area(&c.area));
+        let celulas = estado.chave.as_ref().map_or(0, |c| celulas_da_area(&c.area) + c.extras.iter().map(celulas_da_area).sum::<u64>());
         (estado.conta.clone(), celulas)
     }
 
@@ -206,7 +217,7 @@ impl App {
         self.sincronizar_erro();
         let largura = self.tamanho_principal.width;
         let estado = self.resumo_selecao.borrow();
-        let celulas = estado.chave.as_ref().map_or(0, |c| celulas_da_area(&c.area));
+        let celulas = estado.chave.as_ref().map_or(0, |c| celulas_da_area(&c.area) + c.extras.iter().map(celulas_da_area).sum::<u64>());
         let contas = barra_status::texto_contas(&estado.conta, &self.config.barra_status, celulas, largura);
         let texto = if estado.fora_da_area {
             // Fora da área usada não há o que contar; só as vazias, se pedidas.
@@ -283,6 +294,19 @@ mod testes {
         let _ = app.view_resumo_selecao();
         assert_eq!(app.resumo_selecao.borrow().conta.count, 1);
         assert_eq!(app.resumo_selecao.borrow().conta.numbers, 0);
+    }
+    #[test]
+    fn areas_do_ctrl_clique_somam_junto() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "10".into());
+        app.workbook.escrever_celula(0, 0, 1, "99".into());
+        app.workbook.escrever_celula(0, 0, 2, "5".into());
+        // A1 e C1, pulando B1.
+        app.selecoes_extras = vec![Rect::new(0, 0, 0, 0)];
+        app.linha = 0; app.coluna = 2; app.fim_selecao = (0, 2);
+        let _ = app.view_resumo_selecao();
+        let conta = app.resumo_selecao.borrow().conta.clone();
+        assert_eq!((conta.sum, conta.numbers, conta.min, conta.max), (15., 2, 5., 10.));
     }
     #[test]
     fn selecao_fora_da_area_usada_fica_em_branco() {
