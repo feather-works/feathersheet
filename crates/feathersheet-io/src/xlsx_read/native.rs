@@ -614,8 +614,21 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         }
     }
     let simultaneas = ABAS_SIMULTANEAS.min(folhas.len()).max(1);
-    let por_aba = (feathersheet_core::paralelismo::nucleos() / simultaneas).max(1);
-    let lidas = em_paralelo(&arquivo, simultaneas, caminhos.iter().zip(folhas).collect(), |zip, ((nome, caminho, _), (idx, mut folha))| {
+    // Os núcleos vão para cada aba pelo tamanho do XML dela: dividir por igual
+    // deixava a aba de 13 milhões de células com 1 núcleo em máquina de 4.
+    let nucleos = feathersheet_core::paralelismo::nucleos();
+    let tamanhos: Vec<u64> = caminhos.iter()
+        .map(|(_, caminho, _)| arquivo.by_name(caminho).map(|f| f.size()).unwrap_or(0))
+        .collect();
+    let total = tamanhos.iter().sum::<u64>().max(1);
+    // `nucleos()` já deixa uma thread para a janela; mais uma fica para ler o
+    // XML e gravar no motor. Mais de 4 preparando só disputavam com elas
+    // (medido: 4 núcleos 7,2 → 4,3 s; 16: 3,3 s).
+    let teto = nucleos.saturating_sub(1).clamp(1, 4);
+    let por_aba: Vec<usize> = tamanhos.iter()
+        .map(|&t| ((nucleos as u64 * t).div_ceil(total) as usize).clamp(1, teto))
+        .collect();
+    let lidas = em_paralelo(&arquivo, simultaneas, caminhos.iter().zip(folhas).zip(por_aba).collect(), |zip, (((nome, caminho, _), (idx, mut folha)), por_aba)| {
         // A paleta é por thread (`cores::instalar`).
         let _paleta = super::cores::instalar(&tema_xml, &estilos_xml);
         let (pasta, basename) = caminho.rsplit_once('/').unwrap_or(("", caminho.as_str()));

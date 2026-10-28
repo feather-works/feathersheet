@@ -31,9 +31,9 @@ Sem outro build rodando ao mesmo tempo (o número sai errado). Perfil:
 
 | | Manhã de 28/10 | Depois do leitor rápido | Meta |
 |---|---|---|---|
-| 16 threads | 7,6 s (app) | 5,4 s | ~1 s |
-| 4 núcleos | — | a medir | 2–3 s |
-| 2 núcleos | — | a medir | 4–5 s |
+| 16 threads | 7,6 s (app) | 4,9 s (abrir 3,3 + calcular 1,6) | ~1 s |
+| 4 núcleos | — | 9,1 s → **6,2 s** (núcleos por tamanho da aba) | 2–3 s |
+| 2 núcleos | — | 11,2 s (abrir 7,6 + calcular 3,5) | 4–5 s |
 | Pico de memória | 0,69 GB (app) | 0,72–0,82 GB | não passar de hoje |
 
 O piso é descompactar o XML da aba grande (~0,6 s aqui): um fluxo DEFLATE só
