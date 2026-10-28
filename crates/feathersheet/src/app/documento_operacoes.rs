@@ -537,6 +537,19 @@ impl App {
         }
         if ext == "xlsm" { self.ler_vba_do_xlsm(&path); } else { self.vba_pendente = None; }
         self.bloquear_macros_do_arquivo();
+        self.adiantar_graficos();
+    }
+
+    /// Os gráficos de todas as abas viram imagem numa thread à parte: trocar
+    /// de aba não rasteriza mais na thread da janela.
+    // shortcut: só ao abrir; mudar o zoom ou editar o gráfico rasteriza de novo na janela.
+    pub(super) fn adiantar_graficos(&self) {
+        let zoom = (f32::from(self.config.zoom) / 100.0).max(0.05);
+        let graficos = (0..self.workbook.len())
+            .flat_map(|i| self.graficos_da_aba(i))
+            .map(|(_, ret, svg)| (ret, svg))
+            .collect();
+        super::objetos::adiantar_rasteres(graficos, zoom);
     }
 
     /// Linhas de grade e painéis congelados de cada aba, como o Excel

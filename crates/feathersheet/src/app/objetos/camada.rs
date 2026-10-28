@@ -450,6 +450,59 @@ fn fontes_svg() -> std::sync::Arc<resvg::usvg::fontdb::Database> {
     }).clone()
 }
 
+/// Os pixels (RGBA, alfa à parte) do SVG em `w` x `h`.
+fn rgba_do_svg(svg: &str, w: u32, h: u32) -> Option<Vec<u8>> {
+    let opcoes = resvg::usvg::Options { fontdb: fontes_svg(), ..Default::default() };
+    let arvore = resvg::usvg::Tree::from_str(svg, &opcoes).ok()?;
+    let mut img = resvg::tiny_skia::Pixmap::new(w, h)?;
+    let t = arvore.size();
+    resvg::render(&arvore, resvg::tiny_skia::Transform::from_scale(w as f32 / t.width(), h as f32 / t.height()), &mut img.as_mut());
+    // O tiny-skia guarda pré-multiplicado; a `Image` quer o alfa à parte.
+    Some(img.pixels().iter().flat_map(|p| {
+        let c = p.demultiply();
+        [c.red(), c.green(), c.blue(), c.alpha()]
+    }).collect())
+}
+
+/// Pixels feitos fora da thread da janela ([`adiantar_rasteres`]), à espera
+/// do primeiro quadro que os mostre. Rasterizar na troca de aba custava até
+/// 75 ms por aba no arquivo do usuário (28/10/2026).
+static ADIANTADOS: std::sync::LazyLock<std::sync::Mutex<(usize, std::collections::HashMap<(u64, u32, u32), Vec<u8>>)>> =
+    std::sync::LazyLock::new(Default::default);
+
+/// O tamanho em px do gráfico na tela: o quadro no zoom, encaixado sem deformar.
+fn tamanho_raster(ret: Retangulo, tamanho_svg: (f32, f32), zoom: f32) -> (u32, u32) {
+    let (sw, sh) = tamanho_svg;
+    let escala = (ret.largura * zoom / sw).min(ret.altura * zoom / sh);
+    ((sw * escala).round().max(1.0) as u32, (sh * escala).round().max(1.0) as u32)
+}
+
+/// Rasteriza numa thread à parte os gráficos (de qualquer aba) que ainda não
+/// têm imagem, no tamanho que terão com este zoom: trocar de aba já os acha prontos.
+pub(in crate::app) fn adiantar_rasteres(graficos: Vec<(Retangulo, String)>, zoom: f32) {
+    if graficos.is_empty() { return; }
+    std::thread::spawn(move || {
+        for (ret, svg) in graficos {
+            let g = GraficoTela::novo(0, ret, svg);
+            let (w, h) = tamanho_raster(ret, g.tamanho_svg, zoom);
+            let chave = (g.chave, w, h);
+            let ja = RASTERES_FEITOS.lock().is_ok_and(|f| f.contains(&chave))
+                || ADIANTADOS.lock().is_ok_and(|a| a.1.contains_key(&chave) || a.0 > TETO_RASTERES / 2);
+            if ja { continue; }
+            if let Some(rgba) = rgba_do_svg(&g.svg, w, h) {
+                if let Ok(mut a) = ADIANTADOS.lock() {
+                    a.0 += rgba.len();
+                    a.1.insert(chave, rgba);
+                }
+            }
+        }
+    });
+}
+
+/// As chaves já rasterizadas pela janela (a thread não refaz o que está na tela).
+static RASTERES_FEITOS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<(u64, u32, u32)>>> =
+    std::sync::LazyLock::new(Default::default);
+
 // shortcut: rasteriza em px lógicos; numa tela HiDPI (escala > 1) sai borrado. Ler o fator de escala da janela se aparecer.
 fn raster(g: &GraficoTela, w: u32, h: u32) -> Option<std::rc::Rc<Raster>> {
     RASTERES.with(|r| {
@@ -460,20 +513,17 @@ fn raster(g: &GraficoTela, w: u32, h: u32) -> Option<std::rc::Rc<Raster>> {
         if *bytes > TETO_RASTERES {
             mapa.clear();
             *bytes = 0;
+            if let Ok(mut f) = RASTERES_FEITOS.lock() { f.clear(); }
         }
-        let pronto = (|| {
-            let opcoes = resvg::usvg::Options { fontdb: fontes_svg(), ..Default::default() };
-            let arvore = resvg::usvg::Tree::from_str(&g.svg, &opcoes).ok()?;
-            let mut img = resvg::tiny_skia::Pixmap::new(w, h)?;
-            let t = arvore.size();
-            resvg::render(&arvore, resvg::tiny_skia::Transform::from_scale(w as f32 / t.width(), h as f32 / t.height()), &mut img.as_mut());
-            // O tiny-skia guarda pré-multiplicado; a `Image` quer o alfa à parte.
-            let rgba = img.pixels().iter().flat_map(|p| {
-                let c = p.demultiply();
-                [c.red(), c.green(), c.blue(), c.alpha()]
-            }).collect();
-            Some(std::rc::Rc::new(Raster { inteira: pelicano::Image::from_rgba(w, h, rgba)? }))
-        })();
+        let adiantado = ADIANTADOS.lock().ok().and_then(|mut a| {
+            let rgba = a.1.remove(&(g.chave, w, h))?;
+            a.0 -= rgba.len();
+            Some(rgba)
+        });
+        let pronto = adiantado.or_else(|| rgba_do_svg(&g.svg, w, h))
+            .and_then(|rgba| pelicano::Image::from_rgba(w, h, rgba))
+            .map(|inteira| std::rc::Rc::new(Raster { inteira }));
+        if let Ok(mut f) = RASTERES_FEITOS.lock() { f.insert((g.chave, w, h)); }
         *bytes += (w * h * 4) as usize;
         mapa.insert((g.chave, w, h), pronto.clone());
         pronto
@@ -774,19 +824,17 @@ impl Camada {
         if !Self::visivel(quadro, self.corpo(tamanho)) || quadro.width < 1.0 || quadro.height < 1.0 {
             return;
         }
-        // Encaixe sem deformar, centrado no quadro.
-        let (sw, sh) = g.tamanho_svg;
-        let escala = (quadro.width / sw).min(quadro.height / sh);
+        // Encaixe sem deformar, centrado no quadro (o mesmo tamanho que a thread adianta).
+        let (w, h) = tamanho_raster(g.ret, g.tamanho_svg, self.z());
         let r = Rectangle {
-            x: quadro.x + (quadro.width - sw * escala) / 2.0,
-            y: quadro.y + (quadro.height - sh * escala) / 2.0,
-            width: sw * escala,
-            height: sh * escala,
+            x: quadro.x + (quadro.width - w as f32) / 2.0,
+            y: quadro.y + (quadro.height - h as f32) / 2.0,
+            width: w as f32,
+            height: h as f32,
         };
         let recorte = self.recorte(g.ret, tamanho);
         if !r.intersects(&recorte) { return; }
         let (x, y) = (r.x.round(), r.y.round());
-        let (w, h) = (r.width.round().max(1.0) as u32, r.height.round().max(1.0) as u32);
         let Some(img) = raster(g, w, h) else { return };
         let destino = Rectangle { x, y, width: w as f32, height: h as f32 };
         frame.with_clip(recorte, |f| {
@@ -1053,6 +1101,25 @@ impl Regua for ReguaZero {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn grafico_rasterizado_na_thread_chega_pronto_ao_desenho() {
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100"><rect width="200" height="100" fill="#ff0000"/><!-- teste-adiantar --></svg>"##;
+        let ret = Retangulo::novo(0.0, 0.0, 200.0, 100.0);
+        adiantar_rasteres(vec![(ret, svg.to_string())], 1.5);
+        let g = GraficoTela::novo(0, ret, svg.to_string());
+        let (w, h) = tamanho_raster(ret, g.tamanho_svg, 1.5);
+        assert_eq!((w, h), (300, 150));
+        let chave = (g.chave, w, h);
+        let inicio = std::time::Instant::now();
+        while !ADIANTADOS.lock().unwrap().1.contains_key(&chave) {
+            assert!(inicio.elapsed().as_secs() < 10, "a thread não rasterizou");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        // O desenho consome o adiantado (sai do depósito) em vez de rasterizar.
+        assert!(raster(&g, w, h).is_some());
+        assert!(!ADIANTADOS.lock().unwrap().1.contains_key(&chave));
+    }
 
     #[test]
     fn redimensionar_sem_giro_segura_o_lado_oposto_e_shift_mantem_proporcao() {

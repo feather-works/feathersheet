@@ -69,3 +69,68 @@ fn medir_travadas() {
         eprintln!("  {linha}");
     }
 }
+
+/// Trocar de aba: `update` e os primeiros `view` de cada aba, duas voltas
+/// (a segunda já com os gráficos guardados).
+/// `FEATHERSHEET_ARQUIVO=pasta.xlsx cargo test --profile medir --bin feathersheet medir_troca_de_aba -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn medir_troca_de_aba() {
+    let caminho = PathBuf::from(std::env::var("FEATHERSHEET_ARQUIVO").expect("FEATHERSHEET_ARQUIVO"));
+    let (workbook, folha) = App::decodificar_caminho(&caminho, None).expect("abrir");
+    let mut app = App::default();
+    app.instalar(caminho, workbook, folha);
+    let t = Instant::now();
+    app.adiantar_graficos();
+    eprintln!("[adiantar_graficos, na janela] {:.1} ms", ms(t));
+    for volta in 0..2 {
+        for i in 0..app.workbook.len() {
+            let t = Instant::now();
+            let _ = app.update(Msg::Aba(i));
+            let atualizar = ms(t);
+            let vistas: Vec<String> = (0..3).map(|_| {
+                let t = Instant::now();
+                let _: Element<'_, Msg> = app.view(window::novo_id());
+                format!("{:.1}", ms(t))
+            }).collect();
+            eprintln!("[volta {volta}] aba {i} {:?}: update {atualizar:.1} ms · view {} ms",
+                app.workbook.nomes()[i], vistas.join(" / "));
+            let desenhos: Vec<String> = (0..2).map(|_| {
+                use crate::compat::canvas::Program;
+                let mut r = pelicano::Renderer::new();
+                let t = Instant::now();
+                app.grade().draw(&Default::default(), &mut r, crate::compat::Rectangle { x: 0.0, y: 0.0, width: 1280.0, height: 560.0 }, &pelicano::Theme::light(), None);
+                format!("{:.1}", ms(t))
+            }).collect();
+            eprintln!("    grade: {} ms", desenhos.join(" / "));
+            let t = Instant::now();
+            let camada = app.graficos_da_camada();
+            eprintln!("    graficos_da_camada: {:.1} ms ({} gráficos)", ms(t), camada.len());
+            if volta == 0 {
+                for (_, ret, svg) in camada {
+                    let t = Instant::now();
+                    let opcoes = resvg::usvg::Options { fontdb: fontes(), ..Default::default() };
+                    let arvore = resvg::usvg::Tree::from_str(&svg, &opcoes).unwrap();
+                    let analisar = ms(t);
+                    let t = Instant::now();
+                    let (w, h) = (ret.largura.max(1.0) as u32, ret.altura.max(1.0) as u32);
+                    let mut img = resvg::tiny_skia::Pixmap::new(w, h).unwrap();
+                    let sz = arvore.size();
+                    resvg::render(&arvore, resvg::tiny_skia::Transform::from_scale(w as f32 / sz.width(), h as f32 / sz.height()), &mut img.as_mut());
+                    eprintln!("    gráfico {w}x{h} ({} kB de SVG): analisar {analisar:.1} ms · rasterizar {:.1} ms", svg.len() / 1024, ms(t));
+                }
+            }
+        }
+    }
+}
+
+fn fontes() -> std::sync::Arc<resvg::usvg::fontdb::Database> {
+    static F: std::sync::OnceLock<std::sync::Arc<resvg::usvg::fontdb::Database>> = std::sync::OnceLock::new();
+    F.get_or_init(|| {
+        let t = Instant::now();
+        let mut db = resvg::usvg::fontdb::Database::new();
+        db.load_system_fonts();
+        eprintln!("    [fontes do sistema] {:.1} ms", ms(t));
+        std::sync::Arc::new(db)
+    }).clone()
+}

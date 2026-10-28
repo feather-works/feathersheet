@@ -505,7 +505,12 @@ impl App {
     /// `(z, retângulo, svg)`. Os do `.xlsx` vêm na ordem do desenho do
     /// Excel (`_excel.z`); os criados no app ficam por cima de tudo.
     pub(in crate::app) fn graficos_da_camada(&self) -> Vec<(u64, feathersheet_io::objetos_aba::Retangulo, String)> {
-        let Some(aba) = self.workbook.aba(self.folha) else { return Vec::new() };
+        self.graficos_da_aba(self.folha)
+    }
+
+    /// Os gráficos de uma aba qualquer (a ativa é a [`Self::graficos_da_camada`]).
+    pub(in crate::app) fn graficos_da_aba(&self, folha: usize) -> Vec<(u64, feathersheet_io::objetos_aba::Retangulo, String)> {
+        let Some(aba) = self.workbook.aba(folha) else { return Vec::new() };
         let Ok(lista) = feathersheet_io::graficos_salvos::listar(&aba.sheet) else { return Vec::new() };
         let mut saida = Vec::new();
         for v in lista {
@@ -513,7 +518,7 @@ impl App {
             let indice = v["sourceSheet"].as_str()
                 .and_then(|n| self.workbook.indice_por_nome(n))
                 .filter(|i| self.workbook.aba(*i).is_some())
-                .unwrap_or(self.folha);
+                .unwrap_or(folha);
             let dados = self.workbook.aba(indice).map_or(&aba.sheet, |a| &a.sheet);
             // O editor grava ao vivo: o gráfico aberto se desenha do mesmo
             // jeito que fechado (antes, a prévia do editor lia a aba errada no
