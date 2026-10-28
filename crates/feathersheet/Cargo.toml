@@ -13,7 +13,7 @@ pelicano = { git = "https://github.com/feather-works/pelicano.git", tag = "v0.1.
 # Idioma do sistema na primeira abertura (já vinha como dependência indireta).
 sys-locale = "0.3"
 feather-charts = { git = "https://github.com/feather-works/feather-charts", tag = "v0.3.2" }
-feather-ui = { git = "https://github.com/feather-works/feather-ui.git", tag = "v0.3.2" }
+feather-ui = { git = "https://github.com/feather-works/feather-ui.git", tag = "v0.3.3" }
 feather-draw = { git = "https://github.com/feather-works/feather-draw", tag = "v0.1.1" }
 # Formas, ícones e SmartArt comuns da suíte (camada de objetos soltos, app/objetos).
 feather-shapes = { git = "https://github.com/feather-works/feather-shapes", tag = "v0.1.2" }
@@ -81,10 +81,6 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 3
-
-# shortcut: [patch] provisório (borda que redimensiona, 27/10/2026); trocar pela tag v0.3.3 do feather-ui antes de lançar.
-[patch."https://github.com/feather-works/feather-ui.git"]
-feather-ui = { path = "../../../feather-ui-pelicano" }
 
 [build-dependencies]
 # Ícone e nome do .exe do Windows (build.rs).
