@@ -170,7 +170,7 @@ impl canvas::Program<Msg> for Grade<'_> {
         // Divisórias dos cabeçalhos, independentes da opção de linhas de grade.
         // Mantém ~1 px na tela mesmo com zoom diferente de 100%.
         let espessura = 1.0 / self.zoom.max(0.01);
-        let divisoria = if self.escuro {
+        let divisoria = if self.cabecalho_escuro {
             Color::rgb8(77, 84, 93)
         } else {
             Color::rgb8(218, 220, 224)
@@ -181,6 +181,12 @@ impl canvas::Program<Msg> for Grade<'_> {
             Color::rgb8(174, 184, 197)
         };
         f.fill_rectangle(Point::ORIGIN, bounds.size(), bg);
+        // Cabeçalhos (letras e números) seguem o tema da interface; as células ficam claras.
+        let (header, fraco_cab, ativo_cab, selecao_cab) = if self.cabecalho_escuro {
+            (Color::rgb8(45,49,55), Color::rgb8(167,178,190), Color::rgb8(79,179,173), Color::rgb8(79,179,173).alpha(0.18))
+        } else {
+            (header, fraco, ativo, selecao)
+        };
         f.fill_rectangle(Point::ORIGIN, Size::new(bounds.width,CABECALHO_COLUNA),header);
         f.fill_rectangle(Point::ORIGIN, Size::new(CABECALHO_LINHA,bounds.height),header);
         let coluna_atual = self.selecionada.1;
@@ -228,7 +234,7 @@ impl canvas::Program<Msg> for Grade<'_> {
         }
         // Linha dupla no cabeçalho onde há linha/coluna oculta antes (#77).
         let marca_oculta = |f: &mut Frame, p: Point, t: Size, meio: Size| {
-            f.fill_rectangle(p, t, fraco);
+            f.fill_rectangle(p, t, fraco_cab);
             f.fill_rectangle(Point::new(p.x + (t.width - meio.width) / 2.0, p.y + (t.height - meio.height) / 2.0), meio, header);
         };
         let texto_mesclado = mesclas_visuais::mascarar(
@@ -241,7 +247,7 @@ impl canvas::Program<Msg> for Grade<'_> {
         for (ic, &(c, x, desenhar_w)) in colunas_visiveis.iter().enumerate() {
             let w = larguras_inteiras[ic];
             if c == coluna_atual {
-                f.fill_rectangle(Point::new(x,0.0),Size::new(desenhar_w,CABECALHO_COLUNA),selecao);
+                f.fill_rectangle(Point::new(x,0.0),Size::new(desenhar_w,CABECALHO_COLUNA),selecao_cab);
             }
             // Limite entre letras consecutivas (A/B, B/C...), no cabeçalho.
             // Ao rolar horizontalmente, usa x da coluna atualmente visível.
@@ -263,7 +269,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                 |frame| frame.fill_text(Text {
                     content: col_name(c),
                     position: Point::new(w/2.0, CABECALHO_COLUNA/2.0),
-                    color: if c == coluna_atual { ativo } else { fraco },
+                    color: if c == coluna_atual { ativo_cab } else { fraco_cab },
                     size: crate::compat::Pixels(12.0),
                     horizontal_alignment: pelicano::Align::Center,
                     vertical_alignment: pelicano::Align::Center,
@@ -723,7 +729,7 @@ impl canvas::Program<Msg> for Grade<'_> {
         for (il, &(r, y, desenhar_h)) in linhas_visiveis.iter().enumerate() {
             let h = alturas_inteiras[il];
             if r == linha_atual {
-                f.fill_rectangle(Point::new(0.0, y), Size::new(CABECALHO_LINHA, desenhar_h), selecao);
+                f.fill_rectangle(Point::new(0.0, y), Size::new(CABECALHO_LINHA, desenhar_h), selecao_cab);
             }
             // Limite entre números de linhas consecutivas (1/2, 2/3...).
             if let Some(divisor_y) = divisoria_visivel(y, desenhar_h, bounds.height, espessura) {
@@ -745,7 +751,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                 |frame| frame.fill_text(Text {
                     content: (r+1).to_string(),
                     position: Point::new(CABECALHO_LINHA-9.0, h/2.0),
-                    color: if r == linha_atual { ativo } else { fraco },
+                    color: if r == linha_atual { ativo_cab } else { fraco_cab },
                     size: crate::compat::Pixels(12.0),
                     horizontal_alignment: pelicano::Align::End,
                     vertical_alignment: pelicano::Align::Center,

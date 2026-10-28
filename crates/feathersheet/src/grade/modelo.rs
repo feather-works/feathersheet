@@ -63,6 +63,8 @@ pub struct Grade<'a> {
     pub selecionada: (u32, u32),
     pub area: Rect,
     pub escuro: bool,
+    /// Letras e números (cabeçalhos) no tema escuro da interface; as células seguem `escuro`.
+    pub cabecalho_escuro: bool,
     pub linhas_grade: bool,
     /// Exibe os textos brutos (inclusive =fórmulas), sem alterar o Workbook.
     pub mostrar_formulas: bool,
