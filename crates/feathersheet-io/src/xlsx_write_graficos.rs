@@ -123,7 +123,7 @@ fn area_ref(aba: &str, r0: u32, c0: u32, r1: u32, c1: u32) -> String {
 }
 
 /// Se a célula conta como número para virar série (o `parece_numero` do motor).
-fn parece_numero(v: &Value) -> bool {
+pub(crate) fn parece_numero(v: &Value) -> bool {
     match v {
         Value::Number(_) => true,
         Value::Text(t) => {

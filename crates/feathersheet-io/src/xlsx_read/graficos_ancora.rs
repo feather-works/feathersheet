@@ -365,11 +365,76 @@ pub(super) fn estilo_excel(raiz: &XmlNode) -> Option<(serde_json::Value, serde_j
 }
 
 /// Séries que pulam colunas no `.xlsx`: a coluna da categoria (dentro do
-/// retângulo), as do meio que ficam ocultas e a coluna de origem de cada `ser`.
+/// retângulo) e a coluna de cada `ser`, na ordem do arquivo.
 pub(super) struct Saltos {
     pub categoria: u32,
-    pub ocultas: Vec<u32>,
-    pub origens: Vec<u32>,
+    pub colunas: Vec<u32>,
+}
+
+/// O `parece_numero` do gráfico, calculando só a fórmula que abriu sem
+/// valor guardado, e com a pasta em volta: `get_value` sem ela refaz os
+/// derramamentos a cada leitura e não guarda nada (travava a abertura).
+// shortcut: texto guardado na coluna empacotada conta como não número (o pool não está à mão);
+// texto que parece número numa fórmula empacotada erra o índice das ocultas por um.
+fn numerica(wb: &feathersheet_core::planilha::workbook::Workbook, aba: usize, l: u32, c: u32) -> bool {
+    use feathersheet_core::celulas::values::Value;
+    use feathersheet_core::planilha::data_table::Cru;
+    let parece = crate::xlsx_write_graficos::parece_numero;
+    let Some(sheet) = wb.aba(aba).map(|a| &a.sheet) else { return false };
+    if !sheet.is_formula(l, c) {
+        let raw = sheet.get_raw(l, c);
+        return !raw.is_empty() && parece(&Value::Text(raw));
+    }
+    if let Some(v) = sheet.valor_guardado(l, c) {
+        return parece(&v);
+    }
+    match sheet.formulas.cru_at(l, c) {
+        Some(Cru::Numero(_)) => true,
+        Some(Cru::Texto(_)) => false,
+        None => parece(&wb.valor(aba, l, c)),
+    }
+}
+
+/// Chave provisória do JSON do gráfico: as colunas das `ser`, até a aba ser lida.
+pub(super) const COLUNAS_SER: &str = "_xlsxColunasSer";
+
+/// O `hiddenSeries` conta só as colunas que têm número (como o editor e o
+/// gravador do `.xlsx`), então só sai com as abas já lidas. As cores e os
+/// pontos do Excel vêm pela ordem das `ser` e passam para esse índice.
+pub(super) fn ocultar_colunas_puladas(wb: &mut feathersheet_core::planilha::workbook::Workbook) {
+    for i in 0..wb.len() {
+        let Some(texto) = wb.aba(i).and_then(|a| a.sheet.g.clone()).filter(|g| g.contains(COLUNAS_SER)) else { continue };
+        let Ok(mut lista) = serde_json::from_str::<Vec<serde_json::Value>>(&texto) else { continue };
+        for g in &mut lista {
+            let Some(cols) = g.as_object_mut().and_then(|o| o.remove(COLUNAS_SER)) else { continue };
+            let cols: Vec<u32> = serde_json::from_value(cols).unwrap_or_default();
+            let Ok(cfg) = serde_json::from_value::<feathersheet_core::grafico::chart::ChartConfig>(g.clone()) else { continue };
+            let origem = cfg.source_sheet.as_deref()
+                .and_then(|n| (0..wb.len()).find(|&j| wb.aba(j).is_some_and(|a| a.sheet.name.eq_ignore_ascii_case(n))))
+                .unwrap_or(i);
+            let r = cfg.range;
+            let inicio = r.r0 + u32::from(cfg.has_headers && r.r1 > r.r0);
+            let cat = r.c0 + cfg.category_column_index.unwrap_or(0);
+            let numericas: Vec<u32> = (r.c0..=r.c1)
+                .filter(|&c| !(cfg.has_category_labels && c == cat))
+                .filter(|&c| (inicio..=r.r1).any(|l| numerica(wb, origem, l, c)))
+                .collect();
+            let ordem = |c: u32| numericas.iter().position(|&n| n == c);
+            let ocultas: Vec<usize> = (0..numericas.len()).filter(|&k| !cols.contains(&numericas[k])).collect();
+            if !g["style"].is_object() { g["style"] = serde_json::json!({}); }
+            g["style"]["hiddenSeries"] = serde_json::json!(ocultas);
+            for caminho in ["/_featherNative/cores", "/style/seriesPointShapes", "/style/seriesPointSizes"] {
+                if let Some(m) = g.pointer_mut(caminho).and_then(|v| v.as_object_mut()) {
+                    *m = std::mem::take(m).into_iter()
+                        .filter_map(|(k, v)| Some((ordem(*cols.get(k.parse::<usize>().ok()?)?)?.to_string(), v)))
+                        .collect();
+                }
+            }
+        }
+        if let Some(a) = wb.aba_mut(i) {
+            a.sheet.g = Some(serde_json::Value::Array(lista).to_string());
+        }
+    }
 }
 
 /// O Excel guarda cada série com o próprio intervalo (`B` categoria, `L`, `M`,
@@ -387,13 +452,12 @@ pub(super) fn series_salteadas(
     }
     let cat = cat.filter(|(a, b)| a.col == b.col).map(|(a, _)| a.col);
     let usadas: Vec<i64> = vals.iter().map(|(a, _)| a.col).collect();
-    let origem = |c: i64| (c - c0 - i64::from(cat.is_some_and(|k| k < c))) as u32;
-    let ocultas: Vec<u32> = (c0..=c1).filter(|c| Some(*c) != cat && !usadas.contains(c)).map(origem).collect();
+    let pulou = (c0..=c1).any(|c| Some(c) != cat && !usadas.contains(&c));
     let categoria = cat.map_or(0, |k| (k - c0) as u32);
-    if ocultas.is_empty() && categoria == 0 {
+    if !pulou && categoria == 0 {
         return None;
     }
-    Some(Saltos { categoria, ocultas, origens: usadas.into_iter().map(origem).collect() })
+    Some(Saltos { categoria, colunas: usadas.into_iter().map(|c| c as u32).collect() })
 }
 
 #[cfg(test)]
@@ -407,16 +471,37 @@ mod testes {
         // Categoria B, valores L, M, N (o "Gráfico Status x Objeto" do usuário).
         let vals = [faixa("L3", "L60"), faixa("M3", "M60"), faixa("N3", "N60")];
         let s = series_salteadas(true, (1, 1, 59, 13), Some(faixa("B3", "B60")), &vals).unwrap();
-        assert_eq!(s.categoria, 0);
-        assert_eq!(s.ocultas, (0..9).collect::<Vec<u32>>());
-        assert_eq!(s.origens, vec![9, 10, 11]);
+        assert_eq!((s.categoria, s.colunas), (0, vec![11, 12, 13]));
         // Retângulo contíguo: nada muda.
         let vals = [faixa("C3", "C9"), faixa("D3", "D9")];
         assert!(series_salteadas(true, (1, 1, 8, 3), Some(faixa("B3", "B9")), &vals).is_none());
         // Categoria no meio: o índice dela muda e as séries pulam a coluna dela.
         let vals = [faixa("B3", "B9"), faixa("D3", "D9")];
         let s = series_salteadas(true, (1, 1, 8, 3), Some(faixa("C3", "C9")), &vals).unwrap();
-        assert_eq!((s.categoria, s.ocultas.len(), s.origens), (1, 0, vec![0, 1]));
+        assert_eq!((s.categoria, s.colunas), (1, vec![1, 3]));
+    }
+
+    #[test]
+    fn ocultas_contam_so_as_colunas_com_numero() {
+        use feathersheet_core::planilha::workbook::Workbook;
+        // B categoria, C texto (não vira série), D número pulado, E a série do Excel.
+        let mut wb = Workbook::new();
+        for (c, t) in [(1, "Cat"), (2, "Desc"), (3, "Pulada"), (4, "Valor")] {
+            wb.escrever_celula(0, 0, c, t.into());
+        }
+        for (c, t) in [(1, "a"), (2, "texto"), (3, "5"), (4, "7")] {
+            wb.escrever_celula(0, 1, c, t.into());
+        }
+        let g = serde_json::json!([{ "type": "column", "range": {"r0":0,"c0":1,"r1":1,"c1":4},
+            "seriesInColumns": true, "hasHeaders": true, "hasCategoryLabels": true, "categoryColumnIndex": 0,
+            "_featherNative": {"cores": {"0": "#ff0000"}}, COLUNAS_SER: [4] }]);
+        wb.aba_mut(0).unwrap().sheet.g = Some(g.to_string());
+        ocultar_colunas_puladas(&mut wb);
+        let g: serde_json::Value = serde_json::from_str(wb.aba(0).unwrap().sheet.g.as_deref().unwrap()).unwrap();
+        // Numéricas: D (0) e E (1); esconde D, a cor da `ser` 0 vai para E.
+        assert_eq!(g[0]["style"]["hiddenSeries"], serde_json::json!([0]));
+        assert_eq!(g[0]["_featherNative"]["cores"], serde_json::json!({"1": "#ff0000"}));
+        assert!(g[0].get(COLUNAS_SER).is_none());
     }
 
     #[test]

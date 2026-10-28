@@ -710,6 +710,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     // Dinâmica sem resultado nas células (Google Planilhas, `refreshOnLoad`)
     // é calculada aqui; com resultado, só ganha a área para o painel editar.
     super::dinamica_importada::materializar(&mut workbook);
+    super::graficos_ancora::ocultar_colunas_puladas(&mut workbook);
     // A aba que o Excel mostrava ao salvar (`activeTab`), se estiver visível.
     let ativa = aba_ativa(&book).filter(|&i| workbook.aba(i).is_some_and(|a| !a.sheet.oculta)).unwrap_or(0);
     Ok((workbook, ativa))

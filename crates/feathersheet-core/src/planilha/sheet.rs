@@ -675,6 +675,13 @@ impl Sheet {
         self.precisa_calcular(row, col) && !self.deps.volatiles.contains(&Self::cell_key(row, col))
     }
 
+    /// O último resultado guardado de uma fórmula avulsa, sem calcular nada
+    /// (nem os derramamentos, que o `get_value` garante). Coluna empacotada:
+    /// `formulas.cru_at`.
+    pub fn valor_guardado(&self, row: u32, col: u32) -> Option<Value> {
+        self.calc.borrow().cache.get(&Self::cell_key(row, col)).cloned()
+    }
+
     /// A célula é fórmula que ainda não tem valor confiável guardado.
     fn precisa_calcular(&self, row: u32, col: u32) -> bool {
         let k = Self::cell_key(row, col);
