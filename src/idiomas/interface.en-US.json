@@ -4038,5 +4038,6 @@
  "Fuso": "Time zone",
  "Fuso horário": "Time zone",
  "Mesa digitalizadora": "Drawing tablet",
- "Usado por AGORA() e HOJE(). O do sistema agora é {}.": "Used by NOW() and TODAY(). The system's is currently {}."
+ "Usado por AGORA() e HOJE(). O do sistema agora é {}.": "Used by NOW() and TODAY(). The system's is currently {}.",
+ "Condicional": "Conditional"
 }

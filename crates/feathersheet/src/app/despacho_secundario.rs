@@ -1101,9 +1101,11 @@ impl App {
                         if std::env::var_os("FEATHERSHEET_CAPTURAR_BARRA").is_some() {
                             self.barra_status_menu = true;
                         }
-                        // FEATHERSHEET_CAPTURAR_FAIXA=formulas abre essa aba da faixa.
+                        // FEATHERSHEET_CAPTURAR_FAIXA=formulas abre essa aba da faixa (`inserir+mais` abre o "Mais").
                         if let Ok(chave) = std::env::var("FEATHERSHEET_CAPTURAR_FAIXA") {
-                            self.faixa_ativa = AbaFaixa::de_chave_persistencia(&chave);
+                            let (chave, mais) = chave.split_once('+').map_or((chave.as_str(), false), |(c, _)| (c, true));
+                            self.faixa_ativa = AbaFaixa::de_chave_persistencia(chave);
+                            self.faixa_extras_aberto = mais;
                         }
                         // FEATHERSHEET_CAPTURAR_COMENTARIOS="B2=texto|D4!=à mostra|sobre:B2|editor".
                         if let Ok(lista) = std::env::var("FEATHERSHEET_CAPTURAR_COMENTARIOS") {

@@ -616,10 +616,9 @@ impl App {
         let quantidade_visivel = self.faixa_visiveis();
         let grupos = self.montar_grupos_faixa();
         let ocultos = grupos.len().saturating_sub(quantidade_visivel);
-        let mut lista = column(Vec::<pelicano::Element<_>>::new()).spacing(5);
-        for grupo in grupos.into_iter().skip(quantidade_visivel) {
-            lista = lista.push(grupo);
-        }
+        // Lado a lado, quebrando linha: um grupo por linha deixava o painel vazio à direita.
+        let lista = row(grupos.into_iter().skip(quantidade_visivel).collect::<Vec<_>>())
+            .spacing(2).wrap();
         let altura_disponivel = (self.tamanho_principal.height
             - ALTURA_FAIXA_NATIVA - 132.0).max(120.0).min(510.0);
         let painel = column![

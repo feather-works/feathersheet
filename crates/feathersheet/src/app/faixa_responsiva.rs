@@ -17,24 +17,24 @@ pub(super) const NOMES: [&str;7] = [
     "Estilos", "Células", "Edição"
 ];
 
-/// Limites em pixels *aproximados* (controles + espaçamento + legenda).
+/// Larguras medidas na tela (27/10/2026) com folga de poucos pixels.
 /// O layout real precisa usar widgets que caibam nos limites compactos.
 const LARGURAS: [[f32;3];7] = [
-    [198., 158., 78.],
-    [332., 256., 86.],
-    [310., 200., 92.],
-    [225., 156., 78.],
-    [406., 147., 76.],
-    [323., 145., 75.],
-    [279., 145., 75.],
+    [182., 166., 78.],
+    [294., 256., 86.],
+    [320., 208., 92.],
+    [198., 153., 78.],
+    [380., 160., 76.],
+    [228., 131., 75.],
+    [263., 136., 75.],
 ];
-// Primeiro perde texto redundante, depois os controles secundários migram
-// para seu PRÓPRIO menu. O grupo Fonte tem a maior proteção de prioridade.
+// Primeiro todas as seções ficam compactas (empilhadas); só depois alguma
+// vira um botão só. O grupo Fonte é o último a encolher em cada etapa.
 const PASSOS: [(usize, Nivel);14] = [
     (4, Nivel::Compacto), (5, Nivel::Compacto), (6, Nivel::Compacto),
     (0, Nivel::Compacto), (3, Nivel::Compacto), (2, Nivel::Compacto),
-    (4, Nivel::Recolhido), (5, Nivel::Recolhido), (6, Nivel::Recolhido),
     (1, Nivel::Compacto),
+    (4, Nivel::Recolhido), (5, Nivel::Recolhido), (6, Nivel::Recolhido),
     (0, Nivel::Recolhido), (3, Nivel::Recolhido),
     (2, Nivel::Recolhido), (1, Nivel::Recolhido),
 ];

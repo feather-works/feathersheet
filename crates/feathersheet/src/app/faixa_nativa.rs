@@ -720,29 +720,36 @@ impl App {
                     self.faixa_abrir_grupo(indice),
                 ]),
             ]),
+            // Empilhados com rótulo curto, como o Excel em janela estreita.
             4 => self.faixa_linha(vec![
-                self.faixa_icone(tr!("Formatação condicional"),"palette",
-                    Some(Msg::CondicionalAbrir),self.condicional_menu_aberto),
-                self.faixa_icone(tr!("Estilos de tabela"),"table",
-                    Some(Msg::AlternarMenuTabelas),self.tabelas_menu_aberto),
-                self.faixa_icone(tr!("Estilos de célula"),"cell-styles",
-                    Some(Msg::AlternarMenuEstilos),self.estilos_menu_aberto),
+                self.faixa_pilha(vec![
+                    self.faixa_pequeno_colorido(tr!("Condicional"),"palette","#7d5cc6",
+                        Some(Msg::CondicionalAbrir),self.condicional_menu_aberto),
+                    self.faixa_pequeno(tr!("Tabela"),"table",
+                        Some(Msg::AlternarMenuTabelas),self.tabelas_menu_aberto),
+                    self.faixa_pequeno(tr!("Estilos de célula"),"cell-styles",
+                        Some(Msg::AlternarMenuEstilos),self.estilos_menu_aberto),
+                ]),
                 self.faixa_abrir_grupo(indice),
             ]),
             5 => self.faixa_linha(vec![
-                self.faixa_icone(tr!("Inserir linha"),"plus",
-                    Some(Msg::InserirMenu(Estrutura::InserirLinha,false)),false),
-                self.faixa_icone(tr!("Excluir linha"),"trash",
-                    Some(Msg::Estrutura(Estrutura::ExcluirLinha)),false),
-                self.faixa_icone(tr!("Formatar: altura, largura, ocultar"),"edit",
-                    Some(Msg::AlternarMenuEdicao("formatar")),self.edicao_menu==Some("formatar")),
+                self.faixa_pilha(vec![
+                    self.faixa_pequeno_colorido(tr!("Inserir"),"plus","#21865c",
+                        Some(Msg::InserirMenu(Estrutura::InserirLinha,false)),false),
+                    self.faixa_pequeno_colorido(tr!("Excluir"),"trash","#ca5555",
+                        Some(Msg::Estrutura(Estrutura::ExcluirLinha)),false),
+                    self.faixa_pequeno_colorido(tr!("Formatar"),"edit","#2179a7",
+                        Some(Msg::AlternarMenuEdicao("formatar")),self.edicao_menu==Some("formatar")),
+                ]),
                 self.faixa_abrir_grupo(indice),
             ]),
             _ => self.faixa_linha(vec![
-                self.faixa_icone("AutoSoma","sum",Some(Msg::AutoSoma),false),
-                self.faixa_icone(tr!("Classificar e filtrar"),"filter",
-                    Some(Msg::AlternarMenuEdicao("classificar")),false),
-                self.faixa_icone(tr!("Localizar"),"search",Some(Msg::BuscaAba(false)),false),
+                self.faixa_pilha(vec![
+                    self.faixa_pequeno("AutoSoma","sum",Some(Msg::AutoSoma),false),
+                    self.faixa_pequeno(tr!("Classificar"),"filter",
+                        Some(Msg::AlternarMenuEdicao("classificar")),false),
+                    self.faixa_pequeno(tr!("Localizar"),"search",Some(Msg::BuscaAba(false)),false),
+                ]),
                 self.faixa_abrir_grupo(indice),
             ]),
         };
@@ -927,7 +934,7 @@ mod testes {
         app.tamanho_principal.width=1280.;
         let plano=faixa_responsiva::planejar(1280.);
         assert_eq!(plano.visiveis,7);
-        assert_eq!(plano.niveis[4],Nivel::Recolhido);
+        assert_ne!(plano.niveis[4],Nivel::Completo);
         app.update(Msg::AlternarGrupoFaixa(4));
         assert_eq!(app.faixa_grupo_aberto,Some(4));
         assert!(!app.faixa_extras_aberto);
