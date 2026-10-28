@@ -5949,38 +5949,6 @@
           ]
         },
         {
-          "titulo": "Proteção",
-          "itens": [
-            {
-              "tipo": "pilha",
-              "itens": [
-                {
-                  "tipo": "pequeno",
-                  "rotulo": "Proteger intervalo…",
-                  "icone": "cadeado",
-                  "dica": "Travar a seleção com senha",
-                  "acao": {
-                    "id": "protegerIntervalo",
-                    "args": []
-                  },
-                  "filhos": []
-                },
-                {
-                  "tipo": "pequeno",
-                  "rotulo": "Intervalos protegidos",
-                  "icone": "cadeado",
-                  "dica": "Intervalos protegidos",
-                  "acao": {
-                    "id": "intervalosProtegidos",
-                    "args": []
-                  },
-                  "filhos": []
-                }
-              ]
-            }
-          ]
-        },
-        {
           "titulo": "Aplicativo",
           "itens": [
             {

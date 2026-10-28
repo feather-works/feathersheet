@@ -781,7 +781,8 @@ pub fn fn_correl(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     }
     let den = (den_x * den_y).sqrt();
     if den == 0.0 {
-        return err_num();
+        // Variância zero: o Excel dá #DIV/0! (a PEARSON já dava).
+        return Computed::Scalar(Value::Error(e_div0()));
     }
     Computed::Scalar(Value::Number(num / den))
 }
@@ -819,7 +820,8 @@ pub fn fn_slope(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         den += dx * dx;
     }
     if den == 0.0 {
-        return err_num();
+        // Variância zero: o Excel dá #DIV/0! (a PEARSON já dava).
+        return Computed::Scalar(Value::Error(e_div0()));
     }
     Computed::Scalar(Value::Number(num / den))
 }
@@ -841,7 +843,8 @@ pub fn fn_intercept(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         den += dx * dx;
     }
     if den == 0.0 {
-        return err_num();
+        // Variância zero: o Excel dá #DIV/0! (a PEARSON já dava).
+        return Computed::Scalar(Value::Error(e_div0()));
     }
     let slope = num / den;
     Computed::Scalar(Value::Number(mean_y - slope * mean_x))
@@ -879,7 +882,8 @@ pub fn fn_forecast(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         den += dx * dx;
     }
     if den == 0.0 {
-        return err_num();
+        // Variância zero: o Excel dá #DIV/0! (a PEARSON já dava).
+        return Computed::Scalar(Value::Error(e_div0()));
     }
     let slope = num / den;
     let intercept = mean_y - slope * mean_x;
@@ -1757,6 +1761,21 @@ mod tests {
         // CONTAR.VAZIO(C1:C6) = 1 (célula C6 vazia)
         sheet.set_cell_raw(0, 3, "=CONTAR.VAZIO(C1:C6)".into(), None);
         assert_eq!(sheet.get_value(0, 3), Value::Number(1.0));
+    }
+
+    #[test]
+    fn variancia_zero_da_div0_como_no_excel() {
+        let mut sheet = Sheet::new("Plan1");
+        for r in 0..3u32 {
+            sheet.set_cell_raw(r, 0, "1".into(), None);
+            sheet.set_cell_raw(r, 1, (r + 2).to_string(), None);
+        }
+        for f in ["=CORREL(A1:A3;B1:B3)", "=RQUAD(B1:B3;A1:A3)", "=INCLINAÇÃO(B1:B3;A1:A3)",
+            "=INTERCEPÇÃO(B1:B3;A1:A3)", "=PREVISÃO(2;B1:B3;A1:A3)", "=PEARSON(A1:A3;B1:B3)"] {
+            sheet.set_cell_raw(10, 5, f.into(), None);
+            assert!(matches!(sheet.get_value(10, 5), Value::Error(ref e) if e.code == crate::celulas::values::ErrorCode::Div0),
+                "{f}: {:?}", sheet.get_value(10, 5));
+        }
     }
 
     #[test]
