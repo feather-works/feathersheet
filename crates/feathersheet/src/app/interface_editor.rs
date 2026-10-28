@@ -929,8 +929,8 @@ impl App {
                     .on_press(Msg::PintarAba(None))
                     .style(estilo_item_menu(false, true)),
             ].padding(5).spacing(3);
-            return container(scrollable(lista).height(Length::Fixed(altura)))
-                .width(Length::Fixed(largura)).style(estilo_popup_menu).into();
+            return pelicano::opaque(container(scrollable(lista).height(Length::Fixed(altura)))
+                .width(Length::Fixed(largura)).style(estilo_popup_menu)).into();
         }
         let mut lista = column(Vec::new()).padding(5).spacing(2);
         for (i, opcao) in self.opcoes_contexto(tipo).into_iter().enumerate() {
@@ -956,8 +956,9 @@ impl App {
         }
         // Em um viewport menor que o menu padrão, mantém a altura/largura
         // disponíveis e permite scroll interno, sem invadir a barra fx/tabs.
-        container(scrollable(lista).height(Length::Fixed(altura)))
-            .width(Length::Fixed(largura)).style(estilo_popup_menu).into()
+        // `opaque`: a roda no fim da lista não vaza para a grade (#105).
+        pelicano::opaque(container(scrollable(lista).height(Length::Fixed(altura)))
+            .width(Length::Fixed(largura)).style(estilo_popup_menu)).into()
     }
 
     /// Menus clássicos (Arquivo, Editar…) mostrados no lugar das abas com a faixa recolhida.
