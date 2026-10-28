@@ -955,6 +955,10 @@ caneta ativa e traços de exemplo (à mão, marca-texto, e retângulo/elipse/set
 `FEATHERSHEET_CAPTURAR_TINTA=menu` deixa aberto o menu de cor/espessura da Caneta 2.
 `FEATHERSHEET_CAPTURAR_COMENTARIOS='B3=texto|D6!=à mostra\nsegunda linha|sobre:B3|todos|editor'` põe comentários (`!` = sempre à mostra), o balão do mouse, Mostrar todos ou abre o editor na célula ativa (o texto do `text_editor` não sai na foto).
 `FEATHERSHEET_CAPTURAR_DIALOGO=nomes|nomes_exemplo|nomes_novo|erro|estatisticas|perfil|link|cenarios|ir_para|colar_especial|classificar|atingir_meta|tabela_dados|avaliar|celulas|dimensao|protecao|subtotal|novo_estilo|macro|serie|serie_data|validacao|validacao_entrada|validacao_alerta_aba|validacao_parar|validacao_aviso|validacao_info|validacao_balao|validacao_circulos|validacao_menu` abre esse diálogo interno (`app/dialogo_interno.rs`) antes da foto. Diálogo novo usa `App::dialogo(titulo, corpo)` (`feather_ui::dialogo`, guia em `feather-ui/GUIA-JANELAS.md` seção 5.1).
+`FEATHERSHEET_CAPTURAR_GRAFICO=painel:<tipo>` (ou `painel-fim:`/`personalizar:`; tipos `pizza`, `colunas`, `dispersao`,
+`velas`, `gantt`, `linha3d`, `calor`, `histograma`, `bolhas`, `radar`, `cascata`…) monta um gráfico de exemplo e abre o
+painel daquele tipo. `FEATHERSHEET_CAPTURAR_DINAMICA=filtro|menu|resumir` monta uma dinâmica de exemplo (STATUS em
+Filtros e Linhas) e abre a lista do filtro de B1, o submenu "Mover para ›" ou o "Resumir por ›".
 
 **Aba Desenhar (14/10/2026):** `app/desenhar.rs` só liga a planilha às peças comuns — motor em
 `feather-draw::tinta`, camada e controles em `feather_ui::tinta`, âncoras/`.fshz`/`.xlsx` em
