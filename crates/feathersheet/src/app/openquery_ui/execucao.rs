@@ -167,8 +167,7 @@ impl App {
             let linhas = tabela.linhas.len() as u64 + 1;
             let colunas = tabela.linhas.iter().map(Vec::len)
                 .max().unwrap_or(0).max(tabela.cabecalho.len()) as u64;
-            if linhas > MAX_ROWS as u64 || colunas > MAX_COLS as u64 ||
-                linhas.saturating_mul(colunas) > MAX_CELULAS_SAIDA {
+            if linhas > MAX_ROWS as u64 || colunas > MAX_COLS as u64 {
                 return Err(tr!("Resultado acima do orçamento OpenQuery").into());
             }
             let id = match &editor.edicao {
@@ -243,7 +242,7 @@ impl App {
                 (self.workbook.len(), novo, None)
             };
             let area_saida = feathersheet_core::consulta::sheet_query::area_saida(
-                0, 0, tabela, true, MAX_CELULAS_SAIDA,
+                0, 0, tabela, true, u64::MAX,
             )?;
             let adicionais: Vec<String> = editor.fontes.keys().cloned().collect();
             let mut reg = registro::montar(
@@ -300,7 +299,7 @@ impl App {
         self.workbook.editar(destino, |sheet| {
             match feathersheet_core::consulta::sheet_query::escrever_tabela(
                 sheet, 0, 0, &editor.resultado, true,
-                anterior.clone(), MAX_CELULAS_SAIDA,
+                anterior.clone(), u64::MAX,
             ) {
                 Ok(_) => sheet.clear_history(),
                 Err(erro) => falha_escrita = Some(erro),

@@ -23,6 +23,8 @@ use feathersheet_core::celulas::values::Value;
 use feathersheet_core::planilha::column_store::{CHUNK_SHIFT, CHUNK_SIZE};
 use feathersheet_core::planilha::sheet::carga::{CelulaPreparada, Padroes};
 use feathersheet_core::planilha::sheet::Sheet;
+use feathersheet_core::planilha::sheet::edicao::formato_do_literal;
+use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
 
 /// As linhas de um bloco: o conteúdo dos campos um atrás do outro, onde
 /// cada campo termina e onde cada linha começa (em campos).
@@ -203,7 +205,12 @@ fn classificar(t: &str) -> Classe {
         }
         return Classe::Texto;
     }
-    match parse_literal(t).value {
+    let lido = parse_literal(t);
+    if formato_do_literal(lido.format).is_some() {
+        // Data, hora, %, moeda: o formato vai junto, pelo caminho célula a célula.
+        return Classe::Outra;
+    }
+    match lido.value {
         Value::Number(n) => Classe::Numero(n),
         Value::Bool(v) => Classe::Bool(v),
         Value::Text(_) => Classe::Texto,
@@ -469,7 +476,13 @@ pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, aba: &mut Sheet) 
                     let raw = &texto[a as usize..b as usize];
                     let row = linha0 + r;
                     let pronta = CelulaPreparada::preparar(row, coluna.col, raw, (0, raw.len() as u32), 0, None, &mut padroes);
-                    aba.carregar_preparada(pronta, raw, None, None, &mut sobras);
+                    let estilo = formato_do_literal(parse_literal(raw.trim()).format).map(|f| {
+                        let mut patch = EstiloParcial::new();
+                        patch.insert("format".into(), Campo::Texto(f.into()));
+                        patch
+                    });
+                    let idx = estilo.clone().and_then(|e| aba.registrar_parcial(e));
+                    aba.carregar_preparada(pronta, raw, idx, estilo.as_ref(), &mut sobras);
                     sobras.clear();
                     celulas += 1;
                 }
@@ -492,22 +505,136 @@ pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, aba: &mut Sheet) 
 }
 
 /// Escolhe o separador como o `feather_io::csv_lotes` (numa amostra de
-/// 64 KiB) e devolve o leitor com a amostra de volta na frente.
-pub(crate) fn separador_e_leitor<R: BufRead>(mut leitor: R, tsv: bool, preferido: Option<char>)
-    -> std::io::Result<(char, std::io::BufReader<std::io::Chain<std::io::Cursor<Vec<u8>>, R>>)> {
+/// 64 KiB) e devolve o leitor com a amostra de volta na frente, sempre em
+/// UTF-8: UTF-16 com BOM (o "Texto Unicode" do Excel) e Windows-1252 (o
+/// "ANSI" do Excel e dos dados do governo, como os do TSE) são convertidos ao ler.
+// shortcut: só a amostra decide a codificação; byte inválido depois dela ainda dá erro.
+pub(crate) fn separador_e_leitor<R: BufRead + Send + 'static>(mut leitor: R, tsv: bool, preferido: Option<char>)
+    -> std::io::Result<(char, Box<dyn BufRead + Send>)> {
     let mut amostra = Vec::new();
     leitor.by_ref().take(64 * 1024).read_to_end(&mut amostra)?;
+    let cod = Codificacao::da_amostra(&amostra, amostra.len() == 64 * 1024);
     let delim = if tsv {
         '\t'
     } else {
-        let texto = match std::str::from_utf8(&amostra) {
-            Ok(s) => s,
-            Err(e) if e.error_len().is_none() => std::str::from_utf8(&amostra[..e.valid_up_to()]).unwrap(),
-            Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
-        };
-        feather_io::csv_lotes::escolher_separador(texto, preferido)
+        let (texto, _) = cod.converter(&amostra);
+        feather_io::csv_lotes::escolher_separador(&texto, preferido)
     };
-    Ok((delim, std::io::BufReader::with_capacity(1 << 20, std::io::Cursor::new(amostra).chain(leitor))))
+    let junto = std::io::Cursor::new(amostra).chain(leitor);
+    Ok((delim, match cod {
+        Codificacao::Utf8 => Box::new(std::io::BufReader::with_capacity(1 << 20, junto)),
+        _ => Box::new(Convertido { dentro: junto, cod, resto: Vec::new(), saida: Vec::new(), pos: 0 }),
+    }))
+}
+
+/// Texto inteiro em memória para UTF-8, pelas mesmas regras do leitor.
+pub(crate) fn decodificar(bytes: Vec<u8>) -> String {
+    match Codificacao::da_amostra(&bytes, false) {
+        Codificacao::Utf8 => String::from_utf8(bytes).unwrap(),
+        cod => cod.converter(&bytes).0,
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Codificacao {
+    Utf8,
+    Utf16 { le: bool },
+    Windows1252,
+}
+
+/// Os 32 caracteres que o Windows-1252 põe em 0x80–0x9F; o resto é Latin-1.
+const CP1252_80: [char; 32] = [
+    '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8d}', 'Ž', '\u{8f}',
+    '\u{90}', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\u{9d}', 'ž', 'Ÿ',
+];
+
+impl Codificacao {
+    /// `cortada`: a amostra não é o arquivo inteiro, então uma sequência
+    /// UTF-8 incompleta no fim pode ser só o corte.
+    fn da_amostra(amostra: &[u8], cortada: bool) -> Self {
+        if amostra.starts_with(b"\xFF\xFE") {
+            return Self::Utf16 { le: true };
+        }
+        if amostra.starts_with(b"\xFE\xFF") {
+            return Self::Utf16 { le: false };
+        }
+        match std::str::from_utf8(amostra) {
+            Ok(_) => Self::Utf8,
+            Err(e) if e.error_len().is_none() && cortada => Self::Utf8,
+            Err(_) => Self::Windows1252,
+        }
+    }
+
+    /// Converte o que der de `bytes` e diz quantos bytes usou: no UTF-16 um
+    /// byte ímpar ou meio par substituto no fim fica para o pedaço seguinte.
+    fn converter(self, bytes: &[u8]) -> (String, usize) {
+        match self {
+            Self::Utf8 => {
+                let fim = std::str::from_utf8(bytes).map_or_else(|e| e.valid_up_to(), |s| s.len());
+                (std::str::from_utf8(&bytes[..fim]).unwrap().to_owned(), fim)
+            }
+            Self::Windows1252 => (bytes.iter().map(|&b| match b {
+                0x80..=0x9F => CP1252_80[(b - 0x80) as usize],
+                _ => b as char,
+            }).collect(), bytes.len()),
+            Self::Utf16 { le } => {
+                let mut unidades: Vec<u16> = bytes.chunks_exact(2)
+                    .map(|p| if le { u16::from_le_bytes([p[0], p[1]]) } else { u16::from_be_bytes([p[0], p[1]]) })
+                    .collect();
+                if unidades.last().is_some_and(|u| (0xD800..0xDC00).contains(u)) {
+                    unidades.pop();
+                }
+                let usados = unidades.len() * 2;
+                (char::decode_utf16(unidades).map(|c| c.unwrap_or('\u{FFFD}')).collect(), usados)
+            }
+        }
+    }
+}
+
+/// Leitor que entrega em UTF-8 um texto noutra [`Codificacao`].
+struct Convertido<R> {
+    dentro: R,
+    cod: Codificacao,
+    /// Bytes do fim do pedaço anterior que ainda não formavam um caractere.
+    resto: Vec<u8>,
+    saida: Vec<u8>,
+    pos: usize,
+}
+
+impl<R: Read> Read for Convertido<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.fill_buf()?.len().min(buf.len());
+        buf[..n].copy_from_slice(&self.saida[self.pos..self.pos + n]);
+        self.consume(n);
+        Ok(n)
+    }
+}
+
+impl<R: Read> BufRead for Convertido<R> {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        while self.pos >= self.saida.len() {
+            let mut cru = std::mem::take(&mut self.resto);
+            let antes = cru.len();
+            cru.resize(antes + (1 << 20), 0);
+            let n = self.dentro.read(&mut cru[antes..])?;
+            cru.truncate(antes + n);
+            if n == 0 {
+                // Fim do arquivo: o que sobrou não completa caractere nenhum.
+                self.saida = if cru.is_empty() { Vec::new() } else { "\u{FFFD}".into() };
+                self.pos = 0;
+                break;
+            }
+            let (texto, usados) = self.cod.converter(&cru);
+            self.resto = cru.split_off(usados);
+            self.saida = texto.into_bytes();
+            self.pos = 0;
+        }
+        Ok(&self.saida[self.pos..])
+    }
+
+    fn consume(&mut self, n: usize) {
+        self.pos += n;
+    }
 }
 
 #[cfg(test)]
@@ -515,8 +642,8 @@ mod testes {
     use feathersheet_core::planilha::sheet::Sheet;
     use feathersheet_core::planilha::workbook::Workbook;
 
-    /// O caminho de antes: o divisor do `feather_io` e um `set_cell_raw`
-    /// por campo.
+    /// A referência: o divisor do `feather_io` e um `set_cell_raw` por campo;
+    /// o que pede formato (data, hora, %) vai como digitado (`set_cell_divisao`).
     fn celula_a_celula(bytes: &[u8], tsv: bool, separador: Option<char>) -> Workbook {
         let mut w = Workbook::new();
         let aba = &mut w.aba_mut(0).unwrap().sheet;
@@ -524,7 +651,10 @@ mod testes {
         let entregar = |lote: &mut Vec<Vec<String>>| {
             for campos in lote.drain(..) {
                 for (c, v) in campos.into_iter().enumerate() {
-                    if !v.is_empty() {
+                    if v.is_empty() {
+                    } else if !v.starts_with('=') && super::formato_do_literal(super::parse_literal(v.trim()).format).is_some() {
+                        aba.set_cell_divisao(linha, c as u32, v.trim());
+                    } else {
                         aba.set_cell_raw(linha, c as u32, v, None);
                     }
                 }
@@ -635,7 +765,8 @@ mod testes {
                 (super::Classe::Numero(a), Value::Number(b)) => a.to_bits() == b.to_bits(),
                 (super::Classe::Bool(a), Value::Bool(b)) => a == *b,
                 (super::Classe::Texto, Value::Text(_)) => true,
-                (super::Classe::Outra, v) => !matches!(v, Value::Number(_) | Value::Bool(_) | Value::Text(_)),
+                (super::Classe::Outra, v) => parse_literal(&t).format.is_some_and(|f| f != feathersheet_core::celulas::input::NumberFormat::General)
+                    || !matches!(v, Value::Number(_) | Value::Bool(_) | Value::Text(_)),
                 _ => false,
             };
             assert!(ok, "{t:?}: parse_literal deu {esperado:?}");
@@ -664,8 +795,7 @@ mod testes {
 
     #[test]
     fn utf8_invalido_e_linhas_demais_dao_erro() {
-        // Na amostra, o erro sai na escolha do separador; depois dela, na leitura.
-        assert!(super::separador_e_leitor(std::io::Cursor::new(b"a,b\n\xff,1\n".to_vec()), false, None).is_err());
+        // Byte inválido depois da amostra (que era UTF-8) dá erro na leitura.
         let mut longe = "a,b\n".repeat(20_000).into_bytes();
         longe.extend_from_slice(b"\xff,1\n");
         let mut w = Workbook::new();
@@ -677,6 +807,65 @@ mod testes {
         let muitas = "1\n".repeat(feathersheet_core::celulas::refs::MAX_ROWS as usize + 1);
         let (d, l) = super::separador_e_leitor(std::io::Cursor::new(muitas.into_bytes()), false, None).unwrap();
         assert!(super::importar(l, d as u8, aba).is_err());
+    }
+
+    #[test]
+    fn csv_em_windows_1252_abre_com_acento() {
+        // Como os CSVs do TSE: ';' e "ANSI".
+        let mut bytes = b"NM_MUNICIPIO;QT_VOTOS\n".to_vec();
+        bytes.extend_from_slice(b"S\xc3O JO\xc3O DA BALIZA;12\n\x93BOA VISTA\x94;7\n");
+        let w = por_colunas(&bytes, false, None);
+        let aba = &w.aba(0).unwrap().sheet;
+        assert_eq!(aba.get_raw(1, 0), "SÃO JOÃO DA BALIZA");
+        assert_eq!(aba.get_raw(1, 1), "12");
+        assert_eq!(aba.get_raw(2, 0), "“BOA VISTA”");
+    }
+
+    #[test]
+    fn data_e_hora_do_csv_ficam_com_formato() {
+        let w = por_colunas("DT;HH;N\n\"27/10/2026\";\"16:32:29\";2026\n".as_bytes(), false, None);
+        let aba = &w.aba(0).unwrap().sheet;
+        let formato = |c| aba.estilo_mesclado(1, c).and_then(|e| e.get("format").cloned());
+        use feathersheet_core::celulas::estilo_parcial::Campo;
+        assert_eq!(formato(0), Some(Campo::Texto("date".into())));
+        assert_eq!(formato(1), Some(Campo::Texto("time".into())));
+        assert_eq!(formato(2), None);
+        assert_eq!(aba.get_raw(1, 0), "27/10/2026");
+        // E igual ao caminho célula a célula.
+        let antes = celula_a_celula("DT;HH\n27/10/2026;16:32:29\n".as_bytes(), false, Some(';'));
+        let a = &antes.aba(0).unwrap().sheet;
+        assert_eq!(a.estilo_mesclado(1, 0), aba.estilo_mesclado(1, 0));
+    }
+
+    #[test]
+    fn csv_em_utf16_do_excel_abre() {
+        // "Texto Unicode" do Excel: UTF-16LE com BOM, separado por TAB.
+        let texto = "\u{feff}Município\tVotos\r\nSão Luiz\t3\r\n𝄞\t4\r\n";
+        for le in [true, false] {
+            let bytes: Vec<u8> = texto.encode_utf16()
+                .flat_map(|u| if le { u.to_le_bytes() } else { u.to_be_bytes() }).collect();
+            let w = por_colunas(&bytes, false, None);
+            let aba = &w.aba(0).unwrap().sheet;
+            assert_eq!(aba.get_raw(0, 0), "Município", "le={le}");
+            assert_eq!(aba.get_raw(1, 0), "São Luiz");
+            assert_eq!(aba.get_raw(2, 0), "𝄞");
+            assert_eq!(aba.get_raw(2, 1), "4");
+            assert_eq!(super::decodificar(bytes), texto);
+        }
+    }
+
+    #[test]
+    fn utf16_cortado_no_meio_do_par_continua_no_pedaco_seguinte() {
+        let texto: String = "ação 𝄞;".repeat(100_000);
+        let mut bytes = vec![0xFF, 0xFE];
+        bytes.extend(texto.encode_utf16().flat_map(u16::to_le_bytes));
+        let mut leitor = super::Convertido {
+            dentro: std::io::Cursor::new(bytes), cod: super::Codificacao::Utf16 { le: true },
+            resto: Vec::new(), saida: Vec::new(), pos: 0,
+        };
+        let mut lido = String::new();
+        std::io::Read::read_to_string(&mut leitor, &mut lido).unwrap();
+        assert_eq!(lido.trim_start_matches('\u{feff}'), texto);
     }
 }
 

@@ -83,7 +83,7 @@ pub fn importar_csv_tsv_com_separador(
     tsv: bool,
     separador: Option<char>,
 ) -> Result<Workbook, String> {
-    let conteudo = String::from_utf8(bytes).map_err(|_| "CSV/TSV precisa ser UTF-8".to_string())?;
+    let conteudo = crate::csv_colunas::decodificar(bytes);
     let separador = if tsv {
         '\t'
     } else {
@@ -123,7 +123,7 @@ pub fn importar_csv_tsv_com_separador(
 /// um único String gigante. Fórmulas são exportadas pelo VALOR calculado,
 /// como o texto exibido no TypeScript; não pelo texto "=..." da fórmula.
 ///
-/// CSV usa vírgula; TSV usa TAB. Aspas, quebras de linha e o separador
+/// UTF-8 com BOM, como o "CSV UTF-8" do Excel. CSV usa vírgula; TSV usa TAB. Aspas, quebras de linha e o separador
 /// recebem escape RFC 4180, válido também para o parser TSV da importação.
 pub fn exportar_delimitado<W: std::io::Write>(
     workbook: &Workbook, indice: usize, tsv: bool, destino: &mut W,
@@ -133,6 +133,8 @@ pub fn exportar_delimitado<W: std::io::Write>(
         std::io::ErrorKind::NotFound, "Aba para exportação não encontrada",
     ))?.sheet;
     if sheet.is_empty() { return Ok(()); }
+    // Sem o BOM o Excel lê o arquivo como ANSI e estraga os acentos.
+    destino.write_all(b"\xEF\xBB\xBF")?;
     let utilizado = sheet.used_rect();
     let separador = if tsv { '\t' } else { ',' };
     let sep = [separador as u8];
@@ -169,6 +171,12 @@ pub fn gravar_csv_tsv(
     })
 }
 
+
+/// Texto de bytes de fora (página da web, arquivo) em UTF-8: aceita UTF-16
+/// com BOM e cai para Windows-1252 quando não é UTF-8, como o CSV.
+pub fn texto_de_bytes(bytes: Vec<u8>) -> String {
+    crate::csv_colunas::decodificar(bytes)
+}
 
 #[cfg(test)]
 mod testes {
@@ -279,18 +287,16 @@ mod testes {
         std::fs::write(&caminho, "ação\t2\r\nç\t3").unwrap();
         let tsv = importar_csv_tsv_arquivo(&caminho, true, Some(';')).unwrap();
         assert_eq!(tsv.aba(0).unwrap().sheet.get_raw(1, 1), "3");
-        std::fs::write(&caminho, [b'a', 0xff]).unwrap();
-        assert!(importar_csv_tsv_arquivo(&caminho, false, None).is_err());
+        std::fs::write(&caminho, [b'a', b';', 0xe9]).unwrap();
+        let ansi = importar_csv_tsv_arquivo(&caminho, false, None).unwrap();
+        assert_eq!(ansi.aba(0).unwrap().sheet.get_raw(0, 1), "é");
         std::fs::remove_file(caminho).unwrap();
     }
 
     #[test]
-    fn csv_invalido_falha_sem_aceitar_bytes_corrompidos() {
-        let erro = match importar_csv_tsv(vec![b'A', b',', 0xFF], false) {
-            Ok(_) => panic!("deveria recusar CSV inválido"),
-            Err(e) => e,
-        };
-        assert!(erro.contains("UTF-8"));
+    fn csv_que_nao_e_utf8_e_lido_como_windows_1252() {
+        let pasta = importar_csv_tsv(vec![b'A', b',', 0xC9], false).unwrap();
+        assert_eq!(pasta.aba(0).unwrap().sheet.get_raw(0, 1), "É");
     }
 
     #[test]
@@ -327,7 +333,7 @@ mod testes {
         exportar_delimitado(&livro, 0, false, &mut bytes).unwrap();
         let texto = String::from_utf8(bytes).unwrap();
         assert_eq!(texto,
-            "Nome,Observação\nJoão,\"Com, vírgula e \"\"aspas\"\"\"\n2,20\n\"Ana\nSilva\",");
+            "\u{feff}Nome,Observação\nJoão,\"Com, vírgula e \"\"aspas\"\"\"\n2,20\n\"Ana\nSilva\",");
         // A exportação não altera a fórmula original.
         assert_eq!(livro.aba(0).unwrap().sheet.get_raw(2, 1), "=A3*10");
     }
@@ -339,7 +345,7 @@ mod testes {
         livro.escrever_celula(0, 0, 1, "Sim".into());
         let mut bytes = Vec::new();
         exportar_delimitado(&livro, 0, true, &mut bytes).unwrap();
-        assert_eq!(String::from_utf8(bytes).unwrap(), "\"A\tB\"\tSim");
+        assert_eq!(String::from_utf8(bytes).unwrap(), "\u{feff}\"A\tB\"\tSim");
     }
 
     #[test]
@@ -365,9 +371,9 @@ mod testes {
         workbook.escrever_celula(0,0,0,"Nome".into());
         workbook.escrever_celula(0,1,0,"Ana".into());
         gravar_csv_tsv(&workbook,0,&path,false).unwrap();
-        assert_eq!(std::fs::read_to_string(&path).unwrap(),"Nome\nAna");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(),"\u{feff}Nome\nAna");
         gravar_csv_tsv(&workbook,0,&path,true).unwrap();
-        assert_eq!(std::fs::read_to_string(&path).unwrap(),"Nome\nAna");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(),"\u{feff}Nome\nAna");
         assert_eq!(workbook.aba(0).unwrap().sheet.get_raw(1,0),"Ana");
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(),1);
         std::fs::remove_file(path).unwrap();

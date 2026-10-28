@@ -897,6 +897,9 @@ impl App {
                 if self.janelas.principal == Some(id) { self.tamanho_principal = size; }
                 // O código das macros usa o tamanho da janela para a largura mínima.
                 if self.janelas.tipo(id) == Some(Auxiliar::Macros) { self.macro_visual.codigo.janela = size; }
+                if self.janelas.tipo(id) == Some(Auxiliar::OpenQuery) {
+                    return self.update(Msg::OpenQuery(EventoOpenQuery::JanelaRedimensionada(size)));
+                }
                 Task::none()
             }
             Msg::AlternarGrupoFaixa(indice) => {

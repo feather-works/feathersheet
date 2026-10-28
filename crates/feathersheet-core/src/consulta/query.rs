@@ -114,7 +114,10 @@ pub enum Passo {
     RemoverErros { col: usize },
     Mesclar { cols: Vec<usize>, separador: String, nome: Option<String> },
     Derivar { col: usize, parte: String, nome: Option<String> },
+    /// Divide em linhas: cada pedaço vira uma linha, as outras colunas repetem.
     Dividir { col: usize, separador: String },
+    /// Divide em colunas, como o Power Query: `Nome.1`, `Nome.2`… no lugar de `col`.
+    DividirColunas { col: usize, separador: String },
     Distintas { cols: Option<Vec<usize>> },
     Agrupar { por: Vec<usize>, agregar: Vec<Agregado> },
     Pivotar { linhas: Vec<usize>, colunas: Vec<usize>, valores: Vec<Agregado> },
@@ -441,6 +444,33 @@ fn aplicar_passo(t: Tabela, passo: &Passo, fontes: &HashMap<String, Tabela>) -> 
                 }
             }
             Tabela { cabecalho: t.cabecalho, linhas }
+        }
+        Passo::DividirColunas { col, separador } => {
+            let partes = |v: &Value| match v {
+                Value::Text(s) if !separador.is_empty() => s.split(separador.as_str()).count(),
+                _ => 1,
+            };
+            let n = t.linhas.iter().filter_map(|l| l.get(*col)).map(partes).max().unwrap_or(1);
+            if *col >= t.cabecalho.len() {
+                return t;
+            }
+            let nome = t.cabecalho[*col].clone();
+            let mut cabecalho = t.cabecalho;
+            cabecalho.splice(*col..=*col, (1..=n).map(|i| format!("{nome}.{i}")));
+            let linhas = t.linhas.into_iter().map(|mut l| {
+                if *col >= l.len() {
+                    return l;
+                }
+                let pedacos: Vec<Value> = match &l[*col] {
+                    Value::Text(s) if !separador.is_empty() =>
+                        s.split(separador.as_str()).map(|p| Value::Text(p.to_owned())).collect(),
+                    outro => vec![outro.clone()],
+                };
+                let faltam = n - pedacos.len();
+                l.splice(*col..=*col, pedacos.into_iter().chain(std::iter::repeat_n(Value::Empty, faltam)));
+                l
+            }).collect();
+            Tabela { cabecalho, linhas }
         }
         Passo::Ordenar { por } => {
             let mut linhas = t.linhas;
@@ -877,5 +907,22 @@ mod testes {
             vec![Value::Text("Sul".into()), Value::Number(3.0)],
             vec![Value::Text("Norte".into()), Value::Number(5.0)],
         ]);
+    }
+
+    #[test]
+    fn dividir_em_colunas_como_o_power_query() {
+        let t = Tabela {
+            cabecalho: vec!["Id".into(), "Nome".into(), "Uf".into()],
+            linhas: vec![
+                vec![Value::Number(1.0), Value::Text("Eleição Ordinária".into()), Value::Text("RR".into())],
+                vec![Value::Number(2.0), Value::Text("Suplementar".into()), Value::Text("AC".into())],
+                vec![Value::Number(3.0), Value::Number(7.0), Value::Text("AP".into())],
+            ],
+        };
+        let r = executar_query(t, &[Passo::DividirColunas { col: 1, separador: " ".into() }], &HashMap::new());
+        assert_eq!(r.cabecalho, ["Id", "Nome.1", "Nome.2", "Uf"]);
+        assert_eq!(r.linhas[0][1..3], [Value::Text("Eleição".into()), Value::Text("Ordinária".into())]);
+        assert_eq!(r.linhas[1][1..4], [Value::Text("Suplementar".into()), Value::Empty, Value::Text("AC".into())]);
+        assert_eq!(r.linhas[2][1..3], [Value::Number(7.0), Value::Empty]);
     }
 }

@@ -13,13 +13,13 @@ use super::*;
     }
 
     #[test]
-    fn selecao_enorme_recusada_sem_materializar() {
-        // A leitura corta na área usada: os dados precisam ocupar a seleção.
+    fn selecao_enorme_sem_limite_pula_linhas_vazias() {
         let mut wb = Workbook::new();
         wb.escrever_celula(0, 0, 0, "Cabeçalho".into());
         wb.escrever_celula(0, 1_000_000, 12, "fim".into());
-        let erro = ler_tabela(&wb, 0, Rect::new(0, 0, 1_000_000, 12)).unwrap_err();
-        assert!(erro.contains("Reduza a seleção"));
+        let tabela = ler_tabela(&wb, 0, Rect::new(0, 0, 1_000_000, 12)).unwrap();
+        assert_eq!(tabela.cabecalho.len(), 13);
+        assert_eq!(tabela.linhas, [[vec![Value::Empty; 12], vec![Value::Text("fim".into())]].concat()]);
     }
 
     #[test]

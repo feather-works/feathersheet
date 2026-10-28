@@ -69,6 +69,13 @@ pub(super) fn verificar(
                 _ => 1,
             }).fold(0_u64, |a, b| a.saturating_add(b));
         }
+        Passo::DividirColunas { col, separador } if !separador.is_empty() => {
+            let n = tabela.linhas.iter().map(|linha| match linha.get(*col) {
+                Some(Value::Text(texto)) => texto.split(separador.as_str()).count() as u64,
+                _ => 1,
+            }).max().unwrap_or(1);
+            colunas = colunas.saturating_add(n - 1);
+        }
         Passo::Despivotar { manter, .. } => {
             let extra = (0..tabela.cabecalho.len())
                 .filter(|i| !manter.contains(i)).count() as u64;

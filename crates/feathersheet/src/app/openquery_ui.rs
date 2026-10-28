@@ -23,13 +23,13 @@ mod manual;
 mod janela;
 mod script;
 mod qualidade;
+mod etapa;
 #[cfg(test)]
 mod testes;
 
-const MAX_CELULAS_FONTE: u64 = 160_000;
-const MAX_CELULAS_SAIDA: u64 = 240_000;
-const PREVIA_LINHAS: usize = 24;
-const PREVIA_COLUNAS: usize = 7;
+const PREVIA_LINHAS: usize = 200;
+/// Largura de cada coluna da prévia (rola para o lado, como no Power Query).
+const LARGURA_COLUNA_PREVIA: f32 = 150.0;
 
 // Escala visual do OpenQuery: janela e assistentes usam só estes valores.
 const TAM_TITULO: f32 = 17.0;
@@ -116,6 +116,18 @@ pub enum Evento {
     AbaCentro(u8),
     /// Aba do painel inferior: 0 erros, 1 colunas, 2 log.
     PainelInferior(u8),
+    /// Modal de parâmetros de uma etapa (nova ou pela engrenagem).
+    Etapa(etapa::Evento),
+    /// Engrenagem: reabre a etapa no modal.
+    EditarPasso(usize),
+    /// ▾ do cabeçalho: menu da coluna (`None` fecha).
+    MenuColuna(Option<usize>),
+    /// Posição do mouse sobre o cabeçalho, para o menu abrir onde foi o clique.
+    Ponteiro(f32, f32),
+    Modificadores(pelicano::Modifiers),
+    /// Recolhe/expande um grupo da lateral (0 salvas, 1 origem, 2 tabelas).
+    RecolherGrupo(u8),
+    JanelaRedimensionada(pelicano::Size),
 }
 
 pub(super) struct Estado {
@@ -166,6 +178,15 @@ pub(super) struct Estado {
     painel_inferior_aberto: bool,
     parametros_abertos: bool,
     acao_parametros: Option<&'static str>,
+    modal: Option<etapa::Modal>,
+    erro_modal: String,
+    /// Colunas selecionadas (Ctrl/Shift+clique); `coluna` é a última clicada.
+    selecionadas: Vec<usize>,
+    modificadores: pelicano::Modifiers,
+    menu_coluna: Option<usize>,
+    ponteiro: (f32, f32),
+    janela: pelicano::Size,
+    recolhidos: [bool; 3],
 }
 
 /// Apenas tabelas estruturadas já criadas (Ctrl+T) na pasta aberta.
@@ -194,7 +215,7 @@ fn tabelas_existentes(workbook: &Workbook) -> Vec<(usize, String, Rect)> {
 /// de linhas vazias pertencem ao motor Rust (reutilizável via WASM).
 fn ler_tabela(wb: &Workbook, aba: usize, area: Rect) -> Result<Tabela, String> {
     feathersheet_core::consulta::sheet_query::ler_intervalo(
-        wb, aba, area, true, MAX_CELULAS_FONTE,
+        wb, aba, area, true, u64::MAX,
     )
 }
 
@@ -229,7 +250,7 @@ impl Estado {
             passos: Vec::new(), resultado,
             codigo: Content::with_text("const etapas = [];"),
             editor_avancado: None, script_avancado: None, erro_avancado: String::new(),
-            exibir_codigo: true, exibir_script: false, erro: String::new(),
+            exibir_codigo: false, exibir_script: false, erro: String::new(),
             edicao: None, salvas: Vec::new(), exclusao_pendente: None,
             assistente: None,
             passo_previa: None, tabela_previa: None,
@@ -243,6 +264,14 @@ impl Estado {
             painel_inferior_aberto: false,
             parametros_abertos: false,
             acao_parametros: None,
+            modal: None,
+            erro_modal: String::new(),
+            selecionadas: vec![0],
+            modificadores: pelicano::Modifiers::default(),
+            menu_coluna: None,
+            ponteiro: (0.0, 0.0),
+            janela: pelicano::Size::new(1280.0, 800.0),
+            recolhidos: [false; 3],
         }
     }
 
@@ -267,7 +296,7 @@ impl Estado {
             .ok_or(tr!("Editor avançado não está aberto"))?.text();
         let passos = json_passos::ler_codigo_js(&texto)?;
         let tabela = executar_query_limitado(
-            self.fonte.clone(), &passos, &self.fontes, MAX_CELULAS_SAIDA,
+            self.fonte.clone(), &passos, &self.fontes, u64::MAX,
         )?;
         self.codigo = Content::with_text(&texto);
         self.passos = passos;
@@ -289,13 +318,16 @@ impl Estado {
     fn recalcular(&mut self) {
         // Recusa explosões de cardinalidade ANTES de alocar o resultado.
         let tabela = match executar_query_limitado(
-            self.fonte.clone(), &self.passos, &self.fontes, MAX_CELULAS_SAIDA
+            self.fonte.clone(), &self.passos, &self.fontes, u64::MAX
         ) {
             Ok(tabela) => tabela,
             Err(erro) => { self.erro = erro; return; }
         };
         self.coluna = self.coluna.min(tabela.cabecalho.len().saturating_sub(1));
         self.coluna_numero = (self.coluna + 1).to_string();
+        let n = tabela.cabecalho.len();
+        self.selecionadas.retain(|c| *c < n);
+        if self.selecionadas.is_empty() { self.selecionadas.push(self.coluna); }
         self.resultado = tabela;
         self.passo_previa = None;
         self.tabela_previa = None;
@@ -314,7 +346,7 @@ impl Estado {
         if let Some(i) = etapa {
             if i >= self.passos.len() { return; }
             match executar_query_limitado(
-                self.fonte.clone(), &self.passos[..=i], &self.fontes, MAX_CELULAS_SAIDA,
+                self.fonte.clone(), &self.passos[..=i], &self.fontes, u64::MAX,
             ) {
                 Ok(t) => {
                     self.tabela_previa = Some(t);
@@ -348,6 +380,7 @@ impl Estado {
         }
         let col = self.coluna;
         let total = self.resultado.cabecalho.len();
+        let sel: Vec<usize> = self.selecionadas.iter().copied().filter(|c| *c < total).collect();
         if col >= total && !matches!(tipo, "indice" | "limite" | "distintas" |
             "promover" | "rebaixar" | "acrescentar") {
             self.erro = tr!("Selecione uma coluna na prévia").into();
@@ -367,9 +400,13 @@ impl Estado {
                 Passo::Renomear { col, nome: self.renomear.trim().into() }
             }
             "remover_coluna" => Passo::Colunas {
-                manter: (0..total).filter(|i| *i != col).collect(),
+                manter: (0..total).filter(|i| *i != col && !sel.contains(i)).collect(),
             },
-            "distintas" => Passo::Distintas { cols: None },
+            "manter_colunas" => Passo::Colunas {
+                manter: if sel.is_empty() { vec![col] } else { sel.clone() },
+            },
+            // Uma coluna só selecionada: linha inteira repetida; várias: só elas.
+            "distintas" => Passo::Distintas { cols: (sel.len() > 1).then(|| sel.clone()) },
             "limite" => {
                 let Ok(n) = self.quantidade.trim().parse::<f64>() else {
                     self.erro = tr!("Quantidade de linhas inválida").into();
@@ -392,6 +429,9 @@ impl Estado {
                 }
                 Passo::Dividir { col, separador: self.separador.clone() }
             }
+            "mesclar" if sel.len() > 1 => Passo::Mesclar {
+                cols: sel.clone(), separador: self.separador.clone(), nome: Some("Mesclado".into()),
+            },
             "mesclar" => {
                 if col + 1 >= total {
                     self.erro = tr!("Mesclar exige uma coluna à direita da selecionada").into();
@@ -404,7 +444,7 @@ impl Estado {
                 }
             }
             "despivotar" => Passo::Despivotar {
-                manter: vec![col], nome_atributo: None, nome_valor: None,
+                manter: if sel.is_empty() { vec![col] } else { sel.clone() }, nome_atributo: None, nome_valor: None,
             },
             "agrupar" => Passo::Agrupar {
                 por: vec![col],
@@ -454,7 +494,7 @@ impl App {
                 e.fontes.clear();
                 e.edicao = None;
                 e.nome = format!("Consulta_{nome}");
-                e.exibir_codigo = true;
+                e.exibir_codigo = false;
                 e.exibir_script = false;
                 e.mostrar_tabelas = false;
                 e.mostrar_web = false;
@@ -698,8 +738,67 @@ impl App {
                 e.parametros_abertos = false;
             },
             Evento::Coluna(col) => if let Some(e) = &mut self.openquery {
+                if e.modificadores.shift() {
+                    let (a, b) = (e.coluna.min(col), e.coluna.max(col));
+                    e.selecionadas = (a..=b).collect();
+                } else if e.modificadores.control() {
+                    match e.selecionadas.iter().position(|c| *c == col) {
+                        Some(i) if e.selecionadas.len() > 1 => { e.selecionadas.remove(i); }
+                        Some(_) => {}
+                        None => { e.selecionadas.push(col); e.selecionadas.sort_unstable(); }
+                    }
+                } else {
+                    e.selecionadas = vec![col];
+                }
                 e.coluna = col;
                 e.coluna_numero = (col + 1).to_string();
+                e.menu_coluna = None;
+            },
+            Evento::MenuColuna(col) => if let Some(e) = &mut self.openquery {
+                // Abrir o menu numa coluna fora da seleção seleciona só ela.
+                if let Some(c) = col {
+                    if !e.selecionadas.contains(&c) { e.selecionadas = vec![c]; }
+                    e.coluna = c;
+                }
+                e.menu_coluna = col;
+            },
+            Evento::Ponteiro(x, y) => if let Some(e) = &mut self.openquery { e.ponteiro = (x, y); },
+            Evento::Modificadores(m) => if let Some(e) = &mut self.openquery { e.modificadores = m; },
+            Evento::JanelaRedimensionada(t) => if let Some(e) = &mut self.openquery { e.janela = t; },
+            Evento::RecolherGrupo(i) => if let Some(e) = &mut self.openquery {
+                if let Some(r) = e.recolhidos.get_mut(i as usize) { *r = !*r; }
+            },
+            Evento::EditarPasso(i) => if let Some(e) = &mut self.openquery {
+                match e.sincronizar() {
+                    Ok(()) => if let Some(passo) = e.passos.get(i) {
+                        let colunas = executar_query_limitado(e.fonte.clone(), &e.passos[..i], &e.fontes, u64::MAX)
+                            .map(|t| t.cabecalho).unwrap_or_default();
+                        e.modal = etapa::Modal::de_passo(passo, i, colunas);
+                        e.erro_modal.clear();
+                    },
+                    Err(erro) => e.erro = erro,
+                }
+            },
+            Evento::Etapa(ev) => if let Some(e) = &mut self.openquery {
+                match ev {
+                    etapa::Evento::Fechar => e.modal = None,
+                    etapa::Evento::Aplicar => {
+                        let Some(m) = &e.modal else { return Task::none() };
+                        let passo = match m.passo() {
+                            Ok(p) => p,
+                            Err(erro) => { e.erro_modal = erro; return Task::none(); }
+                        };
+                        let editar = m.editar;
+                        if let Err(erro) = e.sincronizar() { e.erro_modal = erro; return Task::none(); }
+                        match editar {
+                            Some(i) if i < e.passos.len() => e.passos[i] = passo,
+                            _ => e.passos.push(passo),
+                        }
+                        e.modal = None;
+                        e.registrar_passos();
+                    }
+                    outro => if let Some(m) = &mut e.modal { m.atualizar(outro); },
+                }
             },
             Evento::ColunaNumero(numero) => if let Some(e) = &mut self.openquery {
                 if let Ok(indice) = numero.parse::<usize>() {
@@ -714,9 +813,15 @@ impl App {
             Evento::Quantidade(v) => if let Some(e) = &mut self.openquery { e.quantidade = v; },
             Evento::Separador(v) => if let Some(e) = &mut self.openquery { e.separador = v; },
             Evento::Adicionar(tipo) => if let Some(e) = &mut self.openquery {
-                if matches!(tipo, "filtrar" | "renomear" | "limite" | "dividir") {
-                    e.parametros_abertos = true;
-                    e.acao_parametros = Some(tipo);
+                e.menu_coluna = None;
+                if matches!(tipo, "filtrar" | "renomear" | "limite" | "dividir" | "agrupar") {
+                    let colunas = e.resultado.cabecalho.clone();
+                    if colunas.is_empty() {
+                        e.erro = tr!("Selecione uma fonte de dados para iniciar.").into();
+                    } else {
+                        e.modal = Some(etapa::Modal::novo(tipo, colunas, e.coluna, &e.selecionadas));
+                        e.erro_modal.clear();
+                    }
                 } else {
                     e.adicionar(tipo);
                 }
@@ -934,7 +1039,7 @@ impl App {
                         editor.mostrar_manual = false;
                         editor.origem = Rect::new(0, 0, linhas as u32, colunas.saturating_sub(1) as u32);
                         editor.assistente = None;
-                        if !preservar { editor.exibir_codigo = true; editor.exibir_script = false;
+                        if !preservar { editor.exibir_codigo = false; editor.exibir_script = false;
                             editor.edicao = None;
                             editor.passos.clear();
                             editor.fontes.clear();
@@ -1095,6 +1200,7 @@ fn passo_rotulo(p: &Passo) -> &'static str {
         Passo::Mesclar { .. } => tr!("Mesclar colunas"),
         Passo::Derivar { .. } => tr!("Data"),
         Passo::Dividir { .. } => tr!("Dividir em linhas"),
+        Passo::DividirColunas { .. } => tr!("Dividir coluna"),
         Passo::Distintas { .. } => tr!("Valores distintos"),
         Passo::Agrupar { .. } => tr!("Agrupar"),
         Passo::Pivotar { .. } => tr!("Pivotar"),

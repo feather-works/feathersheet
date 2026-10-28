@@ -93,9 +93,6 @@ pub(super) fn fonte_snapshot(reg: &Json) -> Result<Tabela, String> {
         .ok_or(tr!("Consulta sem cabeçalho"))?.iter().map(|v| v.as_str().unwrap_or("").to_owned()).collect::<Vec<_>>();
     let linhas = dados["linhas"].as_array()
         .ok_or(tr!("Consulta sem linhas"))?;
-    if (linhas.len() as u64).saturating_mul(cabecalho.len() as u64) > MAX_CELULAS_FONTE {
-        return Err(tr!("Fonte armazenada supera limite de células para esta etapa").into());
-    }
     let linhas = linhas.iter().map(|linha| {
         linha.as_array().ok_or(tr!("Linha de fonte inválida")).map(|celulas|
             celulas.iter().map(json_valor).collect::<Vec<_>>()
@@ -130,6 +127,17 @@ pub(super) fn destino(reg: &Json) -> Option<&str> {
     reg["destino"]["nomeAba"].as_str()
 }
 
+/// Fonte que é aba da pasta é relida ao abrir (`abrir_consulta_salva`):
+/// guardar a cópia só dobraria o arquivo. Arquivo, Web e entrada manual não
+/// têm de onde reler, e vão inteiros.
+fn fonte_guardada<'a>(fonte: &'a Tabela, origem_aba: &str) -> std::borrow::Cow<'a, Tabela> {
+    if origem_aba.starts_with("Arquivo: ") || origem_aba.starts_with("Web: ") || origem_aba == "Entrada manual" {
+        std::borrow::Cow::Borrowed(fonte)
+    } else {
+        std::borrow::Cow::Owned(Tabela { cabecalho: fonte.cabecalho.clone(), linhas: Vec::new() })
+    }
+}
+
 pub(super) fn montar(
     id: &str, nome: &str, fonte: &Tabela, passos: &[Passo],
     origem_aba: &str, origem_area: &Rect, aba_destino: &str,
@@ -140,7 +148,7 @@ pub(super) fn montar(
     Ok(json!({
         "id":id,
         "nome":nome,
-        "fonte":serializar_tabela(fonte),
+        "fonte":serializar_tabela(&fonte_guardada(fonte, origem_aba)),
         "passos":passos_json,
         "destino":{"modo":"nova_aba","nomeAba":aba_destino},
         "status":{"sucesso":true,"ultimaAtualizacao":agora(),
@@ -209,8 +217,12 @@ mod testes {
         assert_eq!(listar(&wb).unwrap().len(), 1);
         let achou = buscar(&wb, "query-1").unwrap();
         assert_eq!(achou.dados["destino"]["nomeAba"], "Consulta");
-        assert_eq!(fonte_snapshot(&achou.dados).unwrap().linhas, fonte.linhas);
+        // Fonte que é aba não é copiada para o arquivo: reabrir relê a aba.
+        assert!(fonte_snapshot(&achou.dados).unwrap().linhas.is_empty());
         assert!(origem(&achou.dados).is_some());
+        let de_arquivo = montar("query-2", "CSV", &fonte, &[], "Arquivo: x.csv",
+            &Rect::new(0,0,1,0), "Consulta", &Rect::new(0,0,1,0), &[]).unwrap();
+        assert_eq!(fonte_snapshot(&de_arquivo).unwrap().linhas, fonte.linhas);
     }
 
     #[test]

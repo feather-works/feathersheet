@@ -6,7 +6,6 @@ use std::path::Path;
 use serde_json::Value as Json;
 mod caminho_json;
 
-const MAX_ARQUIVO: u64 = 8 * 1024 * 1024;
 const MAX_XML_XLSX: u64 = 32 * 1024 * 1024;
 
 /// Valores primitivos preservam o tipo; objetos e listas aninhados viram
@@ -77,17 +76,10 @@ fn json_tabela_caminho(bytes: &[u8], caminho: &str) -> Result<Tabela, String> {
             }
             _ => {}
         }
-        if cabecalho.len() as u64 > MAX_CELULAS_FONTE {
-            return Err(tr!("JSON possui colunas demais").into());
-        }
     }
     // Listas de números/textos/booleanos viram coluna única (Valor).
     if cabecalho.is_empty() {
         cabecalho.push(tr!("Valor").into());
-    }
-    if (linhas.len() as u64 + 1).saturating_mul(cabecalho.len() as u64)
-        > MAX_CELULAS_FONTE {
-        return Err(trf!("JSON excede {} células; refine a fonte", MAX_CELULAS_FONTE));
     }
 
     let mut matriz = Vec::with_capacity(linhas.len());
@@ -140,11 +132,6 @@ pub(super) fn ler(path: &Path) -> Result<(Tabela, String), String> {
     if !["csv","tsv","json","xlsx","txt"].contains(&ext.as_str()) {
         return Err(tr!("Use CSV, TSV, TXT, JSON ou XLSX neste importador").into());
     }
-    let tamanho = std::fs::metadata(path)
-        .map_err(|e| trf!("Arquivo não encontrado: {e}"))?.len();
-    if tamanho > MAX_ARQUIVO {
-        return Err(tr!("Este arquivo excede 8 MiB. Abra pela planilha nativa, selecione a região e use OpenQuery").into());
-    }
     let tabela = match ext.as_str() {
         "json" => json_tabela(&std::fs::read(path)
             .map_err(|e| trf!("Falha de leitura: {e}"))?)?,
@@ -174,14 +161,13 @@ pub(super) fn ler(path: &Path) -> Result<(Tabela, String), String> {
 /// isoladamente, para impedir uma página com muitas grades de esgotar RAM.
 fn html_tabelas(bytes: &[u8]) -> Result<Vec<Tabela>, String> {
     const MAX_TABELAS_HTML: usize = 32;
-    let texto = std::str::from_utf8(bytes)
-        .map_err(|_| tr!("A página HTML precisa estar em UTF-8").to_string())?;
-    let documento = scraper::Html::parse_document(texto);
+    // Site do governo ainda serve ISO-8859-1: vira UTF-8 como no CSV.
+    let texto = feathersheet_io::csv_workbook::texto_de_bytes(bytes.to_vec());
+    let documento = scraper::Html::parse_document(&texto);
     let seletor_tabela = scraper::Selector::parse("table").map_err(|e| e.to_string())?;
     let seletor_linha = scraper::Selector::parse("tr").map_err(|e| e.to_string())?;
     let seletor_celula = scraper::Selector::parse("th, td").map_err(|e| e.to_string())?;
     let mut tabelas = Vec::new();
-    let mut total_celulas = 0u64;
     for (indice, tabela_html) in documento.select(&seletor_tabela).enumerate() {
         if indice >= MAX_TABELAS_HTML {
             return Err(tr!("A página contém mais de 32 tabelas HTML; refine a fonte").into());
@@ -201,21 +187,12 @@ fn html_tabelas(bytes: &[u8]) -> Result<Vec<Tabela>, String> {
                         trf!("Coluna {}", i + 1)
                     } else { nome })
                     .collect();
-                if total_celulas.saturating_add(cabecalho.len() as u64) > MAX_CELULAS_FONTE {
-                    return Err(tr!("As tabelas HTML excedem o limite de células da prévia").into());
-                }
                 continue;
             }
             if celulas.len() > cabecalho.len() {
                 return Err(trf!(
                     "Tabela HTML {} tem mais colunas do que o cabeçalho", indice + 1
                 ));
-            }
-            let previstas = total_celulas.saturating_add(
-                (linhas.len() as u64 + 2).saturating_mul(cabecalho.len() as u64),
-            );
-            if previstas > MAX_CELULAS_FONTE {
-                return Err(tr!("As tabelas HTML excedem o limite de células da prévia").into());
             }
             let mut valores: Vec<Value> = celulas.into_iter().map(|v| {
                 if v.is_empty() { Value::Empty }
@@ -229,7 +206,6 @@ fn html_tabelas(bytes: &[u8]) -> Result<Vec<Tabela>, String> {
             linhas.push(valores);
         }
         if !cabecalho.is_empty() {
-            total_celulas += (linhas.len() as u64 + 1) * cabecalho.len() as u64;
             tabelas.push(Tabela { cabecalho, linhas });
         }
     }
@@ -257,33 +233,27 @@ pub(super) fn ler_web(url: &str) -> Result<(Vec<Tabela>, String), String> {
         .timeout(std::time::Duration::from_secs(25))
         .redirect(reqwest::redirect::Policy::limited(3))
         .build().map_err(|e| trf!("Erro no cliente Web: {e}"))?;
-    let resposta = client.get(endereco.clone()).send()
+    let mut resposta = client.get(endereco.clone()).send()
         .and_then(reqwest::blocking::Response::error_for_status)
         .map_err(|e| trf!("Não foi possível obter dados da Web: {e}"))?;
-    if resposta.content_length().is_some_and(|tam| tam > MAX_ARQUIVO) {
-        return Err(tr!("Resposta Web acima de 8 MiB; escolha uma fonte menor").into());
-    }
     let tipo = resposta.headers()
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok()).unwrap_or("").to_ascii_lowercase();
     let mut bytes = Vec::new();
-    resposta.take(MAX_ARQUIVO + 1).read_to_end(&mut bytes)
+    resposta.read_to_end(&mut bytes)
         .map_err(|e| trf!("Falha ao baixar os dados: {e}"))?;
-    if bytes.len() as u64 > MAX_ARQUIVO {
-        return Err(tr!("Resposta Web acima de 8 MiB; refine a URL da consulta").into());
-    }
     let caminho = endereco.path().to_ascii_lowercase();
     let tsv = caminho.ends_with(".tsv") || tipo.contains("tab-separated");
     // APIs frequentemente respondem application/octet-stream ou text/plain.
     // O assistente TS tentava detectar JSON/HTML pelo próprio conteúdo.
     let primeiro = bytes.iter().copied().find(|byte| !byte.is_ascii_whitespace());
     let aparencia_json = matches!(primeiro, Some(b'{') | Some(b'['));
-    let aparencia_html = std::str::from_utf8(&bytes[..bytes.len().min(256)])
-        .ok().is_some_and(|inicio| {
+    let aparencia_html = {
+            let inicio = String::from_utf8_lossy(&bytes[..bytes.len().min(256)]);
             let inicio = inicio.trim_start().to_ascii_lowercase();
             inicio.starts_with("<!doctype html") || inicio.starts_with("<html")
                 || inicio.starts_with("<table")
-        });
+        };
     let json = caminho.ends_with(".json")
         || tipo.contains("application/json") || tipo.contains("+json")
         || (aparencia_json && !tipo.contains("text/html"));
@@ -325,6 +295,14 @@ mod testes {
     }
 
     #[test]
+    fn html_em_iso_8859_1_mantem_os_acentos() {
+        let tabela = html_tabelas(b"<html><meta charset=iso-8859-1><table>\
+            <tr><th>Munic\xedpio</th></tr><tr><td>S\xe3o Jo\xe3o</td></tr></table></html>").unwrap().remove(0);
+        assert_eq!(tabela.cabecalho, ["Município"]);
+        assert_eq!(tabela.linhas[0], [Value::Text("São João".into())]);
+    }
+
+    #[test]
     fn html_com_varias_tabelas_permite_selecionar_sem_duplicar_download() {
         let tabelas = html_tabelas(r#"<html>
             <table><tr><th>Produto</th><th>Qtd</th></tr>
@@ -343,14 +321,14 @@ mod testes {
     }
 
     #[test]
-    fn muitas_tabelas_html_nao_alocam_memoria_sem_limites() {
+    fn mais_de_32_tabelas_html_pede_refinar_mas_tabela_grande_passa() {
         let html = format!("<html>{}</html>",
             "<table><tr><th>C</th></tr></table>".repeat(33));
         assert!(html_tabelas(html.as_bytes()).unwrap_err().contains("32 tabelas"));
         let html_grande = format!("<html>{}</html>",
             format!("<table><tr><th>x</th></tr>{}</table>",
                 "<tr><td>1</td></tr>".repeat(9000)).repeat(24));
-        assert!(html_tabelas(html_grande.as_bytes()).is_err());
+        assert_eq!(html_tabelas(html_grande.as_bytes()).unwrap().len(), 24);
     }
 
     #[test]
@@ -428,17 +406,16 @@ mod testes {
     }
 
     #[test]
-    fn json_invalido_e_expansivo_rejeitado() {
+    fn json_invalido_rejeitado_e_grande_aceito() {
         assert!(json_tabela(b"{isto-nao-e-json}").is_err());
         assert!(json_tabela(b"[]").is_err());
-        // Limite do editor é em células, não apenas nos bytes da resposta.
         let mut linhas = Vec::new();
         for _ in 0..1000 {
             linhas.push(serde_json::json!({"a":1,"b":2,"c":3}));
         }
         assert_eq!(json_tabela(&serde_json::to_vec(&linhas).unwrap()).unwrap().linhas.len(), 1000);
         let muitas = vec![serde_json::json!({"a":1,"b":2}); 100_000];
-        assert!(json_tabela(&serde_json::to_vec(&muitas).unwrap()).is_err());
+        assert_eq!(json_tabela(&serde_json::to_vec(&muitas).unwrap()).unwrap().linhas.len(), 100_000);
     }
     #[test]
     fn csv_real_lido_pelo_parser_nativo() {

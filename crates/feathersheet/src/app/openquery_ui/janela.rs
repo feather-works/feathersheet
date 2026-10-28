@@ -86,9 +86,6 @@ impl App {
             barra_menus(e, escuro),
             barra_faixa(e, escuro),
         ].spacing(6).height(Length::FILL).width(Length::FILL);
-        if e.parametros_abertos {
-            estrutura = estrutura.push(barra_parametros(e, escuro));
-        }
         estrutura = estrutura.push(corpo);
         if e.painel_inferior_aberto {
             estrutura = estrutura.push(self.painel_inferior_openquery(e, visual, escuro));
@@ -97,6 +94,29 @@ impl App {
         let base: Element<'_, Msg> = container(estrutura).padding(8)
             .style(ide::estilo_fundo_editor(escuro))
             .height(Length::FILL).width(Length::FILL).into();
+        // Modais da janela: etapa (nova ou pela engrenagem) e "Carregar em…".
+        let cartao: Option<Element<'_, Msg>> = if let Some(m) = &e.modal {
+            Some(etapa::painel(m, &e.erro_modal))
+        } else if e.parametros_abertos {
+            Some(painel_destino(e))
+        } else {
+            None
+        };
+        if let Some(cartao) = cartao {
+            let fundo = opaque(container(opaque(cartao))
+                .width(Length::FILL).align_x(pelicano::Align::Center).height(Length::FILL).align_y(pelicano::Align::Center)
+                .style(|_| pelicano::Style {
+                    background: Some(Background::Color(pelicano::Color::rgba(0.0, 0.0, 0.0, 0.40))),
+                    ..pelicano::Style::default()
+                }));
+            return stack![base, fundo].height(Length::FILL).into();
+        }
+        if let Some(c) = e.menu_coluna {
+            return crate::app::menu_contexto::sobrepor(
+                base, &menu_da_coluna(e, c), None, |_| om(Evento::MenuColuna(None)),
+                om(Evento::MenuColuna(None)), (e.ponteiro.0 - 40.0, e.ponteiro.1 + 14.0), e.janela,
+            );
+        }
         if e.editor_avancado.is_some() {
             let janela = opaque(container(opaque(self.painel_editor_avancado_openquery(e, escuro)))
                 .padding([28, 44]).width(Length::FILL).align_x(pelicano::Align::Center).height(Length::FILL).align_y(pelicano::Align::Center)
@@ -182,9 +202,9 @@ impl App {
             text(tr!("NOME DA CONSULTA")).size(10).color(ide::cor_secundaria(escuro)),
             entrada(&e.nome, tr!("Nome da consulta"), Evento::Nome),
             Space::new(0.0, Length::Fixed(8.0)),
-            ide::grupo_arvore(tr!("Consultas salvas"), "folder-open", escuro),
+            grupo(tr!("Consultas salvas"), e.salvas.len(), 0, e.recolhidos[0], escuro),
         ].spacing(3).padding(7);
-        for (id, nome) in e.salvas.iter().take(35) {
+        for (id, nome) in e.salvas.iter().take(35).filter(|_| !e.recolhidos[0]) {
             let atual = e.edicao.as_deref() == Some(id.as_str());
             arvore = arvore.push(row![
                 ide::item_arvore(nome, "table", 12.0, Some(om(Evento::EditarSalva(id.clone()))), atual),
@@ -194,7 +214,7 @@ impl App {
                     Evento::PedirExclusao(id.clone())),
             ].align(pelicano::Align::Center));
         }
-        if e.salvas.is_empty() {
+        if e.salvas.is_empty() && !e.recolhidos[0] {
             arvore = arvore.push(container(legenda_oq(tr!("Nenhuma consulta gravada neste arquivo.")))
                 .padding([4, 12]));
         }
@@ -209,19 +229,25 @@ impl App {
                 ].spacing(ESPACO_PEQUENO),
             ].spacing(ESPACO_PEQUENO)).padding([4, 8]));
         }
-        arvore = arvore.push(ide::grupo_arvore(tr!("Origem da consulta"), "folder-open", escuro));
-        if e.fonte.cabecalho.is_empty() {
+        arvore = arvore.push(grupo(tr!("Origem da consulta"), usize::from(!e.fonte.cabecalho.is_empty()), 1, e.recolhidos[1], escuro));
+        if e.recolhidos[1] {
+        } else if e.fonte.cabecalho.is_empty() {
             arvore = arvore.push(container(legenda_oq(tr!("Nenhuma fonte escolhida.")))
                 .padding([4, 12]));
         } else {
-            arvore = arvore.push(container(column![
-                texto_oq(e.origem_aba.clone()),
-                legenda_oq(trf!("{} colunas • {} linhas", e.fonte.cabecalho.len(), e.fonte.linhas.len())),
-            ].spacing(2)).padding([3, 12]));
+            arvore = arvore.push(container(row![
+                feather_ui::icones::icone_colorido(if e.origem_aba.starts_with("Web: ") { "link" } else { "table" }, 18.0, "#21865c"),
+                column![
+                    texto_oq(e.origem_aba.trim_start_matches("Arquivo: ").trim_start_matches("Web: ").to_owned()),
+                    legenda_oq(trf!("{} colunas • {} linhas", e.fonte.cabecalho.len(), e.fonte.linhas.len())),
+                ].spacing(2),
+            ].spacing(8).align(pelicano::Align::Center)).padding([6, 10]).width(Length::FILL)
+                .style(ide::estilo_celula_propriedade(escuro, false)));
         }
-        arvore = arvore.push(ide::grupo_arvore(tr!("Tabelas existentes"), "table", escuro));
         let tabelas = tabelas_existentes(&self.workbook);
-        if tabelas.is_empty() {
+        arvore = arvore.push(grupo(tr!("Tabelas existentes"), tabelas.len(), 2, e.recolhidos[2], escuro));
+        let tabelas = if e.recolhidos[2] { Vec::new() } else { tabelas };
+        if tabelas.is_empty() && !e.recolhidos[2] {
             arvore = arvore.push(container(legenda_oq(
                 tr!("Nenhuma tabela encontrada. Crie uma na planilha com Ctrl+T.")
             )).padding([4, 12]));
@@ -237,7 +263,7 @@ impl App {
                     e.fontes.contains_key(&chave)));
             }
         }
-        if !e.fonte.cabecalho.is_empty() {
+        if !e.fonte.cabecalho.is_empty() && !e.recolhidos[2] && !tabelas_existentes(&self.workbook).is_empty() {
             arvore = arvore.push(container(legenda_oq(
                 tr!("Clique em outra tabela para adicioná-la à combinação.")
             )).padding([4, 12]));
@@ -476,7 +502,8 @@ impl App {
                 .width(Length::Fixed(38.0)).padding([8, 10])
                 .style(ide::estilo_cabecalho(escuro))
         ].spacing(0);
-        for (c, nome) in visual.cabecalho.iter().take(PREVIA_COLUNAS).enumerate() {
+        let largura = Length::Fixed(LARGURA_COLUNA_PREVIA);
+        for (c, nome) in visual.cabecalho.iter().enumerate() {
             let estat = qualidade::analisar(visual, c);
             let cor = match estat.tipo {
                 qualidade::Tipo::Inteiro | qualidade::Tipo::Decimal =>
@@ -488,19 +515,25 @@ impl App {
                 qualidade::Tipo::Texto =>
                     pelicano::Color::rgb8(33, 121, 167),
             };
-            cabecalho = cabecalho.push(button(column![
+            let selecionada = e.selecionadas.contains(&c);
+            let titulo = button(column![
                 row![
                     text(estat.codigo()).size(10).font(negrito()).color(cor),
                     text(nome.clone()).size(TAM_TEXTO).font(negrito()),
-                    Space::new(Length::FILL, 0.0),
-                    feather_ui::icones::icone("chevron-down", 12.0),
                 ].spacing(6).align(pelicano::Align::Center),
                 text(estat.resumo()).size(9).color(ide::cor_secundaria(escuro)),
             ].spacing(2))
-                .width(Length::Fill(1)).padding([8, 7])
-                .style(ide::estilo_botao_ide(e.coluna == c))
-                .on_press(om(Evento::Coluna(c))));
+                .width(Length::FILL).padding([8, 7])
+                .style(ide::estilo_botao_ide(selecionada))
+                .on_press(om(Evento::Coluna(c)));
+            let seta = button(feather_ui::icones::icone("chevron-down", 14.0))
+                .padding([8, 6]).height(Length::FILL)
+                .style(ide::estilo_botao_ide(e.menu_coluna == Some(c)))
+                .on_press(om(Evento::MenuColuna(Some(c))));
+            cabecalho = cabecalho.push(container(row![titulo, seta].height(Length::Shrink)).width(largura));
         }
+        // O menu ▾ abre onde está o mouse (o `on_move` dá a posição na janela).
+        let cabecalho = pelicano::mouse_area(cabecalho).on_move(|p| om(Evento::Ponteiro(p.x, p.y)));
         let mut grade = column![cabecalho].spacing(0);
         for (indice, linha) in visual.linhas.iter().take(PREVIA_LINHAS).enumerate() {
             let mut celulas = row![
@@ -509,16 +542,16 @@ impl App {
                     .width(Length::Fixed(38.0)).padding([5, 10])
                     .style(ide::estilo_celula_propriedade(escuro, true))
             ].spacing(0);
-            for val in linha.iter().take(PREVIA_COLUNAS) {
+            for (c, val) in linha.iter().enumerate() {
                 celulas = celulas.push(container(text(feathersheet_core::celulas::values::to_text(val)).size(TAM_LEGENDA))
-                    .padding([5, 8]).width(Length::Fill(1))
-                    .style(ide::estilo_celula_propriedade(escuro, false)));
+                    .padding([5, 8]).width(largura).clip(true)
+                    .style(ide::estilo_celula_propriedade(escuro, e.selecionadas.contains(&c))));
             }
             grade = grade.push(celulas);
         }
         column![
             barra_fx,
-            container(scrollable(grade).height(Length::FILL))
+            container(scrollable(grade).direction(pelicano::Direction::Both).height(Length::FILL).width(Length::FILL))
                 .width(Length::FILL).height(Length::FILL).padding(4)
                 .style(ide::estilo_area(escuro)),
         ].spacing(5).width(Length::FILL).height(Length::FILL).into()
@@ -536,6 +569,11 @@ impl App {
                 ide::item_arvore(&format!("{}. {}", i + 1, passo_rotulo(passo)),
                     "list-details", 0.0, Some(om(Evento::Prever(Some(i)))),
                     e.passo_previa == Some(i)),
+                if etapa::Modal::de_passo(passo, i, Vec::new()).is_some() {
+                    botao_so_icone("settings", tr!("Editar os parâmetros desta etapa"), Evento::EditarPasso(i))
+                } else {
+                    Space::new(Length::Fixed(29.0), 0.0).into()
+                },
                 botao_seta_cima(tr!("Mover para cima"), Evento::Mover(i, -1)),
                 botao_so_icone("arrow-down", tr!("Mover para baixo"), Evento::Mover(i, 1)),
                 botao_so_icone("x", tr!("Remover esta etapa"), Evento::Remover(i)),
@@ -592,8 +630,6 @@ impl App {
                     .font(pelicano::Font::MONO).size(12),
                 text(trf!("Fontes adicionais: {}", e.fontes.len()))
                     .font(pelicano::Font::MONO).size(12),
-                text(trf!("Limites: fonte até {MAX_CELULAS_FONTE} células, saída até {MAX_CELULAS_SAIDA}."))
-                    .font(pelicano::Font::MONO).size(12).color(ide::cor_secundaria(escuro)),
             ].spacing(4).padding(12).width(Length::FILL)).height(Length::FILL).into(),
         };
         container(column![
@@ -773,32 +809,70 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
 }
 
 /// Campos anteriormente fixos em "Propriedades" surgem apenas quando necessários.
-fn barra_parametros<'a>(e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
-    let mut faixa = row(Vec::<Element<Msg>>::new()).spacing(9).align(pelicano::Align::Center);
-    let (titulo, campo): (&str, Option<Element<'a, Msg>>) = match e.acao_parametros {
-        Some("filtrar") => (tr!("Filtrar coluna:"), Some(entrada(&e.filtro, tr!("Ex.: >100 ou SP*"), Evento::Filtro))),
-        Some("renomear") => (tr!("Novo nome:"), Some(entrada(&e.renomear, tr!("Nome da coluna"), Evento::Renomear))),
-        Some("limite") => (tr!("Manter primeiras linhas:"), Some(entrada(&e.quantidade, "100", Evento::Quantidade))),
-        Some("dividir") => (tr!("Separador:"), Some(entrada(&e.separador, ";", Evento::Separador))),
-        _ => (tr!("Carregar resultado em:"), None),
-    };
-    faixa = faixa.push(text(titulo).size(12).font(negrito()));
-    if let Some(campo) = campo {
-        faixa = faixa.push(container(campo).width(Length::Fixed(260.0)));
-        faixa = faixa.push(ide::botao_primario(tr!("Aplicar"), "checks", Some(om(Evento::AplicarParametros))));
-    } else {
-        for (rotulo, modo) in [
-            (tr!("Nova aba"), DestinoModo::NovaAba),
-            (tr!("Aba atual"), DestinoModo::AbaAtual),
-            (tr!("Apenas conexão"), DestinoModo::ApenasConexao),
-        ] {
-            faixa = faixa.push(ide::botao(rotulo, Some(om(Evento::Destino(modo))), e.destino_modo == modo));
-        }
+/// Cabeçalho recolhível da lateral: seta, título e quantos itens tem.
+fn grupo<'a>(rotulo: &str, quantos: usize, indice: u8, recolhido: bool, escuro: bool) -> Element<'a, Msg> {
+    button(row![
+        feather_ui::icones::icone(if recolhido { "chevron-right" } else { "chevron-down" }, 12.0),
+        text(rotulo.to_owned()).size(12).font(negrito()).color(ide::cor_texto(escuro)),
+        Space::new(Length::FILL, 0.0),
+        text(quantos.to_string()).size(10).color(ide::cor_secundaria(escuro)),
+    ].spacing(6).align(pelicano::Align::Center))
+        .padding([7, 6]).width(Length::FILL)
+        .style(ide::estilo_botao_ide(false))
+        .on_press(om(Evento::RecolherGrupo(indice)))
+        .into()
+}
+
+/// Menu ▾ da coluna, como o do Power Query: age sobre a seleção.
+fn menu_da_coluna(e: &Estado, c: usize) -> Vec<crate::app::menu_contexto::ItemMenu> {
+    use crate::app::menu_contexto::ItemMenu;
+    let acao = |rotulo: &str, icone: &'static str, tipo: &'static str| ItemMenu::acao(rotulo, icone, om(Evento::Adicionar(tipo)));
+    let varias = e.selecionadas.len() > 1;
+    let _ = c;
+    vec![
+        acao(tr!("Classificar crescente"), "sort-ascending", "ordenar"),
+        acao(tr!("Classificar decrescente"), "sort-descending", "decrescente"),
+        acao(tr!("Filtrar…"), "filter", "filtrar"),
+        ItemMenu::Separador,
+        acao(tr!("Renomear…"), "edit", "renomear"),
+        ItemMenu::sub(tr!("Alterar tipo"), "math-function", vec![
+            acao(tr!("Texto"), "text-size", "texto"),
+            acao(tr!("Número"), "math-function", "numero"),
+        ]),
+        acao(tr!("Dividir coluna…"), "columns", "dividir"),
+        acao(tr!("Agrupar por…"), "chart-bar", "agrupar"),
+        ItemMenu::Separador,
+        acao(if varias { tr!("Remover colunas") } else { tr!("Remover coluna") }, "trash", "remover_coluna"),
+        acao(tr!("Remover outras colunas"), "columns", "manter_colunas"),
+        acao(tr!("Remover duplicatas"), "list-select", "distintas"),
+        acao(tr!("Remover erros"), "eraser", "remover_erros"),
+    ]
+}
+
+/// "Carregar em…": modal com o destino do resultado.
+fn painel_destino<'a>(e: &'a Estado) -> Element<'a, Msg> {
+    let mut opcoes = column![].spacing(ESPACO_MEDIO);
+    for (rotulo, legenda, modo) in [
+        (tr!("Nova aba"), tr!("Cria uma aba com o resultado."), DestinoModo::NovaAba),
+        (tr!("Aba atual"), tr!("Escreve a partir de A1 da aba ativa."), DestinoModo::AbaAtual),
+        (tr!("Apenas conexão"), tr!("Guarda a consulta sem escrever células."), DestinoModo::ApenasConexao),
+    ] {
+        opcoes = opcoes.push(column![
+            pelicano::radio(rotulo, modo, Some(e.destino_modo), |m| om(Evento::Destino(m))).size(TAM_TEXTO),
+            container(legenda_oq(legenda)).padding([0, 26]),
+        ].spacing(2));
     }
-    faixa = faixa.push(Space::new(Length::FILL, 0.0))
-        .push(ide::botao_icone_simples("x", Some(om(Evento::AlternarParametros))));
-    container(faixa).padding([7, 12]).width(Length::FILL)
-        .style(ide::estilo_cabecalho(escuro)).into()
+    container(column![
+        titulo_oq(tr!("Carregar em…")),
+        opcoes,
+        row![
+            Space::new(Length::FILL, 0.0),
+            button(text(tr!("Fechar")).size(TAM_TEXTO))
+                .on_press(om(Evento::AlternarParametros))
+                .style(estilo_botao_secundario).padding([6.0, 12.0]),
+        ],
+    ].spacing(ESPACO_GRANDE).padding(PADDING_PAINEL + 4.0)).width(Length::Fixed(400.0))
+        .style(estilo_janela_oq).into()
 }
 
 #[cfg(test)]
@@ -846,5 +920,55 @@ mod testes {
         let _ = app.evento_openquery_janela(Evento::Fechar);
         assert!(app.openquery.is_none());
         assert!(!app.janelas.aberta(Auxiliar::OpenQuery));
+    }
+
+    fn com_fonte() -> App {
+        let mut app = App::default();
+        for (c, nome) in ["Uf", "Tipo", "Votos"].iter().enumerate() {
+            app.workbook.escrever_celula(0, 0, c as u32, (*nome).into());
+        }
+        for (l, (uf, tipo, votos)) in [("RR", "Eleição Ordinária", "10"), ("AC", "Eleição Suplementar", "7")].iter().enumerate() {
+            app.workbook.escrever_celula(0, l as u32 + 1, 0, (*uf).into());
+            app.workbook.escrever_celula(0, l as u32 + 1, 1, (*tipo).into());
+            app.workbook.escrever_celula(0, l as u32 + 1, 2, (*votos).into());
+        }
+        abrir_aba_para_teste(&mut app);
+        app
+    }
+
+    #[test]
+    fn modal_cria_etapa_e_engrenagem_edita_a_mesma() {
+        let mut app = com_fonte();
+        let _ = app.evento_openquery_janela(Evento::Coluna(1));
+        let _ = app.evento_openquery_janela(Evento::Adicionar("dividir"));
+        assert!(app.openquery.as_ref().unwrap().modal.is_some());
+        let _ = app.view_openquery();
+        let _ = app.evento_openquery_janela(Evento::Etapa(etapa::Evento::Aplicar));
+        let e = app.openquery.as_ref().unwrap();
+        assert!(e.modal.is_none());
+        assert_eq!(e.resultado.cabecalho, ["Uf", "Tipo.1", "Tipo.2", "Votos"]);
+        // Engrenagem: a mesma etapa vira "em linhas", sem acrescentar outra.
+        let _ = app.evento_openquery_janela(Evento::EditarPasso(0));
+        let _ = app.evento_openquery_janela(Evento::Etapa(etapa::Evento::EmLinhas(true)));
+        let _ = app.evento_openquery_janela(Evento::Etapa(etapa::Evento::Aplicar));
+        let e = app.openquery.as_ref().unwrap();
+        assert_eq!(e.passos.len(), 1);
+        assert_eq!(e.resultado.linhas.len(), 4);
+    }
+
+    #[test]
+    fn ctrl_e_shift_selecionam_varias_colunas_e_o_menu_remove_todas() {
+        let mut app = com_fonte();
+        let _ = app.evento_openquery_janela(Evento::Coluna(0));
+        let _ = app.evento_openquery_janela(Evento::Modificadores(pelicano::Modifiers::SHIFT));
+        let _ = app.evento_openquery_janela(Evento::Coluna(1));
+        assert_eq!(app.openquery.as_ref().unwrap().selecionadas, [0, 1]);
+        let _ = app.evento_openquery_janela(Evento::Modificadores(pelicano::Modifiers::default()));
+        let _ = app.evento_openquery_janela(Evento::MenuColuna(Some(1)));
+        let _ = app.view_openquery();
+        let _ = app.evento_openquery_janela(Evento::Adicionar("remover_coluna"));
+        let e = app.openquery.as_ref().unwrap();
+        assert!(e.menu_coluna.is_none());
+        assert_eq!(e.resultado.cabecalho, ["Votos"]);
     }
 }

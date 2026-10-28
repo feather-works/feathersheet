@@ -23,10 +23,6 @@ pub(super) fn ler(texto: &str) -> Result<Tabela, String> {
         } else { nome }).collect::<Vec<_>>();
     let largura = cabecalho.len();
     if largura == 0 { return Err(tr!("Cabeçalho vazio").into()); }
-    let celulas = (linhas.len() as u64+1).saturating_mul(largura as u64);
-    if celulas > MAX_CELULAS_FONTE {
-        return Err(trf!("Entrada manual de {celulas} células excede o limite de {MAX_CELULAS_FONTE}"));
-    }
     let mut out = Vec::with_capacity(linhas.len());
     for (i,linha) in linhas.into_iter().enumerate() {
         if linha.len() > largura {

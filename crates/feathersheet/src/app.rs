@@ -1631,8 +1631,11 @@ impl App {
             Event::Key { key, pressed: false, .. } => msgs.push(Msg::TeclaLiberada(key.clone())),
             // Shift+Enter na busca do editor de macros volta uma ocorrência:
             // o campo só avisa "Enter", então o Shift é lembrado aqui.
-            Event::ModifiersChanged(m) =>
-                msgs.push(Msg::MacroVisual(macros::EventoVisual::Codigo(macros::EventoCodigo::Modificadores(*m)))),
+            Event::ModifiersChanged(m) => {
+                msgs.push(Msg::MacroVisual(macros::EventoVisual::Codigo(macros::EventoCodigo::Modificadores(*m))));
+                // Ctrl/Shift+clique nas colunas da prévia do OpenQuery.
+                if self.openquery.is_some() { msgs.push(Msg::OpenQuery(openquery_ui::Evento::Modificadores(*m))); }
+            }
             Event::Resized(size) => msgs.push(Msg::JanelaRedimensionada(id, *size)),
             // A roda chega em pixels; 40 px valem um passo (como o `ScrollDelta::Pixels` do Iced).
             Event::Wheel { dy, .. } if livre && (dy / 40.0).abs() >= 0.1 => msgs.push(Msg::Roda(dy.signum() as i32)),
