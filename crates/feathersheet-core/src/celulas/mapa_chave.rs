@@ -37,6 +37,8 @@ impl Hasher for HasherChave {
     }
 }
 
+/// Mapa por número de coluna, com o mesmo hash barato.
+pub type MapaColuna<V> = HashMap<u32, V, BuildHasherDefault<HasherChave>>;
 pub type MapaChave<V> = HashMap<u64, V, BuildHasherDefault<HasherChave>>;
 /// O conjunto com a mesma chave e o mesmo hash barato.
 pub type ConjuntoChave = std::collections::HashSet<u64, BuildHasherDefault<HasherChave>>;

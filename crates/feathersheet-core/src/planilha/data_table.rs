@@ -5,7 +5,7 @@
 //! e/ou um [`ChunkedInt32Column`] (texto e booleano, como id no
 //! [`StringPool`]) — nunca os dois preenchidos na mesma linha.
 
-use std::collections::HashMap;
+use crate::celulas::mapa_chave::MapaColuna;
 
 use crate::planilha::column_store::{ChunkedFloatColumn, ChunkedInt32Column};
 use crate::celulas::number::to_js_string;
@@ -44,7 +44,8 @@ struct ColumnEntry {
 
 #[derive(Default)]
 pub struct DataTable {
-    columns: HashMap<u32, ColumnEntry>,
+    // Hash barato: a coluna é achada a cada célula lida (SipHash custava ~6% da dinâmica).
+    columns: MapaColuna<ColumnEntry>,
     tracked_max_row: u32,
     tracked_max_col: u32,
 }
@@ -417,7 +418,7 @@ impl DataTable {
         if count == 0 {
             return;
         }
-        let mut proximo: HashMap<u32, ColumnEntry> = HashMap::with_capacity(self.columns.len());
+        let mut proximo: MapaColuna<ColumnEntry> = MapaColuna::with_capacity_and_hasher(self.columns.len(), Default::default());
         for (col, entry) in self.columns.drain() {
             if removing {
                 // A coluna excluída vai embora com tudo que tinha dentro.

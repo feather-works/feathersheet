@@ -43,7 +43,7 @@ use std::hash::BuildHasherDefault;
 
 use crate::celulas::mapa_chave::HasherChave;
 
-type MapaColuna<V> = HashMap<u32, V, BuildHasherDefault<HasherChave>>;
+use crate::celulas::mapa_chave::MapaColuna;
 type ConjuntoId = HashSet<i32, BuildHasherDefault<HasherChave>>;
 use std::sync::atomic::{AtomicBool, Ordering};
 

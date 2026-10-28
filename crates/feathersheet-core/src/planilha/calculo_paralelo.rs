@@ -56,7 +56,7 @@ struct Vista<'a> {
     data: &'a DataTable,
     formulas: &'a FormulaTable,
     pool: &'a StringPool,
-    cells: &'a HashMap<u64, CellData>,
+    cells: &'a crate::celulas::mapa_chave::MapaChave<CellData>,
     row_heights: &'a HashMap<u32, u32>,
     /// `Sheet::linhas_ocultas_desde`: ocultas até o fim da aba.
     linhas_ocultas_desde: Option<u32>,

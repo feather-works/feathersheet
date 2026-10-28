@@ -198,7 +198,7 @@ pub struct Sheet {
     /// Aba oculta no rodapé; os dados e referências continuam acessíveis.
     pub oculta: bool,
     /// Só fórmula mora aqui — célula literal vai para [`Self::data`].
-    pub cells: HashMap<u64, CellData>,
+    pub cells: crate::celulas::mapa_chave::MapaChave<CellData>,
     /// Literal (número, texto, booleano), colunar — ver a nota de topo do
     /// arquivo.
     pub data: DataTable,
@@ -336,7 +336,7 @@ impl Sheet {
             name: name.into(),
             tab_color: None,
             oculta: false,
-            cells: HashMap::new(),
+            cells: Default::default(),
             data: DataTable::new(),
             formulas: FormulaTable::new(),
             pool: StringPool::new(),
@@ -1587,7 +1587,7 @@ impl Sheet {
             return;
         }
 
-        let mut next_cells = HashMap::with_capacity(self.cells.len());
+        let mut next_cells = crate::celulas::mapa_chave::MapaChave::with_capacity_and_hasher(self.cells.len(), Default::default());
         for (k, cell) in self.cells.drain() {
             let (r, c) = Self::key_to_coord(k);
             if r >= at {
@@ -1642,7 +1642,7 @@ impl Sheet {
         }
         let end = at + count;
 
-        let mut next_cells = HashMap::with_capacity(self.cells.len());
+        let mut next_cells = crate::celulas::mapa_chave::MapaChave::with_capacity_and_hasher(self.cells.len(), Default::default());
         for (k, cell) in self.cells.drain() {
             let (r, c) = Self::key_to_coord(k);
             if r >= at && r < end {
@@ -1700,7 +1700,7 @@ impl Sheet {
             return;
         }
 
-        let mut next_cells = HashMap::with_capacity(self.cells.len());
+        let mut next_cells = crate::celulas::mapa_chave::MapaChave::with_capacity_and_hasher(self.cells.len(), Default::default());
         for (k, cell) in self.cells.drain() {
             let (r, c) = Self::key_to_coord(k);
             if c >= at {
@@ -1751,7 +1751,7 @@ impl Sheet {
         }
         let end = at + count;
 
-        let mut next_cells = HashMap::with_capacity(self.cells.len());
+        let mut next_cells = crate::celulas::mapa_chave::MapaChave::with_capacity_and_hasher(self.cells.len(), Default::default());
         for (k, cell) in self.cells.drain() {
             let (r, c) = Self::key_to_coord(k);
             if c >= at && c < end {
