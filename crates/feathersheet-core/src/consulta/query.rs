@@ -787,10 +787,14 @@ fn converter(v: Value, para: &str) -> Value {
             let s = string_js(&v);
             Value::Text(if s.starts_with("http") { s } else { format!("https://{s}") })
         }
-        // ⚠ O `new Date(texto).toISOString()` do JavaScript não tem tradução
-        // sem biblioteca de datas: número passa, texto vira vazio. Anotado.
+        // Texto como se digitado ("27/10/2026", "16:32:29", "2026-10-27 08:00"):
+        // vira série; o que não for data/hora fica vazio.
         "data" | "dataHora" | "hora" => match v {
             Value::Number(_) => v,
+            Value::Text(t) => match crate::celulas::input::parse_literal(t.trim()).value {
+                Value::Number(n) => Value::Number(n),
+                _ => Value::Empty,
+            },
             _ => Value::Empty,
         },
         _ => numero(&v).map(Value::Number).unwrap_or(Value::Empty),
@@ -924,5 +928,12 @@ mod testes {
         assert_eq!(r.linhas[0][1..3], [Value::Text("Eleição".into()), Value::Text("Ordinária".into())]);
         assert_eq!(r.linhas[1][1..4], [Value::Text("Suplementar".into()), Value::Empty, Value::Text("AC".into())]);
         assert_eq!(r.linhas[2][1..3], [Value::Number(7.0), Value::Empty]);
+    }
+
+    #[test]
+    fn tipar_data_e_hora_le_texto_como_digitado() {
+        assert!(matches!(converter(Value::Text("27/10/2026".into()), "data"), Value::Number(n) if n > 46000.0));
+        assert!(matches!(converter(Value::Text("16:32:29".into()), "hora"), Value::Number(n) if n > 0.68 && n < 0.69));
+        assert_eq!(converter(Value::Text("abc".into()), "data"), Value::Empty);
     }
 }

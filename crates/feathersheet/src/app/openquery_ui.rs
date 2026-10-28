@@ -145,6 +145,10 @@ pub enum Evento {
     /// Recolhe/expande um grupo da lateral (0 salvas, 1 origem, 2 tabelas).
     RecolherGrupo(u8),
     JanelaRedimensionada(pelicano::Size),
+    /// Menu de tipos (clique no 123/ABC ou "Tipo de dados ▾"): coluna e onde abre.
+    MenuTipo(Option<usize>, Option<(f32, f32)>),
+    /// Muda o tipo da coluna (troca a etapa de tipo anterior da mesma coluna, se for a última).
+    Tipar(usize, &'static str),
     /// Formatos da fonte lida em segundo plano (vale só para a importação `ticket`).
     Formatos(u64, Formatos),
     /// Rolagem da prévia: só as linhas e colunas à vista são montadas.
@@ -205,7 +209,10 @@ pub(super) struct Estado {
     selecionadas: Vec<usize>,
     modificadores: pelicano::Modifiers,
     menu_coluna: Option<usize>,
+    menu_tipo: Option<usize>,
     ponteiro: (f32, f32),
+    /// Onde o menu ▾ abriu: fica parado enquanto o mouse anda até ele.
+    posicao_menu: (f32, f32),
     janela: pelicano::Size,
     recolhidos: [bool; 3],
     /// Deslocamento e tamanho visível da prévia (x, y, largura, altura).
@@ -293,7 +300,9 @@ impl Estado {
             selecionadas: vec![0],
             modificadores: pelicano::Modifiers::default(),
             menu_coluna: None,
+            menu_tipo: None,
             ponteiro: (0.0, 0.0),
+            posicao_menu: (0.0, 0.0),
             janela: pelicano::Size::new(1280.0, 800.0),
             recolhidos: [false; 3],
             rolagem: (0.0, 0.0, 1600.0, 1000.0),
@@ -787,10 +796,34 @@ impl App {
                 if let Some(c) = col {
                     if !e.selecionadas.contains(&c) { e.selecionadas = vec![c]; }
                     e.coluna = c;
+                    e.posicao_menu = e.ponteiro;
                 }
                 e.menu_coluna = col;
             },
             Evento::Ponteiro(x, y) => if let Some(e) = &mut self.openquery { e.ponteiro = (x, y); },
+            Evento::MenuTipo(col, posicao) => if let Some(e) = &mut self.openquery {
+                e.menu_coluna = None;
+                if let Some(c) = col {
+                    if !e.selecionadas.contains(&c) { e.selecionadas = vec![c]; }
+                    e.coluna = c;
+                    e.posicao_menu = posicao.unwrap_or(e.ponteiro);
+                }
+                e.menu_tipo = col;
+            },
+            Evento::Tipar(col, para) => if let Some(e) = &mut self.openquery {
+                e.menu_tipo = None;
+                match e.sincronizar() {
+                    Ok(()) => {
+                        // Como o "Tipo Alterado" do Power Query: trocar de novo não empilha etapa.
+                        match e.passos.last_mut() {
+                            Some(Passo::Tipar { col: c, para: p }) if *c == col => *p = para.into(),
+                            _ => e.passos.push(Passo::Tipar { col, para: para.into() }),
+                        }
+                        e.registrar_passos();
+                    }
+                    Err(erro) => e.erro = erro,
+                }
+            },
             Evento::Modificadores(m) => if let Some(e) = &mut self.openquery { e.modificadores = m; },
             Evento::JanelaRedimensionada(t) => if let Some(e) = &mut self.openquery { e.janela = t; },
             Evento::Formatos(ticket, f) => if let Some(e) = &mut self.openquery {

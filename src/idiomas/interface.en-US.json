@@ -4019,5 +4019,19 @@
  "Salvar etapa": "Save step",
  "Contar linhas": "Count rows",
  "Dividir coluna…": "Split column…",
- "Agrupar por": "Group by"
+ "Agrupar por": "Group by",
+ "Agrupar\npor": "Group\nby",
+ "COLUNA DE TEXTO": "TEXT COLUMN",
+ "Despivotar outras": "Unpivot other columns",
+ "Manter primeiras linhas…": "Keep top rows…",
+ "Pivotar…": "Pivot…",
+ "QUALQUER COLUNA": "ANY COLUMN",
+ "TABELA": "TABLE",
+ "Tipo de dados": "Data type",
+ "Tipo de\ndados ▾": "Data\ntype ▾",
+ "Usar 1ª linha como cabeçalho": "Use first row as headers",
+ "Usar cabeçalho como 1ª linha": "Use headers as first row",
+ "Número decimal": "Decimal number",
+ "Data/Hora": "Date/Time",
+ "Verdadeiro/Falso": "True/False"
 }

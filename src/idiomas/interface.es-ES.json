@@ -4014,5 +4014,19 @@
  "Salvar etapa": "Guardar paso",
  "Contar linhas": "Contar filas",
  "Dividir coluna…": "Dividir columna…",
- "Agrupar por": "Agrupar por"
+ "Agrupar por": "Agrupar por",
+ "Agrupar\npor": "Agrupar\npor",
+ "COLUNA DE TEXTO": "COLUMNA DE TEXTO",
+ "Despivotar outras": "Anular dinamización de otras",
+ "Manter primeiras linhas…": "Mantener primeras filas…",
+ "Pivotar…": "Dinamizar…",
+ "QUALQUER COLUNA": "CUALQUIER COLUMNA",
+ "TABELA": "TABLA",
+ "Tipo de dados": "Tipo de datos",
+ "Tipo de\ndados ▾": "Tipo de\ndatos ▾",
+ "Usar 1ª linha como cabeçalho": "Usar 1.ª fila como encabezado",
+ "Usar cabeçalho como 1ª linha": "Usar encabezado como 1.ª fila",
+ "Número decimal": "Número decimal",
+ "Data/Hora": "Fecha/Hora",
+ "Verdadeiro/Falso": "Verdadero/Falso"
 }

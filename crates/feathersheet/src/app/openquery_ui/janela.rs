@@ -113,10 +113,16 @@ impl App {
                 }));
             return stack![base, fundo].height(Length::FILL).into();
         }
+        if let Some(c) = e.menu_tipo {
+            return crate::app::menu_contexto::sobrepor(
+                base, &menu_de_tipos(c), None, |_| om(Evento::MenuTipo(None, None)),
+                om(Evento::MenuTipo(None, None)), (e.posicao_menu.0 - 10.0, e.posicao_menu.1 + 14.0), e.janela,
+            );
+        }
         if let Some(c) = e.menu_coluna {
             return crate::app::menu_contexto::sobrepor(
                 base, &menu_da_coluna(e, c), None, |_| om(Evento::MenuColuna(None)),
-                om(Evento::MenuColuna(None)), (e.ponteiro.0 - 40.0, e.ponteiro.1 + 14.0), e.janela,
+                om(Evento::MenuColuna(None)), (e.posicao_menu.0 - 40.0, e.posicao_menu.1 + 14.0), e.janela,
             );
         }
         if e.editor_avancado.is_some() {
@@ -130,7 +136,9 @@ impl App {
             return stack![base, janela].height(Length::FILL).into();
         }
         if e.assistente.is_none() {
-            return base;
+            // Sempre numa pilha, com a base na 1ª posição: abrir um modal ou o menu
+            // não recria a rolagem da prévia (os dados sumiam atrás do modal).
+            return stack![base].height(Length::FILL).into();
         }
         // O assistente (mesclar, acrescentar, pivotar) é modal dentro desta janela.
         let assistente = opaque(container(opaque(self.painel_assistente_openquery(e)))
@@ -505,6 +513,7 @@ impl App {
                 .style(ide::estilo_cabecalho(escuro))
         ].spacing(0);
         let largura = Length::Fixed(LARGURA_COLUNA_PREVIA);
+        let formatos = formatos_efetivos(e, visual);
         // Só o que está à vista vira widget; o resto é espaço do mesmo tamanho,
         // para a barra de rolagem continuar certa (50 colunas × 1000 linhas travavam).
         let (ox, oy, bw, bh) = e.rolagem;
@@ -530,11 +539,11 @@ impl App {
                     pelicano::Color::rgb8(33, 121, 167),
             };
             let selecionada = e.selecionadas.contains(&c);
+            let tipo = dica(button(text(codigo_tipo(estat.codigo(), formatos.get(nome))).size(10).font(negrito()).color(cor))
+                .padding([4, 5]).style(ide::estilo_botao_ide(e.menu_tipo == Some(c)))
+                .on_press(om(Evento::MenuTipo(Some(c), None))), tr!("Tipo de dados"));
             let titulo = button(column![
-                row![
-                    text(estat.codigo()).size(10).font(negrito()).color(cor),
-                    text(nome.clone()).size(TAM_TEXTO).font(negrito()).ellipsis(),
-                ].spacing(6).align(pelicano::Align::Center),
+                text(nome.clone()).size(TAM_TEXTO).font(negrito()).ellipsis(),
                 text(estat.resumo()).size(9).color(ide::cor_secundaria(escuro)).ellipsis(),
             ].spacing(2))
                 .width(Length::FILL).padding([8, 7])
@@ -544,7 +553,7 @@ impl App {
                 .padding([8, 6]).height(Length::FILL)
                 .style(ide::estilo_botao_ide(e.menu_coluna == Some(c)))
                 .on_press(om(Evento::MenuColuna(Some(c))));
-            cabecalho = cabecalho.push(container(row![titulo, seta].height(Length::FILL))
+            cabecalho = cabecalho.push(container(row![container(tipo).padding([0, 2]).height(Length::FILL).align_y(pelicano::Align::Center), titulo, seta].height(Length::FILL))
                 .width(largura).height(Length::Fixed(ALTURA_CABECALHO_PREVIA)));
         }
         let cabecalho = cabecalho.push(depois());
@@ -563,7 +572,7 @@ impl App {
             ].spacing(0).push(Space::new(Length::Fixed(c0 as f32 * LARGURA_COLUNA_PREVIA), 0.0));
             for (c, val) in linha.iter().enumerate().take(c1).skip(c0) {
                 // Uma linha por célula, com "…": texto longo não desalinha as linhas.
-                let texto = match (val, e.formatos.get(&visual.cabecalho[c.min(n_colunas.saturating_sub(1))])) {
+                let texto = match (val, formatos.get(&visual.cabecalho[c.min(n_colunas.saturating_sub(1))])) {
                     (Value::Number(_), Some(estilo)) => feathersheet_core::planilha::bloco::texto_formatado(val, Some(estilo)),
                     _ => feathersheet_core::celulas::values::to_text(val),
                 };
@@ -727,6 +736,21 @@ fn botao_ribbon(
         .on_press(om(evento)).style(ide::estilo_botao_ide(ativo)).into()
 }
 
+/// Botão pequeno (ícone 16 + texto ao lado), empilhado ao lado dos grandes.
+fn botao_pequeno(rotulo: &'static str, icone: &'static str, cor: &'static str, evento: Evento) -> Element<'static, Msg> {
+    button(row![
+        feather_ui::icones::icone_colorido(icone, 16.0, cor),
+        text(rotulo).size(11),
+    ].spacing(6).align(pelicano::Align::Center))
+        .padding([4, 7])
+        .on_press(om(evento)).style(ide::estilo_botao_ide(false)).into()
+}
+
+/// Até três botões pequenos, um embaixo do outro.
+fn pilha(botoes: Vec<Element<'static, Msg>>) -> Element<'static, Msg> {
+    container(column(botoes).spacing(1)).height(Length::Fixed(80.0)).align_y(pelicano::Align::Center).into()
+}
+
 fn grupo_ribbon<'a>(
     rotulo: &'static str, acoes: Vec<Element<'a, Msg>>, escuro: bool,
 ) -> Element<'a, Msg> {
@@ -745,73 +769,88 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
     const LARANJA: &str = "#d68126";
     const ROXO: &str = "#7d5cc6";
     const VERMELHO: &str = "#ca5555";
+    let p = botao_pequeno;
     let grupos = match e.aba_faixa {
         AbaFaixa::Inicio => vec![
             grupo_ribbon("FECHAR", vec![
                 botao_ribbon(tr!("Salvar e\ncarregar"), "device-floppy", VERDE, Evento::Carregar, false),
-                botao_ribbon(tr!("Fechar"), "x", VERMELHO, Evento::Fechar, false),
-                botao_ribbon("Carregar\nem...", "file-export", AZUL, Evento::AbrirDestino, e.parametros_abertos && e.acao_parametros.is_none()),
+                pilha(vec![
+                    p(tr!("Carregar em…"), "file-export", AZUL, Evento::AbrirDestino),
+                    p(tr!("Fechar"), "x", VERMELHO, Evento::Fechar),
+                ]),
             ], escuro),
             grupo_ribbon(tr!("OBTER DADOS"), vec![
                 botao_ribbon(tr!("De arquivo"), "folder-open", LARANJA, Evento::ImportarArquivo, false),
-                botao_ribbon(tr!("Da Web"), "link", AZUL, Evento::MostrarWeb, e.mostrar_web),
-                botao_ribbon(tr!("De tabela"), "table", VERDE, Evento::MostrarTabelas, e.mostrar_tabelas),
+                pilha(vec![
+                    p(tr!("Da Web"), "link", AZUL, Evento::MostrarWeb),
+                    p(tr!("De tabela"), "table", VERDE, Evento::MostrarTabelas),
+                ]),
             ], escuro),
             grupo_ribbon("CONSULTA", vec![
                 botao_ribbon("Atualizar\nfonte", "refresh", VERDE, Evento::AtualizarFonte, false),
-                botao_ribbon(tr!("Editor\navançado"), "code", ROXO, Evento::AbrirEditorAvancado, e.editor_avancado.is_some()),
+                pilha(vec![p(tr!("Editor avançado"), "code", ROXO, Evento::AbrirEditorAvancado)]),
             ], escuro),
-            grupo_ribbon("COLUNAS", vec![
-                botao_ribbon(tr!("Renomear"), "edit", AZUL, Evento::Adicionar("renomear"), false),
-                botao_ribbon(tr!("Remover"), "trash", VERMELHO, Evento::Adicionar("remover_coluna"), false),
-            ], escuro),
+            grupo_ribbon("COLUNAS", vec![pilha(vec![
+                p(tr!("Renomear…"), "edit", AZUL, Evento::Adicionar("renomear")),
+                p(tr!("Remover colunas"), "trash", VERMELHO, Evento::Adicionar("remover_coluna")),
+                p(tr!("Remover outras colunas"), "columns", AZUL, Evento::Adicionar("manter_colunas")),
+            ])], escuro),
             grupo_ribbon("LINHAS", vec![
                 botao_ribbon(tr!("Filtrar"), "filter", ROXO, Evento::Adicionar("filtrar"), false),
-                botao_ribbon(tr!("Manter N"), "list-numbers", VERDE, Evento::Adicionar("limite"), false),
-                botao_ribbon(tr!("Distintos"), "list-select", AZUL, Evento::Adicionar("distintas"), false),
+                pilha(vec![
+                    p(tr!("Manter primeiras linhas…"), "list-numbers", VERDE, Evento::Adicionar("limite")),
+                    p(tr!("Remover duplicatas"), "list-select", AZUL, Evento::Adicionar("distintas")),
+                    p(tr!("Remover erros"), "eraser", VERMELHO, Evento::Adicionar("remover_erros")),
+                ]),
             ], escuro),
-            grupo_ribbon("COMBINAR", vec![
-                botao_ribbon(tr!("Mesclar"), "sitemap", AZUL,
-                    Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Juntar)), false),
-                botao_ribbon(tr!("Acrescentar"), "list", VERDE,
-                    Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Acrescentar)), false),
-            ], escuro),
+            grupo_ribbon("COMBINAR", vec![pilha(vec![
+                p(tr!("Mesclar consultas"), "sitemap", AZUL,
+                    Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Juntar))),
+                p(tr!("Acrescentar consultas"), "list", VERDE,
+                    Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Acrescentar))),
+            ])], escuro),
         ],
         AbaFaixa::Transformar => vec![
-            grupo_ribbon(tr!("TIPO DE DADOS"), vec![
-                botao_ribbon(tr!("Texto"), "text-size", AZUL, Evento::Adicionar("texto"), false),
-                botao_ribbon(tr!("Número"), "math-function", VERDE, Evento::Adicionar("numero"), false),
+            grupo_ribbon(tr!("QUALQUER COLUNA"), vec![
+                botao_ribbon(tr!("Tipo de\ndados ▾"), "math-function", VERDE,
+                    Evento::MenuTipo(Some(e.coluna), Some((30.0, 150.0))), e.menu_tipo.is_some()),
+                pilha(vec![
+                    p(tr!("Renomear…"), "edit", AZUL, Evento::Adicionar("renomear")),
+                    p(tr!("Despivotar outras"), "layout-grid", AZUL, Evento::Adicionar("despivotar")),
+                    p(tr!("Pivotar…"), "pivot-table", ROXO,
+                        Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Pivotar))),
+                ]),
             ], escuro),
-            grupo_ribbon("LINHAS", vec![
-                botao_ribbon(tr!("Filtrar"), "filter", ROXO, Evento::Adicionar("filtrar"), false),
-                botao_ribbon("Remover\nerros", "eraser", VERMELHO, Evento::Adicionar("remover_erros"), false),
-                botao_ribbon(tr!("Agrupar"), "chart-bar", LARANJA, Evento::Adicionar("agrupar"), false),
+            grupo_ribbon(tr!("TABELA"), vec![
+                botao_ribbon(tr!("Agrupar\npor"), "chart-bar", LARANJA, Evento::Adicionar("agrupar"), false),
+                pilha(vec![
+                    p(tr!("Usar 1ª linha como cabeçalho"), "table", VERDE, Evento::Adicionar("promover")),
+                    p(tr!("Usar cabeçalho como 1ª linha"), "list", LARANJA, Evento::Adicionar("rebaixar")),
+                ]),
             ], escuro),
-            grupo_ribbon("ESTRUTURA", vec![
-                botao_ribbon(tr!("Dividir\nem linhas"), "columns", AZUL, Evento::Adicionar("dividir"), false),
-                botao_ribbon(tr!("Pivotar"), "pivot-table", ROXO,
-                    Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Pivotar)), false),
-                botao_ribbon(tr!("Despivotar"), "layout-grid", AZUL, Evento::Adicionar("despivotar"), false),
-            ], escuro),
-            grupo_ribbon(tr!("CABEÇALHO"), vec![
-                botao_ribbon(tr!("Promover"), "table", VERDE, Evento::Adicionar("promover"), false),
-                botao_ribbon(tr!("Rebaixar"), "list", LARANJA, Evento::Adicionar("rebaixar"), false),
-            ], escuro),
-            grupo_ribbon("ORDENAR", vec![
-                botao_ribbon(tr!("A → Z"), "sort-ascending", AZUL, Evento::Adicionar("ordenar"), false),
-                botao_ribbon(tr!("Z → A"), "sort-descending", AZUL, Evento::Adicionar("decrescente"), false),
-            ], escuro),
+            grupo_ribbon(tr!("COLUNA DE TEXTO"), vec![pilha(vec![
+                p(tr!("Dividir coluna…"), "columns", AZUL, Evento::Adicionar("dividir")),
+                p(tr!("Mesclar colunas"), "link", VERDE, Evento::Adicionar("mesclar")),
+            ])], escuro),
+            grupo_ribbon("LINHAS", vec![pilha(vec![
+                p(tr!("Filtrar…"), "filter", ROXO, Evento::Adicionar("filtrar")),
+                p(tr!("Remover erros"), "eraser", VERMELHO, Evento::Adicionar("remover_erros")),
+            ])], escuro),
+            grupo_ribbon("ORDENAR", vec![pilha(vec![
+                p(tr!("Classificar crescente"), "sort-ascending", AZUL, Evento::Adicionar("ordenar")),
+                p(tr!("Classificar decrescente"), "sort-descending", AZUL, Evento::Adicionar("decrescente")),
+            ])], escuro),
         ],
         AbaFaixa::Adicionar => vec![
             grupo_ribbon(tr!("NOVA COLUNA"), vec![
                 botao_ribbon(tr!("Índice"), "list-numbers", AZUL, Evento::Adicionar("indice"), false),
-                botao_ribbon("Mesclar\ncolunas", "link", VERDE, Evento::Adicionar("mesclar"), false),
+                pilha(vec![p(tr!("Mesclar colunas"), "link", VERDE, Evento::Adicionar("mesclar"))]),
             ], escuro),
-            grupo_ribbon("CONSULTAS", vec![
-                botao_ribbon(tr!("Juntar"), "arrow-step", ROXO, Evento::Adicionar("juntar"), false),
-                botao_ribbon(tr!("Acrescentar"), "list", AZUL,
-                    Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Acrescentar)), false),
-            ], escuro),
+            grupo_ribbon("CONSULTAS", vec![pilha(vec![
+                p(tr!("Juntar"), "arrow-step", ROXO, Evento::Adicionar("juntar")),
+                p(tr!("Acrescentar consultas"), "list", AZUL,
+                    Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Acrescentar))),
+            ])], escuro),
         ],
         AbaFaixa::Exibir => vec![
             grupo_ribbon(tr!("PAINÉIS"), vec![
@@ -830,6 +869,15 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
             ], escuro),
         ],
     };
+    // Uma divisória entre os grupos, como na faixa da planilha.
+    let mut com_divisorias: Vec<Element<'a, Msg>> = Vec::new();
+    for (i, g) in grupos.into_iter().enumerate() {
+        if i > 0 {
+            com_divisorias.push(container(pelicano::vertical_rule(1.0)).height(Length::Fixed(92.0)).padding([4, 2]).into());
+        }
+        com_divisorias.push(g);
+    }
+    let grupos = com_divisorias;
     // Iced 0.13 não calcula corretamente o tamanho intrínseco desta
     // scrollable horizontal aninhada: em Linux ela se torna uma faixa vazia.
     // Sem scroll: todos os grupos principais cabem numa janela comum.
@@ -853,6 +901,52 @@ fn grupo<'a>(rotulo: &str, quantos: usize, indice: u8, recolhido: bool, escuro: 
         .style(ide::estilo_botao_ide(false))
         .on_press(om(Evento::RecolherGrupo(indice)))
         .into()
+}
+
+/// Os tipos, como o menu do ícone de tipo do Power Query.
+const TIPOS: [(&str, &str, &str); 7] = [
+    ("Número decimal", "math-function", "decimal"),
+    ("Número inteiro", "list-numbers", "inteiro"),
+    ("Data", "timeline", "data"),
+    ("Hora", "clock", "hora"),
+    ("Data/Hora", "timeline", "dataHora"),
+    ("Texto", "text-size", "texto"),
+    ("Verdadeiro/Falso", "checkbox", "logico"),
+];
+
+fn menu_de_tipos(c: usize) -> Vec<crate::app::menu_contexto::ItemMenu> {
+    TIPOS.iter().map(|(rotulo, icone, para)| crate::app::menu_contexto::ItemMenu::acao(tr!(rotulo), icone, om(Evento::Tipar(c, para)))).collect()
+}
+
+/// O código do tipo no cabeçalho: o da amostra, ou o do formato (data, hora).
+fn codigo_tipo(amostra: &'static str, formato: Option<&feathersheet_core::celulas::style::Style>) -> &'static str {
+    use feathersheet_core::celulas::style::NumberFormat as F;
+    match formato.map(|f| f.format) {
+        Some(F::Date) => "DATA",
+        Some(F::Time) => "HORA",
+        Some(F::Datetime) => "DT/H",
+        _ => amostra,
+    }
+}
+
+/// Formatos da fonte mais os das etapas de tipo até a etapa em prévia.
+// shortcut: a etapa de tipo liga pelo índice da coluna no resultado mostrado; colunas movidas depois dela podem trocar o formato.
+fn formatos_efetivos(e: &Estado, visual: &Tabela) -> Formatos {
+    use feathersheet_core::celulas::style::{NumberFormat as F, Style};
+    let mut f = e.formatos.clone();
+    let ate = e.passo_previa.map_or(e.passos.len(), |i| (i + 1).min(e.passos.len()));
+    for p in &e.passos[..ate] {
+        let Passo::Tipar { col, para } = p else { continue };
+        let Some(nome) = visual.cabecalho.get(*col) else { continue };
+        let formato = match para.as_str() {
+            "data" => F::Date,
+            "hora" => F::Time,
+            "dataHora" => F::Datetime,
+            _ => { f.remove(nome); continue; }
+        };
+        f.insert(nome.clone(), Style { format: formato, ..Style::default() });
+    }
+    f
 }
 
 /// Menu ▾ da coluna, como o do Power Query: age sobre a seleção.
