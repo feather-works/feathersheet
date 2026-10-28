@@ -48,6 +48,15 @@ macro took 25 s.
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
 
+### Coming in the next version
+
+- **OpenQuery with no size limit**, with a ▾ menu on each column, multi-column selection (Ctrl/Shift), steps editable through the ⚙ gear and *Split column* into columns, like Power Query.
+- **OpenQuery script:** each query is a short editable script: `let fonte = lerCsv("sales.csv");` and then one line per step, such as `fonte.renomearColuna("DT", "date");`, with columns referenced by name.
+- **Data › Get & Transform Data:** from Text/CSV, from the Web, from Table/Range, recent sources and existing connections.
+- **CSV in any encoding:** UTF-8, UTF-16 (Excel's "Unicode Text") and Windows-1252 ("ANSI", common in government data); dates and times come in already formatted; saving writes UTF-8 with a BOM, which Excel reads without mangling accents.
+- **Page Layout:** *Scale to Fit* (width and height in pages) and cell size.
+- **Review:** *Protect Workbook*, with a password in the same format as Excel.
+
 ## What it does
 
 | Area | Highlights |
