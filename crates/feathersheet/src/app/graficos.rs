@@ -439,6 +439,11 @@ pub(super) struct Fonte<'a> {
     /// Id da aba (não o índice, que muda ao mover/excluir abas).
     pub aba: u32,
     pub versao: u32,
+    /// A pasta e o índice da aba: ler por [`Workbook::valor`] guarda o resultado.
+    /// Sem ela, `get_value` refaz as fórmulas de matriz a cada célula lida e
+    /// colar perto de um `CONT.SES` sobre `PROCV` de outra aba travava a janela.
+    pub pasta: &'a feathersheet_core::planilha::workbook::Workbook,
+    pub indice: usize,
 }
 
 /// Só o que muda os números do gráfico, em texto: a prévia e o gráfico
@@ -467,16 +472,21 @@ pub(super) fn dados_do_grafico(
     fonte: Option<Fonte<'_>>,
 ) -> std::sync::Arc<feathersheet_core::grafico::chart::ChartData> {
     use feathersheet_core::celulas::values::Value as V;
-    use feathersheet_core::grafico::chart::{extract_chart_data, extract_chart_data_with};
+    use feathersheet_core::grafico::chart::extract_chart_data_with;
+    let pasta = fonte.as_ref().map(|f| (f.pasta, f.indice));
     let extrair = || {
+        let ler = |r: u32, c: u32| match pasta {
+            Some((wb, i)) => wb.valor(i, r, c),
+            None => sheet.get_value(r, c),
+        };
         if lacuna_zero {
             let (r0, c0) = (config.range.r0, config.range.c0);
-            extract_chart_data_with(&|r, c| match sheet.get_value(r, c) {
+            extract_chart_data_with(&|r, c| match ler(r, c) {
                 V::Empty if r > r0 && c > c0 => V::Number(0.0),
                 v => v,
             }, config)
         } else {
-            extract_chart_data(sheet, config)
+            extract_chart_data_with(&ler, config)
         }
     };
     let Some(f) = fonte else { return std::sync::Arc::new(extrair()) };
@@ -796,6 +806,8 @@ impl App {
             cache: &self.graficos.dados,
             aba: a.id,
             versao: self.workbook.versao(indice),
+            pasta: &self.workbook,
+            indice,
         })
     }
 
@@ -908,7 +920,7 @@ impl App {
                 .ok_or(tr!("A aba de origem foi removida. Abra um novo gráfico."))?;
             let aba = self.workbook.aba(indice)
                 .ok_or(tr!("A aba de origem foi removida. Abra um novo gráfico."))?;
-            let fonte = Fonte { cache: &self.graficos.dados, aba: aba.id, versao: self.workbook.versao(indice) };
+            let fonte = Fonte { cache: &self.graficos.dados, aba: aba.id, versao: self.workbook.versao(indice), pasta: &self.workbook, indice };
             // Mais de 200 mil células só resumindo (soma, média, contagem,
             // desvio padrão…): aí o gráfico lê todas as linhas.
             let mut cortado = ChartRange { r0: r.r0, c0: r.c0, r1: r.r1, c1: r.c1 };
