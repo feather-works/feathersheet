@@ -786,6 +786,12 @@ impl canvas::Program<Msg> for Grade<'_> {
                     let ht_toda = modelo::inicio_y_da(&aba.sheet, m.r1 + 1) - y0;
                     (x - (xa - x0).max(0.0), y - (ya - y0).max(0.0), wt_toda.max(wt), ht_toda.max(ht))
                 };
+                // #97: cruzando o painel congelado, o pedaço fixo e o rolado não são uma faixa
+                // contínua da planilha; centralizar pela região inteira tirava o texto da tela.
+                let cruza_linhas = self.congelar_linhas > m.r0 && self.congelar_linhas <= m.r1;
+                let cruza_colunas = self.congelar_colunas > m.c0 && self.congelar_colunas <= m.c1;
+                let (yo, ht) = if cruza_linhas { (y, h) } else { (yo, ht) };
+                let (xo, wt) = if cruza_colunas { (x, w) } else { (xo, wt) };
                 let estilo = aba.sheet.estilo_resolvido(m.r0, m.c0);
                 let visual = crate::estilos_comuns::projetar_estilo(estilo.as_ref(), None);
                 let cor_fundo = visual.comum.basico.fundo
