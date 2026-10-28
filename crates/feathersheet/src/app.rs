@@ -397,7 +397,7 @@ pub enum Msg {
     CongelarMenu, CongelarFechar, CongelarAplicar(u8),
     ExportarDelimitado(bool), DestinoDelimitado(Option<PathBuf>, bool),
     Selecionar(u32, u32), SelecionarLinha(u32), SelecionarColuna(u32),
-    EstenderLinha(u32), EstenderColuna(u32), SelecionarTudo, SelecionarRegiaoAtual, AjustarDivisoria(bool, u32), DimensaoArrastada(bool, u32, u32), Estender(u32, u32), ArrastarReferencia(usize, feathersheet_core::formula::ref_drag::Pegada, (u32,u32), (u32,u32)), Editar(String), Digitar(String), InserirQuebraLinha, EditarMultilinha, Confirmar,
+    EstenderLinha(u32), EstenderColuna(u32), SelecionarTudo, SelecionarRegiaoAtual, AjustarDivisoria(bool, u32), DimensaoArrastada(bool, u32, u32), Estender(u32, u32), ArrastarReferencia(usize, feathersheet_core::formula::ref_drag::Pegada, (u32,u32), (u32,u32)), PegarReferencia, Editar(String), Digitar(String), InserirQuebraLinha, EditarMultilinha, Confirmar,
     /// Duplo clique: célula e retângulo em pixels relativos ao Canvas.
     EditarNaCelula(u32, u32, f32, f32, f32, f32),
     EnviarEditor, AceitarSugestao(usize), NavegarSugestao(i32), PosicionarCursorFx(usize), SelecionarTextoFx(usize,usize),

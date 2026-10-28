@@ -1291,3 +1291,30 @@ fn coluna_de_texto_entre_as_series_nao_desloca_a_numeracao() {
     let desenhadas: Vec<&str> = app.graficos.series.iter().map(|s| s.split(" — ").nth(1).unwrap_or("")).collect();
     assert_eq!(desenhadas, ["Vendas"]);
 }
+
+#[test]
+fn contorno_do_grafico_estica_mesmo_com_a_camada_tirando_a_selecao() {
+    use feathersheet_core::formula::ref_drag::Pegada;
+    let mut a = App::default();
+    let _ = a.update(Msg::Colar("Mês\tVendas\nJan\t10\nFev\t20\nMar\t30".into()));
+    a.linha = 0;
+    a.coluna = 0;
+    a.fim_selecao = (2, 1);
+    let _ = a.evento_grafico(Evento::Abrir);
+    let _ = a.evento_grafico(Evento::Tipo(TipoUi::Colunas));
+    let _ = a.evento_grafico(Evento::Inserir);
+    let id = feathersheet_io::graficos_salvos::listar(&a.workbook.aba(0).unwrap().sheet).unwrap()[0]["id"]
+        .as_str().unwrap().to_string();
+    a.graficos.aberto = false;
+    a.graficos.selecionado = Some(id);
+    let caixa = a.caixas_do_grafico().remove(0);
+    assert_eq!(format_ref(&caixa.rect), "A1:B3");
+    // O clique na alça passa antes pela camada de objetos, que tira a seleção.
+    a.desselecionar_grafico();
+    assert!(a.caixas_do_grafico().is_empty());
+    let _ = a.update(Msg::PegarReferencia);
+    let _ = a.update(Msg::ArrastarReferencia(caixa.start, Pegada::Redimensionar, (2, 1), (3, 1)));
+    let lista = feathersheet_io::graficos_salvos::listar(&a.workbook.aba(0).unwrap().sheet).unwrap();
+    let rect: feathersheet_core::celulas::refs::Rect = serde_json::from_value(lista[0]["range"].clone()).unwrap();
+    assert_eq!(format_ref(&rect), "A1:B4");
+}

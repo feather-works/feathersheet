@@ -1015,6 +1015,12 @@ impl App {
                 self.endereco = endereco_area(&self.area_selecionada());
                 Task::none()
             }
+            Msg::PegarReferencia => {
+                if !self.editor_formula.ativo || !self.edicao.starts_with('=') {
+                    self.segurar_contorno_do_grafico();
+                }
+                Task::none()
+            }
             Msg::ArrastarReferencia(inicio, pegada, de, para) => {
                 // Só o rascunho é alterado: Enter/✓ ainda confirma a célula.
                 if !self.editor_formula.ativo || !self.edicao.starts_with('=') {

@@ -334,6 +334,9 @@ pub(super) struct Estado {
     /// Id da tabela dinâmica de um gráfico dinâmico que está nascendo; vai
     /// para o JSON como `pivotSource` e o gráfico segue a dinâmica.
     pub(super) dinamica: Option<String>,
+    /// O último gráfico selecionado: o clique no contorno dos dados dele
+    /// passa primeiro pela camada de objetos, que tira a seleção (#121).
+    pub(super) ultimo_selecionado: Option<String>,
     pub(super) aberto: bool,
     pub(super) cursor: pelicano::Point,
     /// X do botão Gráfico no instante da abertura; não acompanha o cursor depois.
@@ -1174,7 +1177,9 @@ impl App {
 
     /// Tira a seleção do gráfico (clique numa célula ou numa forma).
     pub(in crate::app) fn desselecionar_grafico(&mut self) {
-        self.graficos.selecionado = None;
+        if let Some(id) = self.graficos.selecionado.take() {
+            self.graficos.ultimo_selecionado = Some(id);
+        }
         self.graficos.contexto = None;
     }
 
@@ -1194,7 +1199,11 @@ impl App {
         if origem.is_some_and(|n| !n.eq_ignore_ascii_case(&aba.sheet.name)) {
             return None;
         }
-        v["range"].as_str().map(str::trim).filter(|r| !r.is_empty()).map(str::to_string)
+        // Gravado como objeto (`{"r0":…}`) pelo app; texto em arquivo antigo.
+        match &v["range"] {
+            serde_json::Value::String(r) => Some(r.trim().to_string()).filter(|r| !r.is_empty()),
+            outro => serde_json::from_value::<feathersheet_core::celulas::refs::Rect>(outro.clone()).ok().map(|r| format_ref(&r)),
+        }
     }
 
     /// O contorno do [`Self::intervalo_do_grafico_na_tela`], no formato das
@@ -1229,6 +1238,14 @@ impl App {
             None => Task::none(),
         };
         Task::batch([abrir, self.evento_grafico(Evento::Intervalo(novo))])
+    }
+
+    /// A grade pegou a borda ou a alça de uma caixa sem fórmula aberta: é o
+    /// contorno do gráfico, que volta a ficar selecionado durante o arraste.
+    pub(in crate::app) fn segurar_contorno_do_grafico(&mut self) {
+        if self.graficos.selecionado.is_none() && !self.graficos.aberto {
+            self.graficos.selecionado = self.graficos.ultimo_selecionado.clone();
+        }
     }
 
     /// O id do gráfico selecionado na grade (para o foco do teclado).

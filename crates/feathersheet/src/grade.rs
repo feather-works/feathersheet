@@ -1156,7 +1156,7 @@ impl Grade<'_> {
                     // continua selecionando células normalmente.
                     if let Some(referencia) = self.pegar_referencia(point, bounds.size()) {
                         state.referencia = Some(referencia);
-                        return (Captured::Yes, None);
+                        return (Captured::Yes, Some(Msg::PegarReferencia));
                     }
                     let p = Point::new(point.x / self.zoom, point.y / self.zoom);
                     // Clique na caixa de seleção de qualquer célula: marca/desmarca.
