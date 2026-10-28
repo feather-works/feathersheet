@@ -53,12 +53,8 @@ fn acao_com_icone(
 }
 
 fn caixa_marcacao(valor: String, rotulo: String, marcado: bool) -> Element<'static, Msg> {
-    let quadrado = container(if marcado {
-        // Ícone Tabler "checks" tingido de branco sobre o acento.
-        Element::from(icone("checks", 12.0).color(pelicano::Color::WHITE))
-    } else {
-        Space::new(0, 0.0).into()
-    })
+    // Só a cor diz se está marcado (pedido do usuário, 28/10/2026): o símbolo poluía a lista.
+    let quadrado = container(Space::new(0, 0.0))
     .width(Length::Fixed(16.0))
     .height(Length::Fixed(16.0))
     .align_x(pelicano::Align::Center)

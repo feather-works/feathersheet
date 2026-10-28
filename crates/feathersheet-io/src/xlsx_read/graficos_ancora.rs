@@ -420,13 +420,21 @@ pub(super) fn ocultar_colunas_puladas(wb: &mut feathersheet_core::planilha::work
                 .filter(|&c| (inicio..=r.r1).any(|l| numerica(wb, origem, l, c)))
                 .collect();
             let ordem = |c: u32| numericas.iter().position(|&n| n == c);
+            let visiveis: Vec<u32> = numericas.iter().copied().filter(|c| cols.contains(c)).collect();
+            let na_tela = |c: u32| visiveis.iter().position(|&n| n == c);
             let ocultas: Vec<usize> = (0..numericas.len()).filter(|&k| !cols.contains(&numericas[k])).collect();
             if !g["style"].is_object() { g["style"] = serde_json::json!({}); }
             g["style"]["hiddenSeries"] = serde_json::json!(ocultas);
-            for caminho in ["/_featherNative/cores", "/style/seriesPointShapes", "/style/seriesPointSizes"] {
+            // As cores da aparência vão pela posição entre as séries desenhadas; os pontos, pela de origem.
+            let caminhos: [(&str, &dyn Fn(u32) -> Option<usize>); 3] = [
+                ("/_featherNative/cores", &na_tela),
+                ("/style/seriesPointShapes", &ordem),
+                ("/style/seriesPointSizes", &ordem),
+            ];
+            for (caminho, indice) in caminhos {
                 if let Some(m) = g.pointer_mut(caminho).and_then(|v| v.as_object_mut()) {
                     *m = std::mem::take(m).into_iter()
-                        .filter_map(|(k, v)| Some((ordem(*cols.get(k.parse::<usize>().ok()?)?)?.to_string(), v)))
+                        .filter_map(|(k, v)| Some((indice(*cols.get(k.parse::<usize>().ok()?)?)?.to_string(), v)))
                         .collect();
                 }
             }
@@ -498,9 +506,9 @@ mod testes {
         wb.aba_mut(0).unwrap().sheet.g = Some(g.to_string());
         ocultar_colunas_puladas(&mut wb);
         let g: serde_json::Value = serde_json::from_str(wb.aba(0).unwrap().sheet.g.as_deref().unwrap()).unwrap();
-        // Numéricas: D (0) e E (1); esconde D, a cor da `ser` 0 vai para E.
+        // Numéricas: D (0) e E (1); esconde D, e E é a 1ª série desenhada (a cor da `ser` 0).
         assert_eq!(g[0]["style"]["hiddenSeries"], serde_json::json!([0]));
-        assert_eq!(g[0]["_featherNative"]["cores"], serde_json::json!({"1": "#ff0000"}));
+        assert_eq!(g[0]["_featherNative"]["cores"], serde_json::json!({"0": "#ff0000"}));
         assert!(g[0].get(COLUNAS_SER).is_none());
     }
 
