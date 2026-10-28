@@ -636,13 +636,21 @@ fn area_de_plotagem(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia, pizza_seri
             o.push_str("</c:areaChart>");
             o.push_str(&eixos(ap, false, false, pct, false));
         }
-        ChartType::Pie => {
-            o.push_str("<c:pieChart><c:varyColors val=\"1\"/>");
-            if let Some(s) = ex.series.get(pizza_serie).or(ex.series.first()) {
-                o.push_str("<c:ser><c:idx val=\"0\"/><c:order val=\"0\"/>");
+        ChartType::Pie | ChartType::Doughnut => {
+            let rosca = cfg.tipo == ChartType::Doughnut;
+            let paleta = cfg.style.palette.unwrap_or(feathersheet_core::grafico::chart::PaletteName::Vibrant);
+            let cores = feathersheet_core::grafico::chart::palette(paleta);
+            // Pizza: a série escolhida; rosca: todas, um anel cada (a cor é da fatia, igual em todos).
+            let series: Vec<&Serie> = if rosca {
+                ex.series.iter().collect()
+            } else {
+                ex.series.get(pizza_serie).or(ex.series.first()).into_iter().collect()
+            };
+            o.push_str(if rosca { "<c:doughnutChart>" } else { "<c:pieChart>" });
+            o.push_str("<c:varyColors val=\"1\"/>");
+            for (i, s) in series.into_iter().enumerate() {
+                let _ = write!(o, "<c:ser><c:idx val=\"{i}\"/><c:order val=\"{i}\"/>");
                 tx_serie(&mut o, &s.nome);
-                let paleta = cfg.style.palette.unwrap_or(feathersheet_core::grafico::chart::PaletteName::Vibrant);
-                let cores = feathersheet_core::grafico::chart::palette(paleta);
                 for p in 0..s.val.v.len() {
                     let cor = cfg.style.series_colors.get(&(p as u32)).cloned().unwrap_or_else(|| cores[p % cores.len()].to_string());
                     let _ = write!(
@@ -661,7 +669,12 @@ fn area_de_plotagem(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia, pizza_seri
                 o.push_str("</c:val></c:ser>");
             }
             o.push_str(&dl);
-            o.push_str("<c:firstSliceAng val=\"0\"/></c:pieChart>");
+            o.push_str("<c:firstSliceAng val=\"0\"/>");
+            if rosca {
+                let _ = write!(o, "<c:holeSize val=\"{}\"/></c:doughnutChart>", cfg.hole_size.unwrap_or(50).clamp(10, 90));
+            } else {
+                o.push_str("</c:pieChart>");
+            }
         }
         ChartType::Scatter | ChartType::Line3d => {
             let com_linha = cfg.tipo == ChartType::Line3d;
@@ -1037,7 +1050,11 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
             .and_then(|i| pasta.aba(i))
             .unwrap_or(viva);
         let dados = extract_chart_data(&origem.sheet, &cfg);
-        let ex = extrair(&origem.sheet, &origem.sheet.name, &cfg, &dados);
+        let mut ex = extrair(&origem.sheet, &origem.sheet.name, &cfg, &dados);
+        // Bolhas, velas e Gantt: as séries na ordem dos campos escolhidos no painel (como o app desenha).
+        let papeis: Vec<u32> = serde_json::from_value(v["_featherNative"]["papeis"].clone()).unwrap_or_default();
+        let ordem = feathersheet_core::grafico::chart::ordem_dos_papeis(cfg.tipo, &cfg.style.hidden_series, &papeis, ex.series.len());
+        ex.series = ordem.into_iter().map(|i| ex.series[i].clone()).collect();
         let ap = aparencia(v, &cfg);
         let pizza = v["_featherPieSeries"].as_u64().unwrap_or(0) as usize;
         *contador += 1;
@@ -1195,6 +1212,47 @@ mod testes {
         assert!(achar("xl/charts/chart24.xml").contains("<c:stockChart>"));
         assert!(achar("xl/charts/chart25.xml").contains("<a:noFill/>"), "início invisível do Gantt");
         assert!(d.xml.contains("<mc:Choice Requires=\"cx1\">"));
+    }
+
+    #[test]
+    fn rosca_e_campos_de_bolhas_e_velas_vao_e_voltam() {
+        let mut wb = pasta_com_graficos(&["doughnut", "bubble", "candlestick"]);
+        wb.editar(0, |s| {
+            let mut lista: Vec<serde_json::Value> = serde_json::from_str(s.g.as_deref().unwrap()).unwrap();
+            lista[0]["holeSize"] = json!(65);
+            // Bolhas: Y = Meta, Tamanho = Vendas (o contrário das colunas).
+            lista[1]["_featherNative"] = json!({"papeis": [1, 0]});
+            // Velas: Abertura = Meta, Máxima = Vendas, Mínima = Custo, Fechamento = Fim.
+            lista[2]["range"]["c1"] = json!(4);
+            lista[2]["_featherNative"] = json!({"papeis": [1, 0, 2, 3]});
+            s.g = Some(serde_json::to_string(&lista).unwrap());
+        });
+        let mut n = 0;
+        let d = desenho_da_aba(&wb, 0, None, &mut n).unwrap();
+        let rosca = &d.partes[0].xml;
+        bem_formado(rosca);
+        assert!(rosca.contains("<c:doughnutChart><c:varyColors val=\"1\"/>"), "{rosca}");
+        assert_eq!(rosca.matches("<c:ser>").count(), 3, "um anel por série");
+        assert!(rosca.contains("<c:firstSliceAng val=\"0\"/><c:holeSize val=\"65\"/></c:doughnutChart>"), "{rosca}");
+        let bolhas = &d.partes[1].xml;
+        assert!(bolhas.contains("<c:yVal><c:numRef><c:f>'Dados e Gráficos'!$C$2:$C$5</c:f>"), "{bolhas}");
+        assert!(bolhas.contains("<c:bubbleSize><c:numRef><c:f>'Dados e Gráficos'!$B$2:$B$5</c:f>"), "{bolhas}");
+        let velas = &d.partes[2].xml;
+        let ordem: Vec<usize> = ["$C$2", "$B$2", "$D$2", "$E$2"].iter().map(|c| velas.find(c).unwrap()).collect();
+        assert!(ordem.windows(2).all(|w| w[0] < w[1]), "abertura, máxima, mínima, fechamento: {velas}");
+
+        let bytes = crate::xlsx_write::gerar_xlsx(&wb).unwrap();
+        // Para abrir no Excel/LibreOffice e conferir à mão.
+        if let Ok(caminho) = std::env::var("FEATHERSHEET_GRAFICOS_XLSX") {
+            std::fs::write(caminho, &bytes).unwrap();
+        }
+        let (volta, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();
+        let lista: Vec<serde_json::Value> = serde_json::from_str(&volta.aba(0).unwrap().sheet.g.clone().unwrap()).unwrap();
+        let tipo = |t: &str| lista.iter().find(|v| v["type"] == t).unwrap_or_else(|| panic!("{t}: {lista:?}"));
+        assert_eq!(tipo("doughnut")["holeSize"], json!(65));
+        assert_eq!(tipo("bubble")["_featherNative"]["papeis"], json!([1, 0]));
+        assert_eq!(tipo("candlestick")["_featherNative"]["papeis"], json!([1, 0, 2, 3]));
+        assert_eq!(tipo("candlestick")["range"], json!({"r0": 0, "c0": 0, "r1": 4, "c1": 4}));
     }
 
     #[test]

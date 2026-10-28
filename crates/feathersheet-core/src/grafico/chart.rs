@@ -58,9 +58,9 @@ pub enum ChartType {
     StepAreaStacked,
     #[serde(rename = "step-area-stacked-100")]
     StepAreaStacked100,
-    // shortcut: a rosca do .xlsx sai como pizza cheia (o desenhista novo não tem anel), até o feather-charts ganhar a rosca.
-    #[serde(alias = "doughnut")]
     Pie,
+    /// Rosca: a pizza com furo (`ChartConfig::hole_size`); cada série é um anel.
+    Doughnut,
     Scatter,
     Bubble,
     Combo,
@@ -203,6 +203,9 @@ pub struct ChartConfig {
     /// vazio = todas as numéricas do intervalo. Com séries que pulam colunas
     /// (B + L, M, N) as do meio ficam fora sem precisar de `hidden_series`.
     pub series_columns: Vec<u32>,
+    /// Rosca: o furo em % do raio (o `holeSize` do Excel, 10 a 90); `None` = 50.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hole_size: Option<u8>,
 }
 
 /// As colunas dos três eixos da linha 3D, relativas ao começo do intervalo.
@@ -1129,6 +1132,24 @@ pub fn palette(nome: PaletteName) -> [&'static str; 8] {
         PaletteName::Monochrome => ["#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#1e293b", "#0f172a", "#475569"],
         PaletteName::Classic => ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f"],
     }
+}
+
+/// Bolhas, velas e Gantt leem as séries pela posição (Y e depois Tamanho;
+/// Abertura, Máxima, Mínima e Fechamento; Início e Fim). Devolve a ordem
+/// (índices nas `n` séries extraídas, as visíveis) que as põe na dos papéis
+/// escolhidos no painel (`papeis`: séries de origem); as que sobram vêm depois.
+pub fn ordem_dos_papeis(tipo: ChartType, ocultas: &[u32], papeis: &[u32], n: usize) -> Vec<usize> {
+    if papeis.is_empty() || !matches!(tipo, ChartType::Bubble | ChartType::Candlestick | ChartType::Gantt) {
+        return (0..n).collect();
+    }
+    let origens: Vec<u32> = (0u32..).filter(|o| !ocultas.contains(o)).take(n).collect();
+    let mut ordem = Vec::with_capacity(n);
+    for i in papeis.iter().filter_map(|p| origens.iter().position(|o| o == p)).chain(0..n) {
+        if !ordem.contains(&i) {
+            ordem.push(i);
+        }
+    }
+    ordem
 }
 
 /// `getSeriesColor`: a cor escolhida para a série, ou a da paleta em ciclo.

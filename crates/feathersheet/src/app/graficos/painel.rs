@@ -95,14 +95,14 @@ impl Grupo {
     pub(super) fn existe_em(self, t: TipoUi) -> bool {
         use TipoUi as T;
         match self {
-            Self::Eixos => !matches!(t, T::Pizza | T::MapaCalor | T::Linha3d),
+            Self::Eixos => !matches!(t, T::Pizza | T::Rosca | T::MapaCalor | T::Linha3d),
             // Radar, Gantt, mapa de calor e 3D pintam a grade pelo tema.
-            Self::Grades => !matches!(t, T::Pizza | T::Radar | T::Gantt | T::MapaCalor | T::Linha3d),
+            Self::Grades => !matches!(t, T::Pizza | T::Rosca | T::Radar | T::Gantt | T::MapaCalor | T::Linha3d),
             Self::Legenda => !matches!(t, T::Cascata | T::Candlestick | T::Gantt | T::MapaCalor | T::Histograma),
             // Cor por ponto: só onde o desenho pinta cada ponto.
             Self::Pontos => !matches!(t, T::Radar | T::Candlestick | T::Cascata | T::MapaCalor | T::Linha3d),
             // Tendência, erro e referência são do desenho cartesiano comum.
-            Self::Analiticos => !matches!(t, T::Pizza | T::Combinado | T::Histograma | T::Cascata | T::Radar
+            Self::Analiticos => !matches!(t, T::Pizza | T::Rosca | T::Combinado | T::Histograma | T::Cascata | T::Radar
                 | T::Bolhas | T::Candlestick | T::Gantt | T::MapaCalor | T::Linha3d),
             _ => true,
         }
@@ -343,7 +343,7 @@ impl TipoUi {
     /// não usa categorias. `bool`: aceita "nenhuma".
     fn campo_categoria(self) -> Option<(&'static str, bool)> {
         Some(match self {
-            Self::Pizza => (tr!("Rótulos (fatias)"), false),
+            Self::Pizza | Self::Rosca => (tr!("Rótulos (fatias)"), false),
             Self::Dispersao => (tr!("X (número)"), true),
             Self::Bolhas => (tr!("X (número)"), false),
             Self::Cascata => (tr!("Categoria"), false),
@@ -360,6 +360,7 @@ impl TipoUi {
         match self {
             Self::Dispersao => tr!("Y"),
             Self::MapaCalor => tr!("Colunas"),
+            Self::Rosca => tr!("Séries (um anel cada)"),
             _ => tr!("Séries"),
         }
     }
@@ -1387,6 +1388,14 @@ impl App {
         if series.is_empty() {
             col = col.push(text(tr!("Escolha um intervalo com dados.")).size(12).color(COR_TEXTO_MUTED()));
         }
+        if t == TipoUi::Rosca {
+            let furo = g.furo.unwrap_or(50);
+            col = col.push(secao(tr!("Tamanho do furo")));
+            col = col.push(row![
+                pelicano::slider(10.0..=90.0, f32::from(furo), |v| ev(Evento::Furo(v.round() as u8))).width(Length::FILL),
+                text(format!("{furo} %")).size(12).width(Length::Fixed(40.0)),
+            ].spacing(8).align(pelicano::Align::Center));
+        }
         if g.resumo_obrigatorio {
             col = col.push(text(tr!("Mais de 200.000 células: o gráfico sempre resume. Categorias iguais viram uma só, com a conta de cada série."))
                 .size(11).color(COR_TEXTO_MUTED()));
@@ -1496,7 +1505,8 @@ impl App {
         let g = &self.graficos;
         let p = &g.painel;
         let col = pelicano::column(Vec::new()).spacing(8);
-        let pizza = g.tipo == TipoUi::Pizza;
+        // Pizza e rosca: legenda, cores e rótulos por fatia (categoria).
+        let pizza = matches!(g.tipo, TipoUi::Pizza | TipoUi::Rosca);
         let barras = matches!(g.tipo, TipoUi::Colunas | TipoUi::Barras);
         let tema = e.tema();
         let texto_padrao = tema.map_or(CorEstilo::hex(0x202020), |t| t.texto);
@@ -1540,7 +1550,7 @@ impl App {
                     .push(alternar(tr!("Usar categorias"), g.categorias, |v| ev(Evento::Categorias(v))))
                     .push(alternar(tr!("Séries em colunas"), g.colunas, |v| ev(Evento::Colunas(v))))
                     .push(alternar(tr!("Resumir categorias iguais"), g.agrupar, |v| ev(Evento::Agrupar(v))));
-                if pizza {
+                if g.tipo == TipoUi::Pizza {
                     col = col.push(rotulo(tr!("Série da pizza"))).push(escolhas(
                         g.series.iter().map(|s| (cortar(s, 14), g.serie.as_deref() == Some(s.as_str()), ev(Evento::Serie(s.clone())))).collect(), 2));
                 }
@@ -1720,7 +1730,7 @@ impl App {
                     .push(secao(tr!("Conteúdo")))
                     .push(alternar(tr!("Valor"), r.valor.unwrap_or(!pizza), |v| mud(Mudanca::RotulosValor(v))))
                     .push(alternar(tr!("Nome da série"), r.nome_serie.unwrap_or(false), |v| mud(Mudanca::RotulosSerie(v))))
-                    .push(alternar(tr!("Categoria"), r.categoria.unwrap_or(pizza), |v| mud(Mudanca::RotulosCategoria(v))));
+                    .push(alternar(tr!("Categoria"), r.categoria.unwrap_or(pizza && (g.tipo == TipoUi::Pizza || n_series == 1)), |v| mud(Mudanca::RotulosCategoria(v))));
                 if pizza {
                     col = col.push(alternar(tr!("Porcentagem"), r.percentual.unwrap_or(false), |v| mud(Mudanca::RotulosPercentual(v))));
                 }
@@ -2241,6 +2251,8 @@ impl App {
     fn preparar_captura_tipo(&mut self, nome: &str, painel: Option<AbaPainel>) -> Task<Msg> {
         let (tipo, dados) = match nome {
             "pizza" => (TipoUi::Pizza, "Situação\tAlunos\tMédia\nAprovado\t18\t7,8\nRecuperação\t6\t5,4\nReprovado\t3\t3,9"),
+            "rosca" => (TipoUi::Rosca, "Situação\tAlunos\nAprovado\t18\nRecuperação\t6\nReprovado\t3"),
+            "rosca2" => (TipoUi::Rosca, "Região\tVendas 2025\tVendas 2026\nNorte\t18\t22\nSul\t12\t9\nLeste\t7\t11\nOeste\t5\t8"),
             "colunas" => (TipoUi::Colunas, "Mês\tVendas\tMeta\nJan\t12\t10\nFev\t18\t14\nMar\t9\t15\nAbr\t22\t17"),
             "dispersao" => (TipoUi::Dispersao, "Preço\tVendas\tLucro\n10\t120\t30\n15\t95\t45\n22\t80\t60\n30\t52\t40\n38\t40\t72"),
             "radar" => (TipoUi::Radar, "Critério\tProduto A\tProduto B\nPreço\t8\t6\nQualidade\t7\t9\nPrazo\t9\t6\nSuporte\t6\t8\nDesign\t7\t8\nGarantia\t5\t7"),

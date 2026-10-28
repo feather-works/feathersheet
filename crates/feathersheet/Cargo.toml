@@ -82,6 +82,12 @@ debug = "line-tables-only"
 [profile.dev.package."*"]
 opt-level = 3
 
+# PROVISÓRIO (#113, rosca): o feather-charts do ramo `rosca` (local, sem tag).
+# Antes de lançar: publicar a tag nova do feather-charts, trocar as duas
+# dependências (aqui e no feathersheet-io) por ela e tirar este [patch].
+[patch."https://github.com/feather-works/feather-charts"]
+feather-charts = { path = "/run/media/maragon/Arquivos/GitHub/feather-charts" }
+
 [build-dependencies]
 # Ícone e nome do .exe do Windows (build.rs).
 embed-resource = "3"

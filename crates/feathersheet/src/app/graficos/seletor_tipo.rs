@@ -20,7 +20,7 @@ const fn opcao(id: &'static str, rotulo: &'static str, disponivel: Option<TipoUi
     }
 }
 
-/// Mesmas seis famílias e os mesmos 25 tipos do seletor legado do FeatherSheet.
+/// As seis famílias e os 25 tipos do seletor legado do FeatherSheet, mais a rosca.
 /// Exibir um tipo não implica que Charts já suporte a sua renderização.
 const CATEGORIAS: &[(&str, &[Opcao])] = &[
     (
@@ -73,8 +73,8 @@ const CATEGORIAS: &[(&str, &[Opcao])] = &[
             opcao("scatter", "Dispersão", Some(TipoUi::Dispersao)),
             opcao("bubble", "Bolhas", Some(TipoUi::Bolhas)),
             opcao("candlestick", "Candlestick", Some(TipoUi::Candlestick)),
-            // shortcut: sem "Rosca" até o feather-charts desenhar o anel (#113).
             opcao("pie", "Pizza", Some(TipoUi::Pizza)),
+            opcao("doughnut", "Rosca", Some(TipoUi::Rosca)),
         ],
     ),
 ];
@@ -109,6 +109,9 @@ fn miniatura_svg(id: &str) -> String {
         }
         "pie" => {
             r##"<path d="M24 16 L24 4 A12 12 0 0 1 36 16 Z" fill="#4285f4"/><path d="M24 16 L36 16 A12 12 0 1 1 24 4 Z" fill="#ea4335"/>"##
+        }
+        "doughnut" => {
+            r##"<path d="M24 4 A12 12 0 0 1 36 16 L30 16 A6 6 0 0 0 24 10 Z" fill="#4285f4"/><path d="M36 16 A12 12 0 1 1 24 4 L24 10 A6 6 0 1 0 30 16 Z" fill="#ea4335"/>"##
         }
         "scatter" => {
             r##"<circle cx="8" cy="22" r="3" fill="#4285f4"/><circle cx="18" cy="10" r="3" fill="#ea4335"/><circle cx="28" cy="20" r="3" fill="#fbbc04"/><circle cx="38" cy="8" r="3" fill="#34a853"/>"##
@@ -283,7 +286,7 @@ mod testes {
     use super::*;
 
     #[test]
-    fn catalogo_reflete_exatamente_os_25_tipos_e_seis_familias_do_legado() {
+    fn catalogo_reflete_os_26_tipos_e_seis_familias() {
         assert_eq!(CATEGORIAS.len(), 6);
         let mut ids = std::collections::HashSet::new();
         let mut ativos = Vec::new();
@@ -297,8 +300,8 @@ mod testes {
                 }
             }
         }
-        assert_eq!(ids.len(), 25);
-        assert_eq!(ativos.len(), 25);
+        assert_eq!(ids.len(), 26);
+        assert_eq!(ativos.len(), 26);
         for tipo in TipoUi::TODOS {
             assert!(ativos.contains(&tipo), "tipo disponível ausente: {tipo:?}");
         }

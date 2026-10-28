@@ -30,7 +30,7 @@ fn tipo_comum(tipo: ChartType) -> Result<Tipo, ErroAdaptacaoGrafico> {
         ChartType::Line => Tipo::Linhas,
         ChartType::Area => Tipo::Area,
         ChartType::StepLine => Tipo::Degraus,
-        ChartType::Pie => Tipo::Pizza,
+        ChartType::Pie | ChartType::Doughnut => Tipo::Pizza,
         ChartType::Scatter => Tipo::Dispersao,
         outro => return Err(ErroAdaptacaoGrafico::TipoNaoSuportado(outro)),
     })

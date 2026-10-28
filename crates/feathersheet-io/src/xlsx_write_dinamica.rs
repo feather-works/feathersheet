@@ -37,6 +37,10 @@
 //!   ocultos no campo fora dos eixos — o FeatherSheet lê o filtro de volta,
 //!   o Excel mostra a dinâmica sem ele.
 //! - O tema de cores da dinâmica: vai o estilo padrão do Excel.
+//! - **Campo em Filtros e em Linhas ao mesmo tempo** (`paginaTambem`): o
+//!   Excel não aceita o mesmo campo como página e linha. Vai só como linha,
+//!   com os itens que o filtro tira ocultos (`h="1"`): a tabela mostra o
+//!   mesmo; a célula do filtro em cima dela fica como valor solto.
 
 use std::collections::HashSet;
 use std::fmt::Write as _;

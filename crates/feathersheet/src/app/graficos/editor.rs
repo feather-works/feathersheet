@@ -271,6 +271,9 @@ impl App {
         if let Some(e) = g.eixos3d {
             valor["eixos3d"] = json!(e);
         }
+        if let Some(f) = g.furo.filter(|_| g.tipo == TipoUi::Rosca) {
+            valor["holeSize"] = json!(f);
+        }
         if let Some(d) = &g.dinamica {
             valor["pivotSource"] = json!(d);
         }
@@ -428,6 +431,7 @@ impl App {
             ChartType::StepAreaStacked => TipoUi::AreaDegrausEmpilhada,
             ChartType::StepAreaStacked100 => TipoUi::AreaDegraus100,
             ChartType::Pie => TipoUi::Pizza,
+            ChartType::Doughnut => TipoUi::Rosca,
             ChartType::Scatter => TipoUi::Dispersao,
             ChartType::Bubble => TipoUi::Bolhas,
             ChartType::Combo => TipoUi::Combinado,
@@ -484,6 +488,7 @@ impl App {
             ocultas: c.style.hidden_series.clone(),
             contas: c.aggregate_by_series.clone(),
             eixos3d: c.eixos_3d,
+            furo: c.hole_size,
             aba_id: Some(aba_dados),
             aparencia,
             serie: v["_featherPieSeries"].as_str().map(str::to_string),
