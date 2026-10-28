@@ -9,11 +9,11 @@ name = "feathersheet"
 path = "src/main.rs"
 
 [dependencies]
-pelicano = { git = "https://github.com/feather-works/pelicano.git", tag = "v0.1.16", features = ["highlighter"] }
+pelicano = { git = "https://github.com/feather-works/pelicano.git", tag = "v0.1.18", features = ["highlighter"] }
 # Idioma do sistema na primeira abertura (já vinha como dependência indireta).
 sys-locale = "0.3"
 feather-charts = { git = "https://github.com/feather-works/feather-charts", tag = "v0.3.3" }
-feather-ui = { git = "https://github.com/feather-works/feather-ui.git", tag = "v0.3.5" }
+feather-ui = { git = "https://github.com/feather-works/feather-ui.git", tag = "v0.3.7" }
 feather-draw = { git = "https://github.com/feather-works/feather-draw", tag = "v0.1.1" }
 # Formas, ícones e SmartArt comuns da suíte (camada de objetos soltos, app/objetos).
 feather-shapes = { git = "https://github.com/feather-works/feather-shapes", tag = "v0.1.2" }
