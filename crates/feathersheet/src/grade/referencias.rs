@@ -44,8 +44,9 @@ impl Grade<'_> {
             celula.0, celula.1,
             Size::new(viewport.width/self.zoom, viewport.height/self.zoom),
         )?;
-        let borda = (5.0/self.zoom).min(w/2.0).min(h/2.0);
-        let alca = (11.0/self.zoom).min(w/2.0).min(h/2.0);
+        // Em pixels da tela (não encolhem com o zoom); 5 e 11 eram pequenos demais.
+        let borda = (9.0/self.zoom).min(w/2.0).min(h/2.0);
+        let alca = (16.0/self.zoom).min(w/2.0).min(h/2.0);
         // Referências que se sobrepõem: vale a última desenhada.
         for caixa in self.refs_formula.iter().rev() {
             if let Some(pegada) = reconhecer(

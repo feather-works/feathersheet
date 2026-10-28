@@ -361,7 +361,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                         f.fill_rectangle(Point::new(x+desenhar_w-espessura,y),Size::new(espessura,desenhar_h),cor);
                     }
                     // Quadradinho nas quinas: é por elas que a área estica.
-                    let q = 7.0_f32.min(desenhar_w/2.0).min(desenhar_h/2.0);
+                    let q = (9.0/self.zoom.max(0.25)).min(desenhar_w/2.0).min(desenhar_h/2.0);
                     for (lin, col, embaixo, direita) in [(area.r0, area.c0, false, false), (area.r0, area.c1, false, true),
                         (area.r1, area.c0, true, false), (area.r1, area.c1, true, true)] {
                         if (r, c) == (lin, col) {
