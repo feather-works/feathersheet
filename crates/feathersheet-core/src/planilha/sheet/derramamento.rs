@@ -252,7 +252,7 @@ impl Sheet {
     /// célula própria): para `SOMA(A1:A10)` e companhia enxergarem a matriz.
     pub(super) fn para_cada_derramado(&self, rect: &Rect, host: Option<&dyn super::Hospedeiro>, visit: &mut dyn FnMut(&Value, u32, u32)) {
         let cruza = |a: &Rect| a.r0 <= rect.r1 && a.r1 >= rect.r0 && a.c0 <= rect.c1 && a.c1 >= rect.c0;
-        let ancoras: Vec<CellKey> = {
+        let mut ancoras: Vec<CellKey> = {
             let d = self.derrame.borrow();
             if d.matrizes.is_empty() {
                 return;
@@ -262,6 +262,8 @@ impl Sheet {
                 .map(|(&k, _)| k)
                 .collect()
         };
+        // Ordem fixa entre execuções (o `HashMap` não tem): #116.
+        ancoras.sort_unstable();
         for a in ancoras {
             if self.ancora_pendente(a) {
                 let (r, c) = Self::key_to_coord(a);
