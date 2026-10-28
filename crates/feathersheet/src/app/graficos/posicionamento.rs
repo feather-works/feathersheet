@@ -81,12 +81,30 @@ pub(super) fn origem_tela(q: Quadro, scroll: (f64, f64), zoom: f64) -> (f64, f64
     ((q.x - scroll.0) * zoom, (q.y - scroll.1) * zoom)
 }
 
+/// O pedaço do gráfico que aparece na área de células (origem >= 0, como o
+/// pelicano posiciona): `(x, y, largura, altura, corte_x, corte_y)`, onde o
+/// corte é quanto ficou para fora à esquerda e em cima. `None` se nada aparece.
+pub(super) fn parte_visivel(x: f64, y: f64, largura: f64, altura: f64) -> Option<(f64, f64, f64, f64, f64, f64)> {
+    let (corte_x, corte_y) = ((-x).max(0.), (-y).max(0.));
+    let (w, h) = (largura - corte_x, altura - corte_y);
+    (w >= 1. && h >= 1. && x <= 100_000. && y <= 100_000.)
+        .then_some((x.max(0.), y.max(0.), w, h, corte_x, corte_y))
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
 
     fn quadro() -> Quadro {
         Quadro { x: 100., y: 120., largura: 480., altura: 300. }
+    }
+
+    #[test]
+    fn grafico_cortado_pela_borda_mostra_a_parte_visivel() {
+        assert_eq!(parte_visivel(10., 20., 480., 300.), Some((10., 20., 480., 300., 0., 0.)));
+        assert_eq!(parte_visivel(-100., -50., 480., 300.), Some((0., 0., 380., 250., 100., 50.)));
+        assert_eq!(parte_visivel(-480., 0., 480., 300.), None);
+        assert_eq!(parte_visivel(0., 200_000., 480., 300.), None);
     }
 
     #[test]

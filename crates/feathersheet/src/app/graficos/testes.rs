@@ -777,8 +777,9 @@ fn boletim_configurar_series_copiar_e_pizza_por_situacao() {
     app.atualizar_grafico();
     let _ = app.inserir_grafico();
     let nomes: Vec<String> = app.series_da_origem().into_iter().map(|s| s.1).collect();
-    assert_eq!(nomes, ["Matrícula", "Prova 1", "Prova 2", "Trabalho", "Média", "Situação"]);
-    for n in [0, 4, 5] {
+    // Sem resumir, Situação (só texto) não é série: o motor a pula.
+    assert_eq!(nomes, ["Matrícula", "Prova 1", "Prova 2", "Trabalho", "Média"]);
+    for n in [0, 4] {
         let _ = app.evento_grafico(Evento::SerieVisivel(n, false));
     }
     let _ = app.evento_grafico(Evento::SerieNome(1, "1ª prova".into()));
@@ -821,7 +822,7 @@ fn boletim_configurar_series_copiar_e_pizza_por_situacao() {
     assert_eq!(total, 15.0, "{:?} {:?}", c.grafico.categorias, c.grafico.series[0].valores);
     // O original continua com as três séries.
     let o = lista.iter().find(|v| v["id"].as_str() == Some(original.as_str())).unwrap();
-    assert_eq!(o["style"]["hiddenSeries"], serde_json::json!([0, 4, 5]));
+    assert_eq!(o["style"]["hiddenSeries"], serde_json::json!([0, 4]));
 }
 
     /// Gráfico parado na planilha: o mouse sobre a coluna mostra a dica com
@@ -871,7 +872,7 @@ fn boletim_configurar_series_copiar_e_pizza_por_situacao() {
         let dica = a.graficos.interacao.pairar.as_ref().and_then(|p| p.dica.clone()).expect("dica");
         assert_eq!(dica.linhas, ["R$ 30 (60,0%)"]);
         a.workbook.aba_mut(0).unwrap().sheet.g = Some(g.to_string());
-        assert!(a.dica_do_grafico("g1", 480.0, 300.0).is_some());
+        assert!(a.dica_do_grafico("g1", 480.0, 300.0, (0.0, 0.0)).is_some());
         let _ = a.evento_grafico(Evento::SairDoGrafico("g1".into()));
         assert!(a.graficos.interacao.pairar.is_none());
 
@@ -1211,12 +1212,12 @@ fn papeis_do_gantt_escolhem_a_coluna_de_cada_campo() {
     let aba = app.workbook.aba(0).unwrap();
     let salvos = feathersheet_io::graficos_salvos::listar(&aba.sheet).unwrap();
     assert_eq!(salvos[0]["_featherNative"]["papeis"], serde_json::json!([1, 0]));
-    // A mesma barra de cada tarefa na prévia e no gravado (a cor da prévia
-    // dos tipos especiais é outra conversa: só a posição importa aqui).
+    // A mesma barra de cada tarefa, e na mesma cor, na prévia e no gravado.
     let barras = |svg: &str| svg.split("<rect class=\"tarefa").skip(1)
-        .map(|r| r.split(" fill=").next().unwrap_or("").to_owned()).collect::<Vec<_>>();
+        .map(|r| r.split('>').next().unwrap_or("").to_owned()).collect::<Vec<_>>();
     let gravado = svg_do_grafico_salvo(&aba.sheet, &salvos[0]).unwrap();
     assert_eq!(barras(&gravado), barras(&previa));
+    assert!(barras(&previa)[0].contains(" fill="), "{:?}", barras(&previa));
     assert_eq!(barras(&previa).len(), 2);
     // Trocar de tipo esquece os papéis; sem papéis o campo nem é gravado.
     let _ = app.evento_grafico(Evento::Tipo(TipoUi::Colunas));
@@ -1255,4 +1256,17 @@ fn linha_3d_grava_os_eixos_escolhidos() {
     assert_eq!(salvos[0]["eixos3d"]["z"], 3);
     let _ = app.editar_grafico_salvo(&id);
     assert_eq!(app.graficos.eixos3d.and_then(|e| e.z), Some(3));
+}
+
+/// Sem resumir, o motor pula a coluna de texto entre as séries e numera só
+/// as de número: o painel tem que contar igual, senão desmarcar "Meta"
+/// escondia a série errada.
+#[test]
+fn coluna_de_texto_entre_as_series_nao_desloca_a_numeracao() {
+    let mut app = editor_de("Mês\tVendas\tObs\tMeta\nJan\t12\tok\t10\nFev\t18\tx\t14", TipoUi::Colunas);
+    assert_eq!(app.series_da_origem(), [(0, "Vendas".to_owned()), (1, "Meta".to_owned())]);
+    let _ = app.evento_grafico(Evento::SerieVisivel(1, false));
+    assert_eq!(app.graficos.ocultas, [1]);
+    let desenhadas: Vec<&str> = app.graficos.series.iter().map(|s| s.split(" — ").nth(1).unwrap_or("")).collect();
+    assert_eq!(desenhadas, ["Vendas"]);
 }
