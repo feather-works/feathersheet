@@ -392,3 +392,18 @@ fn teste_qui_quadrado_exemplo_do_excel() {
         o => panic!("{o:?}"),
     }
 }
+
+#[test]
+fn intervalo_acima_de_50_mil_celulas_vira_matriz_inteira() {
+    // #114: acima de 50 mil células o intervalo virava a primeira célula,
+    // calado, e isto dava 0.
+    let f = Fake::com(&[("A3", Value::texto("x")), ("A59999", Value::texto("x"))]);
+    assert_eq!(calcula(&f, "SOMARPRODUTO((A1:A60000=\"x\")*1)"), num(2.0));
+    // Grande demais para virar matriz: erro com motivo, nunca valor errado.
+    match calcula(&f, "SOMARPRODUTO((A1:Z1048576=\"x\")*1)") {
+        Value::Error(e) => assert_eq!(e.code, ErrorCode::Num),
+        outro => panic!("devia dar #NÚM!, deu {outro:?}"),
+    }
+    // Contexto escalar continua lendo só a primeira célula.
+    assert_eq!(calcula(&f, "A3:Z1048576"), Value::texto("x"));
+}
