@@ -126,7 +126,6 @@ fn converter<'a>(bruto: &'a str, xf: usize, xfs: &[styles::XfStyle]) -> std::bor
 /// como referência sem ser, as duas células teriam chaves diferentes (o
 /// deslocamento não bate) e cada uma seguiria pelo caminho completo.
 fn chave_relativa(f: &str, row: u32, col: u32, saida: &mut String) -> bool {
-    use std::fmt::Write;
     let b = f.as_bytes();
     let antes_ok = |i: usize| i == 0 || !(b[i - 1].is_ascii_alphanumeric() || matches!(b[i - 1], b'_' | b'.' | b'\\' | b'$'));
     let mut achou = false;
@@ -166,8 +165,11 @@ fn chave_relativa(f: &str, row: u32, col: u32, saida: &mut String) -> bool {
                     && !(n_digitos > 1 && b[digitos] == b'0') {
                     saida.push_str(&f[trecho..inicio]);
                     let (c0, r0) = (coluna - 1, linha - 1);
-                    let _ = if col_fixa { write!(saida, "\u{1}C${c0}") } else { write!(saida, "\u{1}C{}", i64::from(c0) - i64::from(col)) };
-                    let _ = if lin_fixa { write!(saida, "R${r0}\u{1}") } else { write!(saida, "R{}\u{1}", i64::from(r0) - i64::from(row)) };
+                    saida.push_str(if col_fixa { "\u{1}C$" } else { "\u{1}C" });
+                    escrever_inteiro(saida, if col_fixa { i64::from(c0) } else { i64::from(c0) - i64::from(col) });
+                    saida.push_str(if lin_fixa { "R$" } else { "R" });
+                    escrever_inteiro(saida, if lin_fixa { i64::from(r0) } else { i64::from(r0) - i64::from(row) });
+                    saida.push('\u{1}');
                     trecho = j;
                     achou = true;
                 }
@@ -277,6 +279,21 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
         final_celulas.extend(cs.into_iter().map(|mut c| { c.faixa = (c.faixa.0 + desloc, c.faixa.1 + desloc); c }));
     }
     LotePreparado { texto: final_texto, celulas: final_celulas }
+}
+
+/// O `write!` genérico era a maior parte da [`chave_relativa`] (perf, 28/10).
+fn escrever_inteiro(saida: &mut String, n: i64) {
+    if n < 0 { saida.push('-'); }
+    let mut v = n.unsigned_abs();
+    let mut buf = [0u8; 20];
+    let mut i = buf.len();
+    loop {
+        i -= 1;
+        buf[i] = b'0' + (v % 10) as u8;
+        v /= 10;
+        if v == 0 { break; }
+    }
+    saida.push_str(std::str::from_utf8(&buf[i..]).expect("dígitos"));
 }
 
 /// O XML que outra thread descompacta, em pedaços de 1 MB (`ler_aba`).
