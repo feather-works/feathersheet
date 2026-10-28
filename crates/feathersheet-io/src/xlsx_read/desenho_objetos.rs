@@ -273,7 +273,6 @@ struct Leitura<'a> {
     regua: &'a ReguaLida,
     rels: HashMap<String, String>,
     desenho: String,
-    pular_com_texto: bool,
     saida: Vec<ObjetoSolto>,
     /// Índice da âncora em leitura (ordem de empilhamento, como o `z` dos gráficos).
     z: usize,
@@ -321,7 +320,6 @@ impl Leitura<'_> {
 
     fn forma(&mut self, sp: &XmlNode, ret: Retangulo, herdado: &Herdado) {
         let (t, alinhar, fonte) = texto(sp);
-        if self.pular_com_texto && t.is_some() && sp.attr("macro").is_some_and(|m| !m.is_empty()) { return; }
         let pr = sp.child("spPr");
         let (forma, ajustes) = geometria(pr);
         let mut o = base(TipoObjeto::Forma, forma.clone(), ret, self.regua, self.z);
@@ -442,11 +440,11 @@ fn retangulo_da_ancora(a: &XmlNode, regua: &ReguaLida) -> Option<Retangulo> {
 
 /// Lê um `drawingN.xml` (texto) com as relações dele.
 fn ler_desenho(
-    zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &str, xml: &XmlNode, regua: &ReguaLida, pular_com_texto: bool,
+    zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &str, xml: &XmlNode, regua: &ReguaLida,
 ) -> Vec<ObjetoSolto> {
     let (dir, arq) = caminho.rsplit_once('/').unwrap_or(("", caminho));
     let rels = entry_text(zip, &format!("{dir}/_rels/{arq}.rels")).map(|t| read_rels(&t)).unwrap_or_default();
-    let mut l = Leitura { regua, rels, desenho: caminho.to_string(), pular_com_texto, saida: Vec::new(), z: 0 };
+    let mut l = Leitura { regua, rels, desenho: caminho.to_string(), saida: Vec::new(), z: 0 };
     for (z, a) in xml.children.iter().filter(|c| c.name.ends_with("Anchor")).enumerate() {
         l.z = z;
         let Some(ret) = retangulo_da_ancora(a, regua) else { continue };
@@ -459,16 +457,16 @@ fn ler_desenho(
 
 /// As formas, conectores, grupos e figuras de cada aba, na ordem do
 /// arquivo. `reguas[i]` é a régua da aba `i` (larguras/alturas já lidas).
-/// `pular_com_texto`: no `.xlsm` a forma com macro e texto vira botão
-/// (`importar_vba`); fica de fora para não aparecer duas vezes.
+/// No `.xlsm`, a forma com texto que o Excel usa como botão fica forma: a
+/// macro dela é ligada depois (`importar_vba::macros_das_formas`).
 pub(super) fn objetos_dos_desenhos(
-    zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, reguas: &[ReguaLida], pular_com_texto: bool,
+    zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, reguas: &[ReguaLida],
 ) -> Vec<(usize, Vec<ObjetoSolto>)> {
     let mut saida = Vec::new();
     for (aba, d) in desenhos_por_aba(zip) {
         let Some(regua) = reguas.get(aba) else { continue };
         let Ok(xml) = entry_text(zip, &d).and_then(|t| parse_xml(&t)) else { continue };
-        let objetos = ler_desenho(zip, &d, &xml, regua, pular_com_texto);
+        let objetos = ler_desenho(zip, &d, &xml, regua);
         if !objetos.is_empty() { saida.push((aba, objetos)); }
     }
     saida
@@ -616,7 +614,7 @@ mod testes {
             ("xl/media/image1.png", PNG_1X1),
         ]);
         let xml = parse_xml(DESENHO).unwrap();
-        let objs = ler_desenho(&mut zip, "xl/drawings/drawing1.xml", &xml, &regua(), false);
+        let objs = ler_desenho(&mut zip, "xl/drawings/drawing1.xml", &xml, &regua());
         assert_eq!(objs.len(), 4, "fundo, barra e figura do grupo, conector; o gráfico fica de fora");
 
         let fundo = &objs[0];

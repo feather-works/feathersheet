@@ -12,6 +12,8 @@ pub(super) use crate::app::macros::editor_visual::estilos as ide;
 const LARGURA_ESQUERDA: f32 = 245.0;
 const LARGURA_ETAPAS: f32 = 250.0;
 const ALTURA_PAINEL_INFERIOR: f32 = 140.0;
+const ALTURA_LINHA_PREVIA: f32 = 26.0;
+const ALTURA_CABECALHO_PREVIA: f32 = 48.0;
 
 /// Painel com cabeçalho (título + ícone) e corpo rolável só dentro da lista.
 fn painel<'a>(
@@ -499,7 +501,7 @@ impl App {
 
         let mut cabecalho = row![
             container(text("#").size(11).color(ide::cor_secundaria(escuro)))
-                .width(Length::Fixed(38.0)).padding([8, 10])
+                .width(Length::Fixed(38.0)).height(Length::Fixed(ALTURA_CABECALHO_PREVIA)).padding([8, 10])
                 .style(ide::estilo_cabecalho(escuro))
         ].spacing(0);
         let largura = Length::Fixed(LARGURA_COLUNA_PREVIA);
@@ -519,9 +521,9 @@ impl App {
             let titulo = button(column![
                 row![
                     text(estat.codigo()).size(10).font(negrito()).color(cor),
-                    text(nome.clone()).size(TAM_TEXTO).font(negrito()),
+                    text(nome.clone()).size(TAM_TEXTO).font(negrito()).ellipsis(),
                 ].spacing(6).align(pelicano::Align::Center),
-                text(estat.resumo()).size(9).color(ide::cor_secundaria(escuro)),
+                text(estat.resumo()).size(9).color(ide::cor_secundaria(escuro)).ellipsis(),
             ].spacing(2))
                 .width(Length::FILL).padding([8, 7])
                 .style(ide::estilo_botao_ide(selecionada))
@@ -530,7 +532,8 @@ impl App {
                 .padding([8, 6]).height(Length::FILL)
                 .style(ide::estilo_botao_ide(e.menu_coluna == Some(c)))
                 .on_press(om(Evento::MenuColuna(Some(c))));
-            cabecalho = cabecalho.push(container(row![titulo, seta].height(Length::Shrink)).width(largura));
+            cabecalho = cabecalho.push(container(row![titulo, seta].height(Length::FILL))
+                .width(largura).height(Length::Fixed(ALTURA_CABECALHO_PREVIA)));
         }
         // O menu ▾ abre onde está o mouse (o `on_move` dá a posição na janela).
         let cabecalho = pelicano::mouse_area(cabecalho).on_move(|p| om(Evento::Ponteiro(p.x, p.y)));
@@ -539,12 +542,13 @@ impl App {
             let mut celulas = row![
                 container(text((indice + 1).to_string()).size(TAM_LEGENDA)
                     .color(ide::cor_secundaria(escuro)))
-                    .width(Length::Fixed(38.0)).padding([5, 10])
+                    .width(Length::Fixed(38.0)).height(Length::Fixed(ALTURA_LINHA_PREVIA)).padding([5, 10])
                     .style(ide::estilo_celula_propriedade(escuro, true))
             ].spacing(0);
             for (c, val) in linha.iter().enumerate() {
-                celulas = celulas.push(container(text(feathersheet_core::celulas::values::to_text(val)).size(TAM_LEGENDA))
-                    .padding([5, 8]).width(largura).clip(true)
+                // Uma linha por célula, com "…": texto longo não desalinha as linhas.
+                celulas = celulas.push(container(text(feathersheet_core::celulas::values::to_text(val)).size(TAM_LEGENDA).ellipsis())
+                    .padding([5, 8]).width(largura).height(Length::Fixed(ALTURA_LINHA_PREVIA)).clip(true)
                     .style(ide::estilo_celula_propriedade(escuro, e.selecionadas.contains(&c))));
             }
             grade = grade.push(celulas);

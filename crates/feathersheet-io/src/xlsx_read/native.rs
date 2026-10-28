@@ -680,7 +680,6 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     }
     // Formas dos desenhos (retângulos, setas, caixas de texto) como objetos
     // soltos. No `.xlsm` as que têm texto viram botão de macro na abertura.
-    let tem_vba = arquivo.by_name("xl/vbaProject.bin").is_ok();
     let reguas: Vec<super::desenho_objetos::ReguaLida> = (0..caminhos.len()).map(|i| {
         let Some(a) = workbook.aba(i) else { return Default::default() };
         let s = &a.sheet;
@@ -691,7 +690,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
             altura_padrao: super::desenho_objetos::ALTURA_GRADE,
         }
     }).collect();
-    for (aba, objetos) in super::desenho_objetos::objetos_dos_desenhos(&mut arquivo, &reguas, tem_vba) {
+    for (aba, objetos) in super::desenho_objetos::objetos_dos_desenhos(&mut arquivo, &reguas) {
         let mut lista = crate::objetos_aba::ObjetosAba::default();
         for o in objetos.into_iter().take(crate::objetos_aba::MAX_OBJETOS) { lista.adicionar(o); }
         if let Some(viva) = workbook.aba_mut(aba) { viva.sheet.ob = lista.gravar(); }

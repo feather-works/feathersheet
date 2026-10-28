@@ -167,30 +167,33 @@ fn macro_da_forma(f: &feathersheet_io::xlsx_read::Forma, c: Option<&Conversao>) 
 
 impl App {
     /// As formas com texto do `.xlsm` (os retângulos que o Excel usa como
-    /// botão) viram botões de macro na mesma aba, posição, texto e cor. A
-    /// macro vem do desenho ou do `.OnAction` do VBA; sem ela, o botão fica
-    /// sem macro e a pessoa escolhe em "Editar botão…".
-    pub(super) fn botoes_das_formas(&mut self, bytes: &[u8], c: Option<&Conversao>) {
-        use crate::grade::modelo::{inicio_x, inicio_y};
+    /// botão) continuam formas, lidas com o desenho da aba, e ganham a macro:
+    /// a do desenho (`macro=`) ou a do `.OnAction` do VBA. O clique na forma
+    /// roda a macro (Ctrl+clique seleciona). Antes viravam também um botão,
+    /// e a forma aparecia duas vezes (#89).
+    pub(super) fn macros_das_formas(&mut self, bytes: &[u8], c: Option<&Conversao>) {
+        use feathersheet_io::objetos_aba::ObjetosAba;
         let formas = feathersheet_io::xlsx_read::ler_formas(bytes);
-        let mut por_aba: std::collections::BTreeMap<usize, Vec<serde_json::Value>> = Default::default();
-        for (n, f) in formas.iter().filter(|f| !f.texto.is_empty()).enumerate() {
-            if f.aba >= self.workbook.len() { continue; }
-            let x = inicio_x(&self.workbook, f.aba, f.coluna) + f.dx as f32;
-            let y = inicio_y(&self.workbook, f.aba, f.linha) + f.dy as f32;
-            let mut item = serde_json::json!({
-                "id": format!("xlsx-forma-{n}"),
-                "label": f.texto,
-                "macroName": macro_da_forma(f, c).unwrap_or_default(),
-                "position": { "x": x.round(), "y": y.round(),
-                    "width": f.largura.max(40.0).round(), "height": f.altura.max(24.0).round() },
-            });
-            if let Some(cor) = &f.cor { item["color"] = serde_json::json!(cor); }
-            por_aba.entry(f.aba).or_default().push(item);
-        }
-        for (aba, itens) in por_aba {
-            let json = serde_json::Value::Array(itens.into_iter().take(128).collect()).to_string();
-            if let Some(a) = self.workbook.aba_mut(aba) { a.sheet.bt = Some(json); }
+        for aba in 0..self.workbook.len() {
+            let alvos: Vec<_> = formas.iter().filter(|f| f.aba == aba && !f.texto.is_empty())
+                .filter_map(|f| Some((f, macro_da_forma(f, c)?))).collect();
+            if alvos.is_empty() { continue; }
+            let Some(a) = self.workbook.aba_mut(aba) else { continue };
+            let Ok(mut objetos) = ObjetosAba::ler(a.sheet.ob.as_deref()) else { continue };
+            let mut usados = std::collections::HashSet::new();
+            for (f, macro_nome) in alvos {
+                let mesmo_texto = |o: &feathersheet_io::objetos_aba::ObjetoSolto|
+                    o.texto.as_deref().map(str::trim) == Some(f.texto.as_str());
+                // Texto igual na mesma célula; senão, o primeiro com o texto.
+                let i = objetos.objetos.iter().position(|o| !usados.contains(&o.id) && mesmo_texto(o)
+                        && (o.de.linha, o.de.coluna) == (f.linha, f.coluna))
+                    .or_else(|| objetos.objetos.iter().position(|o| !usados.contains(&o.id) && mesmo_texto(o)));
+                if let Some(i) = i {
+                    usados.insert(objetos.objetos[i].id);
+                    objetos.objetos[i].macro_nome = Some(macro_nome);
+                }
+            }
+            a.sheet.ob = objetos.gravar();
         }
     }
 
@@ -200,7 +203,7 @@ impl App {
         let arquivo = path.file_stem().and_then(|s| s.to_str()).unwrap_or("planilha").to_string();
         let Ok(bytes) = std::fs::read(path) else { return };
         let conversao = feathersheet_vba::converter_xlsm(&bytes, &arquivo);
-        self.botoes_das_formas(&bytes, conversao.as_ref().ok());
+        self.macros_das_formas(&bytes, conversao.as_ref().ok());
         match conversao {
             Ok(conversao) if !conversao.macros.is_empty() || !conversao.eventos.is_empty() || !conversao.formularios.is_empty() => {
                 // As macros entram sozinhas no editor (Alt+F11) desta pasta,
@@ -297,6 +300,18 @@ impl App {
                     }
                 }
                 aba.sheet.bt = serde_json::to_string(&itens).ok();
+            }
+            for i in 0..self.workbook.len() {
+                let Some(aba) = self.workbook.aba_mut(i) else { continue };
+                let Ok(mut objetos) = feathersheet_io::objetos_aba::ObjetosAba::ler(aba.sheet.ob.as_deref()) else { continue };
+                let mut mudou = false;
+                for o in &mut objetos.objetos {
+                    if let Some((_, novo)) = trocas.iter().find(|(base, _)| Some(base) == o.macro_nome.as_ref()) {
+                        o.macro_nome = Some(novo.clone());
+                        mudou = true;
+                    }
+                }
+                if mudou { aba.sheet.ob = objetos.gravar(); }
             }
         }
         // Os eventos de aba rodam sozinhos: guarda qual módulo é de qual aba.
