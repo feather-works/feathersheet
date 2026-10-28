@@ -551,11 +551,103 @@ pub fn fn_sumifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 }
 
 /// `=SOMARPRODUTO(faixa1; faixa2; ...)` / `=SUMPRODUCT(...)`
+/// Um argumento do SOMARPRODUTO feito só de intervalos, constantes e
+/// operadores (`(Dados!C="Sul")*Dados!E`): avaliado célula a célula.
+enum Item {
+    Const(Value),
+    Faixa(usize),
+    Bin(crate::formula::ast::BinaryOp, Box<Item>, Box<Item>),
+    Un(crate::formula::ast::UnaryOp, Box<Item>),
+}
+
+fn compilar(node: &Node, ev: &Evaluator<'_>, faixas: &mut Vec<(Rect, LeitorFaixa)>) -> Option<Item> {
+    Some(match node {
+        Node::Num(n) => Item::Const(Value::Number(*n)),
+        Node::Str(s) => Item::Const(Value::Text(s.as_str().into())),
+        Node::Bool(b) => Item::Const(Value::Bool(*b)),
+        // Uma célula só multiplica todas as linhas (como na matriz).
+        Node::Ref { .. } => Item::Const(ev.value(node)),
+        Node::Range { .. } => {
+            let rect = node_rect(node, ev)?;
+            faixas.push((rect.clone(), LeitorFaixa::novo(ev, &rect)));
+            Item::Faixa(faixas.len() - 1)
+        }
+        Node::Binary { op, left, right } => Item::Bin(*op, Box::new(compilar(left, ev, faixas)?), Box::new(compilar(right, ev, faixas)?)),
+        Node::Unary { op, operand } => Item::Un(*op, Box::new(compilar(operand, ev, faixas)?)),
+        _ => return None,
+    })
+}
+
+/// O valor do item na posição (`dr`, `dc`) das faixas; `None` = todas vazias.
+fn valor_item(item: &Item, ev: &Evaluator<'_>, faixas: &[(Rect, LeitorFaixa)], pos: Option<(u32, u32)>) -> Value {
+    match item {
+        Item::Const(v) => v.clone(),
+        Item::Faixa(i) => match pos {
+            Some((dr, dc)) => {
+                let (rect, leitor) = &faixas[*i];
+                leitor.valor(ev, rect.r0 + dr, rect.c0 + dc).into_owned()
+            }
+            None => Value::Empty,
+        },
+        Item::Bin(op, a, b) => crate::formula::evaluator::apply_binary(*op,
+            &valor_item(a, ev, faixas, pos), &valor_item(b, ev, faixas, pos)),
+        Item::Un(op, a) => crate::formula::evaluator::apply_unary(*op, &valor_item(a, ev, faixas, pos)),
+    }
+}
+
+/// SOMARPRODUTO de expressões sem montar matriz: com `Dados!C:C` de 1 milhão
+/// de linhas, cada `(C="Sul")` virava uma matriz de 1 milhão de valores por
+/// argumento e por thread (pico 0,8 → 1,35 GB no arquivo de teste). Linha a
+/// linha dá a mesma conta. `None`: um argumento não é desse formato (função,
+/// nome, literal de matriz) ou as faixas têm tamanhos diferentes — o caminho
+/// da matriz decide. Com erro em mais de um argumento, sai o da primeira linha
+/// (a matriz dava o do primeiro argumento); os dois são erro.
+fn somarproduto_linha_a_linha(args: &[Node], ev: &Evaluator<'_>) -> Option<Computed> {
+    let mut faixas = Vec::new();
+    let itens: Vec<Item> = args.iter().map(|a| compilar(a, ev, &mut faixas)).collect::<Option<_>>()?;
+    let tamanho = |r: &Rect| (r.r1 - r.r0 + 1, r.c1 - r.c0 + 1);
+    let (linhas, colunas) = tamanho(&faixas.first()?.0);
+    if faixas.iter().any(|(r, _)| tamanho(r) != (linhas, colunas)) {
+        return None;
+    }
+    let numero = |v: Value| match v {
+        Value::Error(e) => Err(e),
+        Value::Number(n) => Ok(n),
+        _ => Ok(0.0),
+    };
+    // Só para na área usada se a linha toda vazia dá produto 0 (`(C<>"x")`
+    // daria 1 em cada linha vazia: aí a matriz decide, com o teto dela).
+    let vazia: Result<f64, _> = itens.iter().map(|i| numero(valor_item(i, ev, &faixas, None))).product();
+    if vazia != Ok(0.0) {
+        return None;
+    }
+    let corte = linhas_com_conteudo(ev, linhas, faixas.iter().map(|(r, _)| r)).min(linhas);
+    let mut total = 0.0;
+    for dr in 0..corte {
+        for dc in 0..colunas {
+            let mut p = 1.0;
+            for item in &itens {
+                match numero(valor_item(item, ev, &faixas, Some((dr, dc)))) {
+                    Ok(n) => p *= n,
+                    Err(e) => return Some(Computed::Scalar(Value::Error(e))),
+                }
+            }
+            total += p;
+        }
+    }
+    Some(Computed::Scalar(Value::Number(total)))
+}
+
 pub fn fn_sumproduct(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if args.is_empty() {
         return err_value();
     }
     let rects: Vec<Option<Rect>> = args.iter().map(|a| node_rect(a, ev)).collect();
+    if rects.iter().any(Option::is_none) {
+        if let Some(total) = somarproduto_linha_a_linha(args, ev) {
+            return total;
+        }
+    }
     // Só retângulos do mesmo tamanho: a linha toda vazia multiplica 0 e não
     // tem erro, então `A:A` para na última linha usada de todas as faixas.
     let corte = match rects.iter().map(Option::as_ref).collect::<Option<Vec<&Rect>>>() {
@@ -1472,6 +1564,34 @@ pub fn fn_percentof(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn somarproduto_linha_a_linha_da_o_mesmo_que_a_matriz() {
+        let mut sheet = crate::planilha::sheet::Sheet::new("Plan1");
+        let dados = [("Sul", "Alto", "10"), ("Norte", "Alto", "5"), ("Sul", "Baixo", "7"),
+            ("Sul", "Alto", "x"), ("", "", ""), ("Sul", "Alto", "2,5")];
+        for (r, (a, b, c)) in dados.iter().enumerate() {
+            for (col, v) in [a, b, c].iter().enumerate() {
+                if !v.is_empty() { sheet.set_cell_raw(r as u32, col as u32, v.to_string(), None); }
+            }
+        }
+        sheet.set_cell_raw(0, 5, "2".into(), None);
+        let conta = |sheet: &mut crate::planilha::sheet::Sheet, f: &str| {
+            sheet.set_cell_raw(20, 9, f.into(), None);
+            sheet.get_value(20, 9)
+        };
+        for f in ["(A:A=\"Sul\")*(B:B=\"Alto\")*C:C", "(A1:A6=\"Sul\")*1", "--(A:A=\"Sul\");C:C",
+            "(A:A=\"Sul\")*C:C*F1", "-(B1:B6=\"Alto\");C1:C6", "(A1:A6=\"Sul\")*(B1:B6=\"Alto\")*C1:C6/2"] {
+            let novo = conta(&mut sheet, &format!("=SOMARPRODUTO({f})"));
+            let matriz = conta(&mut sheet, &format!("=SE(VERDADEIRO;SOMARPRODUTO({f}))"));
+            assert_eq!(novo, matriz, "{f}");
+        }
+        // Texto multiplicado é #VALOR! (como no Excel); separado por ";" conta 0.
+        assert!(matches!(conta(&mut sheet, "=SOMARPRODUTO((A:A=\"Sul\")*(B:B=\"Alto\")*C:C)"), Value::Error(_)));
+        assert_eq!(conta(&mut sheet, "=SOMARPRODUTO((A:A=\"Sul\")*(B:B=\"Alto\");C:C)"), Value::Number(12.5));
+        // Linha vazia que não zera o produto: a matriz decide (sem cortar).
+        assert_eq!(conta(&mut sheet, "=SOMARPRODUTO((A1:A6<>\"Sul\")*1)"), Value::Number(2.0));
+    }
+
     use super::*;
     use crate::planilha::sheet::Sheet;
 

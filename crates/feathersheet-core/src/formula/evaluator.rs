@@ -540,19 +540,7 @@ impl<'a> Evaluator<'a> {
 
     fn eval_unary(&self, op: UnaryOp, operand: &Node) -> Computed {
         let valor = self.eval_array(operand);
-        let aplicar = |v: &Value| -> Value {
-            if let Value::Error(e) = v {
-                return Value::Error(e.clone());
-            }
-            match to_number(v) {
-                Err(e) => Value::Error(e),
-                Ok(n) => Value::Number(match op {
-                    UnaryOp::Neg => -n,
-                    UnaryOp::Percent => n / 100.0,
-                    UnaryOp::Plus => n,
-                }),
-            }
-        };
+        let aplicar = |v: &Value| apply_unary(op, v);
         match valor {
             Computed::Matrix(m) => Computed::Matrix(Matrix::new(
                 m.rows()
@@ -794,6 +782,21 @@ pub fn broadcast_all(fontes: &[Computed], f: impl Fn(&[Value]) -> Value) -> Comp
 }
 
 /// Um operador binário aplicado a dois valores escalares.
+/// `-x`, `+x` e `x%` sobre um valor só (o item de uma matriz, ou o escalar).
+pub fn apply_unary(op: UnaryOp, v: &Value) -> Value {
+    if let Value::Error(e) = v {
+        return Value::Error(e.clone());
+    }
+    match to_number(v) {
+        Err(e) => Value::Error(e),
+        Ok(n) => Value::Number(match op {
+            UnaryOp::Neg => -n,
+            UnaryOp::Percent => n / 100.0,
+            UnaryOp::Plus => n,
+        }),
+    }
+}
+
 pub fn apply_binary(op: BinaryOp, a: &Value, b: &Value) -> Value {
     if let Value::Error(e) = a {
         return Value::Error(e.clone());
