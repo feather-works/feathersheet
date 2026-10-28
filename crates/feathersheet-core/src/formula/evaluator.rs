@@ -124,8 +124,11 @@ pub trait EvalContext {
     }
 }
 
-/// Acima disto um intervalo não vira matriz: seria memória demais à toa.
-const MATRIX_LIMIT: u64 = 50_000;
+/// Acima disto um intervalo não vira matriz e a conta dá `#NÚM!` com o
+/// motivo (#114). O Excel calcula até faltar memória; aqui 5 milhões de
+/// células (umas 4 colunas inteiras, ~200 MB de `Value`) é o teto seguro.
+/// Antes era 50 mil e o intervalo virava a primeira célula, calado.
+const MATRIX_LIMIT: u64 = 5_000_000;
 
 /// A planilha inteira, como retângulo.
 /// O Excel não tem zero negativo. Desde o Rust 1.81 a soma de uma lista
@@ -203,6 +206,10 @@ impl<'a> Evaluator<'a> {
 
     /// Avaliação escalar: uma matriz que chegue aqui vira o seu primeiro valor.
     pub fn eval(&self, node: &Node) -> Value {
+        // O intervalo vira a primeira célula sem montar a matriz inteira.
+        if let Node::Range { r0, c0, sheet, .. } = node {
+            return self.ctx.get_value(*r0, *c0, sheet.as_deref());
+        }
         self.eval_array(node).scalar()
     }
 
@@ -496,20 +503,36 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Um intervalo vira matriz — é isso que faz `B2:B9>10` produzir uma
-    /// coluna de verdadeiro/falso, como no Excel. Intervalo gigante continua
-    /// colapsando no primeiro valor, para não estourar a memória.
+    /// coluna de verdadeiro/falso, como no Excel. Intervalo acima do
+    /// [`MATRIX_LIMIT`] dá `#NÚM!`: nunca um valor errado calado.
     pub fn matrix_of(&self, rect: &Rect) -> Computed {
         let altura = (rect.r1 - rect.r0 + 1) as u64;
         let largura = (rect.c1 - rect.c0 + 1) as u64;
-        if altura * largura > MATRIX_LIMIT || (altura == 1 && largura == 1) {
+        if altura == 1 && largura == 1 {
             return Computed::Scalar(self.ctx.get_value(rect.r0, rect.c0, rect.sheet.as_deref()));
         }
+        if altura * largura > MATRIX_LIMIT {
+            return Computed::Scalar(Value::Error(CellError::com_motivo(
+                ErrorCode::Num,
+                format!("o intervalo tem {} células; uma conta de matriz aceita até {MATRIX_LIMIT}",
+                    altura * largura),
+            )));
+        }
+        // Depois da última linha usada tudo é vazio: não precisa ler (`A:A`).
+        let ultima = self.ctx.ultima_linha_usada(rect.sheet.as_deref()).unwrap_or(rect.r1);
+        // A faixa lida (guardada, dividida entre as threads) poupa a pergunta
+        // célula por célula: `SOMARPRODUTO((C:C="Sul")*…)` lê 1 milhão.
+        let faixa = self.ctx.faixa_lida(rect);
         let mut rows = Vec::with_capacity(altura as usize);
         for r in rect.r0..=rect.r1 {
-            let mut linha = Vec::with_capacity(largura as usize);
-            for c in rect.c0..=rect.c1 {
-                linha.push(self.ctx.get_value(r, c, rect.sheet.as_deref()));
+            if r > ultima {
+                rows.push(vec![Value::Empty; largura as usize]);
+                continue;
             }
+            let linha = match &faixa {
+                Some(f) => (rect.c0..=rect.c1).map(|c| f.valor(r, c).clone()).collect(),
+                None => (rect.c0..=rect.c1).map(|c| self.ctx.get_value(r, c, rect.sheet.as_deref())).collect(),
+            };
             rows.push(linha);
         }
         Computed::Matrix(Matrix::new(rows))
@@ -757,10 +780,12 @@ pub fn broadcast_all(fontes: &[Computed], f: impl Fn(&[Value]) -> Value) -> Comp
         return Computed::Scalar(f(&vs));
     }
     let mut rows = Vec::with_capacity(altura);
+    let mut vs: Vec<Value> = Vec::with_capacity(fontes.len());
     for r in 0..altura {
         let mut linha = Vec::with_capacity(largura);
         for c in 0..largura {
-            let vs: Vec<Value> = fontes.iter().map(|s| s.pick(r, c)).collect();
+            vs.clear();
+            vs.extend(fontes.iter().map(|s| s.pick(r, c)));
             linha.push(f(&vs));
         }
         rows.push(linha);

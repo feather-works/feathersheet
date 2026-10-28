@@ -1907,16 +1907,32 @@ impl SheetCtx<'_> {
     /// o rodapé usa: a faixa em cache serve às fórmulas, não a uma contagem
     /// feita uma vez (montá-la por lote custava 10× a conta).
     fn varrer(&self, rect: &Rect, visit: &mut dyn FnMut(&Value, u32, u32)) {
-        for (&k, cell) in &self.sheet.cells {
-            let (r, c) = Sheet::key_to_coord(k);
-            if r < rect.r0 || r > rect.r1 || c < rect.c0 || c > rect.c1 {
-                continue;
+        // Faixa pequena: linha a linha, na mesma ordem da faixa lida e do
+        // cálculo paralelo — a soma de ponto flutuante depende dela (#116).
+        let area = (rect.r1 - rect.r0 + 1) as u64 * (rect.c1 - rect.c0 + 1) as u64;
+        if area < crate::planilha::faixa_lida::MINIMO {
+            for r in rect.r0..=rect.r1 {
+                for c in rect.c0..=rect.c1 {
+                    let valor = self.sheet.get_value_em(r, c, self.host);
+                    if !matches!(valor, Value::Empty) {
+                        visit(&valor, r, c);
+                    }
+                }
             }
+            return;
+        }
+        // Em ordem de chave: o `HashMap` muda de ordem a cada execução.
+        let mut avulsas: Vec<CellKey> = self.sheet.cells.keys().copied().filter(|&k| {
+            let (r, c) = Sheet::key_to_coord(k);
+            r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1
+        }).collect();
+        avulsas.sort_unstable();
+        for k in avulsas {
+            let (r, c) = Sheet::key_to_coord(k);
             let valor = self.sheet.get_value_em(r, c, self.host);
             if !matches!(valor, Value::Empty) {
                 visit(&valor, r, c);
             }
-            let _ = cell;
         }
         self.sheet.formulas.for_each_in_range(rect.r0, rect.r1, rect.c0, rect.c1, |r, c| {
             let valor = self.sheet.get_value_em(r, c, self.host);

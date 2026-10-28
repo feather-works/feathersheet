@@ -222,6 +222,29 @@ impl EvalContext for Contexto<'_, '_> {
             self.falhar();
             return;
         }
+        // Linha a linha, como o cálculo serial (faixa lida ou, pequena,
+        // célula a célula): a soma de ponto flutuante depende da ordem, e a
+        // faixa pode faltar aqui conforme as threads gastam o orçamento (#116).
+        if let Some(faixa) = self.faixa_lida(rect) {
+            return faixa.para_cada(visit);
+        }
+        let usado = vista.usado.as_ref();
+        let (r1, c1) = usado.map_or((0, 0), |u| (rect.r1.min(u.r1), rect.c1.min(u.c1)));
+        if usado.is_some() && r1 >= rect.r0 && c1 >= rect.c0
+            && (r1 - rect.r0 + 1) as u64 * (c1 - rect.c0 + 1) as u64 <= MAXIMO {
+            for r in rect.r0..=r1 {
+                for c in rect.c0..=c1 {
+                    let v = self.ler(aba, r, c);
+                    if self.falhou.get() {
+                        return;
+                    }
+                    if !matches!(v, Value::Empty) {
+                        visit(&v, r, c);
+                    }
+                }
+            }
+            return;
+        }
         let mut suja = false;
         vista.formulas.for_each_value_in_range(
             rect.r0, rect.r1, rect.c0, rect.c1, vista.pool,

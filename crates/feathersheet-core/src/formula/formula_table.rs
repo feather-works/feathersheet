@@ -622,9 +622,21 @@ impl FormulaTable {
         u32::try_from(maximo).ok()
     }
 
+    /// As colunas de `c0..=c1` em ordem crescente: o `HashMap` muda de ordem
+    /// a cada execução, e quem soma o que se visita daria outro último
+    /// dígito (#116).
+    fn colunas_em_ordem(&self, c0: u32, c1: u32) -> Vec<(u32, &Column)> {
+        let mut cols: Vec<(u32, &Column)> = self.columns.iter()
+            .filter(|(&c, _)| c >= c0 && c <= c1)
+            .map(|(&c, e)| (c, e))
+            .collect();
+        cols.sort_unstable_by_key(|&(c, _)| c);
+        cols
+    }
+
     pub fn for_each_in_range(&self, r0: u32, r1: u32, c0: u32, c1: u32, mut visit: impl FnMut(u32, u32)) {
-        for (&col, entry) in &self.columns {
-            if col < c0 || col > c1 || entry.slot.max_row < 0 {
+        for (col, entry) in self.colunas_em_ordem(c0, c1) {
+            if entry.slot.max_row < 0 {
                 continue;
             }
             let inicio = r0.max(entry.slot.min_row);
@@ -1027,8 +1039,8 @@ impl FormulaTable {
         mut visit: impl FnMut(&Value, u32, u32),
         mut nao_calculada: impl FnMut(u32, u32),
     ) {
-        for (&col, entry) in &self.columns {
-            if col < c0 || col > c1 || entry.slot.max_row < 0 {
+        for (col, entry) in self.colunas_em_ordem(c0, c1) {
+            if entry.slot.max_row < 0 {
                 continue;
             }
             let inicio = r0.max(entry.slot.min_row);

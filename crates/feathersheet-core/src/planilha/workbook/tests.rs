@@ -806,6 +806,43 @@ fn criterios_de_coluna_inteira_no_calculo_paralelo() {
     }
 }
 
+#[test]
+fn soma_de_colunas_de_formula_da_o_mesmo_numero_toda_vez() {
+    // #116: a `SOMA(B:M)` da linha somava as colunas de fórmula na ordem do
+    // `HashMap` (outra a cada pasta), e o último dígito mudava. Parcelas de
+    // grandezas bem diferentes, para a ordem aparecer no resultado.
+    use crate::celulas::values::Value;
+    const FATORES: [&str; 12] = ["1000000000000000", "0,3", "-1000000000000000", "0,7", "0,0011", "3,3",
+        "-999999999999,9", "0,1", "17", "-0,013", "123456789", "0,5"];
+    const LINHAS: u32 = 300;
+    let montar = || {
+        let mut w = Workbook::new();
+        for r in 0..LINHAS {
+            let n = r + 1;
+            w.escrever_celula(0, r, 0, format!("{r},{}", 37 + r % 50));
+            for (i, k) in FATORES.iter().enumerate() {
+                w.escrever_celula(0, r, 1 + i as u32, format!("=A{n}*{k}"));
+            }
+            w.escrever_celula(0, r, 13, format!("=SOMA(B{n}:M{n})"));
+            // Faixa grande (lida de uma vez): a ordem também é linha a linha.
+            w.escrever_celula(0, r, 14, format!("=SOMA($B$1:$M${LINHAS})+A{n}"));
+        }
+        w
+    };
+    let bits = |w: &mut Workbook| -> Vec<u64> {
+        (0..LINHAS).flat_map(|r| [13, 14].map(|c| (r, c))).map(|(r, c)| match w.valor(0, r, c) {
+            Value::Number(x) => x.to_bits(),
+            outro => panic!("({r},{c}): {outro:?}"),
+        }).collect()
+    };
+    let serial = bits(&mut montar());
+    for _ in 0..5 {
+        let mut w = montar();
+        assert!(w.calcular_em_paralelo() > 0);
+        assert_eq!(bits(&mut w), serial);
+    }
+}
+
 /// Medição do passo 6a (`ABRIR-XLSX-RAPIDO.md`): 100 mil linhas e fórmulas
 /// de critério sobre coluna inteira, 4 de cada. Rodar com
 /// `cargo test --release --lib medir_criterios_de_coluna_inteira -- --ignored --nocapture`.
