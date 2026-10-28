@@ -1039,7 +1039,6 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
     let mut ancoras = String::new();
     let mut rels = String::new();
     let mut partes = Vec::new();
-    let mut usa_mc = false;
     for (k, v) in lista.iter().enumerate() {
         let Ok(cfg) = serde_json::from_value::<ChartConfig>(v.clone()) else { continue };
         // Os dados podem morar em outra aba (`sourceSheet`).
@@ -1071,13 +1070,14 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
         let nome = if cfg.title.trim().is_empty() { format!("Gráfico {}", k + 1) } else { cfg.title.clone() };
         let _ = write!(ancoras, "<xdr:twoCellAnchor><xdr:from>{de}</xdr:from><xdr:to>{ate}</xdr:to>");
         if matches!(cfg.tipo, ChartType::Waterfall | ChartType::Histogram) {
-            usa_mc = true;
             let rid_reserva = format!("rIdReserva{}", k + 1);
-            let principal = quadro(id_forma, &nome, NS_CX, "<cx:chart", &rid);
+            // Os namespaces declarados onde o próprio Excel declara (#27): no
+            // AlternateContent, no Choice e no cx:chart, não só na raiz do desenho.
+            let principal = quadro(id_forma, &nome, NS_CX, &format!("<cx:chart xmlns:cx=\"{NS_CX}\""), &rid);
             let reserva = quadro(id_forma + 1, &nome, NS_C, "<c:chart", &rid_reserva);
             let _ = write!(
                 ancoras,
-                "<mc:AlternateContent><mc:Choice Requires=\"cx1\">{principal}</mc:Choice><mc:Fallback>{reserva}</mc:Fallback></mc:AlternateContent>"
+                "<mc:AlternateContent xmlns:mc=\"{NS_MC}\"><mc:Choice xmlns:cx1=\"{NS_CX1}\" Requires=\"cx1\">{principal}</mc:Choice><mc:Fallback>{reserva}</mc:Fallback></mc:AlternateContent>"
             );
             let _ = write!(
                 rels,
@@ -1096,9 +1096,8 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
         return tinta.map(|xml| DesenhoAba { xml, rels: None, partes: Vec::new() });
     }
     let tinta_miolo = tinta.as_deref().map(miolo_do_desenho).unwrap_or("");
-    let mc = if usa_mc { format!(" xmlns:mc=\"{NS_MC}\" xmlns:cx1=\"{NS_CX1}\" xmlns:cx=\"{NS_CX}\"") } else { String::new() };
     let xml = format!(
-        "{XML_DECL}<xdr:wsDr xmlns:xdr=\"{NS_XDR}\" xmlns:a=\"{NS_A}\" xmlns:r=\"{NS_R}\" xmlns:c=\"{NS_C}\"{mc}>{tinta_miolo}{ancoras}</xdr:wsDr>"
+        "{XML_DECL}<xdr:wsDr xmlns:xdr=\"{NS_XDR}\" xmlns:a=\"{NS_A}\" xmlns:r=\"{NS_R}\" xmlns:c=\"{NS_C}\">{tinta_miolo}{ancoras}</xdr:wsDr>"
     );
     let rels = format!("{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{rels}</Relationships>");
     Some(DesenhoAba { xml, rels: Some(rels), partes })
@@ -1217,7 +1216,7 @@ mod testes {
         assert!(achar("xl/charts/chart23.xml").contains("<c:radarChart>"));
         assert!(achar("xl/charts/chart24.xml").contains("<c:stockChart>"));
         assert!(achar("xl/charts/chart25.xml").contains("<a:noFill/>"), "início invisível do Gantt");
-        assert!(d.xml.contains("<mc:Choice Requires=\"cx1\">"));
+        assert!(d.xml.contains("Requires=\"cx1\">"));
     }
 
     #[test]
