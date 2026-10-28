@@ -73,7 +73,8 @@ const CATEGORIAS: &[(&str, &[Opcao])] = &[
             opcao("scatter", "Dispersão", Some(TipoUi::Dispersao)),
             opcao("bubble", "Bolhas", Some(TipoUi::Bolhas)),
             opcao("candlestick", "Candlestick", Some(TipoUi::Candlestick)),
-            opcao("pie", "Pizza / Rosca", Some(TipoUi::Pizza)),
+            // shortcut: sem "Rosca" até o feather-charts desenhar o anel (#113).
+            opcao("pie", "Pizza", Some(TipoUi::Pizza)),
         ],
     ),
 ];

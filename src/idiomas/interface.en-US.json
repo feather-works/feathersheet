@@ -4100,5 +4100,22 @@
  "Já é o primeiro da área": "Already the first in the area",
  "Já é o último da área": "Already the last in the area",
  "Mover para": "Move to",
- "Nada a remover": "Nothing to remove"
+ "Nada a remover": "Nothing to remove",
+ "Rótulos (fatias)": "Labels (slices)",
+ "X (número)": "X (number)",
+ "Eixos (categorias)": "Axes (categories)",
+ "Tarefa": "Task",
+ "Eixo X (categorias)": "X axis (categories)",
+ "{nome}, pela linha": "{nome}, by row",
+ "A primeira série marcada": "The first checked series",
+ "As faixas saem dos próprios valores.": "The bins come from the values themselves.",
+ "A primeira série marcada vira colunas; as outras, linhas.": "The first checked series becomes columns; the others, lines.",
+ "Cada quadro mostra o valor da célula. Marque as colunas do mapa.": "Each square shows the cell value. Check the map columns.",
+ "Z (profundidade)": "Z (depth)",
+ "Descrição (uma linha por valor)": "Description (one line per value)",
+ "Abertura": "Open",
+ "Máxima": "High",
+ "Mínima": "Low",
+ "Fechamento": "Close",
+ "Fim": "End"
 }

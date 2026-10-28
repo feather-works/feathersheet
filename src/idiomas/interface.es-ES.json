@@ -4095,5 +4095,22 @@
  "Já é o primeiro da área": "Ya es el primero del área",
  "Já é o último da área": "Ya es el último del área",
  "Mover para": "Mover a",
- "Nada a remover": "Nada que quitar"
+ "Nada a remover": "Nada que quitar",
+ "Rótulos (fatias)": "Etiquetas (porciones)",
+ "X (número)": "X (número)",
+ "Eixos (categorias)": "Ejes (categorías)",
+ "Tarefa": "Tarea",
+ "Eixo X (categorias)": "Eje X (categorías)",
+ "{nome}, pela linha": "{nome}, por fila",
+ "A primeira série marcada": "La primera serie marcada",
+ "As faixas saem dos próprios valores.": "Los intervalos salen de los propios valores.",
+ "A primeira série marcada vira colunas; as outras, linhas.": "La primera serie marcada se dibuja en columnas; las demás, en líneas.",
+ "Cada quadro mostra o valor da célula. Marque as colunas do mapa.": "Cada cuadro muestra el valor de la celda. Marque las columnas del mapa.",
+ "Z (profundidade)": "Z (profundidad)",
+ "Descrição (uma linha por valor)": "Descripción (una línea por valor)",
+ "Abertura": "Apertura",
+ "Máxima": "Máximo",
+ "Mínima": "Mínimo",
+ "Fechamento": "Cierre",
+ "Fim": "Fin"
 }

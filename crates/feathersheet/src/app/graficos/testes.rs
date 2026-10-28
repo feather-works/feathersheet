@@ -164,8 +164,9 @@ use super::editor::svg_do_grafico_salvo;
             ..Default::default()
         };
         app.atualizar_grafico();
-        let segunda = app.graficos.series[1].clone();
-        let _ = app.evento_grafico(Evento::Serie(segunda));
+        // Valor da pizza = a segunda série (escolha única na aba Configurar).
+        let _ = app.evento_grafico(Evento::SerieVisivel(1, true));
+        assert_eq!(app.origem_do_valor(), Some(1));
         let _ = app.evento_grafico(Evento::Estilo(
             CampoEstilo::Cor, "#34ab78".into()
         ));
@@ -390,8 +391,7 @@ use super::editor::svg_do_grafico_salvo;
         let _ = a.evento_grafico(Evento::Abrir);
         let _ = a.evento_grafico(Evento::Tipo(TipoUi::Pizza));
         assert!(a.graficos.svg.is_some());
-        let segunda = a.graficos.series[1].clone();
-        let _ = a.evento_grafico(Evento::Serie(segunda));
+        let _ = a.evento_grafico(Evento::SerieVisivel(1, true));
         let _ = a.evento_grafico(Evento::Estilo(
             CampoEstilo::EixoX,
             "Categoria & <Nome>".into(),
@@ -1145,3 +1145,114 @@ fn boletim_configurar_series_copiar_e_pizza_por_situacao() {
         }
         assert!(!respostas.is_empty(), "o painel do gráfico não respondeu a nenhum clique");
     }
+
+/// Monta o editor sobre a tabela colada em A1, no tipo pedido (sem gravar).
+fn editor_de(tabela: &str, tipo: TipoUi) -> App {
+    let mut app = App::default();
+    let _ = app.update(Msg::Colar(tabela.into()));
+    let linhas = tabela.lines().count() as u32;
+    let colunas = tabela.lines().next().map_or(1, |l| l.split('\t').count()) as u32;
+    app.graficos = Estado {
+        intervalo: format_ref(&feathersheet_core::celulas::refs::Rect::new(0, 0, linhas - 1, colunas - 1)),
+        titulo: "Teste".into(),
+        tipo,
+        cabecalho: true,
+        categorias: true,
+        colunas: true,
+        aba_id: app.workbook.aba(0).map(|a| a.id),
+        ..Default::default()
+    };
+    app.atualizar_grafico();
+    app
+}
+
+/// Issue #108: a pizza abria com as duas séries marcadas. O valor é escolha
+/// única, e os grupos que o tipo não desenha nem aparecem.
+#[test]
+fn pizza_tem_um_valor_so_e_escolha_unica() {
+    let mut app = editor_de("Situação\tAlunos\tMédia\nA\t18\t7\nB\t6\t5", TipoUi::Pizza);
+    assert!(app.graficos.svg.is_some(), "{}", app.graficos.mensagem);
+    assert_eq!(app.origem_do_valor(), Some(0));
+    // Personalizar > Séries só vê a série desenhada.
+    assert_eq!(app.graficos.series.len(), 1);
+    {
+        let _painel: Element<'_, Msg> = app.view_graficos();
+    }
+    let _ = app.evento_grafico(Evento::SerieVisivel(1, true));
+    assert_eq!(app.graficos.ocultas, [0]);
+    assert_eq!(app.origem_do_valor(), Some(1));
+    // Pizza gravada antes, com `_featherPieSeries` apontando a 2ª visível.
+    app.graficos.ocultas.clear();
+    app.graficos.serie = Some("2 — Média".into());
+    assert_eq!(app.origem_do_valor(), Some(1));
+    assert!(!painel::Grupo::Eixos.existe_em(TipoUi::Pizza));
+    assert!(!painel::Grupo::Grades.existe_em(TipoUi::Pizza));
+    assert!(!painel::Grupo::Analiticos.existe_em(TipoUi::Pizza));
+    assert!(painel::Grupo::Pontos.existe_em(TipoUi::Pizza));
+    assert!(painel::Grupo::Analiticos.existe_em(TipoUi::Colunas));
+    assert!(!painel::Grupo::Legenda.existe_em(TipoUi::Gantt));
+}
+
+/// Gantt com as colunas fora de ordem (Fim antes de Início): escolher o
+/// papel de cada coluna reordena as séries, na prévia e no gravado.
+#[test]
+fn papeis_do_gantt_escolhem_a_coluna_de_cada_campo() {
+    let mut app = editor_de("Tarefa\tFim\tInício\nA\t5\t1\nB\t12\t4", TipoUi::Gantt);
+    // Pela ordem das colunas o início seria o Fim: termina antes de começar.
+    assert!(app.graficos.svg.is_none());
+    assert_eq!(app.papeis_atuais(), [0, 1]);
+    let _ = app.evento_grafico(Evento::Papel(0, 1));
+    assert_eq!(app.papeis_atuais(), [1, 0], "a coluna que já era Fim troca de lugar");
+    let previa = app.graficos.svg.clone().expect("com Início e Fim certos desenha");
+    {
+        let _painel: Element<'_, Msg> = app.view_graficos();
+    }
+    let _ = app.inserir_grafico();
+    let aba = app.workbook.aba(0).unwrap();
+    let salvos = feathersheet_io::graficos_salvos::listar(&aba.sheet).unwrap();
+    assert_eq!(salvos[0]["_featherNative"]["papeis"], serde_json::json!([1, 0]));
+    // A mesma barra de cada tarefa na prévia e no gravado (a cor da prévia
+    // dos tipos especiais é outra conversa: só a posição importa aqui).
+    let barras = |svg: &str| svg.split("<rect class=\"tarefa").skip(1)
+        .map(|r| r.split(" fill=").next().unwrap_or("").to_owned()).collect::<Vec<_>>();
+    let gravado = svg_do_grafico_salvo(&aba.sheet, &salvos[0]).unwrap();
+    assert_eq!(barras(&gravado), barras(&previa));
+    assert_eq!(barras(&previa).len(), 2);
+    // Trocar de tipo esquece os papéis; sem papéis o campo nem é gravado.
+    let _ = app.evento_grafico(Evento::Tipo(TipoUi::Colunas));
+    assert!(app.graficos.aparencia.papeis.is_empty());
+    assert!(serde_json::to_value(Aparencia::default()).unwrap().get("papeis").is_none());
+}
+
+/// Dispersão: com a coluna de categorias de números, ela é o X (antes o X
+/// era a primeira série, e "X, Y" com uma série só não desenhava).
+#[test]
+fn dispersao_usa_a_coluna_de_x_escolhida() {
+    let app = editor_de("X\tY\n1\t10\n2\t20\n3\t15", TipoUi::Dispersao);
+    assert!(app.graficos.svg.is_some(), "{}", app.graficos.mensagem);
+    assert_eq!(app.graficos.series, ["1 — Y"]);
+    // Categoria de texto: o jeito antigo (X = a primeira série).
+    let app = editor_de("Ponto\tX\tY\na\t1\t10\nb\t2\t20", TipoUi::Dispersao);
+    assert!(app.graficos.svg.is_some(), "{}", app.graficos.mensagem);
+    assert_eq!(app.graficos.series, ["1 — Y"]);
+}
+
+/// Linha 3D: X, Y e Z escolhidos no painel vão para o `eixos3d` gravado e
+/// voltam ao reabrir.
+#[test]
+fn linha_3d_grava_os_eixos_escolhidos() {
+    let mut app = editor_de("A\tB\tC\tD\n1\t2\t1\t9\n2\t4\t3\t8\n3\t3\t5\t7", TipoUi::Linha3d);
+    let padrao = app.eixos3d_padrao().unwrap();
+    assert_eq!((padrao.x, padrao.y, padrao.z), (0, 1, Some(2)));
+    let _ = app.inserir_grafico();
+    let _ = app.evento_grafico(Evento::Eixo3d(2, Some(3)));
+    {
+        let _painel: Element<'_, Msg> = app.view_graficos();
+    }
+    let id = app.graficos.id.clone().expect("gravado");
+    let aba = app.workbook.aba(0).unwrap();
+    let salvos = feathersheet_io::graficos_salvos::listar(&aba.sheet).unwrap();
+    assert_eq!(salvos[0]["eixos3d"]["z"], 3);
+    let _ = app.editar_grafico_salvo(&id);
+    assert_eq!(app.graficos.eixos3d.and_then(|e| e.z), Some(3));
+}

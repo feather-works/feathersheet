@@ -142,6 +142,7 @@ pub(super) fn desenhar_grafico_salvo(
             serde_json::from_value(valor["_featherNative"].clone()).unwrap_or_default();
         let mut dados = (*super::dados_do_grafico(sheet, &config, false, fonte)).clone();
         super::renomear_series_dados(&mut dados, &config.style.hidden_series, &aparencia);
+        super::ordenar_papeis(&mut dados, config.tipo, &config.style.hidden_series, &aparencia.papeis);
         let medida = |k: &str, padrao: f64| valor["position"][k].as_f64().unwrap_or(padrao).clamp(120., 3200.) as f32;
         // O estilo já com os itens desligados pela legenda, antes do desenho.
         let mut aparencia = aparencia;
@@ -155,7 +156,7 @@ pub(super) fn desenhar_grafico_salvo(
     // Gráfico do Excel: célula vazia na série é lacuna lá; o motor comum
     // recusa lacuna, então vale 0 (categoria e cabeçalho ficam como estão).
     let lacuna_zero = valor["_excel"].is_object();
-    let dados = super::dados_do_grafico(sheet, &config, lacuna_zero, fonte);
+    let dados = super::dados_para_desenho(sheet, &config, lacuna_zero, fonte);
     let mut contrato = feathersheet_io::grafico_compartilhado::preparar_grafico(&config, (*dados).clone()).ok()?;
     let aparencia: Aparencia =
         serde_json::from_value(valor["_featherNative"].clone()).unwrap_or_default();
@@ -267,6 +268,9 @@ impl App {
         valor["categoryColumnIndex"] = json!(g.coluna_categoria);
         valor["style"]["hiddenSeries"] = json!(g.ocultas);
         valor["aggregateBySeries"] = serde_json::to_value(&g.contas).unwrap_or_default();
+        if let Some(e) = g.eixos3d {
+            valor["eixos3d"] = json!(e);
+        }
         if let Some(d) = &g.dinamica {
             valor["pivotSource"] = json!(d);
         }
@@ -479,6 +483,7 @@ impl App {
             coluna_categoria: c.category_column_index.unwrap_or(0),
             ocultas: c.style.hidden_series.clone(),
             contas: c.aggregate_by_series.clone(),
+            eixos3d: c.eixos_3d,
             aba_id: Some(aba_dados),
             aparencia,
             serie: v["_featherPieSeries"].as_str().map(str::to_string),
