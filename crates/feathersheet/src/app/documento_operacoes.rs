@@ -36,6 +36,15 @@ impl App {
         self.trocar_selecao_com(r, c, Some((r, c)));
     }
 
+    /// A barra fx com o conteúdo da célula ativa (quem reescreve a célula
+    /// sem trocar a seleção, como a dinâmica, chama isto).
+    pub(super) fn recarregar_barra_fx(&mut self) {
+        // Fórmula oculta (Formatar células → Proteção) com a aba protegida: a barra fica vazia.
+        self.edicao = self.workbook.aba(self.folha)
+            .filter(|a| !a.sheet.formula_oculta(self.linha, self.coluna))
+            .map(|a| self.formula_para_mostrar(&a.sheet.get_raw(self.linha, self.coluna))).unwrap_or_default();
+    }
+
     fn trocar_selecao_com(&mut self, r: u32, c: u32, clique: Option<(u32, u32)>) {
         self.selecoes_extras.clear();
         // Célula escolhida: o gráfico deixa de estar selecionado (Delete limpa a célula).
@@ -77,10 +86,7 @@ impl App {
         if self.faixa_ativa == AbaFaixa::Tabela && self.tabela_editando.is_none() {
             self.faixa_ativa = AbaFaixa::Inicio;
         }
-        // Fórmula oculta (Formatar células → Proteção) com a aba protegida: a barra fica vazia.
-        self.edicao = self.workbook.aba(self.folha)
-            .filter(|a| !a.sheet.formula_oculta(self.linha, self.coluna))
-            .map(|a| self.formula_para_mostrar(&a.sheet.get_raw(self.linha, self.coluna))).unwrap_or_default();
+        self.recarregar_barra_fx();
         self.endereco = cell_name(self.linha, self.coluna);
         self.endereco_digitado = false;
         self.manter_selecao_a_vista(clique);

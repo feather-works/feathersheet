@@ -1075,12 +1075,10 @@ impl App {
         self.folha = indice;
         self.linha_inicio = 0;
         self.coluna_inicio = inicio_col;
-        self.linha = 0;
-        self.coluna = inicio_col;
         // Só a primeira célula, como o Excel: as mudanças do painel não mexem
-        // mais na seleção, e a tabela inteira selecionada ficaria velha.
-        self.fim_selecao = (0, inicio_col);
-        self.endereco = cell_name(0, inicio_col);
+        // mais na seleção, e a tabela inteira selecionada ficaria velha. Pelo
+        // `trocar_selecao`, para a barra fx mostrar essa célula, não a anterior.
+        self.trocar_selecao(0, inicio_col);
         self.faixa_ativa = AbaFaixa::Inserir;
         self.alterado = true;
         self.status = trf!("Tabela dinâmica criada: {} linhas × {} colunas ({largura} campos na origem).", altura, colunas);
@@ -1105,12 +1103,20 @@ mod testes {
             s.set_cell(2,0,"2"); s.set_cell(2,1,"20");
         });
         app.linha=0; app.coluna=0; app.fim_selecao=(2,1);
+        app.edicao = "ID".into();
         app.evento_dinamica(Evento::Abrir);
         app.evento_dinamica(Evento::Criar);
         let e = app.dinamica.as_ref().expect("painel de campos aberto");
         assert!(e.linhas.is_empty() && e.valores.is_empty(), "nenhum campo escolhido sozinho");
         let aviso = app.workbook.aba(app.folha).unwrap().sheet.get_raw(0, 0);
         assert!(aviso.contains("escolha os campos"), "{aviso}");
+        assert_eq!((app.linha, app.coluna), (0, 0));
+        assert_eq!(app.edicao, aviso, "a barra fx mostra a célula da dinâmica, não a anterior");
+        // Marcar um campo reescreve a tabela sem mexer na seleção: A1 muda e a fx segue.
+        app.evento_dinamica(Evento::Campo(0));
+        let a1 = app.workbook.aba(app.folha).unwrap().sheet.get_raw(0, 0);
+        assert_ne!(a1, aviso, "a tabela foi reescrita");
+        assert_eq!(app.edicao, a1);
     }
 
     #[test]
