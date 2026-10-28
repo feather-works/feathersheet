@@ -402,6 +402,20 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
     }
 
     #[test]
+    fn data_da_fonte_aparece_formatada_e_volta_formatada_na_aba() {
+        use feathersheet_core::celulas::style::NumberFormat;
+        let mut app = App::default();
+        let _ = app.update(Msg::Colar("Data\tN\n27/10/2026\t5".into()));
+        let _ = app.update(Msg::IrPara("A2".into()));
+        let _ = app.update(Msg::OpenQuery(Evento::AbrirCom(Box::new(Evento::CarregarSelecao))));
+        let e = app.openquery.as_ref().unwrap();
+        assert_eq!(e.formatos.get("Data").map(|s| s.format), Some(NumberFormat::Date));
+        app.evento_openquery(Evento::Carregar);
+        let estilo = app.workbook.aba(1).unwrap().sheet.get_style(1, 0).cloned();
+        assert_eq!(estilo.map(|s| s.format), Some(NumberFormat::Date));
+    }
+
+    #[test]
     fn fontes_recentes_sem_repetir_e_a_mais_nova_primeiro() {
         let mut app = App::default();
         app.lembrar_fonte("/tmp/a.csv".into());

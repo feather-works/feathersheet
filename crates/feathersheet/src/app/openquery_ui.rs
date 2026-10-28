@@ -13,6 +13,22 @@ use pelicano::Background; use pelicano::Border; use pelicano::Shadow;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 static IMPORTACAO_SEQ: AtomicU64 = AtomicU64::new(1);
+
+/// Formato de número de cada coluna da fonte (data, hora, %, moeda), pelo nome:
+/// a prévia mostra "27/10/2026", não 46322.
+pub(super) type Formatos = HashMap<String, feathersheet_core::celulas::style::Style>;
+
+/// O formato da primeira linha de dados de cada coluna de `area` (cabeçalho na 1ª).
+// shortcut: só o nome liga coluna e formato; renomear a coluna perde o formato da prévia.
+pub(super) fn formatos_da_fonte(wb: &Workbook, aba: usize, area: &Rect, cabecalho: &[String]) -> Formatos {
+    use feathersheet_core::celulas::style::NumberFormat;
+    let Some(a) = wb.aba(aba) else { return Formatos::new() };
+    let area = area.normalized();
+    cabecalho.iter().enumerate().filter_map(|(i, nome)| {
+        let estilo = a.sheet.get_style(area.r0 + 1, area.c0 + i as u32)?;
+        (estilo.format != NumberFormat::Auto || estilo.code.is_some()).then(|| (nome.clone(), estilo.clone()))
+    }).collect()
+}
 mod json_passos;
 mod registro;
 mod execucao;
@@ -129,6 +145,8 @@ pub enum Evento {
     /// Recolhe/expande um grupo da lateral (0 salvas, 1 origem, 2 tabelas).
     RecolherGrupo(u8),
     JanelaRedimensionada(pelicano::Size),
+    /// Formatos da fonte lida em segundo plano (vale só para a importação `ticket`).
+    Formatos(u64, Formatos),
     /// Rolagem da prévia: só as linhas e colunas à vista são montadas.
     RolarPrevia(pelicano::Viewport),
 }
@@ -192,6 +210,7 @@ pub(super) struct Estado {
     recolhidos: [bool; 3],
     /// Deslocamento e tamanho visível da prévia (x, y, largura, altura).
     rolagem: (f32, f32, f32, f32),
+    formatos: Formatos,
 }
 
 /// Apenas tabelas estruturadas já criadas (Ctrl+T) na pasta aberta.
@@ -278,6 +297,7 @@ impl Estado {
             janela: pelicano::Size::new(1280.0, 800.0),
             recolhidos: [false; 3],
             rolagem: (0.0, 0.0, 1600.0, 1000.0),
+            formatos: Formatos::new(),
         }
     }
 
@@ -493,6 +513,7 @@ impl App {
         let Some(origem_aba) = self.workbook.aba(aba).map(|a| a.sheet.name.clone()) else { return };
         match ler_tabela(&self.workbook, aba, area.clone()) {
             Ok(fonte) => if let Some(e) = &mut self.openquery {
+                e.formatos = formatos_da_fonte(&self.workbook, aba, &area, &fonte.cabecalho);
                 e.fonte = fonte;
                 e.rolagem = (0.0, 0.0, e.rolagem.2, e.rolagem.3);
                 e.origem_aba = origem_aba;
@@ -772,6 +793,9 @@ impl App {
             Evento::Ponteiro(x, y) => if let Some(e) = &mut self.openquery { e.ponteiro = (x, y); },
             Evento::Modificadores(m) => if let Some(e) = &mut self.openquery { e.modificadores = m; },
             Evento::JanelaRedimensionada(t) => if let Some(e) = &mut self.openquery { e.janela = t; },
+            Evento::Formatos(ticket, f) => if let Some(e) = &mut self.openquery {
+                if e.importacao_pendente == Some(ticket) { e.formatos = f; }
+            },
             Evento::RolarPrevia(v) => if let Some(e) = &mut self.openquery {
                 e.rolagem = (v.offset.x, v.offset.y, v.bounds.width, v.bounds.height);
             },
@@ -1014,7 +1038,13 @@ impl App {
                 return Task::perform(async move {
                     tokio::task::spawn_blocking(move || importador::ler(&caminho))
                         .await.unwrap_or_else(|e| Err(trf!("Falha no importador: {e}")))
-                }, move |resultado| Msg::OpenQuery(Evento::ArquivoLido(ticket, resultado)));
+                }, move |resultado| match resultado {
+                    Ok((tabela, origem, formatos)) => Msg::Lote(vec![
+                        Msg::OpenQuery(Evento::Formatos(ticket, formatos)),
+                        Msg::OpenQuery(Evento::ArquivoLido(ticket, Ok((tabela, origem)))),
+                    ]),
+                    Err(erro) => Msg::OpenQuery(Evento::ArquivoLido(ticket, Err(erro))),
+                });
             }
             Evento::ArquivoLido(ticket, resultado) => {
                 let Some(editor) = &mut self.openquery else { return Task::none() };

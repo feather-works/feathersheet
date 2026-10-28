@@ -301,7 +301,19 @@ impl App {
                 sheet, 0, 0, &editor.resultado, true,
                 anterior.clone(), u64::MAX,
             ) {
-                Ok(_) => sheet.clear_history(),
+                Ok(_) => {
+                    // Data, hora, %… da fonte voltam com o formato (senão a aba mostra 46322).
+                    let linhas = editor.resultado.linhas.len() as u32;
+                    for (c, nome) in editor.resultado.cabecalho.iter().enumerate() {
+                        let Some(estilo) = editor.formatos.get(nome) else { continue };
+                        let mut patch = feathersheet_core::celulas::estilo_parcial::de_style(estilo);
+                        patch.retain(|k, _| matches!(k.as_str(), "format" | "code" | "decimals"));
+                        if linhas > 0 && !patch.is_empty() {
+                            sheet.formatar_faixa(&Rect::new(1, c as u32, linhas, c as u32), &patch);
+                        }
+                    }
+                    sheet.clear_history();
+                }
                 Err(erro) => falha_escrita = Some(erro),
             }
         });

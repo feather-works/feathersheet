@@ -126,12 +126,13 @@ fn validar_xlsx(path: &Path) -> Result<(), String> {
 }
 
 /// Não modifica o Workbook aberto. Executar via spawn_blocking.
-pub(super) fn ler(path: &Path) -> Result<(Tabela, String), String> {
+pub(super) fn ler(path: &Path) -> Result<(Tabela, String, super::Formatos), String> {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("")
         .to_ascii_lowercase();
     if !["csv","tsv","json","xlsx","txt"].contains(&ext.as_str()) {
         return Err(tr!("Use CSV, TSV, TXT, JSON ou XLSX neste importador").into());
     }
+    let mut formatos = super::Formatos::new();
     let tabela = match ext.as_str() {
         "json" => json_tabela(&std::fs::read(path)
             .map_err(|e| trf!("Falha de leitura: {e}"))?)?,
@@ -140,19 +141,23 @@ pub(super) fn ler(path: &Path) -> Result<(Tabela, String), String> {
                 path, ext == "tsv", None,
             )?;
             let area = workbook.aba(0).ok_or(tr!("CSV sem aba"))?.sheet.used_rect();
-            ler_tabela(&workbook, 0, area)?
+            let t = ler_tabela(&workbook, 0, area.clone())?;
+            formatos = super::formatos_da_fonte(&workbook, 0, &area, &t.cabecalho);
+            t
         }
         "xlsx" => {
             validar_xlsx(path)?;
             let (workbook, _) = feathersheet_io::xlsx_read::ler_xlsx_arquivo(path)?;
             let area = workbook.aba(0).ok_or(tr!("Excel sem planilha"))?.sheet.used_rect();
-            ler_tabela(&workbook, 0, area)?
+            let t = ler_tabela(&workbook, 0, area.clone())?;
+            formatos = super::formatos_da_fonte(&workbook, 0, &area, &t.cabecalho);
+            t
         }
         _ => unreachable!(),
     };
     if tabela.cabecalho.is_empty() { return Err(tr!("Arquivo sem colunas").into()); }
     let nome = path.file_name().and_then(|n| n.to_str()).unwrap_or(tr!("Arquivo"));
-    Ok((tabela, trf!("Arquivo: {nome}")))
+    Ok((tabela, trf!("Arquivo: {nome}"), formatos))
 }
 
 

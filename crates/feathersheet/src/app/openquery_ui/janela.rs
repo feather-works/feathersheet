@@ -549,8 +549,11 @@ impl App {
         }
         let cabecalho = cabecalho.push(depois());
         // O menu ▾ abre onde está o mouse (o `on_move` dá a posição na janela).
-        let cabecalho = pelicano::mouse_area(cabecalho).on_move(|p| om(Evento::Ponteiro(p.x, p.y)));
-        let mut grade = column![cabecalho, Space::new(0.0, Length::Fixed(l0 as f32 * ALTURA_LINHA_PREVIA))].spacing(0);
+        let cabecalho = pelicano::mouse_area(container(cabecalho).style(ide::estilo_cabecalho(escuro)))
+            .on_move(|p| om(Evento::Ponteiro(p.x, p.y)));
+        let mut grade = column![
+            Space::new(0.0, Length::Fixed(ALTURA_CABECALHO_PREVIA + l0 as f32 * ALTURA_LINHA_PREVIA)),
+        ].spacing(0);
         for (indice, linha) in visual.linhas.iter().enumerate().take(l1).skip(l0) {
             let mut celulas = row![
                 container(text((indice + 1).to_string()).size(TAM_LEGENDA)
@@ -560,7 +563,11 @@ impl App {
             ].spacing(0).push(Space::new(Length::Fixed(c0 as f32 * LARGURA_COLUNA_PREVIA), 0.0));
             for (c, val) in linha.iter().enumerate().take(c1).skip(c0) {
                 // Uma linha por célula, com "…": texto longo não desalinha as linhas.
-                celulas = celulas.push(container(text(feathersheet_core::celulas::values::to_text(val)).size(TAM_LEGENDA).ellipsis())
+                let texto = match (val, e.formatos.get(&visual.cabecalho[c.min(n_colunas.saturating_sub(1))])) {
+                    (Value::Number(_), Some(estilo)) => feathersheet_core::planilha::bloco::texto_formatado(val, Some(estilo)),
+                    _ => feathersheet_core::celulas::values::to_text(val),
+                };
+                celulas = celulas.push(container(text(texto).size(TAM_LEGENDA).ellipsis())
                     .padding([5, 8]).width(largura).height(Length::Fixed(ALTURA_LINHA_PREVIA)).clip(true)
                     .style(ide::estilo_celula_propriedade(escuro, e.selecionadas.contains(&c))));
             }
@@ -570,6 +577,9 @@ impl App {
             grade = grade.push(celulas.push(Space::new(Length::Fixed(resto as f32 * LARGURA_COLUNA_PREVIA), 0.0)));
         }
         let grade = grade.push(Space::new(0.0, Length::Fixed((n_linhas - l1) as f32 * ALTURA_LINHA_PREVIA)));
+        // Cabeçalho fixo: desenhado por cima das linhas, na altura da rolagem.
+        let topo = oy.clamp(0.0, (n_linhas as f32 * ALTURA_LINHA_PREVIA).max(0.0));
+        let grade = pelicano::stack![grade, column![Space::new(0.0, Length::Fixed(topo)), cabecalho]];
         column![
             barra_fx,
             container(scrollable(grade).direction(pelicano::Direction::Both)
