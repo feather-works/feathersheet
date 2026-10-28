@@ -746,16 +746,18 @@ pub fn fn_rank(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     Computed::Scalar(Value::Number(pos as f64))
 }
 
+/// Os pares (x, y) das duas séries: a linha em que qualquer lado não é
+/// número (vazio, texto, lógico) sai inteira, como no Excel. Coletar cada
+/// lado sozinho e parear por posição fazia os pares deslizarem (#115).
 fn pair_values(args: &[Node], ev: &Evaluator<'_>) -> Result<(Vec<f64>, Vec<f64>), CellError> {
     if let Some(err) = arity(args, 2, 2) {
         return Err(err);
     }
-    let xs = collect(&[args[0].clone()], ev)?;
-    let ys = collect(&[args[1].clone()], ev)?;
-    if xs.len() != ys.len() || xs.is_empty() {
-        return Err(CellError::com_motivo(crate::celulas::values::ErrorCode::Value, "Arrays must have same length"));
+    let pares = pares_numericos(ev, &args[0], &args[1])?;
+    if pares.is_empty() {
+        return Err(e_div0());
     }
-    Ok((xs, ys))
+    Ok(pares.into_iter().unzip())
 }
 
 /// `=CORREL(array1; array2)`
@@ -1755,6 +1757,38 @@ mod tests {
         // CONTAR.VAZIO(C1:C6) = 1 (célula C6 vazia)
         sheet.set_cell_raw(0, 3, "=CONTAR.VAZIO(C1:C6)".into(), None);
         assert_eq!(sheet.get_value(0, 3), Value::Number(1.0));
+    }
+
+    #[test]
+    fn duas_series_descartam_o_par_inteiro() {
+        // #115: X com vazio na linha 3, Y com texto na linha 4. O Excel usa só
+        // os pares (1;2), (2;4) e (5;10): reta perfeita y = 2x.
+        let mut sheet = Sheet::new("Plan1");
+        for (r, (x, y)) in [("1", "2"), ("2", "4"), ("", "6"), ("4", "texto"), ("5", "10")].iter().enumerate() {
+            if !x.is_empty() {
+                sheet.set_cell_raw(r as u32, 0, x.to_string(), None);
+            }
+            sheet.set_cell_raw(r as u32, 1, y.to_string(), None);
+        }
+        let conta = |sheet: &mut Sheet, f: &str| {
+            sheet.set_cell_raw(10, 5, f.into(), None);
+            match sheet.get_value(10, 5) {
+                Value::Number(n) => n,
+                outro => panic!("{f}: {outro:?}"),
+            }
+        };
+        let perto = |a: f64, b: f64| (a - b).abs() < 1e-12;
+        assert!(perto(conta(&mut sheet, "=CORREL(A1:A5;B1:B5)"), 1.0));
+        assert!(perto(conta(&mut sheet, "=PEARSON(A1:A5;B1:B5)"), 1.0));
+        assert!(perto(conta(&mut sheet, "=RQUAD(B1:B5;A1:A5)"), 1.0));
+        assert!(perto(conta(&mut sheet, "=INCLINAÇÃO(B1:B5;A1:A5)"), 2.0));
+        assert!(perto(conta(&mut sheet, "=INTERCEPÇÃO(B1:B5;A1:A5)"), 0.0));
+        assert!(perto(conta(&mut sheet, "=PREVISÃO(10;B1:B5;A1:A5)"), 20.0));
+        // x̄ = 8/3; Σdx² = 26/3; COVAR = Σ(dx·2dx)/3 = 52/9.
+        assert!(perto(conta(&mut sheet, "=COVAR(A1:A5;B1:B5)"), 52.0 / 9.0));
+        // Tamanhos diferentes: #N/D, como no Excel.
+        sheet.set_cell_raw(10, 5, "=CORREL(A1:A5;B1:B4)".into(), None);
+        assert!(matches!(sheet.get_value(10, 5), Value::Error(e) if e.code == ErrorCode::Na));
     }
 }
 
