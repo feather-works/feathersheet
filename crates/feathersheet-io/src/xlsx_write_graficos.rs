@@ -1056,7 +1056,13 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
         let ordem = feathersheet_core::grafico::chart::ordem_dos_papeis(cfg.tipo, &cfg.style.hidden_series, &papeis, ex.series.len());
         ex.series = ordem.into_iter().map(|i| ex.series[i].clone()).collect();
         let ap = aparencia(v, &cfg);
-        let pizza = v["_featherPieSeries"].as_u64().unwrap_or(0) as usize;
+        // O app grava "2 — Meta" (posição a partir de 1), não um número.
+        let pizza = v["_featherPieSeries"].as_str()
+            .and_then(|s| s.split(" — ").next())
+            .and_then(|s| s.trim().parse::<usize>().ok())
+            .or_else(|| v["_featherPieSeries"].as_u64().map(|n| n as usize + 1))
+            .unwrap_or(1)
+            .saturating_sub(1);
         *contador += 1;
         let n = *contador;
         let rid = format!("rIdGrafico{}", k + 1);
