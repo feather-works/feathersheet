@@ -39,6 +39,12 @@
 //! são os mesmos; só a preguiça do TypeScript não tem par direto.
 
 use std::collections::{HashMap, HashSet};
+use std::hash::BuildHasherDefault;
+
+use crate::celulas::mapa_chave::HasherChave;
+
+type MapaColuna<V> = HashMap<u32, V, BuildHasherDefault<HasherChave>>;
+type ConjuntoId = HashSet<i32, BuildHasherDefault<HasherChave>>;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::planilha::column_store::{ChunkedFloatColumn, ChunkedInt32Column};
@@ -154,9 +160,10 @@ pub struct FormulaTable {
     pattern_faixas: Vec<Vec<FaixaPadrao>>,
     /// Padrões já reprovados: recusa na hora, sem compilar de novo.
     rejeitados: HashSet<String>,
-    columns: HashMap<u32, Column>,
+    // Hash barato (`HasherChave`): consultados a cada célula gravada.
+    columns: MapaColuna<Column>,
     /// Padrões em uso por coluna — é o que o grafo deduzido percorre.
-    used_by_col: HashMap<u32, HashSet<i32>>,
+    used_by_col: MapaColuna<ConjuntoId>,
     /// Algum padrão em uso lê outra aba. Guardado porque é perguntado a cada
     /// célula escrita: percorrer os padrões toda vez pesava na importação.
     externas_em_uso: bool,
@@ -657,7 +664,7 @@ impl FormulaTable {
             return;
         }
 
-        let mut new_columns: HashMap<u32, Column> = HashMap::with_capacity(self.columns.len());
+        let mut new_columns: MapaColuna<Column> = MapaColuna::with_capacity_and_hasher(self.columns.len(), Default::default());
         for (col, entry) in self.columns.drain() {
             if removing {
                 if col >= at && col < at + count {
@@ -679,7 +686,7 @@ impl FormulaTable {
         }
         self.columns = new_columns;
 
-        let mut new_used: HashMap<u32, HashSet<i32>> = HashMap::with_capacity(self.used_by_col.len());
+        let mut new_used: MapaColuna<ConjuntoId> = MapaColuna::with_capacity_and_hasher(self.used_by_col.len(), Default::default());
         for (col, used) in self.used_by_col.drain() {
             if removing {
                 if col >= at && col < at + count {
@@ -825,7 +832,7 @@ impl FormulaTable {
 
         let mut cols_to_remove = Vec::new();
         for (&col, used) in &mut self.used_by_col {
-            let mut new_used = HashSet::new();
+            let mut new_used = ConjuntoId::default();
             if let Some(entry) = self.columns.get(&col) {
                 if entry.slot.max_row >= 0 {
                     for r in entry.slot.min_row..=(entry.slot.max_row as u32) {
