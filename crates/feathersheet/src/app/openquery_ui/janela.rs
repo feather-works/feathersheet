@@ -115,13 +115,13 @@ impl App {
         }
         if let Some(c) = e.menu_tipo {
             return crate::app::menu_contexto::sobrepor(
-                base, &menu_de_tipos(c), None, |_| om(Evento::MenuTipo(None, None)),
+                base, &menu_de_tipos(c), None, |i| om(Evento::Submenu(i)),
                 om(Evento::MenuTipo(None, None)), (e.posicao_menu.0 - 10.0, e.posicao_menu.1 + 14.0), e.janela,
             );
         }
         if let Some(c) = e.menu_coluna {
             return crate::app::menu_contexto::sobrepor(
-                base, &menu_da_coluna(e, c), None, |_| om(Evento::MenuColuna(None)),
+                base, &menu_da_coluna(e, c), e.submenu, |i| om(Evento::Submenu(i)),
                 om(Evento::MenuColuna(None)), (e.posicao_menu.0 - 40.0, e.posicao_menu.1 + 14.0), e.janela,
             );
         }
@@ -212,9 +212,12 @@ impl App {
             text(tr!("NOME DA CONSULTA")).size(10).color(ide::cor_secundaria(escuro)),
             entrada(&e.nome, tr!("Nome da consulta"), Evento::Nome),
             Space::new(0.0, Length::Fixed(8.0)),
-            grupo(tr!("Consultas salvas"), e.salvas.len(), 0, e.recolhidos[0], escuro),
         ].spacing(3).padding(7);
-        for (id, nome) in e.salvas.iter().take(35).filter(|_| !e.recolhidos[0]) {
+        // Só as consultas: a que está aberta (ainda não carregada) e as gravadas no arquivo.
+        if e.edicao.is_none() {
+            arvore = arvore.push(ide::item_arvore(&e.nome, "table", 12.0, None, true));
+        }
+        for (id, nome) in e.salvas.iter() {
             let atual = e.edicao.as_deref() == Some(id.as_str());
             arvore = arvore.push(row![
                 ide::item_arvore(nome, "table", 12.0, Some(om(Evento::EditarSalva(id.clone()))), atual),
@@ -223,10 +226,6 @@ impl App {
                 botao_so_icone("x", tr!("Desvincular consulta (os valores da aba permanecem)"),
                     Evento::PedirExclusao(id.clone())),
             ].align(pelicano::Align::Center));
-        }
-        if e.salvas.is_empty() && !e.recolhidos[0] {
-            arvore = arvore.push(container(legenda_oq(tr!("Nenhuma consulta gravada neste arquivo.")))
-                .padding([4, 12]));
         }
         if let Some(id) = &e.exclusao_pendente {
             let nome = e.salvas.iter().find(|(chave, _)| chave == id)
@@ -239,45 +238,6 @@ impl App {
                 ].spacing(ESPACO_PEQUENO),
             ].spacing(ESPACO_PEQUENO)).padding([4, 8]));
         }
-        arvore = arvore.push(grupo(tr!("Origem da consulta"), usize::from(!e.fonte.cabecalho.is_empty()), 1, e.recolhidos[1], escuro));
-        if e.recolhidos[1] {
-        } else if e.fonte.cabecalho.is_empty() {
-            arvore = arvore.push(container(legenda_oq(tr!("Nenhuma fonte escolhida.")))
-                .padding([4, 12]));
-        } else {
-            arvore = arvore.push(container(row![
-                feather_ui::icones::icone_colorido(if e.origem_aba.starts_with("Web: ") { "link" } else { "table" }, 18.0, "#21865c"),
-                column![
-                    texto_oq(e.origem_aba.trim_start_matches("Arquivo: ").trim_start_matches("Web: ").to_owned()),
-                    legenda_oq(trf!("{} colunas • {} linhas", e.fonte.cabecalho.len(), e.fonte.linhas.len())),
-                ].spacing(2),
-            ].spacing(8).align(pelicano::Align::Center)).padding([6, 10]).width(Length::FILL)
-                .style(ide::estilo_celula_propriedade(escuro, false)));
-        }
-        let tabelas = tabelas_existentes(&self.workbook);
-        arvore = arvore.push(grupo(tr!("Tabelas existentes"), tabelas.len(), 2, e.recolhidos[2], escuro));
-        let tabelas = if e.recolhidos[2] { Vec::new() } else { tabelas };
-        if tabelas.is_empty() && !e.recolhidos[2] {
-            arvore = arvore.push(container(legenda_oq(
-                tr!("Nenhuma tabela encontrada. Crie uma na planilha com Ctrl+T.")
-            )).padding([4, 12]));
-        }
-        for (indice, nome, _) in tabelas.into_iter().take(35) {
-            let chave = trf!("Tabela: {nome}");
-            if e.fonte.cabecalho.is_empty() {
-                arvore = arvore.push(ide::item_arvore(&nome, "table", 12.0,
-                    Some(om(Evento::CarregarTabela(indice, nome.clone()))), false));
-            } else {
-                arvore = arvore.push(ide::item_arvore(&nome, "table", 12.0,
-                    Some(om(Evento::FonteTabela(indice, nome.clone()))),
-                    e.fontes.contains_key(&chave)));
-            }
-        }
-        if !e.fonte.cabecalho.is_empty() && !e.recolhidos[2] && !tabelas_existentes(&self.workbook).is_empty() {
-            arvore = arvore.push(container(legenda_oq(
-                tr!("Clique em outra tabela para adicioná-la à combinação.")
-            )).padding([4, 12]));
-        }
 
         container(painel(
             &trf!("Consultas [{}]", e.salvas.len() + 1),
@@ -287,42 +247,8 @@ impl App {
 
     /// Tela de entrada: nenhuma aba é importada automaticamente.
     fn selecionar_fonte_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
-        let mut conteudo = column![
-            text(tr!("Obter dados")).size(21).font(negrito()),
-            texto_oq(tr!("Escolha uma fonte externa ou uma tabela já existente nesta pasta.")),
-            row![
-                dica(button(column![
-                    feather_ui::icones::icone_colorido("folder-open", 30.0, "#d68126"),
-                    text(tr!("Arquivo externo")).size(14).font(negrito()),
-                    legenda_oq(tr!("CSV, TSV, JSON ou Excel")),
-                ].spacing(8)).on_press(om(Evento::ImportarArquivo))
-                    .padding(16).style(ide::estilo_botao_ide(false)),
-                    tr!("Selecionar arquivo do computador")),
-                dica(button(column![
-                    feather_ui::icones::icone_colorido("link", 30.0, "#2179a7"),
-                    text(tr!("Internet / API")).size(14).font(negrito()),
-                    legenda_oq(tr!("API, CSV ou tabela HTML")),
-                ].spacing(8)).on_press(om(Evento::MostrarWeb))
-                    .padding(16).style(ide::estilo_botao_ide(e.mostrar_web)),
-                    tr!("Buscar dados de uma URL")),
-            ].spacing(10),
-            row![
-                dica(button(column![
-                    feather_ui::icones::icone_colorido("table", 30.0, "#21865c"),
-                    text(tr!("Tabela existente")).size(14).font(negrito()),
-                    legenda_oq(tr!("Tabelas Ctrl+T desta pasta")),
-                ].spacing(8)).on_press(om(Evento::MostrarTabelas))
-                    .padding(16).style(ide::estilo_botao_ide(e.mostrar_tabelas)),
-                    tr!("Escolher tabela estruturada, não uma aba")),
-                dica(button(column![
-                    feather_ui::icones::icone_colorido("edit", 30.0, "#7d5cc6"),
-                    text(tr!("Inserir dados")).size(14).font(negrito()),
-                    legenda_oq(tr!("Digitar ou colar CSV/TSV")),
-                ].spacing(8)).on_press(om(Evento::AbaCentro(2)))
-                    .padding(16).style(ide::estilo_botao_ide(e.mostrar_manual)),
-                    tr!("Criar uma tabela manual")),
-            ].spacing(10),
-        ].spacing(16).padding(24).width(Length::FILL);
+        // Sem fonte, o centro fica em branco: as fontes estão na faixa (OBTER DADOS).
+        let mut conteudo = column(Vec::<Element<Msg>>::new()).spacing(16).padding(24).width(Length::FILL);
         if e.mostrar_web {
             conteudo = conteudo.push(container(column![
                 text(tr!("Endereço Web / API")).size(13).font(negrito()),
@@ -398,7 +324,7 @@ impl App {
             conteudo = conteudo.push(container(escolher.spacing(9).padding(12))
                 .width(Length::FILL).style(ide::estilo_area(escuro)));
         }
-        if e.mostrar_tabelas || (e.fonte.cabecalho.is_empty() && !e.mostrar_web) {
+        if e.mostrar_tabelas {
             let tabelas = tabelas_existentes(&self.workbook);
             conteudo = conteudo.push(text(tr!("Tabelas existentes na pasta"))
                 .size(14).font(negrito()));
@@ -410,10 +336,16 @@ impl App {
                 for (indice, nome, area) in tabelas.into_iter().take(50) {
                     let aba = self.workbook.aba(indice)
                         .map(|a| a.sheet.name.as_str()).unwrap_or("?");
+                    // Com uma fonte aberta, a tabela entra na combinação em vez de trocá-la.
+                    let chave = trf!("Tabela: {nome}");
+                    let (evento, marcada) = if e.fonte.cabecalho.is_empty() {
+                        (Evento::CarregarTabela(indice, nome.clone()), false)
+                    } else {
+                        (Evento::FonteTabela(indice, nome.clone()), e.fontes.contains_key(&chave))
+                    };
                     conteudo = conteudo.push(ide::item_arvore(
                         &trf!("{}  •  {}  ({} colunas)", nome, aba, area.c1 - area.c0 + 1),
-                        "table", 0.0,
-                        Some(om(Evento::CarregarTabela(indice, nome))), false,
+                        "table", 0.0, Some(om(evento)), marcada,
                     ));
                 }
             }
@@ -784,6 +716,7 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                 pilha(vec![
                     p(tr!("Da Web"), "link", AZUL, Evento::MostrarWeb),
                     p(tr!("De tabela"), "table", VERDE, Evento::MostrarTabelas),
+                    p(tr!("Digitar dados"), "edit", ROXO, Evento::AbaCentro(2)),
                 ]),
             ], escuro),
             grupo_ribbon("CONSULTA", vec![
@@ -886,21 +819,6 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
         .height(Length::Fixed(110.0))
         .padding([3, 5]).width(Length::FILL)
         .style(ide::estilo_area(escuro)).into()
-}
-
-/// Campos anteriormente fixos em "Propriedades" surgem apenas quando necessários.
-/// Cabeçalho recolhível da lateral: seta, título e quantos itens tem.
-fn grupo<'a>(rotulo: &str, quantos: usize, indice: u8, recolhido: bool, escuro: bool) -> Element<'a, Msg> {
-    button(row![
-        feather_ui::icones::icone(if recolhido { "chevron-right" } else { "chevron-down" }, 12.0),
-        text(rotulo.to_owned()).size(12).font(negrito()).color(ide::cor_texto(escuro)),
-        Space::new(Length::FILL, 0.0),
-        text(quantos.to_string()).size(10).color(ide::cor_secundaria(escuro)),
-    ].spacing(6).align(pelicano::Align::Center))
-        .padding([7, 6]).width(Length::FILL)
-        .style(ide::estilo_botao_ide(false))
-        .on_press(om(Evento::RecolherGrupo(indice)))
-        .into()
 }
 
 /// Os tipos, como o menu do ícone de tipo do Power Query.

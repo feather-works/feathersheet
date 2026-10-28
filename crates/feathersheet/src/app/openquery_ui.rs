@@ -147,6 +147,8 @@ pub enum Evento {
     JanelaRedimensionada(pelicano::Size),
     /// Menu de tipos (clique no 123/ABC ou "Tipo de dados ▾"): coluna e onde abre.
     MenuTipo(Option<usize>, Option<(f32, f32)>),
+    /// Submenu aberto no menu ▾ da coluna (passar o mouse num item).
+    Submenu(Option<usize>),
     /// Muda o tipo da coluna (troca a etapa de tipo anterior da mesma coluna, se for a última).
     Tipar(usize, &'static str),
     /// Formatos da fonte lida em segundo plano (vale só para a importação `ticket`).
@@ -210,6 +212,7 @@ pub(super) struct Estado {
     modificadores: pelicano::Modifiers,
     menu_coluna: Option<usize>,
     menu_tipo: Option<usize>,
+    submenu: Option<usize>,
     ponteiro: (f32, f32),
     /// Onde o menu ▾ abriu: fica parado enquanto o mouse anda até ele.
     posicao_menu: (f32, f32),
@@ -301,6 +304,7 @@ impl Estado {
             modificadores: pelicano::Modifiers::default(),
             menu_coluna: None,
             menu_tipo: None,
+            submenu: None,
             ponteiro: (0.0, 0.0),
             posicao_menu: (0.0, 0.0),
             janela: pelicano::Size::new(1280.0, 800.0),
@@ -799,7 +803,9 @@ impl App {
                     e.posicao_menu = e.ponteiro;
                 }
                 e.menu_coluna = col;
+                e.submenu = None;
             },
+            Evento::Submenu(i) => if let Some(e) = &mut self.openquery { e.submenu = i; },
             Evento::Ponteiro(x, y) => if let Some(e) = &mut self.openquery { e.ponteiro = (x, y); },
             Evento::MenuTipo(col, posicao) => if let Some(e) = &mut self.openquery {
                 e.menu_coluna = None;

@@ -205,6 +205,11 @@ impl App {
                         // Outros painéis não respondem a F1/F12, somente a Esc.
                         Auxiliar::Macros => None,
                     };
+                    // F2 renomeia a coluna selecionada da prévia, como no Power Query.
+                    if aux == Auxiliar::OpenQuery && mods.is_empty()
+                        && key == keyboard::Key::Named(keyboard::key::Named::F2) {
+                        return self.evento_openquery_janela(openquery_ui::Evento::Adicionar("renomear"));
+                    }
                     // Esc fecha primeiro o assistente modal; só depois a janela.
                     if aux == Auxiliar::OpenQuery
                         && key == keyboard::Key::Named(keyboard::key::Named::Escape) {
