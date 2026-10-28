@@ -58,6 +58,8 @@ pub enum ChartType {
     StepAreaStacked,
     #[serde(rename = "step-area-stacked-100")]
     StepAreaStacked100,
+    // shortcut: a rosca do .xlsx sai como pizza cheia (o desenhista novo não tem anel), até o feather-charts ganhar a rosca.
+    #[serde(alias = "doughnut")]
     Pie,
     Scatter,
     Bubble,
