@@ -36,6 +36,10 @@ Sem outro build rodando ao mesmo tempo (o número sai errado). Perfil:
 | 2 núcleos | — | 11,2 s (abrir 7,6 + calcular 3,5) | 4–5 s |
 | Pico de memória | 0,69 GB (app) | 0,72–0,82 GB | não passar de hoje |
 
+Medido pelo usuário no app (28/10, noite, depois do SOMARPRODUTO linha a linha):
+planilha pesada **4,9 s e 875 MB** (manhã: 7,6 s e 0,69 GB de pico). O pico no app
+ainda passa da manhã; a bancada mede 0,71–0,83 GB com 16 threads.
+
 O piso é descompactar o XML da aba grande (~0,6 s aqui): um fluxo DEFLATE só
 não se divide entre núcleos.
 
