@@ -275,6 +275,40 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
     LotePreparado { texto: final_texto, celulas: final_celulas }
 }
 
+/// O XML que outra thread descompacta, em pedaços de 1 MB (`ler_aba`).
+struct FluxoDescompactado {
+    fila: std::sync::mpsc::Receiver<std::io::Result<Vec<u8>>>,
+    atual: Vec<u8>,
+    pos: usize,
+}
+
+impl std::io::Read for FluxoDescompactado {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let disponivel = std::io::BufRead::fill_buf(self)?;
+        let n = disponivel.len().min(buf.len());
+        buf[..n].copy_from_slice(&disponivel[..n]);
+        std::io::BufRead::consume(self, n);
+        Ok(n)
+    }
+}
+
+impl std::io::BufRead for FluxoDescompactado {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        if self.pos >= self.atual.len() {
+            // Fila fechada: acabou o arquivo.
+            match self.fila.recv() {
+                Ok(pedaco) => self.atual = pedaco?,
+                Err(_) => self.atual.clear(),
+            }
+            self.pos = 0;
+        }
+        Ok(&self.atual[self.pos..])
+    }
+    fn consume(&mut self, n: usize) {
+        self.pos += n;
+    }
+}
+
 fn ler_aba(
     archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>,
     caminho: &str,
@@ -364,8 +398,28 @@ fn ler_aba(
         // Leitor de linhas sem árvore: cada `<c>` vai para buffers
         // reaproveitados, sem objeto nem mapa de atributos por nó (a árvore
         // genérica custava ~20 s em 13 milhões de células).
+        // Descompactar numa thread, analisar nesta: eram ~0,6 s de 5 s na
+        // mesma thread, no XML de 668 MB do arquivo de 1 M linhas. Só com
+        // núcleo sobrando: com 4 núcleos a thread a mais piorava (4,2 → 4,6 s).
+        let fonte: Box<dyn std::io::BufRead + '_> = if nucleos >= 4 {
+            let (para_xml, de_zip) = std::sync::mpsc::sync_channel::<std::io::Result<Vec<u8>>>(8);
+            escopo.spawn(move || {
+                let mut arquivo = crate::progresso::ContadorEtapa(arquivo);
+                loop {
+                    let mut pedaco = Vec::with_capacity(1 << 20);
+                    match std::io::Read::read_to_end(&mut std::io::Read::take(&mut arquivo, 1 << 20), &mut pedaco) {
+                        Ok(0) => break,
+                        Ok(_) => if para_xml.send(Ok(pedaco)).is_err() { break },
+                        Err(e) => { let _ = para_xml.send(Err(e)); break }
+                    }
+                }
+            });
+            Box::new(FluxoDescompactado { fila: de_zip, atual: Vec::new(), pos: 0 })
+        } else {
+            Box::new(BufReader::with_capacity(1 << 20, crate::progresso::ContadorEtapa(arquivo)))
+        };
         let raiz = xml::parse_xml_linhas_rapidas(
-            BufReader::with_capacity(1 << 20, crate::progresso::ContadorEtapa(arquivo)), &mut |row| {
+            fonte, &mut |row| {
                 let Some(linha) = row.attr("r").and_then(|r| r.parse::<i64>().ok()).map(|r| r - 1) else {
                     return Ok(());
                 };

@@ -50,8 +50,9 @@ Primeiro o que corta trabalho (vale em qualquer máquina), depois paralelismo.
 2. **Menos trabalho por célula na leitura** — o leitor rápido
    (`xlsx_read/xml/rapido.rs`) já sabe o tipo da célula; entregar número e
    texto prontos em vez de montar `String` e analisar de novo no preparo.
-3. **Descompactar numa thread, analisar noutra** — tira os ~0,6 s da
-   descompactação da thread que analisa o XML.
+3. **Descompactar numa thread, analisar noutra** — feito (28/10): só quando a
+   aba tem 4+ threads de preparo; 16 threads 3,35 → 3,05 s; com 4 núcleos
+   ficaria pior, então lá não liga.
 4. **XML em blocos paralelos** — a thread que descompacta corta em blocos de
    linhas inteiras; cada bloco é analisado numa thread. Fórmula compartilhada
    (`t="shared"`) resolvida em ordem depois.
