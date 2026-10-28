@@ -108,6 +108,8 @@ pub(super) fn ler_estado(app: &App, destino: usize, meta: &Json) -> Result<Estad
             let sel = s["sel"].as_array()?.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect();
             Some((coluna, sel))
         }).collect()).unwrap_or_default(),
+        pagina_tambem: meta["paginaTambem"].as_array().map(|lista| lista.iter()
+            .filter_map(|c| usize::try_from(c.as_u64()?).ok()).collect()).unwrap_or_default(),
     })
 }
 
@@ -396,13 +398,8 @@ impl App {
         self.alterado = true;
         let meta_novo = lista[pos].clone();
         self.seguir_graficos_dinamicos(destino, &meta_novo);
-        self.folha = destino;
-        self.linha_inicio = nova.r0;
-        self.coluna_inicio = nova.c0;
-        self.linha = nova.r0;
-        self.coluna = nova.c0;
-        self.fim_selecao = (nova.r1, nova.c1);
-        self.endereco = cell_name(self.linha,self.coluna);
+        // A aba, a seleção e a rolagem ficam onde a pessoa estava (#106): antes
+        // cada mudança no painel selecionava a tabela inteira e rolava até ela.
         self.status = trf!("Tabela dinâmica atualizada: {} linhas × {} colunas.",altura,largura);
         Ok(())
     }

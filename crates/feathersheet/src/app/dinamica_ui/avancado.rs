@@ -323,6 +323,7 @@ pub(super) fn gravar_opcoes(meta: &mut Json, e: &Estado, mapa: Json) {
     meta["atualizarSozinha"] = json!(e.atualizar_sozinha);
     meta["segmentacoes"] = json!(e.segmentacoes.iter()
         .map(|(c, sel)| json!({"col": c, "sel": sel})).collect::<Vec<_>>());
+    meta["paginaTambem"] = json!(e.pagina_tambem);
 }
 
 /// Ordenação estável, eliminando duplicatas, com um teto de EXIBIÇÃO:

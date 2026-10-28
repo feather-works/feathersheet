@@ -1270,12 +1270,14 @@ impl Grade<'_> {
                         if self.workbook.aba(self.aba).is_some_and(|a| crate::dinamica_visual::filtro_na_grade(
                             &crate::dinamica_visual::com_cache(&a.sheet,a.versao),r,c).is_some())
                         {
-                            let direita = self.posicao_da_celula(r,c,
+                            let (direita, baixo) = self.posicao_da_celula(r,c,
                                 Size::new(bounds.width/self.zoom,bounds.height/self.zoom))
-                                .map(|(x,_,w,_)| x+w).unwrap_or(0.0);
+                                .map(|(x,y,w,h)| (x+w, y+h)).unwrap_or((0.0, 0.0));
                             if p.x >= direita-24.0 && p.x<=direita {
+                                // A lista abre logo abaixo do funil (em pixels da tela).
                                 return (Captured::Yes,
-                                    Some(Msg::Dinamica(crate::app::dinamica_ui::Evento::FiltroNaGrade(r,c))));
+                                    Some(Msg::Dinamica(crate::app::dinamica_ui::Evento::FiltroNaGrade(r,c,
+                                        (direita-24.0)*self.zoom, baixo*self.zoom))));
                             }
                         }
                         // Setinha no cabeçalho: abre o painel da própria coluna.

@@ -4096,5 +4096,9 @@
  "UserForm do .xlsm convertido": "UserForms from .xlsm converted",
  "Várias funções num módulo": "Several functions in one module",
  "Vínculos do disco só depois de \"Atualizar valores\"; forma com macro respeita o bloqueio.": "Links to files on disk only after \"Update values\"; a shape with a macro respects protection.",
- "Vínculos e macros mais seguros": "Safer links and macros"
+ "Vínculos e macros mais seguros": "Safer links and macros",
+ "Já é o primeiro da área": "Already the first in the area",
+ "Já é o último da área": "Already the last in the area",
+ "Mover para": "Move to",
+ "Nada a remover": "Nothing to remove"
 }

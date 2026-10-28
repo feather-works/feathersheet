@@ -1176,6 +1176,11 @@ impl App {
                         if let Ok(modo) = std::env::var("FEATHERSHEET_CAPTURAR_FILTRO") {
                             self.preparar_captura_filtro(&modo);
                         }
+                        // FEATHERSHEET_CAPTURAR_DINAMICA=filtro|menu|resumir: dinâmica de exemplo
+                        // com o filtro de relatório e a lista dele ou o menu ▾ de um campo aberto.
+                        if let Ok(modo) = std::env::var("FEATHERSHEET_CAPTURAR_DINAMICA") {
+                            self.preparar_captura_dinamica(&modo);
+                        }
                         // FEATHERSHEET_CAPTURAR_DIALOGO=nomes|erro|estatisticas|perfil…: abre o diálogo.
                         if let Ok(nome) = std::env::var("FEATHERSHEET_CAPTURAR_DIALOGO") {
                             self.preparar_captura_dialogo(&nome);

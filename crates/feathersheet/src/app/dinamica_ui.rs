@@ -90,6 +90,10 @@ pub enum Evento {
     ArrastoSair(AreaDinamica),
     BuscaCampo(String),
     MenuItem(Option<(AreaDinamica, usize)>),
+    /// Submenu aberto no menu ▾ do campo ("Mover para ›", "Resumir por ›").
+    MenuSub(Option<usize>),
+    /// O mouse sobre a setinha ▾ (posição na janela): o menu abre ali.
+    PonteiroMenu(pelicano::Point),
     MoverPara(AreaDinamica, usize, AreaDinamica),
     Reordenar(AreaDinamica, usize, i32),
     FiltroBusca(String),
@@ -123,8 +127,9 @@ pub enum Evento {
     SegmentacaoRemover(usize, String, usize),
     /// Um botão da aba contextual "Tabela Dinâmica" (com ou sem o painel aberto).
     NaFaixa(Box<Evento>),
-    /// Clique no funil de um filtro de relatório na grade (linha, coluna).
-    FiltroNaGrade(u32, u32),
+    /// Clique no funil de um filtro de relatório na grade (linha, coluna,
+    /// canto de baixo à esquerda do funil na área da grade): a lista abre ali.
+    FiltroNaGrade(u32, u32, f32, f32),
     /// A conta adiada de uma origem grande (o número da vez: só a última
     /// mudança calcula), depois que a barra de status mostrou o aviso.
     AtualizarAgora(u32),
@@ -147,6 +152,13 @@ pub(super) struct PainelUi {
     sob_item: Option<(AreaDinamica, usize)>,
     /// Item com o menu ▾ aberto.
     menu_item: Option<(AreaDinamica, usize)>,
+    /// Submenu aberto nesse menu (índice do item com ›).
+    submenu: Option<usize>,
+    /// Último ponto do mouse sobre uma setinha ▾ (janela): onde o menu abre.
+    ponteiro_menu: pelicano::Point,
+    /// A lista do filtro foi aberta pelo funil da grade: canto de baixo do
+    /// funil (área da grade). `None` = aberta pelo painel, ao lado dele.
+    filtro_ancora: Option<(f32, f32)>,
     filtro_busca: String,
     /// Filtros como estavam ao abrir a lista: o Cancelar volta para eles.
     filtros_antes: Option<Vec<Filtro>>,
@@ -210,6 +222,10 @@ pub(super) struct Estado {
     com_grafico: bool,
     /// Segmentações de dados: (coluna do campo, itens escolhidos).
     segmentacoes: Vec<(usize, Vec<String>)>,
+    /// Campos que são filtro de relatório e também estão em Linhas/Colunas
+    /// (marcados na lista depois de ir para Filtros): o filtro continua em
+    /// cima da tabela, em vez de virar só filtro de itens da linha.
+    pagina_tambem: Vec<usize>,
 }
 
 impl Estado {
@@ -223,7 +239,10 @@ impl Estado {
             AreaDinamica::Linhas if i < self.linhas.len() => { self.linhas.remove(i); }
             AreaDinamica::Colunas if i < self.colunas.len() => { self.colunas.remove(i); }
             AreaDinamica::Valores if i < self.valores.len() => { self.valores.remove(i); }
-            AreaDinamica::Filtros if i < self.filtros.len() => { self.filtros.remove(i); }
+            AreaDinamica::Filtros if i < self.filtros.len() => {
+                let f = self.filtros.remove(i);
+                self.pagina_tambem.retain(|&c| c != f.coluna);
+            }
             _ => {}
         }
     }
@@ -244,6 +263,7 @@ impl Estado {
             }),
             _ if calculado => {}
             AreaDinamica::Linhas | AreaDinamica::Colunas | AreaDinamica::Filtros => {
+                self.pagina_tambem.retain(|&c| c != col);
                 self.linhas.retain(|&c| c != col);
                 self.colunas.retain(|&c| c != col);
                 if area != AreaDinamica::Filtros { self.filtros.retain(|f| f.coluna != col); }
@@ -294,7 +314,8 @@ impl Estado {
     /// Os filtros de relatório: campo na área Filtros (não em Linhas/Colunas,
     /// cujo filtro de itens também mora em `filtros`).
     fn filtros_de_relatorio(&self) -> Vec<&Filtro> {
-        self.filtros.iter().filter(|f| !self.linhas.contains(&f.coluna) && !self.colunas.contains(&f.coluna)).collect()
+        self.filtros.iter().filter(|f| self.pagina_tambem.contains(&f.coluna)
+            || (!self.linhas.contains(&f.coluna) && !self.colunas.contains(&f.coluna))).collect()
     }
 
     fn coluna_em(&self, area: AreaDinamica, i: usize) -> Option<usize> {
@@ -435,6 +456,13 @@ impl App {
     }
 
     fn evento_dinamica_base(&mut self, evento: Evento) -> Task<Msg> {
+        // Uma escolha no menu ▾ do campo fecha o menu (ele flutua sobre a tela).
+        if matches!(evento, Evento::Reordenar(..) | Evento::MoverPara(..) | Evento::ConfigurarCampo(_)
+            | Evento::OperacaoEscolher(..) | Evento::DuplicarValor(_) | Evento::FiltroCampo(_)
+            | Evento::RemoverFiltro(_) | Evento::RemoverValor(_) | Evento::Remover(..))
+        {
+            if let Some(e) = &mut self.dinamica { e.ui.menu_item = None; e.ui.submenu = None; }
+        }
         match evento {
             Evento::Abrir => {
                 self.confirmar();
@@ -494,6 +522,7 @@ impl App {
                     atualizar_sozinha: false,
                     com_grafico: false,
                     segmentacoes: Vec::new(),
+                    pagina_tambem: Vec::new(),
                 });
                 self.menu_aberto = false;
                 self.contexto = None;
@@ -607,6 +636,7 @@ impl App {
             },
             Evento::RemoverFiltro(col) => if let Some(e) = &mut self.dinamica {
                 e.filtros.retain(|f| f.coluna != col);
+                e.pagina_tambem.retain(|&c| c != col);
             },
             Evento::Campo(i) => {
                 let numerico = self.dinamica.as_ref().map(|e| {
@@ -624,9 +654,15 @@ impl App {
                             e.linhas.retain(|&c| c != col);
                             e.colunas.retain(|&c| c != col);
                             e.valores.retain(|v| v.coluna != col);
+                            e.pagina_tambem.retain(|&c| c != col);
                         } else if numerico {
                             e.valores.push(MedidaDinamica { coluna: col, op: AgregacaoOp::Soma });
                         } else {
+                            // Já é filtro de relatório: continua sendo (as células
+                            // do filtro em cima da tabela) e também vira linha.
+                            if e.filtros_de_relatorio().iter().any(|f| f.coluna == col) {
+                                e.pagina_tambem.push(col);
+                            }
                             e.linhas.push(col);
                         }
                     }
@@ -661,7 +697,7 @@ impl App {
                         e.filtro_cortado = cortado;
                         e.ui.filtros_antes = Some(e.filtros.clone());
                         e.ui.filtro_busca.clear();
-                        e.ui.menu_item = None;
+                        e.ui.filtro_ancora = None;
                     }
                 }
             }
@@ -699,7 +735,10 @@ impl App {
                 }
             },
             Evento::LimparFiltro => if let Some(e) = &mut self.dinamica {
-                if let Some(col) = e.campo_filtro { e.filtros.retain(|f| f.coluna != col); }
+                if let Some(col) = e.campo_filtro {
+                    e.filtros.retain(|f| f.coluna != col);
+                    e.pagina_tambem.retain(|&c| c != col);
+                }
             },
             Evento::NomeCalculado(nome) => if let Some(e) = &mut self.dinamica {
                 e.novo_nome = nome;
@@ -815,7 +854,10 @@ impl App {
             Evento::BuscaCampo(t) => if let Some(e) = &mut self.dinamica { e.ui.busca_campo = t; },
             Evento::MenuItem(item) => if let Some(e) = &mut self.dinamica {
                 e.ui.menu_item = if e.ui.menu_item == item { None } else { item };
+                e.ui.submenu = None;
             },
+            Evento::MenuSub(i) => if let Some(e) = &mut self.dinamica { e.ui.submenu = i; },
+            Evento::PonteiroMenu(p) => if let Some(e) = &mut self.dinamica { e.ui.ponteiro_menu = p; },
             Evento::MoverPara(de, i, para) => {
                 let col = self.dinamica.as_ref().and_then(|e| e.coluna_em(de, i));
                 if let Some(col) = col {
@@ -879,7 +921,7 @@ impl App {
             Evento::NaFaixa(evento) => return self.evento_na_faixa(*evento),
             // Tratada em `evento_dinamica` (antes de chegar aqui).
             Evento::AtualizarAgora(_) => {}
-            Evento::FiltroNaGrade(r, c) => self.abrir_filtro_na_grade(r, c),
+            Evento::FiltroNaGrade(r, c, x, y) => self.abrir_filtro_na_grade(r, c, (x, y)),
             evento @ (Evento::SegmentacaoInserir | Evento::SegmentacaoCampo(_) | Evento::SegmentacaoFecharEscolha
                 | Evento::SegmentacaoItem(..) | Evento::SegmentacaoLimpar(..) | Evento::SegmentacaoRemover(..)) =>
                 self.evento_segmentacao(evento),
@@ -1035,7 +1077,9 @@ impl App {
         self.coluna_inicio = inicio_col;
         self.linha = 0;
         self.coluna = inicio_col;
-        self.fim_selecao = ((altura - 1) as u32, inicio_col + colunas as u32 - 1);
+        // Só a primeira célula, como o Excel: as mudanças do painel não mexem
+        // mais na seleção, e a tabela inteira selecionada ficaria velha.
+        self.fim_selecao = (0, inicio_col);
         self.endereco = cell_name(0, inicio_col);
         self.faixa_ativa = AbaFaixa::Inserir;
         self.alterado = true;

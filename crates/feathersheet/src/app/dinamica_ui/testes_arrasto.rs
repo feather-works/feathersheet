@@ -153,13 +153,106 @@ fn filtro_de_relatorio_aparece_na_grade_e_abre_a_lista() {
     // O funil na grade abre a lista de itens do campo.
     let _ = app.evento_dinamica(Evento::Fechar);
     app.folha = d;
-    let _ = app.evento_dinamica(Evento::FiltroNaGrade(af.r0, af.c0 + 1));
+    let _ = app.evento_dinamica(Evento::FiltroNaGrade(af.r0, af.c0 + 1, 100.0, 40.0));
     assert_eq!(app.dinamica.as_ref().and_then(|e| e.campo_filtro), Some(1));
     // Tirar o filtro limpa as células de cima.
     let col = app.dinamica.as_ref().unwrap().filtros[0].coluna;
     app.evento_dinamica(Evento::RemoverFiltro(col));
     let s = &app.workbook.aba(d).unwrap().sheet;
     assert!(s.get_raw(af.r0, af.c0).is_empty());
+}
+
+/// Põe o campo `col` em Filtros arrastando da lista.
+fn para_filtros(app: &mut App, col: usize) {
+    app.evento_dinamica(Evento::ArrastoInicio(col, None));
+    app.evento_dinamica(Evento::ArrastoMover(pelicano::Point::new(0.0, 0.0)));
+    app.evento_dinamica(Evento::ArrastoMover(pelicano::Point::new(40.0, 40.0)));
+    app.evento_dinamica(Evento::ArrastoSobre(Some(AreaDinamica::Filtros)));
+    app.evento_dinamica(Evento::ArrastoSoltar);
+}
+
+fn area_dos_filtros(app: &App, d: usize) -> Option<Rect> {
+    let dn = app.workbook.aba(d).unwrap().sheet.dn.clone().unwrap();
+    retangulo_json(&serde_json::from_str::<Vec<serde_json::Value>>(&dn).unwrap()[0]["areaFiltros"])
+}
+
+/// #106: STATUS em Filtros e, marcado na lista, também em Linhas: as células
+/// do filtro (nome e "(Tudo)") continuam em cima da tabela.
+#[test]
+fn campo_em_filtros_e_em_linhas_mantem_o_filtro_em_cima() {
+    let mut app = app_com_dinamica();
+    let d = destino(&app);
+    para_filtros(&mut app, 1);
+    app.evento_dinamica(Evento::Campo(1));
+    let e = app.dinamica.as_ref().unwrap();
+    assert!(e.linhas.contains(&1) && e.filtros.iter().any(|f| f.coluna == 1), "Produto nas duas áreas");
+    let af = area_dos_filtros(&app, d).expect("o filtro de relatório continua");
+    let s = &app.workbook.aba(d).unwrap().sheet;
+    assert_eq!((s.get_raw(af.r0, af.c0), s.get_raw(af.r0, af.c0 + 1)), ("Produto".into(), "(Tudo)".into()));
+    // Reaberto do arquivo, continua igual.
+    let _ = app.evento_dinamica(Evento::Fechar);
+    app.folha = d;
+    app.trocar_selecao(af.r1 + 2, af.c0);
+    app.abrir_edicao_dinamica();
+    assert_eq!(app.dinamica.as_ref().unwrap().filtros_de_relatorio().len(), 1);
+    // Desmarcado na lista, sai das linhas e fica só o filtro.
+    app.evento_dinamica(Evento::Campo(1));
+    assert!(area_dos_filtros(&app, d).is_some());
+    assert!(app.dinamica.as_ref().unwrap().pagina_tambem.is_empty());
+}
+
+/// #106: o funil da grade abre a lista embaixo dele e não mexe na seleção.
+#[test]
+fn filtrar_pelo_funil_nao_tira_a_selecao_do_lugar() {
+    let mut app = app_com_dinamica();
+    let d = destino(&app);
+    para_filtros(&mut app, 1);
+    let af = area_dos_filtros(&app, d).unwrap();
+    let _ = app.evento_dinamica(Evento::Fechar);
+    app.folha = d;
+    app.trocar_selecao(30, 6);
+    let _ = app.evento_dinamica(Evento::FiltroNaGrade(af.r0, af.c0 + 1, 120.0, 44.0));
+    let e = app.dinamica.as_ref().unwrap();
+    assert_eq!(e.campo_filtro, Some(1));
+    assert_eq!(e.ui.filtro_ancora, Some((120.0, 44.0)), "a lista abre embaixo do funil");
+    assert_eq!((app.linha, app.coluna, app.fim_selecao), (30, 6, (30, 6)));
+    app.evento_dinamica(Evento::FiltroValor("A".into()));
+    let _ = app.evento_dinamica(Evento::FiltroOk);
+    assert_eq!((app.linha, app.coluna), (30, 6), "filtrar não leva o foco para a tabela");
+    let s = &app.workbook.aba(d).unwrap().sheet;
+    assert_eq!(s.get_raw(af.r0, af.c0 + 1), "(Vários itens)", "o filtro valeu");
+    // Aberta pelo painel, a lista volta para o lado dele.
+    app.evento_dinamica(Evento::FiltroCampo(0));
+    assert_eq!(app.dinamica.as_ref().unwrap().ui.filtro_ancora, None);
+}
+
+/// #107: a setinha do campo tem "Mover para ›" com submenu, e "Resumir por ›" nos valores.
+#[test]
+fn menu_da_setinha_agrupa_mover_para_num_submenu() {
+    use crate::app::menu_contexto::ItemMenu;
+    let mut app = app_com_dinamica();
+    let e = app.dinamica.as_ref().unwrap();
+    let rotulos = |itens: &[ItemMenu]| itens.iter().filter_map(|i| match i {
+        ItemMenu::Acao { rotulo, msg, .. } => Some(format!("{rotulo}{}", if msg.is_some() { "" } else { " (off)" })),
+        ItemMenu::Sub { rotulo, .. } => Some(format!("{rotulo} ›")),
+        ItemMenu::Separador => None,
+    }).collect::<Vec<_>>();
+    let menu = App::menu_do_item(e, AreaDinamica::Linhas, 0);
+    assert_eq!(rotulos(&menu), ["Mover para ›", "Classificar e agrupar…", "Remover campo"]);
+    let ItemMenu::Sub { itens, .. } = &menu[0] else { panic!("submenu") };
+    assert_eq!(rotulos(itens), ["Para cima (off)", "Para baixo (off)", "Filtros", "Colunas", "Valores"]);
+    let menu = App::menu_do_item(e, AreaDinamica::Valores, 0);
+    let ItemMenu::Sub { rotulo, itens, .. } = &menu[1] else { panic!("Resumir por") };
+    assert_eq!(rotulo, "Resumir por");
+    assert_eq!(itens.len(), 7);
+    // Escolher no submenu move o campo e fecha o menu.
+    app.evento_dinamica(Evento::MenuItem(Some((AreaDinamica::Linhas, 0))));
+    app.evento_dinamica(Evento::MenuSub(Some(0)));
+    assert_eq!(app.dinamica.as_ref().unwrap().ui.submenu, Some(0));
+    app.evento_dinamica(Evento::MoverPara(AreaDinamica::Linhas, 0, AreaDinamica::Colunas));
+    let e = app.dinamica.as_ref().unwrap();
+    assert!(e.linhas.is_empty() && e.colunas.len() == 1);
+    assert_eq!((e.ui.menu_item, e.ui.submenu), (None, None));
 }
 
 /// Quebra o tempo de uma troca de campo por etapa (arquivo pesado).

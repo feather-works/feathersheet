@@ -166,18 +166,79 @@ impl App {
 
     /// Funil do filtro de relatório na grade: abre o painel da dinâmica e a
     /// lista de itens daquele campo (o Excel abre a lista ali mesmo).
-    pub(super) fn abrir_filtro_na_grade(&mut self, r: u32, c: u32) {
+    pub(super) fn abrir_filtro_na_grade(&mut self, r: u32, c: u32, ancora: (f32, f32)) {
         let achada = dinamicas_da_aba(self, self.folha).iter().find_map(|d| {
             let af = retangulo_json(&d["areaFiltros"])?;
             let area = retangulo_json(&d["areaResultado"])?;
             af.contains(r, c).then_some(((r - af.r0) as usize, area))
         });
         let Some((indice, area)) = achada else { return };
-        self.trocar_selecao(area.r0, area.c0);
+        // A edição acha a dinâmica pela célula ativa; a seleção da pessoa
+        // (e a rolagem) volta logo depois: filtrar não leva o foco para a tabela.
+        let lugar = (self.linha, self.coluna, self.linha_inicio, self.coluna_inicio,
+            self.fim_selecao, self.endereco.clone());
+        (self.linha, self.coluna) = (area.r0, area.c0);
         self.abrir_edicao_dinamica();
+        (self.linha, self.coluna, self.linha_inicio, self.coluna_inicio,
+            self.fim_selecao, self.endereco) = lugar;
         let Some(e) = self.dinamica.as_ref() else { return };
         let Some(coluna) = e.filtros_de_relatorio().get(indice).map(|f| f.coluna) else { return };
         let i = coluna.saturating_sub(e.origem.c0 as usize);
         let _ = self.evento_dinamica(Evento::FiltroCampo(i));
+        if let Some(e) = self.dinamica.as_mut() { e.ui.filtro_ancora = Some(ancora); }
+    }
+
+    /// `FEATHERSHEET_CAPTURAR_DINAMICA=filtro|menu|resumir`: dinâmica de exemplo
+    /// (FONTE e STATUS em Linhas, STATUS também em Filtros, somas por ano) com
+    /// a lista do filtro aberta embaixo do funil de B1, ou o menu ▾ do campo
+    /// STATUS (Linhas) com "Mover para ›" aberto, ou o de Valores com "Resumir por ›".
+    pub(in crate::app) fn preparar_captura_dinamica(&mut self, modo: &str) {
+        let dados = [["FONTE DE FINANCIAMENTO", "STATUS", "2024", "2025", "2026"],
+            ["FECAM", "Concluído", "3", "1", "0"], ["FECAM", "Execução", "2", "4", "5"],
+            ["Compensação", "Execução ", "1", "2", "2"], ["Compensação", "Em Espera", "0", "1", "3"],
+            ["TCA", "Concluído", "4", "2", "1"], ["TCA", "Execução", "1", "3", "2"]];
+        for (r, linha) in dados.iter().enumerate() {
+            for (c, v) in linha.iter().enumerate() {
+                self.workbook.escrever_celula(self.folha, r as u32, c as u32, (*v).into());
+            }
+        }
+        self.trocar_selecao(0, 0);
+        self.fim_selecao = (dados.len() as u32 - 1, 4);
+        let _ = self.evento_dinamica(Evento::Abrir);
+        if let Some(e) = self.dinamica.as_mut() {
+            let c0 = e.origem.c0 as usize;
+            e.linhas = vec![c0];
+            e.valores = (2..5).map(|c| MedidaDinamica { coluna: c0 + c, op: AgregacaoOp::Soma }).collect();
+        }
+        let _ = self.evento_dinamica(Evento::Criar);
+        // STATUS para Filtros e, marcado na lista, também em Linhas (o caso do #106).
+        let _ = self.evento_dinamica(Evento::ArrastoInicio(1, None));
+        let _ = self.evento_dinamica(Evento::ArrastoMover(pelicano::Point::new(0.0, 0.0)));
+        let _ = self.evento_dinamica(Evento::ArrastoMover(pelicano::Point::new(40.0, 40.0)));
+        let _ = self.evento_dinamica(Evento::ArrastoSobre(Some(AreaDinamica::Filtros)));
+        let _ = self.evento_dinamica(Evento::ArrastoSoltar);
+        let _ = self.evento_dinamica(Evento::Campo(1));
+        let painel_x = self.tamanho_principal.width - 378.0;
+        let topo = 43.0 + 52.0 + if self.config.faixa_recolhida { 0.0 } else { super::super::faixa_nativa::ALTURA_FAIXA_NATIVA };
+        match modo {
+            "filtro" => {
+                let achado = dinamicas_da_aba(self, self.folha).iter()
+                    .find_map(|d| retangulo_json(&d["areaFiltros"]));
+                if let Some(af) = achado {
+                    let z = self.config.zoom as f32 / 100.0;
+                    let x = crate::grade::CABECALHO_LINHA + crate::grade::modelo::inicio_x(&self.workbook, self.folha, af.c0 + 2) - 24.0;
+                    let y = crate::grade::CABECALHO_COLUNA + crate::grade::modelo::inicio_y(&self.workbook, self.folha, af.r0 + 1);
+                    let _ = self.evento_dinamica(Evento::FiltroNaGrade(af.r0, af.c0 + 1, x * z, y * z));
+                }
+            }
+            "menu" | "resumir" => if let Some(e) = self.dinamica.as_mut() {
+                let (area, i, dx) = if modo == "menu" { (AreaDinamica::Linhas, 1, 160.0) } else { (AreaDinamica::Valores, 0, 330.0) };
+                e.ui.ponteiro_menu = pelicano::Point::new(painel_x + dx, topo + 520.0);
+                e.ui.menu_item = Some((area, i));
+                e.ui.submenu = Some(0);
+                if modo == "resumir" { e.ui.submenu = Some(1); }
+            },
+            _ => {}
+        }
     }
 }

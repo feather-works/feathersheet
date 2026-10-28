@@ -13,7 +13,7 @@ use pelicano::column;
 use feathersheet_core::dinamica::dinamica_layout;
 use feathersheet_core::dinamica::exibicao::{CampoBase, CampoExtra, Faixas, ItemBase, ParteData};
 
-const OPERACOES: [AgregacaoOp; 7] = [
+pub(super) const OPERACOES: [AgregacaoOp; 7] = [
     AgregacaoOp::Soma, AgregacaoOp::Contagem, AgregacaoOp::Media, AgregacaoOp::Min,
     AgregacaoOp::Max, AgregacaoOp::DesvioPadrao, AgregacaoOp::Moda,
 ];

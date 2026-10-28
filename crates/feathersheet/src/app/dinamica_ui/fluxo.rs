@@ -4,6 +4,7 @@
 use super::*;
 use feather_ui::icones::icone;
 use pelicano::column;
+use crate::app::menu_contexto::{self, ItemMenu};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Fase { Origem, Campos }
@@ -45,9 +46,13 @@ impl App {
         let Some(destino) = destino else { return };
         match self.aplicar_estado_na_dinamica(destino, &e) {
             Ok(()) => {
-                // Lista de grupos recolhíveis acompanha o novo resultado.
-                if let Ok((d, _, meta)) = edicao::localizar_selecionada(self) {
-                    if let Ok(novo) = edicao::ler_estado(self, d, &meta) {
+                // Lista de grupos recolhíveis acompanha o novo resultado. Pelo
+                // id, não pela célula ativa: a seleção pode estar fora da tabela.
+                let meta = self.workbook.aba(destino).and_then(|a| a.sheet.dn.as_deref())
+                    .and_then(|txt| serde_json::from_str::<Vec<serde_json::Value>>(txt).ok())
+                    .and_then(|d| d.into_iter().find(|p| p["id"] == id.as_str()));
+                if let Some(meta) = meta {
+                    if let Ok(novo) = edicao::ler_estado(self, destino, &meta) {
                         if let Some(atual) = self.dinamica.as_mut() { atual.grupos = novo.grupos; }
                     }
                 }
@@ -179,9 +184,12 @@ impl App {
                         .padding([4, 6]).width(Length::FILL).clip(true))
                         .on_press(Msg::Dinamica(Evento::ArrastoInicio(coluna, Some((area, i)))))
                         .cursor_icon(pelicano::CursorIcon::Grab),
-                    button(icone("chevron-down", 12.0)).padding([3, 4])
+                    // O menu abre onde a setinha está: guarda o ponto do mouse
+                    // só enquanto ele passa sobre ela.
+                    pelicano::mouse_area(button(icone("chevron-down", 12.0)).padding([3, 4])
                         .style(estilo_botao_pequeno(menu_aberto))
-                        .on_press(Msg::Dinamica(Evento::MenuItem(Some((area, i))))),
+                        .on_press(Msg::Dinamica(Evento::MenuItem(Some((area, i))))))
+                        .on_move(|p| Msg::Dinamica(Evento::PonteiroMenu(p))),
                 ].spacing(0).align(pelicano::Align::Center);
                 let caixa_chip = container(chip).style(|_| pelicano::Style {
                     background: Some(pelicano::Background::Color(COR_PAINEL())),
@@ -238,21 +246,6 @@ impl App {
             lista,
             text(tr!("Arraste os campos entre as áreas")).size(11).color(COR_TEXTO_MUTED()),
             grade,
-            // O menu ▾ de um campo sai embaixo das áreas: dentro da caixa
-            // (112 px, com rolagem) ele ficava cortado.
-            match e.ui.menu_item {
-                Some((area, i)) => {
-                    let total = match area {
-                        AreaDinamica::Linhas => e.linhas.len(),
-                        AreaDinamica::Colunas => e.colunas.len(),
-                        AreaDinamica::Valores => e.valores.len(),
-                        AreaDinamica::Filtros => e.filtros.len(),
-                        AreaDinamica::Lista => 0,
-                    };
-                    self.menu_do_item(e, area, i, total)
-                }
-                None => Space::new(0.0, 0).into(),
-            },
             match e.ui.config_campo {
                 Some((area, i)) => self.view_config_campo(e, area, i),
                 None => Space::new(0.0, 0).into(),
@@ -284,57 +277,65 @@ impl App {
             .into()
     }
 
-    /// O menu ▾ de um campo numa área: reordenar, mudar de área, configurar, remover.
-    fn menu_do_item<'a>(&'a self, e: &'a Estado, area: AreaDinamica, i: usize, total: usize) -> Element<'a, Msg> {
-        let opcao = |ic: &'static str, rotulo: String, msg: Option<Msg>| -> Element<'a, Msg> {
-            button(item(ic, rotulo, 11.5)).width(Length::FILL).padding([4, 6])
-                .style(estilo_botao_pequeno(false)).on_press_maybe(msg).into()
+    /// O menu ▾ de um campo numa área, no componente dos menus de contexto:
+    /// "Mover para ›" (cima, baixo, outras áreas), configurar, remover.
+    pub(super) fn menu_do_item(e: &Estado, area: AreaDinamica, i: usize) -> Vec<ItemMenu> {
+        let ev = |evento: Evento| Msg::Dinamica(evento);
+        let total = match area {
+            AreaDinamica::Linhas => e.linhas.len(),
+            AreaDinamica::Colunas => e.colunas.len(),
+            AreaDinamica::Valores => e.valores.len(),
+            AreaDinamica::Filtros => e.filtros.len(),
+            AreaDinamica::Lista => 0,
         };
-        let mut menu = column![
-            opcao("chevron-up", tr!("Mover para cima").into(),
-                (i > 0).then_some(Msg::Dinamica(Evento::Reordenar(area, i, -1)))),
-            opcao("chevron-down", tr!("Mover para baixo").into(),
-                (i + 1 < total).then_some(Msg::Dinamica(Evento::Reordenar(area, i, 1)))),
-        ].spacing(1);
+        let mut mover = vec![
+            ItemMenu::talvez(tr!("Para cima"), "arrow-up",
+                (i > 0).then(|| ev(Evento::Reordenar(area, i, -1))), tr!("Já é o primeiro da área")),
+            ItemMenu::talvez(tr!("Para baixo"), "arrow-down",
+                (i + 1 < total).then(|| ev(Evento::Reordenar(area, i, 1))), tr!("Já é o último da área")),
+            ItemMenu::Separador,
+        ];
         let calculado = e.coluna_em(area, i).is_some_and(|c|
             c >= e.origem.c0 as usize + e.nomes.len().saturating_sub(e.calculados.len()));
-        for (destino, nome) in [(AreaDinamica::Filtros, tr!("Filtros")), (AreaDinamica::Colunas, tr!("Colunas")),
-            (AreaDinamica::Linhas, tr!("Linhas")), (AreaDinamica::Valores, tr!("Valores"))] {
+        // Campo calculado só soma: as outras áreas não aparecem para ele.
+        for (destino, nome, ic) in [(AreaDinamica::Filtros, tr!("Filtros"), "filter"),
+            (AreaDinamica::Colunas, tr!("Colunas"), "columns"), (AreaDinamica::Linhas, tr!("Linhas"), "table"),
+            (AreaDinamica::Valores, tr!("Valores"), "sum")] {
             if destino == area || (calculado && destino != AreaDinamica::Valores) { continue; }
-            menu = menu.push(opcao("arrow-right", trf!("Mover para {nome}"),
-                Some(Msg::Dinamica(Evento::MoverPara(area, i, destino)))));
+            mover.push(ItemMenu::acao(nome, ic, ev(Evento::MoverPara(area, i, destino))));
         }
+        let mut itens = vec![ItemMenu::sub(tr!("Mover para"), "arrow-right", mover)];
         match area {
             AreaDinamica::Valores => {
-                let atual = e.valores.get(i).map(|v| nome_operacao(v.op)).unwrap_or("");
-                // Abre as configurações com a lista de contas (Soma, Média,
-                // Desvio padrão, Moda...): antes alternava às cegas.
-                menu = menu.push(opcao("sum", trf!("Resumir por: {atual}…"),
-                    Some(Msg::Dinamica(Evento::ConfigurarCampo(Some((area, i)))))));
-                menu = menu.push(opcao("plus", tr!("Duplicar com outra conta").into(),
-                    Some(Msg::Dinamica(Evento::DuplicarValor(i)))));
-                menu = menu.push(opcao("percentage", tr!("Mostrar valores como…").into(),
-                    Some(Msg::Dinamica(Evento::ConfigurarCampo(Some((area, i)))))));
+                let atual = e.valores.get(i).map(|v| v.op);
+                // As contas direto no submenu, marcada a de agora.
+                let contas = config_campo::OPERACOES.iter().map(|&op| ItemMenu::acao(nome_operacao(op),
+                    if Some(op) == atual { "check" } else { "circle" }, ev(Evento::OperacaoEscolher(i, op)))).collect();
+                itens.push(ItemMenu::sub(tr!("Resumir por"), "sum", contas));
+                itens.push(ItemMenu::acao(tr!("Mostrar valores como…"), "percentage",
+                    ev(Evento::ConfigurarCampo(Some((area, i))))));
+                itens.push(ItemMenu::acao(tr!("Duplicar com outra conta"), "plus", ev(Evento::DuplicarValor(i))));
             }
             AreaDinamica::Linhas | AreaDinamica::Colunas => {
-                menu = menu.push(opcao("sort-ascending", tr!("Classificar e agrupar…").into(),
-                    Some(Msg::Dinamica(Evento::ConfigurarCampo(Some((area, i)))))));
+                itens.push(ItemMenu::acao(tr!("Classificar e agrupar…"), "sort-ascending",
+                    ev(Evento::ConfigurarCampo(Some((area, i))))));
             }
             AreaDinamica::Filtros => if let Some(col) = e.coluna_em(area, i) {
-                menu = menu.push(opcao("filter", tr!("Escolher itens…").into(),
-                    Some(Msg::Dinamica(Evento::FiltroCampo(col - e.origem.c0 as usize)))));
+                itens.push(ItemMenu::acao(tr!("Escolher itens…"), "filter",
+                    ev(Evento::FiltroCampo(col - e.origem.c0 as usize))));
             },
             _ => {}
         }
         let remover = match area {
-            AreaDinamica::Filtros => e.coluna_em(area, i).map(|c| Evento::RemoverFiltro(c)),
+            AreaDinamica::Filtros => e.coluna_em(area, i).map(Evento::RemoverFiltro),
             AreaDinamica::Valores => Some(Evento::RemoverValor(i)),
             AreaDinamica::Linhas => Some(Evento::Remover(EixoDinamica::Linhas, i)),
             AreaDinamica::Colunas => Some(Evento::Remover(EixoDinamica::Colunas, i)),
             AreaDinamica::Lista => None,
         };
-        menu = menu.push(opcao("trash", tr!("Remover campo").into(), remover.map(Msg::Dinamica)));
-        container(menu).padding(4).width(Length::FILL).style(estilo_popup_menu).into()
+        itens.push(ItemMenu::Separador);
+        itens.push(ItemMenu::talvez(tr!("Remover campo"), "trash", remover.map(ev), tr!("Nada a remover")));
+        itens
     }
 
     /// Lista flutuante de itens de um campo (o filtro), ao lado do painel.
@@ -405,9 +406,20 @@ impl App {
             ],
         ].height(Length::FILL);
         if let Some(col) = e.campo_filtro {
+            // Pelo funil da grade: logo abaixo dele, como o filtro das tabelas.
+            // Pelo painel: ao lado do painel.
+            let (fx, fy) = match e.ui.filtro_ancora {
+                Some((ax, ay)) => {
+                    let topo_grade = topo + if self.mostrar_fx { 54.0 } else { 0.0 };
+                    let largura = 260.0;
+                    (ax.clamp(8.0, (self.tamanho_principal.width - largura - 8.0).max(8.0)),
+                        (topo_grade + ay + 2.0).min((self.tamanho_principal.height - 420.0).max(8.0)))
+                }
+                None => ((x - 268.0).max(0.0), topo + 60.0),
+            };
             camadas = camadas.push(column![
-                Space::new(0.0, Length::Fixed(topo + 60.0)),
-                row![Space::new(Length::Fixed((x - 268.0).max(0.0)), 0.0), self.view_filtro_campo(e, col)],
+                Space::new(0.0, Length::Fixed(fy)),
+                row![Space::new(Length::Fixed(fx), 0.0), self.view_filtro_campo(e, col)],
             ]);
         }
         // O campo "na mão" segue o mouse enquanto é arrastado.
@@ -420,6 +432,13 @@ impl App {
                     container(item("grip-vertical", nome, 12.0)).padding([5, 9]).style(estilo_popup_menu),
                 ],
             ]);
+        }
+        // O menu ▾ de um campo flutua junto da setinha, com os submenus ao lado.
+        if let Some((area, i)) = e.ui.menu_item {
+            let p = e.ui.ponteiro_menu;
+            return menu_contexto::sobrepor(camadas.into(), &Self::menu_do_item(e, area, i), e.ui.submenu,
+                |s| Msg::Dinamica(Evento::MenuSub(s)), Msg::Dinamica(Evento::MenuItem(None)),
+                (p.x - menu_contexto::LARGURA + 12.0, p.y + 12.0), self.tamanho_principal);
         }
         camadas.into()
     }
