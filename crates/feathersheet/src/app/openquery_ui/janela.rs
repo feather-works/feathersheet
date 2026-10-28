@@ -62,7 +62,6 @@ impl App {
     pub(in crate::app) fn fechar_assistente_openquery(&mut self) -> bool {
         let Some(e) = self.openquery.as_mut() else { return false };
         if e.editor_avancado.take().is_some() {
-            e.script_avancado = None;
             e.erro_avancado.clear();
             return true;
         }
@@ -155,24 +154,13 @@ impl App {
     fn painel_editor_avancado_openquery<'a>(
         &'a self, e: &'a Estado, escuro: bool,
     ) -> Element<'a, Msg> {
-        let script = e.script_avancado.is_some();
         let editor = e.editor_avancado.as_ref().expect("editor avançado aberto");
-        let titulo = if script { tr!("Script completo · visualização") }
-            else { tr!("Editor avançado · etapas JavaScript") };
-        let nota = if script {
-            tr!("Código ilustrativo do fluxo completo. Não é executado como JavaScript: as etapas são processadas pelo FeatherSheet.")
-        } else {
-            tr!("Edite const etapas = [ ... ]; para transformar os dados. Aplicar valida todas as etapas antes de modificar a consulta.")
-        };
-        let codigo: Element<'a, Msg> = if let Some(gerado) = e.script_avancado.as_ref() {
-            // shortcut: o text_editor do pelicano não tem modo só leitura (o do Iced sem on_action era); a edição aqui não vai a lugar nenhum e some ao gerar de novo, até o pelicano ganhar `read_only`.
-            text_editor(gerado).idle_focus(false).font(pelicano::Font::MONO).size(13.0).into()
-        } else {
-            // Como no Iced, só escreve depois de clicado (há outro editor por baixo).
-            text_editor(editor).idle_focus(false)
-                .on_change(om(Evento::EditarEditorAvancado))
-                .font(pelicano::Font::MONO).size(13.0).into()
-        };
+        let titulo = tr!("Editor avançado");
+        let nota = tr!("let fonte = …; e uma linha por etapa: fonte.metodo(…);. Aplicar confere o script inteiro antes de mudar a consulta.");
+        // Como no Iced, só escreve depois de clicado (há outro editor por baixo).
+        let codigo: Element<'a, Msg> = text_editor(editor).idle_focus(false)
+            .on_change(om(Evento::EditarEditorAvancado))
+            .font(pelicano::Font::MONO).size(13.0).into();
         let mut corpo = column![
             row![
                 feather_ui::icones::icone_colorido("code", 20.0, "#7d5cc6"),
@@ -181,12 +169,6 @@ impl App {
                 ide::botao_icone(tr!("Fechar editor avançado sem aplicar"), "x",
                     Some(om(Evento::FecharEditorAvancado)), false),
             ].spacing(9).align(pelicano::Align::Center),
-            row![
-                ide::botao_aba(tr!("Etapas JavaScript"), "code",
-                    Some(om(Evento::VoltarEditorAvancado)), !script),
-                ide::botao_aba(tr!("Script completo"), "code",
-                    Some(om(Evento::MostrarScriptAvancado)), script),
-            ].spacing(4),
             text(nota).size(12).color(ide::cor_secundaria(escuro)),
             container(codigo).height(Length::FILL).width(Length::FILL)
                 .padding(9).style(ide::estilo_area(escuro)),
@@ -199,7 +181,7 @@ impl App {
                 .size(11).color(ide::cor_secundaria(escuro)),
             Space::new(Length::FILL, 0.0),
             ide::botao(tr!("Cancelar"), Some(om(Evento::FecharEditorAvancado)), false),
-            ide::botao_primario(tr!("Aplicar etapas"), "checks",
+            ide::botao_primario(tr!("Aplicar"), "checks",
                 Some(om(Evento::AplicarEditorAvancado))),
         ].spacing(10).align(pelicano::Align::Center));
         container(corpo).width(Length::FILL).height(Length::FILL)
@@ -363,12 +345,11 @@ impl App {
         if (e.fonte.cabecalho.is_empty() && !e.mostrar_manual) || e.mostrar_web || e.mostrar_tabelas {
             return self.selecionar_fonte_openquery(e, escuro);
         }
-        let ativa = if e.mostrar_manual { 2 } else if e.exibir_codigo { 1 } else if e.exibir_script { 3 } else { 0 };
+        let ativa = if e.mostrar_manual { 2 } else if e.exibir_codigo { 1 } else { 0 };
         let abas = container(row![
             ide::botao_aba(tr!("Prévia de dados"), "table", Some(om(Evento::AbaCentro(0))), ativa == 0),
-            ide::botao_aba("JavaScript", "code", Some(om(Evento::AbaCentro(1))), ativa == 1),
+            ide::botao_aba("Script", "code", Some(om(Evento::AbaCentro(1))), ativa == 1),
             ide::botao_aba(tr!("Tabela manual"), "forms", Some(om(Evento::AbaCentro(2))), ativa == 2),
-            ide::botao_aba(tr!("Script gerado"), "code", Some(om(Evento::AbaCentro(3))), ativa == 3),
         ].spacing(3)).width(Length::FILL).padding([4, 6])
             .style(ide::estilo_cabecalho(escuro));
         let conteudo: Element<'_, Msg> = match ativa {
@@ -388,29 +369,18 @@ impl App {
                 container(column![
                     row![
                         feather_ui::icones::icone_colorido("code", 16.0, "#d68126"),
-                        texto_oq(tr!("JavaScript declarativo • const etapas = [ ... ];")),
+                        texto_oq(tr!("Uma linha por etapa: fonte.metodo(…); as colunas vão pelo nome")),
                         Space::new(Length::FILL, 0.0),
                         ide::botao(tr!("Editor avançado"), Some(om(Evento::AbrirEditorAvancado)), false),
                         ide::botao_primario(tr!("Aplicar"), "checks", Some(om(Evento::Atualizar))),
                     ].spacing(8).align(pelicano::Align::Center),
                     container(text_editor(&e.codigo).idle_focus(false).on_change(om(Evento::Codigo))
                         .font(pelicano::Font::MONO).size(TAM_TEXTO))
-                        .height(Length::Fixed(100.0)),
+                        .height(Length::Fixed(180.0)),
                 ].spacing(5).padding(8)).width(Length::FILL)
                     .style(ide::estilo_area(escuro)),
                 self.previa_openquery(e, escuro),
             ].spacing(6).width(Length::FILL).height(Length::FILL).into(),
-            3 => {
-                let gerado = script::gerar(&e.nome, &e.fonte.cabecalho, &e.passos)
-                    .unwrap_or_else(|erro| trf!("Não foi possível gerar o script: {erro}"));
-                container(column![
-                    texto_oq(tr!("JavaScript gerado para referência • somente leitura • execução real em Rust")),
-                    scrollable(text(gerado).font(pelicano::Font::MONO).size(TAM_TEXTO))
-                        .width(Length::FILL).height(Length::FILL),
-                ].spacing(ESPACO_MEDIO).padding(8))
-                    .width(Length::FILL).height(Length::FILL)
-                    .style(ide::estilo_area(escuro)).into()
-            }
             _ => self.previa_openquery(e, escuro),
         };
         let mut centro = column![abas].spacing(5).width(Length::FILL).height(Length::FILL);
@@ -798,7 +768,7 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                 botao_ribbon("Fonte\ninicial", "table", VERDE,
                     Evento::Prever(None), e.passo_previa.is_none()),
                 botao_ribbon(tr!("Ver dados"), "table", AZUL, Evento::AbaCentro(0), !e.exibir_codigo && !e.mostrar_manual),
-                botao_ribbon("JavaScript", "code", ROXO, Evento::AbaCentro(1), e.exibir_codigo),
+                botao_ribbon("Script", "code", ROXO, Evento::AbaCentro(1), e.exibir_codigo),
             ], escuro),
         ],
     };

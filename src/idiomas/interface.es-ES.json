@@ -4035,5 +4035,21 @@
  "Mesa digitalizadora": "Tableta digitalizadora",
  "Usado por AGORA() e HOJE(). O do sistema agora é {}.": "Usada por AHORA() y HOY(). La del sistema ahora es {}.",
  "Condicional": "Condicional",
- "Digitar dados": "Introducir datos"
+ "Digitar dados": "Introducir datos",
+ "let fonte = …; e uma linha por etapa: fonte.metodo(…);. Aplicar confere o script inteiro antes de mudar a consulta.": "let fonte = …; y una línea por paso: fonte.metodo(…);. Aplicar revisa todo el script antes de cambiar la consulta.",
+ "Uma linha por etapa: fonte.metodo(…); as colunas vão pelo nome": "Una línea por paso: fonte.metodo(…); las columnas van por nombre",
+ "Coluna inválida: use o nome entre aspas ou o número.": "Columna no válida: use el nombre entre comillas o el número.",
+ "Esperava uma lista [ … ].": "Se esperaba una lista [ … ].",
+ "Cada ordem é [\"coluna\", \"asc\" ou \"desc\"].": "Cada orden es [\"columna\", \"asc\" o \"desc\"].",
+ "Cada valor é [\"coluna\", \"soma\", \"nome\"].": "Cada valor es [\"columna\", \"soma\", \"nombre\"].",
+ "Linha 1: o script começa com let fonte = …;": "Línea 1: el script empieza con let fonte = …;",
+ "faltam os parênteses da chamada.": "faltan los paréntesis de la llamada.",
+ "etapa({ … }) precisa do objeto.": "etapa({ … }) necesita el objeto.",
+ "etapa vazia.": "paso vacío.",
+ "A coluna \"{nome}\" não existe neste ponto da consulta.": "La columna \"{nome}\" no existe en este punto de la consulta.",
+ "Linha {linha}: {msg}": "Línea {linha}: {msg}",
+ "cada etapa é {declaracao}.metodo(…);": "cada paso es {declaracao}.metodo(…);",
+ "argumentos inválidos ({e}).": "argumentos no válidos ({e}).",
+ "não conheço o método {metodo}.": "método desconocido {metodo}.",
+ "{metodo} recebe no máximo {} argumentos.": "{metodo} recibe como máximo {} argumentos."
 }

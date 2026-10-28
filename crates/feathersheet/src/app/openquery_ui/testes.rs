@@ -334,7 +334,7 @@ fn web_trocando_url_descarta_previa_e_invalida_download() {
 }
 
 #[test]
-fn editor_avancado_aplica_rascunho_valido_e_mostra_script_completo() {
+fn editor_avancado_aplica_script_escrito_a_mao() {
     let mut app = App::default();
     app.evento_openquery(Evento::Abrir);
     {
@@ -349,18 +349,15 @@ fn editor_avancado_aplica_rascunho_valido_e_mostra_script_completo() {
     assert!(app.openquery.as_ref().unwrap().editor_avancado.is_some());
     app.openquery.as_mut().unwrap().editor_avancado =
         Some(pelicano::Content::with_text(
-            r#"const etapas = [{"tipo":"limite","quantas":1}];"#,
+            "let fonte = dadosDigitados();\nfonte.manterPrimeiras(1);",
         ));
-    app.evento_openquery(Evento::MostrarScriptAvancado);
-    let editor = app.openquery.as_ref().unwrap();
-    assert!(editor.script_avancado.as_ref().unwrap().text().contains("manterPrimeirasLinhas"));
     let _ = app.view_openquery();
     app.evento_openquery(Evento::AplicarEditorAvancado);
     let editor = app.openquery.as_ref().unwrap();
     assert!(editor.editor_avancado.is_none());
     assert_eq!(editor.passos.len(), 1);
     assert_eq!(editor.resultado.linhas.len(), 1);
-    assert!(editor.codigo.text().contains("limite"));
+    assert!(editor.codigo.text().contains("fonte.manterPrimeiras(1);"), "{}", editor.codigo.text());
 }
 
 #[test]
@@ -423,3 +420,4 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         app.lembrar_fonte("/tmp/a.csv".into());
         assert_eq!(app.config.fontes_recentes, ["/tmp/a.csv", "https://x.org/t"]);
     }
+

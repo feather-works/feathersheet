@@ -74,28 +74,6 @@ pub(super) fn escrever(passos: &[Passo]) -> Result<String, String> {
     serde_json::to_string_pretty(&json).map_err(|erro| erro.to_string())
 }
 
-/// Editor JavaScript declarativo. O array de etapas é JavaScript válido e
-/// preserva a serialização JSON armazenada nos arquivos existentes.
-/// Não executa JavaScript arbitrário: o motor segue sendo Rust.
-pub(super) fn escrever_codigo_js(passos: &[Passo]) -> Result<String, String> {
-    Ok(format!("const etapas = {};\n", escrever(passos)?))
-}
-
-/// Lê o formato declarativo do editor e continua aceitando JSON legado.
-pub(super) fn ler_codigo_js(texto: &str) -> Result<Vec<Passo>, String> {
-    let codigo = texto.trim();
-    if codigo.starts_with('[') {
-        return ler(codigo);
-    }
-    let codigo = codigo.strip_prefix("const etapas")
-        .or_else(|| codigo.strip_prefix("let etapas"))
-        .ok_or_else(|| tr!("Use JavaScript declarativo: const etapas = [ ... ];").to_owned())?;
-    let codigo = codigo.trim_start().strip_prefix('=')
-        .ok_or_else(|| tr!("Falta '=' após a variável etapas").to_owned())?;
-    let codigo = codigo.trim().strip_suffix(';').unwrap_or(codigo.trim()).trim();
-    ler(codigo)
-}
-
 #[cfg(test)]
 mod testes {
     use super::*;

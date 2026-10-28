@@ -85,8 +85,6 @@ pub enum Evento {
     ExibirCodigo,
     AbrirEditorAvancado,
     EditarEditorAvancado,
-    MostrarScriptAvancado,
-    VoltarEditorAvancado,
     AplicarEditorAvancado,
     FecharEditorAvancado,
     Atualizar,
@@ -180,13 +178,12 @@ pub(super) struct Estado {
     passos: Vec<Passo>,
     resultado: Tabela,
     codigo: Content,
+    /// O último script gerado: igual ao do editor = nada a ler de volta.
+    codigo_gerado: String,
     /// Rascunho isolado: cancelar não altera as etapas nem a prévia.
     editor_avancado: Option<Content>,
-    /// Script expandido para consulta, somente leitura (não executado).
-    script_avancado: Option<Content>,
     erro_avancado: String,
     exibir_codigo: bool,
-    exibir_script: bool,
     erro: String,
     edicao: Option<String>,
     salvas: Vec<(String, String)>,
@@ -282,9 +279,9 @@ impl Estado {
             origem_web_pendente: String::new(), indice_tabela_web: 0,
             mostrar_web: false, mostrar_tabelas: false,
             passos: Vec::new(), resultado,
-            codigo: Content::with_text("const etapas = [];"),
-            editor_avancado: None, script_avancado: None, erro_avancado: String::new(),
-            exibir_codigo: false, exibir_script: false, erro: String::new(),
+            codigo: Content::with_text(""), codigo_gerado: String::new(),
+            editor_avancado: None, erro_avancado: String::new(),
+            exibir_codigo: false, erro: String::new(),
             edicao: None, salvas: Vec::new(), exclusao_pendente: None,
             assistente: None,
             passo_previa: None, tabela_previa: None,
@@ -323,8 +320,10 @@ impl Estado {
     }
 
     fn sincronizar(&mut self) -> Result<(), String> {
-        let passos = json_passos::ler_codigo_js(&self.codigo.text())?;
-        self.passos = passos;
+        let texto = self.codigo.text();
+        // Sem edição no script, as etapas já são as dele (ler roda a consulta inteira).
+        if texto == self.codigo_gerado { return Ok(()); }
+        self.passos = script::ler(&texto, &self.fonte, &self.fontes)?;
         Ok(())
     }
 
@@ -333,11 +332,10 @@ impl Estado {
     fn aplicar_editor_avancado(&mut self) -> Result<(), String> {
         let texto = self.editor_avancado.as_ref()
             .ok_or(tr!("Editor avançado não está aberto"))?.text();
-        let passos = json_passos::ler_codigo_js(&texto)?;
-        let tabela = executar_query_limitado(
-            self.fonte.clone(), &passos, &self.fontes, u64::MAX,
-        )?;
-        self.codigo = Content::with_text(&texto);
+        let passos = script::ler(&texto, &self.fonte, &self.fontes)?;
+        let (gerado, tabela) = script::gerar(&self.origem_aba, &self.fonte, &passos, &self.fontes)?;
+        self.codigo = Content::with_text(&gerado);
+        self.codigo_gerado = gerado;
         self.passos = passos;
         self.coluna = self.coluna.min(tabela.cabecalho.len().saturating_sub(1));
         self.coluna_numero = (self.coluna + 1).to_string();
@@ -345,10 +343,8 @@ impl Estado {
         self.passo_previa = None;
         self.tabela_previa = None;
         self.exibir_codigo = true;
-        self.exibir_script = false;
         self.mostrar_manual = false;
         self.editor_avancado = None;
-        self.script_avancado = None;
         self.erro_avancado.clear();
         self.erro.clear();
         Ok(())
@@ -356,10 +352,12 @@ impl Estado {
 
     fn recalcular(&mut self) {
         // Recusa explosões de cardinalidade ANTES de alocar o resultado.
-        let tabela = match executar_query_limitado(
-            self.fonte.clone(), &self.passos, &self.fontes, u64::MAX
-        ) {
-            Ok(tabela) => tabela,
+        let tabela = match script::gerar(&self.origem_aba, &self.fonte, &self.passos, &self.fontes) {
+            Ok((texto, tabela)) => {
+                self.codigo = Content::with_text(&texto);
+                self.codigo_gerado = texto;
+                tabela
+            }
             Err(erro) => { self.erro = erro; return; }
         };
         self.coluna = self.coluna.min(tabela.cabecalho.len().saturating_sub(1));
@@ -401,14 +399,9 @@ impl Estado {
         }
     }
 
+    /// As etapas mudaram por fora do script: recalcula, e o script é gerado de novo.
     fn registrar_passos(&mut self) {
-        match json_passos::escrever_codigo_js(&self.passos) {
-            Ok(codigo) => {
-                self.codigo = Content::with_text(&codigo);
-                self.recalcular();
-            }
-            Err(e) => self.erro = e.to_string(),
-        }
+        self.recalcular();
     }
 
     fn adicionar(&mut self, tipo: &str) {
@@ -536,7 +529,6 @@ impl App {
                 e.edicao = None;
                 e.nome = format!("Consulta_{nome}");
                 e.exibir_codigo = false;
-                e.exibir_script = false;
                 e.mostrar_tabelas = false;
                 e.mostrar_web = false;
                 e.mostrar_manual = false;
@@ -943,7 +935,6 @@ impl App {
             },
             Evento::AbrirEditorAvancado => if let Some(e) = &mut self.openquery {
                 e.editor_avancado = Some(Content::with_text(&e.codigo.text()));
-                e.script_avancado = None;
                 e.erro_avancado.clear();
             },
             Evento::EditarEditorAvancado => if let Some(e) = &mut self.openquery {
@@ -951,33 +942,13 @@ impl App {
                     e.erro_avancado.clear();
                 }
             },
-            Evento::MostrarScriptAvancado => if let Some(e) = &mut self.openquery {
-                if let Some(editor) = e.editor_avancado.as_ref() {
-                    let gerado = json_passos::ler_codigo_js(&editor.text()).and_then(|passos| {
-                        script::gerar(&e.nome, &e.fonte.cabecalho, &passos)
-                    });
-                    match gerado {
-                        Ok(codigo) => {
-                            e.script_avancado = Some(Content::with_text(&codigo));
-                            e.erro_avancado.clear();
-                        },
-                        Err(erro) => e.erro_avancado = erro,
-                    }
-                }
-            },
-            Evento::VoltarEditorAvancado => if let Some(e) = &mut self.openquery {
-                e.script_avancado = None;
-                e.erro_avancado.clear();
-            },
             Evento::AplicarEditorAvancado => if let Some(e) = &mut self.openquery {
                 if let Err(erro) = e.aplicar_editor_avancado() {
                     e.erro_avancado = erro;
-                    e.script_avancado = None;
-                }
+                    }
             },
             Evento::FecharEditorAvancado => if let Some(e) = &mut self.openquery {
                 e.editor_avancado = None;
-                e.script_avancado = None;
                 e.erro_avancado.clear();
             },
             Evento::Atualizar => if let Some(e) = &mut self.openquery {
@@ -1120,7 +1091,7 @@ impl App {
                         editor.mostrar_manual = false;
                         editor.origem = Rect::new(0, 0, linhas as u32, colunas.saturating_sub(1) as u32);
                         editor.assistente = None;
-                        if !preservar { editor.exibir_codigo = false; editor.exibir_script = false;
+                        if !preservar { editor.exibir_codigo = false;
                             editor.edicao = None;
                             editor.passos.clear();
                             editor.fontes.clear();
@@ -1182,7 +1153,6 @@ impl App {
                 e.rolagem.1 = 0.0;
                 e.mostrar_manual = aba == 2;
                 e.exibir_codigo = aba == 1;
-                e.exibir_script = aba == 3;
                 e.mostrar_web = false;
                 e.mostrar_tabelas = false;
                 e.limpar_previa_web();

@@ -4040,5 +4040,21 @@
  "Mesa digitalizadora": "Drawing tablet",
  "Usado por AGORA() e HOJE(). O do sistema agora é {}.": "Used by NOW() and TODAY(). The system's is currently {}.",
  "Condicional": "Conditional",
- "Digitar dados": "Enter data"
+ "Digitar dados": "Enter data",
+ "let fonte = …; e uma linha por etapa: fonte.metodo(…);. Aplicar confere o script inteiro antes de mudar a consulta.": "let fonte = …; and one line per step: fonte.method(…);. Apply checks the whole script before changing the query.",
+ "Uma linha por etapa: fonte.metodo(…); as colunas vão pelo nome": "One line per step: fonte.method(…); columns go by name",
+ "Coluna inválida: use o nome entre aspas ou o número.": "Invalid column: use the name in quotes or the number.",
+ "Esperava uma lista [ … ].": "Expected a list [ … ].",
+ "Cada ordem é [\"coluna\", \"asc\" ou \"desc\"].": "Each sort key is [\"column\", \"asc\" or \"desc\"].",
+ "Cada valor é [\"coluna\", \"soma\", \"nome\"].": "Each value is [\"column\", \"soma\", \"name\"].",
+ "Linha 1: o script começa com let fonte = …;": "Line 1: the script starts with let fonte = …;",
+ "faltam os parênteses da chamada.": "the call is missing its parentheses.",
+ "etapa({ … }) precisa do objeto.": "etapa({ … }) needs the object.",
+ "etapa vazia.": "empty step.",
+ "A coluna \"{nome}\" não existe neste ponto da consulta.": "Column \"{nome}\" does not exist at this point of the query.",
+ "Linha {linha}: {msg}": "Line {linha}: {msg}",
+ "cada etapa é {declaracao}.metodo(…);": "each step is {declaracao}.method(…);",
+ "argumentos inválidos ({e}).": "invalid arguments ({e}).",
+ "não conheço o método {metodo}.": "unknown method {metodo}.",
+ "{metodo} recebe no máximo {} argumentos.": "{metodo} takes at most {} arguments."
 }
