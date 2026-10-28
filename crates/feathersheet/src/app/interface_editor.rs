@@ -223,7 +223,10 @@ impl App {
                     text_input("", &self.edicao)
                         .id("feathersheet.celula")
                         .on_input(Msg::Editar).on_submit(Msg::EnviarEditor)
-                        .size(fonte).padding([3, 5]).width(Length::FILL),
+                        .size(fonte).padding([3, 5]).width(Length::FILL)
+                        // Sem a borda arredondada e o fundo do campo: a moldura é a
+                        // do container, do tamanho da célula (o campo parecia menor).
+                        .style(|t, _| pelicano::Style::default().text_color(t.text)),
                     &self.edicao,
                 ).into()
             };

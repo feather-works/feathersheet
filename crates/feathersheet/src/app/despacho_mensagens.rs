@@ -1018,7 +1018,8 @@ impl App {
             Msg::ArrastarReferencia(inicio, pegada, de, para) => {
                 // Só o rascunho é alterado: Enter/✓ ainda confirma a célula.
                 if !self.editor_formula.ativo || !self.edicao.starts_with('=') {
-                    return Task::none();
+                    // Sem fórmula aberta, a caixa na grade é o contorno do gráfico.
+                    return self.arrastar_intervalo_do_grafico(inicio, pegada, de, para);
                 }
                 let caixas = feathersheet_core::formula::ref_drag::reference_boxes(&self.edicao);
                 let Some(caixa) = caixas.into_iter().find(|c| c.start == inicio) else {

@@ -299,7 +299,7 @@ impl App {
                             .is_some_and(|aba|aba.sheet.name.eq_ignore_ascii_case(nome)),
                         None=>self.editor_formula.origem.is_some_and(|(origem,_,_)|origem==self.folha),
                     }).collect()
-            } else {Vec::new()},
+            } else {self.caixas_do_grafico()},
         }
     }
 

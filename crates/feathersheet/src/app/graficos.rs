@@ -1178,6 +1178,59 @@ impl App {
         self.graficos.contexto = None;
     }
 
+    /// O intervalo de dados do gráfico selecionado (ou aberto no editor),
+    /// quando ele mora na aba à vista: a grade o contorna como uma
+    /// referência de fórmula, e arrastar a borda ou a alça o ajusta (#121).
+    pub(in crate::app) fn intervalo_do_grafico_na_tela(&self) -> Option<String> {
+        let aba = self.workbook.aba(self.folha)?;
+        if self.graficos.aberto {
+            return (self.graficos.aba_id == Some(aba.id)).then(|| self.graficos.intervalo.trim().to_string())
+                .filter(|r| !r.is_empty());
+        }
+        let id = self.graficos.selecionado.as_deref()?;
+        let lista = feathersheet_io::graficos_salvos::listar(&aba.sheet).ok()?;
+        let v = lista.iter().find(|v| v["id"].as_str() == Some(id))?;
+        let origem = v["sourceSheet"].as_str().filter(|n| !n.is_empty());
+        if origem.is_some_and(|n| !n.eq_ignore_ascii_case(&aba.sheet.name)) {
+            return None;
+        }
+        v["range"].as_str().map(str::trim).filter(|r| !r.is_empty()).map(str::to_string)
+    }
+
+    /// O contorno do [`Self::intervalo_do_grafico_na_tela`], no formato das
+    /// referências de fórmula (o texto é `=` + o intervalo).
+    pub(in crate::app) fn caixas_do_grafico(&self) -> Vec<feathersheet_core::formula::assistente::Caixa> {
+        let Some(intervalo) = self.intervalo_do_grafico_na_tela() else { return Vec::new() };
+        let nome = self.workbook.aba(self.folha).map(|a| a.sheet.name.as_str()).unwrap_or_default();
+        feathersheet_core::formula::assistente::reference_boxes(&format!("={intervalo}"))
+            .into_iter()
+            .filter(|c| c.sheet.as_deref().is_none_or(|s| s.eq_ignore_ascii_case(nome)))
+            .collect()
+    }
+
+    /// Arrastar a borda ou a alça do contorno do gráfico: muda o intervalo
+    /// pelo editor (abre-o se estava fechado), que grava com um Ctrl+Z.
+    pub(in crate::app) fn arrastar_intervalo_do_grafico(&mut self, inicio: usize,
+        pegada: feathersheet_core::formula::ref_drag::Pegada, de: (u32, u32), para: (u32, u32)) -> Task<Msg> {
+        use feathersheet_core::formula::ref_drag;
+        let Some(intervalo) = self.intervalo_do_grafico_na_tela() else { return Task::none() };
+        let texto = format!("={intervalo}");
+        let Some(caixa) = ref_drag::reference_boxes(&texto).into_iter().find(|c| c.start == inicio) else {
+            return Task::none();
+        };
+        let rect = ref_drag::drag_rect(&caixa.rect, pegada, de, para);
+        let novo = ref_drag::rewrite_box(&texto, &caixa, &rect);
+        let novo = novo.trim_start_matches('=').to_string();
+        if novo == intervalo {
+            return Task::none();
+        }
+        let abrir = match self.graficos.selecionado.clone().filter(|_| !self.graficos.aberto) {
+            Some(id) => self.evento_grafico(Evento::Editar(id)),
+            None => Task::none(),
+        };
+        Task::batch([abrir, self.evento_grafico(Evento::Intervalo(novo))])
+    }
+
     /// O id do gráfico selecionado na grade (para o foco do teclado).
     pub(in crate::app) fn grafico_selecionado_id(&self) -> Option<&str> {
         self.graficos.selecionado.as_deref()
