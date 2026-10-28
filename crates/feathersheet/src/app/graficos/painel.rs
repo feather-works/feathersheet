@@ -90,6 +90,23 @@ impl Grupo {
             Self::TextoAlt => "message-circle",
         }
     }
+    /// O grupo vale para o tipo: o que o desenho do tipo não lê não aparece
+    /// (antes abria e dizia "a pizza não tem eixos").
+    pub(super) fn existe_em(self, t: TipoUi) -> bool {
+        use TipoUi as T;
+        match self {
+            Self::Eixos => !matches!(t, T::Pizza | T::MapaCalor | T::Linha3d),
+            // Radar, Gantt, mapa de calor e 3D pintam a grade pelo tema.
+            Self::Grades => !matches!(t, T::Pizza | T::Radar | T::Gantt | T::MapaCalor | T::Linha3d),
+            Self::Legenda => !matches!(t, T::Cascata | T::Candlestick | T::Gantt | T::MapaCalor | T::Histograma),
+            // Cor por ponto: só onde o desenho pinta cada ponto.
+            Self::Pontos => !matches!(t, T::Radar | T::Candlestick | T::Cascata | T::MapaCalor | T::Linha3d),
+            // Tendência, erro e referência são do desenho cartesiano comum.
+            Self::Analiticos => !matches!(t, T::Pizza | T::Combinado | T::Histograma | T::Cascata | T::Radar
+                | T::Bolhas | T::Candlestick | T::Gantt | T::MapaCalor | T::Linha3d),
+            _ => true,
+        }
+    }
     /// Sem motor ainda: aparece desabilitado com a dica.
     fn em_breve(self) -> Option<&'static str> {
         match self {
@@ -303,6 +320,48 @@ pub(super) struct Opcao<T> {
 impl<T> std::fmt::Display for Opcao<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.nome)
+    }
+}
+
+impl TipoUi {
+    /// Desenha uma coluna de valores só: a aba Configurar oferece escolha
+    /// única (pizza: o valor de cada fatia).
+    pub(super) fn valor_unico(self) -> bool {
+        matches!(self, Self::Pizza | Self::Histograma | Self::Cascata)
+    }
+    /// Os papéis das séries nos tipos que as leem pela posição, na ordem do
+    /// desenho (ver `ordenar_papeis`).
+    pub(super) fn papeis(self) -> &'static [&'static str] {
+        match self {
+            Self::Bolhas => &["Y", "Tamanho"],
+            Self::Candlestick => &["Abertura", "Máxima", "Mínima", "Fechamento"],
+            Self::Gantt => &["Início", "Fim"],
+            _ => &[],
+        }
+    }
+    /// O nome do campo das categorias na aba Configurar; `None` = o tipo
+    /// não usa categorias. `bool`: aceita "nenhuma".
+    fn campo_categoria(self) -> Option<(&'static str, bool)> {
+        Some(match self {
+            Self::Pizza => (tr!("Rótulos (fatias)"), false),
+            Self::Dispersao => (tr!("X (número)"), true),
+            Self::Bolhas => (tr!("X (número)"), false),
+            Self::Cascata => (tr!("Categoria"), false),
+            Self::Radar => (tr!("Eixos (categorias)"), true),
+            Self::Candlestick => (tr!("Data"), false),
+            Self::Gantt => (tr!("Tarefa"), false),
+            Self::MapaCalor => (tr!("Linhas"), false),
+            Self::Histograma | Self::Linha3d => return None,
+            _ => (tr!("Eixo X (categorias)"), true),
+        })
+    }
+    /// O nome da lista de séries (os tipos de várias séries).
+    fn campo_series(self) -> &'static str {
+        match self {
+            Self::Dispersao => tr!("Y"),
+            Self::MapaCalor => tr!("Colunas"),
+            _ => tr!("Séries"),
+        }
     }
 }
 
@@ -1156,14 +1215,56 @@ impl App {
         texto
     }
 
-    /// Aba Configurar: tipo, intervalo, categorias e séries (mostrar, nome
-    /// na legenda e conta de cada uma), como o editor do Google Planilhas.
+    /// O valor desenhado nos tipos de valor único (pizza, histograma,
+    /// cascata): a série visível que o desenho usa, pela ordem de origem.
+    /// A pizza escolhe entre as visíveis pelo `_featherPieSeries` ("2 — Meta").
+    pub(super) fn origem_do_valor(&self) -> Option<u32> {
+        let g = &self.graficos;
+        let visiveis: Vec<u32> = self.series_da_origem().into_iter().map(|s| s.0).filter(|o| !g.ocultas.contains(o)).collect();
+        let i = if g.tipo == TipoUi::Pizza {
+            g.serie.as_deref().and_then(|s| s.split(" — ").next()).and_then(|n| n.parse::<usize>().ok()).unwrap_or(1).saturating_sub(1)
+        } else {
+            0
+        };
+        visiveis.get(i).or(visiveis.first()).copied()
+    }
+
+    /// As séries de origem de cada papel do tipo ([`TipoUi::papeis`]): as
+    /// escolhidas no painel ou, sem escolha, as visíveis na ordem das colunas.
+    pub(super) fn papeis_atuais(&self) -> Vec<u32> {
+        let g = &self.graficos;
+        let n = g.tipo.papeis().len();
+        let todas: Vec<u32> = self.series_da_origem().into_iter().map(|s| s.0).collect();
+        let salvos = &g.aparencia.papeis;
+        if salvos.len() == n && salvos.iter().all(|o| todas.contains(o)) {
+            return salvos.clone();
+        }
+        let mut p: Vec<u32> = todas.iter().copied().filter(|o| !g.ocultas.contains(o)).take(n).collect();
+        for o in &todas {
+            if p.len() >= n { break; }
+            if !p.contains(o) { p.push(*o); }
+        }
+        p
+    }
+
+    /// Linha 3D sem escolha no painel: as colunas que o motor usaria.
+    pub(super) fn eixos3d_padrao(&self) -> Option<feathersheet_core::grafico::chart::Eixos3d> {
+        let g = &self.graficos;
+        let r = parse_range_ref(g.intervalo.trim())?.normalized();
+        let aba = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i)).find(|a| Some(a.id) == g.aba_id)?;
+        let linha = r.r0 + u32::from(g.cabecalho && r.r1 > r.r0);
+        Some(feathersheet_core::grafico::chart::eixos_3d_padrao(r.c1 - r.c0 + 1, |i| aba.sheet.get_value(linha, r.c0 + i)))
+    }
+
+    /// Aba Configurar, como a do Google Planilhas: tipo, intervalo e os
+    /// campos de dados que o tipo usa, com os nomes dele (pizza: rótulos e
+    /// valor; velas: data, abertura, máxima…; issue #108).
     fn view_configurar(&self) -> Element<'_, Msg> {
         let g = &self.graficos;
-        let pizza = g.tipo == TipoUi::Pizza;
+        let t = g.tipo;
         let mut col = pelicano::column(Vec::new()).spacing(8).padding([6, 4]);
         col = col.push(secao_inicial(tr!("Tipo de gráfico")));
-        col = col.push(button(row![text(g.tipo.to_string()).size(12).width(Length::FILL), feather_ui::icones::icone("chevron-down", 14.0)]
+        col = col.push(button(row![text(t.to_string()).size(12).width(Length::FILL), feather_ui::icones::icone("chevron-down", 14.0)]
             .align(pelicano::Align::Center)).padding([6, 8]).width(Length::FILL)
             .style(estilo_botao_secundario).on_press(ev(Evento::AlternarSeletor)));
 
@@ -1179,26 +1280,28 @@ impl App {
             ).padding([4, 8]).style(estilo_dica),
         ].spacing(6).align(pelicano::Align::Center));
         col = col.push(alternar(tr!("Primeira linha é cabeçalho"), g.cabecalho, |v| ev(Evento::Cabecalho(v))));
+        let rotulos = self.rotulos_do_intervalo();
+        // A linha 3D lê X, Y e Z por coluna: não tem séries nas linhas.
+        if t == TipoUi::Linha3d {
+            return self.campos_3d(col, &rotulos).into();
+        }
         col = col.push(alternar(tr!("Séries nas colunas"), g.colunas, |v| ev(Evento::Colunas(v))));
 
-        let rotulos = self.rotulos_do_intervalo();
-        col = col.push(secao(if g.colunas { tr!("Categorias (eixo X)") } else { tr!("Categorias (eixo X), pela linha") }));
-        let mut opcoes = vec![Opcao { valor: None, nome: tr!("Nenhuma").to_owned() }];
-        opcoes.extend(rotulos.iter().enumerate().map(|(i, n)| Opcao { valor: Some(i as u32), nome: n.clone() }));
-        let atual = if g.categorias {
-            opcoes.iter().find(|o| o.valor == Some(g.coluna_categoria)).cloned()
-        } else {
-            opcoes.first().cloned()
-        };
-        col = col.push(pick_list(opcoes, atual, |o: Opcao<Option<u32>>| ev(Evento::CategoriaColuna(o.valor)))
-            .size(12).padding([5, 8]).width(Length::FILL));
+        if let Some((nome, com_nenhuma)) = t.campo_categoria() {
+            let nome = if g.colunas { nome.to_owned() } else { trf!("{nome}, pela linha") };
+            col = col.push(secao(&nome));
+            let mut opcoes = Vec::new();
+            if com_nenhuma {
+                // Dispersão sem coluna de X: o X é a primeira série marcada.
+                let vazio = if t == TipoUi::Dispersao { tr!("A primeira série marcada") } else { tr!("Nenhuma") };
+                opcoes.push(Opcao { valor: None, nome: vazio.to_owned() });
+            }
+            opcoes.extend(rotulos.iter().enumerate().map(|(i, n)| Opcao { valor: Some(i as u32), nome: n.clone() }));
+            let atual = opcoes.iter().find(|o| o.valor == g.categorias.then_some(g.coluna_categoria)).cloned();
+            col = col.push(pick_list(opcoes, atual, |o: Opcao<Option<u32>>| ev(Evento::CategoriaColuna(o.valor)))
+                .size(12).padding([5, 8]).width(Length::FILL));
+        }
 
-        col = col.push(secao(tr!("Séries")));
-        col = col.push(text(if pizza {
-            tr!("A pizza mostra uma série: marque a que quer ver.")
-        } else {
-            tr!("Marque as séries do gráfico. Nome em branco usa o cabeçalho.")
-        }).size(11).color(COR_TEXTO_MUTED()));
         // Acima de 200 mil células só resumido: "Não resumir" sai da lista.
         // Série de texto só conta (o tipo vem calculado de `atualizar_grafico`).
         let opcoes_de = |texto: bool| -> Vec<Opcao<Option<AggregateFn>>> {
@@ -1207,23 +1310,60 @@ impl App {
         };
         let contas_numero = opcoes_de(false);
         let contas_texto = opcoes_de(true);
-        let series = self.series_da_origem();
-        if series.is_empty() {
-            col = col.push(text(tr!("Escolha um intervalo com dados.")).size(12).color(COR_TEXTO_MUTED()));
-        }
-        for (n, nome) in series {
-            let visivel = !g.ocultas.contains(&n);
+        let conta = |n: u32| {
             let contas = if g.serie_texto(n) { &contas_texto } else { &contas_numero };
             let conta_atual = g.agrupar.then(|| g.conta_da_serie(n));
             let atual = contas.iter().find(|o| o.valor == conta_atual).cloned();
-            let nome_atual = g.aparencia.nomes_origem.get(&n).cloned().unwrap_or_default();
-            col = col.push(row![
-                pelicano::checkbox("", visivel).on_toggle(move |v| ev(Evento::SerieVisivel(n, v))),
-                text_input(nome.clone(), nome_atual).size(12).padding([5, 6]).width(Length::FILL)
-                    .on_input(move |s| ev(Evento::SerieNome(n, s))),
-                pick_list(contas.clone(), atual, move |o: Opcao<Option<AggregateFn>>| ev(Evento::SerieConta(n, o.valor)))
-                    .size(12).padding([5, 6]).width(Length::Fixed(120.0)),
-            ].spacing(6).align(pelicano::Align::Center));
+            pick_list(contas.clone(), atual, move |o: Opcao<Option<AggregateFn>>| ev(Evento::SerieConta(n, o.valor)))
+                .size(12).padding([5, 6]).width(Length::Fixed(120.0))
+        };
+        let series = self.series_da_origem();
+        if t.valor_unico() {
+            // Escolha única (era caixa de marcar, e a pizza abria com duas marcadas).
+            col = col.push(secao(if t == TipoUi::Histograma { tr!("Valores") } else { tr!("Valor") }));
+            let atual = self.origem_do_valor();
+            for (n, nome) in &series {
+                let n = *n;
+                let mut linha_valor = row![pelicano::radio(cortar(nome, 30), n, atual, |n| ev(Evento::SerieVisivel(n, true)))
+                    .size(12.5), Space::new(Length::FILL, 0.0)].spacing(6).align(pelicano::Align::Center);
+                if atual == Some(n) {
+                    linha_valor = linha_valor.push(conta(n));
+                }
+                col = col.push(linha_valor);
+            }
+            if t == TipoUi::Histograma {
+                col = col.push(text(tr!("As faixas saem dos próprios valores.")).size(11).color(COR_TEXTO_MUTED()));
+            }
+        } else if !t.papeis().is_empty() {
+            let papeis = self.papeis_atuais();
+            let opcoes: Vec<Opcao<u32>> = series.iter().map(|(n, nome)| Opcao { valor: *n, nome: nome.clone() }).collect();
+            for (k, papel) in t.papeis().iter().enumerate() {
+                let atual = papeis.get(k).and_then(|p| opcoes.iter().find(|o| o.valor == *p)).cloned();
+                col = col.push(secao(tr!(*papel)));
+                col = col.push(pick_list(opcoes.clone(), atual, move |o: Opcao<u32>| ev(Evento::Papel(k, o.valor)))
+                    .size(12).padding([5, 8]).width(Length::FILL));
+            }
+        } else {
+            col = col.push(secao(t.campo_series()));
+            col = col.push(text(match t {
+                TipoUi::Combinado => tr!("A primeira série marcada vira colunas; as outras, linhas."),
+                TipoUi::MapaCalor => tr!("Cada quadro mostra o valor da célula. Marque as colunas do mapa."),
+                _ => tr!("Marque as séries do gráfico. Nome em branco usa o cabeçalho."),
+            }).size(11).color(COR_TEXTO_MUTED()));
+            for (n, nome) in &series {
+                let n = *n;
+                let visivel = !g.ocultas.contains(&n);
+                let nome_atual = g.aparencia.nomes_origem.get(&n).cloned().unwrap_or_default();
+                col = col.push(row![
+                    pelicano::checkbox("", visivel).on_toggle(move |v| ev(Evento::SerieVisivel(n, v))),
+                    text_input(nome.clone(), nome_atual).size(12).padding([5, 6]).width(Length::FILL)
+                        .on_input(move |s| ev(Evento::SerieNome(n, s))),
+                    conta(n),
+                ].spacing(6).align(pelicano::Align::Center));
+            }
+        }
+        if series.is_empty() {
+            col = col.push(text(tr!("Escolha um intervalo com dados.")).size(12).color(COR_TEXTO_MUTED()));
         }
         if g.resumo_obrigatorio {
             col = col.push(text(tr!("Mais de 200.000 células: o gráfico sempre resume. Categorias iguais viram uma só, com a conta de cada série."))
@@ -1233,6 +1373,29 @@ impl App {
                 .size(11).color(COR_TEXTO_MUTED()));
         }
         col.into()
+    }
+
+    /// Linha 3D: a coluna de cada eixo e, se quiser, a da descrição (uma
+    /// linha do gráfico para cada valor dela).
+    fn campos_3d<'a>(&'a self, mut col: pelicano::Column<'a, Msg>, rotulos: &[String]) -> pelicano::Column<'a, Msg> {
+        let Some(e) = self.graficos.eixos3d.or_else(|| self.eixos3d_padrao()) else { return col };
+        let opcoes: Vec<Opcao<Option<u32>>> = rotulos.iter().enumerate().map(|(i, n)| Opcao { valor: Some(i as u32), nome: n.clone() }).collect();
+        let nenhuma = Opcao { valor: None, nome: tr!("Nenhuma").to_owned() };
+        for (k, nome, atual, opcional) in [
+            (0, tr!("X"), Some(e.x), false),
+            (1, tr!("Y"), Some(e.y), false),
+            (2, tr!("Z (profundidade)"), e.z, false),
+            (3, tr!("Descrição (uma linha por valor)"), e.grupo, true),
+        ] {
+            let mut lista = opcoes.clone();
+            if opcional {
+                lista.insert(0, nenhuma.clone());
+            }
+            let sel = lista.iter().find(|o| o.valor == atual).cloned();
+            col = col.push(secao(nome)).push(pick_list(lista, sel, move |o: Opcao<Option<u32>>| ev(Evento::Eixo3d(k, o.valor)))
+                .size(12).padding([5, 8]).width(Length::FILL));
+        }
+        col
     }
 
     pub(in crate::app) fn view_graficos(&self) -> Element<'_, Msg> {
@@ -1247,7 +1410,7 @@ impl App {
         if g.painel.aba == AbaPainel::Configurar {
             lista = lista.push(self.view_configurar());
         } else {
-            for grupo in Grupo::PERSONALIZAR {
+            for grupo in Grupo::PERSONALIZAR.into_iter().filter(|x| x.existe_em(g.tipo)) {
                 lista = lista.push(self.cabecalho_grupo(grupo));
                 if g.painel.grupo == Some(grupo) {
                     let corpo = self.corpo_grupo(grupo, &e);
@@ -1418,9 +1581,6 @@ impl App {
                 let k = |c: CampoEixo| format!("eixo{s:?}.{c:?}");
                 let mut col = col.push(self.seletor_eixo(true))
                     .push(alternar(tr!("Mostrar eixo"), x.visivel.unwrap_or(true), move |v| mud(Mudanca::EixoVisivel(s, v))));
-                if pizza {
-                    return col.push(rotulo(tr!("A pizza não tem eixos."))).into();
-                }
                 if valores {
                     col = col.push(secao(tr!("Escala")))
                         .push(linha(tr!("Mínimo"), self.campo_num(k(CampoEixo::Minimo), x.minimo, tr!("Auto"), move |t| Mudanca::EixoNum(s, CampoEixo::Minimo, t))))
@@ -1458,9 +1618,6 @@ impl App {
             Grupo::Grades => {
                 let s = p.eixo;
                 let mut col = col.push(self.seletor_eixo(true));
-                if pizza {
-                    return col.push(rotulo(tr!("A pizza não tem linhas de grade."))).into();
-                }
                 for principal in [true, false] {
                     let l = if principal { &eixo(e, s).grade_principal } else { &eixo(e, s).grade_secundaria };
                     let padrao_vis = principal && s == EixoSel::Y && tema.is_some_and(|t| t.grade_visivel);
@@ -1617,8 +1774,8 @@ impl App {
                 .push(self.campo_cor(tr!("Cor do texto"), AlvoCor::FonteGeral, e, texto_padrao))
                 .into(),
             Grupo::Analiticos => {
-                if n_series == 0 || pizza {
-                    return col.push(rotulo(if pizza { tr!("A pizza não tem elementos analíticos.") } else { tr!("Sem séries nos dados.") })).into();
+                if n_series == 0 {
+                    return col.push(rotulo(tr!("Sem séries nos dados."))).into();
                 }
                 let i = p.serie.min(n_series - 1);
                 let an = e.serie(i).map(|x| x.analise.clone()).unwrap_or_default();
@@ -1713,7 +1870,8 @@ impl App {
     /// Rola a lista para o cabeçalho do grupo aberto ficar no alto.
     fn rolar_para_grupo(&self) -> Task<Msg> {
         let Some(g) = self.graficos.painel.grupo else { return Task::none() };
-        let i = Grupo::PERSONALIZAR.iter().position(|x| *x == g).unwrap_or(0);
+        let tipo = self.graficos.tipo;
+        let i = Grupo::PERSONALIZAR.iter().filter(|x| x.existe_em(tipo)).position(|x| *x == g).unwrap_or(0);
         Task::scroll_to(ID_ROLAGEM, pelicano::Point::new(0.0, i as f32 * ALTURA_CABECALHO))
     }
 
@@ -1796,7 +1954,21 @@ impl App {
     pub(in crate::app) fn preparar_captura_grafico(&mut self, modo: &str) -> Task<Msg> {
         // `tipo:<nome>`: um tipo especial com dados próprios, sem o painel.
         if let Some(nome) = modo.strip_prefix("tipo:") {
-            return self.preparar_captura_tipo(nome);
+            return self.preparar_captura_tipo(nome, None);
+        }
+        // `painel:<nome>` / `personalizar:<nome>`: o mesmo, com o painel
+        // aberto na aba Configurar (ou Personalizar) desse tipo;
+        // `painel-fim:<nome>` rola a aba Configurar até o fim.
+        if let Some(nome) = modo.strip_prefix("painel:") {
+            return self.preparar_captura_tipo(nome, Some(AbaPainel::Configurar));
+        }
+        if let Some(nome) = modo.strip_prefix("painel-fim:") {
+            let _ = self.preparar_captura_tipo(nome, Some(AbaPainel::Configurar));
+            self.config.faixa_recolhida = true;
+            return Task::scroll_to(ID_ROLAGEM, pelicano::Point::new(0.0, 400.0));
+        }
+        if let Some(nome) = modo.strip_prefix("personalizar:") {
+            return self.preparar_captura_tipo(nome, Some(AbaPainel::Personalizar));
         }
         // `vitrine`, `vitrine-painel`, `vitrine-legenda`: os prints do README.
         if let Some(variante) = modo.strip_prefix("vitrine") {
@@ -2044,8 +2216,11 @@ impl App {
 impl App {
     /// Foto de um tipo especial (radar, cascata, Gantt…) com dados que
     /// fazem sentido para ele, desenhado na planilha com o tema Oceano.
-    fn preparar_captura_tipo(&mut self, nome: &str) -> Task<Msg> {
+    fn preparar_captura_tipo(&mut self, nome: &str, painel: Option<AbaPainel>) -> Task<Msg> {
         let (tipo, dados) = match nome {
+            "pizza" => (TipoUi::Pizza, "Situação\tAlunos\tMédia\nAprovado\t18\t7,8\nRecuperação\t6\t5,4\nReprovado\t3\t3,9"),
+            "colunas" => (TipoUi::Colunas, "Mês\tVendas\tMeta\nJan\t12\t10\nFev\t18\t14\nMar\t9\t15\nAbr\t22\t17"),
+            "dispersao" => (TipoUi::Dispersao, "Preço\tVendas\tLucro\n10\t120\t30\n15\t95\t45\n22\t80\t60\n30\t52\t40\n38\t40\t72"),
             "radar" => (TipoUi::Radar, "Critério\tProduto A\tProduto B\nPreço\t8\t6\nQualidade\t7\t9\nPrazo\t9\t6\nSuporte\t6\t8\nDesign\t7\t8\nGarantia\t5\t7"),
             "cascata" => (TipoUi::Cascata, "Item\tValor\nReceita\t120\nCustos\t-45\nImpostos\t-18\nServiços\t30\nDespesas\t-22\nOutros\t9"),
             "histograma" => (TipoUi::Histograma, "Aluno\tNota\nA\t4,5\nB\t6\nC\t7,5\nD\t8\nE\t5,5\nF\t9\nG\t6,5\nH\t7\nI\t7,2\nJ\t8,8\nK\t3,9\nL\t6,1\nM\t7,8\nN\t5,2\nO\t9,4\nP\t6,9"),
@@ -2066,6 +2241,10 @@ impl App {
         let _ = self.evento_grafico(Evento::Tipo(tipo));
         let _ = self.evento_grafico(Evento::Titulo(tipo.to_string()));
         let _ = self.evento_grafico(Evento::Formatar(Mudanca::Tema(Some("oceano"))));
+        if let Some(aba) = painel {
+            self.graficos.painel.aba = aba;
+            return Task::none();
+        }
         let Some(id) = self.graficos.id.clone() else { return Task::none() };
         if let Some(aba) = self.workbook.aba_mut(self.folha) {
             let _ = feathersheet_io::graficos_salvos::salvar(&mut aba.sheet, &id,

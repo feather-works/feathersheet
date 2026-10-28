@@ -4096,5 +4096,22 @@
  "UserForm do .xlsm convertido": "UserForms from .xlsm converted",
  "Várias funções num módulo": "Several functions in one module",
  "Vínculos do disco só depois de \"Atualizar valores\"; forma com macro respeita o bloqueio.": "Links to files on disk only after \"Update values\"; a shape with a macro respects protection.",
- "Vínculos e macros mais seguros": "Safer links and macros"
+ "Vínculos e macros mais seguros": "Safer links and macros",
+ "Rótulos (fatias)": "Labels (slices)",
+ "X (número)": "X (number)",
+ "Eixos (categorias)": "Axes (categories)",
+ "Tarefa": "Task",
+ "Eixo X (categorias)": "X axis (categories)",
+ "{nome}, pela linha": "{nome}, by row",
+ "A primeira série marcada": "The first checked series",
+ "As faixas saem dos próprios valores.": "The bins come from the values themselves.",
+ "A primeira série marcada vira colunas; as outras, linhas.": "The first checked series becomes columns; the others, lines.",
+ "Cada quadro mostra o valor da célula. Marque as colunas do mapa.": "Each square shows the cell value. Check the map columns.",
+ "Z (profundidade)": "Z (depth)",
+ "Descrição (uma linha por valor)": "Description (one line per value)",
+ "Abertura": "Open",
+ "Máxima": "High",
+ "Mínima": "Low",
+ "Fechamento": "Close",
+ "Fim": "End"
 }

@@ -189,6 +189,12 @@ pub enum Evento {
     SerieConta(u32, Option<AggregateFn>),
     /// Nome na legenda da série de origem `n`.
     SerieNome(u32, String),
+    /// Bolhas, velas e Gantt: a série de origem que faz o papel `k`
+    /// (Y/Tamanho, Abertura/Máxima/Mínima/Fechamento, Início/Fim).
+    Papel(usize, u32),
+    /// Linha 3D: a coluna (dentro do intervalo) de X, Y, Z ou da descrição
+    /// (0 a 3); `None` tira o Z ou a descrição.
+    Eixo3d(usize, Option<u32>),
     /// Intervalo = a seleção atual da planilha.
     UsarSelecao,
     /// Copia o gráfico (menu do botão direito ou Ctrl+C).
@@ -286,6 +292,10 @@ pub(super) struct Aparencia {
     /// desenhado como antes até a primeira edição no painel novo.
     #[serde(skip_serializing_if = "Option::is_none")]
     estilo: Option<feather_charts::EstiloGrafico>,
+    /// Bolhas, velas e Gantt: as séries de origem na ordem dos papéis do
+    /// tipo ([`TipoUi::papeis`]); vazio = a ordem das colunas.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    papeis: Vec<u32>,
 }
 impl Default for Aparencia {
     fn default() -> Self {
@@ -308,6 +318,7 @@ impl Default for Aparencia {
             valores: false,
             formato: String::new(),
             estilo: None,
+            papeis: Vec::new(),
         }
     }
 }
@@ -353,6 +364,8 @@ pub(super) struct Estado {
     coluna_categoria: u32,
     /// Séries ocultas, pela ordem de origem (sem a coluna de categoria).
     ocultas: Vec<u32>,
+    /// Linha 3D: as colunas de X, Y, Z e descrição; `None` = as do motor.
+    eixos3d: Option<feathersheet_core::grafico::chart::Eixos3d>,
     /// Conta de cada série quando as categorias iguais são juntadas.
     contas: std::collections::BTreeMap<u32, AggregateFn>,
     /// Séries de texto (pela ordem de origem), com a chave do que foi olhado
@@ -555,6 +568,48 @@ fn renomear_series_dados(d: &mut feathersheet_core::grafico::chart::ChartData, o
             serie.name = nome.clone();
         }
     }
+}
+
+/// Bolhas, velas e Gantt leem as séries pela posição (Y e depois Tamanho;
+/// Abertura, Máxima, Mínima e Fechamento; Início e Fim): põe as visíveis na
+/// ordem dos papéis escolhidos no painel, e não na das colunas.
+fn ordenar_papeis(d: &mut feathersheet_core::grafico::chart::ChartData, tipo: ChartType, ocultas: &[u32], papeis: &[u32]) {
+    if papeis.is_empty() || !matches!(tipo, ChartType::Bubble | ChartType::Candlestick | ChartType::Gantt) {
+        return;
+    }
+    let origens: Vec<u32> = (0u32..).filter(|o| !ocultas.contains(o)).take(d.series.len()).collect();
+    let mut series: Vec<_> = std::mem::take(&mut d.series).into_iter().map(Some).collect();
+    let mut nova: Vec<_> = papeis.iter()
+        .filter_map(|p| origens.iter().position(|o| o == p))
+        .filter_map(|i| series[i].take())
+        .collect();
+    nova.extend(series.into_iter().flatten());
+    d.series = nova;
+}
+
+/// Os números de um gráfico como o desenho os pede. Dispersão com a coluna
+/// de categorias toda de números: ela é o X (como no Google Planilhas), e
+/// todas as séries marcadas são Y. Senão, o jeito antigo do motor (o X é a
+/// primeira série), para o gráfico gravado abrir igual.
+pub(super) fn dados_para_desenho(
+    sheet: &feathersheet_core::Sheet,
+    config: &ChartConfig,
+    lacuna_zero: bool,
+    fonte: Option<Fonte<'_>>,
+) -> std::sync::Arc<feathersheet_core::grafico::chart::ChartData> {
+    if config.tipo == ChartType::Scatter && config.has_category_labels {
+        let como_colunas = ChartConfig { tipo: ChartType::Column, ..config.clone() };
+        let d = dados_do_grafico(sheet, &como_colunas, lacuna_zero, fonte);
+        let xs: Option<Vec<f64>> = d.categories.iter()
+            .map(|c| c.trim().replace(',', ".").parse::<f64>().ok().filter(|v| v.is_finite()))
+            .collect();
+        if let Some(xs) = xs.filter(|x| !x.is_empty()) {
+            let mut d = (*d).clone();
+            d.x_values = Some(xs);
+            return std::sync::Arc::new(d);
+        }
+    }
+    dados_do_grafico(sheet, config, lacuna_zero, fonte)
 }
 
 /// Colunas/barras empilhadas: o tipo base e como empilhar. Desenhadas pelo
@@ -951,6 +1006,7 @@ impl App {
                 aggregate: self.graficos.agrupar,
                 aggregate_fn: Some(AggregateFn::Sum),
                 aggregate_by_series: self.graficos.contas.clone(),
+                eixos_3d: self.graficos.eixos3d,
                 style: feathersheet_core::grafico::chart::ChartStyle {
                     hidden_series: self.graficos.ocultas.clone(),
                     ..Default::default()
@@ -963,6 +1019,7 @@ impl App {
             if self.graficos.tipo.avancado() {
                 let mut dados = (*dados_do_grafico(&aba.sheet, &config, false, Some(fonte))).clone();
                 renomear_series_dados(&mut dados, &config.style.hidden_series, &self.graficos.aparencia);
+                ordenar_papeis(&mut dados, config.tipo, &config.style.hidden_series, &self.graficos.aparencia.papeis);
                 self.graficos.series = dados.series.iter().enumerate()
                     .map(|(i,s)| format!("{} — {}",i+1,s.name)).collect();
                 self.graficos.painel.categorias = dados.categories.clone();
@@ -979,7 +1036,7 @@ impl App {
             }
             // Gráfico do `.xlsx`: lacuna vale 0, como no desenho do gravado.
             let lacuna_zero = self.graficos.painel.excel.is_some();
-            let dados = dados_do_grafico(&aba.sheet, &config, lacuna_zero, Some(fonte));
+            let dados = dados_para_desenho(&aba.sheet, &config, lacuna_zero, Some(fonte));
             let mut contrato =
                 feathersheet_io::grafico_compartilhado::preparar_grafico(&config, (*dados).clone())
                     .map_err(|_| tr!("Selecione uma tabela com categorias e valores numéricos. Se a tabela não tem cabeçalhos, desative essa opção.").to_string())?;
@@ -999,6 +1056,8 @@ impl App {
                     .and_then(|s| self.graficos.series.iter().position(|v| v == s))
                     .unwrap_or(0);
                 self.graficos.serie = self.graficos.series.get(i).cloned();
+                // O painel (cor, pontos) só vê a série desenhada.
+                self.graficos.series = self.graficos.serie.iter().cloned().collect();
                 contrato.grafico.series = vec![contrato.grafico.series[i].clone()];
                 contrato.grafico.tipo = Tipo::Pizza;
             }
@@ -1472,6 +1531,10 @@ impl App {
             }
             Evento::Tipo(t) => {
                 self.graficos.cor_ativa = None;
+                if self.graficos.tipo != t {
+                    // Os papéis valem só para o tipo que os escolheu.
+                    self.graficos.aparencia.papeis.clear();
+                }
                 self.graficos.tipo = t;
                 self.graficos.aberto = true;
                 self.graficos.seletor_aberto = false;
@@ -1519,6 +1582,7 @@ impl App {
                         g.ocultas.clear();
                         g.contas.clear();
                         g.aparencia.nomes_origem.clear();
+                        g.aparencia.papeis.clear();
                     }
                     g.coluna_categoria = c;
                 }
@@ -1527,8 +1591,9 @@ impl App {
             Evento::SerieVisivel(n, v) => {
                 let total = self.series_da_origem().len() as u32;
                 let g = &mut self.graficos;
-                if g.tipo == TipoUi::Pizza {
-                    // Pizza desenha uma série: escolher uma oculta as outras.
+                if g.tipo.valor_unico() {
+                    // Pizza, histograma e cascata desenham uma série:
+                    // escolher uma oculta as outras.
                     g.ocultas = (0..total).filter(|&i| i != n).collect();
                     g.serie = None;
                 } else if v {
@@ -1555,6 +1620,34 @@ impl App {
                         g.contas.clear();
                     }
                 }
+                self.editar_ao_vivo(None);
+            }
+            Evento::Papel(k, origem) => {
+                let mut papeis = self.papeis_atuais();
+                if k >= papeis.len() {
+                    return Task::none();
+                }
+                // A coluna que já tinha outro papel troca de lugar com esta.
+                match papeis.iter().position(|&o| o == origem) {
+                    Some(j) => papeis.swap(j, k),
+                    None => papeis[k] = origem,
+                }
+                let total = self.series_da_origem().len() as u32;
+                let g = &mut self.graficos;
+                g.ocultas = (0..total).filter(|o| !papeis.contains(o)).collect();
+                g.aparencia.papeis = papeis;
+                self.editar_ao_vivo(None);
+            }
+            Evento::Eixo3d(k, coluna) => {
+                let Some(mut e) = self.graficos.eixos3d.or_else(|| self.eixos3d_padrao()) else { return Task::none() };
+                match (k, coluna) {
+                    (0, Some(c)) => e.x = c,
+                    (1, Some(c)) => e.y = c,
+                    (2, c) => e.z = c,
+                    (3, c) => e.grupo = c,
+                    _ => return Task::none(),
+                }
+                self.graficos.eixos3d = Some(e);
                 self.editar_ao_vivo(None);
             }
             Evento::SerieNome(n, nome) => {
@@ -1591,6 +1684,8 @@ impl App {
                 self.graficos.ocultas.clear();
                 self.graficos.contas.clear();
                 self.graficos.aparencia.nomes_origem.clear();
+                self.graficos.aparencia.papeis.clear();
+                self.graficos.eixos3d = None;
                 self.editar_ao_vivo(None);
             }
             Evento::Atualizar => {
