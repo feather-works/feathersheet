@@ -1847,6 +1847,17 @@ dependencies = [
 [[package]]
 name = "feather-charts"
 version = "0.3.2"
+source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.2#306961e46e887b2fa0dd9f0f8dfcd2a58c4c1a5f"
+dependencies = [
+ "feather-draw",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "feather-charts"
+version = "0.3.3"
+source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.3#7485e0c31826313025b3436a88fbca4ae50eee4e"
 dependencies = [
  "feather-draw",
  "serde",
@@ -1871,7 +1882,7 @@ name = "feather-io"
 version = "0.2.0"
 source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
 dependencies = [
- "feather-charts",
+ "feather-charts 0.3.2",
  "feather-draw",
  "feather-image",
  "feather-tables",
@@ -1922,7 +1933,7 @@ dependencies = [
  "arboard",
  "base64 0.22.1",
  "embed-resource",
- "feather-charts",
+ "feather-charts 0.3.3",
  "feather-draw",
  "feather-image",
  "feather-macros",
@@ -1962,7 +1973,7 @@ name = "feathersheet-io"
 version = "0.0.2"
 dependencies = [
  "arrow",
- "feather-charts",
+ "feather-charts 0.3.3",
  "feather-draw",
  "feather-io",
  "feathersheet-core",
