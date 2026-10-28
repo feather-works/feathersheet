@@ -1237,11 +1237,32 @@ pub enum DateResult {
 
 /// A implementação de uma função, pelo nome em inglês ou em português.
 pub fn lookup(nome: &str) -> Option<FnImpl> {
-    let maiusculo = nome.to_uppercase();
-    if let Some(f) = implementada(&maiusculo) {
+    #[cfg(test)]
+    if let Some(f) = teste::implementada(&nome.to_uppercase()) {
         return Some(f);
     }
-    implementada(canonical(&maiusculo)?)
+    let mapa = mapa_de_funcoes();
+    mapa.get(nome).or_else(|| mapa.get(nome.to_uppercase().as_str())).copied()
+}
+
+/// Nome em inglês ou apelido em português (maiúsculas) → implementação,
+/// montado uma vez. É chamado a cada célula avaliada: a busca linear em
+/// `FUNCOES` e `ALIASES` (com uma maiúscula alocada) era 14% de abrir uma
+/// planilha de 1 milhão de linhas (28/10/2026). O nome exato ganha do apelido.
+fn mapa_de_funcoes() -> &'static std::collections::HashMap<&'static str, FnImpl> {
+    static MAPA: std::sync::OnceLock<std::collections::HashMap<&'static str, FnImpl>> = std::sync::OnceLock::new();
+    MAPA.get_or_init(|| {
+        let mut mapa = std::collections::HashMap::new();
+        for (nome, f) in FUNCOES {
+            mapa.entry(*nome).or_insert(*f);
+        }
+        for (apelido, canonico) in ALIASES {
+            if let Some(f) = FUNCOES.iter().find(|(n, _)| n == canonico).map(|(_, f)| *f) {
+                mapa.entry(*apelido).or_insert(f);
+            }
+        }
+        mapa
+    })
 }
 
 fn implementada(nome: &str) -> Option<FnImpl> {

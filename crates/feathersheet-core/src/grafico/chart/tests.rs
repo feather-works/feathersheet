@@ -551,3 +551,22 @@ fn plot_vis_only_pula_linhas_ocultas() {
     c.aggregate = true;
     assert_eq!(extract_chart_data_visiveis(&ler, &oculta, &c).categories, ["a", "c"]);
 }
+
+#[test]
+fn series_columns_deixa_so_as_colunas_do_excel() {
+    // Categoria A, B número fora do gráfico, C e D as séries (como B + L, M, N do .xlsx).
+    let mut p = Plan::nova();
+    for (c, t) in ["Cat", "Fora", "Um", "Dois"].into_iter().enumerate() {
+        p.txt(0, c as u32, t);
+    }
+    p.txt(1, 0, "x");
+    for c in 1..4 {
+        p.num(1, c, f64::from(c));
+    }
+    let mut c = config((0, 0, 1, 3));
+    c.series_columns = vec![2, 3];
+    let nomes = |d: ChartData| d.series.into_iter().map(|s| s.name).collect::<Vec<_>>();
+    assert_eq!(nomes(p.dados(&c)), ["Um", "Dois"]);
+    c.aggregate = true;
+    assert_eq!(nomes(p.dados(&c)), ["Um", "Dois"]);
+}

@@ -658,3 +658,22 @@ fn ctrl_z_depois_de_inserir_linhas_nao_apaga_a_celula_errada() {
     assert_eq!(w.aba(0).unwrap().sheet.get_raw(4, 0), "manter");
     assert_eq!(w.aba(0).unwrap().sheet.get_raw(6, 0), "x");
 }
+
+#[test]
+fn cont_ses_de_coluna_inteira_conta_as_vazias_depois_da_area_usada() {
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    let dados = w.criar_aba("Dados");
+    for (i, (a, b)) in [("x", "0"), ("y", "0"), ("x", "3")].iter().enumerate() {
+        w.escrever_celula(dados, i as u32, 0, a.to_string());
+        w.escrever_celula(dados, i as u32, 1, b.to_string());
+    }
+    w.escrever_celula(0, 0, 0, "=CONT.SES(Dados!A:A;\"x\";Dados!B:B;\"=0\")".into());
+    // "<>x" aceita a célula vazia: as 1.048.573 linhas depois da área usada contam.
+    w.escrever_celula(0, 0, 1, "=CONT.SES(Dados!A:A;\"<>x\")".into());
+    w.escrever_celula(0, 0, 2, "=CONT.SES(Dados!A:B;\"<>x\")".into());
+    assert_eq!(w.valor(0, 0, 0), Value::Number(1.0));
+    let linhas = f64::from(crate::celulas::refs::MAX_ROWS);
+    assert_eq!(w.valor(0, 0, 1), Value::Number(linhas - 2.0));
+    assert_eq!(w.valor(0, 0, 2), Value::Number(2.0 * linhas - 2.0));
+}

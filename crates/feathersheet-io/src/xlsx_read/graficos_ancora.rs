@@ -371,80 +371,6 @@ pub(super) struct Saltos {
     pub colunas: Vec<u32>,
 }
 
-/// O `parece_numero` do gráfico, calculando só a fórmula que abriu sem
-/// valor guardado, e com a pasta em volta: `get_value` sem ela refaz os
-/// derramamentos a cada leitura e não guarda nada (travava a abertura).
-// shortcut: texto guardado na coluna empacotada conta como não número (o pool não está à mão);
-// texto que parece número numa fórmula empacotada erra o índice das ocultas por um.
-fn numerica(wb: &feathersheet_core::planilha::workbook::Workbook, aba: usize, l: u32, c: u32) -> bool {
-    use feathersheet_core::celulas::values::Value;
-    use feathersheet_core::planilha::data_table::Cru;
-    let parece = crate::xlsx_write_graficos::parece_numero;
-    let Some(sheet) = wb.aba(aba).map(|a| &a.sheet) else { return false };
-    if !sheet.is_formula(l, c) {
-        let raw = sheet.get_raw(l, c);
-        return !raw.is_empty() && parece(&Value::Text(raw));
-    }
-    if let Some(v) = sheet.valor_guardado(l, c) {
-        return parece(&v);
-    }
-    match sheet.formulas.cru_at(l, c) {
-        Some(Cru::Numero(_)) => true,
-        Some(Cru::Texto(_)) => false,
-        None => parece(&wb.valor(aba, l, c)),
-    }
-}
-
-/// Chave provisória do JSON do gráfico: as colunas das `ser`, até a aba ser lida.
-pub(super) const COLUNAS_SER: &str = "_xlsxColunasSer";
-
-/// O `hiddenSeries` conta só as colunas que têm número (como o editor e o
-/// gravador do `.xlsx`), então só sai com as abas já lidas. As cores e os
-/// pontos do Excel vêm pela ordem das `ser` e passam para esse índice.
-pub(super) fn ocultar_colunas_puladas(wb: &mut feathersheet_core::planilha::workbook::Workbook) {
-    for i in 0..wb.len() {
-        let Some(texto) = wb.aba(i).and_then(|a| a.sheet.g.clone()).filter(|g| g.contains(COLUNAS_SER)) else { continue };
-        let Ok(mut lista) = serde_json::from_str::<Vec<serde_json::Value>>(&texto) else { continue };
-        for g in &mut lista {
-            let Some(cols) = g.as_object_mut().and_then(|o| o.remove(COLUNAS_SER)) else { continue };
-            let cols: Vec<u32> = serde_json::from_value(cols).unwrap_or_default();
-            let Ok(cfg) = serde_json::from_value::<feathersheet_core::grafico::chart::ChartConfig>(g.clone()) else { continue };
-            let origem = cfg.source_sheet.as_deref()
-                .and_then(|n| (0..wb.len()).find(|&j| wb.aba(j).is_some_and(|a| a.sheet.name.eq_ignore_ascii_case(n))))
-                .unwrap_or(i);
-            let r = cfg.range;
-            let inicio = r.r0 + u32::from(cfg.has_headers && r.r1 > r.r0);
-            let cat = r.c0 + cfg.category_column_index.unwrap_or(0);
-            let numericas: Vec<u32> = (r.c0..=r.c1)
-                .filter(|&c| !(cfg.has_category_labels && c == cat))
-                .filter(|&c| (inicio..=r.r1).any(|l| numerica(wb, origem, l, c)))
-                .collect();
-            let ordem = |c: u32| numericas.iter().position(|&n| n == c);
-            let visiveis: Vec<u32> = numericas.iter().copied().filter(|c| cols.contains(c)).collect();
-            let na_tela = |c: u32| visiveis.iter().position(|&n| n == c);
-            let ocultas: Vec<usize> = (0..numericas.len()).filter(|&k| !cols.contains(&numericas[k])).collect();
-            if !g["style"].is_object() { g["style"] = serde_json::json!({}); }
-            g["style"]["hiddenSeries"] = serde_json::json!(ocultas);
-            // As cores da aparência vão pela posição entre as séries desenhadas; os pontos, pela de origem.
-            let caminhos: [(&str, &dyn Fn(u32) -> Option<usize>); 3] = [
-                ("/_featherNative/cores", &na_tela),
-                ("/style/seriesPointShapes", &ordem),
-                ("/style/seriesPointSizes", &ordem),
-            ];
-            for (caminho, indice) in caminhos {
-                if let Some(m) = g.pointer_mut(caminho).and_then(|v| v.as_object_mut()) {
-                    *m = std::mem::take(m).into_iter()
-                        .filter_map(|(k, v)| Some((indice(*cols.get(k.parse::<usize>().ok()?)?)?.to_string(), v)))
-                        .collect();
-                }
-            }
-        }
-        if let Some(a) = wb.aba_mut(i) {
-            a.sheet.g = Some(serde_json::Value::Array(lista).to_string());
-        }
-    }
-}
-
 /// O Excel guarda cada série com o próprio intervalo (`B` categoria, `L`, `M`,
 /// `N` valores); o modelo tem um retângulo só (`B:N`). Sem isto as colunas
 /// `C`–`K` viravam séries. `None` quando o retângulo já é o gráfico.
@@ -487,29 +413,6 @@ mod testes {
         let vals = [faixa("B3", "B9"), faixa("D3", "D9")];
         let s = series_salteadas(true, (1, 1, 8, 3), Some(faixa("C3", "C9")), &vals).unwrap();
         assert_eq!((s.categoria, s.colunas), (1, vec![1, 3]));
-    }
-
-    #[test]
-    fn ocultas_contam_so_as_colunas_com_numero() {
-        use feathersheet_core::planilha::workbook::Workbook;
-        // B categoria, C texto (não vira série), D número pulado, E a série do Excel.
-        let mut wb = Workbook::new();
-        for (c, t) in [(1, "Cat"), (2, "Desc"), (3, "Pulada"), (4, "Valor")] {
-            wb.escrever_celula(0, 0, c, t.into());
-        }
-        for (c, t) in [(1, "a"), (2, "texto"), (3, "5"), (4, "7")] {
-            wb.escrever_celula(0, 1, c, t.into());
-        }
-        let g = serde_json::json!([{ "type": "column", "range": {"r0":0,"c0":1,"r1":1,"c1":4},
-            "seriesInColumns": true, "hasHeaders": true, "hasCategoryLabels": true, "categoryColumnIndex": 0,
-            "_featherNative": {"cores": {"0": "#ff0000"}}, COLUNAS_SER: [4] }]);
-        wb.aba_mut(0).unwrap().sheet.g = Some(g.to_string());
-        ocultar_colunas_puladas(&mut wb);
-        let g: serde_json::Value = serde_json::from_str(wb.aba(0).unwrap().sheet.g.as_deref().unwrap()).unwrap();
-        // Numéricas: D (0) e E (1); esconde D, e E é a 1ª série desenhada (a cor da `ser` 0).
-        assert_eq!(g[0]["style"]["hiddenSeries"], serde_json::json!([0]));
-        assert_eq!(g[0]["_featherNative"]["cores"], serde_json::json!({"0": "#ff0000"}));
-        assert!(g[0].get(COLUNAS_SER).is_none());
     }
 
     #[test]

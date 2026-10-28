@@ -123,7 +123,7 @@ fn area_ref(aba: &str, r0: u32, c0: u32, r1: u32, c1: u32) -> String {
 }
 
 /// Se a célula conta como número para virar série (o `parece_numero` do motor).
-pub(crate) fn parece_numero(v: &Value) -> bool {
+fn parece_numero(v: &Value) -> bool {
     match v {
         Value::Number(_) => true,
         Value::Text(t) => {
@@ -202,7 +202,7 @@ fn extrair(sheet: &Sheet, aba: &str, cfg: &ChartConfig, dados: &ChartData) -> Ex
             cats = Some(Textos { f: Some(area_ref(aba, inicio, cat_col, r.r1, cat_col)), v: dados.categories.clone() });
         }
         for c in r.c0..=r.c1 {
-            if use_cat && c == cat_col {
+            if (use_cat && c == cat_col) || (!cfg.series_columns.is_empty() && !cfg.series_columns.contains(&c)) {
                 continue;
             }
             if (inicio..=r.r1).any(|l| parece_numero(&cel(l, c))) {

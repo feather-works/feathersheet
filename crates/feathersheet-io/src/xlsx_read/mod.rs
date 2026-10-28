@@ -793,8 +793,18 @@ fn anexar_elementos(
                             }
                             if let Some(s) = saltos {
                                 chart_json["categoryColumnIndex"] = serde_json::json!(s.categoria);
-                                // O `hiddenSeries` sai com a aba já lida (`ocultar_colunas_puladas`).
-                                chart_json[graficos_ancora::COLUNAS_SER] = serde_json::json!(s.colunas);
+                                chart_json["seriesColumns"] = serde_json::json!(s.colunas);
+                                // Cores e pontos do Excel vêm pela ordem das `ser`; o gráfico desenha pela das colunas.
+                                let mut ordenadas = s.colunas.clone();
+                                ordenadas.sort_unstable();
+                                let posicao = |k: usize| s.colunas.get(k).and_then(|c| ordenadas.iter().position(|o| o == c));
+                                for caminho in ["/_featherNative/cores", "/style/seriesPointShapes", "/style/seriesPointSizes"] {
+                                    if let Some(m) = chart_json.pointer_mut(caminho).and_then(|v| v.as_object_mut()) {
+                                        *m = std::mem::take(m).into_iter()
+                                            .filter_map(|(k, v)| Some((posicao(k.parse().ok()?)?.to_string(), v)))
+                                            .collect();
+                                    }
+                                }
                             }
                             sheet.charts.push(chart_json);
                         }

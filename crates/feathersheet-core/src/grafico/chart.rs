@@ -199,6 +199,10 @@ pub struct ChartConfig {
     /// Só as linhas visíveis (o `plotVisOnly` do Excel): a linha escondida
     /// pelo filtro fica fora do gráfico. Desligado nos gráficos feitos aqui.
     pub plot_vis_only: bool,
+    /// As colunas (da aba) que viram série, como o Excel guarda cada `<c:ser>`;
+    /// vazio = todas as numéricas do intervalo. Com séries que pulam colunas
+    /// (B + L, M, N) as do meio ficam fora sem precisar de `hidden_series`.
+    pub series_columns: Vec<u32>,
 }
 
 /// As colunas dos três eixos da linha 3D, relativas ao começo do intervalo.
@@ -694,6 +698,7 @@ pub fn extract_chart_data_visiveis(
     config: &ChartConfig,
 ) -> ChartData {
     let oculta = |r: u32| config.plot_vis_only && oculta(r);
+    let fora_das_series = |c: u32| !config.series_columns.is_empty() && !config.series_columns.contains(&c);
     let ChartRange { r0, c0, r1, c1 } = config.range;
     let titulo = if config.title.is_empty() { "Gráfico".to_string() } else { config.title.clone() };
     let vazio = |titulo: String| ChartData {
@@ -815,7 +820,7 @@ pub fn extract_chart_data_visiveis(
         let mut ordens: Vec<u32> = Vec::new();
         let mut ordem = 0;
         for c in c0..=c1 {
-            if c == cat_col {
+            if c == cat_col || fora_das_series(c) {
                 continue;
             }
             if !escondidas.contains(&ordem) {
@@ -921,7 +926,7 @@ pub fn extract_chart_data_visiveis(
             categories.push(if use_cat { categoria(r, cat_col, item) } else { format!("Item {item}") });
         }
         for c in c0..=c1 {
-            if use_cat && c == cat_col {
+            if (use_cat && c == cat_col) || fora_das_series(c) {
                 continue;
             }
             let mut numerica = false;

@@ -42,6 +42,13 @@ pub trait EvalContext {
     /// Quantas células o retângulo cobre de fato (o `COUNT` e o `LINS` usam).
     fn range_size(&self, rect: &Rect) -> u64;
 
+    /// A última linha com conteúdo da aba (a área derramada conta), para quem
+    /// varre uma coluna inteira célula por célula parar nela. `None`: não
+    /// sabe, e quem pergunta varre o intervalo todo.
+    fn ultima_linha_usada(&self, _sheet: Option<&str>) -> Option<u32> {
+        None
+    }
+
     /// O retângulo lido de uma vez (e guardado até a aba mudar), para quem
     /// percorre um intervalo grande célula por célula. `None`: ler com
     /// [`Self::get_value`], como sempre.

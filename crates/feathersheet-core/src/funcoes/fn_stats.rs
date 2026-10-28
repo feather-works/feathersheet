@@ -434,8 +434,20 @@ pub fn fn_countifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         .map(|(rect, crit)| CriteriaPair { leitor: LeitorFaixa::novo(ev, &rect), rect, pred: make_predicate(crit) })
         .collect();
 
+    // Coluna inteira (`E:E`) varria 1 milhão de linhas por fórmula (92% de
+    // abrir um .xlsx leve, 28/10/2026). Depois da última linha usada de
+    // todas as faixas tudo é vazio: conta de uma vez, se o vazio passa.
+    let linhas = base_rect.r1 - base_rect.r0 + 1;
+    let usadas = pairs.iter()
+        .map(|p| ev.ctx.ultima_linha_usada(p.rect.sheet.as_deref()).map(|u| (u + 1).saturating_sub(p.rect.r0)))
+        .collect::<Option<Vec<u32>>>()
+        .and_then(|v| v.into_iter().max())
+        .map_or(linhas, |u| u.min(linhas));
     let mut count = 0;
-    for r in base_rect.r0..=base_rect.r1 {
+    if usadas < linhas && pairs.iter().all(|p| (p.pred)(&Value::Empty)) {
+        count += (linhas - usadas) as usize * (base_rect.c1 - base_rect.c0 + 1) as usize;
+    }
+    for r in base_rect.r0..base_rect.r0 + usadas {
         for c in base_rect.c0..=base_rect.c1 {
             let r_off = r - base_rect.r0;
             let c_off = c - base_rect.c0;

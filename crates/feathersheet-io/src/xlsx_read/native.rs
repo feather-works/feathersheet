@@ -191,16 +191,18 @@ fn chave_relativa(f: &str, row: u32, col: u32, saida: &mut String) -> bool {
 /// o padrão em pt-BR, que só ganha a posição da célula. Traduzir e analisar
 /// eram ~4 µs por fórmula — 28 s de CPU nos 7 milhões de fórmulas da
 /// Planilha Pesada (16/10/2026).
-fn preparar_em_paralelo(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfStyle]) -> LotePreparado {
-    preparar_em_paralelo_com(lote, nucleos, xfs, true)
+fn preparar_em_paralelo(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfStyle], estilos: &[Option<EstiloParcial>]) -> LotePreparado {
+    preparar_em_paralelo_com(lote, nucleos, xfs, estilos, true)
 }
 
-fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfStyle], reaproveitar: bool) -> LotePreparado {
+fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfStyle], estilos: &[Option<EstiloParcial>], reaproveitar: bool) -> LotePreparado {
     use feathersheet_core::planilha::sheet::carga::Preparo;
     use std::sync::Arc;
     type Bruta = (u32, u32, usize, Option<Value>, (u32, u32));
     let LoteBruto { texto, celulas } = lote;
     let texto = &texto;
+    // O mesmo estilo que a gravação passa ao `carregar_preparada`.
+    let estilo_de = |xf: usize| estilos.get(xf).and_then(Option::as_ref);
     let parte_pronta = |parte: Vec<Bruta>| -> (String, Vec<CelulaPreparada>) {
         let mut padroes = Padroes::default();
         // Chave relativa → (padrão em pt-BR, volátil, com árvore própria).
@@ -223,19 +225,21 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
                         feathersheet_core::formula::parser::parse_formula(texto.strip_prefix('=').unwrap_or(texto)).map_err(|e| e.message)
                     });
                     return CelulaPreparada { row: r, col: c, estilo: xf, faixa: (inicio, saida.len() as u32),
-                        preparo: Preparo::Formula { padrao: Some(padrao.clone()), arvore, volatil: *volatil }, guardado: v };
+                        preparo: Preparo::Formula { padrao: Some(padrao.clone()), arvore, volatil: *volatil }, guardado: v, ida_e_volta: None };
                 }
             }
             if let Some(t) = bruto.strip_prefix(MARCA_TEXTO) {
                 let inicio = saida.len() as u32;
                 saida.push_str(t);
                 return CelulaPreparada { row: r, col: c, estilo: xf, faixa: (inicio, saida.len() as u32),
-                    preparo: Preparo::Literal(feathersheet_core::Value::Text(t.into())), guardado: v };
+                    preparo: Preparo::Literal(feathersheet_core::Value::Text(t.into())), guardado: v, ida_e_volta: None }
+                    .com_ida_e_volta(t, estilo_de(xf));
             }
             let raw = converter(bruto, xf, xfs);
             let inicio = saida.len() as u32;
             saida.push_str(&raw);
-            let pronta = CelulaPreparada::preparar(r, c, &raw, (inicio, saida.len() as u32), xf, v, &mut padroes);
+            let pronta = CelulaPreparada::preparar(r, c, &raw, (inicio, saida.len() as u32), xf, v, &mut padroes)
+                .com_ida_e_volta(&raw, estilo_de(xf));
             if com_chave {
                 if let Preparo::Formula { padrao: Some(p), arvore, volatil } = &pronta.preparo {
                     ja_vistas.insert(chave.clone(), (p.clone(), *volatil, arvore.is_some()));
@@ -320,7 +324,7 @@ fn ler_aba(
             let mut gasto = std::time::Duration::ZERO;
             for lote in a_preparar {
                 let t0 = std::time::Instant::now();
-                let prontas = preparar_em_paralelo(lote, nucleos, xfs);
+                let prontas = preparar_em_paralelo(lote, nucleos, xfs, estilos);
                 gasto += t0.elapsed();
                 if para_gravar.send(prontas).is_err() { break; }
             }
@@ -710,7 +714,6 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     // Dinâmica sem resultado nas células (Google Planilhas, `refreshOnLoad`)
     // é calculada aqui; com resultado, só ganha a área para o painel editar.
     super::dinamica_importada::materializar(&mut workbook);
-    super::graficos_ancora::ocultar_colunas_puladas(&mut workbook);
     // A aba que o Excel mostrava ao salvar (`activeTab`), se estiver visível.
     let ativa = aba_ativa(&book).filter(|&i| workbook.aba(i).is_some_and(|a| !a.sheet.oculta)).unwrap_or(0);
     Ok((workbook, ativa))
@@ -902,8 +905,8 @@ mod testes_reaproveitar {
             lote.push(r, 31, "texto", 0, None);
         }
         let copia = LoteBruto { texto: lote.texto.clone(), celulas: lote.celulas.clone() };
-        let com = preparar_em_paralelo_com(lote, 4, &[], true);
-        let sem = preparar_em_paralelo_com(copia, 4, &[], false);
+        let com = preparar_em_paralelo_com(lote, 4, &[], &[], true);
+        let sem = preparar_em_paralelo_com(copia, 4, &[], &[], false);
         assert_eq!(com.celulas.len(), sem.celulas.len());
         let padrao = |p: &Preparo| match p {
             Preparo::Formula { padrao, arvore, volatil } => format!("{padrao:?} {arvore:?} {volatil}"),

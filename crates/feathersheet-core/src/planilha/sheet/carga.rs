@@ -102,9 +102,23 @@ pub struct CelulaPreparada {
     /// pelo Excel). Vale até algo de que ela depende mudar — como no Excel
     /// —, e a primeira tela não precisa recalcular nada.
     pub guardado: Option<Value>,
+    /// O `round_trips` do literal já feito por quem preparou (em paralelo);
+    /// `None`: quem grava faz. Era 30% da gravação de 13 milhões de células,
+    /// que roda numa thread só (28/10/2026).
+    pub ida_e_volta: Option<bool>,
 }
 
 impl CelulaPreparada {
+    /// Faz aqui (fora da thread que grava) a conferência se o texto do
+    /// literal se reconstrói pelo valor e o `estilo` (o mesmo que a gravação
+    /// vai receber).
+    pub fn com_ida_e_volta(mut self, raw: &str, estilo: Option<&EstiloParcial>) -> Self {
+        if let Preparo::Literal(valor) = &self.preparo {
+            self.ida_e_volta = Some(round_trips(raw, valor, estilo));
+        }
+        self
+    }
+
     /// O texto da célula, de dentro do texto do lote.
     pub fn raw<'a>(&self, texto: &'a str) -> &'a str {
         &texto[self.faixa.0 as usize..self.faixa.1 as usize]
@@ -135,7 +149,7 @@ impl CelulaPreparada {
         } else {
             Preparo::Literal(crate::celulas::input::parse_literal(aparado).value)
         };
-        CelulaPreparada { row, col, estilo, faixa, preparo, guardado }
+        CelulaPreparada { row, col, estilo, faixa, preparo, guardado, ida_e_volta: None }
     }
 }
 
@@ -158,7 +172,7 @@ impl Sheet {
     /// chama solta em outra thread (ver a nota do módulo).
     pub fn carregar_preparada(&mut self, c: CelulaPreparada, raw: &str, estilo_idx: Option<usize>,
         estilo: Option<&EstiloParcial>, sobras: &mut Vec<Sobra>) {
-        let CelulaPreparada { row, col, preparo, guardado, .. } = c;
+        let CelulaPreparada { row, col, preparo, guardado, ida_e_volta, .. } = c;
         if row >= MAX_ROWS || col >= MAX_COLS {
             return;
         }
@@ -188,7 +202,7 @@ impl Sheet {
                 }
                 // Mesma regra do `apply`: guarda o texto quando a leitura
                 // não o reconstruiria.
-                if !round_trips(raw, &valor, estilo)
+                if !ida_e_volta.unwrap_or_else(|| round_trips(raw, &valor, estilo))
                     || self.data.get_raw(row, col, &self.pool) != raw {
                     self.textos.insert(k, raw);
                 }
