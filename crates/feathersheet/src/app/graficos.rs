@@ -472,25 +472,33 @@ pub(super) fn dados_do_grafico(
     fonte: Option<Fonte<'_>>,
 ) -> std::sync::Arc<feathersheet_core::grafico::chart::ChartData> {
     use feathersheet_core::celulas::values::Value as V;
-    use feathersheet_core::grafico::chart::extract_chart_data_with;
+    use feathersheet_core::grafico::chart::extract_chart_data_visiveis;
     let pasta = fonte.as_ref().map(|f| (f.pasta, f.indice));
     let extrair = || {
         let ler = |r: u32, c: u32| match pasta {
             Some((wb, i)) => wb.valor(i, r, c),
             None => sheet.get_value(r, c),
         };
+        let oculta = |r: u32| sheet.linha_oculta(r);
         if lacuna_zero {
             let (r0, c0) = (config.range.r0, config.range.c0);
-            extract_chart_data_with(&|r, c| match ler(r, c) {
+            extract_chart_data_visiveis(&|r, c| match ler(r, c) {
                 V::Empty if r > r0 && c > c0 => V::Number(0.0),
                 v => v,
-            }, config)
+            }, &oculta, config)
         } else {
-            extract_chart_data_with(&ler, config)
+            extract_chart_data_visiveis(&ler, &oculta, config)
         }
     };
     let Some(f) = fonte else { return std::sync::Arc::new(extrair()) };
-    let base = chave_dos_dados(config, lacuna_zero);
+    let mut base = chave_dos_dados(config, lacuna_zero);
+    // Filtrar muda só a altura das linhas: com `plotVisOnly`, as ocultas entram na chave.
+    if config.plot_vis_only && sheet.tem_linhas_ocultas() {
+        let r = config.range;
+        let (n, soma) = (r.r0..=r.r1.min(sheet.max_row)).filter(|&l| sheet.linha_oculta(l))
+            .fold((0u64, 0u64), |(n, s), l| (n + 1, s.wrapping_mul(31).wrapping_add(u64::from(l))));
+        base.push_str(&format!("|{n}:{soma}"));
+    }
     let chave = |geracao: u64| (f.aba, f.versao, geracao, base.clone());
     let guardado = f.cache.0.borrow().get(&chave(sheet.geracao())).cloned();
     if let Some(dados) = guardado {

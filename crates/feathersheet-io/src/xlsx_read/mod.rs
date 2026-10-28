@@ -787,6 +787,10 @@ fn anexar_elementos(
                                 chart_json["_featherNative"] = nativa;
                                 chart_json["_excel"] = excel;
                             }
+                            // `<c:plotVisOnly val="1"/>`: o Excel não desenha a linha escondida pelo filtro.
+                            if chart_node.child("plotVisOnly").is_some_and(|n| !matches!(n.attr("val"), Some("0") | Some("false"))) {
+                                chart_json["plotVisOnly"] = serde_json::json!(true);
+                            }
                             if let Some(s) = saltos {
                                 chart_json["categoryColumnIndex"] = serde_json::json!(s.categoria);
                                 // O `hiddenSeries` sai com a aba já lida (`ocultar_colunas_puladas`).

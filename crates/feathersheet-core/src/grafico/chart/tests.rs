@@ -530,3 +530,24 @@ fn serie_de_texto_conta_e_conta_distintos() {
     assert_eq!(serde_json::to_value(AggregateFn::CountDistinct).unwrap(), "countDistinct");
     assert!(AggregateFn::CountDistinct.serve_para_texto() && !AggregateFn::Sum.serve_para_texto());
 }
+
+#[test]
+fn plot_vis_only_pula_linhas_ocultas() {
+    let mut p = Plan::nova();
+    p.txt(0, 0, "Item");
+    p.txt(0, 1, "Valor");
+    for (r, (cat, n)) in [("a", 1.0), ("b", 2.0), ("c", 3.0)].into_iter().enumerate() {
+        p.txt(r as u32 + 1, 0, cat);
+        p.num(r as u32 + 1, 1, n);
+    }
+    let ler = |r: u32, c: u32| p.0.get(&(r, c)).cloned().unwrap_or(Value::Empty);
+    let oculta = |r: u32| r == 2;
+    let mut c = config((0, 0, 3, 1));
+    // Sem pedir, a linha oculta continua (os gráficos feitos aqui não mudam).
+    assert_eq!(extract_chart_data_visiveis(&ler, &oculta, &c).categories, ["a", "b", "c"]);
+    c.plot_vis_only = true;
+    let d = extract_chart_data_visiveis(&ler, &oculta, &c);
+    assert_eq!((d.categories, d.series[0].values.clone()), (vec!["a".to_string(), "c".into()], vec![1.0, 3.0]));
+    c.aggregate = true;
+    assert_eq!(extract_chart_data_visiveis(&ler, &oculta, &c).categories, ["a", "c"]);
+}

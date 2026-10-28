@@ -786,7 +786,7 @@ fn area_de_plotagem(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia, pizza_seri
     o
 }
 
-fn chart_space(plot: &str, ap: &Aparencia, legenda_sem: &[usize]) -> String {
+fn chart_space(plot: &str, ap: &Aparencia, legenda_sem: &[usize], so_visiveis: bool) -> String {
     let mut o = format!(
         "{XML_DECL}<c:chartSpace xmlns:c=\"{NS_C}\" xmlns:a=\"{NS_A}\" xmlns:r=\"{NS_R}\"><c:date1904 val=\"0\"/><c:lang val=\"pt-BR\"/><c:roundedCorners val=\"0\"/><c:chart>"
     );
@@ -808,7 +808,8 @@ fn chart_space(plot: &str, ap: &Aparencia, legenda_sem: &[usize]) -> String {
         }
         o.push_str("<c:overlay val=\"0\"/></c:legend>");
     }
-    o.push_str("<c:plotVisOnly val=\"1\"/><c:dispBlanksAs val=\"gap\"/></c:chart>");
+    // O gráfico feito aqui desenha a linha oculta; só o que veio do Excel assim a esconde.
+    o.push_str(&format!("<c:plotVisOnly val=\"{}\"/><c:dispBlanksAs val=\"gap\"/></c:chart>", u8::from(so_visiveis)));
     let fundo = ap.fundo.as_deref().map(preenchimento).unwrap_or_else(|| "<a:solidFill><a:srgbClr val=\"FFFFFF\"/></a:solidFill>".into());
     let _ = write!(o, "<c:spPr>{fundo}<a:ln w=\"9525\"><a:solidFill><a:srgbClr val=\"D9D9D9\"/></a:solidFill></a:ln></c:spPr>");
     o.push_str("<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"1000\"/></a:pPr><a:endParaRPr lang=\"pt-BR\"/></a:p></c:txPr></c:chartSpace>");
@@ -819,7 +820,7 @@ fn chart_space(plot: &str, ap: &Aparencia, legenda_sem: &[usize]) -> String {
 fn grafico_classico(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia, pizza_serie: usize) -> String {
     let plot = area_de_plotagem(cfg, ex, ap, pizza_serie);
     let sem = if cfg.tipo == ChartType::Gantt && ex.series.len() >= 2 { vec![0] } else { Vec::new() };
-    chart_space(&plot, ap, &sem)
+    chart_space(&plot, ap, &sem, cfg.plot_vis_only)
 }
 
 // ------------------------------------------------------------ escrita cx:
@@ -879,7 +880,7 @@ fn reserva_classica(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia) -> String 
         ],
     };
     let plot = area_de_plotagem(&ChartConfig { tipo: ChartType::Waterfall, ..cfg.clone() }, &ex2, ap, 0);
-    chart_space(&plot, ap, &[0])
+    chart_space(&plot, ap, &[0], cfg.plot_vis_only)
 }
 
 fn cx_texto(t: &Textos) -> String {

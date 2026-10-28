@@ -194,6 +194,9 @@ pub struct ChartConfig {
     #[serde(rename = "eixos3d")]
     pub eixos_3d: Option<Eixos3d>,
     pub style: ChartStyle,
+    /// Só as linhas visíveis (o `plotVisOnly` do Excel): a linha escondida
+    /// pelo filtro fica fora do gráfico. Desligado nos gráficos feitos aqui.
+    pub plot_vis_only: bool,
 }
 
 /// As colunas dos três eixos da linha 3D, relativas ao começo do intervalo.
@@ -650,6 +653,23 @@ fn indices_amostrados(inicio: u32, fim: u32) -> Vec<u32> {
     fora
 }
 
+/// As linhas visíveis de `inicio..=fim`, com no máximo [`MAX_PONTOS_POR_SERIE`].
+fn visiveis_amostradas(inicio: u32, fim: u32, oculta: &dyn Fn(u32) -> bool) -> Vec<u32> {
+    if fim < inicio {
+        return Vec::new();
+    }
+    let todas: Vec<u32> = (inicio..=fim).filter(|&r| !oculta(r)).collect();
+    if todas.len() <= MAX_PONTOS_POR_SERIE {
+        return todas;
+    }
+    let passo = todas.len().div_ceil(MAX_PONTOS_POR_SERIE);
+    let mut fora: Vec<u32> = todas.iter().copied().step_by(passo).collect();
+    if fora.last() != todas.last() {
+        fora.extend(todas.last());
+    }
+    fora
+}
+
 // ---------------------------------------------------------------- extração
 
 /// `extractChartData` lendo de um [`Sheet`].
@@ -660,6 +680,18 @@ pub fn extract_chart_data(sheet: &Sheet, config: &ChartConfig) -> ChartData {
 /// `extractChartData`: os dados que o gráfico desenha. `celula(linha, coluna)`
 /// é quem sabe onde a célula mora.
 pub fn extract_chart_data_with(celula: &dyn Fn(u32, u32) -> Value, config: &ChartConfig) -> ChartData {
+    extract_chart_data_visiveis(celula, &|_| false, config)
+}
+
+/// Como [`extract_chart_data_with`], pulando as linhas em que `oculta` diz
+/// sim quando o gráfico pede `plot_vis_only`.
+// shortcut: só séries em colunas; com séries em linhas a coluna oculta continua entrando.
+pub fn extract_chart_data_visiveis(
+    celula: &dyn Fn(u32, u32) -> Value,
+    oculta: &dyn Fn(u32) -> bool,
+    config: &ChartConfig,
+) -> ChartData {
+    let oculta = |r: u32| config.plot_vis_only && oculta(r);
     let ChartRange { r0, c0, r1, c1 } = config.range;
     let titulo = if config.title.is_empty() { "Gráfico".to_string() } else { config.title.clone() };
     let vazio = |titulo: String| ChartData {
@@ -799,7 +831,7 @@ pub fn extract_chart_data_with(celula: &dyn Fn(u32, u32) -> Value, config: &Char
         let mut moda_estourou = vec![false; colunas.len()];
         let mut desistiu = false;
 
-        for r in data_row_start..=r1 {
+        for r in (data_row_start..=r1).filter(|&r| !oculta(r)) {
             let cat = categoria(r, cat_col, r - data_row_start + 1);
             let at = match indice.get(&cat) {
                 Some(&i) => i,
@@ -875,7 +907,11 @@ pub fn extract_chart_data_with(celula: &dyn Fn(u32, u32) -> Value, config: &Char
         let cat_col = c0 + config.category_column_index.unwrap_or(0).min(num_cols - 1);
         let use_cat = config.has_category_labels;
 
-        let linhas = indices_amostrados(data_row_start, r1);
+        let linhas = if config.plot_vis_only {
+            visiveis_amostradas(data_row_start, r1, &oculta)
+        } else {
+            indices_amostrados(data_row_start, r1)
+        };
         anotar_amostra((r1 + 1).saturating_sub(data_row_start) as usize, linhas.len());
 
         for &r in &linhas {
