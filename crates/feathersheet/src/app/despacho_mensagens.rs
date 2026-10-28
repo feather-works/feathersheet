@@ -836,9 +836,10 @@ impl App {
             Msg::ExportarXlsx => { self.menu_aberto = false; self.confirmar(); self.dialogo_exportar_xlsx() },
             Msg::DestinoXlsx(Some(mut path)) => {
                 if path.extension().and_then(|s|s.to_str()) != Some("xlsx") { path.set_extension("xlsx"); }
-                self.gravar_xlsx(path); Task::none()
+                self.gravar_xlsx(path)
             }
             Msg::DestinoXlsx(None) => Task::none(),
+            Msg::Exportado(resultado) => { self.exportacao_terminou(resultado); Task::none() }
             Msg::ExportarJson => {
                 self.menu_aberto = false;
                 self.confirmar();
@@ -848,8 +849,7 @@ impl App {
                 if !path.extension().and_then(|s| s.to_str()).is_some_and(|s| s.eq_ignore_ascii_case("json")) {
                     path.set_extension("json");
                 }
-                self.gravar_json(path);
-                Task::none()
+                self.gravar_json(path)
             }
             Msg::DestinoJson(None) => Task::none(),
             Msg::ExportarDelimitado(tsv) => {
@@ -862,8 +862,7 @@ impl App {
                 if path.extension().and_then(|s|s.to_str())!=Some(ext) {
                     path.set_extension(ext);
                 }
-                self.gravar_delimitado(path,tsv);
-                Task::none()
+                self.gravar_delimitado(path,tsv)
             }
             Msg::DestinoDelimitado(None,_) => Task::none(),
             Msg::DestinoSalvar(Some(path)) => match documento_operacoes::com_extensao_fshz(path) {

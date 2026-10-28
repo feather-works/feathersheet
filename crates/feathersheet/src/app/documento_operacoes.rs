@@ -1000,15 +1000,41 @@ impl App {
         }, move |destino| Msg::DestinoDelimitado(destino, tsv))
     }
 
-    pub(super) fn gravar_delimitado(&mut self, path: PathBuf, tsv: bool) {
-        self.confirmar();
-        self.status = match feathersheet_io::csv_workbook::gravar_csv_tsv(
-            &self.workbook, self.folha, &path, tsv
-        ) {
-            Ok(()) => trf!("{} exportado: {}", if tsv {"TSV"}else{"CSV"},path.display()),
-            Err(e) => trf!("Erro ao exportar {}: {e}",if tsv{"TSV"}else{"CSV"}),
-        };
+    pub(super) fn gravar_delimitado(&mut self, path: PathBuf, tsv: bool) -> Task<Msg> {
         // Exportação é uma cópia, sem mudar .fshz, undo ou marcador de alteração.
+        self.exportar_em_segundo_plano(path, Exportacao::Delimitado(tsv))
+    }
+
+    /// Exporta fora da thread da janela (#100): com 1 milhão de linhas, gerar
+    /// o .xlsx aqui deixava o app "não está respondendo". Aqui só sai o retrato
+    /// do .fshz (o mesmo do Salvar, ~50 ms); a outra thread remonta a pasta a
+    /// partir dele e grava. Custa a RAM de uma segunda pasta enquanto exporta.
+    pub(super) fn exportar_em_segundo_plano(&mut self, path: PathBuf, tipo: Exportacao) -> Task<Msg> {
+        self.confirmar();
+        if matches!(tipo, Exportacao::Xlsx) { self.carimbar_propriedades(); }
+        if self.salvando {
+            self.status = tr!("Aguarde: o salvamento anterior ainda está em andamento.").into();
+            return Task::none();
+        }
+        let folha = self.folha;
+        let pasta = feathersheet_io::da_workbook::da_workbook(&self.workbook, folha as u32);
+        self.salvando = true;
+        self.status = tr!("Exportando…").into();
+        Task::perform(async move {
+            tokio::task::spawn_blocking(move || exportar_retrato(&pasta, folha, &path, tipo))
+                .await.unwrap_or_else(|e| Err(trf!("Falha na tarefa de exportação: {e}")))
+        }, Msg::Exportado)
+    }
+
+    pub(super) fn exportacao_terminou(&mut self, resultado: Result<(String, std::collections::BTreeSet<String>), String>) {
+        self.salvando = false;
+        match resultado {
+            Ok((aviso, usadas)) => {
+                self.status = aviso;
+                self.avisar_funcoes_fora_do_excel(&usadas);
+            }
+            Err(e) => self.status = e,
+        }
     }
 
     /// Pergunta o destino antes de percorrer as células; cancelar não faz IO.
@@ -1027,32 +1053,40 @@ impl App {
 
     /// Exporta todas as abas sem materializar Workbook::toJSON na RAM.
     /// A operação gera uma cópia e não altera a associação do .fshz atual.
-    pub(super) fn gravar_json(&mut self, path: PathBuf) {
-        self.confirmar();
-        self.status = match feathersheet_io::json_workbook::gravar_json(
-            &self.workbook, self.folha, &path,
-        ) {
-            Ok(()) => trf!("JSON exportado: {}", path.display()),
-            Err(e) => trf!("Erro ao exportar JSON: {e}"),
-        };
+    pub(super) fn gravar_json(&mut self, path: PathBuf) -> Task<Msg> {
+        self.exportar_em_segundo_plano(path, Exportacao::Json)
     }
 
-    pub(super) fn gravar_xlsx(&mut self, path: PathBuf) {
-        self.confirmar();
-        self.carimbar_propriedades();
-        match feathersheet_io::xlsx_write::gerar_xlsx_com_funcoes(&self.workbook) {
-            Ok((bytes, usadas)) => match feathersheet_io::arquivo::gravar_atomico(&path, &bytes) {
-                Ok(()) => {
-                    self.status = trf!("Excel exportado: {}",path.display());
-                    self.avisar_funcoes_fora_do_excel(&usadas);
-                }
-                Err(e) => self.status = trf!("Erro ao gravar Excel: {e}"),
-            },
-            Err(e) => self.status = trf!("Erro ao gerar Excel: {e}"),
-        }
+    pub(super) fn gravar_xlsx(&mut self, path: PathBuf) -> Task<Msg> {
         // Exportar para Excel não altera o arquivo .fshz de trabalho.
+        self.exportar_em_segundo_plano(path, Exportacao::Xlsx)
     }
 
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum Exportacao { Xlsx, Json, Delimitado(bool) }
+
+/// A exportação em si, na thread de trabalho: remonta a pasta do retrato e grava.
+fn exportar_retrato(pasta: &feathersheet_io::fshz_write::PastaBruta, folha: usize, path: &std::path::Path, tipo: Exportacao)
+    -> Result<(String, std::collections::BTreeSet<String>), String> {
+    let bytes = feathersheet_io::fshz_write::gerar_fshz2(pasta)?;
+    let wb = feathersheet_io::para_workbook::para_workbook_soltando(feathersheet_io::fshz_read::ler_fshz(&bytes)?);
+    drop(bytes);
+    match tipo {
+        Exportacao::Xlsx => {
+            let (bytes, usadas) = feathersheet_io::xlsx_write::gerar_xlsx_com_funcoes(&wb)
+                .map_err(|e| trf!("Erro ao gerar Excel: {e}"))?;
+            feathersheet_io::arquivo::gravar_atomico(path, &bytes).map_err(|e| trf!("Erro ao gravar Excel: {e}"))?;
+            Ok((trf!("Excel exportado: {}", path.display()), usadas))
+        }
+        Exportacao::Json => feathersheet_io::json_workbook::gravar_json(&wb, folha, path)
+            .map(|()| (trf!("JSON exportado: {}", path.display()), Default::default()))
+            .map_err(|e| trf!("Erro ao exportar JSON: {e}")),
+        Exportacao::Delimitado(tsv) => feathersheet_io::csv_workbook::gravar_csv_tsv(&wb, folha, path, tsv)
+            .map(|()| (trf!("{} exportado: {}", if tsv { "TSV" } else { "CSV" }, path.display()), Default::default()))
+            .map_err(|e| trf!("Erro ao exportar {}: {e}", if tsv { "TSV" } else { "CSV" })),
+    }
 }
 
 /// O destino do Salvar com `.fshz` no fim: acrescenta, não troca ("Relatório 2026.10"
@@ -1065,4 +1099,31 @@ pub(super) fn com_extensao_fshz(path: PathBuf) -> Result<PathBuf, String> {
     let destino = PathBuf::from(nome);
     if destino.exists() { return Err(trf!("Já existe um arquivo com o nome {}", destino.display())); }
     Ok(destino)
+}
+
+#[cfg(test)]
+mod testes_exportar {
+    use super::*;
+
+    #[test]
+    fn exportar_pelo_retrato_grava_os_valores_calculados() {
+        let mut wb = feathersheet_core::planilha::workbook::Workbook::new();
+        wb.criar_aba("Dados");
+        let aba = wb.aba_mut(0).unwrap();
+        aba.sheet.set_cell(0, 0, "10");
+        aba.sheet.set_cell(1, 0, "=A1*2");
+        let pasta = feathersheet_io::da_workbook::da_workbook(&wb, 0);
+        let dir = std::env::temp_dir().join(format!("fs-exportar-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let csv = dir.join("a.csv");
+        let (aviso, _) = exportar_retrato(&pasta, 0, &csv, Exportacao::Delimitado(false)).unwrap();
+        assert!(aviso.contains("CSV"));
+        let texto = std::fs::read_to_string(&csv).unwrap();
+        assert!(texto.contains("10") && texto.contains("20"), "{texto}");
+        let xlsx = dir.join("a.xlsx");
+        exportar_retrato(&pasta, 0, &xlsx, Exportacao::Xlsx).unwrap();
+        let (lida, _) = feathersheet_io::xlsx_read::ler_xlsx_workbook(std::fs::read(&xlsx).unwrap()).unwrap();
+        assert_eq!(lida.aba(0).unwrap().sheet.get_raw(1, 0), "=A1*2");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

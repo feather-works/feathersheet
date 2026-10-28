@@ -4120,5 +4120,7 @@
  "Máxima": "High",
  "Mínima": "Low",
  "Fechamento": "Close",
- "Fim": "End"
+ "Fim": "End",
+ "Exportando…": "Exporting…",
+ "Falha na tarefa de exportação: {e}": "Export task failed: {e}"
 }

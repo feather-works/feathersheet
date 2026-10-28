@@ -372,6 +372,9 @@ pub enum Msg {
     BackupCriar, BackupCriado(Result<PathBuf, String>),
     /// Fim da gravação em segundo plano: destino, se era cópia, e o custo em ms ou o erro.
     Gravado(PathBuf, bool, Result<u64, String>),
+    /// Fim de uma exportação (.xlsx, JSON, CSV): o aviso do rodapé e, no
+    /// .xlsx, as funções que o Excel não conhece.
+    Exportado(Result<(String, std::collections::BTreeSet<String>), String>),
     ExportarXlsx, DestinoXlsx(Option<PathBuf>),
     ExportarJson, DestinoJson(Option<PathBuf>),
     NomesAbrir(bool), NomesFechar, NomeAtualizar(String), NomeCriar,

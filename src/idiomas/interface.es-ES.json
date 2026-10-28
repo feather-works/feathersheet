@@ -4115,5 +4115,7 @@
  "Máxima": "Máximo",
  "Mínima": "Mínimo",
  "Fechamento": "Cierre",
- "Fim": "Fin"
+ "Fim": "Fin",
+ "Exportando…": "Exportando…",
+ "Falha na tarefa de exportação: {e}": "Falló la tarea de exportación: {e}"
 }
