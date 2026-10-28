@@ -1968,6 +1968,7 @@ dependencies = [
  "feather-io",
  "feathersheet-core",
  "flate2",
+ "memchr",
  "parquet",
  "quick-xml 0.39.4",
  "rmp-serde",
