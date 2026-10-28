@@ -1399,6 +1399,22 @@ mod testes {
     use crate::celulas::values::Value;
 
     #[test]
+    fn mapa_de_nomes_responde_como_a_varredura() {
+        // A busca de antes do mapa: nome exato, senão o apelido.
+        let varrer = |nome: &str| {
+            let m = nome.to_uppercase();
+            implementada(&m).or_else(|| implementada(canonical(&m)?))
+        };
+        let ptr = |f: Option<FnImpl>| f.map(|f| f as usize);
+        for nome in FUNCOES.iter().map(|(n, _)| *n).chain(ALIASES.iter().map(|(a, _)| *a)) {
+            for escrito in [nome.to_string(), nome.to_lowercase()] {
+                assert_eq!(ptr(lookup(&escrito)), ptr(varrer(&escrito)), "{escrito}");
+            }
+        }
+        assert!(lookup("NAO.EXISTE").is_none());
+    }
+
+    #[test]
     fn apelido_resolve_para_o_nome_canonico() {
         assert_eq!(canonical("SOMA"), Some("SUM"));
         assert_eq!(canonical("soma"), Some("SUM"));

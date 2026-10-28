@@ -355,8 +355,10 @@ pub fn fn_xlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 
     // Busca exata com a lista lida de uma vez: o índice da lista responde
     // sem varrer (1 milhão de `PROCX` × 200 produtos eram 200 milhões de
-    // comparações). Onde o índice não se aplica, varre como sempre.
-    if mode == 0 {
+    // comparações). Onde o índice não se aplica, varre como sempre. Só com
+    // vetor: numa área de 2D cortada na borda usada o índice contaria
+    // posições pela outra direção.
+    if mode == 0 && (from_rect.r0 == from_rect.r1 || from_rect.c0 == from_rect.c1) {
         if let Some(achado) = de.lida().and_then(|f| f.posicao_exata(&lookup_val)) {
             return match achado {
                 Some(idx) if idx < count => Computed::Scalar(to_cell(idx)),

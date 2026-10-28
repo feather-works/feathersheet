@@ -102,3 +102,47 @@ pub(crate) struct Faixas {
     pub celulas: usize,
     pub mapa: HashMap<(u32, u32, u32, u32), Arc<FaixaLida>>,
 }
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+    use crate::celulas::values::{CellError, ErrorCode};
+    use crate::funcoes::fn_helpers::valores_iguais;
+
+    /// O índice responde o mesmo que a varredura do `PROCX` exato (o
+    /// primeiro igual pela regra de `valores_iguais`), ou se recusa.
+    #[test]
+    fn indice_exato_igual_a_varredura() {
+        let t = |s: &str| Value::Text(s.into());
+        let n = Value::Number;
+        let lista = vec![
+            t("P1"), t("p1"), n(10.0), t("10"), Value::Empty, Value::Error(CellError::new(ErrorCode::Na)),
+            Value::Bool(true), t("ÁGUA"), t("água"), n(10.0), n(0.30000000000000004), n(-0.0), t(""),
+            n(1.0), t("verdadeiro"), n(f64::INFINITY),
+        ];
+        let procurados = vec![
+            t("p1"), t("P1"), n(10.0), t("10"), t("Água"), n(0.3), n(0.30000000000000004), n(1.0),
+            Value::Bool(true), t("VERDADEIRO"), t("nada"), n(99.0), n(f64::INFINITY),
+            // Fora do índice (zero e vazio casam entre si; NaN com qualquer número).
+            n(0.0), n(-0.0), t(""), Value::Empty, n(f64::NAN),
+        ];
+        for (linhas, colunas) in [(lista.len() as u32, 1), (1, lista.len() as u32)] {
+            let faixa = FaixaLida::nova(0, 0, linhas, colunas, lista.clone());
+            for p in &procurados {
+                let varrido = lista.iter().position(|v| valores_iguais(v, p)).map(|i| i as u32);
+                match faixa.posicao_exata(p) {
+                    Some(achado) => assert_eq!(achado, varrido, "procurando {p:?}"),
+                    None => assert!(matches!(p, Value::Empty | Value::Bool(_))
+                        || matches!(p, Value::Number(x) if *x == 0.0 || !x.is_finite())
+                        || matches!(p, Value::Text(s) if s.is_empty()), "recusou {p:?}"),
+                }
+            }
+        }
+        // Lista com NaN: casa com qualquer número, o índice se recusa.
+        let com_nan = FaixaLida::nova(0, 0, 2, 1, vec![n(f64::NAN), n(1.0)]);
+        assert_eq!(com_nan.posicao_exata(&n(1.0)), None);
+        // Área de duas dimensões: sem índice.
+        let area = FaixaLida::nova(0, 0, 2, 2, vec![n(1.0), n(2.0), n(3.0), n(4.0)]);
+        assert_eq!(area.posicao_exata(&n(2.0)), None);
+    }
+}

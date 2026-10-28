@@ -123,6 +123,10 @@ struct Contexto<'a, 'v> {
     corrente: Option<&'v Corrente>,
     funcoes_externas: &'v HashSet<String>,
     faixas: &'v Faixas,
+    /// As faixas já pedidas por esta tarefa: o `Mutex` de [`Faixas`] é
+    /// tomado uma vez por faixa, não a cada `PROCX` (1 milhão deles na mesma
+    /// lista disputavam o cadeado entre as threads: ~2 s de 2,1 s).
+    lidas: RefCell<HashMap<ChaveFaixa, Option<Arc<FaixaLida>>>>,
     falhou: Cell<bool>,
 }
 
@@ -242,8 +246,12 @@ impl EvalContext for Contexto<'_, '_> {
             return None;
         }
         let chave = (aba, rect.r0, rect.r1, rect.c0, rect.c1);
+        if let Some(f) = self.lidas.borrow().get(&chave) {
+            return f.clone();
+        }
         let celula = self.faixas.mapa.lock().expect("faixas").entry(chave).or_default().clone();
         let faixa = celula.get_or_init(|| self.montar_faixa(aba, rect)).clone();
+        self.lidas.borrow_mut().insert(chave, faixa.clone());
         if faixa.is_none() {
             // Quem chama lê célula por célula; se a faixa tinha algo
             // ilegível daqui, `for_each_in_range` marca a falha.
@@ -530,6 +538,7 @@ fn executar(
         corrente: corrente.as_ref(),
         funcoes_externas: funcoes,
         faixas,
+        lidas: RefCell::default(),
         falhou: Cell::new(false),
     };
     let mut saida = Vec::with_capacity(tarefa.linhas.len());
