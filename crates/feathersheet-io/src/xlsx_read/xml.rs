@@ -13,6 +13,8 @@ use quick_xml::reader::Reader;
 use std::collections::HashMap;
 use std::io::BufRead;
 
+mod rapido;
+
 #[derive(Debug, Default, Clone)]
 pub struct XmlNode {
     pub name: String,
@@ -422,6 +424,34 @@ fn empurrar(linha: &mut LinhaXml, alvo: Alvo, txt: &str) {
 /// linha chega como [`LinhaXml`] (sem árvore por célula). O resto do
 /// documento (colunas, mesclas, links, condicional…) volta na árvore.
 pub fn parse_xml_linhas_rapidas<R: BufRead>(
+    mut source: R,
+    ler: &mut dyn FnMut(&LinhaXml) -> Result<(), String>,
+) -> Result<XmlNode, String> {
+    use std::io::Read;
+    // As linhas vão pelo leitor direto nos bytes (`rapido`); o documento sem
+    // elas, pelo quick_xml. Sem `sheetData` reconhecível, tudo pelo quick_xml.
+    let mut prefixo = Vec::new();
+    let Some((vazio, sobra)) = rapido::ate_sheet_data(&mut source, &mut prefixo)? else {
+        return parse_xml_linhas_quick(std::io::Cursor::new(prefixo).chain(source), ler);
+    };
+    let mut resto = if vazio {
+        sobra
+    } else {
+        let mut linha = LinhaXml::default();
+        rapido::linhas(&mut source, sobra, &mut linha, ler)?
+    };
+    source.read_to_end(&mut resto).map_err(|e| format!("XML: {e}"))?;
+    if vazio {
+        // `<sheetData/>` já fechou no prefixo.
+        prefixo.extend_from_slice(&resto);
+        return parse_xml_linhas_quick(&prefixo[..], &mut |_| Ok(()));
+    }
+    parse_xml_linhas_quick(std::io::Cursor::new(prefixo).chain(&resto[..]), &mut |_| Ok(()))
+}
+
+/// O leitor das linhas pelo quick_xml (o de antes do `rapido`): fica para o
+/// XML que o leitor direto não reconhece e como referência nos testes.
+fn parse_xml_linhas_quick<R: BufRead>(
     source: R,
     ler: &mut dyn FnMut(&LinhaXml) -> Result<(), String>,
 ) -> Result<XmlNode, String> {
@@ -487,6 +517,88 @@ pub fn parse_xml_linhas_rapidas<R: BufRead>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// As linhas que cada leitor entrega, em texto, e a árvore do resto.
+    pub(super) fn ler_com(xml: &[u8], rapido: bool, capacidade: usize) -> (Vec<String>, String) {
+        let mut linhas = Vec::new();
+        let mut ler = |l: &LinhaXml| { linhas.push(format!("{l:?}").replace(&format!("usadas: {}", l.usadas), "")
+            .split("celulas:").next().unwrap_or("").to_string() + &format!("{:?}", l.celulas())); Ok(()) };
+        let fonte = std::io::BufReader::with_capacity(capacidade, xml);
+        let arvore = if rapido { parse_xml_linhas_rapidas(fonte, &mut ler) } else { parse_xml_linhas_quick(fonte, &mut ler) };
+        fn canon(n: &XmlNode, s: &mut String) {
+            let mut attrs: Vec<_> = n.attrs.iter().collect();
+            attrs.sort();
+            // Espaço entre as linhas caía no texto do sheetData; ninguém lê.
+            s.push_str(&format!("<{} {attrs:?} {:?}>", n.name, n.text.trim()));
+            for c in &n.children { canon(c, s); }
+            s.push_str("</>");
+        }
+        let arvore = arvore.map(|a| { let mut s = String::new(); canon(&a, &mut s); s });
+        (linhas, format!("{arvore:?}"))
+    }
+
+    /// `FEATHERSHEET_XLSX=a.xlsx,b.xlsx`: os dois leitores em todas as abas,
+    /// comparando um resumo de cada linha e medindo o tempo.
+    #[test]
+    #[ignore]
+    fn leitor_rapido_igual_nos_arquivos() {
+        use std::hash::{Hash, Hasher};
+        use std::io::Read;
+        let Ok(lista) = std::env::var("FEATHERSHEET_XLSX") else { return };
+        for caminho in lista.split(',') {
+            let f = std::fs::File::open(caminho).unwrap();
+            let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).unwrap();
+            let nomes: Vec<String> = z.file_names().filter(|n| n.starts_with("xl/worksheets/") && n.ends_with(".xml")).map(String::from).collect();
+            for nome in nomes {
+                let mut resultado = Vec::new();
+                for rapido in [false, true] {
+                    let mut entrada = std::io::BufReader::with_capacity(64 * 1024, z.by_name(&nome).unwrap());
+                    let mut h = std::collections::hash_map::DefaultHasher::new();
+                    let mut n = 0u64;
+                    let t = std::time::Instant::now();
+                    let mut ler = |l: &LinhaXml| {
+                        n += 1;
+                        for c in l.celulas() { format!("{c:?}").hash(&mut h); }
+                        format!("{:?}{:?}{:?}{:?}", l.r, l.s, l.ht, l.hidden).hash(&mut h);
+                        Ok(())
+                    };
+                    let arvore = if rapido { parse_xml_linhas_rapidas(&mut entrada, &mut ler) } else { parse_xml_linhas_quick(&mut entrada, &mut ler) };
+                    let mut resto = Vec::new();
+                    let _ = entrada.read_to_end(&mut resto);
+                    eprintln!("{nome} {}: {n} linhas em {:?}", if rapido { "rápido" } else { "quick" }, t.elapsed());
+                    resultado.push((n, h.finish(), arvore.map(|a| a.children.len())));
+                }
+                assert_eq!(resultado[0], resultado[1], "{caminho} {nome}");
+            }
+        }
+    }
+
+    #[test]
+    fn leitor_rapido_das_linhas_igual_ao_quick_xml() {
+        let casos: &[&str] = &[
+            r#"<?xml version="1.0"?><worksheet xmlns="x"><dimension ref="A1:C3"/><sheetData><row r="1" spans="1:3" ht="20" customHeight="1"><c r="A1" s="2" t="s"><v>0</v></c><c r="B1"><f>SUM(A1:A3)&amp;"x"</f><v>6</v></c><c r="C1" t="inlineStr"><is><r><t xml:space="preserve"> a &lt;b&gt; </t></r><r><t>c&#233;&#x41;</t></r><rPh sb="0" eb="1"><t>ヨミ</t></rPh></is></c></row><row r="2"/><!-- nota --><row r="3" hidden="1"><c r="A3" t="str"><f t="shared" ref="A3:A9" si="0">B3*2</f><v>texto &quot;com&quot; aspas</v></c><c r="B3"><f t="shared" si="0"/><v>1</v></c><c r="C3" s='4'><v><![CDATA[a<b]]></v></c><c r="D3" t="e"><v>#N/A</v></c><c r="E3" s="7"/></row></sheetData><mergeCells count="1"><mergeCell ref="A1:B1"/></mergeCells><conditionalFormatting sqref="A1"><cfRule type="expression" priority="1"><formula>A1&gt;0</formula></cfRule></conditionalFormatting></worksheet>"#,
+            r#"<x:worksheet xmlns:x="y"><x:sheetData><x:row r="1"><x:c r="A1"><x:v>5</x:v></x:c></x:row></x:sheetData></x:worksheet>"#,
+            r#"<worksheet><sheetData/><cols><col min="1" max="2" width="9"/></cols></worksheet>"#,
+            r#"<worksheet><sheetData></sheetData></worksheet>"#,
+            r#"<worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c><c r="B1" vm="1" cm="1"><v>2</v></c></row></sheetData></worksheet>"#,
+            r#"<worksheet><cols/></worksheet>"#,
+            "<worksheet><sheetData>\r\n  <row r=\"1\">\r\n    <c r=\"A1\"><v>\r\n7\r\n</v></c>\r\n  </row>\r\n</sheetData></worksheet>",
+            r#"<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>a &desconhecida; b</t></is></c><c r="B1" s="&bogus;"><v>1</v></c></row></sheetData></worksheet>"#,
+        ];
+        for (i, xml) in casos.iter().enumerate() {
+            let xml = xml.replace("\\r\\n", "\r\n").replace("\\\"", "\"");
+            for cap in [3, 64, 8192] {
+                let esperado = ler_com(xml.as_bytes(), false, 8192);
+                let obtido = ler_com(xml.as_bytes(), true, cap);
+                if obtido != esperado {
+                    let (a, b) = (format!("{obtido:?}"), format!("{esperado:?}"));
+                    let d = a.bytes().zip(b.bytes()).position(|(x, y)| x != y).unwrap_or(a.len().min(b.len()));
+                    let ini = d.saturating_sub(150);
+                    panic!("caso {i}, buffer {cap}\nrápido: {}\nquick:  {}", &a[ini..(d + 150).min(a.len())], &b[ini..(d + 150).min(b.len())]);
+                }
+            }
+        }
+    }
 
     #[test]
     fn parser_cancela_fluxo_ao_receber_erro_no_callback() {

@@ -463,6 +463,7 @@ dependencies = [
  "feather-io",
  "feathersheet-core",
  "flate2",
+ "memchr",
  "parquet",
  "quick-xml",
  "rmp-serde",
