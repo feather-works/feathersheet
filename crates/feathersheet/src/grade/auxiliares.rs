@@ -42,7 +42,21 @@ impl Grade<'_> {
     /// visível. Usa larguras/alturas reais, inclusive linhas e colunas ocultas.
     pub(super) fn retangulo_celula_ativa(&self, viewport: Size) -> Option<(f32, f32, f32, f32)> {
         let (r,c) = self.selecionada;
-        let (x,y,w,h) = self.posicao_da_celula(r,c,viewport)?;
+        // Célula mesclada: o retângulo é o da área inteira, para a seta da lista
+        // ficar na borda direita dela (#91), não no meio.
+        let mescla = self.workbook.aba(self.aba).and_then(|a|
+            crate::app::mesclas::ler(&a.sheet).into_iter().find(|m| m.contains(r, c)));
+        let (r0, c0, r1, c1) = mescla.map(|m| (m.r0, m.c0, m.r1, m.c1)).unwrap_or((r, c, r, c));
+        let (x,y,w,h) = self.posicao_da_celula(r0,c0,viewport)?;
+        // Só as faixas visíveis: mescla grande não percorre milhões de linhas.
+        let w = if c1 > c0 {
+            self.colunas_visiveis(viewport.width).0.iter()
+                .filter(|(c, _, _)| *c >= c0 && *c <= c1).map(|(_, _, v)| *v).sum::<f32>().max(w)
+        } else { w };
+        let h = if r1 > r0 {
+            self.linhas_visiveis(viewport.height).0.iter()
+                .filter(|(r, _, _)| *r >= r0 && *r <= r1).map(|(_, _, v)| *v).sum::<f32>().max(h)
+        } else { h };
         // A linha padrão do Excel (15 pt) tem ~18 px: a seta precisa caber nela.
         if w < 24.0 || h < 10.0 { return None; }
         Some((x,y,w,h))

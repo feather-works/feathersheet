@@ -27,7 +27,8 @@ mod etapa;
 #[cfg(test)]
 mod testes;
 
-const PREVIA_LINHAS: usize = 200;
+/// Como o Power Query: as primeiras 1000 linhas (só a parte à vista é desenhada).
+const PREVIA_LINHAS: usize = 1000;
 /// Largura de cada coluna da prévia (rola para o lado, como no Power Query).
 const LARGURA_COLUNA_PREVIA: f32 = 150.0;
 
@@ -128,6 +129,8 @@ pub enum Evento {
     /// Recolhe/expande um grupo da lateral (0 salvas, 1 origem, 2 tabelas).
     RecolherGrupo(u8),
     JanelaRedimensionada(pelicano::Size),
+    /// Rolagem da prévia: só as linhas e colunas à vista são montadas.
+    RolarPrevia(pelicano::Viewport),
 }
 
 pub(super) struct Estado {
@@ -187,6 +190,8 @@ pub(super) struct Estado {
     ponteiro: (f32, f32),
     janela: pelicano::Size,
     recolhidos: [bool; 3],
+    /// Deslocamento e tamanho visível da prévia (x, y, largura, altura).
+    rolagem: (f32, f32, f32, f32),
 }
 
 /// Apenas tabelas estruturadas já criadas (Ctrl+T) na pasta aberta.
@@ -272,6 +277,7 @@ impl Estado {
             ponteiro: (0.0, 0.0),
             janela: pelicano::Size::new(1280.0, 800.0),
             recolhidos: [false; 3],
+            rolagem: (0.0, 0.0, 1600.0, 1000.0),
         }
     }
 
@@ -488,6 +494,7 @@ impl App {
         match ler_tabela(&self.workbook, aba, area.clone()) {
             Ok(fonte) => if let Some(e) = &mut self.openquery {
                 e.fonte = fonte;
+                e.rolagem = (0.0, 0.0, e.rolagem.2, e.rolagem.3);
                 e.origem_aba = origem_aba;
                 e.origem = area;
                 e.passos.clear();
@@ -765,6 +772,9 @@ impl App {
             Evento::Ponteiro(x, y) => if let Some(e) = &mut self.openquery { e.ponteiro = (x, y); },
             Evento::Modificadores(m) => if let Some(e) = &mut self.openquery { e.modificadores = m; },
             Evento::JanelaRedimensionada(t) => if let Some(e) = &mut self.openquery { e.janela = t; },
+            Evento::RolarPrevia(v) => if let Some(e) = &mut self.openquery {
+                e.rolagem = (v.offset.x, v.offset.y, v.bounds.width, v.bounds.height);
+            },
             Evento::RecolherGrupo(i) => if let Some(e) = &mut self.openquery {
                 if let Some(r) = e.recolhidos.get_mut(i as usize) { *r = !*r; }
             },
@@ -965,6 +975,7 @@ impl App {
                         let linhas = fonte.linhas.len();
                         let colunas = fonte.cabecalho.len();
                         e.fonte = fonte;
+                        e.rolagem = (0.0, 0.0, e.rolagem.2, e.rolagem.3);
                         e.origem_aba = tr!("Entrada manual").into();
                         e.origem = Rect::new(0, 0, linhas as u32, colunas.saturating_sub(1) as u32);
                         e.edicao = None;
@@ -1030,6 +1041,7 @@ impl App {
                         let colunas = fonte.cabecalho.len();
                         editor.limpar_previa_web();
                         editor.fonte = fonte;
+                        editor.rolagem = (0.0, 0.0, editor.rolagem.2, editor.rolagem.3);
                         editor.origem_aba = origem.clone();
                         if let Some(url) = origem.strip_prefix("Web: ") {
                             editor.url_web = url.to_owned();
@@ -1096,6 +1108,9 @@ impl App {
                 e.etapas_recolhidas = !e.etapas_recolhidas;
             },
             Evento::AbaCentro(aba) => if let Some(e) = &mut self.openquery {
+                // A prévia volta como widget novo, no topo.
+                e.rolagem.0 = 0.0;
+                e.rolagem.1 = 0.0;
                 e.mostrar_manual = aba == 2;
                 e.exibir_codigo = aba == 1;
                 e.exibir_script = aba == 3;

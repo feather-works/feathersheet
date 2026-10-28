@@ -505,7 +505,19 @@ impl App {
                 .style(ide::estilo_cabecalho(escuro))
         ].spacing(0);
         let largura = Length::Fixed(LARGURA_COLUNA_PREVIA);
-        for (c, nome) in visual.cabecalho.iter().enumerate() {
+        // Só o que está à vista vira widget; o resto é espaço do mesmo tamanho,
+        // para a barra de rolagem continuar certa (50 colunas × 1000 linhas travavam).
+        let (ox, oy, bw, bh) = e.rolagem;
+        let n_colunas = visual.cabecalho.len();
+        let c0 = (((ox - 38.0).max(0.0) / LARGURA_COLUNA_PREVIA) as usize).min(n_colunas);
+        let c1 = (c0 + (bw / LARGURA_COLUNA_PREVIA).ceil() as usize + 2).min(n_colunas);
+        let n_linhas = visual.linhas.len().min(PREVIA_LINHAS);
+        let l0 = (((oy - ALTURA_CABECALHO_PREVIA).max(0.0) / ALTURA_LINHA_PREVIA) as usize).min(n_linhas);
+        let l1 = (l0 + (bh / ALTURA_LINHA_PREVIA).ceil() as usize + 2).min(n_linhas);
+        let antes = Space::new(Length::Fixed(c0 as f32 * LARGURA_COLUNA_PREVIA), 0.0);
+        let depois = || Space::new(Length::Fixed((n_colunas - c1) as f32 * LARGURA_COLUNA_PREVIA), 0.0);
+        cabecalho = cabecalho.push(antes);
+        for (c, nome) in visual.cabecalho.iter().enumerate().take(c1).skip(c0) {
             let estat = qualidade::analisar(visual, c);
             let cor = match estat.tipo {
                 qualidade::Tipo::Inteiro | qualidade::Tipo::Decimal =>
@@ -535,27 +547,33 @@ impl App {
             cabecalho = cabecalho.push(container(row![titulo, seta].height(Length::FILL))
                 .width(largura).height(Length::Fixed(ALTURA_CABECALHO_PREVIA)));
         }
+        let cabecalho = cabecalho.push(depois());
         // O menu ▾ abre onde está o mouse (o `on_move` dá a posição na janela).
         let cabecalho = pelicano::mouse_area(cabecalho).on_move(|p| om(Evento::Ponteiro(p.x, p.y)));
-        let mut grade = column![cabecalho].spacing(0);
-        for (indice, linha) in visual.linhas.iter().take(PREVIA_LINHAS).enumerate() {
+        let mut grade = column![cabecalho, Space::new(0.0, Length::Fixed(l0 as f32 * ALTURA_LINHA_PREVIA))].spacing(0);
+        for (indice, linha) in visual.linhas.iter().enumerate().take(l1).skip(l0) {
             let mut celulas = row![
                 container(text((indice + 1).to_string()).size(TAM_LEGENDA)
                     .color(ide::cor_secundaria(escuro)))
                     .width(Length::Fixed(38.0)).height(Length::Fixed(ALTURA_LINHA_PREVIA)).padding([5, 10])
                     .style(ide::estilo_celula_propriedade(escuro, true))
-            ].spacing(0);
-            for (c, val) in linha.iter().enumerate() {
+            ].spacing(0).push(Space::new(Length::Fixed(c0 as f32 * LARGURA_COLUNA_PREVIA), 0.0));
+            for (c, val) in linha.iter().enumerate().take(c1).skip(c0) {
                 // Uma linha por célula, com "…": texto longo não desalinha as linhas.
                 celulas = celulas.push(container(text(feathersheet_core::celulas::values::to_text(val)).size(TAM_LEGENDA).ellipsis())
                     .padding([5, 8]).width(largura).height(Length::Fixed(ALTURA_LINHA_PREVIA)).clip(true)
                     .style(ide::estilo_celula_propriedade(escuro, e.selecionadas.contains(&c))));
             }
-            grade = grade.push(celulas);
+            // O resto da largura (inclusive linha mais curta que o cabeçalho).
+            let desenhadas = linha.len().min(c1).saturating_sub(c0);
+            let resto = n_colunas.saturating_sub(c0 + desenhadas);
+            grade = grade.push(celulas.push(Space::new(Length::Fixed(resto as f32 * LARGURA_COLUNA_PREVIA), 0.0)));
         }
+        let grade = grade.push(Space::new(0.0, Length::Fixed((n_linhas - l1) as f32 * ALTURA_LINHA_PREVIA)));
         column![
             barra_fx,
-            container(scrollable(grade).direction(pelicano::Direction::Both).height(Length::FILL).width(Length::FILL))
+            container(scrollable(grade).direction(pelicano::Direction::Both)
+                .on_scroll(|v| om(Evento::RolarPrevia(v))).height(Length::FILL).width(Length::FILL))
                 .width(Length::FILL).height(Length::FILL).padding(4)
                 .style(ide::estilo_area(escuro)),
         ].spacing(5).width(Length::FILL).height(Length::FILL).into()

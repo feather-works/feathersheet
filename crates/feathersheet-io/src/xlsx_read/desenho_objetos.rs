@@ -244,6 +244,10 @@ fn figura(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &str) -> 
     let mime = match caminho.rsplit('.').next()?.to_ascii_lowercase().as_str() {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
+        // A GUI decodifica pelo `image` (png, jpeg, gif, bmp, webp).
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        "webp" => "image/webp",
         // EMF/WMF/TIFF/WDP: a GUI não decodifica; fica de fora.
         _ => return None,
     };
