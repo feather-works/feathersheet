@@ -1,185 +1,180 @@
-# Roadmap do FeatherSheet — até a 1.0 (100% funcional)
+# FeatherSheet roadmap — up to 1.0 (100% functional)
 
-Este roteiro junta, num lugar só, tudo o que falta para o FeatherSheet ser
-**100% funcional**: cada comando que o usuário de Excel procura existe e
-funciona, cada fórmula comum calcula igual, cada arquivo `.xlsx` abre e grava
-sem perder nada, e as macros do dia a dia rodam.
+This roadmap gathers, in one place, everything still missing for FeatherSheet
+to be **100% functional**: every command an Excel user looks for exists and
+works, every common formula calculates the same way, every `.xlsx` file opens
+and saves without losing anything, and everyday macros run.
 
-Os números vêm dos levantamentos detalhados (conferidos em 15/10/2026):
+The numbers come from the detailed surveys (current as of v0.2.0, 10/27/2026):
 
-| Frente | Hoje | Levantamento |
+| Front | Today | Survey |
 |---|---|---|
-| Comandos da faixa | **211 / 290** (72,8%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
-| Aba Desenvolvedor | **4 / 19** | idem, seção "Desenvolvedor" |
-| Funções de planilha | **457 / 520** | [`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md) |
-| Funções do VBA no conversor | **52** cobertas, **12** parciais, **53** faltando (de 117 aplicáveis) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
+| Ribbon commands | **211 / 290** (72.8%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
+| Developer tab | **4 / 19** | same, "Desenvolvedor" section |
+| Worksheet functions | **520 / 520** | [`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md) |
+| VBA functions in the converter | **52** covered, **12** partial, **53** missing (of 117 applicable) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 
-## O que conta como 1.0
+The linked surveys are in Portuguese.
 
-1. **Abrir e gravar** `.xlsx`, `.xlsm`, `.csv`, `.parquet` e `.fshz` sem perder
-   conteúdo, formato, gráficos, formas, nomes nem validações.
-2. **Todos os comandos** das abas Arquivo, Página Inicial, Inserir, Layout da
-   Página, Fórmulas, Dados, Revisão, Exibir e das abas contextuais (tabela,
-   gráfico, forma, tabela dinâmica) ligados a uma ação de verdade, exceto o que
-   está em [Fora de escopo](#fora-de-escopo).
-3. **Funções**: todas as do Excel 365 que não dependem de serviço on-line.
-4. **Macros**: as funções do VBA aplicáveis convertidas, gravador de macros e
-   macros de evento.
-5. **Sem regressão**: testes do motor, do io e da interface verdes; arquivos
-   grandes do usuário medidos a cada versão.
+## What counts as 1.0
+
+1. **Open and save** `.xlsx`, `.xlsm`, `.csv`, `.parquet` and `.fshz` without
+   losing content, formatting, charts, shapes, names or validations.
+2. **Every command** in the File, Home, Insert, Page Layout, Formulas, Data,
+   Review and View tabs and in the contextual tabs (table, chart, shape, pivot
+   table) wired to a real action, except what is listed under
+   [Out of scope](#out-of-scope).
+3. **Functions**: all Excel 365 functions that don't depend on an online service.
+4. **Macros**: the applicable VBA functions converted, a macro recorder and
+   event macros.
+5. **No regressions**: engine, io and interface tests green; the user's large
+   files measured on every release.
 
 ---
 
-## v0.0.1 — primeira versão instalável (agora)
+## Packaging
 
-O estado atual, empacotado: Linux (`.deb` e `.tar.gz` portátil) e Windows
-(instalador `.exe`), sem atualização automática. O executável Linux desta versão exige
-glibc 2.43 (Ubuntu 26.04 ou mais novo).
+Shipped: Linux (`.deb` and portable `.tar.gz`), Windows (`.exe` installer),
+macOS Apple Silicon (`.dmg`) and an update notice inside the app.
 
-- [ ] Compilar o Linux contra uma glibc antiga, para rodar em Ubuntu 22.04/24.04,
-      Debian 12 e Mint.
-- [ ] Outros formatos: AppImage, `.rpm` e macOS.
+- [ ] Build Linux against an older glibc, to run on Ubuntu 22.04/24.04,
+      Debian 12 and Mint (today it needs glibc 2.43, Ubuntu 26.04 or newer).
+- [ ] Other formats: AppImage and `.rpm`.
 
-## Fase 1 — Confiança no uso diário
+## Phase 1 — Trust in daily use
 
-O que pode fazer alguém perder trabalho ou desistir no primeiro dia.
+What could make someone lose work or give up on day one.
 
-- [ ] Testes da interface (`feathersheet-gui`) todos verdes.
-- [ ] `.fshz` muito grande: gravar acima de 4 GB e plano de memória de 400 MB
+- [ ] All interface tests green.
+- [ ] Very large `.fshz`: saving above 4 GB and the 400 MB memory plan
       ([`PLANO-MEMORIA-400MB.md`](docs/planejamento/PLANO-MEMORIA-400MB.md)).
-- [ ] Abrir `.xlsx` grande mais rápido (medido com os arquivos reais).
-- [ ] Fidelidade do `.xlsx`: linhas com altura zero, altura padrão por aba,
-      bordas média e grossa, cabeçalhos de linha/coluna ocultos, zoom por aba,
-      formatos `dxf` de tabela, título de gráfico em cascata duplicado.
-- [ ] Nome definido usado como intervalo em `CONT.SE` e como lista em `CORRESP`.
-- [ ] Título da janela ao abrir arquivo que não é `.fshz` (hoje "Sem título.fshz").
-- [ ] Abrir e reparar arquivo corrompido.
-- [ ] **Vários FeatherSheet abertos ao mesmo tempo trabalhando juntos** (hoje cada
-      janela é isolada):
-      - copiar e colar entre janelas mantendo fórmulas, formatos e validações
-        (não só o texto);
-      - referência a outra pasta aberta (`=[Vendas.fshz]Plan1!A1`), recalculando
-        quando a outra muda, e vínculos quando ela está fechada;
-      - mover ou copiar uma aba para outra pasta aberta;
-      - Exibir → Alternar janelas, Organizar tudo e lado a lado com rolagem
-        sincronizada entre as pastas abertas;
-      - aviso ao abrir o mesmo arquivo duas vezes (somente leitura na segunda).
+- [ ] Open large `.xlsx` files faster (measured with real files).
+- [ ] `.xlsx` fidelity: zero-height rows, default row height per sheet, medium
+      and thick borders, hidden row/column headers, zoom per sheet, table `dxf`
+      formats, duplicated waterfall chart title.
+- [ ] A defined name used as a range in `COUNTIF` and as a list in `MATCH`.
+- [ ] Window title when opening a file that isn't `.fshz` (today "Sem título.fshz").
+- [ ] Open and repair a corrupted file.
+- [ ] **Several FeatherSheet windows working together** (references to another
+      open workbook, `=[Sales.fshz]Sheet1!A1`, already work):
+      - copy and paste between windows keeping formulas, formats and
+        validations (not just the text);
+      - links to a workbook while it is closed;
+      - move or copy a sheet to another open workbook;
+      - View → Switch Windows, Arrange All and side by side with synchronized
+        scrolling;
+      - a warning when the same file is opened twice (read-only the second time).
 
-## Fase 2 — Completar a faixa (79 comandos)
+## Phase 2 — Complete the ribbon (79 commands)
 
-Em ordem de quanto o usuário sente falta.
+In order of how much users miss them.
 
-**Layout da Página (8 / 23)** — o que mais pesa para imprimir:
-- [ ] Margens, Quebras, Imprimir títulos, Exibir títulos, Plano de fundo.
-- [ ] Temas, Cores, Fontes e Efeitos do tema.
-- [ ] Organizar objetos: Avançar, Recuar, Alinhar, Agrupar, Girar, Painel de seleção.
+**Page Layout (8 / 23)** — what matters most for printing:
+- [ ] Margins, Breaks, Print Titles, Print Headings, Background.
+- [ ] Themes, theme Colors, Fonts and Effects.
+- [ ] Arrange objects: Bring Forward, Send Backward, Align, Group, Rotate, Selection Pane.
 
-**Inserir (11 / 25):**
-- [ ] Caixa de texto, Cabeçalho e rodapé, Símbolo, Equação.
-- [ ] Minigráficos, Gráficos recomendados, Gráfico dinâmico.
-- [ ] Segmentação de dados e Linha do tempo.
-- [ ] SmartArt (o motor já existe no [`feather-shapes`](https://github.com/feather-works/feather-shapes)), Instantâneo, Mapas, Linha de assinatura, Objeto.
+**Insert (11 / 25):**
+- [ ] Text Box, Header & Footer, Symbol, Equation.
+- [ ] Sparklines, Recommended Charts.
+- [ ] Timeline.
+- [ ] SmartArt (the engine already exists in [`feather-shapes`](https://github.com/feather-works/feather-shapes)), Screenshot, Maps, Signature Line, Object.
 
-**Exibir (9 / 20):**
-- [ ] Modos Normal e Layout da página, modos de exibição personalizados, Régua.
-- [ ] Zoom na seleção.
-- [ ] Janelas: Nova janela, Organizar tudo, Dividir, Ocultar, Reexibir, Alternar.
+**View (9 / 20):**
+- [ ] Normal and Page Layout views, custom views, Ruler.
+- [ ] Zoom to Selection.
+- [ ] Windows: New Window, Arrange All, Split, Hide, Unhide, Switch Windows.
 
-**Revisão (7 / 18):**
-- [ ] Ortografia e Dicionário de sinônimos (dicionários Hunspell locais, como no FeatherSlide).
-- [ ] Estatísticas da pasta, Verificar acessibilidade, Texto alternativo.
-- [ ] Mostrar comentários, Converter em comentários.
-- [ ] Proteger pasta de trabalho, Permitir edição de intervalos.
-- [ ] Mostrar alterações.
+**Review (7 / 18):**
+- [ ] Spelling and Thesaurus (local Hunspell dictionaries, as in FeatherSlide).
+- [ ] Workbook Statistics, Check Accessibility, Alt Text.
+- [ ] Show Comments, Convert to Comments.
+- [ ] Protect Workbook, Allow Edit Ranges.
+- [ ] Show Changes.
 
-**Dados (18 / 28):**
-- [ ] Consolidar, Circular dados inválidos, Relações.
-- [ ] Planilha de previsão, Solver.
-- [ ] Atualizar tudo (consultas e conexões).
-- [ ] Listas personalizadas, Formulário de dados.
+**Data (18 / 28):**
+- [ ] Consolidate, Circle Invalid Data, Relationships.
+- [ ] Forecast Sheet, Solver.
+- [ ] Refresh All (queries and connections).
+- [ ] Custom Lists, Data Form.
 
-**Abas contextuais:**
-- [ ] Design da Tabela: Resumir com tabela dinâmica, Inserir segmentação,
-      opções de estilo (linha de cabeçalho, primeira e última coluna).
-- [ ] Design do Gráfico: Layout rápido, Estilos, Alternar linha/coluna, Mover gráfico.
-- [ ] Formatar (forma): Formatar seleção, Preenchimento e Contorno da forma.
-- [ ] Tabela dinâmica: Classificar, Limpar tudo, Totais gerais.
+**Contextual tabs:**
+- [ ] Table Design: Summarize with PivotTable, Insert Slicer, style options
+      (header row, first and last column).
+- [ ] Chart Design: Quick Layout, Styles, Switch Row/Column, Move Chart.
+- [ ] Shape Format: Format Selection, Shape Fill and Outline.
+- [ ] PivotTable: Sort, Clear All, Grand Totals.
 
-**Arquivo (10 / 11):**
-- [ ] Exportar como página da Web.
+**File (10 / 11):**
+- [ ] Export as a web page.
 
-## Fase 3 — Fórmulas (63 funções)
+## Phase 3 — Formulas
 
-1. [ ] **Referência e lambdas**: `OFFSET`, `INDIRECT` (referência dinâmica no
-       avaliador), `BYROW`, `BYCOL`, `SCAN`, `MAKEARRAY`, `ISFORMULA`,
-       `FORMULATEXT`, `SHEET`, `SHEETS`, `GETPIVOTDATA`.
-2. [ ] **Regressão**: `LINEST`, `LOGEST`.
-3. [ ] **Financeiras de cupom** (`COUP*`, `PRICE`, `YIELD`, `DURATION`, `ODD*`)
-       e **engenharia** (`BESSELK`, `BESSELY`).
-4. [ ] **Cálculo**: referências 3D (`Jan:Dez!B5`), cálculo iterativo (referência
-       circular intencional), estilo L1C1, precisão conforme exibido, datas 1904.
-5. [ ] **Texto rico na célula** (negrito, cor ou sobrescrito numa palavra só).
+All 520 Excel functions are in ([`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md)
+lists the known limits). What is left is calculation behavior:
 
-A lista completa, por categoria, está em
-[`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md).
+- [ ] 3D references (`Jan:Dec!B5`), iterative calculation (intentional circular
+      references), R1C1 style, precision as displayed, 1904 dates.
+- [ ] **Rich text in a cell** (bold, color or superscript on a single word).
 
-## Fase 4 — Macros
+## Phase 4 — Macros
 
-- [ ] **Funções do VBA que faltam no conversor** (53), começando pelas mais usadas:
-      datas (`DateAdd`, `DateDiff`, `DatePart`, `DateSerial`, `DateValue`,
-      `TimeSerial`, `TimeValue`, `Hour`, `Minute`, `Second`, `Weekday`,
-      `WeekdayName`, `MonthName`, `IsDate`, `CDate`), formatação
+Macros run on [Falcão](https://github.com/feather-works/falcao), the suite's
+JavaScript engine written in Rust (since v0.2.0).
+
+- [ ] **VBA functions still missing in the converter** (53), starting with the
+      most used: dates (`DateAdd`, `DateDiff`, `DatePart`, `DateSerial`,
+      `DateValue`, `TimeSerial`, `TimeValue`, `Hour`, `Minute`, `Second`,
+      `Weekday`, `WeekdayName`, `MonthName`, `IsDate`, `CDate`), formatting
       (`FormatNumber`, `FormatCurrency`, `FormatPercent`, `FormatDateTime`),
-      texto (`StrComp`, `StrConv`, `Filter`), lógica (`Choose`, `Switch`,
-      `IsError`, `IsMissing`, `TypeName`, `VarType`), financeiras (`Pmt`, `PV`,
-      `FV`, `NPV`, `IRR`, `Rate`, `NPer`, `IPmt`, `PPmt`, `MIRR`, `SLN`, `SYD`,
-      `DDB`) e o restante da [lista](docs/planejamento/PARIDADE-VBA-FUNCOES.md).
-- [ ] Completar as 12 parciais.
-- [ ] **Gravador de macros** (gravar ações gerando JavaScript) e usar referências relativas.
-- [ ] **Macros de evento** iguais às do Excel (abrir, alterar célula, trocar de aba…).
-- [ ] Aba Desenvolvedor: segurança de macro, controles de formulário e modo de design.
+      text (`StrComp`, `Filter`), logic (`Choose`, `Switch`, `IsError`,
+      `IsMissing`, `TypeName`, `VarType`), financial (`Pmt`, `PV`, `FV`, `NPV`,
+      `IRR`, `Rate`, `NPer`, `IPmt`, `PPmt`, `MIRR`, `SLN`, `SYD`, `DDB`) and the
+      rest of the [list](docs/planejamento/PARIDADE-VBA-FUNCOES.md).
+- [ ] Complete the 12 partial ones.
+- [ ] **Macro recorder** (record actions as JavaScript) and Use Relative References.
+- [ ] **Event macros** matching Excel's (open, cell change, sheet switch…).
+- [ ] Developer tab: macro security, form controls and design mode.
 
-## Fase 5 — Gráficos
+## Phase 5 — Charts
 
-O motor é o [`feather-charts`](https://github.com/feather-works/feather-charts).
+The engine is [`feather-charts`](https://github.com/feather-works/feather-charts).
+Done: 25 types, trendlines with equation and R², error bars, max/min/average
+lines, mouse tooltip, clickable legend, pivot charts.
 
-- [ ] Todos os tipos no desenho formatado: degraus, áreas empilhadas, radar,
-      combinado, bolhas, histograma, cascata, velas, Gantt, mapa de calor, linha 3D.
-- [ ] Elementos analíticos: linha de tendência com equação e R², barras de erro,
-      linhas de máximo/mínimo.
-- [ ] Gráfico dinâmico (segue a tabela dinâmica), minigráficos, modelos de gráfico.
-- [ ] Dica ao passar o mouse e arrastar título e legenda dentro do gráfico.
+- [ ] Sparklines and chart templates.
+- [ ] Drag the title and legend inside the chart.
 
-## Fase 6 — Dados avançados
+## Phase 6 — Advanced data
 
-- [ ] Conector SQLite (Rust puro, só leitura) e funções `SQL()` / `QUERY()`.
-- [ ] Segmentação de dados e linha do tempo ligadas às tabelas dinâmicas.
-- [ ] Modelo de dados com relacionamentos (Power Pivot), sobre o armazenamento
-      por colunas que o motor já tem.
-- [ ] Analisar dados por IA local (pelo servidor MCP, só por pedido).
-- [ ] Pendências do servidor MCP ([`MCP-PENDENTE.md`](docs/planejamento/MCP-PENDENTE.md)).
+- [ ] SQLite connector (pure Rust, read-only) and `SQL()` / `QUERY()` functions.
+- [ ] Timeline linked to pivot tables (slicers already work).
+- [ ] Data model with relationships (Power Pivot), on top of the engine's
+      column storage.
+- [ ] Analyze data with a local AI (through the MCP server, on request only).
+- [ ] MCP server to-dos ([`MCP-PENDENTE.md`](docs/planejamento/MCP-PENDENTE.md)).
 
-## Fase 7 — Polimento para a 1.0
+## Phase 7 — Polish for 1.0
 
-- [ ] Área de transferência com vários itens.
-- [ ] AutoCorreção.
-- [ ] Modo de toque (faixa espaçada).
-- [ ] Planilha da direita para a esquerda.
-- [ ] Inquire: comparar pastas e limpar formatação em excesso.
-- [ ] Instalador geral da suíte (escolher todos os aplicativos ou só alguns).
+- [ ] Clipboard with several items.
+- [ ] AutoCorrect.
+- [ ] Touch mode (spaced-out ribbon).
+- [ ] Right-to-left sheets.
+- [ ] Inquire: compare workbooks and clean excess formatting.
+- [ ] A suite-wide installer (choose all apps or just some).
 
 ---
 
-## Fora de escopo
+## Out of scope
 
-Ficam de fora por dependerem de nuvem, conta ou do Windows, o que contraria a
-regra de privacidade da suíte (tudo local, sem conta, sem telemetria):
+Left out because they depend on the cloud, an account or Windows, which goes
+against the suite's privacy rule (everything local, no account, no telemetry):
 
-- Coautoria em tempo real, publicar no Power BI ou SharePoint.
-- Tipos de dados vinculados (Ações, Geografia), `STOCKHISTORY`, tradutor e
-  pesquisa inteligente on-line, `TRANSLATE`/`DETECTLANGUAGE`.
-- OLE, DDE, RTD, suplementos COM e do Excel, funções de cubo OLAP.
-- Data Streamer (porta serial) e mapeamento XML com esquema, até alguém pedir.
+- Real-time co-authoring, publishing to Power BI or SharePoint.
+- Linked data types (Stocks, Geography), `STOCKHISTORY`, online translator and
+  smart lookup, `TRANSLATE`/`DETECTLANGUAGE`.
+- OLE, DDE, RTD, COM and Excel add-ins, OLAP cube functions.
+- Data Streamer (serial port) and XML mapping with a schema, until someone asks.
 
-Funções que buscam dados de fora (`WEBSERVICE`, `FILTERXML`) só entram como
-conector de mão única, por pedido explícito do usuário.
+Functions that fetch outside data (`WEBSERVICE`, `FILTERXML`) only come in as a
+one-way connector, on the user's explicit request.
