@@ -176,6 +176,34 @@ impl Sheet {
         if row >= MAX_ROWS || col >= MAX_COLS {
             return;
         }
+        // Texto vazio com padrão: quem preparou não montou o texto (a mesma
+        // fórmula da linha de cima). Só se monta quando a célula não entra
+        // na coluna empacotada — eram 15% da abertura do arquivo de 1 M linhas.
+        let expandido;
+        let raw = match &preparo {
+            Preparo::Formula { padrao: Some(p), .. } if raw.is_empty() => {
+                let k = key(row, col);
+                let rapido = !(self.cells.contains_key(&k) || self.data.has_cell(row, col)
+                    || self.formulas.has(row, col) || self.styles.contains_key(&k));
+                if rapido && self.formulas.set_padrao_conhecido(row, col, p) == Some(true) {
+                    let Preparo::Formula { padrao, arvore, volatil } = preparo else { unreachable!() };
+                    // O mesmo que o caminho de baixo faz depois do `set_com_padrao`.
+                    let guardado = guardado.filter(|_| !volatil);
+                    self.cresce_limites(row, col);
+                    if let Some(i) = estilo_idx {
+                        self.styles.insert(k, i);
+                    }
+                    if let Some(v) = &guardado {
+                        self.formulas.store(row, col, v, &mut self.pool);
+                    }
+                    sobras.push(Sobra { arvore: arvore.and_then(Result::ok), padrao, valor: guardado });
+                    return;
+                }
+                expandido = crate::formula::formula_pattern::expand_pattern(p, row as i32, col as i32);
+                expandido.as_str()
+            }
+            _ => raw,
+        };
         let k = key(row, col);
         if self.cells.contains_key(&k) || self.data.has_cell(row, col) || self.formulas.has(row, col)
             || self.styles.contains_key(&k) {

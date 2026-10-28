@@ -217,7 +217,11 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
             if com_chave {
                 if let Some((padrao, volatil, com_arvore)) = ja_vistas.get(chave.as_str()) {
                     let inicio = saida.len() as u32;
-                    saida.push_str(&feathersheet_core::formula::formula_pattern::expand_pattern(padrao, r as i32, c as i32));
+                    // Texto vazio: o `carregar_preparada` monta pelo padrão só
+                    // se a célula não couber na coluna empacotada.
+                    if *com_arvore {
+                        saida.push_str(&feathersheet_core::formula::formula_pattern::expand_pattern(padrao, r as i32, c as i32));
+                    }
                     // Fora da coluna empacotada (`SOMASES(Outra!C:C;…)`) a árvore
                     // é de cada célula: só a análise do texto é refeita.
                     let arvore = com_arvore.then(|| {
@@ -981,7 +985,13 @@ mod testes_reaproveitar {
         };
         for (a, b) in com.celulas.iter().zip(&sem.celulas) {
             assert_eq!((a.row, a.col), (b.row, b.col));
-            assert_eq!(a.raw(&com.texto), b.raw(&sem.texto), "célula ({}, {})", a.row, a.col);
+            // Reaproveitada: texto vazio, montado pelo padrão na gravação.
+            let texto_a = match (&a.preparo, a.raw(&com.texto)) {
+                (Preparo::Formula { padrao: Some(p), .. }, "") =>
+                    feathersheet_core::formula::formula_pattern::expand_pattern(p, a.row as i32, a.col as i32),
+                (_, t) => t.to_string(),
+            };
+            assert_eq!(texto_a.trim(), b.raw(&sem.texto).trim(), "célula ({}, {})", a.row, a.col);
             assert_eq!(padrao(&a.preparo), padrao(&b.preparo), "célula ({}, {}) {}", a.row, a.col, a.raw(&com.texto));
         }
     }

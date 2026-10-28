@@ -260,6 +260,13 @@ impl FormulaTable {
             .any(|f| f.colunas_em(col).is_none_or(|(c0, c1)| col >= c0 && col <= c1)))
     }
 
+    /// O [`Self::set_com_padrao`] de um padrão já registrado, sem o texto da
+    /// célula; `None` quando o padrão ainda não existe (aí o texto é preciso).
+    pub fn set_padrao_conhecido(&mut self, row: u32, col: u32, pattern: &str) -> Option<bool> {
+        let id = *self.pattern_ids.get(pattern)?;
+        Some(self.set_por_id(row, col, id))
+    }
+
     pub fn set_com_padrao(&mut self, row: u32, col: u32, raw: &str, pattern: Option<&str>,
         mut check: impl PatternCheck) -> bool {
         let Some(pattern) = pattern else {
@@ -289,6 +296,10 @@ impl FormulaTable {
                 id
             }
         };
+        self.set_por_id(row, col, id)
+    }
+
+    fn set_por_id(&mut self, row: u32, col: u32, id: i32) -> bool {
         if self.le_a_propria_coluna(id, col) {
             return false;
         }
