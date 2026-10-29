@@ -4164,5 +4164,18 @@
  "A macro do Excel usava {}. Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "La macro de Excel usaba {}. Esa parte no se convirtió y no se ejecuta aquí, pero es motivo para desconfiar del archivo.",
  "Macros desativadas neste arquivo: ative no aviso da janela principal.": "Macros desactivadas en este archivo: actívelas en el aviso de la ventana principal.",
  "[abrir] colunas compactadas: {} → {} MB · {} ms": "[abrir] columnas compactadas: {} → {} MB · {} ms",
- "Preencher {quantidade} células passa do teto de 250 milhões por operação: a memória não daria. Preencha menos linhas ou colunas de cada vez.": "Rellenar {quantidade} celdas supera el límite de 250 millones por operación: la memoria no alcanzaría. Rellene menos filas o columnas a la vez."
+ "Preencher {quantidade} células passa do teto de 250 milhões por operação: a memória não daria. Preencha menos linhas ou colunas de cada vez.": "Rellenar {quantidade} celdas supera el límite de 250 millones por operación: la memoria no alcanzaría. Rellene menos filas o columnas a la vez.",
+ "Menos memória e macros mais seguras": "Menos memoria y macros más seguras",
+ "Metade da memória em bases grandes": "La mitad de la memoria en bases grandes",
+ "Colunas de números compactadas sem perda ao abrir: 4,4 GB viraram 2,0 GB.": "Columnas de números compactadas sin pérdida al abrir: 4,4 GB pasaron a 2,0 GB.",
+ "Todo arquivo com macro pergunta antes, avisando o que ela grava e o VBA perigoso.": "Todo archivo con macros pregunta antes, avisando qué escriben y del VBA peligroso.",
+ "Gráficos só da aba aberta": "Gráficos solo de la hoja abierta",
+ "Os das outras abas são desenhados quando a aba aparece.": "Los de las otras hojas se dibujan cuando la hoja aparece.",
+ "Fórmulas longas como no Excel": "Fórmulas largas como en Excel",
+ "Até 4.096 operações numa fórmula; SOMARPRODUTO mais rápido.": "Hasta 4.096 operaciones en una fórmula; SUMAPRODUCTO más rápido.",
+ "Arquivos maliciosos param em tetos: fórmula, .fshz, XML do .xlsx, VBA, MCP e atualização (#123–#130).": "Los archivos maliciosos se detienen en límites: fórmula, .fshz, XML del .xlsx, VBA, MCP y actualización (#123–#130).",
+ "Preencher ou colar fórmula na planilha inteira para com aviso, em vez de estourar a memória.": "Rellenar o pegar una fórmula en toda la hoja se detiene con un aviso, en vez de agotar la memoria.",
+ "Coluna de datas em texto vinda do Parquet vira data; data que não existe fica texto (#131).": "Una columna de fechas en texto de Parquet pasa a fecha; una fecha que no existe queda como texto (#131).",
+ "Gráfico numa aba com tabela dinâmica deixa o Total Geral de fora, como no Excel.": "Un gráfico en una hoja con tabla dinámica deja fuera el Total general, como en Excel.",
+ "Abrir: filtro por tipo de arquivo.": "Abrir: filtro por tipo de archivo."
 }

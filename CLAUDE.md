@@ -2,6 +2,16 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.2 — 29/10/2026: menos memória e macros mais seguras
+
+Colunas numéricas compactadas ao abrir (`ChunkedColumn::compactar`, `Bloco::Compacto`: base +
+escala + 1/2/4 bytes, só quando volta bit a bit igual; blocos crus crescem de 64 a 65.536) e
+`malloc_trim` (`paralelismo::devolver_memoria_ao_sistema`) depois de cada coluna, da abertura e dos
+gráficos; rasters de gráfico só da aba aberta (`objetos::esquecer_rasteres` ao trocar). "Ativar
+macros?" para todo arquivo com macro (`feathersheet-macros/src/riscos.rs`). Tetos de segurança
+#123–#130; `MAX_OPERACOES` 4.096 no release (1.024 no debug, pilha menor); preencher/colar acima de
+250 milhões de células avisa (`TETO_CELULAS_EM_BLOCO`). Mesmas bibliotecas da v0.2.1.
+
 ## v0.2.1 — 29/10/2026: correções
 
 pelicano v0.1.19 (o evento usa o tamanho da janela que o recebe: a lista suspensa perto do

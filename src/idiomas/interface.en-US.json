@@ -4169,5 +4169,18 @@
  "A macro do Excel usava {}. Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "The Excel macro used {}. That part was not converted and does not run here, but it is a reason to distrust the file.",
  "Macros desativadas neste arquivo: ative no aviso da janela principal.": "Macros are disabled in this file: enable them in the notice in the main window.",
  "[abrir] colunas compactadas: {} → {} MB · {} ms": "[open] columns compacted: {} → {} MB · {} ms",
- "Preencher {quantidade} células passa do teto de 250 milhões por operação: a memória não daria. Preencha menos linhas ou colunas de cada vez.": "Filling {quantidade} cells goes past the limit of 250 million per operation: memory would not hold it. Fill fewer rows or columns at a time."
+ "Preencher {quantidade} células passa do teto de 250 milhões por operação: a memória não daria. Preencha menos linhas ou colunas de cada vez.": "Filling {quantidade} cells goes past the limit of 250 million per operation: memory would not hold it. Fill fewer rows or columns at a time.",
+ "Menos memória e macros mais seguras": "Less memory and safer macros",
+ "Metade da memória em bases grandes": "Half the memory on large data",
+ "Colunas de números compactadas sem perda ao abrir: 4,4 GB viraram 2,0 GB.": "Number columns compacted losslessly on open: 4.4 GB became 2.0 GB.",
+ "Todo arquivo com macro pergunta antes, avisando o que ela grava e o VBA perigoso.": "Every file with macros asks first, warning what they write and about dangerous VBA.",
+ "Gráficos só da aba aberta": "Charts only for the open sheet",
+ "Os das outras abas são desenhados quando a aba aparece.": "Charts on other sheets are drawn when the sheet is shown.",
+ "Fórmulas longas como no Excel": "Long formulas like Excel",
+ "Até 4.096 operações numa fórmula; SOMARPRODUTO mais rápido.": "Up to 4,096 operations in a formula; faster SUMPRODUCT.",
+ "Arquivos maliciosos param em tetos: fórmula, .fshz, XML do .xlsx, VBA, MCP e atualização (#123–#130).": "Malicious files stop at limits: formulas, .fshz, .xlsx XML, VBA, MCP and updates (#123–#130).",
+ "Preencher ou colar fórmula na planilha inteira para com aviso, em vez de estourar a memória.": "Filling or pasting a formula over the whole sheet stops with a warning instead of running out of memory.",
+ "Coluna de datas em texto vinda do Parquet vira data; data que não existe fica texto (#131).": "Text date columns from Parquet become dates; dates that don't exist stay text (#131).",
+ "Gráfico numa aba com tabela dinâmica deixa o Total Geral de fora, como no Excel.": "Charts on a sheet with a pivot table leave the Grand Total out, like Excel.",
+ "Abrir: filtro por tipo de arquivo.": "Open: filter by file type."
 }

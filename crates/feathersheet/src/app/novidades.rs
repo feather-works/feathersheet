@@ -21,6 +21,25 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.2",
+        data: "29/10/2026",
+        resumo: "Menos memória e macros mais seguras",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("device-floppy", "Metade da memória em bases grandes", "Colunas de números compactadas sem perda ao abrir: 4,4 GB viraram 2,0 GB."),
+            ("shield-lock", "Ativar macros?", "Todo arquivo com macro pergunta antes, avisando o que ela grava e o VBA perigoso."),
+            ("bolt", "Gráficos só da aba aberta", "Os das outras abas são desenhados quando a aba aparece."),
+            ("math-function", "Fórmulas longas como no Excel", "Até 4.096 operações numa fórmula; SOMARPRODUTO mais rápido."),
+        ],
+        tambem: &[
+            "Arquivos maliciosos param em tetos: fórmula, .fshz, XML do .xlsx, VBA, MCP e atualização (#123–#130).",
+            "Preencher ou colar fórmula na planilha inteira para com aviso, em vez de estourar a memória.",
+            "Coluna de datas em texto vinda do Parquet vira data; data que não existe fica texto (#131).",
+            "Gráfico numa aba com tabela dinâmica deixa o Total Geral de fora, como no Excel.",
+            "Abrir: filtro por tipo de arquivo.",
+        ],
+    },
+    Versao {
         numero: "0.2.1",
         data: "29/10/2026",
         resumo: "Abrir mais rápido, salvar mais leve",
