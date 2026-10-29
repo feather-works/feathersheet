@@ -55,7 +55,7 @@ const CATEGORIAS: &[(&str, &[Opcao])] = &[
     ),
     (
         "Projetos & Cronograma",
-        &[opcao("gantt", "Gantt (Cronograma)", Some(TipoUi::Gantt))],
+        &[opcao("gantt", "Gantt", Some(TipoUi::Gantt))],
     ),
     (
         "Análise & Estatística",
@@ -152,11 +152,11 @@ fn miniatura_svg(id: &str) -> String {
 
 /// Medidas compactas da galeria, próximas às do chart-panel.ts legado.
 /// O tamanho fixo evita que o comprimento dos rótulos estique os cartões.
-pub(super) const LARGURA_POPOVER: f32 = 360.0;
+pub(super) const LARGURA_POPOVER: f32 = 380.0;
 pub(super) const ALTURA_POPOVER: f32 = 360.0;
 const COLUNAS: usize = 3;
-const LARGURA_CARTAO: f32 = 102.0;
-const ALTURA_CARTAO: f32 = 52.0;
+const LARGURA_CARTAO: f32 = 110.0;
+const ALTURA_CARTAO: f32 = 54.0;
 const ESPACO_CARTOES: u16 = 6;
 const LARGURA_MINIATURA: f32 = 36.0;
 const ALTURA_MINIATURA: f32 = 24.0;
@@ -243,13 +243,13 @@ pub(super) fn painel(tipo_ativo: TipoUi) -> Element<'static, Msg> {
                         .into(),
                     None => pelicano::Space::new(LARGURA_MINIATURA, ALTURA_MINIATURA).into(),
                 };
-                let item: Element<'static, Msg> = row![
-                    imagem,
-                    text(tr!(op.rotulo)).size(11).width(Length::FILL),
-                ]
-                .spacing(5)
-                .align(pelicano::Align::Center)
-                .into();
+                // Miniatura em cima e nome embaixo, como na galeria do Excel:
+                // ao lado, o nome tinha ~55 px e quebrava em duas linhas.
+                let item: Element<'static, Msg> = column![imagem, text(tr!(op.rotulo)).size(11)]
+                    .spacing(3)
+                    .width(Length::FILL)
+                    .align(pelicano::Align::Center)
+                    .into();
                 let mut cartao = button(item)
                     .width(Length::Fixed(LARGURA_CARTAO))
                     .height(Length::Fixed(ALTURA_CARTAO))
@@ -264,7 +264,8 @@ pub(super) fn painel(tipo_ativo: TipoUi) -> Element<'static, Msg> {
         }
     }
 
-    container(
+    // `opaque`: a roda no fim da lista não passa para a planilha (como no #105).
+    pelicano::opaque(container(
         column![
             cabecalho,
             scrollable(grupos).height(Length::FILL),
@@ -277,7 +278,7 @@ pub(super) fn painel(tipo_ativo: TipoUi) -> Element<'static, Msg> {
     .style(|_| pelicano::Style {
         text_color: Some(feather_ui::tema::COR_TEXTO()),
         ..Default::default()
-    })
+    }))
     .into()
 }
 

@@ -1984,6 +1984,10 @@ impl App {
     /// tamanho, alt, cor ou nenhum): tabela e gráfico de exemplo com tema, um
     /// ponto pintado e margens alteradas, e o painel aberto nesse grupo.
     pub(in crate::app) fn preparar_captura_grafico(&mut self, modo: &str) -> Task<Msg> {
+        // `seletor`: a galeria de tipos aberta no meio da janela.
+        if modo == "seletor" {
+            return self.evento_grafico(Evento::AbrirNoCentro);
+        }
         // `tipo:<nome>`: um tipo especial com dados próprios, sem o painel.
         if let Some(nome) = modo.strip_prefix("tipo:") {
             return self.preparar_captura_tipo(nome, None);
