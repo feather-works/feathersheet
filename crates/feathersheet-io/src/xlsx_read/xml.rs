@@ -15,6 +15,10 @@ use std::io::BufRead;
 
 mod rapido;
 
+/// Teto de elementos abertos um dentro do outro (#130). A árvore é liberada e lida
+/// recursivamente: um XML de 100 mil níveis estouraria a pilha. O OOXML real fica abaixo de 30.
+const MAX_PROFUNDIDADE: usize = 256;
+
 #[derive(Debug, Default, Clone)]
 pub struct XmlNode {
     pub name: String,
@@ -117,6 +121,9 @@ fn parse_xml_impl<R: BufRead>(
                     attrs: read_attrs(&e, decoder),
                     ..Default::default()
                 };
+                if stack.len() > MAX_PROFUNDIDADE {
+                    return Err(format!("XML aninhado demais (mais de {MAX_PROFUNDIDADE} níveis): o arquivo não parece um .xlsx de verdade."));
+                }
                 stack.push(node);
             }
             Ok(Event::Empty(e)) => {
@@ -709,5 +716,17 @@ mod tests {
         ]);
         assert!(vistas[1].3.is_empty());
         assert!(raiz.child("mergeCells").is_some(), "o resto do documento continua na árvore");
+    }
+
+    /// #130: XML de 100 mil níveis é recusado em vez de estourar a pilha.
+    #[test]
+    fn xml_aninhado_demais_e_recusado() {
+        let n = 100_000;
+        let fundo = format!("{}{}", "<a>".repeat(n), "</a>".repeat(n));
+        let r = std::thread::Builder::new().stack_size(2 << 20)
+            .spawn(move || parse_xml(&fundo).map(|_| ())).unwrap().join().expect("estourou a pilha");
+        assert!(r.unwrap_err().contains("aninhado demais"));
+        let raso = format!("<r>{}</r>", "<a><b><c/></b></a>".repeat(10));
+        assert_eq!(parse_xml(&raso).unwrap().children.len(), 10);
     }
 }
