@@ -1438,3 +1438,34 @@ fn medir_quadros_grafico_com_bloco() {
         let _ = a.update(Msg::CursorJanela(window::Id::MAIN, Point::new(1900.0, 600.0 + i as f32)));
     }
 }
+
+/// #110: quanto a thread da janela gasta com os gráficos do relatório do usuário,
+/// ao abrir (`adiantar_graficos`) e ao trocar para cada aba.
+/// `FEATHERSHEET_XLSX=… cargo test --profile medir --bin feathersheet medir_graficos_ao_abrir_e_trocar -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn medir_graficos_ao_abrir_e_trocar() {
+    let path = std::path::PathBuf::from(std::env::var("FEATHERSHEET_XLSX").expect("FEATHERSHEET_XLSX"));
+    let bytes = std::fs::read(&path).unwrap();
+    let mut a = App::default();
+    let t = std::time::Instant::now();
+    a.carregar(path, bytes).unwrap();
+    eprintln!("carregar (com adiantar_graficos): {:?}", t.elapsed());
+    for i in 0..a.workbook.len() {
+        let t = std::time::Instant::now();
+        let n = a.graficos_da_aba(i).len();
+        eprintln!("aba {i} ({n} gráficos): {:?}", t.elapsed());
+    }
+    let tela = pelicano::Size::new(2000.0, 1125.0);
+    let mut r = pelicano::Renderer::new();
+    let st = pelicano::States::default();
+    for i in (0..a.workbook.len()).chain([0, 1]) {
+        let t = std::time::Instant::now();
+        let _ = a.update(Msg::Aba(i));
+        let el = a.view(window::Id::MAIN);
+        r.begin(tela, 1.28, pelicano::Color::BLACK);
+        let arvore = pelicano::layout(&el, tela, &mut r, &st, &pelicano::Theme::dark());
+        pelicano::draw(&el, &arvore, &mut r, &st, &pelicano::Theme::dark(), None, false);
+        eprintln!("trocar para a aba {i} e desenhar: {:?}", t.elapsed());
+    }
+}
