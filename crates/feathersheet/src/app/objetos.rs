@@ -19,7 +19,7 @@ use feather_ui::seletor_cor::{self, Evento as EventoCor};
 use std::sync::Arc;
 
 mod camada;
-pub(in crate::app) use camada::adiantar_rasteres;
+pub(in crate::app) use camada::{adiantar_rasteres, esquecer_rasteres};
 mod figura;
 pub(super) mod geometria;
 mod interface;

@@ -473,6 +473,12 @@ impl App {
                 if self.workbook.aba(nova).is_some_and(|a| a.sheet.oculta) {
                     return Task::none();
                 }
+                if nova != self.folha {
+                    super::objetos::esquecer_rasteres();
+                    let atual = std::mem::replace(&mut self.folha, nova);
+                    self.adiantar_graficos();
+                    self.folha = atual;
+                }
                 if self.folha != nova {
                     self.botao_macro_selecionado = None;
                     self.arraste_botao_macro = None;

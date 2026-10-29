@@ -4162,5 +4162,7 @@
  "A macro do Excel chamava {} (programas, internet ou o Windows). Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "La macro de Excel llamaba a {} (programas, internet o Windows). Esa parte no se convirtió y no se ejecuta aquí, pero es motivo para desconfiar del archivo.",
  "O VBA original apagava arquivos do seu computador": "El VBA original borraba archivos de su equipo",
  "A macro do Excel usava {}. Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "La macro de Excel usaba {}. Esa parte no se convirtió y no se ejecuta aquí, pero es motivo para desconfiar del archivo.",
- "Macros desativadas neste arquivo: ative no aviso da janela principal.": "Macros desactivadas en este archivo: actívelas en el aviso de la ventana principal."
+ "Macros desativadas neste arquivo: ative no aviso da janela principal.": "Macros desactivadas en este archivo: actívelas en el aviso de la ventana principal.",
+ "[abrir] colunas compactadas: {} → {} MB · {} ms": "[abrir] columnas compactadas: {} → {} MB · {} ms",
+ "Preencher {quantidade} células passa do teto de 250 milhões por operação: a memória não daria. Preencha menos linhas ou colunas de cada vez.": "Rellenar {quantidade} celdas supera el límite de 250 millones por operación: la memoria no alcanzaría. Rellene menos filas o columnas a la vez."
 }

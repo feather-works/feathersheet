@@ -59,6 +59,25 @@ impl DataTable {
         self.columns.entry(col).or_default()
     }
 
+    /// Compacta as colunas sem perda, uma por thread (ver
+    /// [`crate::planilha::column_store::Compacto`]). Devolve, por coluna, os bytes de
+    /// valores antes e depois dos números e dos textos.
+    pub fn compactar(&mut self) -> Vec<(u32, (usize, usize), (usize, usize))> {
+        let entradas: Vec<(u32, std::sync::Mutex<&mut ColumnEntry>)> =
+            self.columns.iter_mut().map(|(c, e)| (*c, std::sync::Mutex::new(e))).collect();
+        let indices: Vec<u32> = (0..entradas.len() as u32).collect();
+        crate::paralelismo::por_coluna(&indices, |i| {
+            let (col, e) = &entradas[i as usize];
+            let mut e = e.lock().unwrap_or_else(|p| p.into_inner());
+            let num = e.float_col.as_mut().map_or((0, 0), |c| c.compactar());
+            let txt = e.text_col.as_mut().map_or((0, 0), |c| c.compactar());
+            // Os blocos crus soltos ficam no alocador (blocos de 512 KB não voltam sozinhos,
+            // ver `paralelismo::ajustar_alocador`): sem devolver, o compacto só somava RAM.
+            crate::paralelismo::devolver_memoria_ao_sistema();
+            (*col, num, txt)
+        })
+    }
+
     /// O retrato de cada coluna de números, para gravar sem copiar os dados
     /// (os blocos são compartilhados; ver `column_store::RetratoColuna`). Até
     /// 28/10/2026 a gravação achatava cada coluna num `Vec`: 39 colunas de

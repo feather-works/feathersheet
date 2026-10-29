@@ -496,12 +496,23 @@ pub(in crate::app) fn adiantar_rasteres(graficos: Vec<(Retangulo, String)>, zoom
                 }
             }
         }
+        // O desenho dos gráficos usa memória de passagem nesta thread: devolve ao sistema.
+        feathersheet_core::paralelismo::devolver_memoria_ao_sistema();
     });
 }
 
 /// As chaves já rasterizadas pela janela (a thread não refaz o que está na tela).
 static RASTERES_FEITOS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<(u64, u32, u32)>>> =
     std::sync::LazyLock::new(Default::default);
+
+/// Solta as imagens dos gráficos já desenhados (ao trocar de aba e ao abrir arquivo): visitar as abas ia
+/// juntando ~2 MB por gráfico até o teto de 128 MB. Os da aba nova são refeitos em fundo.
+pub(in crate::app) fn esquecer_rasteres() {
+    RASTERES.with(|r| *r.borrow_mut() = Default::default());
+    if let Ok(mut f) = RASTERES_FEITOS.lock() { f.clear(); }
+    // As adiantadas que a tela não chegou a usar (trocou de aba antes, ou abriu outro arquivo).
+    if let Ok(mut a) = ADIANTADOS.lock() { *a = Default::default(); }
+}
 
 // shortcut: rasteriza em px lógicos; numa tela HiDPI (escala > 1) sai borrado. Ler o fator de escala da janela se aparecer.
 fn raster(g: &GraficoTela, w: u32, h: u32) -> Option<std::rc::Rc<Raster>> {

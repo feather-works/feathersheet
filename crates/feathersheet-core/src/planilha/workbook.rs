@@ -661,6 +661,14 @@ impl Workbook {
         mudou
     }
 
+    /// Compacta sem perda as colunas de todas as abas (depois de abrir um arquivo).
+    /// Devolve os bytes de valores antes e depois.
+    pub fn compactar_colunas(&mut self) -> (usize, usize) {
+        // Sem `aba_mut`: os valores não mudam, a aba não conta como mexida.
+        self.abas.iter_mut().flat_map(|a| a.sheet.data.compactar())
+            .fold((0, 0), |(x, y), (_, n, t)| (x + n.0 + t.0, y + n.1 + t.1))
+    }
+
     pub fn aba_mut(&mut self, indice: usize) -> Option<&mut AbaViva> {
         // Quem pede a aba para escrever pode mudar qualquer valor dela.
         let aba = self.abas.get_mut(indice)?;

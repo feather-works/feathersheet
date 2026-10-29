@@ -4167,5 +4167,7 @@
  "A macro do Excel chamava {} (programas, internet ou o Windows). Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "The Excel macro called {} (programs, the internet or Windows). That part was not converted and does not run here, but it is a reason to distrust the file.",
  "O VBA original apagava arquivos do seu computador": "The original VBA deleted files on your computer",
  "A macro do Excel usava {}. Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "The Excel macro used {}. That part was not converted and does not run here, but it is a reason to distrust the file.",
- "Macros desativadas neste arquivo: ative no aviso da janela principal.": "Macros are disabled in this file: enable them in the notice in the main window."
+ "Macros desativadas neste arquivo: ative no aviso da janela principal.": "Macros are disabled in this file: enable them in the notice in the main window.",
+ "[abrir] colunas compactadas: {} → {} MB · {} ms": "[open] columns compacted: {} → {} MB · {} ms",
+ "Preencher {quantidade} células passa do teto de 250 milhões por operação: a memória não daria. Preencha menos linhas ou colunas de cada vez.": "Filling {quantidade} cells goes past the limit of 250 million per operation: memory would not hold it. Fill fewer rows or columns at a time."
 }

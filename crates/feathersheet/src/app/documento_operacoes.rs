@@ -439,6 +439,17 @@ impl App {
         let (mut workbook, folha) = Self::decodificar_sem_calcular(path, separador)?;
         feathersheet_io::progresso::fase(feathersheet_io::progresso::Fase::Calculando);
         workbook.calcular_em_paralelo();
+        // Ainda na thread da abertura: os blocos de números que cabem em 1, 2 ou 4 bytes
+        // sem perda encolhem (o 2026_03, 13,7 M linhas: 4,45 → 2,05 GB, 1,3 s).
+        let t = Instant::now();
+        let (antes, depois) = workbook.compactar_colunas();
+        if antes > 0 {
+            feathersheet_core::diario::anotar(trf!("[abrir] colunas compactadas: {} → {} MB · {} ms",
+                antes >> 20, depois >> 20, t.elapsed().as_millis()));
+        }
+        // O que a leitura usou de passagem (XML, textos, lotes) volta ao sistema: sem isso o
+        // RSS ficava no pico da abertura.
+        feathersheet_core::paralelismo::devolver_memoria_ao_sistema();
         Ok((workbook, folha))
     }
 
@@ -543,16 +554,19 @@ impl App {
         }
         if ext == "xlsm" { self.ler_vba_do_xlsm(&path); } else { self.vba_pendente = None; }
         self.bloquear_macros_do_arquivo();
+        super::objetos::esquecer_rasteres();
         self.adiantar_graficos();
+        // A pasta lida na outra thread acabou de entrar: o que sobrou da leitura volta ao sistema.
+        feathersheet_core::paralelismo::devolver_memoria_ao_sistema();
     }
 
-    /// Os gráficos de todas as abas viram imagem numa thread à parte: trocar
-    /// de aba não rasteriza mais na thread da janela.
-    // shortcut: só ao abrir; mudar o zoom ou editar o gráfico rasteriza de novo na janela.
+    /// Os gráficos da aba à vista viram imagem numa thread à parte (ao abrir e ao
+    /// trocar de aba). Só os dela: os 7 gráficos de um relatório de 9 abas eram 13 MB
+    /// de imagem para abas que ninguém abriu.
+    // shortcut: mudar o zoom ou editar o gráfico rasteriza de novo na janela.
     pub(super) fn adiantar_graficos(&self) {
         let zoom = (f32::from(self.config.zoom) / 100.0).max(0.05);
-        let graficos = (0..self.workbook.len())
-            .flat_map(|i| self.graficos_da_aba(i))
+        let graficos = self.graficos_da_aba(self.folha).into_iter()
             .map(|(_, ret, svg)| (ret, svg))
             .collect();
         super::objetos::adiantar_rasteres(graficos, zoom);

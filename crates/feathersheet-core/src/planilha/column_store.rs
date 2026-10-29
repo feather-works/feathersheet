@@ -27,21 +27,156 @@ fn bloco<T: Copy>(v: T, n: usize) -> Arc<Vec<T>> {
     Arc::new(vec![v; n])
 }
 
+/// Os valores de um bloco: um `T` por linha, ou compacto ([`Compacto`]: 1, 2 ou 4
+/// bytes por linha). Só os blocos que voltam iguais, bit a bit, são compactados.
+#[derive(Clone)]
+enum Bloco<T> {
+    Cru(Arc<Vec<T>>),
+    Compacto(Arc<Compacto>),
+}
+
+impl<T: Valor> Bloco<T> {
+    fn get(&self, o: usize) -> T {
+        match self {
+            Bloco::Cru(v) => v[o],
+            Bloco::Compacto(c) => T::ler(c, o),
+        }
+    }
+
+    /// Os valores para escrever: o compacto volta a cru (só este bloco) antes.
+    fn cru_mut(&mut self) -> &mut Vec<T> {
+        if let Bloco::Compacto(c) = self {
+            *self = Bloco::Cru(Arc::new((0..CHUNK_SIZE).map(|o| T::ler(c, o)).collect()));
+        }
+        match self {
+            Bloco::Cru(v) => Arc::make_mut(v),
+            Bloco::Compacto(_) => unreachable!("acabou de virar cru"),
+        }
+    }
+
+    /// Os valores para escrever até a posição `ate`. O bloco cru cresce conforme o uso
+    /// (64, 128… até `CHUNK_SIZE`): coluna com 30 células não reserva 65.536 linhas. Um
+    /// relatório de 9 abas e ~200 colunas curtas gastava ~70 MB só nisso (29/10/2026).
+    /// Toda linha presente fica dentro do tamanho, e quem lê só lê linha presente.
+    fn ate(&mut self, ate: usize) -> &mut Vec<T> {
+        let v = self.cru_mut();
+        if v.len() <= ate {
+            v.resize((ate + 1).next_power_of_two().clamp(64, CHUNK_SIZE), T::default());
+        }
+        v
+    }
+}
+
+/// Um bloco guardado como inteiros pequenos: o valor da linha `o` é
+/// `(base + dados[o]) / escala`, com `dados[o]` de `largura` bytes. Uma coluna de
+/// quilômetros em passos de 0,25 cabe em 2 bytes por linha, em vez de 8.
+pub struct Compacto {
+    base: i64,
+    escala: f64,
+    largura: u8,
+    dados: Box<[u8]>,
+}
+
+impl Compacto {
+    fn inteiro(&self, o: usize) -> i64 {
+        let d = &self.dados;
+        self.base + match self.largura {
+            1 => i64::from(d[o]),
+            2 => i64::from(u16::from_le_bytes([d[2 * o], d[2 * o + 1]])),
+            _ => i64::from(u32::from_le_bytes([d[4 * o], d[4 * o + 1], d[4 * o + 2], d[4 * o + 3]])),
+        }
+    }
+
+    /// Monta o bloco com os inteiros `valor(o)` das linhas presentes, entre `min` e
+    /// `max`; `None` se a distância passa de 4 bytes.
+    fn montar(min: i64, max: i64, escala: f64, mascara: &[u8], valor: impl Fn(usize) -> i64) -> Option<Self> {
+        let distancia = max.checked_sub(min)?;
+        let largura: u8 = if distancia <= 0xff { 1 } else if distancia <= 0xffff { 2 } else if distancia <= 0xffff_ffff { 4 } else { return None };
+        let w = largura as usize;
+        let mut dados = vec![0u8; CHUNK_SIZE * w].into_boxed_slice();
+        for o in presentes(mascara) {
+            let d = (valor(o) - min) as u32;
+            dados[o * w..o * w + w].copy_from_slice(&d.to_le_bytes()[..w]);
+        }
+        Some(Compacto { base: min, escala, largura, dados })
+    }
+}
+
+/// As posições com o bit ligado na máscara.
+fn presentes(mascara: &[u8]) -> impl Iterator<Item = usize> + '_ {
+    mascara.iter().enumerate().filter(|(_, &b)| b != 0)
+        .flat_map(|(i, &b)| (0..8).filter(move |k| b & (1 << k) != 0).map(move |k| i * 8 + k))
+}
+
+/// O que pode ir numa coluna e como vira inteiro sem perda.
+pub trait Valor: Copy + Default + Send + Sync {
+    /// O bloco compacto, ou `None` se algum valor presente não volta igual.
+    fn compactar(valores: &[Self], mascara: &[u8]) -> Option<Compacto>;
+    fn ler(c: &Compacto, o: usize) -> Self;
+}
+
+impl Valor for f64 {
+    fn compactar(valores: &[f64], mascara: &[u8]) -> Option<Compacto> {
+        // Inteiros, meios, quartos e até 5 casas decimais: a primeira escala em que todo
+        // valor volta igual (`k / escala` tem os mesmos bits) é a de menor distância.
+        'escala: for escala in [1.0, 2.0, 4.0, 10.0, 100.0, 1_000.0, 10_000.0, 100_000.0] {
+            let (mut min, mut max) = (i64::MAX, i64::MIN);
+            for o in presentes(mascara) {
+                let v = valores[o];
+                let k = (v * escala).round();
+                if !(k.abs() < 9.0e15) { continue 'escala; }
+                // Confere pelo caminho da leitura (inteiro → f64 / escala): o -0,0 volta +0,0.
+                let k = k as i64;
+                if (k as f64 / escala).to_bits() != v.to_bits() { continue 'escala; }
+                min = min.min(k);
+                max = max.max(k);
+            }
+            if min > max { return None; }
+            return Compacto::montar(min, max, escala, mascara, |o| (valores[o] * escala).round() as i64);
+        }
+        None
+    }
+
+    fn ler(c: &Compacto, o: usize) -> f64 {
+        // Dividir por 1 dá o mesmo número: os inteiros pulam a divisão, que é o que pesa.
+        if c.escala == 1.0 { c.inteiro(o) as f64 } else { c.inteiro(o) as f64 / c.escala }
+    }
+}
+
+impl Valor for i32 {
+    fn compactar(valores: &[i32], mascara: &[u8]) -> Option<Compacto> {
+        let (min, max) = presentes(mascara).map(|o| i64::from(valores[o]))
+            .fold((i64::MAX, i64::MIN), |(a, b), v| (a.min(v), b.max(v)));
+        if min > max { return None; }
+        Compacto::montar(min, max, 1.0, mascara, |o| i64::from(valores[o]))
+    }
+
+    fn ler(c: &Compacto, o: usize) -> i32 {
+        c.inteiro(o) as i32
+    }
+}
+
 /// A coluna como estava num instante, sem copiar os dados: os blocos são os
 /// mesmos `Arc` da coluna viva. É o que a gravação em segundo plano lê.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct RetratoColuna<T> {
-    chunks: Vec<Option<Arc<Vec<T>>>>,
+    chunks: Vec<Option<Bloco<T>>>,
     presence: Vec<Option<Arc<Vec<u8>>>>,
 }
 
-impl<T: Copy> RetratoColuna<T> {
+impl<T> Default for RetratoColuna<T> {
+    fn default() -> Self {
+        Self { chunks: Vec::new(), presence: Vec::new() }
+    }
+}
+
+impl<T: Valor> RetratoColuna<T> {
     pub fn get(&self, row: u32) -> Option<T> {
         let i = (row >> CHUNK_SHIFT) as usize;
         let o = (row & CHUNK_MASK) as usize;
         let mask = self.presence.get(i)?.as_ref()?;
         if mask[o >> 3] & (1 << (o & 7)) == 0 { return None; }
-        self.chunks[i].as_ref().map(|c| c[o])
+        self.chunks[i].as_ref().map(|c| c.get(o))
     }
 
     /// Quantas linhas abaixo de `linhas` têm valor.
@@ -68,8 +203,8 @@ impl<T: Copy> RetratoColuna<T> {
 /// referências, e escrever num bloco que está sendo gravado copia só ele
 /// (`Arc::make_mut`). Antes a gravação copiava a coluna inteira: 39 colunas de
 /// 13,7 milhões de linhas eram 4,3 GB a mais ao salvar (28/10/2026).
-pub struct ChunkedColumn<T: Copy + Default> {
-    chunks: Vec<Option<Arc<Vec<T>>>>,
+pub struct ChunkedColumn<T: Valor> {
+    chunks: Vec<Option<Bloco<T>>>,
     presence: Vec<Option<Arc<Vec<u8>>>>,
     /// `u32::MAX` quando a coluna está vazia — o `Infinity` do TypeScript.
     pub min_row: u32,
@@ -77,7 +212,7 @@ pub struct ChunkedColumn<T: Copy + Default> {
     pub max_row: i64,
 }
 
-impl<T: Copy + Default> ChunkedColumn<T> {
+impl<T: Valor> ChunkedColumn<T> {
     pub fn new() -> Self {
         Self { chunks: Vec::new(), presence: Vec::new(), min_row: u32::MAX, max_row: -1 }
     }
@@ -93,8 +228,8 @@ impl<T: Copy + Default> ChunkedColumn<T> {
         let chunk_idx = (row >> CHUNK_SHIFT) as usize;
         let offset = (row & CHUNK_MASK) as usize;
         self.ensure_chunk(chunk_idx);
-        let chunk = self.chunks[chunk_idx].get_or_insert_with(|| bloco(T::default(), CHUNK_SIZE));
-        Arc::make_mut(chunk)[offset] = val;
+        let chunk = self.chunks[chunk_idx].get_or_insert_with(|| Bloco::Cru(Arc::default()));
+        chunk.ate(offset)[offset] = val;
         let mask = self.presence[chunk_idx].get_or_insert_with(|| bloco(0u8, CHUNK_SIZE >> 3));
         Arc::make_mut(mask)[offset >> 3] |= 1 << (offset & 7);
         if row < self.min_row {
@@ -112,7 +247,7 @@ impl<T: Copy + Default> ChunkedColumn<T> {
         if mask[offset >> 3] & (1 << (offset & 7)) == 0 {
             return None;
         }
-        self.chunks[chunk_idx].as_ref().map(|c| c[offset])
+        self.chunks[chunk_idx].as_ref().map(|c| c.get(offset))
     }
 
     pub fn has(&self, row: u32) -> bool {
@@ -152,7 +287,15 @@ impl<T: Copy + Default> ChunkedColumn<T> {
                 break;
             }
             let quantos = CHUNK_SIZE.min(length - inicio);
-            values[inicio..inicio + quantos].copy_from_slice(&chunk[..quantos]);
+            match chunk {
+                Bloco::Cru(v) => {
+                    let n = quantos.min(v.len());
+                    values[inicio..inicio + n].copy_from_slice(&v[..n]);
+                }
+                Bloco::Compacto(c) => {
+                    for (o, v) in values[inicio..inicio + quantos].iter_mut().enumerate() { *v = T::ler(c, o); }
+                }
+            }
             // A máscara copia byte a byte porque o bloco começa sempre em
             // múltiplo de 65.536, que é múltiplo de 8 — os bits nunca ficam
             // desalinhados.
@@ -183,7 +326,7 @@ impl<T: Copy + Default> ChunkedColumn<T> {
             }
             let mut chunk = vec![T::default(); CHUNK_SIZE];
             chunk[..quantos].copy_from_slice(&values[inicio..inicio + quantos]);
-            self.chunks[i] = Some(Arc::new(chunk));
+            self.chunks[i] = Some(Bloco::Cru(Arc::new(chunk)));
             self.presence[i] = Some(Arc::new(mask));
         }
         for r in 0..length as u32 {
@@ -213,7 +356,7 @@ impl<T: Copy + Default> ChunkedColumn<T> {
         let primeira = base + (primeiro * 8) as u32 + mascara[primeiro].trailing_zeros();
         let ultima = base + (ultimo * 8) as u32 + 7 - mascara[ultimo].leading_zeros();
         self.ensure_chunk(idx);
-        self.chunks[idx] = Some(Arc::new(valores.into_vec()));
+        self.chunks[idx] = Some(Bloco::Cru(Arc::new(valores.into_vec())));
         self.presence[idx] = Some(Arc::new(mascara.into_vec()));
         self.min_row = self.min_row.min(primeira);
         self.max_row = self.max_row.max(ultima as i64);
@@ -250,8 +393,9 @@ impl<T: Copy + Default> ChunkedColumn<T> {
         };
         let offset = (row & CHUNK_MASK) as usize;
         Arc::make_mut(mask)[offset >> 3] &= !(1 << (offset & 7));
-        if let Some(Some(chunk)) = self.chunks.get_mut(chunk_idx) {
-            Arc::make_mut(chunk)[offset] = T::default();
+        // O compacto fica como está: sem o bit, o valor dali não é lido.
+        if let Some(Some(Bloco::Cru(chunk))) = self.chunks.get_mut(chunk_idx) {
+            if let Some(v) = Arc::make_mut(chunk).get_mut(offset) { *v = T::default(); }
         }
     }
 
@@ -332,11 +476,11 @@ impl<T: Copy + Default> ChunkedColumn<T> {
             let base = (b as u32) << CHUNK_SHIFT;
             let (de, ate) = ((r0.max(base) - base) as usize, (r1.min(base + CHUNK_MASK) - base) as usize);
             if de == 0 && ate == CHUNK_MASK as usize {
-                self.chunks[b] = Some(bloco(val, CHUNK_SIZE));
+                self.chunks[b] = Some(Bloco::Cru(bloco(val, CHUNK_SIZE)));
                 self.presence[b] = Some(bloco(0xff, CHUNK_SIZE >> 3));
                 continue;
             }
-            Arc::make_mut(self.chunks[b].get_or_insert_with(|| bloco(T::default(), CHUNK_SIZE)))[de..=ate].fill(val);
+            self.chunks[b].get_or_insert_with(|| Bloco::Cru(Arc::default())).ate(ate)[de..=ate].fill(val);
             let mask = Arc::make_mut(self.presence[b].get_or_insert_with(|| bloco(0u8, CHUNK_SIZE >> 3)));
             for o in de..=ate { mask[o >> 3] |= 1 << (o & 7); }
         }
@@ -362,8 +506,10 @@ impl<T: Copy + Default> ChunkedColumn<T> {
             if let Some(mask) = self.presence[b].as_mut().map(Arc::make_mut) {
                 for o in de..=ate { mask[o >> 3] &= !(1 << (o & 7)); }
             }
-            if let Some(chunk) = self.chunks[b].as_mut().map(Arc::make_mut) {
-                chunk[de..=ate].fill(T::default());
+            if let Some(Bloco::Cru(chunk)) = self.chunks[b].as_mut() {
+                let v = Arc::make_mut(chunk);
+                let fim = (ate + 1).min(v.len());
+                if de < fim { v[de..fim].fill(T::default()); }
             }
         }
         self.acertar_limites();
@@ -377,9 +523,28 @@ impl<T: Copy + Default> ChunkedColumn<T> {
         }
     }
 
+    /// Compacta os blocos que cabem em menos bytes sem perder nada (ver [`Compacto`]).
+    /// Bloco com pouco dado fica cru: o `vec![0; n]` só ocupa as páginas escritas, e o
+    /// compacto ocuparia todas. Devolve os bytes de valores antes e depois.
+    pub fn compactar(&mut self) -> (usize, usize) {
+        let (mut antes, mut depois) = (0, 0);
+        for (bloco, mascara) in self.chunks.iter_mut().zip(&self.presence) {
+            let (Some(Bloco::Cru(v)), Some(m)) = (bloco.as_ref(), mascara) else { continue };
+            let n: usize = m.iter().map(|b| b.count_ones() as usize).sum();
+            if n < CHUNK_SIZE / 8 { continue; }
+            let cru = v.len() * std::mem::size_of::<T>();
+            if let Some(c) = T::compactar(v, m).filter(|c| c.dados.len() < cru) {
+                antes += cru;
+                depois += c.dados.len();
+                *bloco = Some(Bloco::Compacto(Arc::new(c)));
+            }
+        }
+        (antes, depois)
+    }
+
 }
 
-impl<T: Copy + Default> Default for ChunkedColumn<T> {
+impl<T: Valor> Default for ChunkedColumn<T> {
     fn default() -> Self {
         Self::new()
     }
@@ -508,5 +673,61 @@ mod testes {
         let (values, bitmap) = col.flatten(100);
         assert_eq!(values.len(), 100);
         assert!(bitmap.iter().all(|&b| b == 0));
+    }
+
+    /// Compactar não muda nenhum valor (bit a bit), escolhe a menor largura, deixa
+    /// cru o bloco que perderia, e escrever depois descompacta só o bloco mexido.
+    #[test]
+    fn compactar_e_sem_perda_e_escrever_depois_funciona() {
+        let n = 3 * CHUNK_SIZE as u32;
+        let mut c = ChunkedFloatColumn::new();
+        for r in 0..n {
+            let v = match r >> CHUNK_SHIFT {
+                0 => 4887.75 + 0.25 * f64::from(r % 4000),   // quartos: 2 bytes
+                1 => f64::from(r % 200) - 100.0,             // inteiros pequenos: 1 byte
+                _ => 1.0 / f64::from(r + 3),                 // dízimas: fica cru
+            };
+            if r % 7 != 3 { c.set(r, v); }
+        }
+        let antes: Vec<Option<u64>> = (0..n).map(|r| c.get(r).map(f64::to_bits)).collect();
+        let retrato = c.retrato();
+        let (bytes_antes, bytes_depois) = c.compactar();
+        assert_eq!(bytes_antes, 2 * CHUNK_SIZE * 8, "os dois primeiros blocos compactam");
+        assert_eq!(bytes_depois, CHUNK_SIZE * 2 + CHUNK_SIZE);
+        let depois: Vec<Option<u64>> = (0..n).map(|r| c.get(r).map(f64::to_bits)).collect();
+        assert!(antes == depois, "algum valor mudou ao compactar");
+        assert!((0..n).all(|r| retrato.get(r).map(f64::to_bits) == antes[r as usize]), "o retrato de antes continua igual");
+        let (planos, mascara) = c.flatten(n as usize);
+        assert!((0..n as usize).all(|r| (mascara[r >> 3] & (1 << (r & 7)) != 0).then(|| planos[r].to_bits()) == antes[r]));
+        c.set(10, 0.1);
+        c.clear(11);
+        assert_eq!(c.get(10), Some(0.1));
+        assert_eq!(c.get(11), None);
+        assert_eq!(c.get(12).map(f64::to_bits), antes[12]);
+        assert_eq!(c.get(CHUNK_SIZE as u32 + 5).map(f64::to_bits), antes[CHUNK_SIZE + 5], "o outro bloco segue compacto");
+        let mut t = ChunkedInt32Column::new();
+        for r in 0..CHUNK_SIZE as u32 { t.set(r, 70_000 + (r % 300) as i32); }
+        assert_eq!(t.compactar(), (CHUNK_SIZE * 4, CHUNK_SIZE * 2));
+        assert!((0..CHUNK_SIZE as u32).all(|r| t.get(r) == Some(70_000 + (r % 300) as i32)));
+        assert_eq!(f64::compactar(&[-0.0; CHUNK_SIZE], &[0xff; CHUNK_SIZE >> 3]).map(|_| ()), None, "-0 não volta igual: fica cru");
+    }
+
+    /// O bloco cresce com o uso: coluna curta não reserva 65.536 linhas, e escrever,
+    /// apagar e preencher além do tamanho atual continua certo.
+    #[test]
+    fn bloco_cresce_conforme_o_uso() {
+        let mut c = ChunkedFloatColumn::new();
+        c.set(3, 1.5);
+        assert!(matches!(&c.chunks[0], Some(Bloco::Cru(v)) if v.len() == 64));
+        c.set(1000, 2.5);
+        assert!(matches!(&c.chunks[0], Some(Bloco::Cru(v)) if v.len() == 1024));
+        c.clear(40_000);
+        c.apagar_faixa(2_000, 50_000);
+        c.preencher_faixa(5_000, 5_002, 7.0);
+        assert_eq!((c.get(3), c.get(1000), c.get(5_001), c.get(4_999)), (Some(1.5), Some(2.5), Some(7.0), None));
+        let (v, m) = c.flatten(6_000);
+        assert_eq!((v[3], v[1000], v[5_002], m[5_002 >> 3] & (1 << (5_002 & 7)) != 0), (1.5, 2.5, 7.0, true));
+        c.apagar_faixa(0, 4_000);
+        assert_eq!((c.get(3), c.get(5_000)), (None, Some(7.0)));
     }
 }
