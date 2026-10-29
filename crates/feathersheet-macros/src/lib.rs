@@ -18,6 +18,7 @@ mod estrutura;
 mod mesclagem;
 mod pasta;
 pub mod formularios;
+pub mod riscos;
 pub use pasta::{Contexto, PedidoArquivo};
 pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;

@@ -4159,5 +4159,13 @@
  "Pasta de trabalho do Excel (.xlsx)": "Excel workbook (.xlsx)",
  "Pasta de trabalho do Excel com macros (.xlsm)": "Excel macro-enabled workbook (.xlsm)",
  "CSV (.csv)": "CSV (.csv)",
- "Texto separado por tabulações (.tsv)": "Tab-separated text (.tsv)"
+ "Texto separado por tabulações (.tsv)": "Tab-separated text (.tsv)",
+ "Este arquivo tem macros. Elas podem alterar a planilha e rodar sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Ative só se você confia na origem do arquivo.": "This file has macros. They can change the spreadsheet and run on their own (when cells change, when switching sheets or when clicking buttons). Enable them only if you trust where the file came from.",
+ "Grava arquivos no seu computador": "Writes files to your computer",
+ "Usa {}: cria PDF, .xlsx ou .fshz na pasta desta planilha, e pode substituir um arquivo com o mesmo nome que já esteja lá.": "Uses {}: creates PDF, .xlsx or .fshz files in this spreadsheet's folder, and may replace a file with the same name that is already there.",
+ "O VBA original rodava coisas fora do FeatherSheet": "The original VBA ran things outside FeatherSheet",
+ "A macro do Excel chamava {} (programas, internet ou o Windows). Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "The Excel macro called {} (programs, the internet or Windows). That part was not converted and does not run here, but it is a reason to distrust the file.",
+ "O VBA original apagava arquivos do seu computador": "The original VBA deleted files on your computer",
+ "A macro do Excel usava {}. Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "The Excel macro used {}. That part was not converted and does not run here, but it is a reason to distrust the file.",
+ "Macros desativadas neste arquivo: ative no aviso da janela principal.": "Macros are disabled in this file: enable them in the notice in the main window."
 }

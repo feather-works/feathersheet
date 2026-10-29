@@ -122,6 +122,10 @@ impl App {
             return;
         }
         self.confirmar();
+        if !self.macros_liberadas() {
+            self.macro_saida = tr!("Macros desativadas neste arquivo: ative no aviso da janela principal.").into();
+            return;
+        }
         let codigo = self.macro_codigo.text();
         // Módulo: o nome do documento; evento da planilha: Eventos/<aba>/<evento>.
         let nome = match self.macro_visual.documento.strip_prefix("modulo:") {

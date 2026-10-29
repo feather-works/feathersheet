@@ -4154,5 +4154,13 @@
  "Pasta de trabalho do Excel (.xlsx)": "Libro de Excel (.xlsx)",
  "Pasta de trabalho do Excel com macros (.xlsm)": "Libro de Excel habilitado para macros (.xlsm)",
  "CSV (.csv)": "CSV (.csv)",
- "Texto separado por tabulações (.tsv)": "Texto delimitado por tabulaciones (.tsv)"
+ "Texto separado por tabulações (.tsv)": "Texto delimitado por tabulaciones (.tsv)",
+ "Este arquivo tem macros. Elas podem alterar a planilha e rodar sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Ative só se você confia na origem do arquivo.": "Este archivo tiene macros. Pueden modificar la hoja y ejecutarse solas (al cambiar celdas, al cambiar de hoja o al hacer clic en botones). Actívelas solo si confía en el origen del archivo.",
+ "Grava arquivos no seu computador": "Guarda archivos en su equipo",
+ "Usa {}: cria PDF, .xlsx ou .fshz na pasta desta planilha, e pode substituir um arquivo com o mesmo nome que já esteja lá.": "Usa {}: crea PDF, .xlsx o .fshz en la carpeta de esta hoja, y puede reemplazar un archivo con el mismo nombre que ya esté allí.",
+ "O VBA original rodava coisas fora do FeatherSheet": "El VBA original ejecutaba cosas fuera de FeatherSheet",
+ "A macro do Excel chamava {} (programas, internet ou o Windows). Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "La macro de Excel llamaba a {} (programas, internet o Windows). Esa parte no se convirtió y no se ejecuta aquí, pero es motivo para desconfiar del archivo.",
+ "O VBA original apagava arquivos do seu computador": "El VBA original borraba archivos de su equipo",
+ "A macro do Excel usava {}. Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.": "La macro de Excel usaba {}. Esa parte no se convirtió y no se ejecuta aquí, pero es motivo para desconfiar del archivo.",
+ "Macros desativadas neste arquivo: ative no aviso da janela principal.": "Macros desactivadas en este archivo: actívelas en el aviso de la ventana principal."
 }

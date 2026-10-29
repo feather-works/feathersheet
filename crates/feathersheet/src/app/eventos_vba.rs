@@ -75,15 +75,16 @@ impl App {
 }
 
 impl App {
-    /// Arquivo aberto do disco com macros que rodam sozinhas (eventos de aba,
-    /// botões ou formas com macro): ficam bloqueadas até a pessoa ativar, como no Excel.
+    /// Arquivo aberto do disco com macros (módulos, eventos de aba, botões ou
+    /// formas com macro): ficam bloqueadas até a pessoa ativar, como no Excel.
     pub(super) fn bloquear_macros_do_arquivo(&mut self) {
         let abas = || (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i));
         let botoes = abas().any(|a| a.sheet.bt.as_deref().is_some_and(|t| !matches!(t.trim(), "" | "[]")));
         // Uma forma transparente sobre a grade rodaria a macro no primeiro clique (#49).
         let formas = abas().any(|a| feathersheet_io::objetos_aba::ler_da_aba(&a.sheet)
             .objetos.iter().any(|o| o.macro_nome.is_some()));
-        self.macros_bloqueadas = botoes || formas || !self.eventos_vba.is_empty();
+        self.macros_bloqueadas = botoes || formas || !self.eventos_vba.is_empty()
+            || !self.macro_catalogo.macros.is_empty();
         self.aviso_macros = self.macros_bloqueadas;
     }
 
@@ -96,11 +97,30 @@ impl App {
     pub(super) fn sobrepor_aviso_macros<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
         use super::dialogo_interno::dlg;
         if !self.aviso_macros { return base; }
-        let corpo = text(tr!("Este arquivo tem macros que rodam sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Elas podem alterar a planilha e gravar arquivos. Ative só se você confia na origem do arquivo."))
-            .size(12.5).line_height(1.4);
+        let mut riscos = feathersheet_macros::riscos::Riscos::default();
+        for m in &self.macro_catalogo.macros { riscos.ler(&m.code); }
+        let paragrafo = |t: String| text(t).size(12.5).line_height(1.4);
+        let aviso = |titulo: String, t: String| pelicano::column![
+            text(titulo).size(12.5).font(pelicano::Font { weight: 600, ..Default::default() }),
+            paragrafo(t),
+        ].spacing(2);
+        let mut corpo = pelicano::column![paragrafo(tr!("Este arquivo tem macros. Elas podem alterar a planilha e rodar sozinhas (ao mudar células, ao trocar de aba ou ao clicar em botões). Ative só se você confia na origem do arquivo.").into())].spacing(10);
+        let lista = |v: &[&str]| v.join(", ");
+        if !riscos.grava.is_empty() {
+            corpo = corpo.push(aviso(tr!("Grava arquivos no seu computador").into(),
+                trf!("Usa {}: cria PDF, .xlsx ou .fshz na pasta desta planilha, e pode substituir um arquivo com o mesmo nome que já esteja lá.", lista(&riscos.grava))));
+        }
+        if !riscos.vba_fora.is_empty() {
+            corpo = corpo.push(aviso(tr!("O VBA original rodava coisas fora do FeatherSheet").into(),
+                trf!("A macro do Excel chamava {} (programas, internet ou o Windows). Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.", lista(&riscos.vba_fora))));
+        }
+        if !riscos.vba_apaga.is_empty() {
+            corpo = corpo.push(aviso(tr!("O VBA original apagava arquivos do seu computador").into(),
+                trf!("A macro do Excel usava {}. Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.", lista(&riscos.vba_apaga))));
+        }
         self.dialogo(tr!("Ativar macros?"), corpo)
             .icone("alert-triangle")
-            .largura(480.0)
+            .largura(if riscos.vazio() { 480.0 } else { 540.0 })
             .botao(dlg::botao_primario(tr!("Ativar macros"), Some(Msg::AtivarMacros)))
             .botao(dlg::botao_secundario(tr!("Manter desativadas"), Some(Msg::AvisoMacrosFechar)))
             .ao_fechar(Msg::AvisoMacrosFechar)
@@ -179,5 +199,21 @@ mod testes {
         app.update(Msg::AtivarMacros);
         app.update(Msg::Aba(outra));
         assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(0, 0), "ativou");
+    }
+
+    #[test]
+    fn modulo_solto_tambem_pede_para_ativar_e_o_aviso_lista_os_riscos() {
+        let mut app = App::default();
+        app.macro_catalogo = Default::default();
+        app.macro_catalogo.macros.push(feather_macros::Macro { name: "Relatorio".into(), auto: false,
+            code: "sheet.exportPdf('r.pdf');\n// VBA não convertido (API):\n//   Kill \"C:\\x\"".into() });
+        app.bloquear_macros_do_arquivo();
+        assert!(app.macros_bloqueadas && app.aviso_macros);
+        let _ = app.sobrepor_aviso_macros(text("").into());
+        app.update(Msg::AvisoMacrosFechar);
+        app.macro_visual.documento = "modulo:Relatorio".into();
+        app.executar_macro();
+        assert!(app.macro_saida.contains("desativadas"), "{}", app.macro_saida);
+        assert!(app.aviso_macros, "rodar à mão reabre o aviso");
     }
 }
