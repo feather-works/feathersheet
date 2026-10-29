@@ -1416,6 +1416,20 @@ fn medir_quadros_grafico_com_bloco() {
     }
     a.workbook.aba_mut(0).unwrap().sheet.gravar_bloco_literais(0, 0, linhas);
     a.linha = 0; a.coluna = 0; a.fim_selecao = (n - 1, 5);
+    let quadro = |a: &App, rotulo: &str| {
+        let tela = pelicano::Size::new(2000.0, 1125.0);
+        let mut r = pelicano::Renderer::new();
+        let st = pelicano::States::default();
+        for _ in 0..2 {
+            let t = std::time::Instant::now();
+            let el = a.view(window::Id::MAIN);
+            r.begin(tela, 1.28, pelicano::Color::BLACK);
+            let arvore = pelicano::layout(&el, tela, &mut r, &st, &pelicano::Theme::dark());
+            pelicano::draw(&el, &arvore, &mut r, &st, &pelicano::Theme::dark(), None, false);
+            eprintln!("{rotulo}: {:?}", t.elapsed());
+        }
+    };
+    quadro(&a, "sem gráfico");
     let _ = a.evento_grafico(Evento::Abrir);
     let _ = a.evento_grafico(Evento::Tipo(TipoUi::Linhas));
     let _ = a.evento_grafico(Evento::Inserir);
