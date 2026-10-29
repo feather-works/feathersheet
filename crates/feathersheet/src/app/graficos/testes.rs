@@ -1483,3 +1483,24 @@ fn medir_graficos_ao_abrir_e_trocar() {
         eprintln!("trocar para a aba {i} e desenhar: {:?}", t.elapsed());
     }
 }
+
+/// Gráfico sobre uma dinâmica: o Total Geral (linha e coluna) não entra, como no Excel.
+/// Numa aba sem dinâmica, uma linha "Total Geral" é dado da pessoa e fica.
+#[test]
+fn grafico_numa_aba_com_dinamica_deixa_o_total_geral_de_fora() {
+    use feathersheet_core::grafico::chart::{ChartConfig, ChartRange, ChartType};
+    let mut a = App::default();
+    let _ = a.update(Msg::Colar("Item\tnovo (Valor)\tTotal Geral (Valor)\nA\t1\t1\nB\t2\t2\nTotal Geral\t3\t3".into()));
+    let config = ChartConfig {
+        tipo: ChartType::Column, range: ChartRange { r0: 0, c0: 0, r1: 3, c1: 2 },
+        series_in_columns: true, has_headers: true, has_category_labels: true, ..Default::default()
+    };
+    let comum = super::dados_do_grafico(&a.workbook.aba(0).unwrap().sheet, &config, false, None);
+    assert_eq!(comum.categories, ["A", "B", "Total Geral"]);
+    assert_eq!(comum.series.len(), 2);
+    a.workbook.aba_mut(0).unwrap().sheet.dn = Some("[]".into());
+    let d = super::dados_do_grafico(&a.workbook.aba(0).unwrap().sheet, &config, false, None);
+    assert_eq!(d.categories, ["A", "B"]);
+    assert_eq!(d.series.len(), 1);
+    assert_eq!(d.series[0].values, [1.0, 2.0]);
+}

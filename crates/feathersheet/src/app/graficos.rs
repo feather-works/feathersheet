@@ -509,7 +509,7 @@ pub(super) fn dados_do_grafico(
             None => sheet.get_value(r, c),
         };
         let oculta = |r: u32| sheet.linha_oculta(r);
-        if lacuna_zero {
+        let d = if lacuna_zero {
             let (r0, c0) = (config.range.r0, config.range.c0);
             extract_chart_data_visiveis(&|r, c| match ler(r, c) {
                 V::Empty if r > r0 && c > c0 => V::Number(0.0),
@@ -517,7 +517,8 @@ pub(super) fn dados_do_grafico(
             }, &oculta, config)
         } else {
             extract_chart_data_visiveis(&ler, &oculta, config)
-        }
+        };
+        if sheet.dn.is_some() { sem_total_geral(d) } else { d }
     };
     let Some(f) = fonte else { return std::sync::Arc::new(extrair()) };
     let mut base = chave_dos_dados(config, lacuna_zero);
@@ -616,6 +617,26 @@ pub(super) fn dados_para_desenho(
         }
     }
     sem_lacunas(dados_do_grafico(sheet, config, lacuna_zero, fonte))
+}
+
+/// Gráfico numa aba com dinâmica: a linha "Total Geral" e a coluna "Total Geral (…)"
+/// ficam de fora, como no gráfico dinâmico do Excel (o total achataria as barras).
+fn sem_total_geral(mut d: feathersheet_core::grafico::chart::ChartData) -> feathersheet_core::grafico::chart::ChartData {
+    let total = |t: &str| t == "Total Geral" || t.starts_with("Total Geral (");
+    let manter: Vec<bool> = d.categories.iter().map(|c| !total(c)).collect();
+    if manter.contains(&false) {
+        let filtrar = |v: &mut Vec<f64>| {
+            let mut m = manter.iter();
+            v.retain(|_| *m.next().unwrap_or(&true));
+        };
+        for s in &mut d.series { filtrar(&mut s.values); }
+        if let Some(x) = d.x_values.as_mut() { filtrar(x); }
+        if let Some(z) = d.z_values.as_mut() { filtrar(z); }
+        let mut m = manter.iter();
+        d.categories.retain(|_| *m.next().unwrap_or(&true));
+    }
+    d.series.retain(|s| !total(&s.name));
+    d
 }
 
 /// O desenho comum recusa lacuna: a célula vazia (ou de texto) que sobrou numa
