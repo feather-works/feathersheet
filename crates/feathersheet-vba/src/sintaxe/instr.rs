@@ -23,7 +23,12 @@ enum Bloco {
 struct Analisador {
     l: Leitor,
     linhas: Vec<String>,
+    /// Blocos abertos agora (`If` dentro de `For` dentro de `With`…).
+    blocos: u32,
 }
+
+/// Teto de blocos aninhados (#129): o de dentro disso vira `Desconhecida`, sem estourar a pilha.
+const MAX_BLOCOS: u32 = 100;
 
 impl Analisador {
     fn pular_fins(&mut self) {
@@ -83,7 +88,10 @@ impl Analisador {
     fn instr(&mut self) -> Instr {
         let inicio = self.l.i;
         let linha = self.l.linha();
-        match self.tipo_instr() {
+        self.blocos += 1;
+        let tipo = if self.blocos > MAX_BLOCOS { Err(()) } else { self.tipo_instr() };
+        self.blocos -= 1;
+        match tipo {
             Ok(k) => Instr { k, linha, ate: self.linha_anterior().max(linha) },
             Err(()) => {
                 self.l.i = inicio;
@@ -563,7 +571,7 @@ impl Leitor {
 
 /// Analisa o código de um módulo VBA.
 pub fn analisar(fonte: &str) -> Modulo {
-    let mut a = Analisador { l: Leitor { t: lexico::fichas(fonte), i: 0 }, linhas: fonte.lines().map(String::from).collect() };
+    let mut a = Analisador { l: Leitor { t: lexico::fichas(fonte), i: 0, profundidade: 0, nos: 0 }, linhas: fonte.lines().map(String::from).collect(), blocos: 0 };
     let mut m = Modulo::default();
     loop {
         a.pular_fins();

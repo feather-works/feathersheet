@@ -201,3 +201,25 @@ fn texto_para_colunas_gravado_pelo_excel() {
     assert!(!js.contains("VBA não convertido (Range.texttocolumns)"), "{js}");
     assert!(js.contains("largura fixa"), "largura fixa fica marcada: {js}");
 }
+
+/// #129: VBA montado para estourar a pilha vira "não convertido", sem derrubar o app.
+#[test]
+fn vba_aninhado_demais_nao_derruba_e_o_normal_continua() {
+    let n = 50_000;
+    let soma = format!("x = 1{}", " + 1".repeat(n));
+    let menos = format!("x = {}1", "-".repeat(n));
+    let nao = format!("x = {}True", "Not ".repeat(n));
+    let parenteses = format!("x = {}1{}", "(".repeat(n), ")".repeat(n));
+    let membros = format!("x = a{}", ".b".repeat(n));
+    let blocos = format!("{}x = 1\n{}", "If True Then\n".repeat(5_000), "End If\n".repeat(5_000));
+    for corpo in [soma, menos, nao, parenteses, membros, blocos] {
+        let vba = format!("Sub Bomba()\n{corpo}\nEnd Sub\nSub Normal()\n  Range(\"A1\").Value = 1 + 2\nEnd Sub\n");
+        // Numa thread de 2 MB, como as de trabalho: com recursão sem teto, estoura.
+        let js = std::thread::Builder::new().stack_size(2 << 20)
+            .spawn(move || converter_texto(&[("Módulo1", &vba)], &[])).unwrap().join()
+            .expect("a conversão estourou a pilha");
+        let normal = js.macros.iter().find(|m| m.nome == "Normal").expect("Normal").codigo.clone();
+        assert!(normal.contains("sheet.set(\"A1\", 1 + 2);"), "{normal}");
+        assert!(!js.pendencias.is_empty(), "o excesso deve virar pendência");
+    }
+}

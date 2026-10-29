@@ -9,7 +9,16 @@ use crate::lexico::{Ficha, Tok};
 pub(super) struct Leitor {
     pub t: Vec<Tok>,
     pub i: usize,
+    /// Expressões abertas uma dentro da outra agora (parênteses, `-`, `Not`).
+    pub profundidade: u32,
+    /// Nós da expressão de fora; zera a cada expressão nova.
+    pub nos: u32,
 }
+
+/// Teto de nós de uma expressão (#129): também limita a profundidade da árvore, que o
+/// gerador percorre recursivamente. Macro de verdade não chega perto (a linha do VBA
+/// tem no máximo 1023 caracteres).
+const MAX_NOS: u32 = 512;
 
 /// Erro de análise: a instrução vira `Desconhecida`.
 pub(super) type Res<T> = Result<T, ()>;
@@ -91,7 +100,16 @@ impl Leitor {
 
     /// Uma expressão completa.
     pub fn expr(&mut self) -> Res<Expr> {
+        if self.profundidade == 0 {
+            self.nos = 0;
+        }
         self.binaria(0)
+    }
+
+    /// Conta um nó; passou do teto, a instrução vira `Desconhecida`.
+    fn no(&mut self) -> Res<()> {
+        self.nos += 1;
+        if self.nos > MAX_NOS { Err(()) } else { Ok(()) }
     }
 
     /// O operador binário na posição atual e a força dele (maior = liga mais).
@@ -139,6 +157,14 @@ impl Leitor {
     }
 
     fn unaria(&mut self) -> Res<Expr> {
+        self.no()?;
+        self.profundidade += 1;
+        let e = self.unaria_dentro();
+        self.profundidade -= 1;
+        e
+    }
+
+    fn unaria_dentro(&mut self) -> Res<Expr> {
         if self.aceita("not") {
             // `Not` liga mais fraco que as comparações: `Not a = b` é `Not (a = b)`.
             return Ok(Expr::Nao(Box::new(self.binaria(4)?)));
@@ -155,8 +181,12 @@ impl Leitor {
 
     /// O primário e a corrente de `.membro`, `(argumentos)` e `!nome`.
     pub fn posfixa(&mut self) -> Res<Expr> {
+        if self.profundidade == 0 {
+            self.nos = 0;
+        }
         let mut e = self.primaria()?;
         loop {
+            self.no()?;
             if self.aceita_op(".") {
                 e = Expr::Membro(Box::new(e), self.nome()?);
             } else if self.e_op("(") {
