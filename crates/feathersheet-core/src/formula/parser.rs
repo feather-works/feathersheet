@@ -33,11 +33,14 @@ pub const MAX_CARACTERES: usize = 8_192;
 const MAX_ANINHAMENTO: u32 = 256;
 /// Operadores, funções, matrizes e intervalos numa fórmula. A árvore não fica mais
 /// funda que o número de nós internos, e cada um nasce de um desses tokens: contar
-/// antes de montar garante que o cálculo, o `clone` e o `drop` (todos recursivos)
-/// nunca recebem árvore funda demais, nem a de uma cadeia `1+1+1+…`. 1.024 níveis
-/// cabem na pilha de 2 MB de uma thread mesmo no build de depuração; 4.096 não.
-/// Fórmulas reais longas (`=A1+A2+…+A300`) ficam longe.
-pub const MAX_OPERACOES: usize = 1_024;
+/// antes de montar garante que o cálculo, o arrasto, o texto, o `clone` e o `drop`
+/// (todos recursivos) nunca recebem árvore funda demais, nem a de uma cadeia `1+1+…`.
+/// 4.096 é o máximo que cabe nos 8.192 caracteres do Excel (`1+1+…`): tudo que o Excel
+/// aceita passa. No build otimizado essa cadeia cabe até numa thread de 1 MB
+/// (`tests/corrente_funda.rs`); o de depuração estoura 2 MB com ela.
+// shortcut: no build de depuração (testes, `cargo run` sem --release) o teto fica em 1.024;
+// tornar os percursos da árvore iterativos se esse build precisar das fórmulas longas.
+pub const MAX_OPERACOES: usize = if cfg!(debug_assertions) { 1_024 } else { 4_096 };
 
 struct Parser {
     tokens: Vec<Token>,
@@ -373,7 +376,7 @@ mod testes {
         // Dentro dos limites continua compilando.
         assert!(parse_formula(&format!("{}1{}", "(".repeat(200), ")".repeat(200))).is_ok());
         assert!(parse_formula(&format!("{}1", "1+".repeat(1000))).is_ok());
-        assert!(parse_formula(&format!("{}1", "1+".repeat(2000))).is_err(), "cadeia funda demais");
+        assert!(parse_formula(&format!("{}1", "1+".repeat(MAX_OPERACOES + 1))).is_err(), "cadeia funda demais");
     }
 
     fn num(n: f64) -> Node {

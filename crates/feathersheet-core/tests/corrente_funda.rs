@@ -84,3 +84,22 @@ fn consolidar_leva_os_resultados_para_a_coluna_e_mudanca_continua_valendo() {
     w.consolidar_calculos(usize::MAX);
     assert_eq!(w.valor(0, n - 1, 1), Value::Number(f64::from(n) + 10.0));
 }
+
+/// A fórmula mais longa que o Excel aceita (8.192 caracteres, `1+1+…` = 4.096 operações)
+/// calcula, arrasta e refaz o texto numa thread de 1 MB. Só no build otimizado, que é o
+/// do aplicativo: no de depuração o teto é menor (ver `parser::MAX_OPERACOES`).
+#[cfg(not(debug_assertions))]
+#[test]
+fn formula_mais_longa_do_excel_cabe_na_pilha() {
+    std::thread::Builder::new().stack_size(1 << 20).spawn(|| {
+        let f = format!("=B1{}", "+1".repeat(4_094));
+        let mut s = feathersheet_core::planilha::sheet::Sheet::new("x");
+        s.set_cell(0, 1, "2");
+        s.set_cell(0, 2, &f);
+        assert_eq!(s.get_value(0, 2), feathersheet_core::Value::Number(4096.0));
+        let r = feathersheet_core::celulas::refs::Rect::new(0, 2, 0, 2);
+        s.preencher(&r, &feathersheet_core::celulas::refs::Rect::new(0, 2, 3, 2));
+        assert!(s.get_raw(3, 2).starts_with("=B4+1"));
+        assert_eq!(s.get_raw(0, 2).len(), f.len());
+    }).unwrap().join().expect("estourou a pilha");
+}

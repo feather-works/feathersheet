@@ -63,35 +63,46 @@ pub fn ler_parquet_arquivo(caminho: &Path) -> Result<Workbook, String> {
     Ok(pasta)
 }
 
-/// O que uma coluna de texto mostrou até agora: se todo valor é `n/n/aaaa` e se algum
-/// primeiro (ou segundo) número passa de 12, o que diz se é dia/mês ou mês/dia.
-#[derive(Clone, Default)]
+/// O que uma coluna de texto mostrou até agora: se todo valor é `n/n/aaaa` e em qual
+/// ordem (dia/mês ou mês/dia) todos são datas que existem.
+#[derive(Clone)]
 struct Datas {
     nao_e: bool,
     alguma: bool,
-    primeiro_maior: bool,
-    segundo_maior: bool,
+    dia_mes: bool,
+    mes_dia: bool,
+}
+
+impl Default for Datas {
+    fn default() -> Self {
+        Datas { nao_e: false, alguma: false, dia_mes: true, mes_dia: true }
+    }
 }
 
 impl Datas {
     fn ver(&mut self, s: &str) {
         if self.nao_e { return; }
         match partes_da_data(s) {
-            Some((a, b, _)) => {
+            Some((a, b, ano)) => {
                 self.alguma = true;
-                self.primeiro_maior |= a > 12;
-                self.segundo_maior |= b > 12;
+                self.dia_mes &= data_existe(ano, b, a);
+                self.mes_dia &= data_existe(ano, a, b);
             }
             None => self.nao_e = true,
         }
     }
 
-    /// `Some(true)` = dia/mês (o padrão do Brasil quando nada passa de 12), `Some(false)` =
-    /// mês/dia (`7/30/2026`), `None` = não é coluna de data.
+    /// `Some(true)` = dia/mês (o padrão do Brasil quando as duas servem), `Some(false)` =
+    /// mês/dia (`7/30/2026`), `None` = não é coluna de data. `2/30/2026` não existe em
+    /// ordem nenhuma: a coluna fica texto em vez de virar 2 de março.
     fn ordem(&self) -> Option<bool> {
-        if self.nao_e || !self.alguma || (self.primeiro_maior && self.segundo_maior) { return None; }
-        Some(!self.segundo_maior)
+        if self.nao_e || !self.alguma { return None; }
+        if self.dia_mes { Some(true) } else if self.mes_dia { Some(false) } else { None }
     }
+}
+
+fn data_existe(ano: i32, mes: u32, dia: u32) -> bool {
+    (1..=12).contains(&mes) && dia >= 1 && dia <= feathersheet_core::funcoes::fn_date::days_in_month(ano, mes)
 }
 
 /// `d/m/aaaa` ou `m/d/aaaa`: os três números, cada parte do dia e do mês entre 1 e 31.
@@ -237,12 +248,14 @@ mod testes {
             Field::new("BR", DataType::Utf8, true),
             Field::new("AMBIGUA", DataType::Utf8, true),
             Field::new("MISTA", DataType::Utf8, true),
+            Field::new("IMPOSSIVEL", DataType::Utf8, true),
         ]));
         let lote = RecordBatch::try_new(esquema.clone(), vec![
             Arc::new(StringArray::from(vec![Some("6/8/2026"), Some("7/30/2026"), None])),
             Arc::new(StringArray::from(vec![Some("6/8/2026"), Some("30/7/2026"), Some("1/2/2026")])),
             Arc::new(StringArray::from(vec![Some("6/8/2026"), Some("1/2/2026"), None])),
             Arc::new(StringArray::from(vec![Some("6/8/2026"), Some("depois"), None])),
+            Arc::new(StringArray::from(vec![Some("1/2/2026"), Some("2/30/2026"), None])),
         ]).unwrap();
         let dir = std::env::temp_dir().join(format!("teste-parquet-datas-{}.parquet", std::process::id()));
         let mut w = parquet::arrow::ArrowWriter::try_new(std::fs::File::create(&dir).unwrap(), esquema, None).unwrap();
@@ -261,5 +274,6 @@ mod testes {
         assert_eq!(s.get_value(1, 3), Value::Text("6/8/2026".into()), "coluna com texto comum fica texto");
         assert!(feathersheet_core::celulas::estilo_parcial::formato(s.col_styles.get(&0)).as_deref() == Some("date"));
         assert!(!s.col_styles.contains_key(&3));
+        assert_eq!(s.get_value(2, 4), Value::Text("2/30/2026".into()), "30 de fevereiro não existe: fica texto");
     }
 }
