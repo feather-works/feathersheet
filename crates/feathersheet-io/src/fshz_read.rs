@@ -738,7 +738,7 @@ mod testes {
 
         let mut aba = aba_vazia("Dados");
         aba.linhas = linhas;
-        aba.colunas_num = vec![ColunaNumBruta { col: 3, values: values.clone(), bitmap: bitmap.clone() }];
+        aba.colunas_num = vec![ColunaNumBruta { col: 3, values: values.clone(), bitmap: bitmap.clone(), blocos: None }];
         let pasta = PastaBruta { a: 0, names: None, es: None, pr: None, mc: None, ex: None, fm: None, sheets: vec![aba] };
         let bytes = crate::fshz_write::gerar_fshz2(&pasta).unwrap();
 

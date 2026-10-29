@@ -65,6 +65,27 @@ pub struct ColunaNumBruta {
     /// 1 bit por linha, menos significativo primeiro — a mesma convenção do
     /// Arrow, por isso não precisa converter nada para montar o vetor.
     pub bitmap: Vec<u8>,
+    /// Gravação da pasta viva (`da_workbook`): os blocos da coluna, sem cópia;
+    /// `values` e `bitmap` ficam vazios.
+    #[serde(skip)]
+    pub blocos: Option<feathersheet_core::planilha::column_store::RetratoColuna<f64>>,
+}
+
+impl ColunaNumBruta {
+    fn get(&self, r: u32) -> Option<f64> {
+        match &self.blocos {
+            Some(b) => b.get(r),
+            None => self.bitmap.get((r >> 3) as usize).filter(|b| *b & (1 << (r & 7)) != 0)
+                .and_then(|_| self.values.get(r as usize).copied()),
+        }
+    }
+
+    fn presentes(&self, linhas: u32) -> usize {
+        match &self.blocos {
+            Some(b) => b.contar(linhas),
+            None => contar_presentes(&self.bitmap, linhas) as usize,
+        }
+    }
 }
 
 /// Uma coluna de texto/booleano crua: índice no dicionário local da coluna +
@@ -409,6 +430,7 @@ fn bit_ligado(bitmap: &[u8], r: u32) -> bool {
 /// crua: salvar 13,7 milhões de linhas × 46 colunas bateu 20 GB de RAM.
 enum Campo<'a> {
     Float { values: &'a [f64], bitmap: &'a [u8] },
+    Num(&'a ColunaNumBruta),
     /// `remapa`: índice global → índice no dicionário local da coluna.
     Int { values: &'a [i32], bitmap: &'a [u8], remapa: Option<Vec<i32>> },
 }
@@ -416,7 +438,7 @@ enum Campo<'a> {
 impl Campo<'_> {
     fn tipo(&self) -> DataType {
         match self {
-            Campo::Float { .. } => DataType::Float64,
+            Campo::Float { .. } | Campo::Num(_) => DataType::Float64,
             Campo::Int { .. } => DataType::Int32,
         }
     }
@@ -427,6 +449,7 @@ impl Campo<'_> {
             Campo::Float { values, bitmap } => Arc::new(Float64Array::from_iter((r0..r1).map(|r| {
                 if presente(bitmap, r) { values.get(r as usize).copied() } else { None }
             }))),
+            Campo::Num(col) => Arc::new(Float64Array::from_iter((r0..r1).map(|r| col.get(r)))),
             Campo::Int { values, bitmap, remapa } => Arc::new(Int32Array::from_iter((r0..r1).map(|r| {
                 if !presente(bitmap, r) { return None; }
                 let v = *values.get(r as usize)?;
@@ -527,12 +550,12 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
 
     if linhas >= LINHAS_MINIMAS {
         for col in &aba.colunas_num {
-            if !denso_o_bastante(&col.bitmap, linhas) {
+            if !(linhas >= LINHAS_MINIMAS && (col.presentes(linhas) as f64) >= (linhas as f64) * DENSIDADE_MINIMA) {
                 derramar_numerica(col, linhas, &mut avulsas);
                 continue;
             }
             let f = format!("n{}", col.col);
-            campos.push((f.clone(), Campo::Float { values: &col.values, bitmap: &col.bitmap }));
+            campos.push((f.clone(), Campo::Num(col)));
             colunas_meta.push(ColunaMeta { f, c: col.col, k: "num", d: None, e: None, fv: None });
         }
         // Fórmula: sempre vira coluna Arrow nesta primeira versão — ver o
@@ -645,14 +668,12 @@ pub(crate) fn dicionario_local<'a>(indices: &mut [i32], bitmap: &[u8], texto: im
 
 fn derramar_numerica(col: &ColunaNumBruta, linhas: u32, avulsas: &mut Vec<CelulaAvulsaMeta<'_>>) {
     for r in 0..linhas {
-        if !bit_ligado(&col.bitmap, r) {
-            continue;
-        }
+        let Some(v) = col.get(r) else { continue };
         let k = r as u64 * 16384 + col.col as u64;
         // `to_js_string`: a mesma regra do `Number(n)` do JavaScript. Vale
         // porque só entra na coluna quem passou no `roundTrips()` — o texto
         // digitado é sempre `String(valor)` para essas células.
-        avulsas.push(CelulaAvulsaMeta { k, v: Cow::Owned(feathersheet_core::celulas::number::to_js_string(col.values[r as usize])), s: None });
+        avulsas.push(CelulaAvulsaMeta { k, v: Cow::Owned(feathersheet_core::celulas::number::to_js_string(v)), s: None });
     }
 }
 
@@ -1005,7 +1026,7 @@ mod testes {
                 estilos_linha: vec![],
                 estilo_aba: None,
                 linhas,
-                colunas_num: vec![ColunaNumBruta { col: 2, values, bitmap }],
+                colunas_num: vec![ColunaNumBruta { col: 2, values, bitmap, blocos: None }],
                 colunas_txt: vec![],
                 colunas_formula: vec![],
                 padroes_formula: vec![],
@@ -1080,7 +1101,7 @@ mod testes {
                 estilos_linha: vec![],
                 estilo_aba: None,
                 linhas,
-                colunas_num: vec![ColunaNumBruta { col: 0, values, bitmap }],
+                colunas_num: vec![ColunaNumBruta { col: 0, values, bitmap, blocos: None }],
                 colunas_txt: vec![],
                 colunas_formula: vec![],
                 padroes_formula: vec![],

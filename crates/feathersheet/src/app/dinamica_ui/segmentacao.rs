@@ -148,44 +148,42 @@ impl App {
         cartoes
     }
 
-    /// Os cartões das segmentações (e a escolha do campo) sobre a grade.
-    pub(super) fn sobrepor_segmentacoes<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
+    /// Os cartões das segmentações no canto de cima à direita da própria grade, abaixo
+    /// das letras das colunas. Antes eram postos por conta (barra de título + faixa) e
+    /// caíam por cima da barra de fórmulas e do aviso, e embaixo do painel do Gráfico.
+    pub(in crate::app) fn grade_com_segmentacoes<'a>(&'a self, grade: Element<'a, Msg>) -> Element<'a, Msg> {
         let cartoes = self.cartoes_da_aba();
-        if cartoes.is_empty() && self.segmentacao.escolher.is_none() {
-            return base;
+        if cartoes.is_empty() {
+            return grade;
         }
-        let topo = 43.0 + 52.0 + if self.config.faixa_recolhida { 0.0 }
-            else { super::super::faixa_nativa::ALTURA_FAIXA_NATIVA };
-        let x = (self.tamanho_principal.width - LARGURA_CARTAO - 24.0).max(0.0);
         let mut pilha = column(Vec::<pelicano::Element<_>>::new()).spacing(8);
         for c in cartoes {
             pilha = pilha.push(cartao(c));
         }
-        let mut camadas = pelicano::stack![
-            base,
-            column![
-                Space::new(0.0, Length::Fixed(topo + 8.0)),
-                row![Space::new(Length::Fixed(x), 0.0), pilha],
-            ],
-        ].height(Length::FILL);
-        if let Some((_, _, campos)) = &self.segmentacao.escolher {
-            let mut lista = column(Vec::<pelicano::Element<_>>::new()).spacing(2);
-            for (coluna, nome) in campos {
-                lista = lista.push(button(text(nome.clone()).size(12)).width(Length::FILL).padding([5, 8])
-                    .style(estilo_botao_pequeno(false))
-                    .on_press(Msg::Dinamica(Evento::SegmentacaoCampo(*coluna))));
-            }
-            let janela = container(column![
-                row![
-                    text(tr!("Segmentação de dados: escolha o campo")).size(13).width(Length::FILL),
-                    button(icone("x", 14.0)).padding([3, 5]).style(estilo_botao_pequeno(false))
-                        .on_press(Msg::Dinamica(Evento::SegmentacaoFecharEscolha)),
-                ].spacing(6).align(pelicano::Align::Center),
-                scrollable(lista).height(Length::Fixed(240.0)),
-            ].spacing(8)).padding(12).width(Length::Fixed(280.0)).style(estilo_popup_menu);
-            camadas = camadas.push(container(janela).center());
+        // 32 px: a linha das letras; 24 px: a barra de rolagem.
+        let canto = container(pilha).width(Length::FILL).align_x(pelicano::Align::End)
+            .padding(pelicano::Padding { top: 32.0, right: 24.0, bottom: 0.0, left: 0.0 });
+        pelicano::stack![grade, canto].into()
+    }
+
+    /// A escolha do campo de uma segmentação nova, no meio da janela.
+    pub(super) fn sobrepor_segmentacoes<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
+        let Some((_, _, campos)) = &self.segmentacao.escolher else { return base };
+        let mut lista = column(Vec::<pelicano::Element<_>>::new()).spacing(2);
+        for (coluna, nome) in campos {
+            lista = lista.push(button(text(nome.clone()).size(12)).width(Length::FILL).padding([5, 8])
+                .style(estilo_botao_pequeno(false))
+                .on_press(Msg::Dinamica(Evento::SegmentacaoCampo(*coluna))));
         }
-        camadas.into()
+        let janela = container(column![
+            row![
+                text(tr!("Segmentação de dados: escolha o campo")).size(13).width(Length::FILL),
+                button(icone("x", 14.0)).padding([3, 5]).style(estilo_botao_pequeno(false))
+                    .on_press(Msg::Dinamica(Evento::SegmentacaoFecharEscolha)),
+            ].spacing(6).align(pelicano::Align::Center),
+            scrollable(lista).height(Length::Fixed(240.0)),
+        ].spacing(8)).padding(12).width(Length::Fixed(280.0)).style(estilo_popup_menu);
+        pelicano::stack![base, container(janela).center()].height(Length::FILL).into()
     }
 }
 

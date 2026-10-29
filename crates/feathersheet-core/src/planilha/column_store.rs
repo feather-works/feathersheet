@@ -17,14 +17,57 @@ pub const CHUNK_SIZE: usize = 65_536;
 pub const CHUNK_SHIFT: u32 = 16;
 pub const CHUNK_MASK: u32 = 0xffff;
 
+use std::sync::Arc;
+
+/// Um bloco novo de `CHUNK_SIZE` cópias de `v`.
+fn bloco<T: Copy>(v: T, n: usize) -> Arc<[T]> {
+    Arc::from(vec![v; n])
+}
+
+/// A coluna como estava num instante, sem copiar os dados: os blocos são os
+/// mesmos `Arc` da coluna viva. É o que a gravação em segundo plano lê.
+#[derive(Clone, Default)]
+pub struct RetratoColuna<T> {
+    chunks: Vec<Option<Arc<[T]>>>,
+    presence: Vec<Option<Arc<[u8]>>>,
+}
+
+impl<T: Copy> RetratoColuna<T> {
+    pub fn get(&self, row: u32) -> Option<T> {
+        let i = (row >> CHUNK_SHIFT) as usize;
+        let o = (row & CHUNK_MASK) as usize;
+        let mask = self.presence.get(i)?.as_ref()?;
+        if mask[o >> 3] & (1 << (o & 7)) == 0 { return None; }
+        self.chunks[i].as_ref().map(|c| c[o])
+    }
+
+    /// Quantas linhas abaixo de `linhas` têm valor.
+    pub fn contar(&self, linhas: u32) -> usize {
+        let mut n = 0;
+        for (i, m) in self.presence.iter().enumerate() {
+            let Some(m) = m else { continue };
+            let base = (i as u64) << CHUNK_SHIFT;
+            if base >= linhas as u64 { break; }
+            let ate = ((linhas as u64 - base).min(CHUNK_SIZE as u64)) as usize;
+            n += m[..ate >> 3].iter().map(|b| b.count_ones() as usize).sum::<usize>();
+            if ate & 7 != 0 { n += (m[ate >> 3] & ((1u8 << (ate & 7)) - 1)).count_ones() as usize; }
+        }
+        n
+    }
+}
+
 /// Uma coluna esparsa de `T`, guardada em blocos de [`CHUNK_SIZE`] linhas.
 ///
 /// `presence` é a máscara de bits (1 bit por linha, menos significativo
 /// primeiro, mesma convenção do Arrow) que diz se a posição em `values` é
 /// dado de verdade ou só o valor-padrão de `T` deixado por trás.
+/// Os blocos são `Arc`: o retrato para gravar ([`Self::retrato`]) só conta
+/// referências, e escrever num bloco que está sendo gravado copia só ele
+/// (`Arc::make_mut`). Antes a gravação copiava a coluna inteira: 39 colunas de
+/// 13,7 milhões de linhas eram 4,3 GB a mais ao salvar (28/10/2026).
 pub struct ChunkedColumn<T: Copy + Default> {
-    chunks: Vec<Option<Box<[T]>>>,
-    presence: Vec<Option<Box<[u8]>>>,
+    chunks: Vec<Option<Arc<[T]>>>,
+    presence: Vec<Option<Arc<[u8]>>>,
     /// `u32::MAX` quando a coluna está vazia — o `Infinity` do TypeScript.
     pub min_row: u32,
     /// `-1` quando a coluna está vazia, como no TypeScript.
@@ -47,12 +90,10 @@ impl<T: Copy + Default> ChunkedColumn<T> {
         let chunk_idx = (row >> CHUNK_SHIFT) as usize;
         let offset = (row & CHUNK_MASK) as usize;
         self.ensure_chunk(chunk_idx);
-        let chunk = self.chunks[chunk_idx]
-            .get_or_insert_with(|| vec![T::default(); CHUNK_SIZE].into_boxed_slice());
-        let mask = self.presence[chunk_idx]
-            .get_or_insert_with(|| vec![0u8; CHUNK_SIZE >> 3].into_boxed_slice());
-        chunk[offset] = val;
-        mask[offset >> 3] |= 1 << (offset & 7);
+        let chunk = self.chunks[chunk_idx].get_or_insert_with(|| bloco(T::default(), CHUNK_SIZE));
+        Arc::make_mut(chunk)[offset] = val;
+        let mask = self.presence[chunk_idx].get_or_insert_with(|| bloco(0u8, CHUNK_SIZE >> 3));
+        Arc::make_mut(mask)[offset >> 3] |= 1 << (offset & 7);
         if row < self.min_row {
             self.min_row = row;
         }
@@ -83,6 +124,11 @@ impl<T: Copy + Default> ChunkedColumn<T> {
     /// A máscara de presença do bloco `idx` (`None` quando o bloco não tem
     /// nenhuma linha). Quem precisa saber onde há dado em milhões de linhas
     /// lê 8 linhas por byte, em vez de perguntar [`Self::has`] uma a uma.
+    /// O retrato da coluna agora, sem copiar dados (ver [`RetratoColuna`]).
+    pub fn retrato(&self) -> RetratoColuna<T> {
+        RetratoColuna { chunks: self.chunks.clone(), presence: self.presence.clone() }
+    }
+
     pub fn mascara_do_bloco(&self, idx: usize) -> Option<&[u8]> {
         self.presence.get(idx)?.as_deref()
     }
@@ -134,8 +180,8 @@ impl<T: Copy + Default> ChunkedColumn<T> {
             }
             let mut chunk = vec![T::default(); CHUNK_SIZE];
             chunk[..quantos].copy_from_slice(&values[inicio..inicio + quantos]);
-            self.chunks[i] = Some(chunk.into_boxed_slice());
-            self.presence[i] = Some(mask.into_boxed_slice());
+            self.chunks[i] = Some(Arc::from(chunk));
+            self.presence[i] = Some(Arc::from(mask));
         }
         for r in 0..length as u32 {
             if self.has(r) {
@@ -164,8 +210,8 @@ impl<T: Copy + Default> ChunkedColumn<T> {
         let primeira = base + (primeiro * 8) as u32 + mascara[primeiro].trailing_zeros();
         let ultima = base + (ultimo * 8) as u32 + 7 - mascara[ultimo].leading_zeros();
         self.ensure_chunk(idx);
-        self.chunks[idx] = Some(valores);
-        self.presence[idx] = Some(mascara);
+        self.chunks[idx] = Some(Arc::from(valores));
+        self.presence[idx] = Some(Arc::from(mascara));
         self.min_row = self.min_row.min(primeira);
         self.max_row = self.max_row.max(ultima as i64);
         Some((primeira, ultima))
@@ -200,9 +246,9 @@ impl<T: Copy + Default> ChunkedColumn<T> {
             return;
         };
         let offset = (row & CHUNK_MASK) as usize;
-        mask[offset >> 3] &= !(1 << (offset & 7));
+        Arc::make_mut(mask)[offset >> 3] &= !(1 << (offset & 7));
         if let Some(Some(chunk)) = self.chunks.get_mut(chunk_idx) {
-            chunk[offset] = T::default();
+            Arc::make_mut(chunk)[offset] = T::default();
         }
     }
 
@@ -283,13 +329,12 @@ impl<T: Copy + Default> ChunkedColumn<T> {
             let base = (b as u32) << CHUNK_SHIFT;
             let (de, ate) = ((r0.max(base) - base) as usize, (r1.min(base + CHUNK_MASK) - base) as usize);
             if de == 0 && ate == CHUNK_MASK as usize {
-                self.chunks[b] = Some(vec![val; CHUNK_SIZE].into_boxed_slice());
-                self.presence[b] = Some(vec![0xff; CHUNK_SIZE >> 3].into_boxed_slice());
+                self.chunks[b] = Some(bloco(val, CHUNK_SIZE));
+                self.presence[b] = Some(bloco(0xff, CHUNK_SIZE >> 3));
                 continue;
             }
-            let chunk = self.chunks[b].get_or_insert_with(|| vec![T::default(); CHUNK_SIZE].into_boxed_slice());
-            let mask = self.presence[b].get_or_insert_with(|| vec![0u8; CHUNK_SIZE >> 3].into_boxed_slice());
-            chunk[de..=ate].fill(val);
+            Arc::make_mut(self.chunks[b].get_or_insert_with(|| bloco(T::default(), CHUNK_SIZE)))[de..=ate].fill(val);
+            let mask = Arc::make_mut(self.presence[b].get_or_insert_with(|| bloco(0u8, CHUNK_SIZE >> 3)));
             for o in de..=ate { mask[o >> 3] |= 1 << (o & 7); }
         }
         self.min_row = self.min_row.min(r0);
@@ -311,10 +356,10 @@ impl<T: Copy + Default> ChunkedColumn<T> {
                 self.presence[b] = None;
                 continue;
             }
-            if let Some(mask) = self.presence[b].as_mut() {
+            if let Some(mask) = self.presence[b].as_mut().map(Arc::make_mut) {
                 for o in de..=ate { mask[o >> 3] &= !(1 << (o & 7)); }
             }
-            if let Some(chunk) = self.chunks[b].as_mut() {
+            if let Some(chunk) = self.chunks[b].as_mut().map(Arc::make_mut) {
                 chunk[de..=ate].fill(T::default());
             }
         }

@@ -654,10 +654,18 @@ impl Sheet {
     /// byte). É o que deixa a Região atual e o Ctrl+T rápidos em 13 milhões
     /// de linhas: perguntar célula a célula travava a janela (17/10/2026).
     pub fn sequencias_com_conteudo(&self, col: u32, ate: u32) -> Vec<(u32, u32)> {
+        self.sequencias_com_conteudo_entre(col, 0, ate)
+    }
+
+    /// [`Self::sequencias_com_conteudo`] a partir do bloco da linha `de`: as
+    /// sequências antes desse bloco não aparecem, e a primeira pode começar
+    /// no início do bloco mesmo continuando de antes. É o que o Ctrl+↓ usa.
+    pub fn sequencias_com_conteudo_entre(&self, col: u32, de: u32, ate: u32) -> Vec<(u32, u32)> {
         use crate::planilha::column_store::{CHUNK_SHIFT, CHUNK_SIZE};
+        let primeiro_bloco = (de >> CHUNK_SHIFT) as usize;
         // Células soltas mandam na linha delas, como no `has_content`.
         let mut soltas: Vec<(u32, bool)> = self.cells.iter()
-            .filter(|(k, _)| key_col(**k) == col && key_row(**k) <= ate)
+            .filter(|(k, _)| key_col(**k) == col && key_row(**k) <= ate && key_row(**k) >> CHUNK_SHIFT >= primeiro_bloco as u32)
             .map(|(k, c)| (key_row(*k), !c.raw.is_empty()))
             .collect();
         soltas.sort_unstable_by_key(|s| s.0);
@@ -668,7 +676,7 @@ impl Sheet {
             _ => sequencias.push((r0, r1)),
         };
         let mut mascara = vec![0u8; CHUNK_SIZE >> 3];
-        for bloco in 0..=(ate >> CHUNK_SHIFT) as usize {
+        for bloco in primeiro_bloco..=(ate >> CHUNK_SHIFT) as usize {
             let base = (bloco as u32) << CHUNK_SHIFT;
             let partes = self.data.mascaras_do_bloco(col, bloco);
             let formulas = self.formulas.mascara_do_bloco(col, bloco);
@@ -876,6 +884,26 @@ impl Sheet {
             }
         }
 
+        // Na vertical, pelas máscaras de presença (8 linhas por byte): linha a
+        // linha eram 13,7 milhões de perguntas e ~1,5 s por Ctrl+↓ (28/10/2026).
+        if dc == 0 {
+            // Para baixo só interessa da linha atual em diante; para cima, até ela.
+            let seq = if dr > 0 {
+                self.sequencias_com_conteudo_entre(c as u32, r as u32, max_row.min(lim_r).max(0) as u32)
+            } else {
+                self.sequencias_com_conteudo(c as u32, r.min(max_row).min(lim_r).max(0) as u32)
+            };
+            let dentro_de = |x: i64| seq.iter().position(|&(a, b)| (a as i64) <= x && x <= b as i64);
+            let fim = if comeca_cheia {
+                let (a, b) = seq[dentro_de(r).expect("a linha tem conteúdo")];
+                if dr > 0 { b as i64 } else { a as i64 }
+            } else if dr > 0 {
+                seq.iter().find(|&&(a, _)| a as i64 > r).map_or(lim_r, |&(a, _)| a as i64)
+            } else {
+                seq.iter().rev().find(|&&(_, b)| (b as i64) < r).map_or(0, |&(_, b)| b as i64)
+            };
+            return (fim.clamp(0, lim_r) as u32, c as u32);
+        }
         while dentro(r + dr, c + dc) && cheia(self, r + dr, c + dc) == comeca_cheia {
             r += dr;
             c += dc;

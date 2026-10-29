@@ -324,21 +324,41 @@ impl EvalContext for Contexto<'_, '_> {
         let chave = (aba, soma.map(area), criterios.iter().map(area).collect::<Vec<_>>());
         let celula = self.faixas.agregados.lock().expect("agregados").entry(chave).or_default().clone();
         celula.get_or_init(|| {
-            let lidas: Vec<Arc<FaixaLida>> = criterios.iter().map(|r| self.faixa_lida(r)).collect::<Option<_>>()?;
-            let somada = match soma {
-                Some(r) => Some((r, self.faixa_lida(r)?)),
-                None => None,
-            };
             let sem_pool = |_: i32| "";
             let leitor = std::cell::RefCell::new(crate::planilha::agregado::LeitorChaves::novo(&sem_pool));
-            Agregado::montar(criterios.len(), soma.is_some(), linhas, colunas,
-                |i, r, c| leitor.borrow_mut().da_celula(lidas[i].valor(criterios[i].r0 + r, criterios[i].c0 + c)),
-                |r, c| match somada.as_ref().map(|(rect, f)| f.valor(rect.r0 + r, rect.c0 + c)) {
-                    Some(Value::Number(n)) => Some(*n),
+            let lidas: Option<Vec<Arc<FaixaLida>>> = criterios.iter().map(|r| self.faixa_lida(r)).collect();
+            // `Some(None)`: não há faixa somada; `None`: ela não coube na cópia.
+            let somada: Option<Option<Arc<FaixaLida>>> = match soma {
+                Some(r) => self.faixa_lida(r).map(Some),
+                None => Some(None),
+            };
+            if let (Some(lidas), Some(somada)) = (lidas, somada) {
+                return Agregado::montar(criterios.len(), soma.is_some(), linhas, colunas,
+                    |i, r, c| leitor.borrow_mut().da_celula(lidas[i].valor(criterios[i].r0 + r, criterios[i].c0 + c)),
+                    |r, c| match (soma, somada.as_ref()) {
+                        (Some(rect), Some(f)) => match f.valor(rect.r0 + r, rect.c0 + c) { Value::Number(n) => Some(*n), _ => None },
+                        _ => None,
+                    },
+                    || std::mem::take(&mut leitor.borrow_mut().chaves),
+                ).map(Arc::new);
+            }
+            // A faixa não coube na cópia (mais de 4 milhões de células): lê direto
+            // das colunas, até a última linha usada. Sem isto o MÍNIMOSES de 13,7
+            // milhões de linhas varria a coluna inteira por linha (28/10/2026).
+            let ultima = self.abas[aba].usado.as_ref().map_or(0, |u| u.r1);
+            let linhas_lidas = if ultima < primeiro.r0 { 0 } else { linhas.min(ultima - primeiro.r0 + 1) };
+            let antes = self.falhou.replace(false);
+            let agregado = Agregado::montar(criterios.len(), soma.is_some(), linhas_lidas, colunas,
+                |i, r, c| leitor.borrow_mut().da_celula(&self.ler(aba, criterios[i].r0 + r, criterios[i].c0 + c)),
+                |r, c| match soma.map(|rect| self.ler(aba, rect.r0 + r, rect.c0 + c)) {
+                    Some(Value::Number(n)) => Some(n),
                     _ => None,
                 },
                 || std::mem::take(&mut leitor.borrow_mut().chaves),
-            ).map(Arc::new)
+            );
+            // Alguma célula ilegível daqui (avulsa, ainda suja): varre célula por célula.
+            if self.falhou.replace(antes) { return None; }
+            agregado.map(Arc::new)
         }).clone()
     }
 
@@ -572,7 +592,17 @@ fn executar(
         falhou: Cell::new(false),
     };
     let mut saida = Vec::with_capacity(tarefa.linhas.len());
+    // O Parar e o andamento valem por linha: uma fatia de fórmula lenta (o
+    // MÍNIMOSES de critério vazio varre a coluna inteira) não terminava nunca,
+    // e o aviso ficava em "0 de 13,8 milhões" sem conseguir parar (28/10/2026).
+    let mut desde_o_aviso = 0u64;
     for &row in tarefa.linhas {
+        desde_o_aviso += 1;
+        if desde_o_aviso == 256 {
+            crate::paralelismo::andamento::somar(desde_o_aviso);
+            desde_o_aviso = 0;
+            if crate::paralelismo::andamento::parado() { break; }
+        }
         let Some(arvore) = arvore(vista.formulas, no.aba, row, no.col, modelos) else { continue };
         ctx.falhou.set(false);
         let valor = match arvore {
@@ -587,6 +617,7 @@ fn executar(
         }
         saida.push((row, valor));
     }
+    crate::paralelismo::andamento::somar(desde_o_aviso);
     saida
 }
 
@@ -627,6 +658,7 @@ pub(crate) fn calcular(abas: &mut [AbaViva], funcoes: &HashSet<String>) -> usize
     crate::paralelismo::andamento::comecar(niveis.iter().flatten().map(|&i| nos[i].linhas.len() as u64).sum());
     let mut total = 0;
     for nivel in niveis {
+        if crate::paralelismo::andamento::parado() { break; }
         let inicio_nivel = std::time::Instant::now();
         let colunas = nivel.len();
         let mut tempo_por_coluna: HashMap<(usize, u32), std::time::Duration> = HashMap::new();
@@ -669,11 +701,11 @@ pub(crate) fn calcular(abas: &mut [AbaViva], funcoes: &HashSet<String>) -> usize
                         let mut modelos = HashMap::new();
                         let mut feitas = Vec::new();
                         loop {
+                            if crate::paralelismo::andamento::parado() { break; }
                             let t = proxima.fetch_add(1, Ordering::Relaxed);
                             let Some(tarefa) = tarefas.get(t) else { break };
                             let t0 = std::time::Instant::now();
                             let valores = executar(tarefa, &vistas, funcoes, &faixas, &mut modelos);
-                            crate::paralelismo::andamento::somar(tarefa.linhas.len() as u64);
                             feitas.push((tarefa.no.aba, tarefa.no.col, valores, t0.elapsed()));
                         }
                         feitas

@@ -56,6 +56,13 @@ static PEDIDOS: AtomicU64 = AtomicU64::new(0);
 /// Quanto a thread do canal espera o aplicativo (abrir arquivo grande demora).
 const ESPERA: Duration = Duration::from_secs(120);
 
+/// O app está ocupado (macro ou cálculo em fundo, com a pasta noutra thread):
+/// responde já, dizendo por quê, em vez de deixar o pedido cair.
+pub(super) fn recusar_ocupado(pedido: &PedidoMcp, texto: &str) {
+    let id = pedido.msg().get("id").cloned().unwrap_or(Json::Null);
+    pedido.responder(recusa(id, texto));
+}
+
 fn recusa(id: Json, texto: &str) -> Json {
     json!({ "jsonrpc": "2.0", "id": id, "result": { "isError": true, "content": [{ "type": "text", "text": texto }] } })
 }
@@ -299,6 +306,8 @@ impl Hospede for HospedeApp<'_> {
     }
     fn alterado(&self) -> bool { self.app.alterado }
     fn ao_vivo(&self) -> bool { true }
+    // Depois da resposta: a pasta ainda é lida para montar o texto dela.
+    fn calcular_muitas(&mut self) { self.enviar(Msg::CalcularEmFundo); }
 
     fn abrir(&mut self, caminho: &Path) -> Result<String, String> {
         if self.app.alterado {

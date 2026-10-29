@@ -7,7 +7,7 @@
 
 use crate::celulas::mapa_chave::MapaColuna;
 
-use crate::planilha::column_store::{ChunkedFloatColumn, ChunkedInt32Column};
+use crate::planilha::column_store::{ChunkedFloatColumn, ChunkedInt32Column, RetratoColuna};
 use crate::celulas::number::to_js_string;
 use crate::celulas::pool::StringPool;
 use crate::celulas::refs::Rect;
@@ -59,15 +59,15 @@ impl DataTable {
         self.columns.entry(col).or_default()
     }
 
-    /// Exporta todas as colunas de números para gravação no formato colunar `.fshz`.
-    pub fn exportar_colunas_num(&self, linhas: u32) -> Vec<(u32, Vec<f64>, Vec<u8>)> {
-        let cols = self.colunas_com(|e| e.float_col.as_ref().is_some_and(|fc| fc.max_row >= 0));
-        // Uma coluna por núcleo: 46 colunas de 13,7 milhões de linhas eram
-        // 2,1 s de cópia na thread da tela a cada Ctrl+S (18/10/2026).
-        crate::paralelismo::por_coluna(&cols, |col| {
-            let (values, bitmap) = self.columns[&col].float_col.as_ref().unwrap().flatten(linhas as usize);
-            (col, values, bitmap)
-        })
+    /// O retrato de cada coluna de números, para gravar sem copiar os dados
+    /// (os blocos são compartilhados; ver `column_store::RetratoColuna`). Até
+    /// 28/10/2026 a gravação achatava cada coluna num `Vec`: 39 colunas de
+    /// 13,7 milhões de linhas eram 4,3 GB a mais ao salvar.
+    pub fn retratos_num(&self) -> Vec<(u32, RetratoColuna<f64>)> {
+        self.colunas_com(|e| e.float_col.as_ref().is_some_and(|fc| fc.max_row >= 0))
+            .into_iter()
+            .map(|col| (col, self.columns[&col].float_col.as_ref().unwrap().retrato()))
+            .collect()
     }
 
     /// Exporta todas as colunas de texto para gravação no formato colunar `.fshz`.

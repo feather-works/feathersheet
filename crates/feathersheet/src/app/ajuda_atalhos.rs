@@ -12,6 +12,7 @@ const FIXOS: &[(&str,&str)] = &[
     ("desfazer","Ctrl+Z / Ctrl+Y"),
     ("copiar","Ctrl+C / Ctrl+X / Ctrl+V"),
     ("negrito","Ctrl+B / Ctrl+I / Ctrl+U"),
+    ("formatarCelulas","Ctrl+1"),
     ("imprimir","Ctrl+P"),
     ("monitor","F12"),
     ("executarMacro","Ctrl+Enter"),
@@ -67,7 +68,7 @@ pub fn montar(json:&Value)->Vec<Topico>{
 mod tests {
     use super::*;
     #[test] fn replica_atalhos_typescript() {
-        assert_eq!(FIXOS.len(),12);
+        assert_eq!(FIXOS.len(),13);
         assert_eq!(CONFIGURAVEIS.len(),24);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (id,_) in FIXOS {assert!(j["ajuda"]["atalhosFixos"][*id].is_string());}

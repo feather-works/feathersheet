@@ -96,6 +96,9 @@ struct Trabalho {
     colunas: Vec<usize>,
     total: usize,
     calculando: bool,
+    /// Já mandou calcular as fórmulas da origem em fundo (uma vez só: o que o
+    /// paralelo não alcança fica para a leitura).
+    calculou_origem: bool,
 }
 
 /// O que fica guardado entre uma conta e outra.
@@ -186,7 +189,7 @@ impl App {
             estado: e.clone(),
             colunas,
             total,
-            calculando: false,
+            calculando: false, calculou_origem: false,
         });
         self.status = tr!("Calculando a tabela dinâmica em segundo plano…").into();
         Ok(())
@@ -201,6 +204,16 @@ impl App {
         let linhas = t.total.saturating_sub(1);
         let faltam: Vec<usize> = t.colunas.iter().copied()
             .filter(|c| !self.dinamica_fundo.prontas.contains_key(c)).collect();
+        // Coluna de fórmula ainda sem conta: lida aqui, célula a célula, calculava a
+        // cadeia inteira pelo caminho lento (o BLOCO do 2026_03 passou de 9 GB, 28/10/2026).
+        // Calcula antes em paralelo, fora da janela, e o pulso seguinte lê pronto.
+        if !t.calculou_origem && self.dinamica_fundo.lendo.is_none()
+            && self.workbook.aba(folha).is_some_and(|a| faltam.iter().any(|&c| a.sheet.formulas.tem_suja(c0 + c as u32)))
+        {
+            if let Some(t) = self.dinamica_fundo.trabalho.as_mut() { t.calculou_origem = true; }
+            self.calcular_em_fundo();
+            return Task::none();
+        }
         for c in faltam {
             let (_, mut coluna) = match self.dinamica_fundo.lendo.take() {
                 Some((lida, col)) if lida == c => (lida, col),
@@ -361,4 +374,35 @@ mod testes {
         assert_eq!(pelo_fundo, na_tela);
         assert!(!app.dinamica_fundo.ativo());
     }
+
+    /// Origem com coluna de fórmula sem conta: a dinâmica manda calcular em
+    /// paralelo antes de copiar, em vez de calcular célula a célula na tela.
+    #[test]
+    fn origem_com_formula_pendente_calcula_em_fundo_antes_de_ler() {
+        use feathersheet_core::dinamica::pivot::AgregacaoOp;
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0, 0, "Grupo"); s.set_cell(0, 1, "Valor"); s.set_cell(0, 2, "Dobro");
+            for r in 1..=300u32 { s.set_cell(r, 0, &format!("G{}", r % 4)); s.set_cell(r, 1, &r.to_string()); }
+            s.set_cell(1, 2, "=B2*2");
+            assert!(s.preencher_formula_faixa_vazia(2, 2, 300, "=B3*2"));
+        });
+        assert!(app.workbook.aba(0).unwrap().sheet.formulas.tem_suja(2));
+        app.fim_selecao = (300, 2);
+        app.evento_dinamica(Evento::Abrir);
+        app.evento_dinamica(Evento::Criar);
+        let destino = app.folha;
+        let mut e = app.dinamica.clone().expect("painel");
+        e.linhas = vec![0];
+        e.valores = vec![MedidaDinamica { coluna: 2, op: AgregacaoOp::Soma }];
+        app.iniciar_dinamica_fundo(destino, &e).expect("começa");
+        let _ = app.passo_dinamica_fundo();
+        assert!(app.dinamica_fundo.trabalho.as_ref().unwrap().calculou_origem);
+        assert!(app.status.contains("calculadas"), "{}", app.status);
+        assert!(!app.workbook.aba(0).unwrap().sheet.formulas.tem_suja(2), "a origem voltou calculada");
+        while !app.dinamica_fundo.trabalho.as_ref().unwrap().calculando {
+            let _ = app.passo_dinamica_fundo();
+        }
+    }
+
 }

@@ -2,6 +2,7 @@
 use super::*;
 use pelicano::column;
 use feather_ui::componentes as ui;
+use super::formatar_celulas::Aba;
 use super::faixa_responsiva::{self, Nivel};
 use super::faixa_nativa::*;
 
@@ -47,11 +48,12 @@ impl App {
                 ]
                 .spacing(4)
                 .align(pelicano::Align::Center);
-                grupos.push(ui::grupo_faixa_compacto(
+                grupos.push(ui::grupo_faixa_com_janela(
                     column![fonte_superior, fonte_inferior].spacing(6).into(),
                     tr!("Fonte"),
+                    Some((tr!("Formatar células (Ctrl+1)"), Msg::FormatarCelulasNa(Aba::Fonte))),
                 ));
-                grupos.push(self.faixa_grupo(tr!("Alinhamento"), self.faixa_linha(vec![
+                grupos.push(self.faixa_grupo_com_janela(tr!("Alinhamento"), Aba::Alinhamento, self.faixa_linha(vec![
                     self.faixa_pilha(vec![
                         feather_ui::alinhamento::seletor_horizontal(
                             match estilo.align {
@@ -111,7 +113,7 @@ impl App {
                     self.faixa_numero_botao(".0→", tr!("Aumentar casas decimais"),
                         Msg::Decimais(1), false),
                 ].spacing(1).align(pelicano::Align::Center);
-                grupos.push(self.faixa_grupo(NUM_FORMAT,
+                grupos.push(self.faixa_grupo_com_janela(NUM_FORMAT, Aba::Numero,
                     column![
                         self.faixa_lista(tr!("Formato"), "formato", FORMATOS,
                             Some(self.faixa_nome_formato()), 173.),

@@ -910,7 +910,10 @@ fn blocos_de_200_por_trecho() {
     let chaves: Vec<String> = linhas[1..].iter().map(|l| l[..4].join("|")).collect();
     let t = std::time::Instant::now();
     w.aba_mut(a).unwrap().sheet.gravar_bloco_literais(0, 0, linhas);
-    eprintln!("dados: {:?}", t.elapsed());
+    drop(std::mem::take(&mut Vec::<u8>::new()));
+    let rss = || std::fs::read_to_string("/proc/self/status").ok().and_then(|s| s.lines()
+        .find(|l| l.starts_with("VmRSS:")).and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok())).unwrap_or(0) / 1024;
+    eprintln!("dados: {:?} · memória {} MB", t.elapsed(), rss());
     let formulas = ["=A2&\"|\"&B2&\"|\"&C2&\"|\"&D2", "=MÍNIMOSES(E:E;F:F;F2)", "=MÁXIMOSES(E:E;F:F;F2)",
         "=(MÁXIMO(TETO.MAT(H2;200);ARREDMULTB.MAT(G2;200)+200)-ARREDMULTB.MAT(G2;200))/200",
         "=MÁXIMO(TETO.MAT(E2;200);ARREDMULTB.MAT(G2;200)+200)", "=(J2-ARREDMULTB.MAT(G2;200))/200",
@@ -926,11 +929,11 @@ fn blocos_de_200_por_trecho() {
         assert!(sheet.formula_cabe_em_bloco(c, 2, &primeira), "não cabe no bloco: {f}");
         sheet.preencher_formula_faixa_vazia(c, 2, n, &primeira);
     }
-    eprintln!("fórmulas preenchidas: {:?}", t.elapsed());
+    eprintln!("fórmulas preenchidas: {:?} · memória {} MB", t.elapsed(), rss());
     if std::env::var("FEATHERSHEET_PARALELO").is_ok() {
         let t = std::time::Instant::now();
         w.calcular_em_paralelo();
-        eprintln!("calcular em paralelo: {:?}", t.elapsed());
+        eprintln!("calcular em paralelo: {:?} · memória {} MB", t.elapsed(), rss());
     }
     // Esperado, pela conta à mão.
     let mut lim: std::collections::HashMap<&str, (f64, f64)> = Default::default();
@@ -941,8 +944,13 @@ fn blocos_de_200_por_trecho() {
     let teto = |x: f64| (x / 200.).ceil() * 200.;
     for col in 5..12u32 {
         let t = std::time::Instant::now();
-        let v: Vec<Value> = (1..=n).map(|r| w.valor(a, r, col)).collect();
-        eprintln!("coluna {}: {:?}", (b'A' + col as u8) as char, t.elapsed());
+        let v: Vec<Value> = if std::env::var("FEATHERSHEET_SO_MEMORIA").is_ok() {
+            for r in 1..=n { let _ = w.valor(a, r, col); }
+            Vec::new()
+        } else { (1..=n).map(|r| w.valor(a, r, col)).collect() };
+        let rss = std::fs::read_to_string("/proc/self/status").ok().and_then(|s| s.lines()
+            .find(|l| l.starts_with("VmRSS:")).map(|l| l.split_whitespace().nth(1).unwrap_or("0").to_owned())).unwrap_or_default();
+        eprintln!("coluna {}: {:?} · memória {} MB", (b'A' + col as u8) as char, t.elapsed(), rss.parse::<u64>().unwrap_or(0) / 1024);
         for (i, valor) in v.iter().enumerate() {
             let (mn, mx) = lim[chaves[i].as_str()];
             let tb = teto(kms[i]).max(piso(mn) + 200.);
@@ -967,4 +975,49 @@ fn blocos_de_200_por_trecho() {
     let faixas: Vec<Value> = (0..7).map(|r| w.valor(a, r, 2)).collect();
     let t = |s: &str| Value::Text(s.into());
     assert_eq!(faixas, [t("350 - 400"), t("350 - 400"), t("350 - 400"), t("400 - 600"), t("400 - 600"), t("600 - 753"), t("600 - 753")]);
+}
+
+/// A fórmula só na linha 2, como quem escreve antes do Ctrl+D: quanto custa a
+/// tela pedir uma célula (28/10/2026: a janela travou com o 2026_03).
+#[test]
+#[ignore]
+fn uma_celula_de_minimoses_sobre_coluna_quase_vazia() {
+    let n: u32 = std::env::var("FEATHERSHEET_LINHAS").ok().and_then(|v| v.parse().ok()).unwrap_or(1_000_000);
+    let mut w = Workbook::new();
+    let a = w.criar_aba("Dados");
+    let linhas: Vec<Vec<String>> = (0..n).map(|r| vec![format!("R{}", r % 37), (r as f64 * 0.25).to_string()]).collect();
+    w.aba_mut(a).unwrap().sheet.gravar_bloco_literais(1, 0, linhas);
+    w.escrever_celula(a, 1, 2, "=A2&\"|\"".into());
+    w.escrever_celula(a, 1, 3, "=MÍNIMOSES(B:B;C:C;C2)".into());
+    for (nome, c) in [("chave", 2u32), ("mínimo", 3)] {
+        let t = std::time::Instant::now();
+        let v = w.valor(a, 1, c);
+        eprintln!("{nome}: {:?} → {v:?}", t.elapsed());
+    }
+}
+
+/// O índice do MÍNIMOSES no cálculo paralelo com a faixa maior que a cópia
+/// (4 milhões de células): antes cada linha varria a coluna inteira e 13,7
+/// milhões de linhas não terminavam (28/10/2026). Pesado: rodar com
+/// `cargo test --release --lib minimoses_paralelo_acima_da_copia -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn minimoses_paralelo_acima_da_copia() {
+    use crate::celulas::values::Value;
+    let n = 4_200_000u32;
+    let mut w = Workbook::new();
+    let a = w.criar_aba("Dados");
+    let linhas: Vec<Vec<String>> = (0..n).map(|r| vec![format!("k{}", r % 5000), ((r * 7919) % 100_003).to_string()]).collect();
+    w.aba_mut(a).unwrap().sheet.gravar_bloco_literais(1, 0, linhas);
+    w.escrever_celula(a, 1, 2, "=MÍNIMOSES(B:B;A:A;A2)".into());
+    assert!(w.aba_mut(a).unwrap().sheet.preencher_formula_faixa_vazia(2, 2, n, "=MÍNIMOSES(B:B;A:A;A3)"));
+    let t = std::time::Instant::now();
+    let calculadas = w.calcular_em_paralelo();
+    eprintln!("calcular em paralelo: {:?} ({calculadas} células)", t.elapsed());
+    assert!(t.elapsed().as_secs() < 60, "o índice não foi usado");
+    let mut minimo = vec![u32::MAX; 5000];
+    for r in 0..n { let k = (r % 5000) as usize; minimo[k] = minimo[k].min((r * 7919) % 100_003); }
+    for r in [1u32, 2, 4999, 5000, n / 2, n] {
+        assert_eq!(w.valor(a, r, 2), Value::Number(minimo[((r - 1) % 5000) as usize] as f64), "linha {}", r + 1);
+    }
 }

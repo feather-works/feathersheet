@@ -1856,8 +1856,8 @@ dependencies = [
 
 [[package]]
 name = "feather-charts"
-version = "0.3.3"
-source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.3#7485e0c31826313025b3436a88fbca4ae50eee4e"
+version = "0.3.4"
+source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.4#2480ff40c5ba384e6b1fb791b6fb0e0bb839acc2"
 dependencies = [
  "feather-draw",
  "serde",
@@ -1918,8 +1918,8 @@ source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf9
 
 [[package]]
 name = "feather-ui"
-version = "0.3.7"
-source = "git+https://github.com/feather-works/feather-ui.git?tag=v0.3.7#51406e5f40afe4f89cab2719c2dcd90e69f6b388"
+version = "0.3.8"
+source = "git+https://github.com/feather-works/feather-ui.git?tag=v0.3.8#980c68777ad38f6484e7e01937f6286a2859b215"
 dependencies = [
  "pelicano",
  "windows-sys 0.59.0",
@@ -1928,12 +1928,12 @@ dependencies = [
 
 [[package]]
 name = "feathersheet"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "arboard",
  "base64 0.22.1",
  "embed-resource",
- "feather-charts 0.3.3",
+ "feather-charts 0.3.4",
  "feather-draw",
  "feather-image",
  "feather-macros",
@@ -1973,7 +1973,7 @@ name = "feathersheet-io"
 version = "0.0.2"
 dependencies = [
  "arrow",
- "feather-charts 0.3.3",
+ "feather-charts 0.3.4",
  "feather-draw",
  "feather-io",
  "feathersheet-core",
@@ -3924,8 +3924,8 @@ checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "pelicano"
-version = "0.1.18"
-source = "git+https://github.com/feather-works/pelicano.git?tag=v0.1.18#fb3419c87d166ee64055f212493b6ba643201d91"
+version = "0.1.19"
+source = "git+https://github.com/feather-works/pelicano.git?tag=v0.1.19#8b1fa4d908b4049794b42f9703c064b2c0c5233d"
 dependencies = [
  "accesskit",
  "accesskit_winit",

@@ -21,6 +21,30 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.1",
+        data: "29/10/2026",
+        resumo: "Abrir mais rápido, salvar mais leve",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("bolt", "Abrir .xlsx muito mais rápido", "Leitor próprio das linhas, vários núcleos e nada calculado durante a leitura."),
+            ("chart-bar", "Gráficos com painel por tipo", "Campos de cada tipo, rosca de verdade e o intervalo ajustado arrastando na grade."),
+            ("table", "OpenQuery como o Power Query", "Etapas num script editável, CSV em qualquer codificação e fonte sem limite."),
+            ("math-function", "Fórmulas em milhões de linhas", "Calculam em fundo, com Parar; CORREL e afins certos quando há células vazias."),
+            ("device-floppy", "Salvar sem dobrar a memória", "As colunas de números vão para o arquivo sem serem copiadas antes."),
+            ("palette", "Tema escuro no Ubuntu", "O automático segue o sistema; células claras como no Excel e cantos arredondados."),
+        ],
+        tambem: &[
+            "As listas suspensas perto do pé da janela (Eixo X do gráfico) voltaram a escolher o item (#122).",
+            "Novos na faixa: Obter e Transformar Dados, Dimensionar para Ajustar e Proteger Pasta de Trabalho.",
+            "Gráficos do .xlsx: séries que pulam colunas, linhas escondidas pelo filtro e rosca (#104, #109).",
+            "AGORA() e HOJE() no fuso do sistema (#95); o rodapé soma as áreas do Ctrl+clique (#111).",
+            "Ctrl+1 e a setinha ↘ dos grupos Fonte, Alinhamento e Número abrem Formatar células.",
+            "O editor da célula usa a letra, a cor e o fundo dela; exportar .xlsx, JSON e CSV não trava a janela.",
+            "A segmentação de dados fica no canto da grade, não mais por cima da barra de fórmulas.",
+            "No Windows, o menu Iniciar mostra FeatherSheet (#102).",
+        ],
+    },
+    Versao {
         numero: "0.2.0",
         data: "27/10/2026",
         resumo: "Macros do Excel, rápidas",

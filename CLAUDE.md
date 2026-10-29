@@ -2,6 +2,15 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.1 — 29/10/2026: correções
+
+pelicano v0.1.19 (o evento usa o tamanho da janela que o recebe: a lista suspensa perto do
+pé da janela perdia o clique, #122), feather-ui v0.3.8, feather-charts v0.3.4, todos por tag.
+Salvar sem copiar as colunas de número, fórmula em milhões de linhas calculada em fundo
+(`app/calculo_em_fundo.rs`), segmentação de dados ancorada na grade
+(`grade_com_segmentacoes`). `FEATHERSHEET_CAPTURAR_FICAR=1` deixa a janela aberta depois
+da foto para um `PELICANO_ROTEIRO` clicar (assim o #122 foi reproduzido).
+
 ## v0.2.0 — 27/10/2026: macros do Excel
 
 - **Motor das macros: Falcão** (`feather-works/falcao`, tag v0.1.1; repositório próprio desde

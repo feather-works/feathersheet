@@ -161,13 +161,23 @@ pub fn por_coluna<T: Send>(colunas: &[u32], f: impl Fn(u32) -> T + Sync) -> Vec<
 /// Andamento do cálculo em paralelo (células feitas de quantas), para a
 /// barra de abertura da janela. Um cálculo grande por vez: estado global.
 pub mod andamento {
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     static FEITO: AtomicU64 = AtomicU64::new(0);
     static TOTAL: AtomicU64 = AtomicU64::new(0);
+    static PARAR: AtomicBool = AtomicBool::new(false);
 
     pub fn comecar(total: u64) {
         FEITO.store(0, Ordering::Relaxed);
         TOTAL.store(total, Ordering::Relaxed);
+        PARAR.store(false, Ordering::Relaxed);
+    }
+    /// O botão Parar: o cálculo em paralelo termina a fatia em curso e para;
+    /// o que faltou fica sujo para o cálculo sob demanda.
+    pub fn pedir_parar() {
+        PARAR.store(true, Ordering::Relaxed);
+    }
+    pub fn parado() -> bool {
+        PARAR.load(Ordering::Relaxed)
     }
     pub fn somar(n: u64) {
         FEITO.fetch_add(n, Ordering::Relaxed);

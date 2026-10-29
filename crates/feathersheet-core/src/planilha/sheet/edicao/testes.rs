@@ -658,3 +658,37 @@ fn desfazer_ordenacao_devolve_formula_que_virou_ref() {
     assert!(s.undo());
     assert_eq!(s.get_raw(2, 1), "=D1");
 }
+
+#[test]
+fn ctrl_seta_pelas_mascaras_da_o_mesmo_que_linha_a_linha() {
+    let mut s = Sheet::new("A");
+    // Dados em blocos que cruzam a divisa de 65.536, uma fórmula no vão e células avulsas.
+    let mut linhas = Vec::new();
+    for r in 0..140_000u32 {
+        let cheia = (r / 1000) % 3 != 1 && !(65_530..65_540).contains(&r);
+        linhas.push(vec![if cheia { r.to_string() } else { String::new() }]);
+    }
+    s.gravar_bloco_literais(0, 0, linhas);
+    s.set_cell(1500, 0, "=1+1");
+    s.set_cell(65_535, 0, "x");
+    s.set_cell(2000, 0, "");
+    let (lr, lc) = (9_999_999u32, 16_383u32);
+    let antigo = |s: &Sheet, row: u32, dr: i64| -> u32 {
+        let max_row = 139_999i64;
+        let cheia = |r: i64| s.has_content(r as u32, 0);
+        let mut r = row as i64;
+        if r + dr < 0 || r + dr > lr as i64 { return row; }
+        let comeca = cheia(r + dr);
+        r += dr;
+        if !comeca && dr > 0 && r > max_row { return lr; }
+        if !comeca && dr < 0 && r > max_row { r = max_row; if cheia(r) { return r as u32; } }
+        while r + dr >= 0 && r + dr <= lr as i64 && cheia(r + dr) == comeca { r += dr; }
+        if !comeca && r + dr >= 0 && r + dr <= lr as i64 { r += dr; }
+        r as u32
+    };
+    for row in [0u32, 1, 999, 1000, 1499, 1500, 1501, 1999, 2000, 2001, 2999, 3000, 65_529, 65_535, 65_536, 65_540, 139_998, 139_999, 140_000, 500_000, lr] {
+        for dr in [1i64, -1] {
+            assert_eq!(s.borda_dos_dados(row, 0, dr as i32, 0, lr, lc).0, antigo(&s, row, dr), "linha {row}, sentido {dr}");
+        }
+    }
+}

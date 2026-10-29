@@ -20,6 +20,9 @@ pub trait Hospede {
     fn caminho(&self) -> Option<PathBuf>;
     /// A pasta mudou (aparece como "não salvo").
     fn marcar_alterado(&mut self);
+    /// Depois de escrever fórmula em muitas células: sem o app, calcula agora (em
+    /// paralelo); ao vivo, o app calcula noutra thread sem travar a janela.
+    fn calcular_muitas(&mut self) { self.pasta_mut().calcular_em_paralelo(); }
     fn alterado(&self) -> bool;
     fn ao_vivo(&self) -> bool { false }
 

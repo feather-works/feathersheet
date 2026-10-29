@@ -121,6 +121,7 @@ mod celulas_dialogo;
 pub(crate) mod topicos_ui;
 mod importar_vba;
 mod macro_dialogo;
+mod calculo_em_fundo;
 mod historico_macros;
 mod eventos_vba;
 mod protecao_ui;
@@ -423,7 +424,7 @@ pub enum Msg {
     /// Limpar ▾ > Limpar hiperlinks: tira o link da seleção e mantém o texto.
     LimparHiperlinks,
     AlternarMenuOrientacao, FecharMenuOrientacao, OrientacaoEscolher(&'static str),
-    FormatarCelulasAbrir, FormatoCelula(EventoFormatoCelula),
+    FormatarCelulasAbrir, FormatarCelulasNa(formatar_celulas::Aba), FormatoCelula(EventoFormatoCelula),
     Pincel, AplicarPincel,
     CondicionalAbrir, CondicionalMostrar, CondicionalFechar, CondicionalNovaRegra,
     CondicionalPredefinida(TipoCondicional), CondicionalTipo(TipoCondicional), CondicionalValor(String),
@@ -502,7 +503,7 @@ pub enum Msg {
     TecladoNoCampo(window::Id, keyboard::Key, keyboard::Modifiers),
     Tema(bool), TemaAuto, Acento(usize), BarraPropria(bool), Faixa, SecaoConfig(usize),
     Idioma(&'static str), CsvDetectarSeparador(bool),
-    AutoSalvar(bool), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), Fuso(Option<i32>), CalcularPulso, FonteGrade(&'static str), CorpoGrade(u16),
+    AutoSalvar(bool), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), Fuso(Option<i32>), CalcularPulso, CalculoPulso, CalcularEmFundo, CalculoParar, FonteGrade(&'static str), CorpoGrade(u16),
     CapturarAtalho(&'static str), RestaurarAtalhos,
     FecharMenu, Cancelar, Descartar, SalvarAntes, GuardarTemporariamente,
     /// Resposta à pergunta Sim/Não da macro; fecha a mensagem da macro.
@@ -727,6 +728,7 @@ pub struct App {
     macro_pergunta: Option<macro_dialogo::PerguntaMacro>,
     /// A macro rodando noutra thread (botão, forma, Executar macro).
     macro_rodando: Option<macro_dialogo::em_fundo::MacroRodando>,
+    calculo_rodando: Option<calculo_em_fundo::CalculoRodando>,
     /// O formulário aberto por `sheet.showComponent`.
     formulario_macro: Option<formulario_macro::FormularioAberto>,
     /// O `valores` da próxima execução (o botão do formulário).
@@ -1075,7 +1077,7 @@ impl Default for App {
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,
-            vba_pendente: None, macro_pergunta: None, macro_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
+            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             comentario_editor: None, comentario_sobre: None, comentarios_todos: false,
             novo_estilo: None,
@@ -1424,7 +1426,14 @@ impl App {
             Msg::Lote(lote) => return Task::batch(lote.into_iter().map(|m| self.update(m)).collect::<Vec<_>>()),
             msg => msg,
         };
-        if self.macro_rodando.is_some() && !Self::mensagem_liberada_durante_macro(&msg) {
+        if (self.macro_rodando.is_some() || self.calculo_rodando.is_some()) && !Self::mensagem_liberada_durante_macro(&msg) {
+            if let Msg::Mcp(pedido) = &msg {
+                let (feito, total) = feathersheet_core::paralelismo::andamento::agora();
+                let motivo = if self.calculo_rodando.is_some() {
+                    format!("O FeatherSheet está calculando as fórmulas em fundo ({feito} de {total} células). Tente de novo em alguns segundos.")
+                } else { "Uma macro está rodando no FeatherSheet. Tente de novo quando ela terminar.".to_string() };
+                mcp_vivo::recusar_ocupado(pedido, &motivo);
+            }
             return Task::none();
         }
         // Toda mensagem pode mudar o que a grade mostra, menos as desta lista: o pulso
@@ -1579,6 +1588,9 @@ impl App {
             } else { Subscription::none() },
             if self.macro_rodando.is_some() {
                 a_cada(200).map(|_| Msg::MacroPulso)
+            } else { Subscription::none() },
+            if self.calculo_rodando.is_some() {
+                a_cada(200).map(|_| Msg::CalculoPulso)
             } else { Subscription::none() },
             if self.grafico_em_transicao() {
                 // Transição da legenda do gráfico: um quadro por tela.

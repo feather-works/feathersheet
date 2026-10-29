@@ -99,7 +99,7 @@ impl App {
 
     /// Enquanto a macro roda, só passa o que não mexe na pasta.
     pub(in crate::app) fn mensagem_liberada_durante_macro(msg: &Msg) -> bool {
-        matches!(msg, Msg::MacroPulso | Msg::MacroParar | Msg::MonitorPulso | Msg::ProgressoPulso
+        matches!(msg, Msg::MacroPulso | Msg::MacroParar | Msg::CalculoPulso | Msg::CalculoParar | Msg::MonitorPulso | Msg::ProgressoPulso
             | Msg::CapturarTela | Msg::JanelaRedimensionada(..) | Msg::RedimensionarJanela(..)
             | Msg::AuxAberta | Msg::AuxFechada(_))
     }
@@ -124,7 +124,7 @@ impl App {
 }
 
 /// A pasta que a tela usa enquanto a de verdade está com a macro: vazia, com as mesmas abas.
-fn espelho_da_pasta(w: &Workbook) -> Workbook {
+pub(in crate::app) fn espelho_da_pasta(w: &Workbook) -> Workbook {
     let mut e = Workbook::new();
     for (i, nome) in w.nomes().iter().enumerate() {
         if i == 0 { e.renomear_aba(0, nome); } else { e.inserir_aba(nome.clone(), i); }

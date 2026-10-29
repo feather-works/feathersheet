@@ -453,13 +453,12 @@ fn agrupar_soma_todas_as_linhas_nao_a_amostra() {
 // --- a leitura da célula, que o TypeScript fazia com parseFloat e String()
 
 #[test]
-fn numero_de_texto_segue_o_parse_float() {
-    assert_eq!(parse_float_js("12abc"), 12.0);
-    assert_eq!(parse_float_js("  -3.5e2x"), -350.0);
-    assert_eq!(parse_float_js("1e"), 1.0);
-    assert_eq!(parse_float_js(".5"), 0.5);
-    assert!(parse_float_js("R$ 5").is_nan());
-    assert!(parse_float_js(".").is_nan());
+fn numero_de_texto_so_quando_o_texto_inteiro_e_numero() {
+    assert_eq!(numero_do_texto(" -3.5e2 "), Some(-350.0));
+    assert_eq!(numero_do_texto(".5"), Some(0.5));
+    assert_eq!(numero_do_texto("12abc"), None);
+    assert_eq!(numero_do_texto("4887.75 - 5000"), None, "a faixa do bloco é texto");
+    assert_eq!(numero_do_texto("R$ 5"), None);
     assert_eq!(numero_da_celula(&Value::Text("1,5".into())), 1.5);
     assert_eq!(numero_da_celula(&Value::Text("abc".into())), 0.0);
     assert_eq!(numero_da_celula(&Value::Bool(true)), 1.0);

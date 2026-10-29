@@ -335,7 +335,8 @@ pub fn ymd_de(valor: &Value) -> Option<(i32, u32, u32)> {
 // ---------------------------------------------------------------------------
 
 /// A→Z natural: números antes de texto, números pelo valor, texto sem
-/// diferenciar maiúsculas.
+/// diferenciar maiúsculas e com os trechos de algarismos pelo valor
+/// ("6/9/2026" antes de "6/10/2026", "350 - 400" antes de "1000 - 1200").
 pub fn comparar_natural(a: &str, b: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     let n = |s: &str| s.trim().replace(',', ".").parse::<f64>().ok().filter(|x| x.is_finite());
@@ -343,7 +344,32 @@ pub fn comparar_natural(a: &str, b: &str) -> std::cmp::Ordering {
         (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal).then_with(|| a.cmp(b)),
         (Some(_), None) => Ordering::Less,
         (None, Some(_)) => Ordering::Greater,
-        (None, None) => a.to_lowercase().cmp(&b.to_lowercase()).then_with(|| a.cmp(b)),
+        (None, None) => texto_natural(&a.to_lowercase(), &b.to_lowercase()).then_with(|| a.cmp(b)),
+    }
+}
+
+fn texto_natural(a: &str, b: &str) -> std::cmp::Ordering {
+    let (mut a, mut b) = (a.as_bytes(), b.as_bytes());
+    loop {
+        match (a.first(), b.first()) {
+            (None, None) => return std::cmp::Ordering::Equal,
+            (None, _) => return std::cmp::Ordering::Less,
+            (_, None) => return std::cmp::Ordering::Greater,
+            (Some(x), Some(y)) if x.is_ascii_digit() && y.is_ascii_digit() => {
+                let fim = |s: &[u8]| s.iter().position(|c| !c.is_ascii_digit()).unwrap_or(s.len());
+                let (na, nb) = (fim(a), fim(b));
+                // Sem zeros à esquerda, o trecho mais longo é o maior número.
+                let tira = |s: &[u8]| { let z = s.iter().take_while(|&&c| c == b'0').count(); s[z..].to_vec() };
+                let (da, db) = (tira(&a[..na]), tira(&b[..nb]));
+                let ord = da.len().cmp(&db.len()).then_with(|| da.cmp(&db));
+                if ord.is_ne() { return ord; }
+                (a, b) = (&a[na..], &b[nb..]);
+            }
+            (Some(x), Some(y)) => {
+                if x != y { return x.cmp(y); }
+                (a, b) = (&a[1..], &b[1..]);
+            }
+        }
     }
 }
 
@@ -527,6 +553,9 @@ mod testes {
         let mut v = vec!["b", "10", "A", "2"];
         v.sort_by(|a, b| comparar_natural(a, b));
         assert_eq!(v, ["2", "10", "A", "b"]);
+        let mut v = vec!["6/10/2026", "1000 - 1200", "6/9/2026", "350 - 400", "LINHA10", "linha2"];
+        v.sort_by(|a, b| comparar_natural(a, b));
+        assert_eq!(v, ["6/9/2026", "6/10/2026", "350 - 400", "1000 - 1200", "linha2", "LINHA10"]);
     }
 
     #[test]

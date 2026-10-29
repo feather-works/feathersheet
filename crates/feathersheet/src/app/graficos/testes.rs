@@ -1318,3 +1318,123 @@ fn contorno_do_grafico_estica_mesmo_com_a_camada_tirando_a_selecao() {
     let rect: feathersheet_core::celulas::refs::Rect = serde_json::from_value(lista[0]["range"].clone()).unwrap();
     assert_eq!(format_ref(&rect), "A1:B4");
 }
+
+/// A lista do Eixo X abre e escolhe (28/10/2026: no painel do gráfico nenhuma
+/// lista suspensa abria; as caixas de marcar funcionavam).
+#[test]
+fn lista_do_eixo_x_abre_e_escolhe() {
+    use pelicano::{Event, MouseButton, Point, Size};
+    let mut a = App::default();
+    let _ = a.update(Msg::Colar("Grupo\tValor\tMeta\nA\t10\t30\nB\t20\t40".into()));
+    a.linha = 0; a.coluna = 0; a.fim_selecao = (2, 2);
+    let _ = a.evento_grafico(Evento::Abrir);
+    let _ = a.evento_grafico(Evento::Tipo(TipoUi::Linhas));
+    assert!(a.graficos.aberto);
+    let tela = Size::new(1280.0, 800.0);
+    let mut r = pelicano::Renderer::new();
+    let mut st = pelicano::States::default();
+    let mut area = pelicano::MemoryClipboard::default();
+    let mut clicar = |a: &mut App, st: &mut pelicano::States, p: Point| -> Vec<Msg> {
+        // O mouse chega até o ponto antes de clicar.
+        let _ = a.update(Msg::CursorJanela(window::Id::MAIN, p));
+        let el = a.view(window::Id::MAIN);
+        r.begin(tela, 1.0, pelicano::Color::TRANSPARENT);
+        let n = pelicano::layout(&el, tela, &mut r, st, &pelicano::Theme::light());
+        let mut msgs = Vec::new();
+        let mut cx = pelicano::EventCx { renderer: &mut r, states: st, cursor: Some(p), messages: &mut msgs,
+            window: &mut Vec::new(), redraw: false, clipboard: &mut area };
+        pelicano::dispatch(&el, &n, &Event::MousePressed(MouseButton::Left), &mut cx);
+        drop(el);
+        // O que o app recebe junto com o clique (`evento_janela`).
+        let soltar = Msg::Grafico(Evento::Soltar);
+        // E os pulsos que rodam entre um quadro e outro.
+        for m in msgs.iter().cloned().chain([soltar, Msg::ResumoPulso, Msg::MonitorPulso, Msg::CalcularPulso]) { let _ = a.update(m); }
+        msgs
+    };
+    // Procura o campo pela coluna do painel: um clique que, seguido de outro logo
+    // abaixo, escolhe uma categoria.
+    for y in (100..700).step_by(6) {
+        let campo = Point::new(1180.0, y as f32);
+        let _ = clicar(&mut a, &mut st, campo);
+        let escolha = clicar(&mut a, &mut st, Point::new(1180.0, y as f32 + 60.0));
+        if escolha.iter().any(|m| matches!(m, Msg::Grafico(Evento::CategoriaColuna(_)))) { return; }
+        let _ = clicar(&mut a, &mut st, Point::new(5.0, 790.0));
+    }
+    panic!("nenhum clique abriu a lista do Eixo X e escolheu uma coluna");
+}
+
+/// Gráfico de linhas sobre uma dinâmica de 12.664 linhas (DATA, RAMAL, EH, LINHA,
+/// BLOCO, valor), como a do usuário em 28/10/2026: o quadro mostrava "Prévia
+/// indisponível" e trocar o Eixo X não fazia nada.
+#[test]
+fn grafico_de_linhas_sobre_dinamica_grande_desenha_e_troca_o_eixo_x() {
+    let mut a = App::default();
+    let n = 12_664u32;
+    let mut linhas = vec![vec!["DATA".to_string(), "RAMAL".into(), "EH".into(), "LINHA".into(), "BLOCO".into(), "Máx de NIV".into()]];
+    for r in 0..n - 2 {
+        let ini = 6000 + 200 * (r % 40);
+        // Como a do usuário: a data vem como série no começo e como texto no fim.
+        let data = if r < 6000 { "46240".to_string() } else { format!("7/{}/2026", 1 + r % 28) };
+        linhas.push(vec![data, "RLT".into(), format!("EH 0{}/03", 1 + r % 3),
+            (1 + r % 2).to_string(), format!("{ini} - {}", ini + 200), format!("{}", 0.8 + (r % 97) as f64 / 31.0)]);
+    }
+    linhas.push(vec!["Total Geral".into(), String::new(), String::new(), String::new(), String::new(), "1.96".into()]);
+    a.workbook.aba_mut(0).unwrap().sheet.gravar_bloco_literais(0, 0, linhas);
+    a.linha = 0; a.coluna = 0; a.fim_selecao = (n - 1, 5);
+    let _ = a.evento_grafico(Evento::Abrir);
+    let _ = a.evento_grafico(Evento::Tipo(TipoUi::Linhas));
+    let ver = |a: &App, passo: &str| {
+        let svg = a.graficos.svg.as_deref().unwrap_or("");
+        assert!(!svg.is_empty() && !svg.contains("indisponível"), "{passo}: sem desenho; mensagem: {}", a.graficos.mensagem);
+    };
+    ver(&a, "abrir");
+    for c in [Some(4), None, Some(0), Some(1)] {
+        let _ = a.evento_grafico(Evento::CategoriaColuna(c));
+        assert_eq!(a.graficos.categorias.then_some(a.graficos.coluna_categoria), c, "a escolha {c:?} não ficou");
+        ver(&a, &format!("categoria {c:?}"));
+    }
+    let _ = a.evento_grafico(Evento::Inserir);
+    let valor = feathersheet_io::graficos_salvos::listar(&a.workbook.aba(0).unwrap().sheet).unwrap().remove(0);
+    let svg = super::editor::svg_do_grafico_salvo(&a.workbook.aba(0).unwrap().sheet, &valor);
+    assert!(svg.is_some(), "o gráfico gravado não desenha: {valor}");
+}
+
+/// Bancada (29/10/2026): gráfico de linhas de 12.664 linhas com o BLOCO ("4887.75 - 5000")
+/// no Eixo X travava a janela. Mede quanto custa cada quadro do app inteiro.
+/// `cargo test --profile medir --bin feathersheet medir_quadros_grafico_com_bloco -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn medir_quadros_grafico_com_bloco() {
+    use pelicano::{Point, Size};
+    let mut a = App::default();
+    let n = 12_664u32;
+    let mut linhas = vec![vec!["DATA".to_string(), "RAMAL".into(), "EH".into(), "LINHA".into(), "BLOCO".into(), "NIV_MAX_5M".into()]];
+    for r in 0..n - 1 {
+        let ini = 4887.75 + 7.5 * r as f64;
+        linhas.push(vec!["06/08/2026".into(), "RLT".into(), format!("EH 0{}/03", 1 + r % 3),
+            (1 + r % 2).to_string(), format!("{ini} - {}", ini + 112.25), format!("{}", 0.8 + (r % 97) as f64 / 31.0)]);
+    }
+    a.workbook.aba_mut(0).unwrap().sheet.gravar_bloco_literais(0, 0, linhas);
+    a.linha = 0; a.coluna = 0; a.fim_selecao = (n - 1, 5);
+    let _ = a.evento_grafico(Evento::Abrir);
+    let _ = a.evento_grafico(Evento::Tipo(TipoUi::Linhas));
+    let _ = a.evento_grafico(Evento::Inserir);
+    let t = std::time::Instant::now();
+    let _ = a.evento_grafico(Evento::CategoriaColuna(Some(4)));
+    eprintln!("escolher BLOCO: {:?}", t.elapsed());
+    let tela = Size::new(2000.0, 1125.0);
+    let mut r = pelicano::Renderer::new();
+    let st = pelicano::States::default();
+    for i in 0..6 {
+        let t = std::time::Instant::now();
+        let el = a.view(window::Id::MAIN);
+        let tv = t.elapsed();
+        r.begin(tela, 1.28, pelicano::Color::BLACK);
+        let arvore = pelicano::layout(&el, tela, &mut r, &st, &pelicano::Theme::dark());
+        let tl = t.elapsed();
+        pelicano::draw(&el, &arvore, &mut r, &st, &pelicano::Theme::dark(), Some(Point::new(1900.0, 600.0 + i as f32)), false);
+        eprintln!("quadro {i}: view {tv:?} · layout {:?} · desenho {:?}", tl - tv, t.elapsed() - tl);
+        drop(el);
+        let _ = a.update(Msg::CursorJanela(window::Id::MAIN, Point::new(1900.0, 600.0 + i as f32)));
+    }
+}

@@ -452,56 +452,16 @@ fn nome_com_conta(config: &ChartConfig, ordem: u32, nome: String) -> String {
 
 // ---------------------------------------------------------------- leitura
 
-/// O `parseFloat` do JavaScript: lê o número do COMEÇO do texto e ignora o
-/// resto (`"12abc"` é 12); `NaN` quando não começa por número.
-fn parse_float_js(texto: &str) -> f64 {
-    let s = texto.trim_start_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    if i < bytes.len() && (bytes[i] == b'+' || bytes[i] == b'-') {
-        i += 1;
-    }
-    if s[i..].starts_with("Infinity") {
-        return if bytes.first() == Some(&b'-') { f64::NEG_INFINITY } else { f64::INFINITY };
-    }
-    let inicio_digitos = i;
-    while i < bytes.len() && bytes[i].is_ascii_digit() {
-        i += 1;
-    }
-    let mut digitos = i - inicio_digitos;
-    if i < bytes.len() && bytes[i] == b'.' {
-        let depois = i + 1;
-        let mut j = depois;
-        while j < bytes.len() && bytes[j].is_ascii_digit() {
-            j += 1;
-        }
-        digitos += j - depois;
-        if digitos > 0 {
-            i = j;
-        }
-    }
-    if digitos == 0 {
-        return f64::NAN;
-    }
-    // Expoente só conta se vier com dígito: "1e" é 1.
-    if i < bytes.len() && (bytes[i] == b'e' || bytes[i] == b'E') {
-        let mut j = i + 1;
-        if j < bytes.len() && (bytes[j] == b'+' || bytes[j] == b'-') {
-            j += 1;
-        }
-        let k = j;
-        while j < bytes.len() && bytes[j].is_ascii_digit() {
-            j += 1;
-        }
-        if j > k {
-            i = j;
-        }
-    }
-    s[..i].parse::<f64>().unwrap_or(f64::NAN)
+/// O texto inteiro é um número (`"12"`, `" 1,5 "`)? A mesma regra do painel
+/// do gráfico e do Excel. Era o `parseFloat` do JavaScript, que lia o começo:
+/// "4887.75 - 5000" virava 4887,75, a série aparecia no gráfico e o painel,
+/// que a via como texto, não a listava para desmarcar (28/10/2026).
+fn numero_do_texto(texto: &str) -> Option<f64> {
+    texto.trim().replacen(',', ".", 1).parse::<f64>().ok().filter(|n| !n.is_nan())
 }
 
-/// O número de uma célula para o gráfico (`getCellNum`): texto passa pelo
-/// `parseFloat` com a primeira vírgula virando ponto; o que não é número vale 0.
+/// O número de uma célula para o gráfico (`getCellNum`): texto só quando é
+/// número inteiro ([`numero_do_texto`]); o que não é número vale 0.
 fn numero_da_celula(v: &Value) -> f64 {
     match v {
         Value::Number(n) => *n,
@@ -512,14 +472,7 @@ fn numero_da_celula(v: &Value) -> f64 {
                 0.0
             }
         }
-        Value::Text(t) => {
-            let n = parse_float_js(&t.replacen(',', ".", 1));
-            if n.is_nan() {
-                0.0
-            } else {
-                n
-            }
-        }
+        Value::Text(t) => numero_do_texto(t).unwrap_or(0.0),
         _ => 0.0,
     }
 }
@@ -549,7 +502,7 @@ fn texto_movido(v: Value) -> String {
 fn parece_numero(v: &Value) -> bool {
     match v {
         Value::Number(_) => true,
-        Value::Text(t) => !t.trim().is_empty() && !parse_float_js(&t.replacen(',', ".", 1)).is_nan(),
+        Value::Text(t) => numero_do_texto(t).is_some(),
         _ => false,
     }
 }

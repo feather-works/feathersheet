@@ -456,6 +456,7 @@ impl App {
                         "Ctrl+R" => Some(Msg::Preencher(DirecaoPreenchimento::Direita)),
                         "Ctrl+A" => Some(Msg::SelecionarTudo),
                         "Ctrl+Shift+8" | "Ctrl+Shift+*" | "Ctrl+*" => Some(Msg::SelecionarRegiaoAtual),
+                        "Ctrl+1" => Some(Msg::FormatarCelulasAbrir),
                         "Ctrl+B" => Some(Msg::AlternarEstilo("bold".into())),
                         "Ctrl+I" => Some(Msg::AlternarEstilo("italic".into())),
                         "Ctrl+U" => Some(Msg::AlternarEstilo("underline".into())),

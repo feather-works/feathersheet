@@ -359,3 +359,123 @@ fn medir_etapas_da_troca() {
         }
     }
 }
+
+/// O travamento de 28/10/2026: escrever só a linha 2 das colunas de bloco no
+/// `2026_03.fshz` deixou o app a 710% de CPU. Mede cada pulso que o app roda
+/// depois de uma escrita.
+#[test]
+#[ignore]
+fn medir_pulsos_depois_de_escrever() {
+    let Ok(caminho) = std::env::var("FEATHERSHEET_PESADO") else { return };
+    let rss = || std::fs::read_to_string("/proc/self/status").ok().and_then(|s| s.lines()
+        .find(|l| l.starts_with("VmRSS:")).and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok())).unwrap_or(0) / 1024;
+    let t = std::time::Instant::now();
+    let lida = feathersheet_io::fshz_read::ler_fshz(&std::fs::read(&caminho).unwrap()).unwrap();
+    let mut app = App::default();
+    app.workbook = feathersheet_io::para_workbook::para_workbook(&lida);
+    drop(lida);
+    app.em_tela_inicio = false;
+    eprintln!("abrir: {:?} · {} MB", t.elapsed(), rss());
+    let linha2 = ["=AP2&\"|\"&A2&\"|\"&C2", "=MÍNIMOSES(AO:AO;AU:AU;AU2)", "=MÁXIMOSES(AO:AO;AU:AU;AU2)",
+        "=(MÁXIMO(TETO.MAT(AW2;200);ARREDMULTB.MAT(AV2;200)+200)-ARREDMULTB.MAT(AV2;200))/200",
+        "=MÁXIMO(TETO.MAT(AO2;200);ARREDMULTB.MAT(AV2;200)+200)", "=(AY2-ARREDMULTB.MAT(AV2;200))/200",
+        "=MÁXIMO(AV2;AY2-200)&\" - \"&MÍNIMO(AW2;AY2)"];
+    for (i, f) in linha2.iter().enumerate() {
+        let t = std::time::Instant::now();
+        app.workbook.escrever_celula(0, 1, 46 + i as u32, f.to_string());
+        eprintln!("escrever {}: {:?} · {} MB", 46 + i, t.elapsed(), rss());
+    }
+    app.alterado = true;
+    app.linha = 1; app.coluna = 46; app.fim_selecao = (1, 46);
+    app.coluna_inicio = 40;
+    for (nome, msg) in [("calcular visíveis", Msg::CalcularPulso), ("monitor", Msg::MonitorPulso),
+        ("resumo", Msg::ResumoPulso), ("calcular visíveis 2", Msg::CalcularPulso), ("monitor 2", Msg::MonitorPulso)] {
+        let t = std::time::Instant::now();
+        let _ = app.update(msg);
+        eprintln!("{nome}: {:?} · {} MB", t.elapsed(), rss());
+    }
+    for c in 46..53 { eprintln!("  {}: {:?}", c, app.workbook.valor(0, 1, c)); }
+}
+
+/// Quantas chaves NOMENCLATURA|RAMAL|LINHA distintas o arquivo tem (o índice do
+/// MÍNIMOSES desiste acima de `MAX_GRUPOS`).
+#[test]
+#[ignore]
+fn contar_chaves_do_bloco() {
+    let Ok(caminho) = std::env::var("FEATHERSHEET_PESADO") else { return };
+    let lida = feathersheet_io::fshz_read::ler_fshz(&std::fs::read(&caminho).unwrap()).unwrap();
+    let wb = feathersheet_io::para_workbook::para_workbook(&lida);
+    drop(lida);
+    let n = wb.aba(0).unwrap().sheet.used_rect().r1;
+    let mut chaves = std::collections::HashSet::new();
+    for r in 1..=n {
+        chaves.insert((texto_celula(&wb.valor(0, r, 41)), texto_celula(&wb.valor(0, r, 0)), texto_celula(&wb.valor(0, r, 2))));
+    }
+    eprintln!("{} chaves distintas em {n} linhas", chaves.len());
+}
+
+/// Monta a dinâmica de blocos de 200 m pedida em 28/10/2026 sobre um `.fshz`
+/// e grava numa cópia (`FEATHERSHEET_SAIDA`): colunas de bloco por
+/// NOMENCLATURA|RAMAL|LINHA sobre o _KM (AO), e a dinâmica DATA, RAMAL, EH,
+/// LINHA, BLOCO × Máx de NIV_MAX_5M.
+#[test]
+#[ignore]
+fn montar_dinamica_de_blocos() {
+    let (Ok(caminho), Ok(saida)) = (std::env::var("FEATHERSHEET_PESADO"), std::env::var("FEATHERSHEET_SAIDA")) else { return };
+    let t = std::time::Instant::now();
+    let lida = feathersheet_io::fshz_read::ler_fshz(&std::fs::read(&caminho).unwrap()).unwrap();
+    let mut app = App::default();
+    app.workbook = feathersheet_io::para_workbook::para_workbook(&lida);
+    drop(lida);
+    eprintln!("abrir: {:?}", t.elapsed());
+    let u = app.workbook.aba(0).unwrap().sheet.used_rect();
+    assert_eq!(u.c1, 45, "a origem mudou de forma");
+    let colunas = [
+        ("CHAVE", "=AP2&\"|\"&A2&\"|\"&C2"),
+        ("KM_MIN", "=MÍNIMOSES(AO:AO;AU:AU;AU2)"),
+        ("KM_MAX", "=MÁXIMOSES(AO:AO;AU:AU;AU2)"),
+        ("QTD_BLOCOS", "=(MÁXIMO(TETO.MAT(AW2;200);ARREDMULTB.MAT(AV2;200)+200)-ARREDMULTB.MAT(AV2;200))/200"),
+        ("TETO_BLOCO", "=MÁXIMO(TETO.MAT(AO2;200);ARREDMULTB.MAT(AV2;200)+200)"),
+        ("BLOCO_N", "=(AY2-ARREDMULTB.MAT(AV2;200))/200"),
+        ("BLOCO", "=MÁXIMO(AV2;AY2-200)&\" - \"&MÍNIMO(AW2;AY2)"),
+    ];
+    let t = std::time::Instant::now();
+    for (i, (titulo, formula)) in colunas.iter().enumerate() {
+        let c = 46 + i as u32;
+        app.workbook.escrever_celula(0, 0, c, titulo.to_string());
+        app.workbook.escrever_celula(0, 1, c, formula.to_string());
+        let sheet = &mut app.workbook.aba_mut(0).unwrap().sheet;
+        let primeira = feathersheet_core::operacoes::fill::shift_formula(formula, 1, 0);
+        assert!(sheet.formula_cabe_em_bloco(c, 2, &primeira), "não cabe no bloco: {formula}");
+        sheet.preencher_formula_faixa_vazia(c, 2, u.r1, &primeira);
+    }
+    app.workbook.calcular_em_paralelo();
+    eprintln!("colunas do bloco: {:?}", t.elapsed());
+    for r in [1u32, 2, 1000, u.r1] {
+        let linha: Vec<String> = (46..53).map(|c| texto_celula(&app.workbook.valor(0, r, c))).collect();
+        eprintln!("linha {}: _KM {} {linha:?}", r + 1, texto_celula(&app.workbook.valor(0, r, 40)));
+    }
+    app.folha = 0;
+    app.fim_selecao = (u.r1, 52);
+    app.evento_dinamica(Evento::Abrir);
+    let e = app.dinamica.as_mut().unwrap();
+    e.linhas = vec![4, 0, 44, 2, 52];
+    e.colunas.clear();
+    e.valores = vec![MedidaDinamica { coluna: 19, op: AgregacaoOp::Max }];
+    let t = std::time::Instant::now();
+    app.evento_dinamica(Evento::Criar);
+    eprintln!("criar a dinâmica: {:?} · {}", t.elapsed(), app.status);
+    let d = app.workbook.len() - 1;
+    let ud = app.workbook.aba(d).unwrap().sheet.used_rect();
+    eprintln!("aba {:?}: {} linhas × {}", app.workbook.nomes()[d], ud.r1 + 1, ud.c1 + 1);
+    for r in 0..8u32.min(ud.r1 + 1) {
+        let linha: Vec<String> = (0..=ud.c1).map(|c| texto_celula(&app.workbook.valor(d, r, c))).collect();
+        eprintln!("  {linha:?}");
+    }
+    let t = std::time::Instant::now();
+    let pasta = feathersheet_io::da_workbook::da_workbook(&app.workbook, d as u32);
+    feathersheet_io::arquivo::gravar_atomico_com(std::path::Path::new(&saida), |arquivo| {
+        feathersheet_io::fshz_write::gravar_fshz_para(arquivo, &pasta).map_err(std::io::Error::other)
+    }).unwrap();
+    eprintln!("gravar {saida}: {:?}", t.elapsed());
+}

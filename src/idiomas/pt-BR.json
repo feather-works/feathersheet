@@ -143,6 +143,7 @@
       "desfazer": "Desfazer / refazer",
       "copiar": "Copiar / recortar / colar",
       "negrito": "Negrito / itálico / sublinhado",
+      "formatarCelulas": "Formatar células",
       "imprimir": "Imprimir",
       "monitor": "Monitor (memória, console, métricas)",
       "executarMacro": "Executar a macro (no painel de Macros)"

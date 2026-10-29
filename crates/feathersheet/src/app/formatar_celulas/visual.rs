@@ -94,8 +94,10 @@ impl App {
         let exemplo = container(exemplo)
             .width(Length::FILL).padding([8, 10]).style(estilo_painel_faixa);
         pelicano::row![
-            container(lista)
-                .width(Length::Fixed(190.)).padding(7).style(estilo_painel_faixa),
+            // Rolagem: com a janela baixa a lista passava da borda do painel.
+            container(pelicano::scrollable(lista).height(Length::FILL)
+                .direction(pelicano::Direction::Vertical).scrollbar_width(6))
+                .width(Length::Fixed(190.)).height(Length::FILL).padding(7).style(estilo_painel_faixa),
             pelicano::column![
                 text(tr!("Exemplo")).size(12).color(COR_TEXTO_MUTED()),
                 exemplo,

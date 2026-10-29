@@ -612,10 +612,22 @@ pub(super) fn dados_para_desenho(
         if let Some(xs) = xs.filter(|x| !x.is_empty()) {
             let mut d = (*d).clone();
             d.x_values = Some(xs);
-            return std::sync::Arc::new(d);
+            return sem_lacunas(std::sync::Arc::new(d));
         }
     }
-    dados_do_grafico(sheet, config, lacuna_zero, fonte)
+    sem_lacunas(dados_do_grafico(sheet, config, lacuna_zero, fonte))
+}
+
+/// O desenho comum recusa lacuna: a célula vazia (ou de texto) que sobrou numa
+/// série de números vale 0, como no Excel com "mostrar vazias como zero". As
+/// séries sem número nenhum o motor já tirou antes. Até 28/10/2026 uma vazia só
+/// (a linha "Total Geral" de uma dinâmica) deixava o gráfico em "Prévia indisponível".
+fn sem_lacunas(dados: std::sync::Arc<feathersheet_core::grafico::chart::ChartData>)
+    -> std::sync::Arc<feathersheet_core::grafico::chart::ChartData> {
+    if dados.series.iter().all(|s| s.values.iter().all(|v| v.is_finite())) { return dados; }
+    let mut d = (*dados).clone();
+    for v in d.series.iter_mut().flat_map(|s| s.values.iter_mut()).filter(|v| !v.is_finite()) { *v = 0.0; }
+    std::sync::Arc::new(d)
 }
 
 /// Colunas/barras empilhadas: o tipo base e como empilhar. Desenhadas pelo

@@ -200,6 +200,7 @@ fn preencher_formula(h: &mut dyn Hospede, args: &Json, formula: &Json) -> Saida 
             sheet.fechar_transacao();
         });
         h.marcar_alterado();
+        if area.area() >= 200_000 { h.calcular_muitas(); }
         return Ok(conteudo(format!("Fórmula preenchida em {}!{} ({} célula(s), em bloco).",
             h.pasta().nomes()[aba], nome_area(&area), area.area())));
     }

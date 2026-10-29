@@ -119,7 +119,7 @@ impl App {
             | Msg::ValidacaoAbrir | Msg::CaixasInserir | Msg::TabelaAbrir | Msg::TabelaCriarPeloMenu => Some(Recusa::planilha_protegida()),
             // Formatar linha/coluna/aba inteira não entra no desfazer: recusar antes.
             Msg::Formatar(_) | Msg::EstiloMenu(..) | Msg::AlternarEstilo(_) | Msg::TamanhoFonteDelta(_)
-            | Msg::Decimais(_) | Msg::LimparFormato | Msg::LimparHiperlinks | Msg::AlterarRecuo(_) | Msg::EstiloCelulaAplicar(_) | Msg::FormatarCelulasAbrir
+            | Msg::Decimais(_) | Msg::LimparFormato | Msg::LimparHiperlinks | Msg::AlterarRecuo(_) | Msg::EstiloCelulaAplicar(_) | Msg::FormatarCelulasAbrir | Msg::FormatarCelulasNa(_)
             | Msg::AbrirSeletorCor(_) | Msg::Pincel | Msg::AplicarPincel | Msg::OrientacaoEscolher(_)
             | Msg::InclinarTexto | Msg::Mesclar | Msg::MesclarModo(_) | Msg::CondicionalAbrir
             | Msg::Protecao(Evento::AlternarBloqueio) => proibe(Permissao::FormatarCelulas),

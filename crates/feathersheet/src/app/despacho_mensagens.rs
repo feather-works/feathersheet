@@ -661,6 +661,7 @@ impl App {
             }
             Msg::OrientacaoEscolher(opcao) => self.escolher_orientacao(opcao),
             Msg::FormatarCelulasAbrir => self.abrir_formatar_celulas(formatar_celulas::Aba::Numero),
+            Msg::FormatarCelulasNa(aba) => self.abrir_formatar_celulas(aba),
             Msg::FormatoCelula(evento) => self.evento_formatar_celulas(evento),
             Msg::AlternarMenuBordas => {
                 self.bordas_menu_aberto = !self.bordas_menu_aberto;

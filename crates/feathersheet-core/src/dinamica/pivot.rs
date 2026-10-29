@@ -315,7 +315,9 @@ pub(crate) fn montar_dinamica_com_chaves(
         let mut v: Vec<(Vec<String>, usize)> = combos.into_iter().map(|(ids, k)| {
             (ids.iter().enumerate().map(|(d, &i)| textos[d][i as usize].to_owned()).collect(), k)
         }).collect();
-        v.sort();
+        // Como o Excel: 2 antes de 10 (antes, ordem do texto: "10" < "2").
+        v.sort_by(|(a, _), (b, _)| a.iter().zip(b).map(|(x, y)| super::exibicao::comparar_natural(x, y))
+            .find(|o| o.is_ne()).unwrap_or_else(|| a.len().cmp(&b.len())));
         v
     };
     // Campo vazio: uma combinação só (a vazia), como antes.
@@ -723,7 +725,9 @@ mod testes {
             let (m, chaves_l, chaves_c) = montar_dinamica_com_chaves(dados.len(),
                 |r, c| dados[r].get(c).cloned().unwrap_or(Value::Empty), &config, |_| true);
             let mut ordenadas = chaves_l.clone();
-            ordenadas.sort();
+            let natural = |a: &Vec<String>, b: &Vec<String>| a.iter().zip(b)
+                .map(|(x, y)| super::super::exibicao::comparar_natural(x, y)).find(|o| o.is_ne()).unwrap_or(std::cmp::Ordering::Equal);
+            ordenadas.sort_by(natural);
             ordenadas.dedup();
             assert_eq!(ordenadas, chaves_l, "linhas distintas e em ordem");
             let soma = |l: Option<&Vec<String>>, c: Option<&Vec<String>>| -> f64 {

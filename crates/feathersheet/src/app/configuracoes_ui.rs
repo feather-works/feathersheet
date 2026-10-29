@@ -495,7 +495,7 @@ pub(super) fn atalho_valido(app: &App, id: &str, combo: &str) -> Result<(), &'st
     }
     if matches!(combo,
         "Ctrl+C" | "Ctrl+X" | "Ctrl+V" | "Ctrl+Z" | "Ctrl+Y" |
-        "Ctrl+B" | "Ctrl+I" | "Ctrl+U" | "Ctrl+N" | "Ctrl+O" |
+        "Ctrl+B" | "Ctrl+I" | "Ctrl+U" | "Ctrl+N" | "Ctrl+O" | "Ctrl+1" |
         "Ctrl+F" | "Ctrl+F1" | "Alt+F11" | "Ctrl+Shift+M"
     ) {
         return Err(tr!("Combinação reservada por outro comando."));

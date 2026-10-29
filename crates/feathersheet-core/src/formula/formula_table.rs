@@ -227,6 +227,15 @@ impl FormulaTable {
 
     /// As linhas da coluna cuja fórmula ainda não tem resultado válido, em
     /// ordem crescente. É a lista de trabalho do cálculo em paralelo.
+    /// Se a coluna tem fórmula esperando conta, sem montar a lista.
+    pub fn tem_suja(&self, col: u32) -> bool {
+        let Some(entry) = self.columns.get(&col) else { return false };
+        if entry.slot.max_row < 0 { return false; }
+        let toda = entry.invalidada.load(Ordering::Relaxed);
+        (entry.slot.min_row..=entry.slot.max_row as u32)
+            .any(|r| entry.slot.has(r) && (toda || entry.slot.get(r).unwrap_or(0) & KIND_MASK == KIND_DIRTY))
+    }
+
     pub(crate) fn linhas_sujas(&self, col: u32) -> Vec<u32> {
         let Some(entry) = self.columns.get(&col) else { return Vec::new() };
         if entry.slot.max_row < 0 {

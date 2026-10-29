@@ -777,6 +777,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "feather-charts"
+version = "0.3.4"
+source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.4#2480ff40c5ba384e6b1fb791b6fb0e0bb839acc2"
+dependencies = [
+ "feather-draw",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "feather-draw"
 version = "0.1.1"
 source = "git+https://github.com/feather-works/feather-draw?tag=v0.1.1#17404b4dad3cec398967d948d858ab46eed57d08"
@@ -794,7 +804,7 @@ name = "feather-io"
 version = "0.2.0"
 source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
 dependencies = [
- "feather-charts",
+ "feather-charts 0.3.2",
  "feather-draw",
  "feather-image",
  "feather-tables",
@@ -831,11 +841,12 @@ name = "feathersheet-io"
 version = "0.0.2"
 dependencies = [
  "arrow",
- "feather-charts",
+ "feather-charts 0.3.4",
  "feather-draw",
  "feather-io",
  "feathersheet-core",
  "flate2",
+ "memchr",
  "parquet",
  "quick-xml",
  "rmp-serde",

@@ -195,7 +195,7 @@ impl App {
             }
         }
         // A tinta fica por cima de imagens e botões (e captura o clique só no modo desenho).
-        let grid = self.grade_com_tinta(self.grade_com_botoes_macro(self.grade_com_objetos(self.grade_com_imagens())));
+        let grid = self.grade_com_segmentacoes(self.grade_com_tinta(self.grade_com_botoes_macro(self.grade_com_objetos(self.grade_com_imagens()))));
         // O Canvas calcula a posição real no duplo clique, considerando zoom,
         // rolagem, dimensões variáveis e painéis congelados. Só a célula ativa
         // recebe um editor; nunca criamos widgets para a grade inteira.
@@ -602,6 +602,9 @@ impl App {
         let base = self.sobrepor_menu_principal(base);
         if self.macro_rodando.is_some() {
             return self.sobrepor_macro_rodando(base);
+        }
+        if self.calculo_rodando.is_some() {
+            return self.sobrepor_calculo_rodando(base);
         }
         if self.macro_pergunta.is_some() || !self.macro_mensagens.is_empty() {
             return self.sobrepor_dialogo_macro(base);

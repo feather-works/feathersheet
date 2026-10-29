@@ -686,6 +686,10 @@ impl App {
         if let Some(aviso) = aviso_validacao {
             self.status.push_str(&trf!("; aviso de validação: {aviso}"));
         }
+        // Por último: a pasta vai para a thread do cálculo.
+        if rapida.as_ref().is_some_and(|t| t.iter().any(|(x, _)| x.starts_with('='))) {
+            self.calcular_se_grande(plano.altura * plano.largura);
+        }
     }
 
     /// A área onde colar: a seleção, mas a que chega à última linha (ou

@@ -25,6 +25,9 @@ impl App {
             Msg::VbaImportar => self.importar_vba(),
             Msg::MacroResponder(sim) => { self.responder_macro(sim); Task::none() }
             Msg::MacroPulso => { self.conferir_macro_em_fundo(false); Task::none() }
+            Msg::CalculoPulso => { self.conferir_calculo_em_fundo(false); Task::none() }
+            Msg::CalcularEmFundo => { self.calcular_em_fundo(); Task::none() }
+            Msg::CalculoParar => { self.parar_calculo_em_fundo(); Task::none() }
             Msg::MacroParar => { self.parar_macro_em_fundo(); Task::none() }
             Msg::MacroMensagemOk => {
                 if !self.macro_mensagens.is_empty() { self.macro_mensagens.remove(0); }
@@ -1343,6 +1346,8 @@ impl App {
                 if let Some(caminho) = std::env::var_os("FEATHERSHEET_CAPTURAR") {
                     let _ = std::fs::write(&caminho, &*s.png);
                 }
+                // FEATHERSHEET_CAPTURAR_FICAR=1: a janela continua aberta (para um PELICANO_ROTEIRO clicar).
+                if std::env::var_os("FEATHERSHEET_CAPTURAR_FICAR").is_some() { return Task::none(); }
                 Task::window(pelicano::WindowCmd::Exit)
             }
             Msg::CopiaPulso => Task::none(),

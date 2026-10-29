@@ -311,6 +311,12 @@ impl App {
         ui::grupo_faixa_compacto(elementos, crate::idioma::tr(titulo))
     }
 
+    /// Grupo com a setinha ↘ do Office, que abre Formatar células (Ctrl+1) na `aba`.
+    pub(super) fn faixa_grupo_com_janela<'a>(&self, titulo: &'static str, aba: super::formatar_celulas::Aba, elementos: Element<'a, Msg>) -> Element<'a, Msg> {
+        ui::grupo_faixa_com_janela(elementos, crate::idioma::tr(titulo),
+            Some((tr!("Formatar células (Ctrl+1)"), Msg::FormatarCelulasNa(aba))))
+    }
+
     pub(super) fn faixa_linha<'a>(&self, itens: Vec<Element<'a, Msg>>) -> Element<'a, Msg> {
         row(itens).spacing(3).align(pelicano::Align::Center).into()
     }
@@ -753,6 +759,10 @@ impl App {
                 self.faixa_abrir_grupo(indice),
             ]),
         };
+        // Mesma setinha ↘ do grupo inteiro (Fonte, Alinhamento, Número).
+        let aba=match indice { 1=>Some(super::formatar_celulas::Aba::Fonte), 2=>Some(super::formatar_celulas::Aba::Alinhamento),
+            3=>Some(super::formatar_celulas::Aba::Numero), _=>None };
+        if let Some(aba)=aba { return self.faixa_grupo_com_janela(nome,aba,conteudo); }
         self.faixa_grupo(nome,conteudo)
     }
 

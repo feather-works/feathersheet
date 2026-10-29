@@ -130,10 +130,9 @@ fn montar_aba_bruta(sheet: &Sheet) -> AbaBruta {
     }
 
     // 3) Colunas numéricas e de texto
-    let colunas_num_data = sheet.data.exportar_colunas_num(linhas);
-    let colunas_num = colunas_num_data
+    let colunas_num = sheet.data.retratos_num()
         .into_iter()
-        .map(|(col, values, bitmap)| ColunaNumBruta { col, values, bitmap })
+        .map(|(col, blocos)| ColunaNumBruta { col, values: vec![], bitmap: vec![], blocos: Some(blocos) })
         .collect();
 
     // O dicionário de cada coluna de texto é uma passada por linha: uma

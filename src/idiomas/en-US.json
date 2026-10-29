@@ -143,6 +143,7 @@
       "desfazer": "Undo / redo",
       "copiar": "Copy / cut / paste",
       "negrito": "Bold / italic / underline",
+      "formatarCelulas": "Format cells",
       "imprimir": "Print",
       "monitor": "Monitor (memory, console, metrics)",
       "executarMacro": "Run the macro (in the Macros panel)"

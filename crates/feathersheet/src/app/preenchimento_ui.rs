@@ -129,6 +129,7 @@ impl App {
                 "{preenchidas} célula(s) preenchida(s) em {}:{}; Ctrl+Z desfaz.",
                 cell_name(destino.r0, destino.c0), cell_name(destino.r1, destino.c1)
             );
+            self.calcular_se_grande(preenchidas);
             return;
         }
         if quantidade > MAX_CELULAS_POR_ACAO {
@@ -171,6 +172,7 @@ impl App {
                 "{preenchidas} célula(s) preenchida(s) em {}:{}; Ctrl+Z desfaz.",
                 cell_name(destino.r0, destino.c0), cell_name(destino.r1, destino.c1)
             );
+            self.calcular_se_grande(preenchidas);
         } else {
             self.status = tr!("Nenhuma célula foi preenchida.").into();
         }
