@@ -6,6 +6,10 @@ use super::*;
 /// O motor atual prepara as células numa Vec antes de aplicar a transação.
 /// Evitar uma alocação gigantesca e bloqueio da interface até existir lotes.
 const MAX_CELULAS_POR_ACAO: u64 = 250_000;
+/// Teto do caminho em bloco (fórmula descendo, colar uma linha até o fim): cada célula
+/// guarda ~12 bytes, então 250 milhões são ~3 GB. Arrastar uma linha de fórmulas por
+/// todas as 16.384 colunas e 1.048.576 linhas (17 bilhões) derrubava o app sem aviso.
+pub(super) const TETO_CELULAS_EM_BLOCO: u64 = 250_000_000;
 
 fn tamanho(area: &Rect) -> u64 {
     (u64::from(area.r1) - u64::from(area.r0) + 1)
@@ -116,6 +120,10 @@ impl App {
         let quantidade = tamanho(&destino).saturating_sub(tamanho(&origem));
         if quantidade == 0 {
             self.status = tr!("Não há células de destino para preencher.").into();
+            return;
+        }
+        if quantidade > TETO_CELULAS_EM_BLOCO {
+            self.status = trf!("Preencher {quantidade} células passa do teto de 250 milhões por operação: a memória não daria. Preencha menos linhas ou colunas de cada vez.");
             return;
         }
         if let Some(preenchidas) = self.preencher_formulas_em_bloco(&origem, &destino) {
@@ -338,5 +346,18 @@ mod testes {
         });
         app.preencher_selecao(DirecaoPreenchimento::Baixo);
         assert_eq!(app.workbook.valor(0, 2, 0), Value::Text("manter".into()));
+    }
+
+    /// Arrastar uma linha de fórmulas para a planilha inteira (17 bilhões de células)
+    /// é recusado com aviso, sem alocar nada, em vez de derrubar o app.
+    #[test]
+    fn formula_para_a_planilha_inteira_passa_do_teto_e_avisa() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "=1+A2".into());
+        let destino = Rect::new(0, 0, feathersheet_core::MAX_ROWS - 1, feathersheet_core::MAX_COLS - 1);
+        app.aplicar_preenchimento(&Rect::new(0, 0, 0, 0), &destino, true);
+        assert!(app.status.contains("250 milhões"), "{}", app.status);
+        assert!(!app.alterado);
+        assert!(app.workbook.aba(0).unwrap().sheet.get_raw(1, 0).is_empty());
     }
 }

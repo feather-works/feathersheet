@@ -436,6 +436,10 @@ impl App {
                 return None;
             }
             if ((selecao.r1 - selecao.r0) as usize) < LINHAS_COLAGEM_RAPIDA { return None; }
+            // Seleção gigante (Ctrl+A e colar uma linha de fórmulas): vai pelo caminho comum,
+            // que para na última linha/coluna com dados.
+            let celulas = u64::from(selecao.r1 - selecao.r0 + 1) * u64::from(selecao.c1 - selecao.c0 + 1);
+            if celulas > super::preenchimento_ui::TETO_CELULAS_EM_BLOCO { return None; }
             let validacao = self.workbook.aba(self.folha).and_then(|a| a.sheet.va.as_deref())
                 .is_some_and(|t| !matches!(t.trim(), "" | "[]"));
             if validacao { return None; }
