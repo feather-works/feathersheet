@@ -129,6 +129,9 @@ pub trait EvalContext {
 /// células (umas 4 colunas inteiras, ~200 MB de `Value`) é o teto seguro.
 /// Antes era 50 mil e o intervalo virava a primeira célula, calado.
 const MATRIX_LIMIT: u64 = 5_000_000;
+/// LAMBDAs uma dentro da outra (a recursão `f(f)`). Cada nível empilha várias
+/// chamadas do avaliador; isto cabe na pilha de 2 MB de uma thread de cálculo.
+const MAX_LAMBDA: u32 = 100;
 
 /// A planilha inteira, como retângulo.
 /// O Excel não tem zero negativo. Desde o Rust 1.81 a soma de uma lista
@@ -186,6 +189,20 @@ impl<'a> Evaluator<'a> {
     /// Chama uma função da planilha. Os argumentos podem vir como árvore
     /// (avaliada aqui) ou já prontos.
     pub fn invoke_lambda(&self, lambda: &Lambda, args: &[ArgOrValue<'_>]) -> Computed {
+        // Uma LAMBDA que chama a si mesma (`f(f)`) descia sem fim e estourava a
+        // pilha (#124): acima do teto, #NÚM!.
+        thread_local!(static PROFUNDIDADE: std::cell::Cell<u32> = const { std::cell::Cell::new(0) });
+        let nivel = PROFUNDIDADE.with(|p| { p.set(p.get() + 1); p.get() });
+        let r = if nivel > MAX_LAMBDA {
+            Computed::Scalar(Value::Error(CellError::new(ErrorCode::Num)))
+        } else {
+            self.invoke_lambda_dentro(lambda, args)
+        };
+        PROFUNDIDADE.with(|p| p.set(p.get() - 1));
+        r
+    }
+
+    fn invoke_lambda_dentro(&self, lambda: &Lambda, args: &[ArgOrValue<'_>]) -> Computed {
         let mut env = lambda.closure.clone();
         for (i, p) in lambda.params.iter().enumerate() {
             let val = match args.get(i) {
@@ -552,14 +569,26 @@ impl<'a> Evaluator<'a> {
         }
     }
 
+    /// A cadeia `((a+b)+c)+…` desce pela esquerda num laço, na mesma ordem: com uma
+    /// chamada por termo, `=1+1+…` de milhares de termos estourava a pilha (#123).
     fn eval_binary(&self, op: BinaryOp, left: &Node, right: &Node) -> Computed {
-        let a = self.eval_array(left);
-        let b = self.eval_array(right);
-        // Com matriz de um lado (ou dos dois), a conta é feita item a item.
-        if a.is_matrix() || b.is_matrix() {
-            return broadcast_all(&[a, b], |vs| apply_binary(op, &vs[0], &vs[1]));
+        let mut direitas = vec![(op, right)];
+        let mut ponta = left;
+        while let Node::Binary { op, left, right } = ponta {
+            direitas.push((*op, right));
+            ponta = left;
         }
-        Computed::Scalar(apply_binary(op, &a.scalar(), &b.scalar()))
+        let mut a = self.eval_array(ponta);
+        for (op, right) in direitas.into_iter().rev() {
+            let b = self.eval_array(right);
+            // Com matriz de um lado (ou dos dois), a conta é feita item a item.
+            a = if a.is_matrix() || b.is_matrix() {
+                broadcast_all(&[a, b], |vs| apply_binary(op, &vs[0], &vs[1]))
+            } else {
+                Computed::Scalar(apply_binary(op, &a.scalar(), &b.scalar()))
+            };
+        }
+        a
     }
 
     // ---- o que as funções usam para ler os seus argumentos ----

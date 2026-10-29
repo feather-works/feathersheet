@@ -193,6 +193,11 @@ pub fn fn_rept(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::Error(crate::celulas::values::CellError::new(crate::celulas::values::ErrorCode::Value)));
     }
     let txt = to_text(&val);
+    // Como o Excel: resultado acima de 32.767 caracteres é #VALOR!. Sem o teto,
+    // `=REPT("x";2000000000)` pedia 2 GB de uma vez (#125).
+    if (txt.chars().count() as u128) * (times as u128) > 32_767 {
+        return Computed::Scalar(Value::Error(crate::celulas::values::CellError::new(crate::celulas::values::ErrorCode::Value)));
+    }
     let res = txt.repeat(times as usize);
     Computed::Scalar(Value::Text(res))
 }

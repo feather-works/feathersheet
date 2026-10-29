@@ -24,9 +24,25 @@ fn parse_a1(texto: &str) -> Option<RefParts> {
     Some(RefParts { row, col, sheet })
 }
 
+/// Como o Excel: fórmula de até 8.192 caracteres. Também limita as cadeias
+/// `=1+1+1+…`, que viram uma árvore funda sem passar pelo contador abaixo.
+pub const MAX_CARACTERES: usize = 8_192;
+/// Parênteses, funções e sinais (`---1`) um dentro do outro: o Excel aceita 64. Sem
+/// teto, um `=((((…))))` de milhares de níveis estourava a pilha do parser e fechava
+/// o app (#123). Cada nível empilha umas 5 funções do parser.
+const MAX_ANINHAMENTO: u32 = 256;
+/// Operadores, funções, matrizes e intervalos numa fórmula. A árvore não fica mais
+/// funda que o número de nós internos, e cada um nasce de um desses tokens: contar
+/// antes de montar garante que o cálculo, o `clone` e o `drop` (todos recursivos)
+/// nunca recebem árvore funda demais, nem a de uma cadeia `1+1+1+…`. 1.024 níveis
+/// cabem na pilha de 2 MB de uma thread mesmo no build de depuração; 4.096 não.
+/// Fórmulas reais longas (`=A1+A2+…+A300`) ficam longe.
+pub const MAX_OPERACOES: usize = 1_024;
+
 struct Parser {
     tokens: Vec<Token>,
     i: usize,
+    profundidade: u32,
 }
 
 impl Parser {
@@ -93,7 +109,21 @@ impl Parser {
         Ok(left)
     }
 
+    /// Toda recursão do parser passa por aqui: é onde a profundidade é contada.
     fn parse_unary(&mut self) -> Result<Node, ParseError> {
+        self.profundidade += 1;
+        if self.profundidade > MAX_ANINHAMENTO {
+            return Err(ParseError::new(
+                format!("Fórmula aninhada demais: o limite é de {MAX_ANINHAMENTO} níveis"),
+                self.peek().pos,
+            ));
+        }
+        let r = self.parse_unary_dentro();
+        self.profundidade -= 1;
+        r
+    }
+
+    fn parse_unary_dentro(&mut self) -> Result<Node, ParseError> {
         let t = self.peek();
         if t.kind == TokenType::Op && (t.text == "-" || t.text == "+") {
             let op = if t.text == "-" { UnaryOp::Neg } else { UnaryOp::Plus };
@@ -308,8 +338,20 @@ fn faixa(r0: u32, c0: u32, r1: u32, c1: u32, sheet: Option<String>) -> Node {
 
 /// Compila o corpo de uma fórmula (sem o "=").
 pub fn parse_formula(src: &str) -> Result<Node, ParseError> {
+    if src.chars().nth(MAX_CARACTERES).is_some() {
+        return Err(ParseError::new(
+            format!("Fórmula grande demais: o limite é de {MAX_CARACTERES} caracteres, como no Excel"),
+            MAX_CARACTERES,
+        ));
+    }
     let tokens = tokenize(src)?;
-    Parser { tokens, i: 0 }.parse()
+    let operacoes = tokens.iter().filter(|t| matches!(t.kind,
+        TokenType::Op | TokenType::Ident | TokenType::LBrace | TokenType::Colon)).count();
+    if operacoes > MAX_OPERACOES {
+        return Err(ParseError::solto(format!(
+            "Fórmula longa demais: o limite é de {MAX_OPERACOES} operações, funções e intervalos")));
+    }
+    Parser { tokens, i: 0, profundidade: 0 }.parse()
 }
 
 #[cfg(test)]
@@ -318,6 +360,20 @@ mod testes {
 
     fn arvore(src: &str) -> Node {
         parse_formula(src).expect("devia compilar")
+    }
+
+    /// #123: fórmula maliciosa vira erro, não estouro de pilha.
+    #[test]
+    fn aninhamento_e_tamanho_tem_teto() {
+        let fundo = format!("{}1{}", "(".repeat(100_000), ")".repeat(100_000));
+        assert!(parse_formula(&fundo).is_err());
+        assert!(parse_formula(&format!("{}1", "-".repeat(100_000))).is_err());
+        assert!(parse_formula(&format!("{}1{}", "SOMA(".repeat(300), ")".repeat(300))).is_err());
+        assert!(parse_formula(&"1".repeat(MAX_CARACTERES + 1)).is_err());
+        // Dentro dos limites continua compilando.
+        assert!(parse_formula(&format!("{}1{}", "(".repeat(200), ")".repeat(200))).is_ok());
+        assert!(parse_formula(&format!("{}1", "1+".repeat(1000))).is_ok());
+        assert!(parse_formula(&format!("{}1", "1+".repeat(2000))).is_err(), "cadeia funda demais");
     }
 
     fn num(n: f64) -> Node {

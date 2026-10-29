@@ -1021,3 +1021,81 @@ fn minimoses_paralelo_acima_da_copia() {
         assert_eq!(w.valor(a, r, 2), Value::Number(minimo[((r - 1) % 5000) as usize] as f64), "linha {}", r + 1);
     }
 }
+
+/// As fórmulas da coluna B do Resumo da Planilha Pesada (`scripts/gerar_xlsx_pesado.py`),
+/// uma a uma, sobre colunas do mesmo tipo: região e categoria em texto, mês e valor em
+/// número. No app a coluna levava 3,4 s com 1 milhão de linhas (29/10/2026). Padrão de
+/// 200 mil linhas; `FEATHERSHEET_LINHAS=1000000 cargo test --release --lib
+/// medir_indicadores_do_resumo -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn medir_indicadores_do_resumo() {
+    let n: u32 = std::env::var("FEATHERSHEET_LINHAS").ok().and_then(|v| v.parse().ok()).unwrap_or(200_000);
+    let mut w = Workbook::new();
+    let dados = w.criar_aba("Dados");
+    let regioes = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"];
+    let categorias = ["Eletrônicos", "Casa", "Moda", "Esporte", "Livros"];
+    let faixas = ["Baixo", "Médio", "Alto"];
+    let mut linhas = vec![vec!["".to_string(); 13]];
+    for r in 0..n as usize {
+        let mut l = vec![String::new(); 13];
+        l[2] = regioes[r % 5].into();
+        l[8] = format!("{}", 10 + (r * 37) % 900);
+        l[9] = format!("{}", 1 + (r / 7) % 12);
+        l[11] = categorias[(r / 3) % 5].into();
+        l[12] = faixas[(r / 11) % 3].into();
+        linhas.push(l);
+    }
+    w.aba_mut(dados).unwrap().sheet.gravar_bloco_literais(0, 0, linhas);
+    let u = n + 1;
+    let r = |c: &str| format!("Dados!${c}$2:${c}${u}");
+    let formulas = [
+        format!("=SOMASES({};{};\"Sul\";{};3)", r("I"), r("C"), r("J")),
+        format!("=CONT.SES({};\"Sul\";{};3)", r("C"), r("J")),
+        format!("=SOMA({})", r("I")),
+        format!("=SOMARPRODUTO(({}=\"Sul\")*({}=\"Alto\"))", r("C"), r("M")),
+        format!("=SOMARPRODUTO(({}=\"Sudeste\")*({}=\"Alto\")*{})", r("C"), r("M"), r("I")),
+        format!("=MÉDIA({})", r("I")),
+        format!("=MÁXIMO({})", r("I")),
+        format!("=MÉDIASES({};{};\"Eletrônicos\")", r("I"), r("L")),
+    ];
+    for (i, f) in formulas.iter().enumerate() {
+        w.escrever_celula(0, i as u32, 0, f.clone());
+    }
+    let total = std::time::Instant::now();
+    for (i, f) in formulas.iter().enumerate() {
+        let t = std::time::Instant::now();
+        let v = w.valor(0, i as u32, 0);
+        eprintln!("{:>8.1} ms  {f} → {v:?}", t.elapsed().as_secs_f64() * 1e3);
+    }
+    eprintln!("total: {:?}", total.elapsed());
+}
+
+/// #123: a cadeia mais funda que o parser aceita (1.024 níveis) calcula sem estourar
+/// a pilha (a thread de teste tem só 2 MB), e a fórmula maliciosa vira erro.
+#[test]
+fn formula_no_limite_calcula_e_maliciosa_vira_erro() {
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    let n = 1023;
+    w.escrever_celula(0, 0, 0, format!("={}1", "1+".repeat(n - 1)));
+    assert_eq!(w.valor(0, 0, 0), Value::Number(n as f64));
+    w.escrever_celula(0, 1, 0, format!("={}1{}", "(".repeat(50_000), ")".repeat(50_000)));
+    assert!(matches!(w.valor(0, 1, 0), Value::Error(_)), "{:?}", w.valor(0, 1, 0));
+}
+
+/// #124 e #125: LAMBDA que chama a si mesma e REPT gigante viram erro na célula, sem
+/// estourar a pilha nem pedir gigabytes; o uso normal continua igual.
+#[test]
+fn lambda_sem_fim_e_rept_gigante_viram_erro() {
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    w.escrever_celula(0, 0, 0, "=LET(f;LAMBDA(x;x(x));f(f))".into());
+    assert!(matches!(w.valor(0, 0, 0), Value::Error(_)), "{:?}", w.valor(0, 0, 0));
+    w.escrever_celula(0, 1, 0, "=LET(f;LAMBDA(g;n;SE(n=0;0;n+g(g;n-1)));f(f;50))".into());
+    assert_eq!(w.valor(0, 1, 0), Value::Number(1275.0));
+    w.escrever_celula(0, 2, 0, "=REPT(\"x\";2000000000)".into());
+    assert!(matches!(w.valor(0, 2, 0), Value::Error(_)));
+    w.escrever_celula(0, 3, 0, "=REPT(\"ab\";3)".into());
+    assert_eq!(w.valor(0, 3, 0), Value::Text("ababab".into()));
+}

@@ -124,6 +124,11 @@ pub fn ler_lancamento(json: &str) -> Option<Lancamento> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
     let tag = v.get("tag_name")?.as_str()?;
     numeros(tag)?;
+    // A versão entra no roteiro de instalação (bash) sem aspas: só letras, dígitos,
+    // ponto e hífen (`0.2.1`, `0.3.0-alpha`), nada que o shell interprete (#128).
+    if !tag.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
+        return None;
+    }
     Some(Lancamento {
         versao: tag.trim_start_matches(['v', 'V']).to_owned(),
         notas: v.get("body").and_then(|b| b.as_str()).unwrap_or_default().to_owned(),
@@ -378,6 +383,10 @@ mod testes {
         assert_eq!(l.notas, "- botão de atualizar");
         assert!(l.pagina.ends_with("/v0.0.3"));
         assert!(ler_lancamento(r#"{"message":"Not Found"}"#).is_none());
+        // #128: tag que o shell interpretaria é recusada.
+        assert!(ler_lancamento(r#"{"tag_name":"v1.2.3-$(curl${IFS}x|sh)"}"#).is_none());
+        assert!(ler_lancamento(r#"{"tag_name":"v1.2.3 ; rm"}"#).is_none());
+        assert_eq!(ler_lancamento(r#"{"tag_name":"v0.3.0-alpha"}"#).unwrap().versao, "0.3.0-alpha");
     }
 
     #[test]

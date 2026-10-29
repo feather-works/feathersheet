@@ -579,20 +579,22 @@ fn compilar(node: &Node, ev: &Evaluator<'_>, faixas: &mut Vec<(Rect, LeitorFaixa
 }
 
 /// O valor do item na posição (`dr`, `dc`) das faixas; `None` = todas vazias.
-fn valor_item(item: &Item, ev: &Evaluator<'_>, faixas: &[(Rect, LeitorFaixa)], pos: Option<(u32, u32)>) -> Value {
-    match item {
-        Item::Const(v) => v.clone(),
+/// Emprestado: copiar o texto da célula era uma alocação por linha e por faixa.
+fn valor_item<'a>(item: &'a Item, ev: &Evaluator<'_>, faixas: &'a [(Rect, LeitorFaixa)], pos: Option<(u32, u32)>) -> std::borrow::Cow<'a, Value> {
+    use std::borrow::Cow;
+    Cow::Owned(match item {
+        Item::Const(v) => return Cow::Borrowed(v),
         Item::Faixa(i) => match pos {
             Some((dr, dc)) => {
                 let (rect, leitor) = &faixas[*i];
-                leitor.valor(ev, rect.r0 + dr, rect.c0 + dc).into_owned()
+                return leitor.valor(ev, rect.r0 + dr, rect.c0 + dc);
             }
             None => Value::Empty,
         },
         Item::Bin(op, a, b) => crate::formula::evaluator::apply_binary(*op,
             &valor_item(a, ev, faixas, pos), &valor_item(b, ev, faixas, pos)),
         Item::Un(op, a) => crate::formula::evaluator::apply_unary(*op, &valor_item(a, ev, faixas, pos)),
-    }
+    })
 }
 
 /// SOMARPRODUTO de expressões sem montar matriz: com `Dados!C:C` de 1 milhão
@@ -610,9 +612,9 @@ fn somarproduto_linha_a_linha(args: &[Node], ev: &Evaluator<'_>) -> Option<Compu
     if faixas.iter().any(|(r, _)| tamanho(r) != (linhas, colunas)) {
         return None;
     }
-    let numero = |v: Value| match v {
-        Value::Error(e) => Err(e),
-        Value::Number(n) => Ok(n),
+    let numero = |v: std::borrow::Cow<'_, Value>| match &*v {
+        Value::Error(e) => Err(e.clone()),
+        Value::Number(n) => Ok(*n),
         _ => Ok(0.0),
     };
     // Só para na área usada se a linha toda vazia dá produto 0 (`(C<>"x")`

@@ -60,6 +60,9 @@ pub trait Hospede {
     }
     /// O catálogo de macros mudou: o aplicativo recarrega o editor.
     fn macros_mudaram(&mut self) {}
+    /// A pessoa liberou as macros deste arquivo? Ao vivo, com o arquivo ainda em
+    /// "Ativar macros?", é `false` (e o aviso volta à tela). Sem o app, não há aviso.
+    fn macros_liberadas(&mut self) -> bool { true }
     /// O que a macro pediu ao formulário (`hideComponent`, `showComponent`, `field`):
     /// ao vivo a janela acompanha; devolve se há formulário aberto depois disso.
     fn formulario(&mut self, _fechar: bool, _abrir: Option<(String, serde_json::Value)>, _campos: Vec<(String, String, serde_json::Value)>) -> bool { false }

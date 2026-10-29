@@ -437,6 +437,17 @@ fn type_rank(v: &Value) -> u8 {
     }
 }
 
+/// Texto sem ligar para maiúscula. Os dois em ASCII (o caso comum): byte a byte,
+/// sem alocar. Fora disso, o `to_lowercase` de sempre, que tem regras que a
+/// comparação letra a letra não tem (o sigma final grego).
+fn comparar_texto(x: &str, y: &str) -> Ordering {
+    if x.is_ascii() && y.is_ascii() {
+        x.bytes().map(|b| b.to_ascii_lowercase()).cmp(y.bytes().map(|b| b.to_ascii_lowercase()))
+    } else {
+        x.to_lowercase().cmp(&y.to_lowercase())
+    }
+}
+
 /// Compara dois valores — ou devolve o erro, se algum dos lados for um.
 pub fn compare(a: &Value, b: &Value) -> Result<Ordering, CellError> {
     if let Value::Error(e) = a {
@@ -455,17 +466,20 @@ pub fn compare(a: &Value, b: &Value) -> Result<Ordering, CellError> {
         Value::Bool(_) => Value::Bool(false),
         _ => Value::Text(String::new()),
     };
-    let a = if a.is_empty() { vazio_como(b) } else { a.clone() };
-    let b = if b.is_empty() { vazio_como(&a) } else { b.clone() };
+    // Emprestado: clonar os dois lados custava duas alocações por comparação
+    // (o `(C="Sul")` do SOMARPRODUTO faz uma por linha).
+    let a: std::borrow::Cow<'_, Value> = if a.is_empty() { std::borrow::Cow::Owned(vazio_como(b)) } else { std::borrow::Cow::Borrowed(a) };
+    let b: std::borrow::Cow<'_, Value> = if b.is_empty() { std::borrow::Cow::Owned(vazio_como(&a)) } else { std::borrow::Cow::Borrowed(b) };
 
     let ra = type_rank(&a);
     let rb = type_rank(&b);
     if ra != rb {
         return Ok(ra.cmp(&rb));
     }
-    Ok(match (&a, &b) {
+    Ok(match (&*a, &*b) {
         (Value::Number(x), Value::Number(y)) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
         (Value::Bool(x), Value::Bool(y)) => x.cmp(y),
+        (Value::Text(x), Value::Text(y)) => comparar_texto(x, y),
         _ => {
             // Texto compara sem ligar para maiúscula, como no TypeScript.
             let sa = to_text(&a).to_lowercase();

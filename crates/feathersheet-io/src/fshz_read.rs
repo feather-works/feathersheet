@@ -277,9 +277,20 @@ pub struct PastaLida {
 
 // ------------------------------------------------------------------- leitura
 
+/// Até 100× o tamanho compactado (no mínimo 256 MB): dado colunar real comprime de
+/// 3 a 10×. Sem teto, um .fshz de 10 MB podia descompactar para vários GB (#126).
+fn limite_gunzip(compactado: usize) -> u64 {
+    (compactado as u64).saturating_mul(100).max(256 << 20)
+}
+
 fn gunzip(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    let limite = limite_gunzip(bytes.len());
     let mut saida = Vec::new();
-    GzDecoder::new(bytes).read_to_end(&mut saida).map_err(|e| e.to_string())?;
+    GzDecoder::new(bytes).take(limite + 1).read_to_end(&mut saida).map_err(|e| e.to_string())?;
+    if saida.len() as u64 > limite {
+        return Err(format!("O arquivo descompacta para mais de {} MB, {}× o tamanho dele: não parece um .fshz de verdade.",
+            limite >> 20, limite / (bytes.len().max(1) as u64)));
+    }
     Ok(saida)
 }
 
@@ -614,6 +625,21 @@ mod testes {
     use crate::fshz_write::{
         AbaBruta, CelulaAvulsaBruta, ColunaFormulaBruta, ColunaNumBruta, ColunaTxtBruta, ErroBruto, PastaBruta,
     };
+
+    /// #126: um gzip pequeno que descompacta para 300 MB é recusado (para em 256 MB).
+    #[test]
+    fn gzip_que_explode_e_recusado() {
+        use std::io::Write;
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::best());
+        let zeros = vec![0u8; 1 << 20];
+        for _ in 0..300 { gz.write_all(&zeros).unwrap(); }
+        let bomba = gz.finish().unwrap();
+        assert!(bomba.len() < 1 << 20, "{}", bomba.len());
+        assert!(gunzip(&bomba).is_err());
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        gz.write_all(b"conteudo normal").unwrap();
+        assert_eq!(gunzip(&gz.finish().unwrap()).unwrap(), b"conteudo normal");
+    }
 
     fn bitmap_de(presentes: &[bool]) -> Vec<u8> {
         let mut bitmap = vec![0u8; (presentes.len() + 7) >> 3];

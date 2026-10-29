@@ -63,6 +63,10 @@ pub fn macro_(h: &mut dyn Hospede, args: &Json) -> Saida {
             format!("Macro \"{nome}\" excluída.")
         }
         "executar" => {
+            // Um texto numa célula podia levar a IA a rodar o que a pessoa não liberou (#127).
+            if !h.macros_liberadas() {
+                return Err("As macros deste arquivo estão desativadas. A pessoa precisa ativá-las em \"Ativar macros?\", na tela, antes de qualquer macro rodar.".into());
+            }
             let codigo = match (args.get("codigo").and_then(Json::as_str), nome) {
                 (Some(c), _) => c.to_string(),
                 // `Módulo.função` chama só aquela função do módulo.

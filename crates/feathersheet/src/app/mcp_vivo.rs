@@ -564,6 +564,9 @@ impl Hospede for HospedeApp<'_> {
         self.app.dinamica_pelo_mcp(args, origem)
     }
 
+    fn macros_liberadas(&mut self) -> bool {
+        self.app.macros_liberadas()
+    }
     fn macros_mudaram(&mut self) {
         // O MCP grava as macros na própria pasta (`Workbook::macros`).
         self.app.recarregar_macros();
@@ -671,6 +674,22 @@ mod testes {
         let mut h = HospedeApp { app, tarefas: Vec::new() };
         let r = rpc::chamar_ferramenta(&mut h, &json!({ "name": nome, "arguments": args }));
         (r["isError"] == true, r["content"][0]["text"].as_str().unwrap_or("").to_string())
+    }
+
+    /// #127: com o arquivo em "Ativar macros?", o MCP não roda macro e o aviso volta.
+    #[test]
+    fn macro_pelo_mcp_respeita_o_bloqueio() {
+        let mut app = App::default();
+        app.janelas.principal = Some(window::novo_id());
+        app.macros_bloqueadas = true;
+        let (erro, t) = chamar(&mut app, "sheet_macro", json!({ "acao": "executar", "codigo": "sheet.set('A1', 7)" }));
+        assert!(erro && t.contains("desativadas"), "{t}");
+        assert!(app.workbook.aba(0).unwrap().sheet.get_raw(0, 0).is_empty());
+        assert!(app.aviso_macros);
+        app.macros_bloqueadas = false;
+        let (erro, t) = chamar(&mut app, "sheet_macro", json!({ "acao": "executar", "codigo": "sheet.set('A1', 7)" }));
+        assert!(!erro, "{t}");
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(0, 0), "7");
     }
 
     #[test]
