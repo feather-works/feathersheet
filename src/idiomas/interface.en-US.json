@@ -4153,5 +4153,11 @@
  "Ctrl+1 e a setinha ↘ dos grupos Fonte, Alinhamento e Número abrem Formatar células.": "Ctrl+1 and the ↘ arrow of the Font, Alignment and Number groups open Format Cells.",
  "O editor da célula usa a letra, a cor e o fundo dela; exportar .xlsx, JSON e CSV não trava a janela.": "The cell editor uses the cell's font, color and fill; exporting .xlsx, JSON and CSV doesn't freeze the window.",
  "A segmentação de dados fica no canto da grade, não mais por cima da barra de fórmulas.": "Slicers sit in the corner of the grid, no longer over the formula bar.",
- "No Windows, o menu Iniciar mostra FeatherSheet (#102).": "On Windows, the Start menu shows FeatherSheet (#102)."
+ "No Windows, o menu Iniciar mostra FeatherSheet (#102).": "On Windows, the Start menu shows FeatherSheet (#102).",
+ "Todas as planilhas": "All spreadsheets",
+ "Pasta de trabalho do FeatherSheet (.fshz)": "FeatherSheet workbook (.fshz)",
+ "Pasta de trabalho do Excel (.xlsx)": "Excel workbook (.xlsx)",
+ "Pasta de trabalho do Excel com macros (.xlsm)": "Excel macro-enabled workbook (.xlsm)",
+ "CSV (.csv)": "CSV (.csv)",
+ "Texto separado por tabulações (.tsv)": "Tab-separated text (.tsv)"
 }

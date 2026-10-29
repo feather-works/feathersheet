@@ -571,6 +571,16 @@ fn ler_aba(
             let min = (col.attr("min").and_then(|v| v.parse::<u32>().ok()).unwrap_or(1).max(1) - 1).max(proxima);
             let max = (col.attr("max").and_then(|v| v.parse::<u32>().ok()).unwrap_or(1).max(1) - 1).min(MAX_COLS as u32 - 1);
             proxima = proxima.max(max.saturating_add(1));
+            // A faixa até a última coluna com o mesmo estilo de todas as de antes é a
+            // "planilha toda com um estilo" do Excel: vira o estilo da aba. Uma cópia
+            // por coluna eram 16.384 cópias (21 MB em duas abas de um relatório, 29/10/2026).
+            if max == MAX_COLS as u32 - 1 && folha.sheet_style.is_none()
+                && (0..min).all(|c| folha.col_styles.get(&c) == Some(e))
+            {
+                for c in 0..min { folha.col_styles.remove(&c); }
+                folha.sheet_style = Some(e.clone());
+                continue;
+            }
             for c in min..=max { folha.col_styles.insert(c, e.clone()); }
         }
     }

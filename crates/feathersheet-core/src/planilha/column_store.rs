@@ -19,17 +19,20 @@ pub const CHUNK_MASK: u32 = 0xffff;
 
 use std::sync::Arc;
 
-/// Um bloco novo de `CHUNK_SIZE` cópias de `v`.
-fn bloco<T: Copy>(v: T, n: usize) -> Arc<[T]> {
-    Arc::from(vec![v; n])
+/// Um bloco novo de `CHUNK_SIZE` cópias de `v`. `Arc<Vec>` e não `Arc<[T]>`: o
+/// `Arc::from(vec)` copiava o bloco e encostava em todas as páginas, enquanto o
+/// `vec![0; n]` sozinho vem zerado do sistema e só ocupa RAM onde se escreve.
+/// Uma coluna com 20 números passou a custar 512 KB em vez de 4 KB (29/10/2026).
+fn bloco<T: Copy>(v: T, n: usize) -> Arc<Vec<T>> {
+    Arc::new(vec![v; n])
 }
 
 /// A coluna como estava num instante, sem copiar os dados: os blocos são os
 /// mesmos `Arc` da coluna viva. É o que a gravação em segundo plano lê.
 #[derive(Clone, Default)]
 pub struct RetratoColuna<T> {
-    chunks: Vec<Option<Arc<[T]>>>,
-    presence: Vec<Option<Arc<[u8]>>>,
+    chunks: Vec<Option<Arc<Vec<T>>>>,
+    presence: Vec<Option<Arc<Vec<u8>>>>,
 }
 
 impl<T: Copy> RetratoColuna<T> {
@@ -66,8 +69,8 @@ impl<T: Copy> RetratoColuna<T> {
 /// (`Arc::make_mut`). Antes a gravação copiava a coluna inteira: 39 colunas de
 /// 13,7 milhões de linhas eram 4,3 GB a mais ao salvar (28/10/2026).
 pub struct ChunkedColumn<T: Copy + Default> {
-    chunks: Vec<Option<Arc<[T]>>>,
-    presence: Vec<Option<Arc<[u8]>>>,
+    chunks: Vec<Option<Arc<Vec<T>>>>,
+    presence: Vec<Option<Arc<Vec<u8>>>>,
     /// `u32::MAX` quando a coluna está vazia — o `Infinity` do TypeScript.
     pub min_row: u32,
     /// `-1` quando a coluna está vazia, como no TypeScript.
@@ -130,7 +133,7 @@ impl<T: Copy + Default> ChunkedColumn<T> {
     }
 
     pub fn mascara_do_bloco(&self, idx: usize) -> Option<&[u8]> {
-        self.presence.get(idx)?.as_deref()
+        self.presence.get(idx)?.as_deref().map(Vec::as_slice)
     }
 
     /// Copia a coluna para buffers contíguos — os valores e a máscara de
@@ -180,8 +183,8 @@ impl<T: Copy + Default> ChunkedColumn<T> {
             }
             let mut chunk = vec![T::default(); CHUNK_SIZE];
             chunk[..quantos].copy_from_slice(&values[inicio..inicio + quantos]);
-            self.chunks[i] = Some(Arc::from(chunk));
-            self.presence[i] = Some(Arc::from(mask));
+            self.chunks[i] = Some(Arc::new(chunk));
+            self.presence[i] = Some(Arc::new(mask));
         }
         for r in 0..length as u32 {
             if self.has(r) {
@@ -210,8 +213,8 @@ impl<T: Copy + Default> ChunkedColumn<T> {
         let primeira = base + (primeiro * 8) as u32 + mascara[primeiro].trailing_zeros();
         let ultima = base + (ultimo * 8) as u32 + 7 - mascara[ultimo].leading_zeros();
         self.ensure_chunk(idx);
-        self.chunks[idx] = Some(Arc::from(valores));
-        self.presence[idx] = Some(Arc::from(mascara));
+        self.chunks[idx] = Some(Arc::new(valores.into_vec()));
+        self.presence[idx] = Some(Arc::new(mascara.into_vec()));
         self.min_row = self.min_row.min(primeira);
         self.max_row = self.max_row.max(ultima as i64);
         Some((primeira, ultima))

@@ -852,8 +852,16 @@ impl App {
     /// sair da tela inicial, para a barra de progresso do rodapé aparecer.
     pub(super) fn dialogo_abrir(&self) -> Task<Msg> {
         Task::perform(async move {
+            // Um filtro por tipo, como o Excel; o primeiro é o que vem escolhido.
+            // O .xls (binário do Excel 97–2003) fica de fora até haver leitor.
             rfd::AsyncFileDialog::new().set_directory(dialogos::pasta_padrao())
-                .add_filter(tr!("Planilhas"), &["fshz", "xlsx", "xlsm", "csv", "tsv", "parquet"])
+                .add_filter(tr!("Todas as planilhas"), &["fshz", "xlsx", "xlsm", "csv", "tsv", "parquet"])
+                .add_filter(tr!("Pasta de trabalho do FeatherSheet (.fshz)"), &["fshz"])
+                .add_filter(tr!("Pasta de trabalho do Excel (.xlsx)"), &["xlsx"])
+                .add_filter(tr!("Pasta de trabalho do Excel com macros (.xlsm)"), &["xlsm"])
+                .add_filter(tr!("CSV (.csv)"), &["csv"])
+                .add_filter(tr!("Texto separado por tabulações (.tsv)"), &["tsv"])
+                .add_filter("Parquet (.parquet)", &["parquet"])
                 .pick_file().await.map(|file| file.path().to_path_buf())
         }, Msg::ArquivoEscolhido)
     }
