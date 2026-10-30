@@ -10,6 +10,8 @@ description: |
 license: GPL-3.0-only
 website: https://github.com/feather-works/feathersheet
 issues: https://github.com/feather-works/feathersheet/issues
+source-code: https://github.com/feather-works/feathersheet
+contact: https://github.com/feather-works/feathersheet/issues
 icon: pacote/icones/feathersheet-512.png
 grade: stable
 confinement: strict
@@ -31,7 +33,7 @@ layout:
 apps:
   feathersheet:
     command: usr/bin/feathersheet
-    command-chain: [bin/gpu-2604-wrapper]
+    command-chain: [bin/gpu-2604-wrapper, bin/janela.sh]
     desktop: usr/share/applications/feathersheet.desktop
     common-id: feathersheet
     plugs:
@@ -67,6 +69,12 @@ parts:
       craftctl default
       sed -i 's#^Icon=.*#Icon=${SNAP}/usr/share/icons/hicolor/512x512/apps/feathersheet.png#' \
         ${CRAFT_PART_INSTALL}/usr/share/applications/feathersheet.desktop
+
+  janela:
+    plugin: dump
+    source: snap/local
+    organize:
+      janela.sh: bin/janela.sh
 
   gpu-2604:
     after: [feathersheet]
