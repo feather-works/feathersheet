@@ -39,7 +39,7 @@ cp $s/feathersheet_0.2.3_amd64.deb             /tmp/feathersheet-linux-amd64.deb
 cp $s/feathersheet-0.2.3-linux-x86_64.tar.gz   /tmp/feathersheet-linux-x86_64.tar.gz
 cp $s/FeatherSheet-0.2.3-instalador.exe        /tmp/FeatherSheet-windows-x64.exe
 (cd /tmp && sha256sum feathersheet-linux-amd64.deb feathersheet-linux-x86_64.tar.gz FeatherSheet-windows-x64.exe > SHA256SUMS)
-gh release create v0.2.3 --title "FeatherSheet 0.2.3" --notes-file <notas.md> \
+gh release create v0.2.3 --title "FeatherSheet v0.2.3 — <resumo em inglês>" --notes-file <notas.md> \
   /tmp/feathersheet-linux-amd64.deb /tmp/feathersheet-linux-x86_64.tar.gz \
   /tmp/FeatherSheet-windows-x64.exe /tmp/SHA256SUMS
 git worktree remove /tmp/fs-v0.2.3
