@@ -530,6 +530,11 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
   célula a célula, escrita por célula em vez de por coluna, tamanho do lote na thread da janela); tempo
   antes/depois registrado; a janela nunca trava (memória `nunca-travar-thread-da-janela`).
 - **Depende:** EDI-3 (mesmo arquivo); medição do usuário.  **Issue:** #134.  **Tamanho:** M–G.
+- **Feito em 30/10 (c6e306d):** o pool de textos não dobra mais no meio da gravação (estimativa numa
+  thread + `StringPool::reservar` num tique só); bancada `medir_divisao_larga` (20 mil × 83): gravação
+  0,69 → 0,47 s, tiques de 20–72 ms viram um de ~25 ms. **Falta:** medir no arquivo real do usuário; a
+  gravação ainda é célula a célula na thread da janela (próximo passo: montar as colunas de destino
+  em threads e só encaixar na janela).
 
 ---
 
