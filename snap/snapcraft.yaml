@@ -1,0 +1,79 @@
+name: feathersheet
+title: FeatherSheet
+base: core26 # o binário pede glibc 2.43 (Ubuntu 26.04)
+version: '0.2.2' # trocar junto com a tag em `source:` a cada versão
+summary: Planilha local, rápida e sem conta
+description: |
+  Planilha em Rust com interface nativa: fórmulas em português e inglês,
+  arquivos enormes, .xlsx, .csv e .parquet, macros do Excel (VBA) e em
+  JavaScript. Roda inteira na máquina: sem conta, sem login, sem telemetria.
+license: GPL-3.0-only
+website: https://github.com/feather-works/feathersheet
+issues: https://github.com/feather-works/feathersheet/issues
+icon: pacote/icones/feathersheet-512.png
+grade: stable
+confinement: strict
+platforms:
+  amd64:
+
+plugs:
+  gpu-2604:
+    interface: content
+    target: $SNAP/gpu-2604
+    default-provider: mesa-2604
+
+layout:
+  /usr/share/libdrm:
+    bind: $SNAP/gpu-2604/libdrm
+  /usr/share/drirc.d:
+    symlink: $SNAP/gpu-2604/drirc.d
+
+apps:
+  feathersheet:
+    command: usr/bin/feathersheet
+    command-chain: [bin/gpu-2604-wrapper]
+    desktop: usr/share/applications/feathersheet.desktop
+    common-id: feathersheet
+    plugs:
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - home
+      - removable-media # arquivos em /media e /run/media
+      - network # vínculos e macros que buscam na rede
+
+parts:
+  feathersheet:
+    # Reaproveita o .deb da release (feito pelo pacote/gerar.sh), sem recompilar.
+    plugin: dump
+    source: https://github.com/feather-works/feathersheet/releases/download/v0.2.2/feathersheet-linux-amd64.deb
+    source-type: deb
+    # Bibliotecas que o winit/wgpu abrem por dlopen.
+    stage-packages:
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libwayland-client0
+      - libwayland-cursor0
+      - libwayland-egl1
+      - libx11-6
+      - libx11-xcb1
+      - libxcursor1
+      - libxi6
+      - libxrandr2
+      - libvulkan1
+    override-build: |
+      craftctl default
+      sed -i 's#^Icon=.*#Icon=${SNAP}/usr/share/icons/hicolor/512x512/apps/feathersheet.png#' \
+        ${CRAFT_PART_INSTALL}/usr/share/applications/feathersheet.desktop
+
+  gpu-2604:
+    after: [feathersheet]
+    source: https://github.com/canonical/gpu-snap.git
+    plugin: dump
+    override-prime: |
+      craftctl default
+      ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604
+    prime:
+      - bin/gpu-2604-wrapper
