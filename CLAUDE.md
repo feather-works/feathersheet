@@ -174,6 +174,13 @@ cargo clippy --all-targets
     aberta até o commit (`Fixes #N`). **Versões só em lote**; correção avulsa
     só quando algo crasha.
 
+24. **Toda funcionalidade nova ou mudada atualiza a Ajuda F1** (30/10/2026, pedido do
+    usuário). Na mesma entrega: o tópico de "Como usar" (`ajuda.comoUsar` em
+    `src/idiomas/pt-BR.json`, `en-US.json` e `es-ES.json`; lista em `TOPICOS` de
+    `app/ajuda.rs`), com o caminho de menu conferido na faixa (`app/faixa_nativa_grupos.rs`).
+    Função de fórmula vai no catálogo de funções; API de macro, em `ajuda_macros.rs`;
+    atalho, em `ajuda_atalhos.rs`. Recurso que sai ou muda de lugar também sai/muda na ajuda.
+
 ## Editor de macros (Alt+F11) — 05/10/2026
 
 - `sheet.showComponent("nome", dados?)` abre o componente num iframe

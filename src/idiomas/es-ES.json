@@ -54,7 +54,8 @@
      "• Las funciones aceptan su nombre en español, portugués o inglés (SUMA, SOMA o SUM). La lista completa está en \"Funciones de la hoja de cálculo\".",
      "Mientras escribe aparecen sugerencias y ayudas de argumentos. Al hacer clic o arrastrar sobre la cuadrícula se inserta la referencia; cada recuadro de referencia de color se puede arrastrar (mover) o estirar por su esquina (cambiar tamaño).",
      "Las funciones que devuelven varias celdas (FILTER, UNIQUE, SORT, SEQUENCE…) extienden el resultado hacia abajo y hacia la derecha. Si algo estorba, la celda muestra #SPILL!.",
-     "Fórmula con error: haga clic derecho en la celda → \"Explicar este error\" muestra la parte que falla y cómo corregirla."
+     "Fórmula con error: haga clic derecho en la celda → \"Explicar este error\" muestra la parte que falla y cómo corregirla.",
+     "• Nombres (Fórmulas → Nombres definidos): Definir nombre, Administrador, Crear a partir de la selección y Usar en fórmula. Un nombre vale en cualquier fórmula: =SUMA(Ventas). En Fórmulas → Cálculo están las Opciones de cálculo y Calcular ahora."
     ]
    },
    "preencher": {
@@ -64,7 +65,8 @@
      "• Hacer doble clic en el controlador rellena hacia abajo hasta el final de los datos de la columna vecina.",
      "• Ctrl+D copia la celda de arriba hacia abajo; Ctrl+R copia la celda de la izquierda hacia la derecha.",
      "• Arrastrar el borde de la selección mueve las celdas; las fórmulas que leen el bloque se actualizan.",
-     "• Ctrl+Mayús+V pega solo valores."
+     "• Ctrl+Mayús+V pega solo valores.",
+     "• Inicio → Rellenar: Serie… (lineal, crecimiento o fecha, con incremento y límite) y Relámpago (Ctrl+E), que completa la columna siguiendo el ejemplo que escribió."
     ]
    },
    "abas": {
@@ -77,32 +79,103 @@
    "formatar": {
     "titulo": "Formato",
     "corpo": [
-     "Fuente, color, bordes, alineación y formato de número (moneda, %, decimales) están en la pestaña Inicio de la cinta. La herramienta de copiar formato copia el formato de una celda a otras.",
-     "• Formato condicional (Formatear → Formato condicional): colorea celdas según una regla — mayor que, contiene texto, duplicados, fórmula personalizada, escala de color y barra de datos.",
-     "• Colores alternados (Formatear) rayan las filas de una tabla.",
-     "• Inmovilizar (Ver) mantiene las primeras filas o columnas fijas mientras se desplaza."
+     "Fuente, color, bordes, alineación y formato de número (moneda, %, decimales) están en la pestaña Inicio. La herramienta de copiar formato lo copia de una celda a otras; Ctrl+1 abre Formato de celdas.",
+     "• Formato condicional (Inicio → Condicional): colorea celdas según una regla — mayor que, contiene texto, duplicados, fórmula personalizada, escala de color y barra de datos.",
+     "• Colores alternados (Inicio → Estilos) rayan las filas; Estilos de celda aplica un estilo listo.",
+     "• Inmovilizar (Mostrar → Inmovilizar) mantiene las primeras filas o columnas fijas mientras se desplaza."
     ]
    },
    "tabelas": {
     "titulo": "Tablas, filtros y dinámicas",
     "corpo": [
      "• Ctrl+T convierte los datos en una tabla: encabezado, franjas, fila de totales y un filtro en cada columna. La tabla crece sola cuando escribe justo debajo.",
-     "• Ctrl+Mayús+L activa o desactiva el filtro. La ordenación está en el menú Datos.",
-     "• Insertar → Tabla dinámica resume los datos: arrastre campos a filas, columnas y valores (suma, cuenta, promedio…)."
+     "• Ctrl+Mayús+L activa o desactiva el filtro. Ordenar está en las pestañas Inicio y Datos.",
+     "• Insertar → Tabla dinámica resume los datos: arrastre campos a filas, columnas y valores (suma, cuenta, promedio…). Tablas dinámicas recomendadas sugiere resúmenes listos a partir de la selección.",
+     "• Segmentación de datos (Insertar → Filtros): botones para filtrar una tabla o dinámica con un clic."
+    ]
+   },
+   "celulas": {
+    "titulo": "Filas, columnas y celdas",
+    "corpo": [
+     "• Inicio → Celdas: Insertar, Eliminar y Formato (alto de fila, ancho de columna, autoajuste, ocultar y mostrar, protección).",
+     "• El clic derecho en el encabezado también oculta y muestra. Una columna o fila oculta aparece como una línea más gruesa entre sus vecinas.",
+     "• Combinar está en el grupo Alineación; la flecha abre Combinar y centrar y Combinar horizontalmente.",
+     "• Pegado especial (Ctrl+Alt+V o la flecha de Pegar): solo valores, solo formatos, transponer y más.",
+     "• Ir a (F5 o Ctrl+G): va a una celda o nombre, o selecciona por tipo — fórmulas, constantes, en blanco, errores, solo visibles."
+    ]
+   },
+   "auditoria": {
+    "titulo": "Revisar fórmulas",
+    "corpo": [
+     "Fórmulas → Auditoría de fórmulas:",
+     "• Rastrear precedentes (de dónde lee la celda) y Rastrear dependientes (quién lee la celda) dibujan flechas; Quitar flechas las borra.",
+     "• Mostrar fórmulas muestra el texto de las fórmulas en lugar del resultado.",
+     "• Evaluar fórmula calcula la fórmula por partes, para encontrar dónde falla el resultado.",
+     "• Ventana Inspección sigue las celdas elegidas, incluso de otras hojas, mientras trabaja.",
+     "• Explicar error muestra la parte que falló y cómo arreglarla."
+    ]
+   },
+   "previsao": {
+    "titulo": "Análisis de hipótesis",
+    "corpo": [
+     "Datos → Previsión:",
+     "• Buscar objetivo… encuentra el valor de una celda que lleva la fórmula al resultado que quiere.",
+     "• Escenarios guarda conjuntos de valores con nombre, para cambiar y comparar.",
+     "• Tabla de datos… calcula una fórmula para una lista de valores (una o dos variables); Actualizar tabla rehace el cálculo."
+    ]
+   },
+   "vinculos": {
+    "titulo": "Vincular hojas de cálculo",
+    "corpo": [
+     "Una fórmula puede leer otra hoja de cálculo: =[Ventas.fshz]Datos!A1 o =SUMA([Ventas.fshz]Datos!A1:A10). El valor se guarda en el archivo, y también va al .xlsx.",
+     "Datos → Consultas → Actualizar vínculos trae los valores nuevos; Editar vínculos cambia o quita el origen. Por seguridad, un archivo abierto del disco solo lee el otro después de que usted actualice."
+    ]
+   },
+   "objetos": {
+    "titulo": "Objetos y controles",
+    "corpo": [
+     "• Insertar → Ilustraciones: Imágenes, Formas e Iconos flotan sobre la cuadrícula (arrastrar mueve, las esquinas cambian el tamaño). Grupo Texto: Cuadro de texto y WordArt; grupo Símbolos: Ecuación y Símbolo.",
+     "• Imagen en la celda… pone la imagen dentro de la celda, y sigue a filas y columnas. En fórmulas: =IMAGEN(dirección) e =IMAGEN.BASE64(texto).",
+     "• Insertar → Casilla pone casillas de verificación en las celdas seleccionadas; la celda vale VERDADERO o FALSO.",
+     "• Insertar vínculo (grupo Vínculos) y Comentario también están en la pestaña Insertar."
     ]
    },
    "graficos": {
     "titulo": "Gráficos e imágenes",
     "corpo": [
-     "Seleccione los datos y use Insertar → Gráfico. El gráfico flota sobre la cuadrícula: arrástrelo para moverlo, tire de la esquina para cambiar el tamaño, y el editor lateral cambia el tipo (17 tipos), las series y los colores. Se actualiza cuando cambian los datos.",
+     "Seleccione los datos y use Insertar → Gráficos: Recomendados, o un tipo directo (columnas, líneas, circular, dispersión, cascada…). Hay más de 25 tipos. El gráfico flota sobre la cuadrícula: arrástrelo para moverlo, tire de la esquina para cambiar el tamaño, y el editor lateral cambia el tipo, las series y los colores. Se actualiza cuando cambian los datos.",
      "Imágenes: Insertar → Imagen, pegue (Ctrl+V) o suelte el archivo sobre la cuadrícula."
+    ]
+   },
+   "comentarios": {
+    "titulo": "Comentarios y protección",
+    "corpo": [
+     "• Revisar → Nuevo comentario anota la celda; al pasar el ratón aparece el globo. Anterior y Siguiente recorren los comentarios; Mostrar todos los comentarios los deja a la vista.",
+     "• Inicio → Borrar → Borrar comentarios quita los de la selección.",
+     "• Revisar → Proteger hoja (o Proteger libro) impide cambios; en Inicio → Formato puede bloquear o desbloquear celdas antes."
+    ]
+   },
+   "desenhar": {
+    "titulo": "Dibujar",
+    "corpo": [
+     "La pestaña Dibujar escribe encima de la hoja: plumas y resaltador, Borrador de trazo o de punto, y Lazo para seleccionar trazos. Esc vuelve a la selección normal.",
+     "• Entrada de lápiz a forma convierte el trazo en rectángulo, elipse o flecha.",
+     "• Con tableta digitalizadora, el grosor sigue la presión del lápiz (Configuración → Hoja de cálculo). Sin tableta, el trazo rápido sale más fino.",
+     "• Cada trazo es un Ctrl+Z, y los dibujos se guardan en .fshz y .xlsx."
+    ]
+   },
+   "impressao": {
+    "titulo": "Página e impresión",
+    "corpo": [
+     "Diseño de página: Márgenes, Orientación, Tamaño del papel, Área de impresión, Saltos, Ajustar área de impresión (páginas de ancho y alto, o escala) e Imprimir líneas de cuadrícula.",
+     "Vista previa muestra las páginas antes de imprimir. Insertar → Encabezado y pie de página añade un texto arriba y abajo de cada página."
     ]
    },
    "dados": {
     "titulo": "Herramientas de datos",
     "corpo": [
      "• Buscar y reemplazar: Ctrl+H.",
-     "• En el menú Datos: quitar duplicados, recortar espacios, dividir texto en columnas (separador y tipo de cada columna, con vista previa) y estadísticas de columna.",
+     "• En la pestaña Datos: Duplicados, Quitar espacios, Dividir texto (separador y tipo de cada columna, con vista previa), Estadísticas y Perfil de la columna (distribución, vacíos, distintos y valores atípicos).",
      "• Validación de datos (cinta, pestaña Datos): lista desplegable, número entre límites, fecha, texto — avisa o rechaza al introducir.",
      "• OpenQuery (Datos → OpenQuery…): importa y transforma datos — filtrar, agrupar, combinar tablas, fuentes web — y guarda los pasos para actualizar después."
     ]
@@ -110,16 +183,24 @@
    "macros": {
     "titulo": "Macros y botones",
     "corpo": [
-     "Las macros son JavaScript (Herramientas → Macros). Ctrl+Enter ejecuta, y Ctrl+Z deshace la macro completa. \"Ejecutar al abrir\" ejecuta la macro cada vez que se abre la hoja de cálculo — así es como siguen funcionando las funciones personalizadas.",
+     "Las macros son JavaScript (Macros → Editor de macros, o Alt+F11). Ctrl+Enter ejecuta, y Ctrl+Z deshace la macro completa. \"Ejecutar al abrir\" ejecuta la macro cada vez que se abre la hoja de cálculo — así es como siguen funcionando las funciones personalizadas.",
      "Cada hoja de cálculo guarda sus propias macros dentro del archivo .fshz (como los .xlsm de Excel): una hoja nueva empieza sin ninguna, y al abrir un .xlsm se traen sus VBA convertidos. Para pasar macros entre archivos, use Exportar e Importar en el editor.",
      "Insertar → Botón de macro crea un botón en la cuadrícula que ejecuta una macro al hacer clic. Arrastre para mover; clic derecho para editar o eliminar.",
      "Todas las funciones que una macro puede usar están en la sección \"Macros\" de esta Ayuda."
     ]
    },
+   "vba": {
+    "titulo": "Excel, VBA y formularios",
+    "corpo": [
+     "Abrir un .xlsm convierte sus macros VBA a JavaScript. Antes de que se ejecute cualquier macro del archivo, la aplicación pregunta \"¿Habilitar macros?\" — acepte solo si confía en el origen.",
+     "Formularios (el UserForm de VBA): en el editor de macros (Alt+F11), dibuje la ventana con cuadros de texto, listas, opciones y botones, y vincule cada botón a una macro. En una macro, sheet.showComponent(\"nombre\") abre el formulario.",
+     "Una macro larga se ejecuta en segundo plano: la aplicación muestra que se está ejecutando, con el tiempo transcurrido y el botón Detener."
+    ]
+   },
    "arquivos": {
     "titulo": "Archivos",
     "corpo": [
-     "El formato nativo es .fshz. Ctrl+S guarda y Ctrl+Mayús+S guarda con otro nombre. Abrir también lee .xlsx, .csv y .tsv.",
+     "El formato nativo es .fshz. Ctrl+S guarda y Ctrl+Mayús+S guarda con otro nombre. Abrir también lee .xlsx, .xlsm, .csv, .tsv y .parquet.",
      "Archivo → Exportar guarda el libro como .xlsx o la hoja actual como .csv.",
      "El guardado automático funciona SOLO para archivos .fshz que ya se guardaron: sobrescribe en el intervalo elegido en Configuración. Un archivo .xlsx, .csv o .parquet abierto, o una hoja nueva, nunca se escribe automáticamente — para usar el guardado automático, elija Guardar como… y seleccione .fshz.",
      "La recuperación automática cubre todo lo demás: guarda una copia de cualquier hoja modificada (incluidos .xlsx, .parquet y las que nunca se guardaron) en Documents/FeatherSheet/Temporarios/Recuperacao. Si el equipo se apaga, aparece en la pantalla de inicio para recuperarla. No reemplaza guardar: la copia se elimina al guardar o descartar. Los libros muy grandes (más de 100 millones de celdas) no reciben copia automática, porque cada copia congelaría la ventana y duplicaría la memoria: guárdelos con Ctrl+S.",
@@ -129,7 +210,8 @@
    "config": {
     "titulo": "Configuración",
     "corpo": [
-     "En Configuración: tema claro u oscuro, esquema de colores y acento, fuente y tamaño de la cuadrícula, zoom, guardado automático, idioma (que también define el separador de fórmulas) y atajos de teclado."
+     "En Configuración: tema claro u oscuro, esquema de colores y acento, fuente y tamaño de la cuadrícula, zoom, guardado automático, idioma (que también define el separador de fórmulas) y atajos de teclado.",
+     "Mostrar → Monitor (o F12) muestra memoria, procesador y la Consola con lo que la aplicación registró — útil para enviar junto con un informe de error."
     ]
    }
   },

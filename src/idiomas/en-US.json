@@ -54,7 +54,8 @@
           "• Functions accept their Portuguese or English name (SOMA or SUM). The full list is under \"Spreadsheet functions\".",
           "While you type, suggestions and argument hints show up. Clicking or dragging on the grid inserts the reference; each colored reference box can be dragged (move) or pulled by its corner (resize).",
           "Functions that return several cells (FILTER, UNIQUE, SORT, SEQUENCE…) spill the result down and to the right. If something is in the way, the cell shows #SPILL!.",
-          "Formula with an error: right-click the cell → \"Explicar este erro\" shows the failing part and how to fix it."
+          "Formula with an error: right-click the cell → \"Explicar este erro\" shows the failing part and how to fix it.",
+          "• Names (Formulas → Defined Names): Define Name, Manager, Create from Selection and Use in Formula. A name works in any formula: =SUM(Sales). Formulas → Calculation has Calculation Options and Calculate Now."
         ]
       },
       "preencher": {
@@ -64,7 +65,8 @@
           "• Double-clicking the handle fills down to the end of the data in the neighbouring column.",
           "• Ctrl+D copies the cell above downwards; Ctrl+R copies the cell on the left to the right.",
           "• Dragging the border of the selection moves the cells; formulas that read the block follow along.",
-          "• Ctrl+Shift+V pastes values only."
+          "• Ctrl+Shift+V pastes values only.",
+          "• Home → Fill: Series… (linear, growth or date, with step and limit) and Flash Fill (Ctrl+E), which completes the column following the example you typed."
         ]
       },
       "abas": {
@@ -77,32 +79,103 @@
       "formatar": {
         "titulo": "Formatting",
         "corpo": [
-          "Font, color, borders, alignment and number format (currency, %, decimals) are in the Home tab of the ribbon. The format painter copies formatting from one cell to others.",
-          "• Conditional formatting (Formatar → Formatação condicional): colors cells by rule — greater than, contains text, duplicates, custom formula, color scale and data bar.",
-          "• Alternating colors (Formatar) stripes the rows of a table.",
-          "• Freeze (Ver) keeps the first rows or columns in place while you scroll."
+          "Font, color, borders, alignment and number format (currency, %, decimals) are on the Home tab. The format painter copies formatting from one cell to others; Ctrl+1 opens Format Cells.",
+          "• Conditional formatting (Home → Conditional): colors cells by rule — greater than, contains text, duplicates, custom formula, color scale and data bar.",
+          "• Banded colors (Home → Styles) stripes the rows; Cell styles applies a ready-made style.",
+          "• Freeze (View → Freeze) keeps the first rows or columns in place while you scroll."
         ]
       },
       "tabelas": {
         "titulo": "Tables, filters and pivots",
         "corpo": [
           "• Ctrl+T turns the data into a table: header, stripes, total row and a filter on each column. The table grows by itself when you type right below it.",
-          "• Ctrl+Shift+L turns the filter on or off. Sorting is in the Dados (Data) menu.",
-          "• Inserir → Tabela Dinâmica (pivot table) summarizes the data: drag fields to rows, columns and values (sum, count, average…)."
+          "• Ctrl+Shift+L turns the filter on or off. Sort is on the Home and Data tabs.",
+          "• Insert → PivotTable summarizes the data: drag fields to rows, columns and values (sum, count, average…). Recommended PivotTables suggests ready-made summaries from the selection.",
+          "• Slicer (Insert → Filters): buttons that filter a table or pivot with one click."
+        ]
+      },
+      "celulas": {
+        "titulo": "Rows, columns and cells",
+        "corpo": [
+          "• Home → Cells: Insert, Delete and Format (row height, column width, AutoFit, hide and unhide, protection).",
+          "• Right-clicking a header also hides and unhides. A hidden column or row shows as a thicker line between its neighbors.",
+          "• Merge is in the Alignment group; its arrow opens Merge & center and Merge across.",
+          "• Paste special (Ctrl+Alt+V or the arrow under Paste): values only, formats only, transpose and more.",
+          "• Go To (F5 or Ctrl+G): jumps to a cell or name, or selects by type — formulas, constants, blanks, errors, visible cells only."
+        ]
+      },
+      "auditoria": {
+        "titulo": "Checking formulas",
+        "corpo": [
+          "Formulas → Formula Auditing:",
+          "• Trace Precedents (what the cell reads) and Trace Dependents (what reads the cell) draw arrows; Remove Arrows clears them.",
+          "• Show formulas displays the formula text instead of the result.",
+          "• Evaluate Formula calculates the formula piece by piece, to find where the result goes wrong.",
+          "• Watch Window follows chosen cells, even on other sheets, while you work.",
+          "• Explain Error shows the part that failed and how to fix it."
+        ]
+      },
+      "previsao": {
+        "titulo": "What-if analysis",
+        "corpo": [
+          "Data → Forecast:",
+          "• Goal Seek… finds the value of a cell that brings a formula to the result you want.",
+          "• Scenarios stores named sets of values to switch between and compare.",
+          "• Data Table… calculates a formula for a list of values (one or two variables); Refresh table recalculates it."
+        ]
+      },
+      "vinculos": {
+        "titulo": "Linking spreadsheets",
+        "corpo": [
+          "A formula can read another spreadsheet: =[Sales.fshz]Data!A1 or =SUM([Sales.fshz]Data!A1:A10). The value is stored in the file, and also goes into .xlsx.",
+          "Data → Queries → Refresh links brings the new values; Edit links changes or removes the source. For safety, a file opened from disk only reads the other one after you refresh."
+        ]
+      },
+      "objetos": {
+        "titulo": "Objects and controls",
+        "corpo": [
+          "• Insert → Illustrations: Pictures, Shapes and Icons float over the grid (drag to move, corners resize). Text group: Text box and WordArt; Symbols group: Equation and Symbol.",
+          "• Image in cell… puts the image inside the cell, so it follows rows and columns. In formulas: =IMAGE(address) and =IMAGE.BASE64(text).",
+          "• Insert → Checkbox puts checkboxes in the selected cells; the cell is TRUE or FALSE.",
+          "• Insert link (Links group) and Comment are also on the Insert tab."
         ]
       },
       "graficos": {
         "titulo": "Charts and images",
         "corpo": [
-          "Select the data and use Inserir → Gráfico (chart). The chart floats over the grid: drag to move, pull the corner to resize, and the side editor changes the type (17 types), series and colors. It follows the data when it changes.",
+          "Select the data and use Insert → Charts: Recommended, or a type directly (columns, lines, pie, scatter, waterfall…). There are more than 25 types. The chart floats over the grid: drag to move, pull the corner to resize, and the side editor changes the type, series and colors. It follows the data when it changes.",
           "Images: Inserir → Imagem, paste (Ctrl+V) or drop the file on the grid."
+        ]
+      },
+      "comentarios": {
+        "titulo": "Comments and protection",
+        "corpo": [
+          "• Review → New comment annotates the cell; hovering shows the balloon. Previous and Next go through comments; Show all comments keeps them all visible.",
+          "• Home → Clear → Clear comments removes the ones in the selection.",
+          "• Review → Protect Sheet (or Protect Workbook) blocks changes; in Home → Format you can lock or unlock cells first."
+        ]
+      },
+      "desenhar": {
+        "titulo": "Draw",
+        "corpo": [
+          "The Draw tab writes on top of the spreadsheet: pens and highlighter, Stroke eraser or Point eraser, and Lasso to select strokes. Esc goes back to normal selection.",
+          "• Ink to shape turns the stroke into a rectangle, ellipse or arrow.",
+          "• With a drawing tablet, the thickness follows the pen pressure (Settings → Spreadsheet). Without one, a fast stroke comes out thinner.",
+          "• Each stroke is one Ctrl+Z, and drawings are saved in .fshz and .xlsx."
+        ]
+      },
+      "impressao": {
+        "titulo": "Page and printing",
+        "corpo": [
+          "Page Layout: Margins, Orientation, paper Size, Print area, Breaks, Scale to Fit (pages wide and tall, or a scale) and Print gridlines.",
+          "Preview shows the pages before printing. Insert → Header & footer adds text at the top and bottom of each page."
         ]
       },
       "dados": {
         "titulo": "Data tools",
         "corpo": [
           "• Find and replace: Ctrl+H.",
-          "• In the Dados (Data) menu: remove duplicates, trim spaces, split text into columns (separator and type of each column, with preview) and column statistics.",
+          "• On the Data tab: Duplicates, Trim spaces, Split text (separator and type of each column, with preview), Statistics and Column profile (distribution, blanks, distinct values and outliers).",
           "• Data validation (ribbon, Data tab): drop-down list, number between limits, date, text — warning or rejecting on entry.",
           "• OpenQuery (Dados → OpenQuery…): imports and transforms data — filter, group, merge tables, web sources — and keeps the steps so you can refresh later."
         ]
@@ -110,16 +183,24 @@
       "macros": {
         "titulo": "Macros and buttons",
         "corpo": [
-          "Macros are JavaScript (Ferramentas → Macros). Ctrl+Enter runs, and Ctrl+Z undoes the whole macro. \"Executar ao abrir\" (run on open) runs the macro every time the spreadsheet opens — that is how custom functions keep working.",
+          "Macros are JavaScript (Macros → Macro editor, or Alt+F11). Ctrl+Enter runs, and Ctrl+Z undoes the whole macro. \"Run on open\" runs the macro every time the spreadsheet opens — that is how custom functions keep working.",
           "Each spreadsheet keeps its own macros inside the .fshz file (like Excel's .xlsm): a new spreadsheet starts with none, and opening an .xlsm brings its VBA converted. To move macros between files, use Export and Import in the editor.",
           "Inserir → Botão de macro creates a button on the grid that runs a macro when clicked. Drag to move; right-click to edit or delete.",
           "Every function a macro can use is in the \"Macros\" section of this Help."
         ]
       },
+      "vba": {
+        "titulo": "Excel, VBA and forms",
+        "corpo": [
+          "Opening an .xlsm converts its VBA macros to JavaScript. Before any macro from the file runs, the app asks \"Enable macros?\" — only accept if you trust the source.",
+          "Forms (VBA's UserForm): in the macro editor (Alt+F11), draw the window with text boxes, lists, options and buttons, and link each button to a macro. In a macro, sheet.showComponent(\"name\") opens the form.",
+          "A long macro runs in the background: the app shows it is running, with the elapsed time and a Stop button."
+        ]
+      },
       "arquivos": {
         "titulo": "Files",
         "corpo": [
-          "The native format is .fshz. Ctrl+S saves and Ctrl+Shift+S saves under another name. Open also reads .xlsx, .csv and .tsv.",
+          "The native format is .fshz. Ctrl+S saves and Ctrl+Shift+S saves under another name. Open also reads .xlsx, .xlsm, .csv, .tsv and .parquet.",
           "Arquivo → Exportar writes the workbook as .xlsx or the current sheet as .csv.",
           "Autosave works ONLY for .fshz files that were already saved: it writes over them at the interval chosen in Settings. An opened .xlsx, .csv or .parquet file, or a new spreadsheet, is never written automatically — to use autosave, choose Save as… and pick .fshz.",
           "Automatic recovery covers everything else: it keeps a copy of any changed spreadsheet (including .xlsx, .parquet and never-saved ones) in Documents/FeatherSheet/Temporarios/Recuperacao. If the computer shuts down, it shows up on the start screen to recover. It does not replace saving: the copy is removed when you save or discard. Very large workbooks (over 100 million cells) get no automatic copy, because each copy would freeze the window and double the memory: save them with Ctrl+S.",
@@ -129,7 +210,8 @@
       "config": {
         "titulo": "Settings",
         "corpo": [
-          "In Settings: light or dark theme, color scheme and accent, grid font and size, zoom, autosave, language (which also decides the formula separator) and keyboard shortcuts."
+          "In Settings: light or dark theme, color scheme and accent, grid font and size, zoom, autosave, language (which also decides the formula separator) and keyboard shortcuts.",
+          "View → Monitor (or F12) shows memory, processor and the Console with what the app logged — useful to send along with a bug report."
         ]
       }
     },

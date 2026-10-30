@@ -14,7 +14,9 @@ const JSON_EN: &str = include_str!("../../../../src/idiomas/en-US.json");
 const JSON_ES: &str = include_str!("../../../../src/idiomas/es-ES.json");
 const TOPICOS: &[&str] = &[
     "comecar", "formulas", "preencher", "abas", "formatar", "tabelas",
-    "graficos", "dados", "macros", "arquivos", "config",
+    "celulas", "auditoria", "previsao", "vinculos", "objetos", "graficos",
+    "comentarios", "desenhar", "impressao", "dados", "macros", "vba",
+    "arquivos", "config",
 ];
 fn tr(root: &Value, secao: &str, key: &str) -> String {
     root[secao][key].as_str().unwrap_or(key).to_owned()
@@ -164,6 +166,8 @@ mod tests {
         for idioma in ["pt-BR","en-US","es-ES"] {
             let c=construir(idioma);
             assert_eq!(c.secoes.len(),4);
+            // Todo tópico de "Como usar" existe no JSON do idioma (não cai no id).
+            for t in &c.secoes[0].topicos { assert!(!t.linhas.is_empty(),"{idioma}: {}",t.titulo); }
             assert_eq!(c.secoes[2].topicos.len(),15);
             assert_eq!(c.secoes[3].topicos.len(),2);
         }
@@ -172,7 +176,7 @@ mod tests {
         let cat=construir("pt-BR");
         assert_eq!(cat.secoes.iter().map(|s|s.id.as_str()).collect::<Vec<_>>(),
             ["uso","funcoes","macros","atalhos"]);
-        assert_eq!(cat.secoes[0].topicos.len(),11);
+        assert_eq!(cat.secoes[0].topicos.len(),20);
         // Um tópico por categoria do catálogo de funções do motor.
         assert_eq!(cat.secoes[1].topicos.len(),CATEGORIES.len());
         assert_eq!(cat.secoes[2].topicos.len(),15);
