@@ -14,6 +14,8 @@ pub enum Evento {
     Modo(Modo), Separador(&'static str), Outro(String),
     Consecutivos(bool), Qualificador(&'static str), Largura(String),
     Coluna(usize), Tipo(&'static str), TipoNaColuna(usize, &'static str),
+    /// Ctrl/Shift lembrados para o clique no cabeçalho (como na prévia do OpenQuery).
+    Modificadores(pelicano::Modifiers), SelecionarTodas(usize),
     Avancado, UsarCelulaAtual, NovaAba(bool),
     Destino(String), NomeAba(String),
     /// Confirmação do aviso "já contém dados": regravar por cima.
@@ -34,7 +36,11 @@ pub(super) struct Estado {
     pub consecutivos:bool,
     pub qualificador:&'static str,
     pub largura:String,
+    /// A última coluna clicada: âncora do Shift+clique.
     pub selecionada:usize,
+    /// Colunas escolhidas (Ctrl/Shift+clique); trocar o tipo de uma delas troca de todas.
+    pub selecionadas:Vec<usize>,
+    modificadores:pelicano::Modifiers,
     pub tipos:Vec<TipoColunaDivisao>,
     pub avancado:bool,
     pub nova_aba:bool,
@@ -147,7 +153,8 @@ impl Estado {
             modo:Modo::Delimitado, ponto_virgula:true,virgula:false,
             tab:false,espaco:false,outro_ativo:false,outro:String::new(),
             consecutivos:true, qualificador:tr!("Aspas duplas"),
-            largura:"10".into(), selecionada:0, tipos:Vec::new(), avancado:false,
+            largura:"10".into(), selecionada:0, selecionadas:vec![0],
+            modificadores:pelicano::Modifiers::default(), tipos:Vec::new(), avancado:false,
             nova_aba:false, destino,
             nome_aba:"Dados_Separados".into(), erro:String::new(),
             conflito:None, substituir:false,
@@ -202,6 +209,31 @@ impl Estado {
     }
     fn tipo(&self,i:usize)->TipoColunaDivisao {
         self.tipos.get(i).cloned().unwrap_or(TipoColunaDivisao::Geral)
+    }
+    /// Clique no cabeçalho: sozinho escolhe uma; Ctrl soma/tira; Shift pega o intervalo
+    /// desde a última clicada (como no Excel e na prévia do OpenQuery).
+    fn clicar_coluna(&mut self,i:usize) {
+        if self.modificadores.shift() {
+            let (a,b)=(self.selecionada.min(i),self.selecionada.max(i));
+            self.selecionadas=(a..=b).collect();
+            return; // a âncora fica: o próximo Shift+clique refaz o intervalo a partir dela
+        }
+        if self.modificadores.control() {
+            match self.selecionadas.iter().position(|c|*c==i) {
+                Some(p) if self.selecionadas.len()>1 => {self.selecionadas.remove(p);}
+                Some(_) => {}
+                None => {self.selecionadas.push(i);self.selecionadas.sort_unstable();}
+            }
+        } else {
+            self.selecionadas=vec![i];
+        }
+        self.selecionada=i;
+    }
+    /// O tipo vale para todas as colunas selecionadas.
+    fn aplicar_tipo(&mut self,tipo:TipoColunaDivisao) {
+        let fim=self.selecionadas.iter().copied().max().unwrap_or(self.selecionada).max(self.selecionada);
+        if self.tipos.len()<=fim {self.tipos.resize(fim+1,TipoColunaDivisao::Geral);}
+        for &c in &self.selecionadas {self.tipos[c]=tipo.clone();}
     }
     fn validacao(&self)->Result<(),String> {
         if self.area.c0!=self.area.c1 {return Err(tr!("Selecione apenas uma coluna na planilha.").into());}
@@ -337,6 +369,8 @@ impl App {
             return Task::none();
         }
         let Some(e)=self.assistente_divisao.as_mut() else {return Task::none();};
+        // Apertar Ctrl/Shift não é mudança no rascunho: não apaga erro nem confirmação.
+        if let Evento::Modificadores(m)=evento { e.modificadores=m; return Task::none(); }
         e.erro.clear();
         // Qualquer mudança no assistente pede nova confirmação.
         e.conflito=None;
@@ -355,16 +389,17 @@ impl App {
             Evento::Consecutivos(v)=>e.consecutivos=v,
             Evento::Qualificador(v)=>e.qualificador=v,
             Evento::Largura(v)=>e.largura=v,
-            Evento::Coluna(i)=>e.selecionada=i,
-            Evento::Tipo(tipo)=>{
-                let i=e.selecionada;
-                if e.tipos.len()<=i {e.tipos.resize(i+1,TipoColunaDivisao::Geral);}
-                e.tipos[i]=tipo_de_rotulo(tipo);
+            Evento::Coluna(i)=>e.clicar_coluna(i),
+            Evento::SelecionarTodas(n)=>{
+                e.selecionadas=(0..n.max(1)).collect();
+                e.selecionada=0;
             },
+            Evento::Tipo(tipo)=>e.aplicar_tipo(tipo_de_rotulo(tipo)),
             Evento::TipoNaColuna(i,tipo)=>{
+                // Lista de uma coluna fora da seleção: ela passa a ser a seleção.
+                if !e.selecionadas.contains(&i) {e.selecionadas=vec![i];}
                 e.selecionada=i;
-                if e.tipos.len()<=i {e.tipos.resize(i+1,TipoColunaDivisao::Geral);}
-                e.tipos[i]=tipo_de_rotulo(tipo);
+                e.aplicar_tipo(tipo_de_rotulo(tipo));
             },
             Evento::Avancado=>e.avancado=!e.avancado,
             Evento::UsarCelulaAtual=>e.destino=cell_name(self.linha,self.coluna),
@@ -372,7 +407,7 @@ impl App {
             Evento::Destino(s)=>e.destino=s,
             Evento::NomeAba(s)=>e.nome_aba=s,
             Evento::Concluir|Evento::Pular|Evento::Cancelar|Evento::ProcessarLote
-                |Evento::Substituir=>unreachable!(),
+                |Evento::Substituir|Evento::Modificadores(_)=>unreachable!(),
         }
         Task::none()
     }
@@ -910,6 +945,38 @@ mod testes {
         let (dados,exemplo)=app.linhas_divisao(&estado);
         assert!(!exemplo);
         assert_eq!(dados[0].1,"Ana;25;Vitória");
+    }
+
+    #[test]
+    fn ctrl_e_shift_selecionam_varias_e_o_tipo_vale_para_todas() {
+        let mut app=App::default();
+        let linha=(1..=83).map(|i|format!("v{i}")).collect::<Vec<_>>().join(";");
+        app.workbook.escrever_celula(0,0,0,linha.into());
+        app.assistente_divisao=Some(Estado::novo(&app));
+        let shift=pelicano::Modifiers::SHIFT;
+        let ctrl=pelicano::Modifiers::CONTROL;
+        app.evento_assistente_divisao(Evento::Coluna(2));
+        app.evento_assistente_divisao(Evento::Modificadores(shift));
+        app.evento_assistente_divisao(Evento::Coluna(80));
+        app.evento_assistente_divisao(Evento::Modificadores(ctrl));
+        app.evento_assistente_divisao(Evento::Coluna(40));
+        app.evento_assistente_divisao(Evento::Modificadores(pelicano::Modifiers::default()));
+        let e=app.assistente_divisao.as_ref().unwrap();
+        assert_eq!(e.selecionadas.len(),78, "2..=80 menos a 40 tirada no Ctrl");
+        assert!(!e.selecionadas.contains(&40));
+        // Mudar a lista de uma coluna selecionada troca todas as selecionadas.
+        app.evento_assistente_divisao(Evento::TipoNaColuna(10,"Texto"));
+        let e=app.assistente_divisao.as_ref().unwrap();
+        assert_eq!(e.tipo(2),TipoColunaDivisao::Texto);
+        assert_eq!(e.tipo(80),TipoColunaDivisao::Texto);
+        assert_eq!(e.tipo(40),TipoColunaDivisao::Geral);
+        assert_eq!(e.tipo(1),TipoColunaDivisao::Geral);
+        // Selecionar todas pega as 83; a prévia monta com todas, na etapa do formato.
+        app.evento_assistente_divisao(Evento::SelecionarTodas(83));
+        app.evento_assistente_divisao(Evento::Tipo("Ignorar"));
+        assert_eq!(app.assistente_divisao.as_ref().unwrap().tipo(82),TipoColunaDivisao::Pular);
+        app.evento_assistente_divisao(Evento::IrPara(3));
+        let _:Element<'_,Msg>=app.view_assistente_divisao();
     }
 
     #[test]

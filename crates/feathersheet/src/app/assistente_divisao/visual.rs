@@ -6,7 +6,9 @@ use pelicano::Background; use pelicano::Border;
 use pelicano::checkbox; use pelicano::pick_list; use pelicano::scrollable;
 
 const MAX_AMOSTRA: u32 = 24;
-const COLUNAS_VISIVEIS: usize = 4;
+/// Até aqui as colunas dividem a largura; acima, cada uma tem largura fixa e a prévia rola de lado.
+const COLUNAS_SEM_ROLAGEM: usize = 4;
+const LARGURA_COLUNA: f32 = 150.;
 const TIPOS: [&str; 8] = [
     "Geral", "Número", "Texto", "Data DMA", "Data MDA",
     "Data AMD", "Porcentagem", "Ignorar",
@@ -145,9 +147,9 @@ fn tem_cabecalho(linhas: &[Vec<String>]) -> bool {
             && v.trim().parse::<f64>().is_ok())
     )
 }
-fn celula_conteudo<'a>(valor: String, selecionada: bool) -> Element<'a, Msg> {
+fn celula_conteudo<'a>(valor: String, selecionada: bool, largura: Length) -> Element<'a, Msg> {
     container(text(valor).size(12))
-        .padding([7,10]).width(Length::Fill(1))
+        .padding([7,10]).width(largura)
         .style(move |_: &pelicano::Theme| pelicano::Style {
             background: Some(Background::Color(
                 if selecionada {COR_AZUL_FUNDO()} else {COR_PAINEL()}
@@ -194,7 +196,8 @@ impl App {
             if dividido {e.partes(original)} else {vec![original.clone()]}
         ).collect();
         let max_cols=recortes.iter().map(Vec::len).max().unwrap_or(1).max(e.tipos.len());
-        let colunas=if dividido {max_cols.min(COLUNAS_VISIVEIS).max(1)} else {1};
+        let colunas=if dividido {max_cols.max(1)} else {1};
+        let largura=if colunas>COLUNAS_SEM_ROLAGEM {Length::Fixed(LARGURA_COLUNA)} else {Length::Fill(1)};
         let com_cabecalho=dividido && tem_cabecalho(&recortes);
         let edicao=e.etapa==3 && dividido;
         let primeira=if com_cabecalho {1}else{0};
@@ -209,10 +212,14 @@ impl App {
                     recortes[0].get(c).cloned().unwrap_or_else(||trf!("Coluna {}",c+1))
                 }else{trf!("Coluna {}",c+1)}
             }else{tr!("Dados originais").to_owned()};
-            let selecionada=dividido && e.selecionada==c;
+            let selecionada=dividido && e.selecionadas.contains(&c);
             let conteudo:Element<'_,Msg>=if edicao {
                 pelicano::column![
-                    text(nome).size(12),
+                    // O nome é o alvo do clique (Ctrl/Shift+clique seleciona várias);
+                    // a lista fica fora do botão, senão ele engoliria o clique dela.
+                    button(text(nome).size(12)).padding([2,4]).width(Length::FILL)
+                        .style(estilo_cartao(selecionada))
+                        .on_press(Msg::AssistenteDivisao(Evento::Coluna(c))),
                     pick_list(
                         crate::idioma::lista(&TIPOS),Some(label_tipo(&e.tipo(c))),
                         move |tipo|Msg::AssistenteDivisao(Evento::TipoNaColuna(c,tipo))
@@ -225,16 +232,17 @@ impl App {
             // capturaria o mouse e impediria abrir o menu de formatos.
             let cabeca: Element<'_,Msg>=if edicao {
                 container(conteudo).padding([7,8])
-                    .width(Length::Fill(1))
-                    .style(|_|pelicano::Style {
-                        background:Some(Background::Color(COR_PAINEL_FAIXA())),
+                    .width(largura)
+                    .style(move |_|pelicano::Style {
+                        background:Some(Background::Color(
+                            if selecionada {COR_AZUL_FUNDO()} else {COR_PAINEL_FAIXA()})),
                         border:Border {color:COR_BORDA_SUAVE(),width:0.5,
                             ..Default::default()},
                         ..Default::default()
                     }).into()
             }else{
                 button(conteudo)
-                    .width(Length::Fill(1))
+                    .width(largura)
                     .padding([10,10])
                     .style(estilo_cartao(selecionada))
                     .on_press(Msg::AssistenteDivisao(Evento::Coluna(c)))
@@ -252,7 +260,7 @@ impl App {
             for c in 0..colunas {
                 let valor=partes.get(c).cloned().unwrap_or_default();
                 let visivel=valor.chars().take(90).collect::<String>();
-                linha=linha.push(celula_conteudo(visivel,dividido && e.selecionada==c && edicao));
+                linha=linha.push(celula_conteudo(visivel,dividido && e.selecionadas.contains(&c) && edicao,largura));
             }
             tabela=tabela.push(linha);
         }
@@ -260,14 +268,29 @@ impl App {
         let note=if ilustrativo {
             tr!("Exemplo ilustrativo — selecione células preenchidas para visualizar seus dados.")
         }else{tr!("A prévia usa somente a seleção; a conversão aplica-se à seleção inteira.")};
+        let em_massa:Element<'_,Msg>=if edicao {
+            let n=e.selecionadas.len();
+            pelicano::row![
+                legenda(&if n==1 {trf!("Coluna {} selecionada",e.selecionada+1)}
+                    else {trf!("{} colunas selecionadas",n)}),
+                legenda(tr!("· Tipo:")),
+                pick_list(crate::idioma::lista(&TIPOS),Some(label_tipo(&e.tipo(e.selecionada))),
+                    |tipo|Msg::AssistenteDivisao(Evento::Tipo(tipo)))
+                    .size(11).padding([5,7]).width(Length::Fixed(140.)),
+                button(text(tr!("Selecionar todas")).size(11.5)).padding([6,10])
+                    .style(estilo_botao_secundario)
+                    .on_press(Msg::AssistenteDivisao(Evento::SelecionarTodas(colunas))),
+            ].spacing(8).align(pelicano::Align::Center).into()
+        } else {Space::new(0.0,0.0).into()};
         pelicano::column![
+            em_massa,
             pelicano::row![
                 destaque(titulo_previa),
                 Space::new(Length::FILL, 0.0),
                 legenda(&trf!("{} linha(s) de amostra",
                     recortes.len().saturating_sub(primeira))),
             ].align(pelicano::Align::Center),
-            container(scrollable(tabela)
+            container(scrollable(tabela).direction(pelicano::Direction::Both)
                 .height(Length::Fixed(if edicao {205.} else {174.}))
                 .width(Length::FILL))
                 .width(Length::FILL)
@@ -276,13 +299,9 @@ impl App {
                     border:Border{color:COR_BORDA_SUAVE(),width:1.,radius: [7.0; 4]},
                     ..Default::default()
                 }),
-            if ilustrativo {
-                legenda(note)
-            }else if max_cols>colunas {
-                legenda(&trf!("Exibindo {} de {} colunas · {}",colunas,max_cols,note))
-            }else{
-                legenda(note)
-            },
+            legenda(note),
+            if edicao {legenda(tr!("Ctrl+clique soma uma coluna; Shift+clique pega o intervalo."))}
+            else {Space::new(0.0,0.0).into()},
         ].spacing(8).width(Length::FILL).into()
     }
 

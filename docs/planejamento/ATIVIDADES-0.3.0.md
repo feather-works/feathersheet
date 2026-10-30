@@ -511,6 +511,28 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ---
 
+### EDI-3. Dividir texto em colunas: todas as colunas, seleção em massa e tipo para várias (#134)
+- **Onde:** `crates/feathersheet/src/app/assistente_divisao.rs` (`selecionadas`, `clicar_coluna`,
+  `aplicar_tipo`, `Evento::Modificadores`/`SelecionarTodas`), `assistente_divisao/visual.rs`
+  (`COLUNAS_SEM_ROLAGEM`, rolagem nos dois sentidos, barra "N colunas selecionadas"), `app.rs`
+  (repasse do `ModifiersChanged`).
+- **Pronto:** com 83 colunas a prévia mostra todas (rolagem lateral); clique, Ctrl+clique e Shift+clique
+  selecionam; trocar o tipo vale para todas as selecionadas; teste
+  `ctrl_e_shift_selecionam_varias_e_o_tipo_vale_para_todas`; foto conferida; Ajuda F1 (Ferramentas de dados)
+  em pt/en/es.
+- **Depende:** nada.  **Issue:** #134.  **Tamanho:** M. *(Em andamento em 30/10.)*
+
+### EDI-4. Otimizar a divisão de texto em colunas (#134)
+- **Onde:** `assistente_divisao.rs` (`TrabalhoDivisao`, lotes por tick), `feathersheet-core/src/operacoes/ops`
+  (`OpcoesDivisao`, `TipoColunaDivisao`, divisão por separador/largura fixa).
+- **Pronto:** roteiro de medição entregue ao usuário (dividir uma coluna em ~80 num arquivo de ~1 milhão
+  de linhas, tempo e pico de memória no F12); o gargalo medido atacado (candidatos: análise de cada parte
+  célula a célula, escrita por célula em vez de por coluna, tamanho do lote na thread da janela); tempo
+  antes/depois registrado; a janela nunca trava (memória `nunca-travar-thread-da-janela`).
+- **Depende:** EDI-3 (mesmo arquivo); medição do usuário.  **Issue:** #134.  **Tamanho:** M–G.
+
+---
+
 ## Frente 7 — Windows
 
 ### WIN-1. Receber o `dano.txt` do notebook Windows
@@ -885,7 +907,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 7. **Tabela dinâmica, bugs:** DIN-1 → DIN-3 (#106) → DIN-4 (#107) → DIN-5 (D5).
 8. **Tabela dinâmica, buracos (depende de D6):** DIN-12 (D18) → DIN-13 → DIN-6 → DIN-7 → DIN-8 → DIN-9 → DIN-10 → DIN-11 → DIN-14 → DIN-17 → DIN-18 → DIN-19 → DIN-16 (medir).
 9. **Gráficos:** tags do feather-charts → GRA-2 (#113) → GRA-3 (#108, painel genérico) → GRA-5 → GRA-6 → GRA-7 → GRA-8 → GRA-1 (#133) → GRA-4 (#121, D10-anexa) → GRA-9 → GRA-10 (#27, usuário no Excel).
-10. **Grade e faixa:** EDI-1 (barra de colunas ocultas, D21) → INT-1 → INT-2 (#68, D12) → INT-3 (#82) → INT-4 (#83) → INT-5 (#79) → INT-6 (#80).
+10. **Grade e faixa:** EDI-3 → EDI-4 (#134) → EDI-1 (barra de colunas ocultas, D21) → INT-1 → INT-2 (#68, D12) → INT-3 (#82) → INT-4 (#83) → INT-5 (#79) → INT-6 (#80).
 11. **MCP e IA:** SEG-1 → MCP-1 → MCP-3 → MCP-4 → MCP-5 → MCP-6 → MCP-7 → INT-14 (#9, D10).
 12. **Segurança restante e macros:** SEG-3 → SEG-5 → MAC-1 (#8).
 13. **Paridade GridCraft:** GRI-1 (roteiro, usuário) → GRI-2 (D17) → EDI-2 (D22) → GRI-3 (D14).

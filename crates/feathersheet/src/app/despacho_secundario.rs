@@ -1256,6 +1256,21 @@ impl App {
                                     });
                                     return Task::none();
                                 }
+                                // Dividir texto na etapa do formato: 30 colunas, 3 a 8 selecionadas como Texto (#134).
+                                "dividir" => {
+                                    use assistente_divisao::Evento as E;
+                                    for l in 0..6u32 {
+                                        let linha = (1..=30).map(|c| format!("L{}C{c}", l + 1)).collect::<Vec<_>>().join(";");
+                                        self.workbook.escrever_celula(self.folha, l, 0, linha.into());
+                                    }
+                                    let _ = self.update(Msg::IrPara("A1:A6".into()));
+                                    let tarefa = self.update(Msg::AbrirAssistenteDivisao);
+                                    for e in [E::IrPara(3), E::Coluna(2), E::Modificadores(pelicano::Modifiers::SHIFT), E::Coluna(7),
+                                              E::Modificadores(pelicano::Modifiers::default()), E::Tipo("Texto")] {
+                                        let _ = self.update(Msg::AssistenteDivisao(e));
+                                    }
+                                    return tarefa;
+                                }
                                 "primeiros" => {
                                     self.primeiros_passos_passo = numero.max(1) - 1;
                                     return self.alternar(Auxiliar::PrimeirosPassos);
@@ -1330,6 +1345,7 @@ impl App {
                             match std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() {
                                 Ok("inspecao") => self.janelas.id(Auxiliar::Inspecao),
                                 Ok("condicional") => self.janelas.id(Auxiliar::Condicional),
+                                Ok("dividir") => self.janelas.id(Auxiliar::DividirTexto),
                                 Ok("historico_macros" | "busca_macros") => self.janelas.id(Auxiliar::Macros),
                                 Ok(j) if j.starts_with("primeiros") => self.janelas.id(Auxiliar::PrimeirosPassos),
                                 Ok(j) if j.starts_with("novidades") => self.janelas.id(Auxiliar::Novidades),

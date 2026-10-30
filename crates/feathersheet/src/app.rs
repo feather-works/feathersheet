@@ -1658,6 +1658,7 @@ impl App {
                 msgs.push(Msg::MacroVisual(macros::EventoVisual::Codigo(macros::EventoCodigo::Modificadores(*m))));
                 // Ctrl/Shift+clique nas colunas da prévia do OpenQuery.
                 if self.openquery.is_some() { msgs.push(Msg::OpenQuery(openquery_ui::Evento::Modificadores(*m))); }
+                if self.assistente_divisao.is_some() { msgs.push(Msg::AssistenteDivisao(assistente_divisao::Evento::Modificadores(*m))); }
             }
             Event::Resized(size) => msgs.push(Msg::JanelaRedimensionada(id, *size)),
             Event::Maximized(m) => msgs.push(Msg::JanelaMaximizada(id, *m)),

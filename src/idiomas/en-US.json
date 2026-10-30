@@ -176,6 +176,7 @@
         "corpo": [
           "• Find and replace: Ctrl+H.",
           "• On the Data tab: Duplicates, Trim spaces, Split text (separator and type of each column, with preview), Statistics and Column profile (distribution, blanks, distinct values and outliers).",
+          "• In Split text, the preview shows every column (scroll sideways). Click a column name to pick it; Ctrl+click adds another and Shift+click selects the range. The type you choose applies to all selected columns.",
           "• Data validation (ribbon, Data tab): drop-down list, number between limits, date, text — warning or rejecting on entry.",
           "• OpenQuery (Dados → OpenQuery…): imports and transforms data — filter, group, merge tables, web sources — and keeps the steps so you can refresh later."
         ]

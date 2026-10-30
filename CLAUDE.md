@@ -955,7 +955,7 @@ que veio de mim do que veio do Gemini ou do usuário.
 branco, fotografa a janela principal (1280×800) e fecha. `FEATHERSHEET_CAPTURAR_CELULA=XFD1`
 seleciona a célula antes da foto. Usar antes de devolver mudança visual ao usuário.
 `FEATHERSHEET_CAPTURAR_CELULAS='A1==SEQUÊNCIA(5)|E1=30'` escreve células antes da foto
-(endereço, `=`, conteúdo; itens separados por `|`). `FEATHERSHEET_CAPTURAR_MENU_CLASSICO=2` recolhe a faixa e abre esse menu clássico; `FEATHERSHEET_CAPTURAR_JANELA=condicional` cria uma regra de exemplo e fotografa a janela de formatação condicional. `FEATHERSHEET_CAPTURAR_ABA=2` mostra essa aba (índice a partir de 0; só no app, útil com um arquivo na linha de comando). `FEATHERSHEET_CAPTURAR_CAIXAS=1` põe caixas de seleção (Inserir > Checkbox) na seleção de
+(endereço, `=`, conteúdo; itens separados por `|`). `FEATHERSHEET_CAPTURAR_MENU_CLASSICO=2` recolhe a faixa e abre esse menu clássico; `FEATHERSHEET_CAPTURAR_JANELA=condicional` cria uma regra de exemplo e fotografa a janela de formatação condicional; `=dividir` abre o Dividir texto na etapa do formato com 30 colunas e 3 a 8 selecionadas. `FEATHERSHEET_CAPTURAR_ABA=2` mostra essa aba (índice a partir de 0; só no app, útil com um arquivo na linha de comando). `FEATHERSHEET_CAPTURAR_CAIXAS=1` põe caixas de seleção (Inserir > Checkbox) na seleção de
 `FEATHERSHEET_CAPTURAR_CELULA`, uma sim, uma não marcada. `FEATHERSHEET_CAPTURAR_FAIXA=formulas` abre
 essa aba da faixa; `FEATHERSHEET_CAPTURAR_RASTREIO=ppd` traça níveis de precedentes (`p`) e
 dependentes (`d`) na célula ativa; `FEATHERSHEET_CAPTURAR_MENU=Lógica` abre o menu dessa categoria
