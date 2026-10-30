@@ -2,11 +2,12 @@ name: feathersheet
 title: FeatherSheet
 base: core26 # o binário pede glibc 2.43 (Ubuntu 26.04)
 version: '0.2.2' # trocar junto com a tag em `source:` a cada versão
-summary: Planilha local, rápida e sem conta
+summary: Fast local spreadsheet, no account needed
 description: |
-  Planilha em Rust com interface nativa: fórmulas em português e inglês,
-  arquivos enormes, .xlsx, .csv e .parquet, macros do Excel (VBA) e em
-  JavaScript. Roda inteira na máquina: sem conta, sem login, sem telemetria.
+  A spreadsheet written in Rust with a native interface. It opens huge
+  files, reads and writes .xlsx, .csv and .parquet, runs Excel (VBA) and
+  JavaScript macros, and accepts formulas in English or Portuguese.
+  Everything runs on your machine: no account, no login, no telemetry.
 license: GPL-3.0-only
 website: https://github.com/feather-works/feathersheet
 issues: https://github.com/feather-works/feathersheet/issues
