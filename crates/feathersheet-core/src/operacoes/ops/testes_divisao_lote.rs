@@ -20,6 +20,18 @@ pub(super) fn fonte() -> Sheet {
     s
 }
 
+#[test]
+fn estimativa_de_textos_novos_conta_distintos_e_ignora_numero() {
+    // Coluna 0: id único por linha; 1: número; 2: sempre "Vitória".
+    let amostra: Vec<String> = (0..5_000u32).step_by(10).map(|r| format!("id{r};{r};Vitória")).collect();
+    let p = PlanoDivisao { r1: 4_999, colunas: 3,
+        opcoes: OpcoesDivisao { delimitadores: vec![";".into()], consecutivos_como_um: false, qualificador_texto: None },
+        ..plano() };
+    let n = estimar_textos_novos(&p, &amostra, 5_000);
+    // ~5.000 ids + "Vitória" (categoria: 1 distinto, dobrado) — o número não conta.
+    assert!((4_900..=5_200).contains(&n), "{n}");
+}
+
 pub(super) fn plano() -> PlanoDivisao {
     PlanoDivisao {
         col_origem: 0, r0: 0, r1: LINHAS.len() as u32 - 1, dst_row: 0, dst_col: 0,
@@ -102,3 +114,4 @@ pub(super) fn substituir_dados_existentes_volta_no_desfazer() {
     assert!(s.undo());
     assert_eq!(foto(&s), antes);
 }
+

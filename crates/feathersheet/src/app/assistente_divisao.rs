@@ -88,6 +88,13 @@ struct TrabalhoDivisao {
     /// O que a barra mostra: persegue o percentual real a cada tique
     /// (12 ms), em vez de pular de lote em lote.
     exibido:f32,
+    /// Textos da origem que a validação guarda de passagem (um a cada `passo_amostra`
+    /// linhas, até 512) para estimar quantos textos novos a divisão cria (#134).
+    amostra:Vec<String>,
+    passo_amostra:u32,
+    /// A estimativa calculada numa thread; quando chega, o pool é reservado de uma vez
+    /// num tique só dela, em vez de dobrar (e recalcular tudo) no meio da gravação.
+    reserva:Option<std::sync::mpsc::Receiver<usize>>,
 }
 
 type Preparadas=Vec<(u32,Vec<feathersheet_core::planilha::sheet::edicao::CampoDivisao>)>;
@@ -446,6 +453,7 @@ impl App {
             lote_gravar:LOTE_GRAVAR,lote_validar:LOTE_VALIDAR_INICIAL,
             rss_inicio_kb:rss_inicio,rss_pico_kb:rss_inicio,
             lote:None, exibido:0.0,
+            amostra:Vec::new(), passo_amostra:((fim-e.area.r0)/512).max(1), reserva:None,
         };
         if let Some(estado)=self.assistente_divisao.as_mut() {
             estado.trabalho=Some(trabalho);
@@ -477,6 +485,14 @@ impl App {
     /// Um tique da gravação em lote: manda linhas para as threads, recolhe as
     /// prontas na ordem e grava por no máximo [`ORCAMENTO_GRAVAR`].
     fn tique_lote_paralelo(&mut self,trabalho:&mut TrabalhoDivisao,destino:usize)->Result<(),String> {
+        if let Some(n)=trabalho.reserva.as_ref().and_then(|r|r.try_recv().ok()) {
+            trabalho.reserva=None;
+            let t=std::time::Instant::now();
+            self.workbook.editar_lote_sem_notificar(destino,|sheet|sheet.pool.reservar(n));
+            let linha=trf!("pool reservado para {} textos · {:.1} ms",n,t.elapsed().as_secs_f64()*1000.0);
+            self.monitor.registrar(feather_ui::monitor::Nivel::Info,tr!("Divisão"),&linha);
+            return Ok(()); // a reserva fica sozinha neste tique
+        }
         let lote=trabalho.lote.as_mut().expect("lote paralelo");
         let threads=feathersheet_core::paralelismo::nucleos();
         if let Some(aba)=self.workbook.aba(destino) {
@@ -573,6 +589,11 @@ impl App {
                         gravador=Some(ops::iniciar_divisao(sheet,std::sync::Arc::clone(&plano))));
                     let linha=trf!("foto do desfazer · {:.2} s",t.elapsed().as_secs_f64());
                     self.monitor.registrar(feather_ui::monitor::Nivel::Info,tr!("Divisão"),&linha);
+                    let (envio,recebe)=std::sync::mpsc::channel();
+                    let (receita,amostra)=(std::sync::Arc::clone(&plano),std::mem::take(&mut trabalho.amostra));
+                    let total=(trabalho.fim-trabalho.area.r0) as usize+1;
+                    std::thread::spawn(move || {let _=envio.send(ops::estimar_textos_novos(&receita,&amostra,total));});
+                    trabalho.reserva=Some(recebe);
                     trabalho.lote=gravador.map(|gravador| LoteParalelo {
                         leitura:plano.r0, plano, gravador,
                         em_voo:Default::default(), prontas:Default::default(),
@@ -626,6 +647,9 @@ impl App {
                         };
                     if raw.is_empty() {continue;}
                     let formula = raw.starts_with('=');
+                    if !formula && (r-trabalho.area.r0)%trabalho.passo_amostra==0 && trabalho.amostra.len()<512 {
+                        trabalho.amostra.push(raw.to_string());
+                    }
                     // No padrão do assistente a coluna é regravada no
                     // lugar; texto sem token não precisa ser convertido.
                     if trabalho.modo==Modo::Delimitado
@@ -794,6 +818,7 @@ mod testes {
             iniciado_em:std::time::Instant::now(), lote_gravar:LOTE_GRAVAR,
             lote_validar:LOTE_VALIDAR_INICIAL,
             rss_inicio_kb:0,rss_pico_kb:0, lote:None, exibido:0.0,
+            amostra:Vec::new(), passo_amostra:1, reserva:None,
         };
         let ms=std::time::Duration::from_millis;
         // 128 × 30 / 140 = 27,4 → 27 (abaixo do dobro, sem corte)
@@ -1103,6 +1128,46 @@ mod testes {
                 trocar.as_secs_f64()*1000.0,concluir.as_secs_f64()*1000.0,
                 inicio.elapsed().as_secs_f64());
         }
+    }
+
+    /// Divisão larga como a do CSV do Spotify (#134): quanto tempo cada fase leva e quanto dele
+    /// é tique na thread da janela. Pequeno por padrão; `FEATHERSHEET_DIV_LINHAS`/`_COLS` mudam.
+    /// Manual: `--profile medir -- --ignored --nocapture medir_divisao_larga`.
+    #[test]
+    #[ignore = "bancada da divisão larga: executar manualmente"]
+    fn medir_divisao_larga() {
+        let num=|v:&str,p:u32|std::env::var(v).ok().and_then(|s|s.parse().ok()).unwrap_or(p);
+        let (linhas,cols)=(num("FEATHERSHEET_DIV_LINHAS",20_000),num("FEATHERSHEET_DIV_COLS",83));
+        let mut app=App::default();
+        app.workbook.editar(0,|sheet| for l in 0..linhas {
+            let t=(0..cols).map(|c| match c%4 {
+                0=>format!("spotify:track:{l:x}{c}"), 1=>format!("{}",l*7+c), 2=>format!("{},{}",l%100,c),
+                _=>format!("Nome {l} {c}")}).collect::<Vec<_>>().join(";");
+            sheet.set_cell_raw(l,0,t,None);
+        });
+        app.linha=0; app.coluna=0; app.fim_selecao=(linhas-1,0);
+        app.assistente_divisao=Some(Estado::novo(&app));
+        app.evento_assistente_divisao(Evento::Concluir);
+        let (mut t_val,mut t_gra,mut n_val,mut n_gra,mut pior)=(0.0f64,0.0f64,0u32,0u32,0.0f64);
+        let inicio=std::time::Instant::now();
+        while app.assistente_divisao.as_ref().is_some_and(Estado::conversao_em_andamento) {
+            let gravando=app.assistente_divisao.as_ref().unwrap()
+                .trabalho.as_ref().is_some_and(|t|t.fase==FaseDivisao::Gravando);
+            let t=std::time::Instant::now();
+            app.evento_assistente_divisao(Evento::ProcessarLote);
+            let ms=t.elapsed().as_secs_f64()*1000.0;
+            pior=pior.max(ms);
+            let agora=app.assistente_divisao.as_ref().and_then(|e|e.trabalho.as_ref()).map(|t|t.fase);
+            if ms>16.0 {println!("  tique lento {ms:.1} ms: antes {} / depois {agora:?} (validar {n_val}, gravar {n_gra})",
+                if gravando {"Gravando"} else {"Validando"});}
+            if gravando {t_gra+=ms;n_gra+=1;} else {t_val+=ms;n_val+=1;}
+            // O app dá um tique a cada 12 ms; o resto do tempo a thread desenha.
+            std::thread::sleep(std::time::Duration::from_millis(12).saturating_sub(t.elapsed()));
+        }
+        let total=inicio.elapsed().as_secs_f64();
+        println!("[{linhas} × {cols}] total {total:.2} s | validar {n_val} tiques, {:.2} s de trabalho | gravar {n_gra} tiques, {:.2} s de trabalho | pior tique {pior:.1} ms | {}",
+            t_val/1000.0,t_gra/1000.0,app.status);
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(linhas-1,3),format!("Nome {} 3",linhas-1));
     }
 
     #[test]

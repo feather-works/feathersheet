@@ -45,6 +45,14 @@ impl StringPool {
         Self::default()
     }
 
+    /// Lugar para `n` textos novos de uma vez. Sem isso, o mapa dobra no meio de uma gravação
+    /// longa e recalcula o hash de todos os textos num quadro só (72 ms com 800 mil textos,
+    /// no Texto para Colunas de 83 colunas, #134).
+    pub fn reservar(&mut self, n: usize) {
+        self.str_to_id.reserve(n);
+        self.id_to_str.reserve(n);
+    }
+
     /// Devolve o id do texto, criando uma entrada nova se preciso. `-1` só
     /// passados 2 bilhões de textos diferentes (o `i32` da coluna de texto).
     pub fn get_or_create(&mut self, text: &str) -> i32 {

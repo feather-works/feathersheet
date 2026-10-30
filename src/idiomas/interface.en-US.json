@@ -3656,6 +3656,7 @@
  "fonte de teste": "test source",
  "forma {}": "shape {}",
  "foto do desfazer · {:.2} s": "undo snapshot · {:.2} s",
+ "pool reservado para {} textos · {:.1} ms": "pool reserved for {} strings · {:.1} ms",
  "gerenciador de nomes aberto": "name manager opened",
  "igual a": "equal to",
  "inserir": "insert",

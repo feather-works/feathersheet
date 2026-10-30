@@ -3651,6 +3651,7 @@
  "fonte de teste": "origen de prueba",
  "forma {}": "forma {}",
  "foto do desfazer · {:.2} s": "instantánea de deshacer · {:.2} s",
+ "pool reservado para {} textos · {:.1} ms": "pool reservado para {} textos · {:.1} ms",
  "gerenciador de nomes aberto": "administrador de nombres abierto",
  "igual a": "igual a",
  "inserir": "insertar",

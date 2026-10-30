@@ -326,6 +326,34 @@ pub fn iniciar_divisao(sheet: &mut Sheet, plano: std::sync::Arc<PlanoDivisao>)
     sheet.iniciar_divisao(plano.area(), plano.tipos.clone(), Some(refazer))
 }
 
+/// Quantos textos diferentes a divisão deve criar, por uma amostra de linhas da origem
+/// (`amostra`, uns 512 textos espalhados; `total` = linhas da divisão). Serve para reservar
+/// o pool de uma vez ([`crate::celulas::pool::StringPool::reservar`]). Coluna quase toda
+/// distinta (id, nome) vale a fração vezes o total; coluna de categoria (poucos valores que
+/// se repetem, "Vitória") vale só os distintos, dobrados. Número não conta: não vai para o
+/// pool. Pura: roda fora da thread da janela.
+pub fn estimar_textos_novos(plano: &PlanoDivisao, amostra: &[String], total: usize) -> usize {
+    use crate::Value;
+    let linhas = amostra.iter().filter(|t| !t.is_empty()).count();
+    let mut distintos: Vec<std::collections::HashSet<String>> = Vec::new();
+    for texto in amostra.iter().filter(|t| !t.is_empty()) {
+        for (c, campo) in plano.preparar(texto).into_iter().enumerate() {
+            let texto = match &campo.rapido {
+                Some(r) => matches!(r.valor, Value::Text(_)),
+                None => !campo.raw.is_empty(),
+            };
+            if !texto { continue; }
+            if distintos.len() <= c { distintos.resize_with(c + 1, Default::default); }
+            distintos[c].insert(campo.raw);
+        }
+    }
+    let estimativa: usize = distintos.iter().map(|d| {
+        if d.len() * 2 < linhas { d.len() * 2 } else { d.len().saturating_mul(total) / linhas.max(1) }
+    }).sum();
+    // Teto: 64 milhões de textos (~2,6 GB de índice) — além disso, deixa o mapa crescer sozinho.
+    estimativa.min(64 << 20)
+}
+
 /// A divisão inteira de uma vez, sem histórico — é o refazer.
 pub fn executar_divisao(sheet: &mut Sheet, plano: &PlanoDivisao) {
     let mut g = sheet.iniciar_divisao(plano.area(), plano.tipos.clone(), None);
