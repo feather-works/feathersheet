@@ -4213,5 +4213,8 @@
   "ShellExecute abre link no navegador; DisplayGridlines liga e desliga a grade.": "ShellExecute abre enlaces en el navegador; DisplayGridlines activa y desactiva la cuadrícula.",
   "Windows 10: manifesto do Windows no .exe (escala da tela e compatibilidade), para a janela não sair deslocada (#135).": "Windows 10: manifiesto de Windows en el .exe (escala de pantalla y compatibilidad), para que la ventana no salga desplazada (#135).",
   "Sort sem SetRange ordena a tabela inteira, não só a coluna da chave.": "Sort sin SetRange ordena toda la tabla, no solo la columna de la clave.",
-  "Str(5) dá \" 5\" e CInt fora da faixa dá Estouro, como no VBA.": "Str(5) da \" 5\" y CInt fuera de rango da Desbordamiento, como en VBA."
+  "Str(5) dá \" 5\" e CInt fora da faixa dá Estouro, como no VBA.": "Str(5) da \" 5\" y CInt fuera de rango da Desbordamiento, como en VBA.",
+  "Excel com milhões de fórmulas abre rápido": "Excel con millones de fórmulas abre rápido",
+  "Abrir .xlsx pesado: de 10 min para 37 s": "Abrir .xlsx pesado: de 10 min a 37 s",
+  "Milhões de fórmulas de matriz com vínculo externo: 37 s e 1,8 GB (antes travava em 80%).": "Millones de fórmulas matriciales con vínculos externos: 37 s y 1,8 GB (antes se colgaba en 80%)."
 }

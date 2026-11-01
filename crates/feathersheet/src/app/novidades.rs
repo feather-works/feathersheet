@@ -21,6 +21,16 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.5",
+        data: "01/11/2026",
+        resumo: "Excel com milhões de fórmulas abre rápido",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("bolt", "Abrir .xlsx pesado: de 10 min para 37 s", "Milhões de fórmulas de matriz com vínculo externo: 37 s e 1,8 GB (antes travava em 80%)."),
+        ],
+        tambem: &[],
+    },
+    Versao {
         numero: "0.2.4",
         data: "01/11/2026",
         resumo: "Janela certa no Windows 10",

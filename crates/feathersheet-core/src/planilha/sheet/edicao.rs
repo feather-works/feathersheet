@@ -3001,9 +3001,11 @@ impl Sheet {
         if !colunas.is_empty() {
             self.invalidar_colunas_e_dependentes(colunas, &usos);
         }
+        self.adiar_cascata();
         for k in avulsas {
             self.mark_dirty_cascade(k);
         }
+        self.soltar_cascata();
         true
     }
 
@@ -3016,9 +3018,11 @@ impl Sheet {
             return;
         }
         let externas: Vec<CellKey> = self.externas.iter().copied().collect();
+        self.adiar_cascata();
         for k in externas {
             self.mark_dirty_cascade(k);
         }
+        self.soltar_cascata();
     }
 }
 

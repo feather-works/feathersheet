@@ -996,6 +996,7 @@ impl Sheet {
         let mut colunas_inteiras = std::collections::HashSet::new();
         // Sem matriz dinâmica na aba, o passo 0 abaixo não custa nada.
         let tem_derrame = !self.deps.array_cells.is_empty() || !self.derrame.borrow().vazio();
+        let usos = self.formulas.columns_in_use();
 
         while let Some(curr) = queue.pop() {
             if !visited.insert(curr) {
@@ -1049,7 +1050,7 @@ impl Sheet {
             // 2) Dependentes de padrões colunares em FormulaTable. O que
             // suja a coluna inteira (`A:A`, `$B$1`) vai por coluna, no fim:
             // enfileirar 13 milhões de células uma a uma era o travamento.
-            self.step_pattern_dependents(curr, &mut |dep| {
+            self.step_pattern_dependents(curr, &usos, &mut |dep| {
                 if !visited.contains(&dep) {
                     queue.push(dep);
                 }
@@ -1057,7 +1058,6 @@ impl Sheet {
         }
         if !colunas_inteiras.is_empty() {
             self.rastro.borrow_mut().desconhecer();
-            let usos = self.formulas.columns_in_use();
             self.invalidar_colunas_e_dependentes(colunas_inteiras, &usos);
         }
     }
@@ -1065,15 +1065,17 @@ impl Sheet {
     /// As fórmulas empacotadas que leem `k`. Com `inteiras`, quando a coluna
     /// inteira do padrão lê `k` (referência ou intervalo de linhas fixas),
     /// a coluna vai para lá em vez de cada célula ir para `marcar`.
-    fn step_pattern_dependents(&self, k: CellKey, marcar: &mut impl FnMut(CellKey),
-        mut inteiras: Option<&mut std::collections::HashSet<u32>>) {
+    /// `usos` é o `columns_in_use()` da aba, montado uma vez por quem chama: montar a cada
+    /// célula da cascata copiava todos os padrões (milhões de vezes no `.xlsx` do #136).
+    fn step_pattern_dependents(&self, k: CellKey, usos: &[crate::formula::formula_table::ColumnUse],
+        marcar: &mut impl FnMut(CellKey), mut inteiras: Option<&mut std::collections::HashSet<u32>>) {
         if self.formulas.size() == 0 {
             return;
         }
         let (alvo_linha, alvo_col) = Self::key_to_coord(k);
-        for col_use in self.formulas.columns_in_use() {
+        for col_use in usos {
             let col = col_use.col;
-            for uso in col_use.usos {
+            for uso in &col_use.usos {
                 for faixa in &uso.faixas {
                     let Some((c0, c1)) = faixa.colunas_em(col) else { continue };
                     if alvo_col < c0 || alvo_col > c1 {

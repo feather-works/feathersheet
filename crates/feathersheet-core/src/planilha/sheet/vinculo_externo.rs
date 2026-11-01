@@ -59,9 +59,12 @@ impl Sheet {
         self.tocar();
         // O que a fórmula de fora vai dar só se sabe calculando.
         self.rastro.borrow_mut().desconhecer();
+        // Uma cascata para todas as raízes (uma por fórmula levava minutos no #136).
+        self.adiar_cascata();
         for k in raizes {
             self.mark_dirty_cascade(k);
         }
+        self.soltar_cascata();
         true
     }
 

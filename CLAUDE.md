@@ -2,6 +2,16 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.5 — 01/11/2026: .xlsx com milhões de fórmulas e vínculo externo (#136)
+
+Um `.xlsx` de 54 mil linhas com 2,3 milhões de `{=SOMA(CONT.SE($O$8:$AC$8;…))}` lendo `[1]FILTROS!`
+não abria (>10 min); agora 37 s e 1,8 GB. `DependencyGraph::range_index` é por (bloco de linhas,
+bloco de 16 colunas) e agrupado pela faixa (`[r0, c0, r1, c1]`): milhões de fórmulas lendo a mesma
+faixa custam uma conferência. `step_pattern_dependents` recebe o `columns_in_use()` montado uma vez
+por cascata. A troca `[N]` → arquivo na leitura (`trocar_origem_externa_na_leitura`) não guarda
+desfazer, e ela, `sujar_vinculo` e `sujar_externas(_de)` fazem uma cascata só (`adiar_cascata`).
+Medir: `cargo run --release --example medir_abrir_calcular -- arquivo.xlsx` no `feathersheet-io`.
+
 ## v0.2.4 — 01/11/2026: janela certa no Windows 10 (#135)
 
 pelicano v0.1.22 e feather-ui v0.3.10: no Windows, sem DX12/Vulkan (Intel HD 2500 no Windows 10),

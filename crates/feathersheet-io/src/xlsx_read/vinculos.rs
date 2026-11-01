@@ -76,7 +76,7 @@ pub(super) fn instalar(workbook: &mut Workbook, livros: Vec<(usize, LivroGuardad
     let mut livros = livros;
     livros.sort_by_key(|(n, _)| *n);
     for (n, livro) in livros.iter().rev() {
-        workbook.trocar_origem_externa(&n.to_string(), &livro.nome);
+        workbook.trocar_origem_externa_na_leitura(&n.to_string(), &livro.nome);
     }
     for (i, profundidade) in antes.into_iter().enumerate() {
         if let Some(aba) = workbook.aba_mut(i) { aba.sheet.truncar_historico(profundidade); }

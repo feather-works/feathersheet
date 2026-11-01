@@ -261,6 +261,17 @@ impl Workbook {
     /// pasta), em todas as abas. Os valores que já havia continuam valendo
     /// até chegarem os da nova origem. Devolve quantas fórmulas mudaram.
     pub fn trocar_origem_externa(&mut self, antigo: &str, novo: &str) -> usize {
+        self.trocar_origem_com(antigo, novo, true)
+    }
+
+    /// A mesma troca feita pela leitura do `.xlsx` (`[1]Aba` → nome do arquivo): sem Ctrl+Z.
+    /// Guardar o texto antigo de 2,3 milhões de fórmulas para jogar fora no fim da abertura
+    /// levava o pico de memória de 1,5 GB a 6 GB (#136).
+    pub fn trocar_origem_externa_na_leitura(&mut self, antigo: &str, novo: &str) -> usize {
+        self.trocar_origem_com(antigo, novo, false)
+    }
+
+    fn trocar_origem_com(&mut self, antigo: &str, novo: &str, desfazer: bool) -> usize {
         let alvo = chave_arquivo(antigo);
         let mut total = 0;
         for i in 0..self.abas.len() {
@@ -301,9 +312,18 @@ impl Workbook {
             total += edicoes.len();
             let aba = &mut self.abas[i];
             aba.sheet.abrir_transacao();
+            // Uma cascata só no fim: uma por fórmula reescrita levava minutos ao abrir um
+            // `.xlsx` com milhões de fórmulas lendo `[1]Aba!` (#136).
+            aba.sheet.adiar_cascata();
             for (r, c, raw) in edicoes {
-                aba.sheet.set_cell(r, c, &raw);
+                if desfazer {
+                    aba.sheet.set_cell(r, c, &raw);
+                } else {
+                    let style = aba.sheet.style_for(r, c, &raw);
+                    aba.sheet.apply(r, c, Some(crate::planilha::sheet::edicao::Snap { raw, style }), false);
+                }
             }
+            aba.sheet.soltar_cascata();
             aba.sheet.fechar_transacao();
             aba.versao = proxima_versao(aba.versao);
         }
