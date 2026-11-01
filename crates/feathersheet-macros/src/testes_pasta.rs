@@ -225,6 +225,35 @@ fn nao_apaga_a_ultima_aba_nem_cria_nome_repetido() {
 }
 
 #[test]
+fn protect_e_unprotect_ficam_anotados_na_ordem() {
+    use feathersheet_core::planilha::sheet::protecao::Permissao;
+    let mut wb = pasta_com_dados();
+    let r = executar(&mut wb, 0, r#"
+        wb.sheet("Dados").unprotect("abc");
+        wb.sheet("Dados").set("A1", 5);
+        wb.sheet("Dados").protect("abc", { formatCells: true, sort: false });
+        sheet.protect();
+    "#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    let p = &r.protecoes;
+    assert_eq!(p.len(), 3);
+    assert!(!p[0].proteger && p[0].senha.as_deref() == Some("abc"));
+    assert!(p[1].proteger && p[1].permitidas == [Permissao::FormatarCelulas]);
+    assert!(p[2].proteger && p[2].senha.is_none() && p[2].aba != p[1].aba);
+    let r = executar(&mut wb, 0, r#"sheet.protect("x", { voar: true });"#);
+    assert!(r.erro.is_some() && r.protecoes.is_empty());
+}
+
+#[test]
+fn show_gridlines_vale_o_ultimo_por_aba() {
+    let mut wb = pasta_com_dados();
+    let r = executar(&mut wb, 0, r#"sheet.showGridlines(false); wb.sheet("Dados").showGridlines(0); sheet.showGridlines(true);"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.grades.len(), 2);
+    assert!(r.grades[0].1 == false && r.grades[1].1 == true && r.grades[0].0 != r.grades[1].0);
+}
+
+#[test]
 fn shell_so_anota_o_programa_e_some_se_a_macro_falha() {
     let mut wb = Workbook::new();
     let r = executar(&mut wb, 0, r#"const id = app.shell("  echo oi  "); sheet.set("A1", id);"#);

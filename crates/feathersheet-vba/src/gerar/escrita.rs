@@ -47,7 +47,7 @@ impl Gerador<'_> {
                 None => Err(Motivo::novo(format!("{f}.{prop} do formulário"))),
             },
             Obj::Aba(aba, nome) => self.escrever_na_aba(&aba, nome, &n, valor),
-            Obj::Janela => self.escrever_na_janela(&n),
+            Obj::Janela => self.escrever_na_janela(&n, valor),
             Obj::Ordem(aba) => match n.as_str() {
                 "header" => {
                     let v = self.valor(valor)?;
@@ -221,10 +221,18 @@ impl Gerador<'_> {
     }
 
     /// `ActiveWindow.ScrollRow = 1`, `.Zoom = 85`: a tela da macro não rola nem muda o zoom.
-    fn escrever_na_janela(&mut self, n: &str) -> R<String> {
+    /// `.DisplayGridlines` liga/desliga a grade da aba ativa; `.DisplayHeadings` não tem efeito
+    /// (os cabeçalhos ficam sempre à mostra), como o `Application.DisplayHeadings`.
+    fn escrever_na_janela(&mut self, n: &str, valor: &Expr) -> R<String> {
         match n {
             "freezepanes" | "splitrow" | "splitcolumn" | "split" => Err(Motivo::novo("congelar painéis pela macro (sem API de macro)")),
-            "windowstate" | "displaygridlines" | "displayheadings" | "displayworkbooktabs" => Err(Motivo::novo(format!("ActiveWindow.{n}"))),
+            "displaygridlines" => {
+                let v = self.valor(valor)?;
+                let b = self.como_bool(&v);
+                Ok(format!("{}.showGridlines({b});", self.atual))
+            }
+            "displayheadings" => Ok(String::new()),
+            "windowstate" | "displayworkbooktabs" => Err(Motivo::novo(format!("ActiveWindow.{n}"))),
             _ => Ok(String::new()),
         }
     }
@@ -477,6 +485,9 @@ impl Gerador<'_> {
             "unmerge" => format!("{aba}.unmerge({end});"),
             "delete" | "insert" => self.inserir_excluir(f, n == "delete", args)?,
             "sort" => self.ordenar_faixa(f, args)?,
+            // `Selection.AutoFilter` sem critério: guarda o intervalo para o `.AutoFilter.Sort`.
+            // shortcut: os botões de filtro não aparecem (a API das macros ainda não filtra); com critério, fica pendente.
+            "autofilter" if args.is_empty() => format!("vba.{}({aba}).filtro = {end};", self.ajuda("ordem")),
             "copy" => self.copiar(f, args, false)?,
             "cut" => self.copiar(f, args, true)?,
             "pastespecial" => {
@@ -597,6 +608,33 @@ impl Gerador<'_> {
         })
     }
 
+    /// `ActiveSheet.Protect [Password:=…, AllowFormattingCells:=True…]` / `.Unprotect [senha]`
+    /// → `aba.protect(senha, { formatCells: … })` / `aba.unprotect(senha)`. `DrawingObjects`
+    /// e `Scenarios` falsos liberam objetos e cenários; `Contents` e `UserInterfaceOnly` não
+    /// mudam nada aqui (a macro já escreve na aba protegida).
+    fn proteger_aba(&mut self, aba: &str, proteger: bool, args: &[Arg]) -> R<String> {
+        let senha = match args.iter().find(|a| a.nome.as_deref().is_some_and(|n| n.eq_ignore_ascii_case("password")))
+            .or_else(|| args.first().filter(|a| a.nome.is_none())).and_then(|a| a.valor.as_ref()) {
+            Some(e) => { let v = self.valor(e)?; self.como_texto(&v) }
+            None => "null".into(),
+        };
+        if !proteger { return Ok(format!("{aba}.unprotect({senha});")); }
+        const PERMISSOES: [(&str, &str, bool); 13] = [("allowformattingcells", "formatCells", false), ("allowformattingcolumns", "formatColumns", false),
+            ("allowformattingrows", "formatRows", false), ("allowinsertingcolumns", "insertColumns", false), ("allowinsertingrows", "insertRows", false),
+            ("allowinsertinghyperlinks", "insertHyperlinks", false), ("allowdeletingcolumns", "deleteColumns", false), ("allowdeletingrows", "deleteRows", false),
+            ("allowsorting", "sort", false), ("allowfiltering", "autoFilter", false), ("allowusingpivottables", "pivotTables", false),
+            ("drawingobjects", "objects", true), ("scenarios", "scenarios", true)];
+        let mut opcoes = Vec::new();
+        for a in args {
+            let (Some(n), Some(e)) = (a.nome.as_deref(), a.valor.as_ref()) else { continue };
+            let Some((_, chave, invertida)) = PERMISSOES.iter().find(|(v, ..)| n.eq_ignore_ascii_case(v)) else { continue };
+            let v = self.valor(e)?;
+            let b = self.como_bool(&v);
+            opcoes.push(format!("{chave}: {}{b}", if *invertida { "!" } else { "" }));
+        }
+        Ok(format!("{aba}.protect({senha}, {{ {} }});", opcoes.join(", ")))
+    }
+
     fn metodo_da_aba(&mut self, aba: &str, nome: Option<String>, n: &str, args: &[Arg]) -> R<String> {
         let nome_js = nome.clone().map_or_else(|| format!("{aba}.name"), |x| format!("{x:?}"));
         Ok(match n {
@@ -609,7 +647,7 @@ impl Gerador<'_> {
             "delete" => format!("wb.deleteSheet({nome_js});"),
             "exportasfixedformat" => self.exportar_pdf(aba, args)?,
             "printout" | "printpreview" => return Err(Motivo::novo("imprimir pela macro (use exportar PDF)")),
-            "protect" | "unprotect" => return Err(Motivo::novo("proteger a aba (sem API de macro)")),
+            "protect" | "unprotect" => self.proteger_aba(aba, n == "protect", args)?,
             "copy" => self.copiar_aba(&nome_js, args)?,
             "move" => return Err(Motivo::novo("mover a aba para outra pasta")),
             // `ActiveSheet.Paste [Destination:=…]`: cola o último `Copy`/`Cut` na seleção.

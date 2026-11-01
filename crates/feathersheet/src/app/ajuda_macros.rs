@@ -144,6 +144,9 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("wb.name", "wb.name", "sheet.log(wb.name);"),
         ("sheet.exportPdf", "sheet.exportPdf(path)", "sheet.exportPdf(\"relatorios/resumo.pdf\");"),
         ("sheet.saveAs", "sheet.saveAs(path)", "sheet.saveAs(\"copias/vendas.xlsx\");"),
+        ("sheet.protect", "sheet.protect(password?, { formatCells?, sort?, autoFilter?, … })", "sheet.protect(\"1234\", { sort: true });"),
+        ("sheet.unprotect", "sheet.unprotect(password?)", "sheet.unprotect(\"1234\");"),
+        ("sheet.showGridlines", "sheet.showGridlines(on)", "sheet.showGridlines(false);"),
         ("wb.saveSheetsAs", "wb.saveSheetsAs(sheets, path)", "wb.saveSheetsAs([\"Dados\", \"Resumo\"], \"saida/parcial.fshz\");"),
     ]),
     ("excel-app", &[
@@ -196,7 +199,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),138);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),142);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {

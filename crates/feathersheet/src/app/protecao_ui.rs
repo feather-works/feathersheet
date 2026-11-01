@@ -217,6 +217,37 @@ impl App {
         Task::none()
     }
 
+    /// `sheet.protect`/`unprotect` da macro que terminou bem, na ordem. Desproteger com a
+    /// senha errada não mexe na aba e vira mensagem (no Excel seria o erro 1004).
+    pub(super) fn aplicar_protecoes_da_macro(&mut self, pedidos: &[feathersheet_macros::PedidoProtecao]) -> Vec<String> {
+        let mut falhas = Vec::new();
+        for p in pedidos {
+            let Some(i) = self.workbook.indice_do_id(p.aba) else { continue };
+            let nome = self.workbook.aba(i).map(|a| a.sheet.name.clone()).unwrap_or_default();
+            if p.proteger {
+                // Já protegida: o Excel também não troca a senha sem desproteger antes.
+                if self.workbook.aba(i).is_some_and(|a| a.sheet.protegida()) { continue; }
+                let senha = match p.senha.as_deref().map(criar_senha).transpose() {
+                    Ok(s) => s,
+                    Err(e) => { falhas.push(e); continue; }
+                };
+                let mut permitidas = Permissao::padrao();
+                permitidas.extend(p.permitidas.iter().copied());
+                self.workbook.editar(i, |s| { s.proteger(ProtecaoPlanilha { senha, permitidas }); });
+            } else {
+                let guardada = self.workbook.aba(i).and_then(|a| a.sheet.protecao.as_ref()).and_then(|x| x.senha.clone());
+                let ok = match guardada { Some(g) => conferir(p.senha.as_deref().unwrap_or(""), &g), None => Ok(true) };
+                match ok {
+                    Ok(true) => { self.workbook.editar(i, |s| { s.desproteger(); }); }
+                    Ok(false) => { falhas.push(trf!("A macro tentou desproteger a aba {nome} com a senha errada; ela continua protegida.")); continue; }
+                    Err(e) => { falhas.push(e); continue; }
+                }
+            }
+            self.alterado = true;
+        }
+        falhas
+    }
+
     fn aplicar_protecao(&mut self) {
         let Some(e) = self.protecao_modal.clone() else { return };
         if e.pasta {
@@ -341,6 +372,20 @@ impl App {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn macro_protege_e_desprotege_com_a_senha() {
+        let mut app = App::default();
+        let gat = || historico_macros::GatilhoMacro::manual("teste");
+        app.rodar_macro(gat(), "M", "sheet.protect('s3nha', { sort: true });", vec![]).unwrap();
+        let p = app.workbook.aba(app.folha).unwrap().sheet.protecao.clone().expect("protegida");
+        assert!(p.senha.is_some() && p.permite(Permissao::Classificar) && p.permite(Permissao::SelecionarBloqueadas));
+        app.rodar_macro(gat(), "M", "sheet.unprotect('errada');", vec![]).unwrap();
+        assert!(app.workbook.aba(app.folha).unwrap().sheet.protegida());
+        assert!(app.macro_mensagens.iter().any(|m| m.contains("senha errada")), "{:?}", app.macro_mensagens);
+        app.rodar_macro(gat(), "M", "sheet.unprotect('s3nha');", vec![]).unwrap();
+        assert!(!app.workbook.aba(app.folha).unwrap().sheet.protegida());
+    }
 
     fn raw(app: &App, r: u32, c: u32) -> String { app.workbook.aba(0).unwrap().sheet.get_raw(r, c) }
 

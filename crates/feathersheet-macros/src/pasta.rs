@@ -18,6 +18,18 @@ pub enum PedidoArquivo {
     Abas { abas: Vec<u32>, caminho: PathBuf },
 }
 
+/// `sheet.protect(senha, permissões)` / `sheet.unprotect(senha)`: o aplicativo aplica
+/// (com o hash da senha do Excel) se a macro terminar bem. A macro já escreve na aba
+/// protegida, então a ordem desproteger → escrever → proteger dá o mesmo resultado.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PedidoProtecao {
+    pub aba: u32,
+    pub proteger: bool,
+    pub senha: Option<String>,
+    /// As permissões pelas chaves do `.xlsx` (`formatCells`, `sort`…), já conferidas.
+    pub permitidas: Vec<feathersheet_core::planilha::sheet::protecao::Permissao>,
+}
+
 /// O que o aplicativo informa à macro antes de rodar.
 #[derive(Debug, Default, Clone)]
 pub struct Contexto {
@@ -54,6 +66,9 @@ pub(crate) struct Acumulado {
     pub fechar_formulario: bool,
     /// `app.shell(comando)`: o app pergunta à pessoa e só então roda.
     pub programas: Vec<String>,
+    pub protecoes: Vec<PedidoProtecao>,
+    /// `sheet.showGridlines(on)`: (aba, ligada), o último por aba vale.
+    pub grades: Vec<(u32, bool)>,
 }
 
 /// Mais que isto numa execução é laço descontrolado, não exportação.
@@ -66,7 +81,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -202,6 +217,33 @@ pub(crate) fn executar(
             a.programas.push(comando);
             // O VBA devolve o número da tarefa; aqui o programa só roda depois da macro.
             Ok(json!(0))
+        }
+        "protecao" => {
+            use feathersheet_core::planilha::sheet::protecao::Permissao;
+            let Some(aba) = dados[0].as_u64().and_then(|id| ids.iter().copied().find(|&x| u64::from(x) == id)) else {
+                return Some(Err("Aba inexistente".into()));
+            };
+            if a.protecoes.len() >= LIMITE_ARQUIVOS {
+                return Some(Err(format!("Limite de {LIMITE_ARQUIVOS} proteções por execução")));
+            }
+            let mut permitidas = Vec::new();
+            for c in dados[3].as_array().into_iter().flatten().filter_map(Json::as_str) {
+                match Permissao::da_chave(c) {
+                    Some(p) => permitidas.push(p),
+                    None => return Some(Err(format!("Permissão de proteção desconhecida: {c}"))),
+                }
+            }
+            let senha = dados[2].as_str().filter(|s| !s.is_empty()).map(|s| s.chars().take(255).collect());
+            a.protecoes.push(PedidoProtecao { aba, proteger: dados[1].as_bool().unwrap_or(true), senha, permitidas });
+            Ok(Json::Null)
+        }
+        "grade" => {
+            let Some(aba) = dados[0].as_u64().and_then(|id| ids.iter().copied().find(|&x| u64::from(x) == id)) else {
+                return Some(Err("Aba inexistente".into()));
+            };
+            a.grades.retain(|(x, _)| *x != aba);
+            a.grades.push((aba, dados[1].as_bool().unwrap_or(true)));
+            Ok(Json::Null)
         }
         "abaAtiva" => Ok(json!(a.ativou.unwrap_or(aba_ativa))),
         "selecaoInicial" => Ok(json!(a.contexto.selecao.clone().unwrap_or_else(|| "A1".into()))),

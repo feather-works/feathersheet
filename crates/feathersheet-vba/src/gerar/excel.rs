@@ -287,8 +287,8 @@ impl Gerador<'_> {
             "columns" => self.linha_ou_coluna(aba, Inteira::Colunas, &args[0])?,
             "usedrange" => Obj::Faixa(Faixa::dinamica(aba, format!("({aba}.getDataRange()?.address ?? 'A1')"))),
             "shapes" | "buttons" | "chartobjects" | "pictures" => return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)")),
-            "sort" => Obj::Ordem(aba.into()),
-            "autofilter" => return Err(Motivo::novo("filtro do Excel (AutoFilter — converter à mão)")),
+            // `ws.AutoFilter.Sort`: a mesma ordenação do `ws.Sort`, sobre o intervalo do filtro.
+            "sort" | "autofilter" => Obj::Ordem(aba.into()),
             "pagesetup" => return Err(Motivo::novo("configuração de página")),
             "parent" => Obj::Pasta,
             _ => {

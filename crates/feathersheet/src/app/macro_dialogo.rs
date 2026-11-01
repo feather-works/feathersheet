@@ -101,6 +101,14 @@ impl App {
         if let Some((nome_form, dados)) = r.formulario.take() { self.abrir_formulario_macro(&nome_form, &dados); }
         self.aplicar_campos_formulario(std::mem::take(&mut r.campos));
         // Os arquivos pedidos (PDF, abas num arquivo novo) só com a macro inteira bem.
+        // `showGridlines`: a mesma marca por aba das abas do Excel sem grade.
+        for &(id, ligada) in if r.erro.is_none() { r.grades.as_slice() } else { &[] } {
+            if ligada { self.grade_oculta.remove(&id); } else { self.grade_oculta.insert(id); }
+        }
+        if r.erro.is_none() && !r.protecoes.is_empty() {
+            let falhas = self.aplicar_protecoes_da_macro(&r.protecoes);
+            r.mensagens.extend(falhas);
+        }
         let mut arquivos = Vec::new();
         if r.erro.is_none() && !r.arquivos.is_empty() {
             let (gravados, falhas) = self.gravar_arquivos_da_macro(&r.arquivos);

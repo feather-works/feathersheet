@@ -167,3 +167,22 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 - CallByName (não mapeada (chamada dinâmica de objeto))
 
 Parciais: CVErr, Format, Rnd, CCur, CDec, FormatCurrency, FormatNumber, FormatPercent, IsDate, MsgBox, StrConv (detalhe na tabela).
+
+## Medido em .xlsm reais (01/11/2026)
+
+`cargo run --release --example converter_vba -- arquivo.xlsm [pasta]` (a pasta recebe os `.js` e o
+`pendencias.txt`). Três arquivos da máquina do usuário:
+
+| arquivo | linhas VBA | não convertidos antes | depois | o que sobrou |
+|---|---|---|---|---|
+| Fluxo de caixa.xlsm | 634 | 209 | 169 | caixas de texto (`Shapes`/`ShapeRange.TextFrame2`, 169) |
+| precioso.xlsm | 469 | 12 | 1 | `Planilha1.num` (variável que o próprio VBA não declara) |
+| Planilha de Informações v6.0a.xlsm | 2.304 | 62 | ~60 | automação do Word (26), formas (14), arquivo (6), xlwings (5), ShellExecute (4) |
+
+Feito nesta rodada: `Protect`/`Unprotect` (com senha e `Allow*`), `ActiveWindow.DisplayGridlines`
+(`DisplayHeadings` sem efeito: os cabeçalhos ficam sempre à mostra), `Selection.AutoFilter` sem
+critério e `ws.AutoFilter.Sort` (ordena a tabela do filtro; os botões de filtro ainda não aparecem).
+
+Próximos pela contagem: formas e caixas de texto (`Shapes`), `ShellExecute`/`WScript.Shell.Run` →
+`app.shell`, `AutoFilter` com critério (precisa de filtro na API das macros), automação do Word (fica
+para quando o FeatherDocs tiver API).

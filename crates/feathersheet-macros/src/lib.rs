@@ -19,7 +19,7 @@ mod mesclagem;
 mod pasta;
 pub mod formularios;
 pub mod riscos;
-pub use pasta::{Contexto, PedidoArquivo};
+pub use pasta::{Contexto, PedidoArquivo, PedidoProtecao};
 pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;
 use feathersheet_core::{
@@ -59,6 +59,10 @@ pub struct Resultado {
     /// `app.shell(comando)` (o `Shell` do VBA), na ordem. A macro não roda
     /// nada: o aplicativo mostra os comandos, pergunta, e só então roda.
     pub programas: Vec<String>,
+    /// `sheet.protect`/`unprotect`, na ordem; o aplicativo aplica se a macro terminou bem.
+    pub protecoes: Vec<PedidoProtecao>,
+    /// `sheet.showGridlines(on)`: linhas de grade por aba (id), como o `DisplayGridlines`.
+    pub grades: Vec<(u32, bool)>,
 }
 
 struct Estado {
@@ -873,6 +877,8 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         campos: if vale { extra.campos } else { Vec::new() },
         fechar_formulario: vale && extra.fechar_formulario,
         programas: if vale { extra.programas } else { Vec::new() },
+        protecoes: if vale { extra.protecoes } else { Vec::new() },
+        grades: if vale { extra.grades } else { Vec::new() },
         pergunta: extra.pergunta,
     }
 }
@@ -1098,6 +1104,11 @@ function __sheet(indice) {
         // Arquivos: só anotados; o aplicativo grava se a macro terminar bem.
         exportPdf:path=>{__ft('exportarPdf',[i,String(path)]);return sheet;},
         saveAs:path=>{__ft('salvarAbas',[[__ft('nomeAba',[i])],String(path)]);return sheet;},
+        // Proteção: anotada; o aplicativo aplica (com o hash da senha) se a macro terminar bem.
+        protect:(password=null,opts={})=>{__ft('protecao',[i,true,password==null?null:String(password),
+            Object.keys(opts||{}).filter(k=>opts[k])]);return sheet;},
+        showGridlines:on=>{__ft('grade',[i,!!on]);return sheet;},
+        unprotect:(password=null)=>{__ft('protecao',[i,false,password==null?null:String(password),[]]);return sheet;},
         defineFunction:(nome)=>{log('Função '+nome+' definida só nesta macro: as fórmulas da planilha ainda não a usam.');},
         status:m=>app.status(m),
         // Abre o formulário quando a macro terminar; `dados` preenche os campos.

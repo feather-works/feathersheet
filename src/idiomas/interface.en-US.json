@@ -4201,5 +4201,6 @@
  "[macro] {}: não foi possível rodar {comando}: {e}": "[macro] {}: could not run {comando}: {e}",
  "O código da macro contém um binário": "The macro code contains binary data",
  "O FeatherSheet não procura vírus: só avisa que há um arquivo binário guardado como texto no código. Planilha comum não precisa disso; mantenha as macros desativadas se não sabe para que ele serve.": "FeatherSheet does not scan for viruses: it only warns that a binary file is stored as text in the code. A regular spreadsheet doesn't need this; keep macros disabled if you don't know what it is for.",
- "O FeatherSheet não procura vírus: só avisa que há um arquivo binário guardado como texto no código. Não rode se não sabe exatamente o que este comando faz.": "FeatherSheet does not scan for viruses: it only warns that a binary file is stored as text in the code. Don't run it unless you know exactly what this command does."
+ "O FeatherSheet não procura vírus: só avisa que há um arquivo binário guardado como texto no código. Não rode se não sabe exatamente o que este comando faz.": "FeatherSheet does not scan for viruses: it only warns that a binary file is stored as text in the code. Don't run it unless you know exactly what this command does.",
+ "A macro tentou desproteger a aba {nome} com a senha errada; ela continua protegida.": "The macro tried to unprotect sheet {nome} with the wrong password; it stays protected."
 }

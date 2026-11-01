@@ -210,3 +210,48 @@ fn tipos_erros_e_opcionais_de_texto_rodam_no_motor() {
     let r = feathersheet_macros::executar(&mut Workbook::new(), 0, js);
     assert!(r.erro.as_deref().is_some_and(|e| e.contains("Estouro")), "{:?}", r.erro);
 }
+
+#[test]
+fn protect_e_unprotect_viram_pedidos_de_protecao() {
+    use feathersheet_core::planilha::sheet::protecao::Permissao;
+    let vba = "Sub T()\n  ActiveSheet.Unprotect \"abc\"\n  Range(\"A1\").Value = 1\n  ActiveSheet.Protect Password:=\"abc\", DrawingObjects:=True, Contents:=True, Scenarios:=False, AllowFormattingCells:=True, AllowSorting:=False\n  ActiveSheet.Protect\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").unwrap().codigo.clone();
+    assert!(!js.contains("não convertido (") && !js.contains("Protect"), "{js}");
+    let r = feathersheet_macros::executar(&mut Workbook::new(), 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    let p = &r.protecoes;
+    assert_eq!(p.len(), 3, "{p:?}");
+    assert!(!p[0].proteger && p[0].senha.as_deref() == Some("abc"));
+    let mut perm = p[1].permitidas.clone();
+    perm.sort();
+    assert_eq!(perm, [Permissao::FormatarCelulas, Permissao::EditarCenarios]);
+    assert!(p[2].proteger && p[2].senha.is_none());
+}
+
+#[test]
+fn autofilter_sort_ordena_a_tabela_inteira() {
+    let vba = "Sub T()\n  Range(\"B2\").Value = \"Nome\": Range(\"C2\").Value = \"Qtd\"\n  Range(\"B3\").Value = \"c\": Range(\"C3\").Value = 3\n  Range(\"B4\").Value = \"a\": Range(\"C4\").Value = 1\n  Range(\"B5\").Value = \"b\": Range(\"C5\").Value = 2\n  Range(\"B2:C5\").Select\n  Selection.AutoFilter\n  ActiveSheet.AutoFilter.Sort.SortFields.Clear\n  ActiveSheet.AutoFilter.Sort.SortFields.Add Key:=Range(\"B3:B5\"), SortOn:=xlSortOnValues, Order:=xlAscending\n  With ActiveSheet.AutoFilter.Sort\n    .Header = xlYes\n    .Apply\n  End With\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").unwrap().codigo.clone();
+    assert!(!js.contains("// VBA não convertido ("), "tudo convertido: {js}");
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    let t = |l, c| wb.valor(0, l, c);
+    assert_eq!(t(1, 1), Value::Text("Nome".into()));
+    assert_eq!((t(2, 1), t(2, 2)), (Value::Text("a".into()), Value::Number(1.0)), "a linha inteira anda junto");
+    assert_eq!((t(4, 1), t(4, 2)), (Value::Text("c".into()), Value::Number(3.0)));
+}
+
+#[test]
+fn display_gridlines_vira_show_gridlines() {
+    let vba = "Sub T()\n  ActiveWindow.DisplayGridlines = False\n  ActiveWindow.DisplayHeadings = False\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").unwrap().codigo.clone();
+    assert!(!js.contains("// VBA não convertido ("), "{js}");
+    let r = feathersheet_macros::executar(&mut Workbook::new(), 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(r.grades.len(), 1);
+    assert!(!r.grades[0].1);
+}
