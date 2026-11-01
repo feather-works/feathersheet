@@ -15,8 +15,8 @@ pub struct Riscos {
     pub vba_fora: Vec<&'static str>,
     /// VBA não convertido que apagava arquivo (`Kill`, `DeleteFile`…).
     pub vba_apaga: Vec<&'static str>,
-    /// Sinais de programa escondido no código (executável em Base64/hex, lista de
-    /// bytes, `certutil -decode`…): o jeito de montar vírus por macro.
+    /// Sinais de binário guardado como texto no código (executável em Base64/hex, lista
+    /// de bytes, `certutil -decode`…). Só avisa: não é antivírus nem diz se é vírus.
     pub binario: Vec<String>,
 }
 

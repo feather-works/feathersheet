@@ -409,7 +409,7 @@
       "app.batch": "Runs the block. The macro already runs in a single transaction (one Ctrl+Z undoes it all); it exists so code converted from VBA (`ScreenUpdating`) stays the same.",
       "app.calculate": "Recalculates the sheet.",
       "app.status": "Message on the bottom bar.",
-      "app.shell": "Runs a system program or command (VBA's Shell). It only runs after the macro finishes successfully and the user sees the command and clicks Run; if the code seems to hide a program (Base64, byte list, certutil…), the warning is shown in red. Returns 0.",
+      "app.shell": "Runs a system program or command (VBA's Shell). It only runs after the macro finishes successfully and the user sees the command and clicks Run; if the code holds a binary stored as text (Base64, byte list, certutil…), it warns in red; this is not an antivirus. Returns 0.",
       "app.setEventsEnabled": "Turns the event macros (on open, on activate, on change) on or off. Turns back on by itself when the macro ends.",
       "app.rgb": "The VBA `RGB(r, g, b)`: the color as a number (BGR order). The color functions accept the number or `\"#RRGGBB\"`.",
       "app.vbaColorToHex": "A VBA numeric color (BGR) as `\"#RRGGBB\"`.",

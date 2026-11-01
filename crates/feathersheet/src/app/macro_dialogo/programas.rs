@@ -1,9 +1,8 @@
 //! `app.shell(comando)` (o `Shell` do VBA). A macro só anota o comando; quando ela
 //! termina bem, o app mostra cada comando e a pessoa decide se roda. Antes de
-//! perguntar, procura programa escondido no comando e no código da macro
-//! (`riscos::binario_escondido`: o vírus por macro monta um executável a partir de
-//! Base64/bytes e roda pelo Shell); achou, o aviso fica em vermelho e o botão
-//! em destaque passa a ser "Não rodar".
+//! perguntar, procura binário guardado como texto no comando e no código da macro
+//! (`riscos::binario_escondido`). Não diz se é vírus, só avisa: achou, o aviso fica
+//! em vermelho e o botão em destaque passa a ser "Não rodar".
 use super::*;
 
 pub(in crate::app) struct ProgramasMacro {
@@ -73,12 +72,12 @@ impl App {
         let perigo = !p.suspeitas.is_empty();
         if perigo {
             let vermelho = COR_ERRO();
-            corpo = corpo.push(text(tr!("Possível vírus: a macro esconde um programa")).size(13)
+            corpo = corpo.push(text(tr!("O código da macro contém um binário")).size(13)
                 .font(pelicano::Font { weight: 700, ..Default::default() }).color(vermelho));
             for s in &p.suspeitas {
                 corpo = corpo.push(text(format!("• {s}")).size(12.5).line_height(1.4).color(vermelho));
             }
-            corpo = corpo.push(paragrafo(tr!("Macros de vírus costumam trazer um programa disfarçado de texto, gravá-lo no disco e rodá-lo por aqui. Não rode se não sabe exatamente o que este comando faz.").into()));
+            corpo = corpo.push(paragrafo(tr!("O FeatherSheet não procura vírus: só avisa que há um arquivo binário guardado como texto no código. Não rode se não sabe exatamente o que este comando faz.").into()));
         } else {
             corpo = corpo.push(paragrafo(tr!("O programa roda com as mesmas permissões que você. Só rode se confia na origem desta planilha.").into()));
         }

@@ -117,11 +117,11 @@ impl App {
         if !riscos.binario.is_empty() {
             let vermelho = COR_ERRO();
             corpo = corpo.push(pelicano::column![
-                text(tr!("Possível vírus: a macro esconde um programa")).size(13)
+                text(tr!("O código da macro contém um binário")).size(13)
                     .font(pelicano::Font { weight: 700, ..Default::default() }).color(vermelho),
                 text(riscos.binario.iter().map(|s| format!("• {s}")).collect::<Vec<_>>().join("\n"))
                     .size(12.5).line_height(1.4).color(vermelho),
-                paragrafo(tr!("Macros de vírus costumam trazer um programa disfarçado de texto, gravá-lo no disco e rodá-lo. Mantenha as macros desativadas se não sabe de onde veio este arquivo.").into()),
+                paragrafo(tr!("O FeatherSheet não procura vírus: só avisa que há um arquivo binário guardado como texto no código. Planilha comum não precisa disso; mantenha as macros desativadas se não sabe para que ele serve.").into()),
             ].spacing(4));
         }
         if !riscos.vba_fora.is_empty() {
