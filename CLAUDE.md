@@ -2,6 +2,14 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.4 — 01/11/2026: janela certa no Windows 10 (#135)
+
+pelicano v0.1.22 e feather-ui v0.3.10: no Windows, sem DX12/Vulkan (Intel HD 2500 no Windows 10),
+o pelicano não cai mais no OpenGL, que desenhava a imagem deslocada com faixa preta; a janela
+mostra pela CPU (o mesmo que `PELICANO_GPU=nenhuma`, conferido na máquina do #135). Diagnóstico
+de janela sem o pelicano: `examples/janela_diag.rs` (só local, no repositório do pelicano).
+Traduções en/es das novidades da 0.2.3, que tinham saído sem.
+
 ## v0.2.3 — 01/11/2026: paridade do VBA e manifesto do Windows
 
 Conversor VBA com ~99% das funções (lista e medição em `docs/planejamento/PARIDADE-VBA-FUNCOES.md`;

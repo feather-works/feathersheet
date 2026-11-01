@@ -21,6 +21,16 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.4",
+        data: "01/11/2026",
+        resumo: "Janela certa no Windows 10",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("bolt", "Janela no lugar no Windows 10", "Placas sem DirectX 12 (como a Intel HD 2500) deixavam a janela deslocada, com faixa preta."),
+        ],
+        tambem: &[],
+    },
+    Versao {
         numero: "0.2.3",
         data: "01/11/2026",
         resumo: "Macros do Excel quase completas",
