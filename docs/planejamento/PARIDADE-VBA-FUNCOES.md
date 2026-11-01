@@ -190,3 +190,14 @@ critério e `ws.AutoFilter.Sort` (ordena a tabela do filtro; os botões de filtr
 Próximos pela contagem: o resto das formas (botões, visibilidade, posição), `WScript.Shell.Run` →
 `app.shell`, `AutoFilter` com critério (precisa de filtro na API das macros), automação do Word (fica
 para quando o FeatherDocs tiver API).
+
+### Rodando de verdade (01/11/2026)
+
+`cargo run --release --example rodar_xlsm -- arquivo.xlsm [filtro]` roda cada macro e evento
+convertido numa cópia da pasta lida do próprio arquivo (respondendo Sim às perguntas):
+
+- precioso.xlsm: 18 de 18 rodam; Planilha de Informações: 30 de 30.
+- Fluxo de caixa.xlsm: 27 de 28. O Excel em português chama a caixa de "CaixaDeTexto 39" e a
+  macro gravada pede "TextBox 39": `sheet.shape` aceita o nome padrão em qualquer língua quando o
+  número bate. A que falha (Macro6) usa `Selection.ShapeRange` antes de selecionar forma — no
+  Excel também daria erro com uma célula selecionada.

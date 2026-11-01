@@ -265,8 +265,10 @@ fn open_url_so_anota_o_link() {
 #[test]
 fn shape_muda_a_letra_e_o_texto_da_caixa_pelo_nome() {
     let mut wb = Workbook::new();
-    wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"TextBox 39","texto":"Saldo","fonte":{"tamanho":11}}]}"##.into())); });
+    // O Excel em português grava "CaixaDeTexto 39"; a macro gravada pede "TextBox 39".
+    wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"CaixaDeTexto 39","texto":"Saldo","fonte":{"tamanho":11}}]}"##.into())); });
     let r = executar(&mut wb, 0, r#"
+        if (sheet.shape("TextBox 3").exists || sheet.shape("Retângulo 39").exists) throw new Error("número ou tipo diferente");
         const t = sheet.shape("textbox 39");
         if (!t.exists || sheet.shape("Nada").exists) throw new Error("exists");
         t.font({ bold: true, size: 14, color: app.rgb(0, 176, 80) });

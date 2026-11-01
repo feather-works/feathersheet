@@ -18,9 +18,39 @@ fn objetos(sheet: &Sheet) -> Result<Json, String> {
     }
 }
 
-/// A posição da forma de nome `nome` (sem diferenciar maiúsculas, como o VBA).
+/// Os nomes padrão das formas em cada língua do Excel. O Excel em português chama a caixa
+/// de "CaixaDeTexto 39", mas a macro gravada escreve `Shapes("TextBox 39")` e funciona: o
+/// nome padrão em inglês vale para a forma com o mesmo número.
+const NOMES_PADRAO: &[&[&str]] = &[
+    &["textbox", "caixadetexto", "cuadrotexto", "cuadro de texto"],
+    &["rectangle", "retângulo", "rectángulo"],
+    &["rounded rectangle", "retângulo de cantos arredondados", "rectángulo redondeado"],
+    &["oval", "elipse"],
+    &["picture", "imagem", "imagen"],
+    &["button", "botão", "botón"],
+    &["group", "grupo", "agrupar"],
+    &["straight connector", "conector reto", "conector recto"],
+    &["chart", "gráfico"],
+];
+
+/// "TextBox 39" → (grupo do nome padrão, 39); `None` se não é nome padrão.
+fn padrao(nome: &str) -> Option<(usize, &str)> {
+    let (base, numero) = nome.trim().rsplit_once(' ')?;
+    if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) { return None; }
+    let base = base.trim().to_lowercase();
+    NOMES_PADRAO.iter().position(|g| g.contains(&base.as_str())).map(|g| (g, numero))
+}
+
+/// A posição da forma de nome `nome` (sem diferenciar maiúsculas, como o VBA; o nome padrão
+/// vale em qualquer língua).
 fn achar(ob: &Json, nome: &str) -> Option<usize> {
-    ob["objetos"].as_array()?.iter().position(|o| o["nome"].as_str().is_some_and(|n| n.trim().eq_ignore_ascii_case(nome.trim())))
+    let lista = ob["objetos"].as_array()?;
+    let nome_de = |o: &Json| o["nome"].as_str().map(str::trim).map(str::to_owned);
+    lista.iter().position(|o| nome_de(o).is_some_and(|n| n.to_lowercase() == nome.trim().to_lowercase()))
+        .or_else(|| {
+            let p = padrao(nome)?;
+            lista.iter().position(|o| nome_de(o).is_some_and(|n| padrao(&n) == Some(p)))
+        })
 }
 
 fn cor(v: &Json) -> Result<String, String> {
