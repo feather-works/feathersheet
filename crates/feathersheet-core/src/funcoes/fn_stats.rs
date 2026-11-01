@@ -115,31 +115,41 @@ pub fn fn_countif(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         Some(r) => r,
         None => return err_value(),
     };
-    let crit_val = ev.eval(&args[1]);
-    if let Some(grupo) = crate::funcoes::fn_helpers::grupo_agregado(ev, None, std::slice::from_ref(&range_rect), std::slice::from_ref(&crit_val)) {
-        return Computed::Scalar(Value::Number(grupo.linhas as f64));
-    }
-    let pred = make_predicate(&crit_val);
-
     let criterio = LeitorFaixa::novo(ev, &range_rect);
     // Coluna inteira: depois da última linha usada tudo é vazio, e conta
     // de uma vez se o vazio passa no critério (`"<>x"`, `""`).
     let linhas = range_rect.r1 - range_rect.r0 + 1;
     let usadas = linhas_com_conteudo(ev, linhas, [&range_rect]);
-    let mut count = 0.0;
-    if usadas < linhas && pred(&Value::Empty) {
-        count += (linhas - usadas) as f64 * (range_rect.c1 - range_rect.c0 + 1) as f64;
-    }
-    for r in range_rect.r0..range_rect.r0 + usadas {
-        for c in range_rect.c0..=range_rect.c1 {
-            let val = criterio.valor(ev, r, c);
-            if pred(&val) {
-                count += 1.0;
+    let contar = |crit_val: &Value| -> f64 {
+        let pred = make_predicate(crit_val);
+        let mut count = 0.0;
+        if usadas < linhas && pred(&Value::Empty) {
+            count += (linhas - usadas) as f64 * (range_rect.c1 - range_rect.c0 + 1) as f64;
+        }
+        for r in range_rect.r0..range_rect.r0 + usadas {
+            for c in range_rect.c0..=range_rect.c1 {
+                if pred(&criterio.valor(ev, r, c)) {
+                    count += 1.0;
+                }
             }
         }
+        count
+    };
+    // Critério que é faixa ou matriz (`CONT.SE(G2:U2; $B$22:$D$27)`): uma contagem por item,
+    // como no Excel — `SOMA(CONT.SE(…))` soma todas. Antes contava só o primeiro (#136).
+    if let Computed::Matrix(m) = ev.eval_array(&args[1]) {
+        if m.size() > 1 {
+            let linhas: Vec<Vec<Value>> = m.rows().iter()
+                .map(|l| l.iter().map(|v| Value::Number(contar(v))).collect())
+                .collect();
+            return Computed::Matrix(crate::celulas::values::Matrix::new(linhas));
+        }
     }
-
-    Computed::Scalar(Value::Number(count))
+    let crit_val = ev.eval(&args[1]);
+    if let Some(grupo) = crate::funcoes::fn_helpers::grupo_agregado(ev, None, std::slice::from_ref(&range_rect), std::slice::from_ref(&crit_val)) {
+        return Computed::Scalar(Value::Number(grupo.linhas as f64));
+    }
+    Computed::Scalar(Value::Number(contar(&crit_val)))
 }
 
 /// `=DESVPAD.P(args...)` / `=STDEV.P(args...)`

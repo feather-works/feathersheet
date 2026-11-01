@@ -1099,3 +1099,22 @@ fn lambda_sem_fim_e_rept_gigante_viram_erro() {
     w.escrever_celula(0, 3, 0, "=REPT(\"ab\";3)".into());
     assert_eq!(w.valor(0, 3, 0), Value::Text("ababab".into()));
 }
+
+/// `CONT.SE` com faixa no critério conta cada item, como no Excel (#136): `SOMA` soma as
+/// contagens e `MENOR(SE(CONT.SE(…)=1;…))` vê uma por item.
+#[test]
+fn cont_se_com_faixa_no_criterio_conta_cada_item() {
+    let mut w = Workbook::new();
+    for (i, v) in [1, 2, 4, 6, 3].iter().enumerate() {
+        w.escrever_celula(0, 0, i as u32, v.to_string()); // A1:E1
+    }
+    for (i, v) in [1, 2, 3, 4, 5].iter().enumerate() {
+        w.escrever_celula(0, 1, i as u32, v.to_string()); // A2:E2
+    }
+    w.escrever_celula(0, 3, 0, "=SOMA(CONT.SE(A1:E1;A2:E2))".into());
+    w.escrever_celula(0, 3, 1, "=CONT.SE(A1:E1;A2)".into());
+    w.escrever_celula(0, 3, 2, "=MENOR(SE(CONT.SE(A1:E1;A2:E2)=1;\"\";A2:E2);1)".into());
+    assert_eq!(w.valor(0, 3, 0), Value::Number(4.0));
+    assert_eq!(w.valor(0, 3, 1), Value::Number(1.0));
+    assert_eq!(w.valor(0, 3, 2), Value::Number(5.0));
+}

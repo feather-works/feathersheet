@@ -295,6 +295,9 @@ pub struct Sheet {
     /// Escrita em lote ([`Self::adiar_cascata`]): as células escritas
     /// esperam aqui e sujam os dependentes numa cascata só, no fim.
     cascata_adiada: RefCell<Option<Vec<CellKey>>>,
+    /// Quantos `adiar_cascata` ainda esperam o `soltar_cascata`: lotes dentro de lotes (a
+    /// abertura do `.xlsx` envolve a troca de vínculo e a instalação dos valores) soltam uma vez só.
+    adiamentos: std::cell::Cell<u32>,
     /// Algo saiu da borda do retângulo usado: recalcular antes de responder.
     pub(crate) bounds_dirty: bool,
     /// Fórmulas avulsas que leem outra aba ou um nome. As compactas guardam
@@ -375,6 +378,7 @@ impl Sheet {
             hist: edicao::Historico::default(),
             rastro: RefCell::new(Rastro::default()),
             cascata_adiada: RefCell::new(None),
+            adiamentos: std::cell::Cell::new(0),
             bounds_dirty: false,
             externas: HashSet::new(),
             deps: DependencyGraph::new(),
@@ -926,6 +930,7 @@ impl Sheet {
     /// cascata percorrer a cadeia inteira até o fim: quadrático (2 mil
     /// linhas = 3,3 s; 1 milhão, mais de 13 min).
     pub fn adiar_cascata(&self) {
+        self.adiamentos.set(self.adiamentos.get() + 1);
         let mut adiadas = self.cascata_adiada.borrow_mut();
         if adiadas.is_none() {
             *adiadas = Some(Vec::new());
@@ -935,6 +940,11 @@ impl Sheet {
     /// Fim da escrita em lote: uma cascata só, com uma memória de visitadas
     /// para todas as células anotadas.
     pub fn soltar_cascata(&self) {
+        let nivel = self.adiamentos.get().saturating_sub(1);
+        self.adiamentos.set(nivel);
+        if nivel > 0 {
+            return;
+        }
         let Some(adiadas) = self.cascata_adiada.borrow_mut().take() else { return };
         if adiadas.is_empty() {
             return;
