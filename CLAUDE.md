@@ -2,6 +2,18 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.3 — 01/11/2026: paridade do VBA e manifesto do Windows
+
+Conversor VBA com ~99% das funções (lista e medição em `docs/planejamento/PARIDADE-VBA-FUNCOES.md`;
+`examples/rodar_xlsm.rs` e `rodar_bas.rs` rodam as macros convertidas). Novos na API das macros:
+`app.shell` (pergunta "Rodar?" e acusa binário escondido, `riscos::binario_escondido`),
+`app.openUrl`, `sheet.protect/unprotect`, `sheet.showGridlines`, `sheet.shape(nome)` (o `.xlsx`
+guarda o nome da forma em `nome`; nome padrão vale em pt/en/es) e `range.getFormat()`.
+`.exe` com manifesto (`pacote/feathersheet.manifest`: Windows 10/11, PerMonitorV2) — tentativa
+para o #135 (Windows 10 + Intel HD 2500: imagem deslocada de onde os cliques caem; não é a GPU:
+`PELICANO_GPU=0`/`nenhuma` dão igual). Mesmas bibliotecas da v0.2.2 (pelicano v0.1.19,
+feather-ui v0.3.8); a Feather Sans (feather-ui 0.3.10) ficou para a próxima.
+
 ## v0.2.2 — 29/10/2026: menos memória e macros mais seguras
 
 Colunas numéricas compactadas ao abrir (`ChunkedColumn::compactar`, `Bloco::Compacto`: base +

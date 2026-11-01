@@ -21,6 +21,23 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.3",
+        data: "01/11/2026",
+        resumo: "Macros do Excel quase completas",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("math-function", "Funções do VBA: 99%", "Datas, Format, Choose, Switch, financeiras (Pmt, NPV, IRR…), TypeName, Filter."),
+            ("table", "Caixas de texto e proteção", "Macros mexem nas caixas de texto, protegem a aba e ordenam pelo filtro."),
+            ("shield-lock", "Shell com pergunta", "Rodar programa sempre pergunta antes e avisa se o código traz um binário."),
+            ("bolt", "Links e grade pela macro", "ShellExecute abre link no navegador; DisplayGridlines liga e desliga a grade."),
+        ],
+        tambem: &[
+            "Windows 10: manifesto do Windows no .exe (escala da tela e compatibilidade), para a janela não sair deslocada (#135).",
+            "Sort sem SetRange ordena a tabela inteira, não só a coluna da chave.",
+            "Str(5) dá \" 5\" e CInt fora da faixa dá Estouro, como no VBA.",
+        ],
+    },
+    Versao {
         numero: "0.2.2",
         data: "29/10/2026",
         resumo: "Menos memória e macros mais seguras",
