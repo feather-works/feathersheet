@@ -189,3 +189,24 @@ fn financeiras_batem_com_o_excel() {
         assert!((x - e).abs() < 1e-4 * e.abs().max(1.0), "A{}: {x} ≠ {e}", l + 1);
     }
 }
+
+#[test]
+fn tipos_erros_e_opcionais_de_texto_rodam_no_motor() {
+    let wb = roda(
+        "Sub T()\n  Dim r As Range, v As Variant, m As Variant, x As Variant\n  Set r = Range(\"B1:B3\")\n  m = Array(\"maçã\", \"Banana\", \"uva\")\n  Range(\"A1\").Value = TypeName(r) & \"|\" & TypeName(ActiveSheet) & \"|\" & TypeName(v) & \"|\" & TypeName(1.5) & \"|\" & TypeName(\"a\") & \"|\" & TypeName(m) & \"|\" & TypeName(True)\n  Range(\"A2\").Value = VarType(v) & \"|\" & VarType(\"a\") & \"|\" & VarType(m) & \"|\" & VarType(r) & \"|\" & IsObject(r) & \"|\" & IsObject(5)\n  x = CVErr(xlErrNA)\n  Range(\"A3\").Value = IsError(x) & \"|\" & IsError(5) & \"|\" & TypeName(x)\n  Range(\"A4\").Value = Join(Filter(m, \"an\"), \",\") & \"|\" & Join(Filter(m, \"A\", True, vbTextCompare), \",\") & \"|\" & Join(Filter(m, \"an\", False), \",\")\n  Range(\"A5\").Value = (Partition(25, 0, 99, 10) = \" 20: 29\") & \"|\" & (Partition(150, 0, 99, 10) = \"100:   \") & \"|\" & (Str(5) = \" 5\")\n  Range(\"A6\").Value = QBColor(12) & \"|\" & Error(11) & \"|\" & Str(-5)\n  Range(\"A7\").Value = Replace(\"aXbXcX\", \"X\", \"-\", 3, 1) & \"|\" & Replace(\"AxA\", \"a\", \"o\", 1, -1, vbTextCompare) & \"|\" & InStrRev(\"a-b-c\", \"-\") & \"|\" & InStrRev(\"a-b-c\", \"-\", 3)\n  Range(\"A8\").Value = Join(Split(\"a,b,c,d\", \",\", 2), \"|\") & \"/\" & UBound(Split(\"\", \",\"))\nEnd Sub\nSub Estouro()\n  Range(\"A1\").Value = CInt(40000)\nEnd Sub\n",
+        "T",
+    );
+    let t = |l| match wb.valor(0, l, 0) { Value::Text(s) => s.to_string(), v => format!("{v:?}") };
+    assert_eq!(t(0), "Range|Worksheet|Empty|Double|String|Variant()|Boolean");
+    assert_eq!(t(1), "0|8|8204|9|True|False");
+    assert_eq!(t(2), "True|False|Error");
+    assert_eq!(t(3), "Banana|maçã,Banana,uva|maçã,uva");
+    assert_eq!(t(4), "True|True|True");
+    assert_eq!(t(5), "255|Divisão por zero|-5");
+    assert_eq!(t(6), "b-cX|oxo|4|2");
+    assert_eq!(t(7), "a|b,c,d/-1");
+    let c = converter_texto(&[("Módulo1", "Sub E()\n  Range(\"A1\").Value = CInt(40000)\nEnd Sub\n")], &[]);
+    let js = &c.macros.iter().find(|m| m.nome == "E").unwrap().codigo;
+    let r = feathersheet_macros::executar(&mut Workbook::new(), 0, js);
+    assert!(r.erro.as_deref().is_some_and(|e| e.contains("Estouro")), "{:?}", r.erro);
+}

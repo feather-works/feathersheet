@@ -143,6 +143,9 @@ impl Gerador<'_> {
         if n.eq_ignore_ascii_case("intersect") || n.eq_ignore_ascii_case("union") {
             return self.interseccao(n, args);
         }
+        if let Some(v) = self.tipo_de_objeto(n, args) {
+            return Ok(v);
+        }
         let vs = self.valores(args)?;
         if let Some(r) = self.embutida(n, &vs) {
             return r;
@@ -152,6 +155,33 @@ impl Gerador<'_> {
         }
         let o = self.objeto(&Expr::Chamada(Box::new(Expr::Nome(n.into())), args.to_vec())).map_err(|_| Motivo::novo(format!("função {n} sem equivalente")))?;
         self.valor_do_objeto(o)
+    }
+
+    /// `TypeName`/`VarType`/`IsObject` de intervalo, aba ou pasta: o tipo sai da conversão
+    /// (em tempo de execução o intervalo é só o endereço em texto).
+    fn tipo_de_objeto(&mut self, n: &str, args: &[Arg]) -> Option<V> {
+        let n = n.to_lowercase();
+        if !matches!(n.as_str(), "typename" | "vartype" | "isobject") || args.len() != 1 {
+            return None;
+        }
+        let e = args[0].valor.as_ref()?;
+        if let Expr::Nome(x) = e {
+            // Variável de valor: decide em tempo de execução.
+            if self.var(x).is_some_and(|v| matches!(v.tipo, Tipo::Valor(_))) { return None; }
+        }
+        let nome = match self.objeto(e).ok()? {
+            Obj::Faixa(_) | Obj::Dimensao(..) => "Range",
+            Obj::Aba(..) => "Worksheet",
+            Obj::Pasta | Obj::NovaPasta(_) => "Workbook",
+            Obj::Abas => "Sheets",
+            Obj::App => "Application",
+            _ => "Object",
+        };
+        Some(match n.as_str() {
+            "typename" => V::novo(format!("'{nome}'"), T::Texto),
+            "vartype" => V::novo("9", T::Num),
+            _ => V::novo("true", T::Bool),
+        })
     }
 
     /// `Intersect(a, b)` → o intervalo comum (ou `null`, que o `Is Nothing` compara).

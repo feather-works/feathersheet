@@ -160,5 +160,5 @@ fn matriz_de_texto_recebe_o_split_inteiro() {
     let vba = "Sub T()\nDim m() As String\nm = Split(\"2,3\", \",\")\nRange(\"A1\").Value = m(1)\nEnd Sub\n";
     let c = converter_texto(&[("Módulo1", vba)], &[]);
     let js = c.macros.iter().map(|m| m.codigo.as_str()).collect::<String>();
-    assert!(js.contains(".split(\",\")") && !js.contains("vba.str(\"2,3\".split") && !js.contains("vba.str(vba.str(\"2,3\")"), "{js}");
+    assert!(js.contains("vba.split(\"2,3\", \",\")") && !js.contains("vba.str(vba.split"), "{js}");
 }

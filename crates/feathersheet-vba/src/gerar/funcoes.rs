@@ -14,6 +14,8 @@ const CONSTANTES: &[(&str, &str, T)] = &[
     ("vbbinarycompare", "0", T::Num), ("vbtextcompare", "1", T::Num), ("vbsunday", "1", T::Num), ("vbmonday", "2", T::Num), ("vbtuesday", "3", T::Num), ("vbwednesday", "4", T::Num), ("vbthursday", "5", T::Num), ("vbfriday", "6", T::Num), ("vbsaturday", "7", T::Num), ("vbusesystemdayofweek", "0", T::Num),
     ("vbgeneraldate", "0", T::Num), ("vblongdate", "1", T::Num), ("vbshortdate", "2", T::Num), ("vblongtime", "3", T::Num), ("vbshorttime", "4", T::Num),
     ("vbusedefault", "-2", T::Num), ("vbtrue", "-1", T::Num), ("vbfalse", "0", T::Num),
+    ("xlerrdiv0", "2007", T::Num), ("xlerrna", "2042", T::Num), ("xlerrname", "2029", T::Num), ("xlerrnull", "2000", T::Num), ("xlerrnum", "2036", T::Num), ("xlerrref", "2023", T::Num), ("xlerrvalue", "2015", T::Num),
+    ("vbempty", "0", T::Num), ("vbnull", "1", T::Num), ("vbinteger", "2", T::Num), ("vblong", "3", T::Num), ("vbsingle", "4", T::Num), ("vbdouble", "5", T::Num), ("vbcurrency", "6", T::Num), ("vbdate", "7", T::Num), ("vbstring", "8", T::Num), ("vbobject", "9", T::Num), ("vberror", "10", T::Num), ("vbboolean", "11", T::Num), ("vbvariant", "12", T::Num), ("vbarray", "8192", T::Num),
     ("vbuppercase", "1", T::Num), ("vblowercase", "2", T::Num), ("vbpropercase", "3", T::Num),
     ("xldelimited", "1", T::Num), ("xlfixedwidth", "2", T::Num), ("xldoublequote", "1", T::Num), ("xlsinglequote", "2", T::Num),
     ("xltextqualifierdoublequote", "1", T::Num), ("xltextqualifiersinglequote", "2", T::Num), ("xltextqualifiernone", "-4142", T::Num),
@@ -133,8 +135,9 @@ impl Gerador<'_> {
             "rtrim" => self.chamar_ajuda("rtrim", a, T::Texto),
             "ucase" => V::novo(format!("{}.toUpperCase()", t(self, 0)), T::Texto),
             "lcase" => V::novo(format!("{}.toLowerCase()", t(self, 0)), T::Texto),
-            "cstr" | "str" => V::novo(t(self, 0), T::Texto),
-            "split" => V::novo(format!("{}.split({})", t(self, 0), a.get(1).map_or("' '".to_string(), |v| v.js.clone())), T::Matriz),
+            "cstr" => V::novo(t(self, 0), T::Texto),
+            "str" => self.chamar_ajuda("strNum", a, T::Texto),
+            "split" => self.chamar_ajuda("split", a, T::Matriz),
             "join" => V::novo(format!("{}.join({})", a.first()?.par(), a.get(1).map_or("' '".to_string(), |v| v.js.clone())), T::Texto),
             "chr" | "chrw" => V::novo(format!("String.fromCharCode({})", a.first()?.js), T::Texto),
             "asc" | "ascw" => V::novo(format!("{}.charCodeAt(0)", t(self, 0)), T::Num),
@@ -154,7 +157,12 @@ impl Gerador<'_> {
     fn embutida_de_numero(&mut self, n: &str, a: &[V]) -> Option<V> {
         let x = |g: &mut Self| a.first().map(|v| g.como_num(v)).unwrap_or_default();
         Some(match n {
-            "cint" | "clng" | "clnglng" | "cbyte" => self.chamar_ajuda("cint", a, T::Num),
+            "clnglng" | "clngptr" => self.chamar_ajuda("cint", a, T::Num),
+            "cint" | "clng" | "cbyte" => {
+                let f = self.ajuda("faixaInt");
+                let (lo, hi) = match n { "cint" => ("-32768", "32767"), "clng" => ("-2147483648", "2147483647"), _ => ("0", "255") };
+                V::novo(format!("vba.{f}({}, {lo}, {hi})", a.first()?.js), T::Num)
+            }
             "cdbl" | "csng" | "ccur" | "cdec" => V::novo(x(self), T::Num),
             "cbool" => {
                 let b = self.como_bool(a.first()?);
@@ -195,7 +203,17 @@ impl Gerador<'_> {
             "dir" | "freefile" | "eof" | "filelen" | "filedatetime" | "curdir" => return Some(Err(Motivo::novo("acesso a arquivo"))),
             "environ" => return Some(Err(Motivo::novo("variável de ambiente do Windows"))),
             "evaluate" => return Some(Err(Motivo::novo("Evaluate (avaliar fórmula em texto)"))),
-            "typename" | "vartype" => return Some(Err(Motivo::novo(format!("{n} (tipo do VBA)")))),
+            "typename" => self.chamar_ajuda("typeName", a, T::Texto),
+            "vartype" => self.chamar_ajuda("varType", a, T::Num),
+            "isobject" => self.chamar_ajuda("isObject", a, T::Bool),
+            "iserror" => V::novo(format!("app.isError({})", a.first()?.js), T::Bool),
+            "cverr" => self.chamar_ajuda("cverr", a, T::Var),
+            "cvar" => a.first()?.clone(),
+            "cvdate" => self.chamar_ajuda("cdate", a, T::Num),
+            "filter" => self.chamar_ajuda("filtrar", a, T::Matriz),
+            "partition" => self.chamar_ajuda("particao", a, T::Texto),
+            "qbcolor" => self.chamar_ajuda("qbcolor", a, T::Num),
+            "error" => self.chamar_ajuda("textoErro", a, T::Texto),
             "dateserial" => self.chamar_ajuda("serial", a, T::Num),
             "timeserial" => V::novo(format!("(({}) * 3600 + ({}) * 60 + ({})) / 86400", a.first()?.js, a.get(1)?.js, a.get(2)?.js), T::Num),
             "datevalue" => V::novo(format!("Math.floor(vba.{}({}))", self.ajuda("cdate"), a.first()?.js), T::Num),
