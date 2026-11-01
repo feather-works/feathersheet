@@ -213,8 +213,36 @@ impl Gerador<'_> {
             Obj::Condicao(c) if n == "interior" => Ok(Obj::EstiloCondicao(c, Parte::Interior)),
             Obj::Condicao(c) if n == "font" => Ok(Obj::EstiloCondicao(c, Parte::Fonte)),
             Obj::Condicoes(_) | Obj::Condicao(_) | Obj::EstiloCondicao(..) => Err(Motivo::novo(format!("FormatConditions: {nome} (só Add, Delete, Interior e Font convertem)"))),
+            Obj::Formas(aba) => match n.as_str() {
+                "item" | "range" if args.len() == 1 => self.forma_do_argumento(&aba, &args[0]),
+                _ => Err(Motivo::novo(format!("Shapes.{nome}"))),
+            },
+            // O texto da forma: TextFrame2.TextRange e TextFrame.Characters dão no mesmo.
+            Obj::Forma(js) => match n.as_str() {
+                "textframe2" | "textframe" | "textrange" | "characters" | "shaperange" | "item" => Ok(Obj::Forma(js)),
+                "font" => Ok(Obj::FonteForma(js)),
+                _ => Err(Motivo::novo(format!("Shape.{nome}"))),
+            },
+            Obj::FonteForma(js) => match n.as_str() {
+                "fill" | "forecolor" => Ok(Obj::FonteForma(js)),
+                _ => Err(Motivo::novo(format!("Font.{nome} da forma"))),
+            },
             Obj::Dimensao(..) | Obj::Contagem(..) | Obj::Parte(..) | Obj::FuncoesDaPlanilha | Obj::Nomes | Obj::Ordem(_) | Obj::Validacao(_) => Err(Motivo::novo(format!("membro {nome}"))),
         }
+    }
+
+    /// `Shapes("TextBox 39")` ou `Shapes.Range(Array("TextBox 39"))` (só o primeiro nome).
+    fn forma_do_argumento(&mut self, aba: &str, a: &Arg) -> R<Obj> {
+        let e = a.valor.as_ref().ok_or_else(|| Motivo::novo("Shapes sem nome"))?;
+        let e = match e {
+            Expr::Chamada(f, xs) if matches!(f.as_ref(), Expr::Nome(n) if n.eq_ignore_ascii_case("array")) =>
+                xs.first().and_then(|x| x.valor.as_ref()).ok_or_else(|| Motivo::novo("Shapes.Range sem nome"))?,
+            e => e,
+        };
+        let v = self.valor(e)?;
+        if v.t == T::Num { return Err(Motivo::novo("Shapes(número): forma pela posição")); }
+        let nome = self.como_texto(&v);
+        Ok(Obj::Forma(format!("{aba}.shape({nome})")))
     }
 
     /// `Worksheets.Add(Before, After, Count, Type)` → `wb.addSheet(null, { after: … })` (a aba nova).
@@ -286,7 +314,9 @@ impl Gerador<'_> {
             "rows" => self.linha_ou_coluna(aba, Inteira::Linhas, &args[0])?,
             "columns" => self.linha_ou_coluna(aba, Inteira::Colunas, &args[0])?,
             "usedrange" => Obj::Faixa(Faixa::dinamica(aba, format!("({aba}.getDataRange()?.address ?? 'A1')"))),
-            "shapes" | "buttons" | "chartobjects" | "pictures" => return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)")),
+            "shapes" if args.is_empty() => Obj::Formas(aba.into()),
+            "shapes" => self.forma_do_argumento(aba, &args[0])?,
+            "buttons" | "chartobjects" | "pictures" => return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)")),
             // `ws.AutoFilter.Sort`: a mesma ordenação do `ws.Sort`, sobre o intervalo do filtro.
             "sort" | "autofilter" => Obj::Ordem(aba.into()),
             "pagesetup" => return Err(Motivo::novo("configuração de página")),
@@ -440,7 +470,8 @@ impl Gerador<'_> {
             "currentregion" => Obj::Faixa(Faixa::dinamica(&aba, format!("{aba}.getRegion({}).address", f.end))),
             "mergearea" | "cells" => Obj::Faixa(f),
             "worksheet" | "parent" => Obj::Aba(aba, None),
-            "shaperange" => return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)")),
+            // `Selection.ShapeRange`: a forma do último `Shapes(…).Select`.
+            "shaperange" => Obj::Forma(format!("vba.{}()", self.ajuda("formaSel"))),
             "validation" => Obj::Validacao(f),
             "sort" => return Err(Motivo::novo("Range.Sort usado como objeto")),
             "autofilter" => return Err(Motivo::novo("filtro do Excel (AutoFilter — converter à mão)")),

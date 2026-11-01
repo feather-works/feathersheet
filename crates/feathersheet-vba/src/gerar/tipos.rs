@@ -152,6 +152,12 @@ pub enum Obj {
     Condicao(String),
     /// `.Interior`/`.Font` da regra.
     EstiloCondicao(String, Parte),
+    /// `ws.Shapes` (código JS da aba).
+    Formas(String),
+    /// Uma forma (código JS que dá o `sheet.shape(nome)`, ou `vba.formaSel()` no `Selection.ShapeRange`).
+    Forma(String),
+    /// `.TextFrame2.TextRange.Font` (e o `.Fill.ForeColor` dela) da forma.
+    FonteForma(String),
 }
 
 /// A parte de um intervalo.

@@ -175,15 +175,18 @@ Parciais: CVErr, Format, Rnd, CCur, CDec, FormatCurrency, FormatNumber, FormatPe
 
 | arquivo | linhas VBA | não convertidos antes | depois | o que sobrou |
 |---|---|---|---|---|
-| Fluxo de caixa.xlsm | 634 | 209 | 169 | caixas de texto (`Shapes`/`ShapeRange.TextFrame2`, 169) |
+| Fluxo de caixa.xlsm | 634 | 209 | **0** | — |
 | precioso.xlsm | 469 | 12 | 1 | `Planilha1.num` (variável que o próprio VBA não declara) |
-| Planilha de Informações v6.0a.xlsm | 2.304 | 62 | ~60 | automação do Word (26), formas (14), arquivo (6), xlwings (5), ShellExecute (4) |
+| Planilha de Informações v6.0a.xlsm | 2.304 | 62 | 51 | automação do Word (26), formas (7), arquivo (6), xlwings (5), CreateObject (2) |
 
 Feito nesta rodada: `Protect`/`Unprotect` (com senha e `Allow*`), `ActiveWindow.DisplayGridlines`
 (`DisplayHeadings` sem efeito: os cabeçalhos ficam sempre à mostra), `Selection.AutoFilter` sem
 critério e `ws.AutoFilter.Sort` (ordena a tabela do filtro; os botões de filtro ainda não aparecem),
-`ShellExecute(0, "open", link)` → `app.openUrl` (só link web, abre sem perguntar como o hiperlink).
+`ShellExecute(0, "open", link)` → `app.openUrl` (só link web, abre sem perguntar como o hiperlink),
+`Shapes("…")`/`Shapes.Range(Array("…"))`, `.Select` + `Selection.ShapeRange` e
+`.TextFrame2.TextRange.Font` (negrito, itálico, tamanho, cor) e `.Text` → `sheet.shape(nome)`
+(o `.xlsx` agora guarda o nome da forma em `nome`).
 
-Próximos pela contagem: formas e caixas de texto (`Shapes`), `WScript.Shell.Run` →
-`app.shell` (WScript.Shell.Run), `AutoFilter` com critério (precisa de filtro na API das macros), automação do Word (fica
+Próximos pela contagem: o resto das formas (botões, visibilidade, posição), `WScript.Shell.Run` →
+`app.shell`, `AutoFilter` com critério (precisa de filtro na API das macros), automação do Word (fica
 para quando o FeatherDocs tiver API).

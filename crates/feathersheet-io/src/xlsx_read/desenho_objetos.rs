@@ -346,6 +346,11 @@ impl Leitura<'_> {
         if let Some(v) = sp.attr("textlink").filter(|v| !v.is_empty()) {
             o.extras.insert("vinculo".into(), serde_json::Value::String(v.to_string()));
         }
+        // O nome do Excel ("TextBox 39"): é por ele que a macro acha a forma (`sheet.shape`).
+        let nome = ["nvSpPr", "nvCxnSpPr"].iter().find_map(|n| sp.child(n)).and_then(|n| n.child("cNvPr")).and_then(|c| c.attr("name"));
+        if let Some(n) = nome.filter(|n| !n.is_empty()) {
+            o.extras.insert("nome".into(), serde_json::Value::String(n.chars().take(255).collect()));
+        }
         transformar(&mut o, pr.and_then(|p| p.child("xfrm")));
         self.saida.push(o);
     }
@@ -581,7 +586,7 @@ mod testes {
       <xdr:twoCellAnchor>
         <xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
         <xdr:to><xdr:col>10</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>10</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
-        <xdr:sp><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+        <xdr:sp><xdr:nvSpPr><xdr:cNvPr id="2" name="TextBox 39"/><xdr:cNvSpPr txBox="1"/></xdr:nvSpPr><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
           <a:gradFill><a:gsLst><a:gs pos="0"><a:schemeClr val="accent1"><a:shade val="30000"/></a:schemeClr></a:gs>
           <a:gs pos="100000"><a:srgbClr val="1572B9"><a:alpha val="50000"/></a:srgbClr></a:gs></a:gsLst><a:lin ang="16200000" scaled="1"/></a:gradFill>
           <a:effectLst><a:outerShdw blurRad="63500" dist="38100" dir="5400000"><a:prstClr val="black"><a:alpha val="40000"/></a:prstClr></a:outerShdw></a:effectLst>
@@ -623,6 +628,8 @@ mod testes {
 
         let fundo = &objs[0];
         assert_eq!(fundo.forma, "rect");
+        assert_eq!(fundo.extras.get("nome").and_then(|v| v.as_str()), Some("TextBox 39"));
+        assert!(objs[3].extras.get("nome").is_none());
         let g = fundo.gradiente.as_ref().unwrap();
         assert_eq!(g.angulo, 270.0);
         assert_eq!(g.paradas.len(), 2);

@@ -19,6 +19,7 @@ mod mesclagem;
 mod pasta;
 pub mod formularios;
 pub mod riscos;
+mod formas;
 pub use pasta::{Contexto, PedidoArquivo, PedidoProtecao};
 pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;
@@ -339,6 +340,19 @@ impl HospedeiroMacros for HospedeiroSheet {
                 let estado: &mut Estado = &mut *e;
                 movimento::linhas_colunas(&mut estado.pasta, &mut estado.alteradas, aba, op, &dados[1], &dados[2])?;
                 return Ok(Json::Null);
+            }
+            if formas::OPERACOES.contains(&op) {
+                // Formas pelo nome (`sheet.shape`): `alterar_objetos` entra na transação da macro.
+                let iniciou = e.alteradas.insert(aba);
+                if iniciou { e.pasta.aba_mut(aba).unwrap().sheet.abrir_transacao(); }
+                let mut resultado = Err(String::new());
+                e.pasta.editar(aba, |sheet| { resultado = formas::executar(op, sheet, dados); });
+                let mudou = resultado.as_ref().is_ok_and(|(_, m)| *m);
+                if iniciou && !mudou {
+                    e.pasta.aba_mut(aba).unwrap().sheet.reverter_transacao();
+                    e.alteradas.remove(&aba);
+                }
+                return resultado.map(|(r, _)| r);
             }
             if matches!(op, "setRowHeight" | "setColumnWidth" | "hideRow" | "hideColumn") {
                 // API de dimensões: o armazenamento e o undo já existem
@@ -950,6 +964,20 @@ const __ftRevive = v => {
         return new __CellError(v.__ftCellError,v.detail);
     return v;
 };
+// `sheet.shape(nome)`: forma ou caixa de texto pelo nome do Excel ("TextBox 39").
+const __forma = (i, nome) => {
+    const ler = () => { const r = __ft('formaLer',[i,nome]); if (!r.exists) throw new Error('A aba não tem a forma "'+nome+'"'); return r; };
+    const f = {
+        name: nome,
+        get exists(){ return __ft('formaLer',[i,nome]).exists; },
+        get text(){ return ler().text; },
+        set text(v){ __ft('formaTexto',[i,nome,v==null?'':String(v)]); },
+        // font() lê; font({ bold, italic, size, color }) muda só o que vier.
+        font(o){ if (o === undefined) { const r = ler(); return { bold:r.bold, italic:r.italic, size:r.size, color:r.color }; }
+            __ft('formaFonte',[i,nome,o]); return f; },
+    };
+    return f;
+};
 function __sheet(indice) {
     const i = __ft('idAba',[indice]);
     const range = address => {
@@ -1106,6 +1134,7 @@ function __sheet(indice) {
         activate:()=>{__ft('ativar',[i]);return sheet;},
         // Arquivos: só anotados; o aplicativo grava se a macro terminar bem.
         exportPdf:path=>{__ft('exportarPdf',[i,String(path)]);return sheet;},
+        shape:name=>__forma(i,String(name)),
         saveAs:path=>{__ft('salvarAbas',[[__ft('nomeAba',[i])],String(path)]);return sheet;},
         // Proteção: anotada; o aplicativo aplica (com o hash da senha) se a macro terminar bem.
         protect:(password=null,opts={})=>{__ft('protecao',[i,true,password==null?null:String(password),

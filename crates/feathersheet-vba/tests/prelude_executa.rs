@@ -268,3 +268,20 @@ fn shell_execute_open_vira_open_url() {
     assert_eq!(r.links, ["https://www.google.com/maps/search/?api=1&query="]);
     assert_eq!(wb.valor(0, 0, 0), Value::Number(42.0));
 }
+
+#[test]
+fn caixa_de_texto_do_fluxo_de_caixa_muda_de_cor_e_negrito() {
+    // O padrão do "Fluxo de caixa.xlsm": selecionar a caixa e mexer na letra pelo Selection.
+    let vba = "Sub T()\n  ActiveSheet.Unprotect\n  ActiveSheet.Shapes.Range(Array(\"TextBox 39\")).Select\n  Selection.ShapeRange.TextFrame2.TextRange.Font.Bold = msoFalse\n  Selection.ShapeRange.TextFrame2.TextRange.Font.Size = 14\n  With Selection.ShapeRange.TextFrame2.TextRange.Font.Fill\n    .Visible = msoTrue\n    .ForeColor.RGB = RGB(0, 176, 80)\n    .Transparency = 0\n    .Solid\n  End With\n  Selection.ShapeRange.TextFrame2.TextRange.Font.Bold = msoTrue\n  ActiveSheet.Shapes(\"TextBox 39\").TextFrame.Characters.Text = \"Lucro\"\n  ActiveSheet.Protect DrawingObjects:=True, Contents:=True, Scenarios:=True\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").unwrap().codigo.clone();
+    assert!(!js.contains("// VBA não convertido ("), "{js}");
+    let mut wb = Workbook::new();
+    wb.editar(0, |s| { s.alterar_objetos(Some(r#"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"TextBox 39","texto":"Saldo"}]}"#.into())); });
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    let ob = wb.aba(0).unwrap().sheet.ob.clone().unwrap();
+    for trecho in [r#""texto":"Lucro""#, r#""negrito":true"#, r#""tamanho":14.0"#, r##""cor":"#00b050""##] {
+        assert!(ob.contains(trecho), "{trecho} em {ob}");
+    }
+}

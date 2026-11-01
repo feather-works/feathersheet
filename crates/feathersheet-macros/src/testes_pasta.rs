@@ -263,6 +263,29 @@ fn open_url_so_anota_o_link() {
 }
 
 #[test]
+fn shape_muda_a_letra_e_o_texto_da_caixa_pelo_nome() {
+    let mut wb = Workbook::new();
+    wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"TextBox 39","texto":"Saldo","fonte":{"tamanho":11}}]}"##.into())); });
+    let r = executar(&mut wb, 0, r#"
+        const t = sheet.shape("textbox 39");
+        if (!t.exists || sheet.shape("Nada").exists) throw new Error("exists");
+        t.font({ bold: true, size: 14, color: app.rgb(0, 176, 80) });
+        t.text = t.text + " ok";
+        sheet.set("A1", t.font().color + "|" + t.font().size);
+    "#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(wb.valor(0, 0, 0), Value::Text("#00b050|14".into()));
+    let ob: serde_json::Value = serde_json::from_str(wb.aba(0).unwrap().sheet.ob.as_deref().unwrap()).unwrap();
+    let o = &ob["objetos"][0];
+    assert_eq!(o["texto"], "Saldo ok");
+    assert_eq!(o["fonte"]["negrito"], true);
+    let r = executar(&mut wb, 0, r#"sheet.shape("TextBox 39").font({ bold: false }); sheet.shape("Outra").font({ bold: true });"#);
+    assert!(r.erro.is_some(), "forma que não existe é erro");
+    let ob: serde_json::Value = serde_json::from_str(wb.aba(0).unwrap().sheet.ob.as_deref().unwrap()).unwrap();
+    assert_eq!(ob["objetos"][0]["fonte"]["negrito"], true, "o erro desfaz a mudança anterior");
+}
+
+#[test]
 fn shell_so_anota_o_programa_e_some_se_a_macro_falha() {
     let mut wb = Workbook::new();
     let r = executar(&mut wb, 0, r#"const id = app.shell("  echo oi  "); sheet.set("A1", id);"#);

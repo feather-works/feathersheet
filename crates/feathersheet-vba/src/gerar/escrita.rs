@@ -48,6 +48,27 @@ impl Gerador<'_> {
             },
             Obj::Aba(aba, nome) => self.escrever_na_aba(&aba, nome, &n, valor),
             Obj::Janela => self.escrever_na_janela(&n, valor),
+            Obj::Forma(js) => match n.as_str() {
+                "text" | "caption" => {
+                    let v = self.valor(valor)?;
+                    Ok(format!("{js}.text = {};", self.como_texto(&v)))
+                }
+                _ => Err(Motivo::novo(format!("Shape.{prop}"))),
+            },
+            Obj::FonteForma(js) => {
+                let chave = match n.as_str() {
+                    "bold" => "bold",
+                    "italic" => "italic",
+                    "size" => "size",
+                    "rgb" | "color" => "color",
+                    // `.Fill.Visible = msoTrue`, `.Transparency = 0`: o padrão do texto.
+                    "visible" | "transparency" => return Ok(String::new()),
+                    _ => return Err(Motivo::novo(format!("Font.{prop} da forma"))),
+                };
+                let v = self.valor(valor)?;
+                let js_v = if chave == "bold" || chave == "italic" { self.como_bool(&v) } else { v.js };
+                Ok(format!("{js}.font({{ {chave}: {js_v} }});"))
+            }
             Obj::Ordem(aba) => match n.as_str() {
                 "header" => {
                     let v = self.valor(valor)?;
@@ -452,6 +473,9 @@ impl Gerador<'_> {
             Obj::Janela if n == "close" => Err(Motivo::novo("fechar a janela do Excel")),
             Obj::Janela => Ok(String::new()),
             Obj::Ordem(aba) => self.metodo_da_ordem(&aba, &n, args),
+            Obj::Forma(js) if n == "select" => Ok(format!("vba.{}({js});", self.ajuda("formaEscolher"))),
+            // `.Fill.Solid`: o texto já é de cor sólida.
+            Obj::FonteForma(_) if n == "solid" => Ok(String::new()),
             Obj::Validacao(f) => self.metodo_da_validacao(&f, &n, args),
             Obj::Condicoes(f) if n == "delete" => Ok(format!("vba.{}({}, {});", self.ajuda("condApagar"), f.aba, f.end)),
             Obj::Condicoes(f) if n == "add" => {

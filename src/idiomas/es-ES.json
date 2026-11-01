@@ -408,6 +408,7 @@
    "sheet.protect": "Protege la hoja, como Formato › Proteger hoja (el Protect de VBA). Contraseña opcional; los permisos usan los nombres del .xlsx (formatCells, formatColumns, formatRows, insertColumns, insertRows, insertHyperlinks, deleteColumns, deleteRows, sort, autoFilter, pivotTables, objects, scenarios). Se aplica cuando la macro termina bien.",
    "sheet.unprotect": "Quita la protección de la hoja (el Unprotect de VBA). Con la contraseña incorrecta la hoja sigue protegida y aparece un mensaje. Se aplica cuando la macro termina bien; la propia macro ya escribe en la hoja protegida.",
    "sheet.showGridlines": "Muestra u oculta las líneas de cuadrícula de esta hoja (el ActiveWindow.DisplayGridlines de VBA).",
+   "sheet.shape": "La forma o cuadro de texto por el nombre que tenía en Excel (\"TextBox 1\"): `text` lee y cambia el texto, `font({…})` cambia negrita, cursiva, tamaño y color (\"#RRGGBB\" o app.rgb) y `font()` la lee; `exists` indica si la hoja tiene la forma. Es el Shapes(\"…\").TextFrame2.TextRange de VBA.",
    "wb.saveSheetsAs": "Guarda un libro nuevo solo con las hojas indicadas (lista de nombres o números), como `.xlsx` o `.fshz`. La ruta es relativa a la carpeta del archivo abierto (`\\` se convierte en `/`).",
    "app.batch": "Ejecuta el bloque. La macro ya corre en una sola transacción (un Ctrl+Z la deshace toda); existe para que el código convertido de VBA (`ScreenUpdating`) siga igual.",
    "app.calculate": "Recalcula la hoja.",
