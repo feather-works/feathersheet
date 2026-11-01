@@ -194,6 +194,7 @@
         "titulo": "Excel, VBA e formulários",
         "corpo": [
           "Abrir um .xlsm converte as macros VBA para JavaScript. Antes de qualquer macro do arquivo rodar, o aplicativo pergunta \"Ativar macros?\" — só aceite se confiar na origem.",
+          "O conversor entende as funções do VBA de texto, número e data, os Format (FormatNumber, FormatCurrency, FormatDateTime…), Choose, Switch, StrComp e as financeiras (Pmt, PV, FV, NPV, IRR, Rate…). Shell vira app.shell, que mostra o comando e pergunta antes de rodar. O que não tem equivalente fica no código como comentário \"VBA não convertido\".",
           "Formulários (o UserForm do VBA): no editor de macros (Alt+F11), desenhe a janela com caixas de texto, listas, opções e botões, e ligue cada botão a uma macro. Na macro, sheet.showComponent(\"nome\") abre o formulário.",
           "Uma macro longa roda em segundo plano: o aplicativo mostra que ela está executando, com o tempo passado e o botão Parar."
         ]

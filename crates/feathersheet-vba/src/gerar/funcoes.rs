@@ -12,6 +12,8 @@ const CONSTANTES: &[(&str, &str, T)] = &[
     ("vbcrlf", "'\\n'", T::Texto), ("vbnewline", "'\\n'", T::Texto), ("vblf", "'\\n'", T::Texto), ("vbcr", "'\\r'", T::Texto), ("vbtab", "'\\t'", T::Texto), ("vbnullstring", "''", T::Texto), ("vbnullchar", "'\\0'", T::Texto),
     ("vbblack", "0", T::Num), ("vbwhite", "16777215", T::Num), ("vbred", "255", T::Num), ("vbgreen", "65280", T::Num), ("vbblue", "16711680", T::Num), ("vbyellow", "65535", T::Num), ("vbmagenta", "16711935", T::Num), ("vbcyan", "16776960", T::Num),
     ("vbbinarycompare", "0", T::Num), ("vbtextcompare", "1", T::Num), ("vbsunday", "1", T::Num), ("vbmonday", "2", T::Num), ("vbtuesday", "3", T::Num), ("vbwednesday", "4", T::Num), ("vbthursday", "5", T::Num), ("vbfriday", "6", T::Num), ("vbsaturday", "7", T::Num), ("vbusesystemdayofweek", "0", T::Num),
+    ("vbgeneraldate", "0", T::Num), ("vblongdate", "1", T::Num), ("vbshortdate", "2", T::Num), ("vblongtime", "3", T::Num), ("vbshorttime", "4", T::Num),
+    ("vbusedefault", "-2", T::Num), ("vbtrue", "-1", T::Num), ("vbfalse", "0", T::Num),
     ("vbuppercase", "1", T::Num), ("vblowercase", "2", T::Num), ("vbpropercase", "3", T::Num),
     ("xldelimited", "1", T::Num), ("xlfixedwidth", "2", T::Num), ("xldoublequote", "1", T::Num), ("xlsinglequote", "2", T::Num),
     ("xltextqualifierdoublequote", "1", T::Num), ("xltextqualifiersinglequote", "2", T::Num), ("xltextqualifiernone", "-4142", T::Num),
@@ -207,6 +209,31 @@ impl Gerador<'_> {
             "datediff" => self.chamar_ajuda("datediff", a, T::Num),
             "datepart" => self.chamar_ajuda("datepart", a, T::Num),
             "strconv" => self.chamar_ajuda("strconv", a, T::Texto),
+            "choose" => self.chamar_ajuda("choose", a, T::Var),
+            "switch" => self.chamar_ajuda("switch", a, T::Var),
+            "strcomp" => self.chamar_ajuda("strcomp", a, T::Num),
+            "isdate" => self.chamar_ajuda("isDate", a, T::Bool),
+            "ismissing" => V::composto(format!("{} === undefined", a.first()?.par()), T::Bool),
+            "hex" | "oct" => {
+                let f = self.ajuda("hex");
+                V::novo(format!("vba.{f}({}, {})", a.first()?.js, if n == "hex" { 16 } else { 8 }), T::Texto)
+            }
+            "monthname" => self.chamar_ajuda("nomeMes", a, T::Texto),
+            "weekdayname" => self.chamar_ajuda("nomeDia", a, T::Texto),
+            "formatnumber" | "formatcurrency" | "formatpercent" => {
+                let f = self.ajuda("formatNumero");
+                // (valor, casas, zero à esquerda, negativo entre parênteses, agrupar): o 3º e o 4º ficam no padrão.
+                let arg = |i: usize| a.get(i).map_or("undefined".to_string(), |v| v.js.clone());
+                let (antes, depois) = match n { "formatcurrency" => ("'R$ '", "''"), "formatpercent" => ("''", "'%'"), _ => ("''", "''") };
+                V::novo(format!("vba.{f}({}, {}, {}, {antes}, {depois})", a.first()?.js, arg(1), arg(4)), T::Texto)
+            }
+            "formatdatetime" => self.chamar_ajuda("formatDataHora", a, T::Texto),
+            "pmt" | "fv" | "pv" | "nper" | "ipmt" | "ppmt" | "npv" | "irr" | "mirr" | "rate" | "sln" | "syd" | "ddb" => {
+                // O bloco "fin" traz todas; o nome do método é o da função do VBA.
+                self.ajuda("fin");
+                let a: Vec<&str> = a.iter().map(|v| v.js.as_str()).collect();
+                V::novo(format!("vba.{n}({})", a.join(", ")), T::Num)
+            }
             _ => return None,
         }))
     }

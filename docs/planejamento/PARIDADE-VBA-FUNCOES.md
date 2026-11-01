@@ -5,12 +5,12 @@
 Atualizado em 01/11/2026 (a primeira avaliação foi em 15/10/2026, antes da v0.2.0).
 
 - Total de funções avaliadas: **141**
-- COBERTA: **67**
-- PARCIAL: **11**
-- FALTA: **40**
+- COBERTA: **89**
+- PARCIAL: **15**
+- FALTA: **14**
 - NÃO SE APLICA: **23**
 
-(Cobertura útil, COBERTA + PARCIAL, de 141: 78. Sem contar as que não se aplicam, de 118: 78, cerca de 66%.)
+(Cobertura útil, COBERTA + PARCIAL, de 141: 104. Sem contar as que não se aplicam, de 118: 104, cerca de 88%.)
 
 Lista oficial: página "Functions (Visual Basic for Applications)" da Microsoft Learn (versão de 2024-02). Tipos de conversão foram incluídos pela família (CBool…CVDate), mesmo fora da página principal. Código conferido em `feathersheet/crates/feathersheet-vba/src/gerar/` (funcoes.rs, expr.rs, instr.rs) e no prelúdio `feathersheet-vba/src/gerar/ajuda.rs` (o bloco `const vba = {…}` que vai junto com o código gerado).
 
@@ -24,8 +24,8 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | Chr | conversão | COBERTA | funcoes.rs:132 (`String.fromCharCode`) |
 | CVErr | conversão | FALTA | erro de valor da planilha (#N/D etc.) não mapeado |
 | Format | conversão | PARCIAL | ajuda.rs:34-80, funcoes.rs:137. Faltam os formatos nomeados General Number, Scientific, Yes/No, On/Off e datas nomeadas |
-| Hex | conversão | FALTA | — |
-| Oct | conversão | FALTA | — |
+| Hex | conversão | COBERTA | `vba.hex(v, 16)`, negativo em complemento de dois |
+| Oct | conversão | COBERTA | `vba.hex(v, 8)` |
 | Str | conversão | PARCIAL | funcoes.rs:129. Não põe o espaço à frente de número positivo (VBA: Str(5) = " 5") |
 | Val | conversão | COBERTA | ajuda.rs:29, funcoes.rs:142 |
 | Abs | matemática | COBERTA | funcoes.rs:158 |
@@ -57,7 +57,7 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | CVDate | conversão de tipo | FALTA | fora da página principal; depende de CDate |
 | Array | outras | COBERTA | funcoes.rs:179 |
 | CallByName | outras | FALTA | não mapeada (chamada dinâmica de objeto) |
-| Choose | outras | FALTA | não mapeada |
+| Choose | outras | COBERTA | `vba.choose`; fora da faixa é Null |
 | Command | outras | NÃO SE APLICA | linha de comando do programa; sem equivalente no app |
 | CreateObject | outras | NÃO SE APLICA | funcoes.rs:185 recusa (automação de outro programa) |
 | CurDir | outras | NÃO SE APLICA | funcoes.rs:187 recusa (acesso a arquivo) |
@@ -68,7 +68,7 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | DateSerial | outras | COBERTA | `vba.serial` (dias desde 30/12/1899, como a planilha) |
 | DateValue | outras | COBERTA | `Math.floor(vba.cdate(…))` |
 | Day | outras | COBERTA | funcoes.rs:168 (`vba.dia`), ajuda.rs:125 |
-| DDB | outras | FALTA | financeira; não mapeada |
+| DDB | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | Dir | outras | NÃO SE APLICA | funcoes.rs:187 recusa (arquivo) |
 | DoEvents | outras | COBERTA | funcoes.rs:97 (no-op, `undefined`) |
 | Environ | outras | NÃO SE APLICA | funcoes.rs:188 recusa (variável do Windows) |
@@ -78,12 +78,12 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | FileDateTime | outras | NÃO SE APLICA | funcoes.rs:187 recusa (arquivo) |
 | FileLen | outras | NÃO SE APLICA | funcoes.rs:187 recusa (arquivo) |
 | Filter | outras | FALTA | não mapeada |
-| FormatCurrency | outras | FALTA | não mapeada. Format já tem o nome "currency" (ajuda.rs:37) |
-| FormatDateTime | outras | FALTA | não mapeada |
-| FormatNumber | outras | FALTA | não mapeada |
-| FormatPercent | outras | FALTA | não mapeada. Format já tem o nome "percent" (ajuda.rs:37) |
+| FormatCurrency | outras | PARCIAL | `vba.formatNumero` com "R$ "; mesmos limites do FormatNumber |
+| FormatDateTime | outras | COBERTA | `vba.formatDataHora`: os cinco formatos, em pt-BR |
+| FormatNumber | outras | PARCIAL | `vba.formatNumero`: casas e agrupar; zero à esquerda e negativo entre parênteses ficam no padrão |
+| FormatPercent | outras | PARCIAL | `vba.formatNumero` com %; mesmos limites do FormatNumber |
 | FreeFile | outras | NÃO SE APLICA | funcoes.rs:187 recusa (arquivo) |
-| FV | outras | FALTA | financeira; não mapeada |
+| FV | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | GetAllSettings | outras | NÃO SE APLICA | registro do Windows; sem equivalente |
 | GetAttr | outras | NÃO SE APLICA | arquivo; sem equivalente |
 | GetObject | outras | NÃO SE APLICA | funcoes.rs:185 recusa (automação) |
@@ -95,13 +95,13 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | InputBox | outras | COBERTA | ajuda.rs:98 (`prompt`), funcoes.rs:178. Sem tipo nem validação do VBA |
 | InStr | outras | COBERTA | funcoes.rs:121, ajuda.rs:22 (início e texto), comparação binária |
 | InStrRev | outras | PARCIAL | ajuda.rs:23. Só dois argumentos; falta início e modo de comparação |
-| IPmt | outras | FALTA | financeira; não mapeada |
-| IRR | outras | FALTA | financeira; não mapeada |
+| IPmt | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
+| IRR | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | IsArray | outras | COBERTA | funcoes.rs:141 |
-| IsDate | outras | FALTA | não mapeada |
+| IsDate | outras | PARCIAL | `vba.isDate`: texto que o CDate entende; data guardada como número numa variável dá False |
 | IsEmpty | outras | COBERTA | funcoes.rs:139 (`vba.vazio`) |
 | IsError | outras | FALTA | não mapeada |
-| IsMissing | outras | FALTA | não mapeada (argumento opcional) |
+| IsMissing | outras | COBERTA | `=== undefined` (Optional sem padrão) |
 | IsNull | outras | COBERTA | funcoes.rs:140 (`=== null`) |
 | IsNumeric | outras | COBERTA | funcoes.rs:138, ajuda.rs:28 |
 | IsObject | outras | FALTA | não mapeada |
@@ -119,19 +119,19 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | MacScript | outras | NÃO SE APLICA | específica do Mac |
 | Mid | outras | COBERTA | funcoes.rs:118, ajuda.rs:19 (começa do 1). A forma de instrução `Mid(...) = x` não foi conferida |
 | Minute | outras | COBERTA | `vba.minuto` |
-| MIRR | outras | FALTA | financeira; não mapeada |
+| MIRR | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | Month | outras | COBERTA | funcoes.rs:167 (`vba.mes`), ajuda.rs:124 |
-| MonthName | outras | FALTA | não mapeada |
+| MonthName | outras | COBERTA | `vba.nomeMes` (pt-BR) |
 | MsgBox | outras | PARCIAL | funcoes.rs:177, ajuda.rs:97. Só Sim/Não e OK/Cancelar (via confirm/alert). Faltam Abortar/Repetir/Ignorar e ícones |
 | Now | outras | COBERTA | `vba.agora()` (serial da data e hora locais) |
-| NPer | outras | FALTA | financeira; não mapeada |
-| NPV | outras | FALTA | financeira; não mapeada |
+| NPer | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
+| NPV | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | Partition | outras | FALTA | não mapeada |
-| Pmt | outras | FALTA | financeira; não mapeada |
-| PPmt | outras | FALTA | financeira; não mapeada |
-| PV | outras | FALTA | financeira; não mapeada |
+| Pmt | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
+| PPmt | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
+| PV | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | QBColor | outras | FALTA | não mapeada (cores antigas do VBA; há corIndice em ajuda.rs:114 para ColorIndex, não para QBColor) |
-| Rate | outras | FALTA | financeira; não mapeada |
+| Rate | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | Replace | outras | PARCIAL | funcoes.rs:123, ajuda.rs:24. Só três argumentos; falta início, quantidade e comparação |
 | RGB | outras | COBERTA | funcoes.rs:165 (`app.rgb`) |
 | Right | outras | COBERTA | funcoes.rs:120, ajuda.rs:21 |
@@ -139,16 +139,16 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | Second | outras | COBERTA | `vba.segundo` |
 | Seek | outras | NÃO SE APLICA | arquivo aberto; instr.rs:9 e instr.rs:44 recusam |
 | Shell | outras | COBERTA | `app.shell(comando)` (01/11/2026): a macro só anota; o app mostra o comando e pergunta "Rodar?" depois que ela termina bem, e acusa programa escondido (Base64/hex/bytes/certutil) em vermelho. Devolve 0, não o número da tarefa |
-| SLN | outras | FALTA | financeira; não mapeada |
+| SLN | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | Space | outras | COBERTA | funcoes.rs:134 |
 | Spc | outras | NÃO SE APLICA | só faz sentido com Print (saída de arquivo) |
 | Split | outras | PARCIAL | funcoes.rs:130. Sem limite de partes e sem comparação; delimitador padrão espaço |
-| StrComp | outras | FALTA | não mapeada |
+| StrComp | outras | COBERTA | `vba.strcomp`: binário e vbTextCompare |
 | StrConv | outras | PARCIAL | `vba.strconv`: vbUpperCase, vbLowerCase, vbProperCase; as conversões de Unicode/japonês não |
 | String | outras | COBERTA | funcoes.rs:135. Usa só o primeiro caractere do segundo argumento (String(n, 65) não converte) |
 | StrReverse | outras | COBERTA | funcoes.rs:136 |
-| Switch | outras | FALTA | não mapeada |
-| SYD | outras | FALTA | financeira; não mapeada |
+| Switch | outras | COBERTA | `vba.switch`; nenhuma verdadeira é Null |
+| SYD | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | Tab | outras | NÃO SE APLICA | só faz sentido com Print (saída de arquivo) |
 | Time | outras | COBERTA | `vba.agora() % 1` (só a hora) |
 | Timer | outras | COBERTA | funcoes.rs:95 (segundos desde a meia-noite) |
@@ -159,22 +159,29 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | UCase | outras | COBERTA | funcoes.rs:127 |
 | VarType | outras | FALTA | funcoes.rs:190 recusa de propósito |
 | Weekday | outras | COBERTA | `vba.weekday` com o primeiro dia da semana |
-| WeekdayName | outras | FALTA | não mapeada |
+| WeekdayName | outras | COBERTA | `vba.nomeDia` (pt-BR, com primeiro dia da semana) |
 | Year | outras | COBERTA | funcoes.rs:166 (`vba.ano`), ajuda.rs:123 |
 
 ## Faltam mais usadas em planilhas comuns (01/11/2026)
 
-As datas (CDate, DateAdd, DateDiff, DateSerial, DateValue, Weekday, Hour, Minute, Second) saíram
-desta lista na v0.2.0. Fila de agora, por ordem de uso em macro de empresa:
+As datas saíram desta lista na v0.2.0; Choose, Switch, StrComp, IsMissing, Hex/Oct, os nomes de
+mês e dia, os Format* e as 13 financeiras, em 01/11/2026. O que falta:
 
-1. Choose e Switch
-2. IsDate, IsError (e CVErr), IsMissing
-3. FormatNumber, FormatCurrency, FormatPercent, FormatDateTime; MonthName, WeekdayName
-4. StrComp
-5. TypeName e VarType (hoje recusadas de propósito)
-6. Financeiras: Pmt, PV, FV, NPer, Rate, IPmt, PPmt, NPV, IRR, MIRR, SLN, SYD, DDB. A planilha já
-   tem todas; falta ligar o nome do VBA à conta
-7. Hex, Oct, Filter, Randomize (semente do Rnd)
+- CVErr (erro de valor da planilha (#N/D etc.) não mapeado)
+- Derived math (Sec, Csc, Cot, ArcSin…) (página de funções derivadas; nenhuma mapeada)
+- CLngPtr (fora da página principal; não aparece no conversor)
+- CVar (fora da página principal; não aparece no conversor)
+- CVDate (fora da página principal; depende de CDate)
+- CallByName (não mapeada (chamada dinâmica de objeto))
+- Error (função Error(n) não mapeada. O objeto Err é coberto (ajuda.rs:128))
+- Filter (não mapeada)
+- IsError (não mapeada)
+- IsObject (não mapeada)
+- Partition (não mapeada)
+- QBColor (não mapeada (cores antigas do VBA; há corIndice em ajuda.rs:114 para ColorIndex, não para QBColor))
+- TypeName (funcoes.rs:190 recusa de propósito)
+- VarType (funcoes.rs:190 recusa de propósito)
 
 Comportamento parcial a acertar: `Str(5)` dá "5" (VBA: " 5"); CByte/CLng sem erro de estouro;
-CCur/CDec sem casas fixas; InStrRev, Replace e Split sem os argumentos opcionais.
+CCur/CDec sem casas fixas; InStrRev, Replace e Split sem os argumentos opcionais; MsgBox só
+Sim/Não e OK/Cancelar.

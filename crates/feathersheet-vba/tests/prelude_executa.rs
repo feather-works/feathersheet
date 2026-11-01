@@ -155,3 +155,37 @@ fn shell_vira_app_shell_e_so_anota_o_comando() {
     assert_eq!(r.programas, ["notepad.exe a.txt", "calc.exe", "cmd /c dir"]);
     assert_eq!(wb.valor(0, 0, 0), Value::Number(0.0));
 }
+
+#[test]
+fn choose_switch_strcomp_e_formatos_rodam_no_motor() {
+    let wb = roda(
+        "Function Opc(Optional x As Variant) As Boolean\n  Opc = IsMissing(x)\nEnd Function\nSub T()\n  Dim n As Long: n = 75\n  Range(\"A1\").Value = Choose(2, \"a\", \"b\", \"c\")\n  Range(\"A2\").Value = IsNull(Choose(9, \"a\"))\n  Range(\"A3\").Value = Switch(n < 50, \"baixo\", n < 100, \"médio\", True, \"alto\")\n  Range(\"A4\").Value = StrComp(\"abc\", \"ABC\") & \"|\" & StrComp(\"abc\", \"ABC\", vbTextCompare) & \"|\" & StrComp(\"a\", \"b\")\n  Range(\"A5\").Value = IsDate(\"31/12/2025\") & \"|\" & IsDate(\"xyz\") & \"|\" & IsDate(\"12\")\n  Range(\"A6\").Value = Opc() & \"|\" & Opc(1)\n  Range(\"A7\").Value = Hex(255) & \"|\" & Hex(-1) & \"|\" & Oct(8)\n  Range(\"A8\").Value = MonthName(3) & \"|\" & MonthName(12, True) & \"|\" & WeekdayName(1) & \"|\" & WeekdayName(1, True, vbMonday)\n  Range(\"A9\").Value = FormatNumber(1234.567) & \"|\" & FormatNumber(1234.5, 0, , , vbFalse) & \"|\" & FormatCurrency(10) & \"|\" & FormatPercent(0.256, 1)\n  Range(\"A10\").Value = FormatDateTime(DateSerial(2026, 11, 1), vbLongDate) & \"|\" & FormatDateTime(DateSerial(2026, 11, 1), vbShortDate) & \"|\" & FormatDateTime(TimeSerial(9, 5, 0), vbShortTime)\nEnd Sub\n",
+        "T",
+    );
+    let t = |l| match wb.valor(0, l, 0) { Value::Text(s) => s.to_string(), v => format!("{v:?}") };
+    assert_eq!(t(0), "b");
+    assert_eq!(t(2), "médio");
+    assert_eq!(t(3), "1|0|-1");
+    assert_eq!(t(4), "True|False|False");
+    assert_eq!(t(5), "True|False");
+    assert_eq!(t(6), "FF|FFFF|10");
+    assert_eq!(t(7), "março|dez|domingo|seg");
+    assert_eq!(t(8), "1.234,57|1235|R$ 10,00|25,6%");
+    assert_eq!(t(9), "domingo, 1 de novembro de 2026|01/11/2026|09:05");
+    assert!(matches!(wb.valor(0, 1, 0), Value::Bool(true)), "{:?}", wb.valor(0, 1, 0));
+}
+
+#[test]
+fn financeiras_batem_com_o_excel() {
+    let wb = roda(
+        "Sub T()\n  Dim f(1 To 5) As Double\n  f(1) = -1000: f(2) = 300: f(3) = 400: f(4) = 400: f(5) = 300\n  Range(\"A1\").Value = Pmt(0.01, 12, 10000)\n  Range(\"A2\").Value = FV(0.01, 12, -100)\n  Range(\"A3\").Value = PV(0.01, 12, -100)\n  Range(\"A4\").Value = NPer(0.01, -100, 1000)\n  Range(\"A5\").Value = IPmt(0.01, 1, 12, 10000)\n  Range(\"A6\").Value = PPmt(0.01, 1, 12, 10000)\n  Range(\"A7\").Value = NPV(0.1, f)\n  Range(\"A8\").Value = IRR(f)\n  Range(\"A9\").Value = MIRR(f, 0.1, 0.12)\n  Range(\"A10\").Value = Rate(12, -888.49, 10000)\n  Range(\"A11\").Value = SLN(10000, 1000, 5)\n  Range(\"A12\").Value = SYD(10000, 1000, 5, 1)\n  Range(\"A13\").Value = DDB(10000, 1000, 5, 2)\nEnd Sub\n",
+        "T",
+    );
+    // Conferidos à parte (Python) e com o Excel: PGTO, VF, VP, NPER, IPGTO, PPGTO, VPL, TIR, MTIR, TAXA, DPD, SDA, BDD.
+    let esperado = [-888.4878867, 1268.250301, 1125.507747, 10.5886445, -100.0, -788.4878867,
+        98.8506746, 0.1489503, 0.1369977, 0.0100002, 1800.0, 3000.0, 2400.0];
+    for (l, e) in esperado.iter().enumerate() {
+        let Value::Number(x) = wb.valor(0, l as u32, 0) else { panic!("A{} = {:?}", l + 1, wb.valor(0, l as u32, 0)) };
+        assert!((x - e).abs() < 1e-4 * e.abs().max(1.0), "A{}: {x} ≠ {e}", l + 1);
+    }
+}
