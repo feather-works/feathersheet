@@ -63,6 +63,8 @@ pub struct Resultado {
     pub protecoes: Vec<PedidoProtecao>,
     /// `sheet.showGridlines(on)`: linhas de grade por aba (id), como o `DisplayGridlines`.
     pub grades: Vec<(u32, bool)>,
+    /// `app.openUrl(link)` (o `ShellExecute "open"` do VBA): o app abre os links web.
+    pub links: Vec<String>,
 }
 
 struct Estado {
@@ -879,6 +881,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         programas: if vale { extra.programas } else { Vec::new() },
         protecoes: if vale { extra.protecoes } else { Vec::new() },
         grades: if vale { extra.grades } else { Vec::new() },
+        links: if vale { extra.links } else { Vec::new() },
         pergunta: extra.pergunta,
     }
 }
@@ -1161,6 +1164,8 @@ const app = {
     status: message => __ft('appStatus',[String(message)]),
     // O Shell do VBA: o app pergunta à pessoa depois da macro e só então roda.
     shell: command => __ft('programa',[String(command)]),
+    // Abre um link web no navegador depois que a macro termina bem (só http/https/mailto).
+    openUrl: url => __ft('abrirLink',[String(url)]),
     calculate: () => __ft('appCalculate',[]),
     fn: Object.freeze({
         sum: values => __ft('worksheetSum',[values]),

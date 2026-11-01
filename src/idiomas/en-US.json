@@ -414,6 +414,7 @@
       "app.calculate": "Recalculates the sheet.",
       "app.status": "Message on the bottom bar.",
       "app.shell": "Runs a system program or command (VBA's Shell). It only runs after the macro finishes successfully and the user sees the command and clicks Run; if the code holds a binary stored as text (Base64, byte list, certutil…), it warns in red; this is not an antivirus. Returns 0.",
+      "app.openUrl": "Opens a web link in the browser (VBA's ShellExecute \"open\") after the macro finishes successfully. Only http, https, mailto and www., like a cell hyperlink; a file or program is not opened and a message is shown. Returns true.",
       "app.setEventsEnabled": "Turns the event macros (on open, on activate, on change) on or off. Turns back on by itself when the macro ends.",
       "app.rgb": "The VBA `RGB(r, g, b)`: the color as a number (BGR order). The color functions accept the number or `\"#RRGGBB\"`.",
       "app.vbaColorToHex": "A VBA numeric color (BGR) as `\"#RRGGBB\"`.",

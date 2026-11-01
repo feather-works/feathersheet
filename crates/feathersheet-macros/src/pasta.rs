@@ -69,6 +69,8 @@ pub(crate) struct Acumulado {
     pub protecoes: Vec<PedidoProtecao>,
     /// `sheet.showGridlines(on)`: (aba, ligada), o último por aba vale.
     pub grades: Vec<(u32, bool)>,
+    /// `app.openUrl(link)`: o app confere (só web/mailto) e abre no navegador.
+    pub links: Vec<String>,
 }
 
 /// Mais que isto numa execução é laço descontrolado, não exportação.
@@ -81,7 +83,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -236,6 +238,15 @@ pub(crate) fn executar(
             let senha = dados[2].as_str().filter(|s| !s.is_empty()).map(|s| s.chars().take(255).collect());
             a.protecoes.push(PedidoProtecao { aba, proteger: dados[1].as_bool().unwrap_or(true), senha, permitidas });
             Ok(Json::Null)
+        }
+        "abrirLink" => {
+            let link = texto(dados, 0).trim().to_string();
+            if link.is_empty() { return Some(Err("openUrl: link vazio".into())); }
+            if a.links.len() >= LIMITE_PROGRAMAS {
+                return Some(Err(format!("openUrl: mais de {LIMITE_PROGRAMAS} links numa execução")));
+            }
+            a.links.push(link);
+            Ok(json!(true))
         }
         "grade" => {
             let Some(aba) = dados[0].as_u64().and_then(|id| ids.iter().copied().find(|&x| u64::from(x) == id)) else {

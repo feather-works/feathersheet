@@ -105,6 +105,10 @@ impl App {
         for &(id, ligada) in if r.erro.is_none() { r.grades.as_slice() } else { &[] } {
             if ligada { self.grade_oculta.remove(&id); } else { self.grade_oculta.insert(id); }
         }
+        if r.erro.is_none() && !r.links.is_empty() {
+            let falhas = self.abrir_links_da_macro(&r.links);
+            r.mensagens.extend(falhas);
+        }
         if r.erro.is_none() && !r.protecoes.is_empty() {
             let falhas = self.aplicar_protecoes_da_macro(&r.protecoes);
             r.mensagens.extend(falhas);

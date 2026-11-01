@@ -150,6 +150,15 @@ impl Gerador<'_> {
         if let Some(r) = self.embutida(n, &vs) {
             return r;
         }
+        // `ShellExecute(0, "open", link, …)` (API do Windows declarada): abrir link no navegador.
+        if n.to_lowercase().starts_with("shellexecute") && vs.len() >= 3 {
+            let verbo = vs[1].js.trim_matches(|c| c == '"' || c == '\'' || c == '`').to_lowercase();
+            if verbo == "open" || verbo.is_empty() || verbo == "null" {
+                let alvo = self.como_texto(&vs[2]);
+                // Mais que 32 é o "deu certo" do ShellExecute.
+                return Ok(V::composto(format!("(app.openUrl({alvo}) ? 42 : 0)"), T::Num));
+            }
+        }
         if self.p.e_externa(n) {
             return Err(Motivo::novo(format!("API do Windows ({n})")));
         }

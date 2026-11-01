@@ -413,6 +413,7 @@
    "app.calculate": "Recalcula la hoja.",
    "app.status": "Mensaje en la barra inferior.",
    "app.shell": "Ejecuta un programa o comando del sistema (el Shell de VBA). Solo se ejecuta después de que la macro termina bien y la persona ve el comando y responde Ejecutar; si el código guarda un binario como texto (Base64, lista de bytes, certutil…), avisa en rojo; no es un antivirus. Devuelve 0.",
+   "app.openUrl": "Abre un enlace web en el navegador (el ShellExecute \"open\" de VBA) cuando la macro termina bien. Solo http, https, mailto y www., como el hipervínculo de celda; un archivo o programa no se abre y aparece un mensaje. Devuelve true.",
    "app.setEventsEnabled": "Activa o desactiva las macros de evento (al abrir, al activar, al cambiar). Se vuelve a activar sola cuando termina la macro.",
    "app.rgb": "El `RGB(r, g, b)` de VBA: el color como número (orden BGR). Las funciones de color aceptan el número o `\"#RRGGBB\"`.",
    "app.vbaColorToHex": "Un color numérico de VBA (BGR) como `\"#RRGGBB\"`.",

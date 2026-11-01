@@ -181,8 +181,9 @@ Parciais: CVErr, Format, Rnd, CCur, CDec, FormatCurrency, FormatNumber, FormatPe
 
 Feito nesta rodada: `Protect`/`Unprotect` (com senha e `Allow*`), `ActiveWindow.DisplayGridlines`
 (`DisplayHeadings` sem efeito: os cabeçalhos ficam sempre à mostra), `Selection.AutoFilter` sem
-critério e `ws.AutoFilter.Sort` (ordena a tabela do filtro; os botões de filtro ainda não aparecem).
+critério e `ws.AutoFilter.Sort` (ordena a tabela do filtro; os botões de filtro ainda não aparecem),
+`ShellExecute(0, "open", link)` → `app.openUrl` (só link web, abre sem perguntar como o hiperlink).
 
-Próximos pela contagem: formas e caixas de texto (`Shapes`), `ShellExecute`/`WScript.Shell.Run` →
-`app.shell`, `AutoFilter` com critério (precisa de filtro na API das macros), automação do Word (fica
+Próximos pela contagem: formas e caixas de texto (`Shapes`), `WScript.Shell.Run` →
+`app.shell` (WScript.Shell.Run), `AutoFilter` com critério (precisa de filtro na API das macros), automação do Word (fica
 para quando o FeatherDocs tiver API).

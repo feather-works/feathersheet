@@ -255,3 +255,16 @@ fn display_gridlines_vira_show_gridlines() {
     assert_eq!(r.grades.len(), 1);
     assert!(!r.grades[0].1);
 }
+
+#[test]
+fn shell_execute_open_vira_open_url() {
+    let vba = "Private Declare PtrSafe Function ShellExecute Lib \"shell32.dll\" Alias \"ShellExecuteA\" (ByVal hwnd As LongPtr, ByVal lpOperation As String, ByVal lpFile As String, ByVal lpParameters As String, ByVal lpDirectory As String, ByVal nShowCmd As Long) As LongPtr\nSub T()\n  Dim lSuccess As LongPtr\n  lSuccess = ShellExecute(0, \"Open\", \"https://www.google.com/maps/search/?api=1&query=\" & Range(\"B1\").Value)\n  Range(\"A1\").Value = lSuccess\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").unwrap().codigo.clone();
+    assert!(!js.contains("// VBA não convertido ("), "{js}");
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(r.links, ["https://www.google.com/maps/search/?api=1&query="]);
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(42.0));
+}

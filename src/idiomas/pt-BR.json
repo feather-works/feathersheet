@@ -414,6 +414,7 @@
       "app.calculate": "Recalcula a aba.",
       "app.status": "Mensagem na barra de baixo.",
       "app.shell": "Roda um programa ou comando do sistema (o Shell do VBA). Só roda depois que a macro termina bem e a pessoa vê o comando e responde Rodar; se o código tem um binário guardado como texto (Base64, lista de bytes, certutil…), avisa em vermelho; não é antivírus. Devolve 0.",
+      "app.openUrl": "Abre um link web no navegador (o ShellExecute \"open\" do VBA), depois que a macro termina bem. Só http, https, mailto e www., como o hiperlink de célula; arquivo ou programa não abre e vira mensagem. Devolve true.",
       "app.setEventsEnabled": "Liga ou desliga as macros de evento (ao abrir, ao ativar, ao mudar). Volta a ligar sozinho quando a macro termina.",
       "app.rgb": "O `RGB(r, g, b)` do VBA: a cor como número (ordem BGR). As funções de cor aceitam o número ou `\"#RRGGBB\"`.",
       "app.vbaColorToHex": "A cor numérica do VBA (BGR) como `\"#RRGGBB\"`.",

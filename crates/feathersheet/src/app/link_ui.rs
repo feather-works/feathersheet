@@ -43,7 +43,7 @@ pub(crate) fn normalizar_link(valor: &str) -> Option<String> {
     None
 }
 
-fn abrir_no_sistema(url: &str) -> Result<(), String> {
+pub(super) fn abrir_no_sistema(url: &str) -> Result<(), String> {
     // Sem shell ou expansão de argumentos; o destino já foi validado.
     #[cfg(target_os = "windows")]
     let resultado = Command::new("rundll32")
@@ -194,6 +194,19 @@ impl App {
         Task::none()
     }
 
+    /// `app.openUrl` da macro que terminou bem: abre só o que passa na mesma regra do
+    /// hiperlink de célula; o resto (arquivo, programa) vira mensagem, sem abrir nada.
+    pub(super) fn abrir_links_da_macro(&mut self, links: &[String]) -> Vec<String> {
+        let mut falhas = Vec::new();
+        for l in links {
+            match normalizar_link(l) {
+                Some(url) => if let Err(e) = abrir_no_sistema(&url) { falhas.push(e); },
+                None => falhas.push(trf!("A macro pediu para abrir {l}, que não é um link web (http, https ou mailto); não foi aberto.")),
+            }
+        }
+        falhas
+    }
+
     pub(super) fn abrir_link(&mut self) -> Task<Msg> {
         if !self.confirmar() { return Task::none(); }
         let Some(link) = self.link_da_celula(self.folha, self.linha, self.coluna) else {
@@ -250,6 +263,16 @@ impl App {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn link_da_macro_que_nao_e_web_nao_abre() {
+        let mut app = App::default();
+        let r = app.rodar_macro(super::super::historico_macros::GatilhoMacro::manual("teste"), "M",
+            "app.openUrl('file:///etc/passwd'); app.openUrl('calc.exe');", vec![]).unwrap();
+        assert!(r.erro.is_none(), "{:?}", r.erro);
+        assert_eq!(app.macro_mensagens.len(), 2, "{:?}", app.macro_mensagens);
+        assert!(app.macro_mensagens[0].contains("não é um link web"));
+    }
 
     #[test]
     fn bloqueia_esquemas_perigosos_e_reconhece_enderecos_csv() {

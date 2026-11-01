@@ -4197,5 +4197,6 @@
  "O código da macro contém um binário": "El código de la macro contiene un binario",
  "O FeatherSheet não procura vírus: só avisa que há um arquivo binário guardado como texto no código. Planilha comum não precisa disso; mantenha as macros desativadas se não sabe para que ele serve.": "FeatherSheet no busca virus: solo avisa que hay un archivo binario guardado como texto en el código. Una hoja común no lo necesita; mantén las macros deshabilitadas si no sabes para qué sirve.",
  "O FeatherSheet não procura vírus: só avisa que há um arquivo binário guardado como texto no código. Não rode se não sabe exatamente o que este comando faz.": "FeatherSheet no busca virus: solo avisa que hay un archivo binario guardado como texto en el código. No lo ejecutes si no sabes exactamente qué hace este comando.",
- "A macro tentou desproteger a aba {nome} com a senha errada; ela continua protegida.": "La macro intentó desproteger la hoja {nome} con la contraseña incorrecta; sigue protegida."
+ "A macro tentou desproteger a aba {nome} com a senha errada; ela continua protegida.": "La macro intentó desproteger la hoja {nome} con la contraseña incorrecta; sigue protegida.",
+ "A macro pediu para abrir {l}, que não é um link web (http, https ou mailto); não foi aberto.": "La macro pidió abrir {l}, que no es un enlace web (http, https o mailto); no se abrió."
 }

@@ -254,6 +254,15 @@ fn show_gridlines_vale_o_ultimo_por_aba() {
 }
 
 #[test]
+fn open_url_so_anota_o_link() {
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, r#"if (app.openUrl("https://example.com")) sheet.set("A1", 1);"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.links, ["https://example.com"]);
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(1.));
+}
+
+#[test]
 fn shell_so_anota_o_programa_e_some_se_a_macro_falha() {
     let mut wb = Workbook::new();
     let r = executar(&mut wb, 0, r#"const id = app.shell("  echo oi  "); sheet.set("A1", id);"#);

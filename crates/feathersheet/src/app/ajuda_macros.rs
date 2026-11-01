@@ -154,6 +154,7 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("app.calculate", "app.calculate()", "app.calculate();"),
         ("app.status", "app.status(text)", "app.status(\"Processando...\");"),
         ("app.shell", "app.shell(command)", "app.shell(\"notepad relatorio.txt\");"),
+        ("app.openUrl", "app.openUrl(url)", "app.openUrl(\"https://www.google.com/maps/search/?api=1&query=\" + sheet.get(\"B2\"));"),
         ("app.setEventsEnabled", "app.setEventsEnabled(on)", "app.setEventsEnabled(false);"),
         ("app.rgb", "app.rgb(r, g, b)", "sheet.setBackground(\"A1\", app.rgb(37, 99, 235));"),
         ("app.vbaColorToHex", "app.vbaColorToHex(n)", "app.vbaColorToHex(255);  // \"#ff0000\""),
@@ -199,7 +200,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),142);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),143);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {
