@@ -223,3 +223,18 @@ fn nao_apaga_a_ultima_aba_nem_cria_nome_repetido() {
     assert!(r.erro.as_deref().is_some_and(|e| e.contains("Já existe")), "{:?}", r.erro);
     assert_eq!(wb.len(), 1);
 }
+
+#[test]
+fn shell_so_anota_o_programa_e_some_se_a_macro_falha() {
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, r#"const id = app.shell("  echo oi  "); sheet.set("A1", id);"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.programas, vec!["echo oi".to_string()]);
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(0.));
+    let r = executar(&mut wb, 0, r#"app.shell("echo oi"); throw new Error("x");"#);
+    assert!(r.erro.is_some() && r.programas.is_empty());
+    let r = executar(&mut wb, 0, r#"app.shell("");"#);
+    assert!(r.erro.is_some());
+    let r = executar(&mut wb, 0, r#"for (let i = 0; i < 30; i++) app.shell("x");"#);
+    assert!(r.erro.is_some() && r.programas.is_empty(), "teto de 20 por execução");
+}

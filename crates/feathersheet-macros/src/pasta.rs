@@ -52,16 +52,21 @@ pub(crate) struct Acumulado {
     pub campos: Vec<(String, String, serde_json::Value)>,
     /// `sheet.hideComponent()`.
     pub fechar_formulario: bool,
+    /// `app.shell(comando)`: o app pergunta à pessoa e só então roda.
+    pub programas: Vec<String>,
 }
 
 /// Mais que isto numa execução é laço descontrolado, não exportação.
 const LIMITE_ARQUIVOS: usize = 200;
 
+/// Cada comando é uma linha na pergunta "Rodar?": mais que isto a pessoa não lê.
+const LIMITE_PROGRAMAS: usize = 20;
+
 const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -187,6 +192,16 @@ pub(crate) fn executar(
                 Some(i) => { a.ativou = Some(i); Ok(Json::Null) }
                 None => Err("Aba inexistente".into()),
             }
+        }
+        "programa" => {
+            let comando = texto(dados, 0).trim().to_string();
+            if comando.is_empty() { return Some(Err("Shell: comando vazio".into())); }
+            if a.programas.len() >= LIMITE_PROGRAMAS {
+                return Some(Err(format!("Shell: mais de {LIMITE_PROGRAMAS} programas numa execução")));
+            }
+            a.programas.push(comando);
+            // O VBA devolve o número da tarefa; aqui o programa só roda depois da macro.
+            Ok(json!(0))
         }
         "abaAtiva" => Ok(json!(a.ativou.unwrap_or(aba_ativa))),
         "selecaoInicial" => Ok(json!(a.contexto.selecao.clone().unwrap_or_else(|| "A1".into()))),

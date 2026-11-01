@@ -507,7 +507,7 @@ pub enum Msg {
     CapturarAtalho(&'static str), RestaurarAtalhos,
     FecharMenu, Cancelar, Descartar, SalvarAntes, GuardarTemporariamente,
     /// Resposta à pergunta Sim/Não da macro; fecha a mensagem da macro.
-    MacroResponder(bool), MacroMensagemOk,
+    MacroResponder(bool), MacroMensagemOk, MacroProgramas(bool),
     /// A macro em segundo plano: conferir se terminou / o botão Parar.
     MacroPulso, MacroParar,
     Busca, BuscaTexto(String), Substituicao(String), BuscaMaiusculas(bool),
@@ -737,6 +737,8 @@ pub struct App {
     historico_macros: historico_macros::Historico,
     /// Mensagens de `alert`/`MsgBox` ainda não lidas, uma por vez.
     macro_mensagens: Vec<String>,
+    /// `app.shell` da macro que terminou: espera o "Rodar?" da pessoa.
+    macro_programas: Option<macro_dialogo::ProgramasMacro>,
     /// Eventos do VBA instalados que rodam sozinhos (aoMudar, aoAtivar).
     eventos_vba: Vec<eventos_vba::EventoVba>,
     /// Macros do arquivo aberto (eventos e botões) esperando a pessoa ativar.
@@ -1077,7 +1079,7 @@ impl Default for App {
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,
-            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
+            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             comentario_editor: None, comentario_sobre: None, comentarios_todos: false,
             novo_estilo: None,

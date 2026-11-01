@@ -56,6 +56,9 @@ pub struct Resultado {
     pub campos: Vec<(String, String, Json)>,
     /// `sheet.hideComponent()`: fecha o formulário aberto.
     pub fechar_formulario: bool,
+    /// `app.shell(comando)` (o `Shell` do VBA), na ordem. A macro não roda
+    /// nada: o aplicativo mostra os comandos, pergunta, e só então roda.
+    pub programas: Vec<String>,
 }
 
 struct Estado {
@@ -869,6 +872,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         formulario: if vale { extra.formulario } else { None },
         campos: if vale { extra.campos } else { Vec::new() },
         fechar_formulario: vale && extra.fechar_formulario,
+        programas: if vale { extra.programas } else { Vec::new() },
         pergunta: extra.pergunta,
     }
 }
@@ -1144,6 +1148,8 @@ const app = {
     error: (code,detail=undefined) => __ftRevive(__ft('appError',
         [String(code),detail===undefined?null:String(detail)])),
     status: message => __ft('appStatus',[String(message)]),
+    // O Shell do VBA: o app pergunta à pessoa depois da macro e só então roda.
+    shell: command => __ft('programa',[String(command)]),
     calculate: () => __ft('appCalculate',[]),
     fn: Object.freeze({
         sum: values => __ft('worksheetSum',[values]),

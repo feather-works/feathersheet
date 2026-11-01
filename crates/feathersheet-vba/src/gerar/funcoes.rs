@@ -188,7 +188,8 @@ impl Gerador<'_> {
             }
             "now" | "date" | "time" | "timer" => self.embutida_sem_args(n)?,
             "createobject" | "getobject" => return Some(Err(Motivo::novo("automação de outro programa (CreateObject)"))),
-            "shell" => return Some(Err(Motivo::novo("rodar programa do sistema (Shell)"))),
+            // Shell(comando, [estilo da janela]): o app mostra o comando e pergunta antes de rodar.
+            "shell" => V::novo(format!("app.shell({})", a.first().map(|v| self.como_texto(v)).unwrap_or_default()), T::Num),
             "dir" | "freefile" | "eof" | "filelen" | "filedatetime" | "curdir" => return Some(Err(Motivo::novo("acesso a arquivo"))),
             "environ" => return Some(Err(Motivo::novo("variável de ambiente do Windows"))),
             "evaluate" => return Some(Err(Motivo::novo("Evaluate (avaliar fórmula em texto)"))),

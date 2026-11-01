@@ -110,6 +110,20 @@ impl App {
             corpo = corpo.push(aviso(tr!("Grava arquivos no seu computador").into(),
                 trf!("Usa {}: cria PDF, .xlsx ou .fshz na pasta desta planilha, e pode substituir um arquivo com o mesmo nome que já esteja lá.", lista(&riscos.grava))));
         }
+        if !riscos.executa.is_empty() {
+            corpo = corpo.push(aviso(tr!("Pede para rodar programas no seu computador").into(),
+                tr!("Usa app.shell (o Shell do VBA). Antes de rodar, o FeatherSheet mostra o comando e pergunta.").into()));
+        }
+        if !riscos.binario.is_empty() {
+            let vermelho = COR_ERRO();
+            corpo = corpo.push(pelicano::column![
+                text(tr!("Possível vírus: a macro esconde um programa")).size(13)
+                    .font(pelicano::Font { weight: 700, ..Default::default() }).color(vermelho),
+                text(riscos.binario.iter().map(|s| format!("• {s}")).collect::<Vec<_>>().join("\n"))
+                    .size(12.5).line_height(1.4).color(vermelho),
+                paragrafo(tr!("Macros de vírus costumam trazer um programa disfarçado de texto, gravá-lo no disco e rodá-lo. Mantenha as macros desativadas se não sabe de onde veio este arquivo.").into()),
+            ].spacing(4));
+        }
         if !riscos.vba_fora.is_empty() {
             corpo = corpo.push(aviso(tr!("O VBA original rodava coisas fora do FeatherSheet").into(),
                 trf!("A macro do Excel chamava {} (programas, internet ou o Windows). Essa parte não foi convertida e não roda aqui, mas é sinal para desconfiar do arquivo.", lista(&riscos.vba_fora))));

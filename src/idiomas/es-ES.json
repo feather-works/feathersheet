@@ -408,6 +408,7 @@
    "app.batch": "Ejecuta el bloque. La macro ya corre en una sola transacción (un Ctrl+Z la deshace toda); existe para que el código convertido de VBA (`ScreenUpdating`) siga igual.",
    "app.calculate": "Recalcula la hoja.",
    "app.status": "Mensaje en la barra inferior.",
+   "app.shell": "Ejecuta un programa o comando del sistema (el Shell de VBA). Solo se ejecuta después de que la macro termina bien y la persona ve el comando y responde Ejecutar; si el código parece esconder un programa (Base64, lista de bytes, certutil…), el aviso aparece en rojo. Devuelve 0.",
    "app.setEventsEnabled": "Activa o desactiva las macros de evento (al abrir, al activar, al cambiar). Se vuelve a activar sola cuando termina la macro.",
    "app.rgb": "El `RGB(r, g, b)` de VBA: el color como número (orden BGR). Las funciones de color aceptan el número o `\"#RRGGBB\"`.",
    "app.vbaColorToHex": "Un color numérico de VBA (BGR) como `\"#RRGGBB\"`.",

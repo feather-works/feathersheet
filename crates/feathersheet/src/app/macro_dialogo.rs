@@ -10,6 +10,8 @@ use super::*;
 use historico_macros::GatilhoMacro;
 
 mod arquivos;
+mod programas;
+pub(super) use programas::ProgramasMacro;
 pub(super) mod em_fundo;
 
 pub(super) struct PerguntaMacro {
@@ -115,6 +117,10 @@ impl App {
             None => ResultadoExecucao::Ok,
         };
         anotar(self, resultado, r.alterou, arquivos);
+        // `app.shell`: nada roda sem a pessoa ver o comando e dizer Sim.
+        if r.erro.is_none() && !r.programas.is_empty() {
+            self.pedir_programas_da_macro(nome, codigo, std::mem::take(&mut r.programas));
+        }
         if !r.mensagens.is_empty() {
             self.macro_mensagens = std::mem::take(&mut r.mensagens);
         }
@@ -142,6 +148,9 @@ impl App {
     /// por fora nem pelo x, porque a macro espera a resposta.
     pub(super) fn sobrepor_dialogo_macro<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
         use super::dialogo_interno::dlg;
+        if self.macro_pergunta.is_none() {
+            if let Some(p) = &self.macro_programas { return self.dialogo_programas_da_macro(p, base); }
+        }
         let (titulo, icone, corpo) = if let Some(p) = &self.macro_pergunta {
             (p.nome.clone(), "help", p.texto.as_str())
         } else if let Some(texto) = self.macro_mensagens.first() {

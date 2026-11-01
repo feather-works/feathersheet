@@ -4182,5 +4182,19 @@
  "Preencher ou colar fórmula na planilha inteira para com aviso, em vez de estourar a memória.": "Rellenar o pegar una fórmula en toda la hoja se detiene con un aviso, en vez de agotar la memoria.",
  "Coluna de datas em texto vinda do Parquet vira data; data que não existe fica texto (#131).": "Una columna de fechas en texto de Parquet pasa a fecha; una fecha que no existe queda como texto (#131).",
  "Gráfico numa aba com tabela dinâmica deixa o Total Geral de fora, como no Excel.": "Un gráfico en una hoja con tabla dinámica deja fuera el Total general, como en Excel.",
- "Abrir: filtro por tipo de arquivo.": "Abrir: filtro por tipo de archivo."
+ "Abrir: filtro por tipo de arquivo.": "Abrir: filtro por tipo de archivo.",
+ "Pede para rodar programas no seu computador": "Pide ejecutar programas en tu equipo",
+ "Usa app.shell (o Shell do VBA). Antes de rodar, o FeatherSheet mostra o comando e pergunta.": "Usa app.shell (el Shell de VBA). Antes de ejecutar, FeatherSheet muestra el comando y pregunta.",
+ "Possível vírus: a macro esconde um programa": "Posible virus: la macro esconde un programa",
+ "Macros de vírus costumam trazer um programa disfarçado de texto, gravá-lo no disco e rodá-lo. Mantenha as macros desativadas se não sabe de onde veio este arquivo.": "Las macros de virus suelen traer un programa disfrazado de texto, grabarlo en el disco y ejecutarlo. Mantén las macros deshabilitadas si no sabes de dónde vino este archivo.",
+ "Macros de vírus costumam trazer um programa disfarçado de texto, gravá-lo no disco e rodá-lo por aqui. Não rode se não sabe exatamente o que este comando faz.": "Las macros de virus suelen traer un programa disfrazado de texto, grabarlo en el disco y ejecutarlo desde aquí. No lo ejecutes si no sabes exactamente qué hace este comando.",
+ "O programa roda com as mesmas permissões que você. Só rode se confia na origem desta planilha.": "El programa se ejecuta con los mismos permisos que tú. Ejecútalo solo si confías en el origen de esta hoja.",
+ "A macro {} quer rodar no seu computador:": "La macro {} quiere ejecutar en tu equipo:",
+ "Rodar mesmo assim": "Ejecutar de todos modos",
+ "Não rodar": "No ejecutar",
+ "Rodar": "Ejecutar",
+ "[macro] {}: a pessoa não deixou rodar {} programa(s)": "[macro] {}: el usuario no permitió ejecutar {} programa(s)",
+ "Não foi possível rodar {comando}: {e}": "No se pudo ejecutar {comando}: {e}",
+ "[macro] {}: programa iniciado (processo {pid}): {comando}": "[macro] {}: programa iniciado (proceso {pid}): {comando}",
+ "[macro] {}: não foi possível rodar {comando}: {e}": "[macro] {}: no se pudo ejecutar {comando}: {e}"
 }

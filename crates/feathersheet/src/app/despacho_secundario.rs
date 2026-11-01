@@ -29,6 +29,7 @@ impl App {
             Msg::CalcularEmFundo => { self.calcular_em_fundo(); Task::none() }
             Msg::CalculoParar => { self.parar_calculo_em_fundo(); Task::none() }
             Msg::MacroParar => { self.parar_macro_em_fundo(); Task::none() }
+            Msg::MacroProgramas(rodar) => { self.responder_programas_da_macro(rodar); Task::none() }
             Msg::MacroMensagemOk => {
                 if !self.macro_mensagens.is_empty() { self.macro_mensagens.remove(0); }
                 Task::none()

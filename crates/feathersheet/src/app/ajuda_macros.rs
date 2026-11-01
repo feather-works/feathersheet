@@ -150,6 +150,7 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("app.batch", "app.batch(fn)", "app.batch(() => { sheet.set(\"A1\", 1); });"),
         ("app.calculate", "app.calculate()", "app.calculate();"),
         ("app.status", "app.status(text)", "app.status(\"Processando...\");"),
+        ("app.shell", "app.shell(command)", "app.shell(\"notepad relatorio.txt\");"),
         ("app.setEventsEnabled", "app.setEventsEnabled(on)", "app.setEventsEnabled(false);"),
         ("app.rgb", "app.rgb(r, g, b)", "sheet.setBackground(\"A1\", app.rgb(37, 99, 235));"),
         ("app.vbaColorToHex", "app.vbaColorToHex(n)", "app.vbaColorToHex(255);  // \"#ff0000\""),

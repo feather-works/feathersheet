@@ -606,7 +606,7 @@ impl App {
         if self.calculo_rodando.is_some() {
             return self.sobrepor_calculo_rodando(base);
         }
-        if self.macro_pergunta.is_some() || !self.macro_mensagens.is_empty() {
+        if self.macro_pergunta.is_some() || self.macro_programas.is_some() || !self.macro_mensagens.is_empty() {
             return self.sobrepor_dialogo_macro(base);
         }
 

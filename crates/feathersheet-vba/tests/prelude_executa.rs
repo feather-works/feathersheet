@@ -142,3 +142,16 @@ fn intervalo_com_varias_areas_repete_a_instrucao_em_cada_uma() {
     }
     assert_eq!(wb.valor(0, 1, 1), Value::Empty);
 }
+
+#[test]
+fn shell_vira_app_shell_e_so_anota_o_comando() {
+    let vba = "Sub T()\n  Dim id As Double\n  id = Shell(\"notepad.exe \" & \"a.txt\", vbNormalFocus)\n  Shell \"calc.exe\"\n  Call Shell(\"cmd /c dir\")\n  Range(\"A1\").Value = id\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").expect("macro convertida").codigo.clone();
+    assert!(!js.contains("Shell"), "nada fica como VBA não convertido: {js}");
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(r.programas, ["notepad.exe a.txt", "calc.exe", "cmd /c dir"]);
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(0.0));
+}

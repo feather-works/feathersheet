@@ -4187,5 +4187,19 @@
  "Preencher ou colar fórmula na planilha inteira para com aviso, em vez de estourar a memória.": "Filling or pasting a formula over the whole sheet stops with a warning instead of running out of memory.",
  "Coluna de datas em texto vinda do Parquet vira data; data que não existe fica texto (#131).": "Text date columns from Parquet become dates; dates that don't exist stay text (#131).",
  "Gráfico numa aba com tabela dinâmica deixa o Total Geral de fora, como no Excel.": "Charts on a sheet with a pivot table leave the Grand Total out, like Excel.",
- "Abrir: filtro por tipo de arquivo.": "Open: filter by file type."
+ "Abrir: filtro por tipo de arquivo.": "Open: filter by file type.",
+ "Pede para rodar programas no seu computador": "Asks to run programs on your computer",
+ "Usa app.shell (o Shell do VBA). Antes de rodar, o FeatherSheet mostra o comando e pergunta.": "Uses app.shell (VBA's Shell). Before running, FeatherSheet shows the command and asks.",
+ "Possível vírus: a macro esconde um programa": "Possible virus: the macro hides a program",
+ "Macros de vírus costumam trazer um programa disfarçado de texto, gravá-lo no disco e rodá-lo. Mantenha as macros desativadas se não sabe de onde veio este arquivo.": "Virus macros usually carry a program disguised as text, write it to disk and run it. Keep macros disabled if you don't know where this file came from.",
+ "Macros de vírus costumam trazer um programa disfarçado de texto, gravá-lo no disco e rodá-lo por aqui. Não rode se não sabe exatamente o que este comando faz.": "Virus macros usually carry a program disguised as text, write it to disk and run it from here. Don't run it unless you know exactly what this command does.",
+ "O programa roda com as mesmas permissões que você. Só rode se confia na origem desta planilha.": "The program runs with the same permissions as you. Only run it if you trust where this spreadsheet came from.",
+ "A macro {} quer rodar no seu computador:": "The macro {} wants to run on your computer:",
+ "Rodar mesmo assim": "Run anyway",
+ "Não rodar": "Don't run",
+ "Rodar": "Run",
+ "[macro] {}: a pessoa não deixou rodar {} programa(s)": "[macro] {}: the user declined to run {} program(s)",
+ "Não foi possível rodar {comando}: {e}": "Could not run {comando}: {e}",
+ "[macro] {}: programa iniciado (processo {pid}): {comando}": "[macro] {}: program started (process {pid}): {comando}",
+ "[macro] {}: não foi possível rodar {comando}: {e}": "[macro] {}: could not run {comando}: {e}"
 }
