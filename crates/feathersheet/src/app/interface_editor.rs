@@ -354,7 +354,8 @@ impl App {
             Some(cartao) => stack![
                 centro,
                 column![
-                    Space::new(0.0, Length::FILL),
+                    // Um pouco acima do meio da grade.
+                    Space::new(0.0, Length::Fixed(110.0)),
                     row![Space::new(Length::FILL, 0.0), cartao, Space::new(Length::FILL, 0.0)],
                     Space::new(0.0, Length::FILL),
                 ],
