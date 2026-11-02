@@ -1,5 +1,5 @@
 //! Procurar atualizações: ao abrir (no máximo uma vez por dia, desligável em Configurações →
-//! Sobre) e quando o usuário clica. Havendo versão nova, um cartão no canto da grade oferece
+//! Sobre) e quando o usuário clica. Havendo versão nova, um cartão no meio da grade oferece
 //! Novidades / Depois / Atualizar.
 //!
 //! Privacidade: a consulta só **lê** do GitHub qual é a versão mais nova
@@ -359,7 +359,7 @@ impl App {
         )
     }
 
-    /// Cartão no canto da grade quando há versão nova (como o aviso do GridCraft/VS Code).
+    /// Cartão no meio da grade quando há versão nova (como o aviso do GridCraft/VS Code).
     pub(super) fn cartao_atualizacao(&self) -> Option<pelicano::Element<'_, Msg>> {
         use super::*;
         let l = self.aviso_atualizacao.as_ref()?;
