@@ -358,14 +358,19 @@ pub fn mascara_para_estilo(valor: &str) -> Result<Mascara, String> {
     } else if ["hh:mm", "h:mm", "hh:mm:ss", "h:mm:ss",
         "hh:mm am/pm", "hh:mm:ss am/pm"].contains(&lower.as_str()) {
         (F::Time,None)
-    } else if let Some(digits) = ["R$", "$", "€", "£"].iter()
+    } else if let Some((moeda, digits)) = ["R$", "$", "€", "£"].iter()
         .find_map(|moeda| {
             let entre_aspas = format!("\"{moeda}\"");
             mascara.strip_prefix(*moeda)
                 .or_else(|| mascara.strip_prefix(entre_aspas.as_str()))
                 .and_then(|x| x.trim_start().strip_prefix("#,##0"))
                 .and_then(casas_decimais)
+                .map(|d| (*moeda, d))
         }) {
+        // Outra moeda que não o real: o código fica, senão a célula mostraria "R$".
+        if moeda != "R$" && codigo_personalizado_valido(mascara) {
+            return Ok(Mascara { formato: F::Currency, casas: Some(digits), codigo: Some(mascara.to_string()) });
+        }
         (F::Currency,Some(digits))
     } else if mascara == "0" {
         (F::Integer,None)
@@ -384,6 +389,28 @@ pub fn mascara_para_estilo(valor: &str) -> Result<Mascara, String> {
         return Err(format!("Máscara de número não suportada: \"{valor}\""));
     };
     Ok(Mascara { formato, casas, codigo: None })
+}
+
+/// A máscara do Excel que a célula tem (o `Range.NumberFormat` lido): o código gravado,
+/// senão a máscara equivalente ao formato.
+pub(crate) fn mascara_do_estilo(s: &feathersheet_core::celulas::style::Style) -> String {
+    use feathersheet_core::celulas::style::NumberFormat as F;
+    if let Some(c) = &s.code { return c.clone(); }
+    let casas = |padrao: u8| { let n = s.decimals.unwrap_or(padrao); if n == 0 { String::new() } else { format!(".{}", "0".repeat(n.into())) } };
+    match s.format {
+        F::Auto => "General".into(),
+        F::Text => "@".into(),
+        F::Integer => "0".into(),
+        F::Number => format!("#,##0{}", casas(2)),
+        F::Currency => format!("R$ #,##0{}", casas(2)),
+        F::Accounting => format!("_-R$ * #,##0{}_-", casas(2)),
+        F::Percent => format!("0{}%", casas(0)),
+        F::Scientific => format!("0{}E+00", casas(2)),
+        F::Date => "dd/mm/yyyy".into(),
+        F::Datetime => "dd/mm/yyyy hh:mm".into(),
+        F::Time => "hh:mm:ss".into(),
+        F::Duration => "[h]:mm:ss".into(),
+    }
 }
 
 /// Valida um código personalizado: fora de aspas/colchetes/`\x` só valem os

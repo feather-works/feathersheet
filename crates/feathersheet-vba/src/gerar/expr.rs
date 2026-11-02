@@ -60,6 +60,7 @@ impl Gerador<'_> {
                 }
                 Tipo::Aba => Err(Motivo::novo(format!("a aba {n} usada como valor"))),
                 Tipo::NovaPasta => Err(Motivo::novo(format!("a pasta {n} usada como valor"))),
+                Tipo::Funcoes => Err(Motivo::novo(format!("WorksheetFunction ({n}) usada como valor"))),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
             };
         }

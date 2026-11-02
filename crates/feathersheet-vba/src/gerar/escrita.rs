@@ -259,19 +259,19 @@ impl Gerador<'_> {
     }
 
     /// O argumento pelo nome (`Key:=`) ou pela posição.
-    fn arg_de(args: &[Arg], nomes: &[&str], pos: usize) -> Option<Expr> {
+    pub(super) fn arg_de(args: &[Arg], nomes: &[&str], pos: usize) -> Option<Expr> {
         args.iter().find(|a| a.nome.as_deref().is_some_and(|n| nomes.iter().any(|c| n.eq_ignore_ascii_case(c))))
             .or_else(|| args.get(pos).filter(|a| a.nome.is_none()))
             .and_then(|a| a.valor.clone())
     }
 
     /// O valor JS de um argumento, ou `undefined` quando falta.
-    fn arg_js(&mut self, args: &[Arg], nomes: &[&str], pos: usize) -> R<String> {
+    pub(super) fn arg_js(&mut self, args: &[Arg], nomes: &[&str], pos: usize) -> R<String> {
         Self::arg_de(args, nomes, pos).map_or(Ok("undefined".into()), |e| self.valor(&e).map(|v| v.js))
     }
 
     /// O endereço JS de um argumento que é intervalo (`Key:=Range("B1:B9")`).
-    fn arg_faixa(&mut self, args: &[Arg], nomes: &[&str], pos: usize) -> R<Option<String>> {
+    pub(super) fn arg_faixa(&mut self, args: &[Arg], nomes: &[&str], pos: usize) -> R<Option<String>> {
         let Some(e) = Self::arg_de(args, nomes, pos) else { return Ok(None) };
         Ok(Some(match self.objeto(&e) {
             Ok(Obj::Faixa(f)) => f.end,

@@ -298,6 +298,7 @@ impl Gerador<'_> {
                     Obj::Faixa(_) => Tipo::Faixa(None),
                     Obj::Aba(..) => Tipo::Aba,
                     Obj::NovaPasta(_) => Tipo::NovaPasta,
+                    Obj::FuncoesDaPlanilha => Tipo::Funcoes,
                     _ => return Err(Motivo::novo("Set de objeto que não é aba nem intervalo")),
                 };
                 self.declarar(n, tipo, false);
@@ -312,7 +313,14 @@ impl Gerador<'_> {
         if var.por_ref {
             self.avisar(i.linha, n, "parâmetro ByRef alterado: no JavaScript a mudança não volta para quem chamou");
         }
+        // `Set wf = Application.WorksheetFunction` (wf As Object/Variant/WorksheetFunction): só apelido.
+        if set && !matches!(var.tipo, Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta)
+            && matches!(self.objeto(valor), Ok(Obj::FuncoesDaPlanilha)) {
+            if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = Tipo::Funcoes; }
+            return Ok(String::new());
+        }
         match &var.tipo {
+            Tipo::Funcoes => Err(Motivo::novo("WorksheetFunction guardada em variável e trocada depois")),
             Tipo::Impossivel(antes) if set && antes.starts_with("objeto do tipo") => {
                 // O `Set` diz o motivo melhor que o `As Object` (ex.: `CreateObject("WScript.Shell")`).
                 let m = self.motivo_do_objeto(valor);

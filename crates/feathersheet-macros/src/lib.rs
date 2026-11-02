@@ -468,7 +468,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                 feathersheet_core::celulas::refs::Rect::new(area.r0, area.c0, r1, c1)
             } else { area };
             // Leitura de uma única célula/metadata: sem percorrer A:A.
-            if !matches!(op, "area" | "getText" | "getAddress" | "intersect" | "union" | "rowCount" | "columnCount" | "isMerged" | "unmerge" | "setDataValidation" | "clearDataValidation"
+            if !matches!(op, "area" | "getText" | "getAddress" | "getFormat" | "intersect" | "union" | "rowCount" | "columnCount" | "isMerged" | "unmerge" | "setDataValidation" | "clearDataValidation"
                 | "addConditionalFormat" | "addColorScale" | "addDataBar" | "clearConditionalFormats"
                 // Ordenar e tirar repetidas rodam inteiros no motor (nada volta célula a célula).
                 | "sort" | "removeDuplicates")
@@ -753,6 +753,18 @@ impl HospedeiroMacros for HospedeiroSheet {
                 "rowCount" => json!(area.r1 - area.r0 + 1),
                 "columnCount" => json!(area.c1 - area.c0 + 1),
                 "getText" => json!(operacoes_valores::texto_exibido(&e.pasta,aba,area.r0,area.c0)),
+                // O formato da primeira célula, para ler de volta o que a macro (ou a pessoa) pôs.
+                "getFormat" => {
+                    use feathersheet_core::celulas::style::Align;
+                    let sheet = &e.pasta.aba(aba).unwrap().sheet;
+                    let s = sheet.estilo_resolvido(area.r0, area.c0).unwrap_or_default();
+                    let formula = sheet.is_formula(area.r0, area.c0);
+                    json!({ "bold": s.bold, "italic": s.italic, "underline": s.underline, "strikethrough": s.strike,
+                        "fontColor": s.color, "background": s.bg, "fontSize": s.font_size, "fontFamily": s.font_family,
+                        "alignHorizontal": match s.align { Align::Left => "left", Align::Center => "center", Align::Right => "right", Align::Auto => "general" },
+                        "wrap": s.wrap, "numberFormat": enderecos::mascara_do_estilo(&s), "hasFormula": formula,
+                        "formulaR1C1": if formula { Some(enderecos::a1_para_r1c1(&sheet.get_raw(area.r0, area.c0), area.r0 + 1, area.c0 + 1)) } else { None } })
+                }
                 "getAddress" => json!(operacoes_valores::endereco_a1(&area)),
                 "get" => valor_json(e.pasta.valor(aba,area.r0,area.c0)),
                 "raw" => json!(e.pasta.aba(aba).unwrap().sheet.get_raw(area.r0,area.c0)),
@@ -992,6 +1004,7 @@ function __sheet(indice) {
             get displayText(){return __ft('getText',[i,address]);},
             getText(){return __ft('getText',[i,address]);},
             getAddress(){return __ft('getAddress',[i,address]);},
+            getFormat(){return __ft('getFormat',[i,address]);},
             values:()=>__ftRevive(__ft('values',[i,address])),
             formulas:()=>__ft('formulas',[i,address]),
             set(v){__ft('set',[i,address,v]);return x;},

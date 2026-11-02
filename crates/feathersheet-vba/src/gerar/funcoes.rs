@@ -16,6 +16,8 @@ const CONSTANTES: &[(&str, &str, T)] = &[
     ("vbusedefault", "-2", T::Num), ("vbtrue", "-1", T::Num), ("vbfalse", "0", T::Num),
     ("xlerrdiv0", "2007", T::Num), ("xlerrna", "2042", T::Num), ("xlerrname", "2029", T::Num), ("xlerrnull", "2000", T::Num), ("xlerrnum", "2036", T::Num), ("xlerrref", "2023", T::Num), ("xlerrvalue", "2015", T::Num),
     ("vbempty", "0", T::Num), ("vbnull", "1", T::Num), ("vbinteger", "2", T::Num), ("vblong", "3", T::Num), ("vbsingle", "4", T::Num), ("vbdouble", "5", T::Num), ("vbcurrency", "6", T::Num), ("vbdate", "7", T::Num), ("vbstring", "8", T::Num), ("vbobject", "9", T::Num), ("vberror", "10", T::Num), ("vbboolean", "11", T::Num), ("vbvariant", "12", T::Num), ("vbarray", "8192", T::Num),
+    ("xlwhole", "1", T::Num), ("xlpart", "2", T::Num), ("xlvalues", "-4163", T::Num), ("xlformulas", "-4123", T::Num), ("xlcomments", "-4144", T::Num),
+    ("xlbyrows", "1", T::Num), ("xlbycolumns", "2", T::Num), ("xlnext", "1", T::Num), ("xlprevious", "2", T::Num),
     ("msotrue", "-1", T::Num), ("msofalse", "0", T::Num), ("msoctrue", "1", T::Num),
     ("vbuppercase", "1", T::Num), ("vblowercase", "2", T::Num), ("vbpropercase", "3", T::Num),
     ("xldelimited", "1", T::Num), ("xlfixedwidth", "2", T::Num), ("xldoublequote", "1", T::Num), ("xlsinglequote", "2", T::Num),

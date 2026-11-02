@@ -194,4 +194,6 @@ pub enum Tipo {
     NovaPasta,
     /// Objeto que não tem como converter (`As Word.Application`, `As Collection`).
     Impossivel(String),
+    /// `Set wf = Application.WorksheetFunction`: só um apelido, `wf.Sum(…)` vira `app.fn.sum(…)`.
+    Funcoes,
 }

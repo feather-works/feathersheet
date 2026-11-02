@@ -131,6 +131,7 @@ impl Gerador<'_> {
                 Tipo::Aba => Ok(Obj::Aba(v.js.clone(), None)),
                 Tipo::Faixa(_) => Ok(Obj::Faixa(self.faixa_da_var(&v))),
                 Tipo::NovaPasta => Ok(Obj::NovaPasta(v.js.clone())),
+                Tipo::Funcoes => Ok(Obj::FuncoesDaPlanilha),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
                 Tipo::Valor(_) => Err(Motivo::novo(format!("{n} não é objeto do Excel"))),
             };
@@ -432,6 +433,21 @@ impl Gerador<'_> {
         let aba = f.aba.clone();
         let posicionais = || args.iter().filter_map(|a| a.valor.as_ref()).collect::<Vec<_>>();
         Ok(match n {
+            // `Find(What, After, LookIn, LookAt, SearchOrder, SearchDirection, MatchCase)`: a célula
+            // achada ou Nothing (`null`); `FindNext(depois)` continua a última busca.
+            "find" => {
+                let texto = self.arg_js(args, &["what"], 0)?;
+                let depois = self.arg_faixa(args, &["after"], 1)?.unwrap_or_else(|| "null".into());
+                let em = self.arg_js(args, &["lookin"], 2)?;
+                let modo = self.arg_js(args, &["lookat"], 3)?;
+                let maiusculas = self.arg_js(args, &["matchcase"], 6)?;
+                let a = self.ajuda("achar");
+                Obj::Faixa(Faixa::dinamica(&aba, format!("vba.{a}({aba}, {}, {texto}, {{ inteira: {modo} === 1, formulas: {em} === -4123, maiusculas: !!{maiusculas} }}, {depois})", f.end)))
+            }
+            "findnext" => {
+                let depois = self.arg_faixa(args, &["after"], 0)?.unwrap_or_else(|| "null".into());
+                Obj::Faixa(Faixa::dinamica(&aba, format!("vba.{}({depois})", self.ajuda("acharProx"))))
+            }
             "font" => Obj::Parte(f, Parte::Fonte),
             "interior" => Obj::Parte(f, Parte::Interior),
             "borders" if args.is_empty() => Obj::Parte(f, Parte::Bordas(None)),
@@ -543,6 +559,22 @@ impl Gerador<'_> {
                     self.valor_do_objeto(o)
                 }
             },
+            // `.Font.Bold`, `.Interior.Color`… lidos: o formato da primeira célula (`getFormat`).
+            Obj::Parte(f, ref p @ (Parte::Fonte | Parte::Interior)) if matches!(n.as_str(), "bold" | "italic" | "color" | "size" | "name" | "underline" | "strikethrough") => {
+                let fonte = *p == Parte::Fonte;
+                let g = format!("{}.range({}).getFormat()", f.aba, f.end);
+                Ok(match (fonte, n.as_str()) {
+                    (true, "bold") => V::novo(format!("{g}.bold"), T::Bool),
+                    (true, "italic") => V::novo(format!("{g}.italic"), T::Bool),
+                    (true, "underline") => V::composto(format!("({g}.underline ? 2 : -4142)"), T::Num),
+                    (true, "strikethrough") => V::novo(format!("{g}.strikethrough"), T::Bool),
+                    (true, "size") => V::composto(format!("({g}.fontSize ?? 11)"), T::Num),
+                    (true, "name") => V::composto(format!("({g}.fontFamily ?? 'Calibri')"), T::Texto),
+                    (true, _) => V::novo(format!("vba.{}({g}.fontColor, 0)", self.ajuda("corVba")), T::Num),
+                    (false, "color") => V::novo(format!("vba.{}({g}.background, 16777215)", self.ajuda("corVba")), T::Num),
+                    _ => return Err(Motivo::novo(format!("ler Interior.{nome}"))),
+                })
+            }
             Obj::Contagem(_, eixo) if n == "count" => Ok(V::novo(if eixo == Inteira::Linhas { "1048576" } else { "16384" }, T::Num)),
             Obj::Dimensao(f, eixo) if n == "count" => Ok(V::novo(format!("{}.{}({})", f.aba, if eixo == Inteira::Linhas { "rowCount" } else { "columnCount" }, f.end), T::Num)),
             Obj::Abas if n == "count" => Ok(V::novo("wb.sheetCount", T::Num)),
@@ -575,6 +607,11 @@ impl Gerador<'_> {
             "address" => V::novo(format!("vba.{}({end})", self.ajuda("endAbs")), T::Texto),
             "count" | "countlarge" => V::novo(format!("vba.{}({end})", self.ajuda("contar")), T::Num),
             "mergecells" => V::novo(format!("{aba}.isMerged({end})"), T::Bool),
+            "hasformula" => V::novo(format!("{aba}.range({end}).getFormat().hasFormula"), T::Bool),
+            "formular1c1" => V::composto(format!("({aba}.range({end}).getFormat().formulaR1C1 ?? {aba}.range({end}).text)"), T::Texto),
+            "numberformat" | "numberformatlocal" => V::novo(format!("{aba}.range({end}).getFormat().numberFormat"), T::Texto),
+            "wraptext" => V::novo(format!("{aba}.range({end}).getFormat().wrap"), T::Bool),
+            "horizontalalignment" => V::composto(format!("({{ general: 1, left: -4131, center: -4108, right: -4152 }})[{aba}.range({end}).getFormat().alignHorizontal]"), T::Num),
             _ => {
                 let o = self.membro_da_faixa(f, n, args)?;
                 return match o {
@@ -593,6 +630,19 @@ impl Gerador<'_> {
                 Ok(Obj::Faixa(f)) => format!("{}.range({}).values()", f.aba, f.end),
                 _ => self.valor(a)?.js,
             });
+        }
+        // As financeiras pelas contas do VBA (`vba.pmt`…); NPV/IRR/MIRR juntam intervalos e listas.
+        if matches!(n, "pmt" | "fv" | "pv" | "nper" | "rate" | "ipmt" | "ppmt" | "sln" | "syd" | "ddb") {
+            self.ajuda("fin");
+            return Ok(V::novo(format!("vba.{n}({})", vs.join(", ")), T::Num));
+        }
+        if matches!(n, "npv" | "irr" | "mirr") && !vs.is_empty() {
+            self.ajuda("fin");
+            let js = match n {
+                "npv" => format!("vba.npv({}, [{}])", vs[0], vs[1..].join(", ")),
+                _ => format!("vba.{n}({})", vs.join(", ")),
+            };
+            return Ok(V::novo(js, T::Num));
         }
         let api = match n {
             "sum" => "sum",
