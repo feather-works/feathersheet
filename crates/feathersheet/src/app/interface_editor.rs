@@ -349,6 +349,18 @@ impl App {
             ].height(Length::FILL).width(Length::FILL).into(),
             None => centro,
         };
+        // Versão nova: cartão no canto de baixo à direita, sobre a grade.
+        let centro: Element<'_, Msg> = match self.cartao_atualizacao() {
+            Some(cartao) => stack![
+                centro,
+                column![
+                    Space::new(0.0, Length::FILL),
+                    row![Space::new(Length::FILL, 0.0), cartao, Space::new(Length::Fixed(24.0), 0.0)],
+                    Space::new(0.0, Length::Fixed(24.0)),
+                ],
+            ].height(Length::FILL).width(Length::FILL).into(),
+            None => centro,
+        };
         let centro = self.sobrepor_atingir_meta(centro);
         let centro = self.sobrepor_tabela_dados(centro);
         let centro = self.sobrepor_cenarios(centro);

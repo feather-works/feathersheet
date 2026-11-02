@@ -49,6 +49,10 @@ pub struct Configuracao {
     /// Cópia de recuperação de toda planilha alterada (inclusive nunca
     /// salva), para voltar depois de queda de energia ou travamento.
     pub recuperacao_automatica: bool,
+    /// Consultar o GitHub ao abrir (no máximo uma vez por dia) e avisar de versão nova.
+    pub procurar_atualizacoes: bool,
+    /// Segundos desde 1970 da última consulta automática.
+    pub ultima_procura_atualizacao: u64,
     /// Limite da vigia RSS na abertura em GB: 0 desliga, 2 a 128 ativa.
     pub limite_memoria_gb: u16,
     /// Threads para abrir arquivo e calcular em paralelo: 1 até o total − 1
@@ -138,7 +142,7 @@ impl Default for Configuracao {
             faixa_recolhida: false, faixa_aba: "inicio".into(), linhas_visiveis: 28, colunas_visiveis: 12, zoom: 100, zoom_minimo: 50, zoom_maximo: 200,
             fonte_grade: "sans".into(), tamanho_fonte_grade: 13,
             realce_eixos: true, linhas_grade: true, barra_formulas: true,
-            mostrar_formulas: false, calculo_manual: false, funcoes_recentes: Vec::new(), fontes_recentes: Vec::new(), auto_salvar: false, intervalo_auto_salvar: 15, recuperacao_automatica: true,
+            mostrar_formulas: false, calculo_manual: false, funcoes_recentes: Vec::new(), fontes_recentes: Vec::new(), auto_salvar: false, intervalo_auto_salvar: 15, recuperacao_automatica: true, procurar_atualizacoes: true, ultima_procura_atualizacao: 0,
             limite_memoria_gb: 6,
             nucleos: 0,
             atalhos: std::collections::BTreeMap::new(),

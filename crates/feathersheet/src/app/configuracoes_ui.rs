@@ -427,7 +427,7 @@ fn secao_mcp(app: &App) -> Element<'_, Msg> {
     ].spacing(10).into()
 }
 
-/// "Procurar atualizações": só consulta o GitHub quando a pessoa clica, e instalar
+/// "Procurar atualizações": consulta o GitHub ao clicar (e ao abrir, se ligado), e instalar
 /// abre o terminal do sistema com cada passo à vista (ver `atualizacao.rs`).
 fn secao_atualizacao(app: &App) -> Element<'_, Msg> {
     use super::atualizacao::{instalacao_atual, Estado, Evento};
@@ -435,7 +435,7 @@ fn secao_atualizacao(app: &App) -> Element<'_, Msg> {
     let inst = instalacao_atual();
     let procurar = opcao(tr!("Procurar atualizações"), "refresh", false, ev(Evento::Procurar));
     let estado: Element<'_, Msg> = match &app.atualizacao {
-        Estado::Parado => text(tr!("Consulta só github.com/feather-works/feathersheet quando você clicar. Nada sobre você ou suas planilhas é enviado."))
+        Estado::Parado => text(tr!("Consulta só github.com/feather-works/feathersheet. Nada sobre você ou suas planilhas é enviado."))
             .size(11.5).color(COR_TEXTO_MUTED()).into(),
         Estado::Procurando => text(tr!("Procurando no GitHub…")).size(12).color(COR_TEXTO_MUTED()).into(),
         Estado::EmDia => row![feather_ui::icones::icone("check", 14.0),
@@ -464,8 +464,11 @@ fn secao_atualizacao(app: &App) -> Element<'_, Msg> {
         Estado::Erro(msg) => row![feather_ui::icones::icone("alert-triangle", 14.0), text(msg.clone()).size(12)]
             .spacing(6).align(pelicano::Align::Center).into(),
     };
+    let ao_abrir = linha(tr!("Avisar de versão nova"), tr!("Ao abrir, no máximo uma vez por dia"),
+        toggler("", app.config.procurar_atualizacoes).on_toggle(|v| Msg::Atualizacao(Evento::ProcurarAoAbrir(v))).color(COR_AZUL_ACENTO()));
     pelicano::column![
         linha(tr!("Atualizações"), inst.descricao(), procurar),
+        ao_abrir,
         estado,
     ].spacing(8).into()
 }

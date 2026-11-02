@@ -30,6 +30,7 @@ pub const VERSOES: &[Versao] = &[
         ],
         tambem: &[
             "SUBTOTAL com DESLOC por linha (contar só as visíveis no SOMARPRODUTO) dá o valor do Excel.",
+            "Ao abrir, avisa quando há versão nova (uma vez por dia; desligue em Configurações → Sobre).",
         ],
     },
     Versao {

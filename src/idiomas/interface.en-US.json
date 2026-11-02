@@ -4222,5 +4222,14 @@
   "Excel com milhões de fórmulas abre rápido": "Excel files with millions of formulas open fast",
   "Abrir .xlsx pesado: de 10 min para 4 s": "Heavy .xlsx: from 10 min to 4 s",
   "Milhões de fórmulas com vínculo abrem com os valores do Excel (antes travava em 80%).": "Millions of formulas with external links open with Excel's values (it used to hang at 80%).",
-  "SUBTOTAL com DESLOC por linha (contar só as visíveis no SOMARPRODUTO) dá o valor do Excel.": "SUBTOTAL over a per-row OFFSET (count only visible rows in SUMPRODUCT) matches Excel."
+  "SUBTOTAL com DESLOC por linha (contar só as visíveis no SOMARPRODUTO) dá o valor do Excel.": "SUBTOTAL over a per-row OFFSET (count only visible rows in SUMPRODUCT) matches Excel.",
+  "Novidades": "What's new",
+  "Depois": "Later",
+  "Atualizar e reiniciar": "Update and restart",
+  "Há uma versão nova do FeatherSheet, com correções e novidades.": "A new version of FeatherSheet is available, with fixes and new features.",
+  "Avisar de versão nova": "Notify about new versions",
+  "Ao abrir, no máximo uma vez por dia": "On startup, at most once a day",
+  "Consulta só github.com/feather-works/feathersheet. Nada sobre você ou suas planilhas é enviado.": "Only queries github.com/feather-works/feathersheet. Nothing about you or your spreadsheets is sent.",
+  "v{} → {}": "v{} → {}",
+  "Ao abrir, avisa quando há versão nova (uma vez por dia; desligue em Configurações → Sobre).": "On startup, tells you when a new version is out (once a day; turn it off in Settings → About)."
 }

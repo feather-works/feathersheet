@@ -213,7 +213,8 @@
         "titulo": "Settings",
         "corpo": [
           "In Settings: light or dark theme, color scheme and accent, grid font and size, zoom, autosave, language (which also decides the formula separator) and keyboard shortcuts.",
-          "View → Monitor (or F12) shows memory, processor and the Console with what the app logged — useful to send along with a bug report."
+          "View → Monitor (or F12) shows memory, processor and the Console with what the app logged — useful to send along with a bug report.",
+          "Updates: on startup, FeatherSheet checks GitHub for a new version (at most once a day) and, if there is one, shows a card in the corner with What's new, Later and Update. Turn it off in Settings → About → Notify about new versions; the Check for updates button checks right away."
         ]
       }
     },

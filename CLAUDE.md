@@ -24,6 +24,11 @@ refeita a cada `update`); recém-aberta não ganha cópia de recuperação, e a 
 até 1 milhão de células (`LIMITE_CELULAS_COPIA_AUTOMATICA`: a fotografia ainda é feita na thread da
 janela, 2,8 s e +3 GB nessa pasta). Texto girado corta pela altura, não pela largura.
 Medir: `cargo run --release --example medir_abrir_calcular -- arquivo.xlsx` no `feathersheet-io`.
+**Aviso de versão nova** (`app/atualizacao.rs`): ao abrir, no máximo uma vez por dia
+(`procurar_atualizacoes`/`ultima_procura_atualizacao` na configuração), lê `releases?per_page=15`
+(pré-lançamentos inclusive, rascunho não) e mostra o cartão no canto da grade (Novidades / Depois /
+Atualizar e reiniciar, que roda o roteiro de sempre e fecha o app no Windows/macOS). Foto:
+`FEATHERSHEET_CAPTURAR_ATUALIZACAO=0.2.6`.
 
 ## v0.2.4 — 01/11/2026: janela certa no Windows 10 (#135)
 

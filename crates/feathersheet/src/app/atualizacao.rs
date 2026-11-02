@@ -1,7 +1,9 @@
-//! Procurar atualizações — só quando o usuário clica (Configurações → Sobre).
+//! Procurar atualizações: ao abrir (no máximo uma vez por dia, desligável em Configurações →
+//! Sobre) e quando o usuário clica. Havendo versão nova, um cartão no canto da grade oferece
+//! Novidades / Depois / Atualizar.
 //!
 //! Privacidade: a consulta só **lê** do GitHub qual é a versão mais nova
-//! (`api.github.com/repos/feather-works/feathersheet/releases/latest`); nada da
+//! (`api.github.com/repos/feather-works/feathersheet/releases`, pré-lançamentos inclusive); nada da
 //! pessoa ou das planilhas é enviado. Quem consulta e baixa é o `curl` do próprio
 //! sistema (Linux, macOS e Windows 10/11 já trazem), sem biblioteca de rede no app.
 //!
@@ -119,9 +121,21 @@ pub fn mais_nova(atual: &str, outra: &str) -> bool {
     matches!((numeros(atual), numeros(outra)), (Some(a), Some(b)) if b > a)
 }
 
-/// Lê a resposta de `releases/latest` da API do GitHub.
+/// Lê um lançamento da API do GitHub (um item de `releases`).
 pub fn ler_lancamento(json: &str) -> Option<Lancamento> {
+    lancamento_de(&serde_json::from_str(json).ok()?)
+}
+
+/// A versão mais nova da lista `releases` (pré-lançamentos inclusive; rascunhos não).
+pub fn ler_lista(json: &str) -> Option<Lancamento> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
+    v.as_array()?.iter()
+        .filter(|r| !r.get("draft").and_then(|d| d.as_bool()).unwrap_or(false))
+        .filter_map(lancamento_de)
+        .max_by_key(|l| numeros(&l.versao))
+}
+
+fn lancamento_de(v: &serde_json::Value) -> Option<Lancamento> {
     let tag = v.get("tag_name")?.as_str()?;
     numeros(tag)?;
     // A versão entra no roteiro de instalação (bash) sem aspas: só letras, dígitos,
@@ -150,7 +164,7 @@ fn curl() -> Command {
 
 /// Consulta a versão mais nova publicada (bloqueia; chamar fora da thread da janela).
 pub fn consultar() -> Result<Lancamento, String> {
-    let url = format!("https://api.github.com/repos/{REPOSITORIO}/releases/latest");
+    let url = format!("https://api.github.com/repos/{REPOSITORIO}/releases?per_page=15");
     let saida = curl()
         .args(["-fsSL", "--max-time", "20", "-H", "Accept: application/vnd.github+json", "-H"])
         .arg(format!("User-Agent: FeatherSheet/{}", versao_atual()))
@@ -160,7 +174,7 @@ pub fn consultar() -> Result<Lancamento, String> {
     if !saida.status.success() {
         return Err(tr!("Não consegui falar com o GitHub. Confira a conexão e tente de novo.").to_owned());
     }
-    ler_lancamento(&String::from_utf8_lossy(&saida.stdout))
+    ler_lista(&String::from_utf8_lossy(&saida.stdout))
         .ok_or_else(|| tr!("O GitHub respondeu, mas não reconheci a versão publicada.").to_owned())
 }
 
@@ -299,14 +313,83 @@ pub enum Estado {
 pub enum Evento {
     Procurar,
     Resultado(Result<Lancamento, String>),
+    /// A consulta da abertura (sem mexer na seção Sobre se der erro).
+    ResultadoSozinho(Result<Lancamento, String>),
     Instalar,
     AbrirPagina,
+    /// "Depois": fecha o cartão até a próxima abertura.
+    Depois,
+    /// Liga/desliga a consulta ao abrir.
+    ProcurarAoAbrir(bool),
+}
+
+/// Um dia entre as consultas automáticas.
+const INTERVALO_CONSULTA_S: u64 = 24 * 60 * 60;
+
+/// A consulta da abertura vale agora? (ligada e há mais de um dia da última).
+pub fn consultar_ao_abrir(ligada: bool, ultima_s: u64, agora_s: u64) -> bool {
+    ligada && agora_s.saturating_sub(ultima_s) >= INTERVALO_CONSULTA_S
 }
 
 use super::{App, Msg};
 use pelicano::Task;
 
+fn agora_s() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
+}
+
 impl App {
+    /// Na abertura: consulta o GitHub em segundo plano se a pessoa deixou e já passou um dia.
+    pub(super) fn procurar_atualizacao_ao_abrir(&mut self) -> Task<Msg> {
+        // Foto do cartão: `FEATHERSHEET_CAPTURAR_ATUALIZACAO=0.9.0` finge essa versão publicada.
+        if let Ok(v) = std::env::var("FEATHERSHEET_CAPTURAR_ATUALIZACAO") {
+            self.aviso_atualizacao = Some(Lancamento { versao: v, notas: String::new(), pagina: PAGINA_VERSOES.to_owned() });
+            return Task::none();
+        }
+        if cfg!(test) || std::env::var_os("FEATHERSHEET_CAPTURAR").is_some()
+            || !consultar_ao_abrir(self.config.procurar_atualizacoes, self.config.ultima_procura_atualizacao, agora_s())
+        {
+            return Task::none();
+        }
+        self.config.ultima_procura_atualizacao = agora_s();
+        self.config.gravar();
+        Task::perform(
+            async { tokio::task::spawn_blocking(consultar).await.unwrap_or_else(|e| Err(e.to_string())) },
+            |r| Msg::Atualizacao(Evento::ResultadoSozinho(r)),
+        )
+    }
+
+    /// Cartão no canto da grade quando há versão nova (como o aviso do GridCraft/VS Code).
+    pub(super) fn cartao_atualizacao(&self) -> Option<pelicano::Element<'_, Msg>> {
+        use super::*;
+        let l = self.aviso_atualizacao.as_ref()?;
+        let ev = Msg::Atualizacao;
+        let inst = instalacao_atual();
+        let mut acoes = row![
+            button(text(tr!("Novidades")).size(12)).padding([6, 12]).style(estilo_botao_secundario).on_press(ev(Evento::AbrirPagina)),
+            pelicano::Space::new(Length::FILL, 0.0),
+            button(text(tr!("Depois")).size(12)).padding([6, 12]).style(estilo_botao_secundario).on_press(ev(Evento::Depois)),
+        ].spacing(8).align(pelicano::Align::Center);
+        if inst.arquivo().is_some() {
+            let rotulo = if matches!(inst, Instalacao::Windows | Instalacao::Mac) { tr!("Atualizar e reiniciar") } else { tr!("Atualizar") };
+            acoes = acoes.push(button(text(rotulo).size(12)).padding([6, 14]).style(estilo_botao_primario).on_press(ev(Evento::Instalar)));
+        }
+        let corpo = pelicano::column![
+            row![
+                feather_ui::icones::icone("refresh", 18.0),
+                text(trf!("FeatherSheet {}", l.versao)).size(14).font(pelicano::Font { weight: 700, ..Default::default() }),
+            ].spacing(8).align(pelicano::Align::Center),
+            text(trf!("v{} → {}", versao_atual(), l.versao)).size(11.5).color(COR_TEXTO_MUTED()),
+            text(tr!("Há uma versão nova do FeatherSheet, com correções e novidades.")).size(12),
+            acoes,
+        ].spacing(8);
+        Some(pelicano::container(corpo).padding([14, 16]).width(Length::Fixed(360.0)).style(|_| pelicano::Style {
+            background: Some(pelicano::Background::Color(COR_PAINEL_FAIXA())),
+            border: pelicano::Border { color: COR_AZUL_ACENTO(), width: 1.0, radius: [10.0; 4] },
+            ..Default::default()
+        }).into())
+    }
+
     pub(super) fn evento_atualizacao(&mut self, e: Evento) -> Task<Msg> {
         match e {
             Evento::Procurar => {
@@ -321,6 +404,17 @@ impl App {
                 self.atualizacao = if mais_nova(versao_atual(), &l.versao) { Estado::Disponivel(l) } else { Estado::EmDia };
             }
             Evento::Resultado(Err(e)) => self.atualizacao = Estado::Erro(e),
+            Evento::ResultadoSozinho(Ok(l)) if mais_nova(versao_atual(), &l.versao) => {
+                self.aviso_atualizacao = Some(l.clone());
+                self.atualizacao = Estado::Disponivel(l);
+            }
+            // Sem conexão ou já na mais nova: a abertura segue calada.
+            Evento::ResultadoSozinho(_) => {}
+            Evento::Depois => self.aviso_atualizacao = None,
+            Evento::ProcurarAoAbrir(ligada) => {
+                self.config.procurar_atualizacoes = ligada;
+                self.config.gravar();
+            }
             Evento::Instalar => {
                 if let Estado::Disponivel(l) = &self.atualizacao {
                     let inst = instalacao_atual();
@@ -334,6 +428,14 @@ impl App {
                             tr!("O terminal abriu com cada passo à vista. Depois feche e abra o FeatherSheet de novo.").to_owned()),
                         Err(e) => Estado::Erro(e),
                     };
+                    self.aviso_atualizacao = None;
+                    // Windows/macOS: o roteiro espera o app fechar, instala e abre a versão nova.
+                    // O fechar normal pergunta antes se há algo sem salvar.
+                    if matches!(self.atualizacao, Estado::Instalando(_)) && matches!(inst, Instalacao::Windows | Instalacao::Mac) {
+                        if let Some(id) = self.janelas.principal {
+                            return Task::done(Msg::Fechar(id));
+                        }
+                    }
                 }
             }
             Evento::AbrirPagina => {
@@ -387,6 +489,27 @@ mod testes {
         assert!(ler_lancamento(r#"{"tag_name":"v1.2.3-$(curl${IFS}x|sh)"}"#).is_none());
         assert!(ler_lancamento(r#"{"tag_name":"v1.2.3 ; rm"}"#).is_none());
         assert_eq!(ler_lancamento(r#"{"tag_name":"v0.3.0-alpha"}"#).unwrap().versao, "0.3.0-alpha");
+    }
+
+    #[test]
+    fn lista_escolhe_a_mais_nova_com_pre_lancamento_e_sem_rascunho() {
+        let json = r#"[
+            {"tag_name":"v0.2.4","prerelease":true,"draft":false},
+            {"tag_name":"v0.3.0","prerelease":false,"draft":true},
+            {"tag_name":"v0.2.10","prerelease":true,"draft":false},
+            {"tag_name":"v0.2.2","prerelease":false,"draft":false}
+        ]"#;
+        assert_eq!(ler_lista(json).unwrap().versao, "0.2.10");
+        assert!(ler_lista("[]").is_none());
+        assert!(ler_lista(r#"{"message":"rate limit"}"#).is_none());
+    }
+
+    #[test]
+    fn consulta_ao_abrir_uma_vez_por_dia() {
+        assert!(consultar_ao_abrir(true, 0, 1_000_000));
+        assert!(!consultar_ao_abrir(true, 1_000_000, 1_000_000 + 3600));
+        assert!(consultar_ao_abrir(true, 1_000_000, 1_000_000 + 86_400));
+        assert!(!consultar_ao_abrir(false, 0, 1_000_000));
     }
 
     #[test]

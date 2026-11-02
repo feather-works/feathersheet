@@ -2,7 +2,7 @@
 
 **The spreadsheet of the FeatherWorks suite, written in Rust with a native pelicano interface.**
 It opens huge files, calculates in parallel, takes formulas in Portuguese or English,
-and runs entirely on your machine: no account, no login, no telemetry.
+and runs entirely on your machine: no account, no login, no telemetry (the only network call is the daily update check, which you can turn off).
 
 > **Status:** under active development. Alpha release planned for **10/30/2026**.
 
@@ -25,7 +25,10 @@ and runs entirely on your machine: no account, no login, no telemetry.
 All versions and their checksums (`SHA256SUMS`) are on the
 [releases page](https://github.com/feather-works/feathersheet/releases).
 To update, download the new file and install over the old one: `apt` and
-the Windows installer replace the previous version.
+the Windows installer replace the previous version. FeatherSheet also checks
+for a new version on startup (at most once a day, by reading the public
+releases list on GitHub; nothing about you or your files is sent) and offers
+*Update and restart*. Turn it off in Settings → About.
 
 > v0.0.1 for Linux requires Ubuntu 26.04 or newer (glibc 2.43).
 
