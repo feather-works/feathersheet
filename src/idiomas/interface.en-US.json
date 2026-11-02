@@ -43,7 +43,6 @@
  ", {c}": ", {c}",
  ".xlsx com fórmulas ~4× mais rápido": ".xlsx with formulas ~4× faster",
  "// Convertida do VBA de {arquivo} (módulo {}).\n{}": "// Converted from the VBA of {arquivo} (module {}).\n{}",
- "// Execute apenas quando desejar alterar a planilha.\nlog(sheet.range(\"A1\").value);": "// Run only when you want to change the sheet.\nlog(sheet.range(\"A1\").value);",
  "// O que do VBA de {arquivo} não foi convertido (ou pode agir diferente).\n": "// What from the VBA of {arquivo} was not converted (or may act differently).\n",
  "// Relatório mensal · JavaScript do FeatherSheet": "// Monthly report · FeatherSheet JavaScript",
  "// {nome} · JavaScript do FeatherSheet\n": "// {nome} · FeatherSheet JavaScript\n",

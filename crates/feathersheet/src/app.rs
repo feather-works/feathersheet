@@ -1164,7 +1164,8 @@ impl Default for App {
             config_secao: 0, atalho_captura: None, auto_salvar_desde: None, auto_salvar_ultimo_custo_ms: 0, pendente: None, salvando: false, maximizadas: Default::default(), apos_gravar: None, busca: dados::Busca::default(), validacao_formulario: None, erro_explicando: None, validacao_erro: None, validacao_editando: None, validacao_aba: Default::default(), validacao_alerta: None, validacao_aceita: false, validacao_circulos: None, serie: None, lista_aberta: false, lista_coluna: None, lista_pagina: 0, lista_destaque: 0, cabecalho_dados: false,
             assistente_divisao: None,
             divisao_personalizada: false, divisao_outro: String::new(),
-            macro_codigo: pelicano::Content::with_text("// Execute apenas quando desejar alterar a planilha.\nlog(sheet.range(\"A1\").value);"),
+            // Sem macro de exemplo: o editor abre vazio até a pessoa criar ou abrir um módulo (#139).
+            macro_codigo: pelicano::Content::with_text(""),
             macro_nome: "Macro1".into(),
             // As macros são de cada pasta (vêm do arquivo aberto); nada global.
             macro_catalogo: feather_macros::Catalogo::default(),
