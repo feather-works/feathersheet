@@ -180,11 +180,9 @@ pub(crate) fn pattern_check(raw: &str) -> bool {
         // 17/10/2026 (`FaixaPadrao`): `MÍNIMOSES(AO:AO;A:A;A2;…)` em 13,7
         // milhões de linhas não cabia no caminho de uma fórmula por célula.
         Node::Name(_) => precisa_do_grafo = true,
-        // Outro arquivo (`[Vendas.fshz]Dados!A1`): fica avulsa, onde a
-        // atualização que chega de fora acha quem lê cada célula
-        // (`vinculo_externo.rs`) e onde o cálculo em paralelo não vai.
-        Node::Ref { sheet: Some(s), .. } | Node::Range { sheet: Some(s), .. }
-            if crate::planilha::vinculo::e_externa(s) => precisa_do_grafo = true,
+        // Outro arquivo (`[Vendas.fshz]Dados!A1`) também cabe no padrão desde 01/11/2026 (#136):
+        // a atualização acha a coluna pelas referências do padrão (`sujar_vinculo`). Eram 1,3
+        // milhão de fórmulas avulsas num `.xlsx` de sorteios, 3,7 s só para gravá-las ao abrir.
         Node::Ref { sheet: Some(_), .. } => qualificadas += 1,
         Node::Range { sheet: Some(_), .. } => qualificadas += 2,
         _ => {},
@@ -772,11 +770,16 @@ impl Sheet {
             return Value::Empty;
         };
         let val = match arvore {
-            Ok(node) => {
-                let ctx = SheetCtx { sheet: self, host };
-                let ev = Evaluator::na_celula(&ctx, row, col);
-                ev.eval(&node)
-            }
+            // O `#REF!` da faixa de outro arquivo sem valores, como na avulsa.
+            Ok(node) => match host.is_some().then(|| self.formulas.le_de_fora_em(row, col))
+                .filter(|&fora| fora).and_then(|_| self.intervalo_externo_sem_valores(&node, host)) {
+                Some(erro) => erro,
+                None => {
+                    let ctx = SheetCtx { sheet: self, host };
+                    let ev = Evaluator::na_celula(&ctx, row, col);
+                    ev.eval(&node)
+                }
+            },
             Err(e) => Value::Error(CellError::com_motivo(ErrorCode::Name, e)),
         };
 
@@ -862,6 +865,26 @@ impl Sheet {
     /// resultado limpo vai para a coluna, e a fórmula empacotada que está em
     /// `calc.dirty` passa a ser suja na própria coluna. Assim as threads, que
     /// não podem tocar o `RefCell`, decidem tudo olhando a `FormulaTable`.
+    /// Valores das fórmulas avulsas já calculadas (fora do `dirty`): o cálculo
+    /// paralelo lê daqui, sem tocar no `RefCell`. Cabeçalhos avulsos (`$O$8`)
+    /// lidos por colunas inteiras deixavam essas colunas fora do paralelo.
+    pub(crate) fn avulsas_prontas(&self) -> crate::celulas::mapa_chave::MapaChave<Value> {
+        let calc = self.calc.borrow();
+        calc.cache.iter()
+            .filter(|(k, _)| self.cells.contains_key(k) && !calc.dirty.contains(k))
+            .map(|(&k, v)| (k, v.clone()))
+            .collect()
+    }
+
+    /// As fórmulas avulsas fora de [`Self::avulsas_prontas`]: sujas ou nunca calculadas.
+    pub(crate) fn avulsas_sujas(&self) -> Vec<(u32, u32)> {
+        let calc = self.calc.borrow();
+        self.cells.keys()
+            .filter(|k| calc.dirty.contains(k) || !calc.cache.contains_key(k))
+            .map(|&k| Self::key_to_coord(k))
+            .collect()
+    }
+
     pub(crate) fn preparar_calculo_paralelo(&mut self) {
         while self.consolidar_calculos(usize::MAX) > 0 {}
         let calc = self.calc.get_mut();
@@ -1240,7 +1263,8 @@ impl Sheet {
 
     /// Ver o campo `geracao_externas`.
     pub fn geracao_externas(&self) -> u64 {
-        self.geracao_externas
+        // As empacotadas que leem outro arquivo entram pela assinatura das colunas.
+        self.geracao_externas ^ self.formulas.assinatura_vinculos().rotate_left(17)
     }
 
     pub fn get_raw(&self, row: u32, col: u32) -> String {
@@ -1951,11 +1975,18 @@ impl SheetCtx<'_> {
             }
             return;
         }
-        // Em ordem de chave: o `HashMap` muda de ordem a cada execução.
-        let mut avulsas: Vec<CellKey> = self.sheet.cells.keys().copied().filter(|&k| {
-            let (r, c) = Sheet::key_to_coord(k);
-            r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1
-        }).collect();
+        // Em ordem de chave: o `HashMap` muda de ordem a cada execução. Retângulo menor que o
+        // mapa: procura posição a posição. Varrer as 2,3 milhões de avulsas de um `.xlsx` a cada
+        // lote do rodapé custava 10–40 ms por coluna selecionada (#136).
+        let mut avulsas: Vec<CellKey> = if area < self.sheet.cells.len() as u64 {
+            (rect.r0..=rect.r1).flat_map(|r| (rect.c0..=rect.c1).map(move |c| key(r, c)))
+                .filter(|k| self.sheet.cells.contains_key(k)).collect()
+        } else {
+            self.sheet.cells.keys().copied().filter(|&k| {
+                let (r, c) = Sheet::key_to_coord(k);
+                r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1
+            }).collect()
+        };
         avulsas.sort_unstable();
         for k in avulsas {
             let (r, c) = Sheet::key_to_coord(k);

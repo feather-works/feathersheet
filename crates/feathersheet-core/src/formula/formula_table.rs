@@ -255,6 +255,48 @@ impl FormulaTable {
             r.row == -1 && r.col == 0 && !r.row_lock && !r.col_lock && r.sheet.is_none()))
     }
 
+    /// Cada padrão que lê outro arquivo (`[Vendas.xlsx]Dados!A1`), por coluna, com a primeira
+    /// e a última linha em que aparece: `(coluna, primeira, última)`. É como o vínculo acha as
+    /// fórmulas empacotadas que leem a pasta de fora (#136); as faixas exatas saem do texto
+    /// dessas duas linhas. O último item é o padrão (ver [`Self::linhas_do_padrao`]).
+    pub fn padroes_com_vinculo(&self) -> Vec<(u32, u32, u32, usize)> {
+        let externo = |id: usize| self.pattern_refs.get(id).is_some_and(|refs| refs.iter()
+            .any(|r| r.sheet.as_deref().is_some_and(crate::planilha::vinculo::e_externa)));
+        let mut saida = Vec::new();
+        for (&col, ids) in self.used_by_col.iter() {
+            if !ids.iter().any(|&id| externo(id as usize)) {
+                continue;
+            }
+            let Some(entry) = self.columns.get(&col).filter(|e| e.slot.max_row >= 0) else { continue };
+            let mut pontas: std::collections::BTreeMap<usize, (u32, u32)> = Default::default();
+            for r in entry.slot.min_row..=entry.slot.max_row as u32 {
+                let Some(v) = entry.slot.get(r).filter(|_| entry.slot.has(r)) else { continue };
+                let id = (v >> KIND_BITS) as usize;
+                if externo(id) {
+                    pontas.entry(id).and_modify(|p| p.1 = r).or_insert((r, r));
+                }
+            }
+            saida.extend(pontas.into_iter().map(|(id, (a, b))| (col, a, b, id)));
+        }
+        saida.sort_unstable();
+        saida
+    }
+
+    /// As linhas de `primeira..=ultima` da coluna com o padrão `id`.
+    pub fn linhas_do_padrao(&self, col: u32, primeira: u32, ultima: u32, id: usize) -> Vec<u32> {
+        let Some(entry) = self.columns.get(&col) else { return Vec::new() };
+        (primeira..=ultima).filter(|&r| entry.slot.has(r)
+            && entry.slot.get(r).is_some_and(|v| (v >> KIND_BITS) as usize == id)).collect()
+    }
+
+    /// Muda quando um padrão que lê outro arquivo entra numa coluna, sai dela ou muda de alcance.
+    pub fn assinatura_vinculos(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.padroes_com_vinculo().hash(&mut h);
+        h.finish()
+    }
+
     pub fn le_de_fora_em(&self, row: u32, col: u32) -> bool {
         self.padrao_em(row, col).is_some_and(|(id, _)| {
             self.pattern_refs[id].iter().any(|r| r.sheet.is_some())

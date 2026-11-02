@@ -608,12 +608,43 @@ impl Workbook {
     /// continua sujo para o cálculo preguiçoso. Devolve quantas calculou.
     /// Ver [`crate::planilha::calculo_paralelo`].
     pub fn calcular_em_paralelo(&mut self) -> usize {
+        // Uma avulsa suja (um total no cabeçalho) segura no serial as colunas
+        // que a leem: calcula as avulsas e tenta de novo, enquanto render.
+        let mut total = 0;
+        for _ in 0..3 {
+            let feitas = self.calcular_em_paralelo_uma_vez();
+            total += feitas;
+            let sujas: Vec<(usize, u32, u32)> = self.abas.iter().enumerate()
+                .flat_map(|(i, a)| a.sheet.avulsas_sujas().into_iter().map(move |(r, c)| (i, r, c)))
+                .collect();
+            // Poucas (cabeçalhos): muitas sujas são o próprio trabalho serial, sem ganho em antecipar.
+            if sujas.is_empty() || sujas.len() > 1_000 || (feitas == 0 && total > 0) {
+                break;
+            }
+            for (i, r, c) in sujas {
+                self.valor(i, r, c);
+            }
+        }
+        total
+    }
+
+    fn calcular_em_paralelo_uma_vez(&mut self) -> usize {
         // As matrizes derramam antes: as threads leem as colunas direto e
         // precisam saber onde há área derramada (fica fora do paralelo).
         for aba in &self.abas {
             aba.sheet.garantir_derramamentos(Some(self as &dyn Hospedeiro));
         }
-        crate::planilha::calculo_paralelo::calcular(&mut self.abas, &self.funcoes_externas)
+        // As abas de outro arquivo que as colunas empacotadas leem, com os valores carregados (#136).
+        let mut nomes: Vec<String> = self.abas.iter()
+            .flat_map(|a| a.sheet.formulas.columns_in_use())
+            .flat_map(|u| u.usos.into_iter().flat_map(|p| p.refs))
+            .filter_map(|r| r.sheet.filter(|s| crate::planilha::vinculo::e_externa(s)))
+            .collect();
+        nomes.sort();
+        nomes.dedup();
+        let externas: Vec<(String, &Sheet)> = nomes.into_iter()
+            .filter_map(|n| self.externos.aba(&n).map(|s| (n, s))).collect();
+        crate::planilha::calculo_paralelo::calcular(&mut self.abas, &self.funcoes_externas, &externas)
     }
 
     /// [`Sheet::consolidar_calculos`] nas abas, até `limite` no total.

@@ -1135,3 +1135,19 @@ fn areas_citadas_guardadas_acompanham_a_formula_de_vinculo() {
     w.escrever_celula(0, 0, 0, "1".into());
     assert!(w.areas_citadas().is_empty());
 }
+
+#[test]
+fn total_no_topo_e_dados_lendo_a_coluna_do_total_vao_em_paralelo() {
+    // E1 soma D; D3:D200 lê E na própria linha (vazia). Por coluna era um
+    // ciclo (D lê E, E lê D) e tudo ia para o cálculo sob demanda; por linha, não.
+    let mut w = Workbook::new();
+    for r in 2..200u32 {
+        w.escrever_celula(0, r, 0, "1".into());
+        w.escrever_celula(0, r, 3, format!("=A{}+E{}", r + 1, r + 1));
+    }
+    w.escrever_celula(0, 0, 4, "=SOMA(D3:D200)".into());
+    w.escrever_celula(0, 2, 0, "5".into());
+    assert!(w.calcular_em_paralelo() >= 198);
+    assert_eq!(w.valor(0, 2, 3), Value::Number(5.0));
+    assert_eq!(w.valor(0, 0, 4), Value::Number(202.0));
+}

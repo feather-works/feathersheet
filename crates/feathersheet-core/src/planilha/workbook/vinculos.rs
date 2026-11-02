@@ -111,6 +111,11 @@ impl Workbook {
                     });
                 });
             }
+            for (_, nome, area) in aba.sheet.vinculos_empacotados() {
+                if let Some((arquivo, aba_ext)) = separar(&nome) {
+                    todas.push(AreaCitada { arquivo: arquivo.into_owned(), aba: aba_ext.to_string(), area });
+                }
+            }
         }
         let ordem = |a: &AreaCitada| (chave_arquivo(&a.arquivo), a.aba.to_lowercase(), a.area.r0, a.area.c0, a.area.r1, a.area.c1);
         todas.sort_by_key(ordem);
@@ -319,6 +324,29 @@ impl Workbook {
                     }
                     if depois != antes {
                         edicoes.push((r, c, depois));
+                    }
+                }
+                // Empacotadas: os nomes de aba vêm das referências do padrão da coluna.
+                let mut por_coluna: std::collections::BTreeMap<u32, BTreeSet<String>> = Default::default();
+                for (col, nome, _) in sheet.vinculos_empacotados() {
+                    if separar(&nome).is_some_and(|(arquivo, _)| chave_arquivo(&arquivo) == alvo) {
+                        por_coluna.entry(col).or_default().insert(nome);
+                    }
+                }
+                for (col, nomes) in por_coluna {
+                    let mut linhas = Vec::new();
+                    sheet.formulas.for_each_in_range(0, MAX_ROWS - 1, col, col, |r, _| linhas.push(r));
+                    for r in linhas {
+                        let antes = sheet.get_raw(r, col);
+                        let mut depois = antes.clone();
+                        for nome in &nomes {
+                            if let Some((_, aba)) = separar(nome) {
+                                depois = reescrever_aba(&depois, nome, &vinculo::nome_de_aba(novo, aba));
+                            }
+                        }
+                        if depois != antes {
+                            edicoes.push((r, col, depois));
+                        }
                     }
                 }
             }

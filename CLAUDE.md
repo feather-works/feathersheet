@@ -2,6 +2,22 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## Depois da v0.2.5 (01/11/2026): vínculo externo empacotado e "Atualizar valores" em paralelo
+
+Fórmula que lê outro arquivo (`[Arq.xlsx]Aba!A1`) passa no `pattern_check` e vai para a coluna
+empacotada: no `.xlsx` do #136, 1,29 mi → 92 mil avulsas, abrir 4,4 → 2,3 s e 1,66 GB → 320 MB.
+Quem acha essas fórmulas: `FormulaTable::padroes_com_vinculo` (por padrão: col, 1ª e última linha) e
+`Sheet::vinculos_empacotados(_por_padrao)` (área pela análise da 1ª e da última linha);
+`sujar_vinculo` suja a coluna (padrão ≥ 1.000 linhas) ou as linhas; `geracao_externas` mistura a
+`assinatura_vinculos`. O cálculo paralelo lê as abas de fora (`Vista::com_nome`). **Planejador por
+linha** (`calculo_paralelo::planejar`): avulsa só exclui quem lê a linha dela, e uma coluna só espera
+outra se ler linha suja dela (totais na linha 2 lendo os dados e dados lendo a coluna dos totais na
+própria linha era ciclo por coluna); avulsas já calculadas vão às threads por cópia
+(`Sheet::avulsas_prontas`); `Workbook::calcular_em_paralelo` calcula até 1.000 avulsas sujas entre
+rodadas (até 3). "Atualizar valores" nesse arquivo: 1,75 mi de fórmulas em paralelo, ~6 s (antes ~3 s
++ ~12 s sob demanda); conferido célula a célula, e na ida e volta `.xlsx`/`.fshz`. Seleção de colunas:
+`SheetCtx::varrer` percorre as posições quando o retângulo é menor que as avulsas.
+
 ## v0.2.5 — 01/11/2026: .xlsx com milhões de fórmulas e vínculo externo (#136)
 
 Um `.xlsx` de 54 mil linhas com 2,3 milhões de `{=SOMA(CONT.SE($O$8:$AC$8;…))}` lendo `[1]FILTROS!`
