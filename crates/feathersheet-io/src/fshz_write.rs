@@ -652,16 +652,25 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
 /// Remapeia IDs globais para um dicionário contendo somente os textos usados
 /// nesta coluna. Nunca replica o pool da aba em todas as colunas do arquivo.
 pub(crate) fn dicionario_local<'a>(indices: &mut [i32], bitmap: &[u8], texto: impl Fn(i32) -> &'a str) -> Vec<&'a str> {
+    // Os índices são posições num dicionário (densos): tabela por posição, sem hash por
+    // célula (o SipHash era 28% da abertura de 4 M linhas). Fora da faixa, o mapa.
+    // Teto pelo tamanho da coluna: ids do pool global (salvar) podem ser esparsos.
+    let teto_tabela = (indices.len() * 2 + 1024).min(1 << 24);
+    let mut tabela: Vec<i32> = Vec::new();
     let mut remapeamento = HashMap::new();
     let mut dict = Vec::new();
     for (linha, indice) in indices.iter_mut().enumerate() {
         if bitmap.get(linha >> 3).copied().unwrap_or(0) & (1 << (linha & 7)) == 0 { continue; }
-        let novo = *remapeamento.entry(*indice).or_insert_with(|| {
-            let id = dict.len() as i32;
-            dict.push(texto(*indice));
-            id
-        });
-        *indice = novo;
+        let antigo = *indice;
+        let mut novo_id = || { dict.push(texto(antigo)); dict.len() as i32 - 1 };
+        *indice = match usize::try_from(antigo).ok().filter(|&i| i < teto_tabela) {
+            Some(i) => {
+                if i >= tabela.len() { tabela.resize(i + 1, -1); }
+                if tabela[i] < 0 { tabela[i] = novo_id(); }
+                tabela[i]
+            }
+            None => *remapeamento.entry(antigo).or_insert_with(novo_id),
+        };
     }
     dict
 }
@@ -844,6 +853,17 @@ pub(crate) fn gerar_fshz2_legado(pasta: &PastaBruta) -> Result<Vec<u8>, String> 
 
 #[cfg(test)]
 mod testes {
+    #[test]
+    fn dicionario_local_renumera_na_ordem_e_aceita_indice_fora_da_tabela() {
+        let mut indices = [5, -3, 5, 100_000_000, 2, 9];
+        let bitmap = [0b0001_1111u8]; // a última linha está vazia
+        let dict = super::dicionario_local(&mut indices, &bitmap, |id| match id {
+            5 => "cinco", -3 => "menos", 100_000_000 => "longe", 2 => "dois", _ => "?",
+        });
+        assert_eq!(dict, ["cinco", "menos", "longe", "dois"]);
+        assert_eq!(indices, [0, 1, 0, 2, 3, 9]);
+    }
+
     use super::*;
     use arrow::array::Array as _;
     use arrow::ipc::reader::FileReader;
