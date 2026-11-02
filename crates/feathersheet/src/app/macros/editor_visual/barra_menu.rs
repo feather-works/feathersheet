@@ -212,7 +212,8 @@ pub(super) fn ferramentas<'a>(app: &'a App) -> Element<'a, Msg> {
         botao_icone(tr!("Salvar módulo"), "device-floppy", Some(Msg::MacroGuardarModulo), false),
         botao_icone(tr!("Guia"), "help", Some(Msg::AjudaAbrirSecao("macros")), false),
     ].spacing(7).align(pelicano::Align::Center).width(Length::Shrink)
-        .height(Length::Fixed(34.0));
+        // A altura toda da faixa: com 34 px a linha ficava no topo dos 42 da rolagem (4 px em cima, 12 embaixo).
+        .height(Length::Fixed(42.0));
     // Uma barra rolável no eixo horizontal não pode conter Fill.
     // Usar Shrink conserva largura intrínseca e permite rolagem sem panic.
     container(
