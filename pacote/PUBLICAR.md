@@ -11,8 +11,12 @@ Exemplo abaixo: `0.2.2` → `0.2.3`.
 - Commit e tag:
   ```bash
   git commit -am "claude: v0.2.3 — <resumo>"
-  git tag v0.2.3 && git push && git push --tags
+  git tag v0.2.3 && git push          # a tag fica só local por enquanto
   ```
+  **Não enviar a tag antes dos instaladores** (02/11/2026): o launcher sem cota da API lê o
+  `releases.atom`, que lista tag sem release; a tag nova sem `SHA256SUMS` fazia o FeatherSheet
+  aparecer como "Ainda sem versão publicada". Enviar a tag (`git push origin v0.2.3`) logo antes
+  do `gh release create` do passo 3.
   A tag dispara o CI do macOS, que põe o `.dmg` na release sozinho (se a release já existir;
   senão o `.dmg` fica nos artefatos do CI e vai à mão).
 
