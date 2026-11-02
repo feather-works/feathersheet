@@ -483,6 +483,9 @@ impl Gerador<'_> {
                 Ok(format!("{c}; vba.{}();", self.ajuda("condAplicar")))
             }
             Obj::NovaPasta(p) => self.metodo_da_nova_pasta(&p, &n, args),
+            // `Run(comando, [janela], [esperar])`: o app mostra o comando e pergunta antes.
+            Obj::Shell if n == "run" => Ok(format!("app.shell(String({}));", self.arg_js(args, &["command"], 0)?)),
+            Obj::Shell => Err(Motivo::novo(format!("WScript.Shell.{nome} (só o Run converte)"))),
             Obj::Pastas if n == "open" => Err(Motivo::novo("abrir outra pasta de trabalho (Workbooks.Open)")),
             Obj::Pastas => Err(Motivo::novo(format!("Workbooks.{nome} (só Set x = Workbooks.Add converte)"))),
             Obj::AbaNova(p, i) if n == "delete" => Ok(format!("{p}.abas.splice({i} - 1, 1);")),

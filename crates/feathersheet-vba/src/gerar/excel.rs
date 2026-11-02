@@ -98,6 +98,10 @@ impl Gerador<'_> {
 
     fn objeto_chamado(&mut self, f: &Expr, args: &[Arg]) -> R<Obj> {
         if let Expr::Nome(n) = f {
+            if n.eq_ignore_ascii_case("createobject")
+                && matches!(args.first().and_then(|a| a.valor.as_ref()), Some(Expr::Texto(t)) if t.eq_ignore_ascii_case("wscript.shell")) {
+                return Ok(Obj::Shell);
+            }
             let implicito = self.obj_implicito();
             match n.to_lowercase().as_str() {
                 "range" | "cells" | "rows" | "columns" if self.var(n).is_none() => return self.membro_objeto(implicito, n, args),
@@ -132,6 +136,7 @@ impl Gerador<'_> {
                 Tipo::Faixa(_) => Ok(Obj::Faixa(self.faixa_da_var(&v))),
                 Tipo::NovaPasta => Ok(Obj::NovaPasta(v.js.clone())),
                 Tipo::Funcoes => Ok(Obj::FuncoesDaPlanilha),
+                Tipo::Shell => Ok(Obj::Shell),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
                 Tipo::Valor(_) => Err(Motivo::novo(format!("{n} não é objeto do Excel"))),
             };
@@ -193,6 +198,7 @@ impl Gerador<'_> {
             Obj::Contagem(aba, eixo) if n == "item" && args.len() == 1 => self.linha_ou_coluna(&aba, eixo, &args[0]),
             Obj::Ordem(aba) if matches!(n.as_str(), "sortfields" | "sort") => Ok(Obj::Ordem(aba)),
             Obj::Janela => Ok(Obj::Janela),
+            Obj::Shell => Err(Motivo::novo(format!("WScript.Shell.{nome} (só o Run converte)"))),
             Obj::Pastas => match n.as_str() {
                 "add" => Ok(Obj::NovaPasta(format!("vba.{}()", self.ajuda("novaPasta")))),
                 "open" => Err(Motivo::novo("abrir outra pasta de trabalho (Workbooks.Open)")),
@@ -547,6 +553,7 @@ impl Gerador<'_> {
         let n = nome.to_lowercase();
         match o {
             Obj::Faixa(f) => self.propriedade_da_faixa(f, &n, args),
+            Obj::Shell if n == "run" => Ok(V::novo(format!("app.shell(String({}))", self.arg_js(args, &["command"], 0)?), T::Num)),
             Obj::Controle(c) => propriedade_do_controle(&c, &n),
             Obj::Formulario(f) => match self.p.controle(&f, nome) {
                 Some(c) => Ok(V::novo(format!("sheet.field({c:?}).value"), T::Var)),

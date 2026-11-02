@@ -223,3 +223,13 @@ fn vba_aninhado_demais_nao_derruba_e_o_normal_continua() {
         assert!(!js.pendencias.is_empty(), "o excesso deve virar pendência");
     }
 }
+
+#[test]
+fn wscript_shell_run_vira_app_shell() {
+    let vba = "Sub Abrir()\n  Dim sh As Object, r As Long\n  Set sh = CreateObject(\"WScript.Shell\")\n  sh.Run \"notepad.exe \" & Range(\"A1\").Value, 1, True\n  r = sh.Run(\"calc.exe\")\n  CreateObject(\"WScript.Shell\").Run \"explorer.exe\"\n  Set sh = Nothing\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = &c.macros[0].codigo;
+    assert!(c.pendencias.is_empty(), "{:#?}\n{js}", c.pendencias);
+    assert_eq!(js.matches("app.shell(String(").count(), 3, "{js}");
+    assert!(js.contains("\"calc.exe\""), "{js}");
+}

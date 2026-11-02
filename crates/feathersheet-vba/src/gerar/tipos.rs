@@ -158,6 +158,8 @@ pub enum Obj {
     Forma(String),
     /// `.TextFrame2.TextRange.Font` (e o `.Fill.ForeColor` dela) da forma.
     FonteForma(String),
+    /// `CreateObject("WScript.Shell")`.
+    Shell,
 }
 
 /// A parte de um intervalo.
@@ -196,4 +198,6 @@ pub enum Tipo {
     Impossivel(String),
     /// `Set wf = Application.WorksheetFunction`: só um apelido, `wf.Sum(…)` vira `app.fn.sum(…)`.
     Funcoes,
+    /// `Set sh = CreateObject("WScript.Shell")`: o `.Run` vira `app.shell` (pergunta antes de rodar).
+    Shell,
 }

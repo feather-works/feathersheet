@@ -230,7 +230,7 @@ pub fn valor_inicial(t: &Tipo) -> &'static str {
         Tipo::Valor(T::Texto) => "''",
         Tipo::Valor(T::Num) => "0",
         Tipo::Valor(T::Bool) => "false",
-        Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta | Tipo::Impossivel(_) | Tipo::Funcoes | Tipo::Valor(T::Obj) => "null",
+        Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta | Tipo::Impossivel(_) | Tipo::Funcoes | Tipo::Shell | Tipo::Valor(T::Obj) => "null",
         Tipo::Valor(T::Var | T::Matriz) => "undefined",
     }
 }

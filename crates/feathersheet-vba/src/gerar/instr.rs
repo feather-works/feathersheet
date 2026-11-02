@@ -314,13 +314,22 @@ impl Gerador<'_> {
             self.avisar(i.linha, n, "parâmetro ByRef alterado: no JavaScript a mudança não volta para quem chamou");
         }
         // `Set wf = Application.WorksheetFunction` (wf As Object/Variant/WorksheetFunction): só apelido.
-        if set && !matches!(var.tipo, Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta)
-            && matches!(self.objeto(valor), Ok(Obj::FuncoesDaPlanilha)) {
-            if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = Tipo::Funcoes; }
-            return Ok(String::new());
+        if set && !matches!(var.tipo, Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta) {
+            let apelido = match self.objeto(valor) {
+                Ok(Obj::FuncoesDaPlanilha) => Some(Tipo::Funcoes),
+                Ok(Obj::Shell) => Some(Tipo::Shell),
+                _ => None,
+            };
+            if let Some(t) = apelido {
+                if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = t; }
+                return Ok(String::new());
+            }
         }
         match &var.tipo {
             Tipo::Funcoes => Err(Motivo::novo("WorksheetFunction guardada em variável e trocada depois")),
+            // `Set sh = Nothing` no fim: nada a soltar.
+            Tipo::Shell if matches!(valor, Expr::Nada) => Ok(String::new()),
+            Tipo::Shell => Err(Motivo::novo("WScript.Shell guardado em variável e trocado depois")),
             Tipo::Impossivel(antes) if set && antes.starts_with("objeto do tipo") => {
                 // O `Set` diz o motivo melhor que o `As Object` (ex.: `CreateObject("WScript.Shell")`).
                 let m = self.motivo_do_objeto(valor);
