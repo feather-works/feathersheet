@@ -388,8 +388,9 @@ desse arquivo (medido em 02/11/2026).
 
 ## v0.5 — mais funções e FeatherQuery nas fórmulas
 
-- [ ] Funções: de **457** para **≥ 510** das ~520 do Excel
-      (`FUNCOES-FALTANTES.md`), todas com ajuda e nome em pt, en e es.
+- [x] Funções: as **520** do Excel desde 18/10/2026 (`FUNCOES-FALTANTES.md`), com ajuda e nome
+      em pt, en e es. 13 são só reconhecidas (CUBE*, RTD, CALL, REGISTER.ID, STOCKHISTORY,
+      TRANSLATE, DETECTLANGUAGE: dependem de servidor, DLL ou serviço da Microsoft).
 - [ ] Toda função nova com teste contra o resultado do Excel.
 - [ ] Consulta na célula: `=CONSULTA("nome_da_consulta")` derrama o resultado
       e atualiza com a origem.
