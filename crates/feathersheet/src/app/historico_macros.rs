@@ -82,6 +82,7 @@ impl GatilhoMacro {
                 let nome = match evento.as_str() {
                     "aoMudar" => tr!("Ao mudar células"),
                     "aoAtivar" => tr!("Ao ativar aba"),
+                    "aoSelecionar" => tr!("Ao selecionar células"),
                     outro => outro,
                 };
                 match intervalo {

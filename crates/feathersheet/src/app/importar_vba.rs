@@ -63,6 +63,7 @@ pub(super) fn modulos_da_conversao(
             e.evento, e.origem, match e.evento {
                 "aoMudar" => tr!("Roda sozinho quando uma célula da aba muda (valores.intervalo é o endereço mudado)."),
                 "aoAtivar" => tr!("Roda sozinho quando a aba é aberta."),
+                "aoSelecionar" => tr!("Roda sozinho quando a seleção muda na aba (valores.intervalo é o endereço selecionado)."),
                 _ => tr!("Não roda sozinho ao abrir o arquivo: execute à mão."),
             }, e.codigo);
         acrescentar(format!("Evento_{}_{}", e.evento, e.aba.as_deref().unwrap_or(tr!("Pasta"))), code, &mut saida);

@@ -81,7 +81,7 @@ pub struct Conversao {
 }
 
 /// Os eventos que existem no FeatherSheet: (procedimento em minúsculas, tipo de módulo, evento).
-const EVENTOS: [(&str, TipoDeModulo, &str); 3] = [("workbook_open", TipoDeModulo::Pasta, "aoAbrir"), ("worksheet_change", TipoDeModulo::Aba, "aoMudar"), ("worksheet_activate", TipoDeModulo::Aba, "aoAtivar")];
+const EVENTOS: [(&str, TipoDeModulo, &str); 4] = [("workbook_open", TipoDeModulo::Pasta, "aoAbrir"), ("worksheet_change", TipoDeModulo::Aba, "aoMudar"), ("worksheet_activate", TipoDeModulo::Aba, "aoAtivar"), ("worksheet_selectionchange", TipoDeModulo::Aba, "aoSelecionar")];
 
 fn montar_programa(projeto: &ProjetoVba) -> Programa {
     let mut codenames = HashMap::new();

@@ -12,8 +12,9 @@ use super::*;
 pub(in crate::app) const PASTA_EVENTOS: &str = "Eventos/";
 
 /// Os eventos de planilha que o motor dispara (eventos_vba.rs): chave e rótulo.
-pub(in crate::app) const EVENTOS_PLANILHA: [(&str, &str); 2] = [
+pub(in crate::app) const EVENTOS_PLANILHA: [(&str, &str); 3] = [
     ("aoMudar", "Ao mudar células"),
+    ("aoSelecionar", "Ao selecionar células"),
     ("aoAtivar", "Ao ativar a aba"),
 ];
 
@@ -34,6 +35,9 @@ fn modelo_evento(aba: &str, evento: &str) -> String {
     // O "//" fica fora do texto traduzido (no dicionário, "//" é comentário).
     match evento {
         "aoAtivar" => format!("// {}\n", trf!("Roda quando alguém troca para a aba {}.", aba)),
+        "aoSelecionar" => format!("// {}\n// {}\n",
+            trf!("Roda quando a seleção muda na aba {} (no arrasto, ao soltar o mouse).", aba),
+            tr!("valores.intervalo traz o endereço selecionado (ex.: \"B2:C4\").")),
         _ => format!("// {}\n// {}\n",
             trf!("Roda depois de cada mudança feita à mão nas células da aba {}.", aba),
             tr!("valores.intervalo traz o endereço mudado (ex.: \"B2:C4\").")),

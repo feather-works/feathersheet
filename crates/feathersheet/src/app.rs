@@ -741,6 +741,8 @@ pub struct App {
     macro_programas: Option<macro_dialogo::ProgramasMacro>,
     /// Eventos do VBA instalados que rodam sozinhos (aoMudar, aoAtivar).
     eventos_vba: Vec<eventos_vba::EventoVba>,
+    /// A seleção (aba, linha, coluna, fim) que o evento aoSelecionar já viu.
+    selecao_evento: (usize, u32, u32, (u32, u32)),
     /// Macros do arquivo aberto (eventos e botões) esperando a pessoa ativar.
     macros_bloqueadas: bool,
     /// O diálogo "Ativar macros?" está aberto.
@@ -1081,7 +1083,7 @@ impl Default for App {
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,
-            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
+            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), selecao_evento: (0, 0, 0, (0, 0)), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             comentario_editor: None, comentario_sobre: None, comentarios_todos: false,
             novo_estilo: None,
@@ -1465,7 +1467,8 @@ impl App {
         }
         let selecao_antes = (self.folha, self.linha, self.coluna, self.fim_selecao);
         // Só a chamada de fora compara o antes e o depois para os eventos do VBA.
-        let antes = if self.profundidade_update == 0 { self.antes_dos_eventos() } else { None };
+        // O arrasto da seleção manda Estender a cada movimento: o aoSelecionar espera soltar.
+        let antes = if self.profundidade_update == 0 { self.antes_dos_eventos(matches!(msg, Msg::Estender(..))) } else { None };
         let na_mao = if self.profundidade_update == 0 { Some(self.objeto_na_mao()) } else { None };
         let paineis = (self.profundidade_update == 0).then(|| self.paineis_laterais());
         // Só a chamada de fora: as de dentro já contam no tempo dela.

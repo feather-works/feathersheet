@@ -1,4 +1,8 @@
 {
+ "Ao selecionar células": "Al seleccionar celdas",
+ "Roda quando a seleção muda na aba {} (no arrasto, ao soltar o mouse).": "Se ejecuta cuando cambia la selección en la hoja {} (al arrastrar, al soltar el ratón).",
+ "valores.intervalo traz o endereço selecionado (ex.: \"B2:C4\").": "valores.intervalo trae la dirección seleccionada (p. ej. \"B2:C4\").",
+ "Roda sozinho quando a seleção muda na aba (valores.intervalo é o endereço selecionado).": "Se ejecuta solo cuando cambia la selección en la hoja (valores.intervalo es la dirección seleccionada).",
  "\nErro: {e}\nAs escritas desta execução foram revertidas.": "\nError: {e}\nSe revirtieron las escrituras de esta ejecución.",
  "\nMacro concluída.": "\nMacro finalizada.",
  " (automática)": " (automática)",

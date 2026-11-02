@@ -1,7 +1,9 @@
 //! Eventos convertidos do VBA rodando sozinhos, como no Excel:
 //! `Worksheet_Change` (aoMudar) depois de cada mudança feita pela pessoa na
 //! aba, com o endereço mudado em `valores.intervalo` (o `Target`), e
-//! `Worksheet_Activate` (aoAtivar) ao trocar para a aba. O `Workbook_Open`
+//! `Worksheet_Activate` (aoAtivar) ao trocar para a aba e `Worksheet_SelectionChange`
+//! (aoSelecionar) quando a seleção muda na aba, com o endereço novo em
+//! `valores.intervalo` (no arrasto, só ao soltar). O `Workbook_Open`
 //! continua à mão: rodar código ao abrir um arquivo é o caso mais arriscado.
 //!
 //! O que uma macro escreve não dispara evento (seria laço sem fim).
@@ -20,13 +22,15 @@ pub(super) struct Antes {
     folha: usize,
     aba_id: Option<u32>,
     versao: Option<u32>,
+    /// A mensagem é um passo do arrasto da seleção.
+    arrasto: bool,
 }
 
 impl App {
-    pub(super) fn antes_dos_eventos(&self) -> Option<Antes> {
+    pub(super) fn antes_dos_eventos(&self, arrasto: bool) -> Option<Antes> {
         if self.eventos_vba.is_empty() { return None; }
         let aba = self.workbook.aba(self.folha);
-        Some(Antes { folha: self.folha, aba_id: aba.map(|a| a.id), versao: aba.map(|a| a.versao) })
+        Some(Antes { folha: self.folha, aba_id: aba.map(|a| a.id), versao: aba.map(|a| a.versao), arrasto })
     }
 
     /// Depois de tratar a mensagem: dispara aoMudar e aoAtivar.
@@ -44,6 +48,21 @@ impl App {
         if self.folha != antes.folha {
             if let Some(nova) = self.workbook.aba(self.folha).map(|a| a.sheet.name.clone()) {
                 self.rodar_evento(&nova, "aoAtivar", None);
+            }
+        }
+        // Seleção nova na mesma aba (trocar de aba não conta, como no Excel).
+        let agora = (self.folha, self.linha, self.coluna, self.fim_selecao);
+        if !antes.arrasto && agora != self.selecao_evento {
+            let mesma_aba = agora.0 == self.selecao_evento.0 && self.folha == antes.folha;
+            self.selecao_evento = agora;
+            if mesma_aba {
+                if let Some(aba) = self.workbook.aba(self.folha).map(|a| a.sheet.name.clone()) {
+                    let (r1, c1) = self.fim_selecao;
+                    let alvo = endereco_area(&Rect::new(self.linha, self.coluna, r1, c1));
+                    self.rodar_evento(&aba, "aoSelecionar", Some(&alvo));
+                    // A macro pode ter selecionado outra coisa: não dispara de novo por isso.
+                    self.selecao_evento = (self.folha, self.linha, self.coluna, self.fim_selecao);
+                }
             }
         }
         self.macro_rodou = false;
@@ -174,6 +193,24 @@ mod testes {
         app.update(Msg::Editar("x".into()));
         app.update(Msg::Confirmar);
         assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(0, 2), "mudou B19");
+    }
+
+    #[test]
+    fn selecionar_roda_o_evento_e_o_arrasto_so_ao_soltar() {
+        // Conta as execuções em Z1 e guarda o último Target em Z2.
+        let mut app = app_com_evento("aoSelecionar",
+            "sheet.set('Z1', Number(sheet.range('Z1').value || 0) + 1); sheet.set('Z2', valores.intervalo);");
+        let valor = |app: &App, c: u32| app.workbook.aba(0).unwrap().sheet.get_raw(c, 25);
+        app.update(Msg::Selecionar(2, 1));
+        assert_eq!((valor(&app, 0).as_str(), valor(&app, 1).as_str()), ("1", "B3"));
+        app.update(Msg::Selecionar(2, 1));
+        assert_eq!(valor(&app, 0), "1", "a mesma seleção não dispara de novo");
+        // Arrastar de B3 até D5: nada durante o arrasto, uma vez ao soltar.
+        app.update(Msg::Estender(3, 2));
+        app.update(Msg::Estender(4, 3));
+        assert_eq!(valor(&app, 0), "1");
+        app.update(Msg::AplicarPincel);
+        assert_eq!((valor(&app, 0).as_str(), valor(&app, 1).as_str()), ("2", "B3:D5"));
     }
 
     #[test]
