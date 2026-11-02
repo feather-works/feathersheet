@@ -28,6 +28,11 @@ impl Gerador<'_> {
         if SEM_EFEITO.contains(&n.as_str()) {
             return Ok(String::new());
         }
+        // Célula não tem OnAction no Excel: na seleção, é a forma do último `Shapes(…).Select`.
+        if n == "onaction" && matches!(o, Obj::Faixa(_)) {
+            let forma = Obj::Forma(format!("vba.{}()", self.ajuda("formaSel")));
+            return self.atribuir_propriedade(forma, prop, valor);
+        }
         if n == "onaction" && !matches!(o, Obj::Forma(_)) {
             return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)"));
         }

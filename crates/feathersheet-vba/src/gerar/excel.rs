@@ -97,11 +97,16 @@ impl Gerador<'_> {
     }
 
     fn objeto_chamado(&mut self, f: &Expr, args: &[Arg]) -> R<Obj> {
+        // `CreateObject("WScript.Shell")` ou `VBA.CreateObject(…)`.
+        let create = match f {
+            Expr::Nome(n) => n.eq_ignore_ascii_case("createobject"),
+            Expr::Membro(b, n) => n.eq_ignore_ascii_case("createobject") && matches!(b.as_ref(), Expr::Nome(v) if v.eq_ignore_ascii_case("vba")),
+            _ => false,
+        };
+        if create && matches!(args.first().and_then(|a| a.valor.as_ref()), Some(Expr::Texto(t)) if t.eq_ignore_ascii_case("wscript.shell")) {
+            return Ok(Obj::Shell);
+        }
         if let Expr::Nome(n) = f {
-            if n.eq_ignore_ascii_case("createobject")
-                && matches!(args.first().and_then(|a| a.valor.as_ref()), Some(Expr::Texto(t)) if t.eq_ignore_ascii_case("wscript.shell")) {
-                return Ok(Obj::Shell);
-            }
             let implicito = self.obj_implicito();
             match n.to_lowercase().as_str() {
                 "range" | "cells" | "rows" | "columns" if self.var(n).is_none() => return self.membro_objeto(implicito, n, args),

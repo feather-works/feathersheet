@@ -244,3 +244,22 @@ fn autofilter_com_criterio_e_showalldata_convertem() {
     assert_eq!(js.matches(".showAllData()").count(), 2, "{js}");
     assert!(js.contains(".autoFilterOff()") && js.contains("filtroCrit("), "{js}");
 }
+
+#[test]
+fn selection_change_vira_o_evento_ao_selecionar() {
+    let c = converter_texto(&[("Sheet8", "Private Sub Worksheet_SelectionChange(ByVal Target As Range)\n  Range(\"A1\").Value = Target.Address\nEnd Sub\n")], &[("Sheet8", "MAIN")]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let e = &c.eventos[0];
+    assert_eq!((e.aba.as_deref(), e.evento), (Some("MAIN"), "aoSelecionar"));
+    assert!(e.codigo.trim_end().ends_with("Worksheet_SelectionChange(valores.intervalo || Sheet8.selection().address);"), "{}", e.codigo);
+}
+
+#[test]
+fn selection_onaction_da_forma_selecionada_e_vba_createobject() {
+    let vba = "Sub Ligar()\n  ActiveSheet.Shapes(\"Shape 3\").Select\n  Selection.OnAction = \"Gerar\"\n  Dim wsh As Object\n  Set wsh = VBA.CreateObject(\"WScript.Shell\")\n  wsh.Run \"notepad.exe\", 1, True\nEnd Sub\nSub Gerar()\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = &c.macros.iter().find(|m| m.nome == "Ligar").unwrap().codigo;
+    assert!(c.pendencias.is_empty(), "{:#?}\n{js}", c.pendencias);
+    assert!(js.contains(".onAction = \"Gerar\"") && js.contains("formaSel()"), "{js}");
+    assert!(js.contains("app.shell(String(\"notepad.exe\"))"), "{js}");
+}
