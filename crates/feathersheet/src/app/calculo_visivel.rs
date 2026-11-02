@@ -29,24 +29,27 @@ impl App {
         // calcular algumas além da borda não custa quase nada.
         let zoom = (self.config.zoom as f32 / 100.0).max(0.25);
         let (linhas, colunas) = ((90.0 / zoom) as u32, (40.0 / zoom) as u32);
-        let faixas_l = [(0, fixas_l), (self.linha_inicio, self.linha_inicio.saturating_add(linhas))];
-        let faixas_c = [(0, fixas_c), (self.coluna_inicio, self.coluna_inicio.saturating_add(colunas))];
+        // Linha/coluna oculta (filtro, ocultar) não conta: com filtro, as 90
+        // linhas visíveis podem estar espalhadas por milhares de índices.
+        let mut eixos = self.eixos_grade.borrow_mut();
+        let (fim_l, fim_c) = (usado.r1.saturating_add(1), usado.c1.saturating_add(1));
+        let mut rs = eixos.visiveis_desde(&self.workbook, aba, false, 0, fixas_l.min(fim_l), fixas_l);
+        rs.extend(eixos.visiveis_desde(&self.workbook, aba, false, self.linha_inicio, fim_l, linhas));
+        let mut cs = eixos.visiveis_desde(&self.workbook, aba, true, 0, fixas_c.min(fim_c), fixas_c);
+        cs.extend(eixos.visiveis_desde(&self.workbook, aba, true, self.coluna_inicio, fim_c, colunas));
+        drop(eixos);
         let inicio = Instant::now();
         let mut resta = false;
-        'fora: for &(r0, r1) in &faixas_l {
-            for r in r0..r1.min(usado.r1.saturating_add(1)) {
-                for &(c0, c1) in &faixas_c {
-                    for c in c0..c1.min(usado.c1.saturating_add(1)) {
-                        if !self.workbook.calculo_pendente(aba, r, c) {
-                            continue;
-                        }
-                        if inicio.elapsed() >= orcamento {
-                            resta = true;
-                            break 'fora;
-                        }
-                        let _ = self.workbook.valor(aba, r, c);
-                    }
+        'fora: for &r in &rs {
+            for &c in &cs {
+                if !self.workbook.calculo_pendente(aba, r, c) {
+                    continue;
                 }
+                if inicio.elapsed() >= orcamento {
+                    resta = true;
+                    break 'fora;
+                }
+                let _ = self.workbook.valor(aba, r, c);
             }
         }
         self.calculo_pendente = resta;
@@ -79,5 +82,19 @@ mod testes {
         }
         app.calcular_visiveis(Duration::ZERO);
         assert!(app.calculo_pendente, "sem tempo para calcular, o pulso continua");
+    }
+
+    #[test]
+    fn com_linhas_ocultas_calcula_as_visiveis_la_embaixo() {
+        let mut app = App::default();
+        for r in 0..3000u32 {
+            app.workbook.escrever_celula(0, r, 1, format!("=A{}*2", r + 1));
+        }
+        // Como um filtro: só 0 e 2500 à mostra.
+        if let Some(a) = app.workbook.aba_mut(0) {
+            for r in 1..2500u32 { a.sheet.row_heights.insert(r, 0); }
+        }
+        app.calcular_visiveis(Duration::from_secs(5));
+        assert!(!app.workbook.calculo_pendente(0, 2500, 1), "a linha visível depois das ocultas foi calculada");
     }
 }

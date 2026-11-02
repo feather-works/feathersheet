@@ -226,6 +226,29 @@ impl EstadoEixos {
             .or_else(|| inicio.checked_sub(1).and_then(|i| eixo.anterior_visivel(i)))
     }
 
+    /// Até `quantas` posições visíveis a partir de `inicio` (exclusive `fim`),
+    /// saltando as faixas ocultas do eixo em cache (filtro com poucas linhas).
+    pub(crate) fn visiveis_desde(
+        &mut self, workbook: &Workbook, indice_aba: usize,
+        coluna: bool, inicio: u32, fim: u32, quantas: u32,
+    ) -> Vec<u32> {
+        use feathersheet_core::celulas::refs::{MAX_COLS, MAX_ROWS};
+        let Some((linhas, colunas)) = self.para(
+            workbook, indice_aba, MAX_ROWS, MAX_COLS,
+            super::ALTURA_PADRAO, super::LARGURA_PADRAO,
+        ) else { return (inicio..fim).take(quantas as usize).collect() };
+        let eixo = if coluna { colunas } else { linhas };
+        let mut v = Vec::new();
+        let mut i = inicio;
+        while v.len() < quantas as usize {
+            match eixo.proximo_visivel(i) {
+                Some(p) if p < fim => { v.push(p); i = p + 1; }
+                _ => break,
+            }
+        }
+        v
+    }
+
     /// Movimento horizontal pela roda e comandos de rolagem da janela.
     /// Reaproveita o MESMO cache por versão da aba que desenha a grade.
     pub(crate) fn coluna_apos_rolar(
