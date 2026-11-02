@@ -200,4 +200,6 @@ pub enum Tipo {
     Funcoes,
     /// `Set sh = CreateObject("WScript.Shell")`: o `.Run` vira `app.shell` (pergunta antes de rodar).
     Shell,
+    /// `Collection` ou `Scripting.Dictionary`: objeto JS do prelúdio (ver `gerar/colecao.rs`).
+    Colecao,
 }

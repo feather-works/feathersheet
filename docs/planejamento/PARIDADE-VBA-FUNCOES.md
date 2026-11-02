@@ -187,7 +187,11 @@ critério e `ws.AutoFilter.Sort` (ordena a tabela do filtro; os botões de filtr
 
 `ByRef` (02/11/2026): o parâmetro de valor simples que o procedimento altera vira caixa (`p.v`, `gerar/por_ref.rs`); variável passada volta alterada, expressão não; valor solto (evento, fórmula) é embrulhado na entrada. Limite: `Foo (x)` com parênteses ainda vai por referência.
 
-`CreateObject("WScript.Shell").Run` (02/11/2026) → `app.shell` (direto ou com `Set`). `AutoFilter`
+`CreateObject("WScript.Shell").Run` (02/11/2026) → `app.shell` (direto ou com `Set`).
+`Collection` e `Scripting.Dictionary` (02/11/2026, `gerar/colecao.rs`) → `vba.colecao()`/`vba.dicionario()`:
+`Add` (com chave, `Before`/`After`), `Item`/`c(i)`/`d(k)`, `d(k) = v`, `Count`, `Exists`, `Keys`, `Items`,
+`Remove`, `RemoveAll`, `For Each` (itens da coleção, chaves do dicionário); erros 5, 9, 457 e 32811 como no VBA.
+`Dim c As New Collection` também. Ainda não: `As New` em variável de módulo, `CompareMode`, `d.Key(k) = novo`. `AutoFilter`
 com critério (02/11/2026): `sheet.autoFilter(endereço, coluna, critério)`, `showAllData()` e
 `autoFilterOff()` anotam o pedido e o app filtra com o AutoFiltro da tela no fim da macro
 (`tabelas::aplicar_filtros_da_macro`); `vba.filtroCrit` leva `Criteria1` (texto do CONT.SE),

@@ -142,6 +142,7 @@ impl Gerador<'_> {
                 Tipo::NovaPasta => Ok(Obj::NovaPasta(v.js.clone())),
                 Tipo::Funcoes => Ok(Obj::FuncoesDaPlanilha),
                 Tipo::Shell => Ok(Obj::Shell),
+                Tipo::Colecao => Err(Motivo::novo(format!("{n} é coleção, não objeto do Excel"))),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
                 Tipo::Valor(_) => Err(Motivo::novo(format!("{n} não é objeto do Excel"))),
             };

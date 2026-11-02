@@ -9,6 +9,7 @@
 //!   (`sheet.defineFunction`), para a célula que usava `=Extenso_Valor(A1)` continuar valendo.
 
 mod ajuda;
+mod colecao;
 mod contexto;
 mod escrita;
 mod excel;

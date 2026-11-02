@@ -32,7 +32,10 @@ impl Gerador<'_> {
                     _ => V::op(format!("!{}", self.como_bool(&v)), T::Bool, 15),
                 })
             }
-            Expr::Novo(c) => Err(Motivo::novo(format!("New {c}"))),
+            Expr::Novo(c) => match self.criar_colecao(e) {
+                Some(js) => Ok(V::novo(js, T::Obj)),
+                None => Err(Motivo::novo(format!("New {c}"))),
+            },
             Expr::TipoDe(..) => Err(Motivo::novo("TypeOf")),
             Expr::Bang(..) => Err(Motivo::novo("acesso por nome (a!b)")),
             Expr::Membro(..) | Expr::MembroDoCom(_) | Expr::Chamada(..) => self.composto(e),
@@ -62,6 +65,7 @@ impl Gerador<'_> {
                 Tipo::NovaPasta => Err(Motivo::novo(format!("a pasta {n} usada como valor"))),
                 Tipo::Funcoes => Err(Motivo::novo(format!("WorksheetFunction ({n}) usada como valor"))),
                 Tipo::Shell => Err(Motivo::novo(format!("WScript.Shell ({n}) usado como valor"))),
+                Tipo::Colecao => Ok(V::novo(v.js, T::Obj)),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
             };
         }
@@ -115,6 +119,13 @@ impl Gerador<'_> {
     }
 
     fn chamada(&mut self, f: &Expr, args: &[Arg]) -> R<V> {
+        if let Some(js) = self.criar_colecao(&Expr::Chamada(Box::new(f.clone()), args.to_vec())) {
+            return Ok(V::novo(js, T::Obj));
+        }
+        // `c(i)` / `d(k)`: o item.
+        if let Some(js) = self.var_colecao(f) {
+            return self.membro_colecao(&js, "item", args);
+        }
         match f {
             Expr::Nome(n) => self.chamada_por_nome(n, args),
             Expr::Membro(base, nome) => self.membro(base, nome, args),
@@ -233,6 +244,9 @@ impl Gerador<'_> {
     }
 
     fn membro(&mut self, base: &Expr, nome: &str, args: &[Arg]) -> R<V> {
+        if let Some(js) = self.var_colecao(base) {
+            return self.membro_colecao(&js, nome, args);
+        }
         // `VBA.Len(x)`, `VBA.Mid(…)`.
         if matches!(base, Expr::Nome(b) if b.eq_ignore_ascii_case("vba")) {
             let vs = self.valores(args)?;

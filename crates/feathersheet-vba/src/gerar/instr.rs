@@ -185,6 +185,13 @@ impl Gerador<'_> {
         let mut saida = Vec::new();
         for d in decls {
             if d.novo {
+                // `Dim c As New Collection`: a coleção nasce no Dim.
+                let nova = d.tipo.as_deref().and_then(|t| self.criar_colecao(&Expr::Novo(t.to_string())));
+                if let Some(nova) = nova {
+                    let js = self.var(&d.nome).map_or_else(|| d.nome.clone(), |v| v.js);
+                    saida.push(format!("{js} = {nova};"));
+                    continue;
+                }
                 return Err(Motivo::novo(format!("As New {}", d.tipo.as_deref().unwrap_or(""))));
             }
             if let Some(dims) = d.dims.as_ref().filter(|x| !x.is_empty()) {
@@ -236,6 +243,16 @@ impl Gerador<'_> {
     // ------------------------------------------------------------------ atribuição e chamada
 
     fn atribuir(&mut self, i: &Instr, alvo: &Expr, valor: &Expr, set: bool) -> R<String> {
+        // `d(k) = v` / `d.Item(k) = v`.
+        if let Expr::Chamada(f, idx) = alvo {
+            let base = match &**f {
+                Expr::Membro(b, m) if m.eq_ignore_ascii_case("item") => &**b,
+                outro => outro,
+            };
+            if let Some(js) = self.var_colecao(base) {
+                return self.atribuir_colecao(&js, idx, valor);
+            }
+        }
         match alvo {
             Expr::Nome(n) => self.atribuir_nome(i, n, valor, set),
             Expr::Chamada(f, idx) if matches!(&**f, Expr::Nome(n) if self.var(n).is_some_and(|v| v.matriz || matches!(v.tipo, Tipo::Valor(T::Var | T::Matriz)))) => {
@@ -267,6 +284,26 @@ impl Gerador<'_> {
 
     fn atribuir_nome(&mut self, i: &Instr, n: &str, valor: &Expr, set: bool) -> R<String> {
         let chave = n.to_lowercase();
+        // `Set c = New Collection`, `Set d = CreateObject("Scripting.Dictionary")`, `Set c = outra`,
+        // `Set c = Nothing`: a variável passa a guardar coleção (mesmo declarada `As Object`).
+        if set {
+            let nova = match self.criar_colecao(valor) {
+                Some(js) => Some(js),
+                None => self.var_colecao(valor),
+            };
+            let atual = self.var(n).or_else(|| self.global(n));
+            if nova.is_some() || matches!(valor, Expr::Nada) && atual.as_ref().is_some_and(|v| v.tipo == Tipo::Colecao) {
+                let js = match atual {
+                    Some(v) if matches!(v.tipo, Tipo::Colecao | Tipo::Impossivel(_) | Tipo::Valor(T::Var | T::Obj)) => {
+                        if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = Tipo::Colecao; }
+                        v.js
+                    }
+                    Some(_) => return Err(Motivo::novo(format!("coleção guardada em {n}, que tem outro tipo"))),
+                    None => self.declarar(n, Tipo::Colecao, false),
+                };
+                return Ok(format!("{js} = {};", nova.unwrap_or_else(|| "null".into())));
+            }
+        }
         if self.escopo.funcao.as_deref() == Some(chave.as_str()) {
             let t = self.escopo.vars.get("$r").map(|v| v.tipo.clone()).unwrap_or(Tipo::Valor(T::Var));
             let v = self.valor(valor)?;
@@ -330,6 +367,8 @@ impl Gerador<'_> {
             // `Set sh = Nothing` no fim: nada a soltar.
             Tipo::Shell if matches!(valor, Expr::Nada) => Ok(String::new()),
             Tipo::Shell => Err(Motivo::novo("WScript.Shell guardado em variável e trocado depois")),
+            // `Set c = FuncaoQueDevolveColecao()`.
+            Tipo::Colecao => Ok(format!("{} = {};", var.js, self.valor(valor)?.js)),
             Tipo::Impossivel(antes) if set && antes.starts_with("objeto do tipo") => {
                 // O `Set` diz o motivo melhor que o `As Object` (ex.: `CreateObject("WScript.Shell")`).
                 let m = self.motivo_do_objeto(valor);
@@ -458,6 +497,9 @@ impl Gerador<'_> {
     }
 
     fn chamar_membro(&mut self, base: &Expr, m: &str, args: &[crate::sintaxe::Arg]) -> R<String> {
+        if let Some(js) = self.var_colecao(base) {
+            return self.chamar_colecao(&js, m, args);
+        }
         if let Expr::Nome(b) = base {
             if b.eq_ignore_ascii_case("debug") {
                 let vs = self.valores(args)?;
