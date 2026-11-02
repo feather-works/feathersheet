@@ -15,6 +15,7 @@ mod excel;
 mod expr;
 mod funcoes;
 mod instr;
+mod por_ref;
 mod tipos;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -140,6 +141,7 @@ fn escrever_proc(p: &Programa, m: &mut Macro, r: RefProc) -> Vec<String> {
     g.corpo_do_proc(&proc.corpo);
     let nome = g.m.nomes.get(&r).cloned().unwrap_or_else(|| js_nome(&proc.nome));
     let mut saida = vec![format!("// {}.{} (linha {})", info.nome, proc.nome, proc.linha), format!("function {nome}({}) {{", params.join(", "))];
+    saida.extend(proc.params.iter().zip(por_ref::caixas(proc)).filter(|(_, c)| *c).map(|(pr, _)| por_ref::embrulhar(&js_nome(&pr.nome))));
     saida.extend(conversoes_de_parametro(&mut g, proc));
     let locais: Vec<String> = g.escopo.ordem[n_params..].iter().filter_map(|k| g.escopo.vars.get(k)).map(|v| format!("{} = {}", v.js, valor_inicial(&v.tipo))).collect();
     if !locais.is_empty() {
@@ -159,16 +161,25 @@ fn escrever_proc(p: &Programa, m: &mut Macro, r: RefProc) -> Vec<String> {
 
 /// Os parâmetros (com o valor padrão do `Optional`), já registrados no escopo.
 fn parametros(g: &mut Gerador, proc: &Proc) -> Vec<String> {
+    let caixas = por_ref::caixas(proc);
     proc.params
         .iter()
-        .map(|pr| {
+        .zip(caixas)
+        .map(|(pr, caixa)| {
             let tipo = tipo_declarado(pr.tipo.as_deref());
             let js = g.declarar(&pr.nome, tipo.clone(), pr.matriz);
-            if contexto::e_inteiro(pr.tipo.as_deref()) && !pr.matriz {
-                g.escopo.inteiros.insert(js.clone());
-            }
+            let mut no_corpo = js.clone();
             if let Some(v) = g.escopo.vars.get_mut(&pr.nome.to_lowercase()) {
-                v.por_ref = !pr.por_valor && matches!(tipo, Tipo::Valor(_));
+                if caixa {
+                    // ByRef alterado: no corpo o parâmetro é `p.v`, e a mudança volta para quem chamou.
+                    no_corpo = format!("{js}.v");
+                    v.js = no_corpo.clone();
+                } else {
+                    v.por_ref = !pr.por_valor && matches!(tipo, Tipo::Valor(_));
+                }
+            }
+            if contexto::e_inteiro(pr.tipo.as_deref()) && !pr.matriz {
+                g.escopo.inteiros.insert(no_corpo);
             }
             match (&pr.padrao, pr.opcional) {
                 (Some(e), _) => g.valor(e).map_or(js.clone(), |v| format!("{js} = {}", v.js)),

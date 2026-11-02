@@ -238,6 +238,7 @@ impl Gerador<'_> {
     pub fn chamar_proc(&mut self, r: RefProc, args: &[Arg]) -> R<V> {
         let nome = self.m.pedir(self.p, r);
         let proc = self.p.proc(r);
+        let caixas = super::por_ref::caixas(proc);
         let mut saida: Vec<String> = vec!["undefined".into(); proc.params.len().max(args.len())];
         let mut pos = 0;
         for a in args {
@@ -249,7 +250,14 @@ impl Gerador<'_> {
                 }
             };
             if let Some(e) = &a.valor {
-                saida[i] = self.argumento_de_proc(e)?;
+                saida[i] = if caixas.get(i) == Some(&true) {
+                    // shortcut: `Foo (x)` (parênteses = por valor no VBA) passa por referência: o parser não guarda os parênteses.
+                    let variavel = match e { Expr::Nome(n) => self.variavel_de_valor(n), _ => None };
+                    let valor = self.valor(e)?.js;
+                    super::por_ref::caixa(variavel.as_deref(), &valor)
+                } else {
+                    self.argumento_de_proc(e)?
+                };
             }
         }
         while saida.last().is_some_and(|s| s == "undefined") {
@@ -263,6 +271,12 @@ impl Gerador<'_> {
             _ => T::Var,
         };
         Ok(V::novo(format!("{nome}({})", saida.join(", ")), t))
+    }
+
+    /// O nome JS da variável (local, parâmetro ou do módulo) de valor simples que um ByRef pode alterar.
+    fn variavel_de_valor(&mut self, n: &str) -> Option<String> {
+        let v = self.var(n).or_else(|| self.global(n))?;
+        (matches!(v.tipo, Tipo::Valor(_)) && !v.matriz).then_some(v.js)
     }
 
     /// Argumento de procedimento: intervalo vai como endereço (`Target`), o resto como valor.

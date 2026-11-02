@@ -187,6 +187,8 @@ critério e `ws.AutoFilter.Sort` (ordena a tabela do filtro; os botões de filtr
 `.TextFrame2.TextRange.Font` (negrito, itálico, tamanho, cor) e `.Text` → `sheet.shape(nome)`
 (o `.xlsx` agora guarda o nome da forma em `nome`).
 
+`ByRef` (02/11/2026): o parâmetro de valor simples que o procedimento altera vira caixa (`p.v`, `gerar/por_ref.rs`); variável passada volta alterada, expressão não; valor solto (evento, fórmula) é embrulhado na entrada. Limite: `Foo (x)` com parênteses ainda vai por referência.
+
 Próximos pela contagem: o resto das formas (botões, visibilidade, posição), `WScript.Shell.Run` →
 `app.shell`, `AutoFilter` com critério (precisa de filtro na API das macros), automação do Word (fica
 para quando o FeatherDocs tiver API).

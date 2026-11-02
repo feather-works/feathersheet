@@ -194,7 +194,7 @@
         "titulo": "Excel, VBA and forms",
         "corpo": [
           "Opening an .xlsm converts its VBA macros to JavaScript. Before any macro from the file runs, the app asks \"Enable macros?\" — only accept if you trust the source.",
-          "The converter understands VBA's text, number and date functions, the Format family (FormatNumber, FormatCurrency, FormatDateTime…), Choose, Switch, StrComp and the financial ones (Pmt, PV, FV, NPV, IRR, Rate…). Shell becomes app.shell, which shows the command and asks before running it. Anything without an equivalent stays in the code as a \"VBA não convertido\" comment.",
+          "The converter understands VBA's text, number and date functions, the Format family (FormatNumber, FormatCurrency, FormatDateTime…), Choose, Switch, StrComp and the financial ones (Pmt, PV, FV, NPV, IRR, Rate…). Shell becomes app.shell, which shows the command and asks before running it. A ByRef parameter changed by the Sub or Function passes the new value back to the caller, as in Excel. Anything without an equivalent stays in the code as a \"VBA não convertido\" comment.",
           "Forms (VBA's UserForm): in the macro editor (Alt+F11), draw the window with text boxes, lists, options and buttons, and link each button to a macro. In a macro, sheet.showComponent(\"name\") opens the form.",
           "A long macro runs in the background: the app shows it is running, with the elapsed time and a Stop button."
         ]

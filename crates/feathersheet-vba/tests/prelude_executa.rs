@@ -285,3 +285,18 @@ fn caixa_de_texto_do_fluxo_de_caixa_muda_de_cor_e_negrito() {
         assert!(ob.contains(trecho), "{trecho} em {ob}");
     }
 }
+
+#[test]
+fn byref_alterado_volta_para_quem_chamou() {
+    // Variável volta alterada; expressão e ByVal não; global do módulo também volta.
+    let wb = roda(
+        "Dim g As Long\nSub T()\n  Dim a As Long, b As Long, s As String\n  a = 1: b = 1: s = \"x\"\n  Somar a, 5\n  Somar b + 0, 5\n  Dobrar a\n  Juntar s\n  Somar g, 7\n  Range(\"A1\").Value = a\n  Range(\"A2\").Value = b\n  Range(\"A3\").Value = s\n  Range(\"A4\").Value = g\n  Range(\"A5\").Value = Contar(a)\n  Range(\"A6\").Value = a\nEnd Sub\nSub Somar(total As Long, ByVal n As Long)\n  total = total + n\n  n = 0\nEnd Sub\nSub Dobrar(ByRef x As Long)\n  Dim i As Long\n  For i = 1 To 1\n    x = x * 2\n  Next i\nEnd Sub\nSub Juntar(t As String)\n  t = t & \"y\"\nEnd Sub\nFunction Contar(ByRef k As Long) As Long\n  k = k + 1\n  Contar = k * 10\nEnd Function\n",
+        "T",
+    );
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(12.0), "(1 + 5) * 2");
+    assert_eq!(wb.valor(0, 1, 0), Value::Number(1.0), "expressão vai por valor");
+    assert_eq!(wb.valor(0, 2, 0), Value::Text("xy".into()));
+    assert_eq!(wb.valor(0, 3, 0), Value::Number(7.0));
+    assert_eq!(wb.valor(0, 4, 0), Value::Number(130.0));
+    assert_eq!(wb.valor(0, 5, 0), Value::Number(13.0));
+}
