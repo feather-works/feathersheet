@@ -203,6 +203,13 @@ pub struct ColunaFormulaLida {
     pub erros: Vec<ErroLida>,
 }
 
+/// Ver [`AbaLida::prontas`]: o pool de textos da aba e as colunas por número de coluna.
+pub struct ColunasProntas {
+    pub pool: feathersheet_core::celulas::pool::StringPool,
+    pub colunas: Vec<(u32, Option<feathersheet_core::planilha::column_store::ChunkedFloatColumn>,
+        Option<feathersheet_core::planilha::column_store::ChunkedInt32Column>)>,
+}
+
 #[derive(Serialize)]
 pub struct AbaLida {
     pub n: String,
@@ -235,6 +242,10 @@ pub struct AbaLida {
     pub colunas_num: Vec<ColunaNumLida>,
     pub colunas_txt: Vec<ColunaTxtLida>,
     pub colunas_formula: Vec<ColunaFormulaLida>,
+    /// Colunas de número/texto já montadas e compactadas na leitura, com o pool da
+    /// aba ([`ler_fshz_arquivo_compacto`]); só [`crate::para_workbook::para_workbook_soltando`] as usa.
+    #[serde(skip)]
+    pub prontas: Option<ColunasProntas>,
     pub padroes_formula: Vec<String>,
     pub w: Vec<(u32, f64)>,
     pub h: Vec<(u32, f64)>,
@@ -306,14 +317,14 @@ type ColunasArrow = std::collections::HashMap<String, crate::arrow_fluxo::Coluna
 fn tirar_float(colunas: &mut ColunasArrow, campo: &str) -> Option<(Vec<f64>, Vec<u8>)> {
     match colunas.remove(campo)? {
         crate::arrow_fluxo::ColunaArrow::Float(v, m) => Some((v, m)),
-        crate::arrow_fluxo::ColunaArrow::Int(..) => None,
+        _ => None,
     }
 }
 
 fn tirar_int(colunas: &mut ColunasArrow, campo: &str) -> Option<(Vec<i32>, Vec<u8>)> {
     match colunas.remove(campo)? {
         crate::arrow_fluxo::ColunaArrow::Int(v, m) => Some((v, m)),
-        crate::arrow_fluxo::ColunaArrow::Float(..) => None,
+        _ => None,
     }
 }
 
@@ -326,7 +337,14 @@ fn colunas_da_fatia(aba: &AbaMetaLida, arrow_bytes: &[u8]) -> Result<ColunasArro
     crate::arrow_fluxo::ler_colunas(fatia, len, linhas)
 }
 
-fn montar_aba_lida(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>>, mut arrow: ColunasArrow) -> Result<AbaLida, String> {
+fn montar_aba_lida(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>>, arrow: ColunasArrow) -> Result<AbaLida, String> {
+    montar_aba_lida_com_pool(aba, estilos, arrow, None)
+}
+
+fn montar_aba_lida_com_pool(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>>, mut arrow: ColunasArrow,
+    pool: Option<feathersheet_core::celulas::pool::StringPool>) -> Result<AbaLida, String> {
+    use crate::arrow_fluxo::ColunaArrow;
+    let mut prontas = pool.map(|pool| ColunasProntas { pool, colunas: Vec::new() });
     let existe = |i: &usize| *i < estilos.len();
     let avulsas = aba
         .c
@@ -341,6 +359,16 @@ fn montar_aba_lida(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>>, mut ar
     if let (Some(cols), Some(_), Some(linhas)) = (aba.cols, aba.ar, aba.len) {
         for col in cols {
             match col.k.as_str() {
+                "num" if matches!(arrow.get(&col.f), Some(ColunaArrow::NumBlocos(_))) => {
+                    if let (Some(ColunaArrow::NumBlocos(m)), Some(p)) = (arrow.remove(&col.f), prontas.as_mut()) {
+                        p.colunas.push((col.c, Some(m.coluna), None));
+                    }
+                }
+                "txt" if matches!(arrow.get(&col.f), Some(ColunaArrow::TxtBlocos(..))) => {
+                    if let (Some(ColunaArrow::TxtBlocos(m, _)), Some(p)) = (arrow.remove(&col.f), prontas.as_mut()) {
+                        p.colunas.push((col.c, None, Some(m.coluna)));
+                    }
+                }
                 "num" => {
                     if let Some((values, bitmap)) = tirar_float(&mut arrow, &col.f) {
                         colunas_num.push(ColunaNumLida { col: col.c, values, bitmap });
@@ -429,6 +457,7 @@ fn montar_aba_lida(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>>, mut ar
         colunas_num,
         colunas_txt,
         colunas_formula,
+        prontas,
         padroes_formula: aba.pat,
         w: aba.w,
         h: aba.h,
@@ -494,6 +523,10 @@ fn ler_bloco<R: Read>(leitor: &mut R, len: usize) -> std::io::Result<Vec<u8>> {
 }
 
 fn ler_fluxo<R: Read>(origem: R, versao: u32) -> Result<PastaLida, String> {
+    ler_fluxo_com(origem, versao, false)
+}
+
+fn ler_fluxo_com<R: Read>(origem: R, versao: u32, compacto: bool) -> Result<PastaLida, String> {
     let mut leitor = BufReader::new(GzDecoder::new(origem));
     let mut tamanho = [0; 4];
     leitor.read_exact(&mut tamanho).map_err(|e| format!("Cabeçalho FSH3 inválido: {e}"))?;
@@ -511,14 +544,16 @@ fn ler_fluxo<R: Read>(origem: R, versao: u32) -> Result<PastaLida, String> {
     let mut sheets = Vec::with_capacity(livro.s.len());
     for aba in livro.s {
         let mut colunas = ColunasArrow::default();
+        let mut pool = None;
         if let Some((off, len)) = aba.ar {
             if off != deslocamento { return Err("Blocos Arrow FSH3 fora de ordem".into()); }
+            let planos = if compacto { planos_da_aba(&aba, pool.insert(Default::default())) } else { Default::default() };
             // Direto do gzip para as colunas, sem o bloco inteiro na memória.
-            colunas = crate::arrow_fluxo::ler_colunas(&mut leitor, len, aba.len.unwrap_or(0))
+            colunas = crate::arrow_fluxo::ler_colunas_com_plano(&mut leitor, len, aba.len.unwrap_or(0), planos)
                 .map_err(|e| format!("Bloco Arrow FSH3 inválido: {e}"))?;
             deslocamento = deslocamento.checked_add(len).ok_or("Blocos Arrow grandes demais")?;
         }
-        sheets.push(montar_aba_lida(aba, &tabela, colunas)?);
+        sheets.push(montar_aba_lida_com_pool(aba, &tabela, colunas, pool)?);
     }
     // Verifica o checksum gzip inclusive quando não há colunas Arrow.
     let mut extra = [0];
@@ -526,6 +561,20 @@ fn ler_fluxo<R: Read>(origem: R, versao: u32) -> Result<PastaLida, String> {
         return Err("Dados extras no fim do FSH3".into());
     }
     Ok(PastaLida { v: versao, a: livro.a, names: livro.names, es: livro.es, pr: livro.pr, mc: livro.mc, ex: livro.ex, fm: livro.fm, sheets })
+}
+
+/// Os planos de leitura em blocos das colunas de número e texto da aba; os textos
+/// dos dicionários entram já no `pool` da aba (texto vazio = célula vazia, como em
+/// `Sheet::carregar_coluna_textos`).
+fn planos_da_aba(aba: &AbaMetaLida, pool: &mut feathersheet_core::celulas::pool::StringPool)
+    -> std::collections::HashMap<String, crate::arrow_fluxo::Plano> {
+    use crate::arrow_fluxo::Plano;
+    aba.cols.iter().flatten().filter_map(|col| match col.k.as_str() {
+        "num" => Some((col.f.clone(), Plano::Num)),
+        "txt" => Some((col.f.clone(), Plano::Txt(col.d.iter().flatten()
+            .map(|t| if t.is_empty() { -1 } else { pool.get_or_create(t) }).collect()))),
+        _ => None,
+    }).collect()
 }
 
 /// Converte FSH2 em FSH3 sem reconstruir uma Workbook e sem expandir o
@@ -603,6 +652,17 @@ pub fn ler_fshz_arquivo(path: &std::path::Path) -> Result<PastaLida, String> {
     }
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
     ler_fshz(&bytes)
+}
+
+/// [`ler_fshz_arquivo`] para abrir no app: as colunas de número e texto já vêm
+/// compactadas em blocos ([`AbaLida::prontas`]), e o pico da abertura fica perto do
+/// tamanho final. Usar com [`crate::para_workbook::para_workbook_soltando`].
+pub fn ler_fshz_arquivo_compacto(path: &std::path::Path) -> Result<PastaLida, String> {
+    let mut arquivo = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut magic = [0; 4];
+    arquivo.read_exact(&mut magic).map_err(|e| e.to_string())?;
+    if &magic == b"FSH3" { return ler_fluxo_com(crate::progresso::Contador(arquivo), 3, true); }
+    ler_fshz_arquivo(path)
 }
 
 /// Lê um `.fshz`. `bytes` é o arquivo inteiro, como veio do disco — só a
@@ -777,6 +837,35 @@ mod testes {
                 assert_eq!(col.values[r as usize], values[r as usize]);
             }
         }
+    }
+
+    /// A leitura compacta (blocos compactados na hora, textos já no pool) dá a mesma
+    /// pasta que a leitura em vetores, com buracos, texto vazio e três blocos.
+    #[test]
+    fn leitura_compacta_da_a_mesma_pasta() {
+        let linhas = 150_000u32;
+        let presentes: Vec<bool> = (0..linhas).map(|r| r % 7 != 3).collect();
+        let bitmap = bitmap_de(&presentes);
+        let mut aba = aba_vazia("Dados");
+        aba.linhas = linhas;
+        aba.colunas_num = vec![ColunaNumBruta { col: 0, values: (0..linhas).map(|r| (r % 500) as f64).collect(), bitmap: bitmap.clone(), blocos: None }];
+        aba.colunas_txt = vec![ColunaTxtBruta { col: 1, indices: (0..linhas as i32).map(|r| r % 4).collect(), bitmap,
+            dict: vec!["a".into(), "".into(), "c".into(), "d".into()] }];
+        aba.avulsas = vec![CelulaAvulsaBruta { k: 2, v: "x".into(), estilo: None }];
+        let pasta = PastaBruta { a: 0, names: None, es: None, pr: None, mc: None, ex: None, fm: None, sheets: vec![aba] };
+        let bytes = crate::fshz_write::gerar_fshz2(&pasta).unwrap();
+        assert_eq!(&bytes[..4], b"FSH3");
+        let antiga = crate::para_workbook::para_workbook_soltando(ler_fshz(&bytes).unwrap());
+        let mut compacta = crate::para_workbook::para_workbook_soltando(ler_fluxo_com(&bytes[4..], 3, true).unwrap());
+        assert_eq!(compacta.compactar_colunas().0, 0,
+            "os blocos cheios já vêm compactados");
+        for r in [0u32, 1, 3, 65_535, 65_536, 100_000, 149_999] {
+            for c in 0..3 {
+                assert_eq!(antiga.valor(0, r, c), compacta.valor(0, r, c), "linha {r} coluna {c}");
+            }
+        }
+        let (a, b) = (antiga.aba(0).unwrap().sheet.used_rect(), compacta.aba(0).unwrap().sheet.used_rect());
+        assert_eq!((a.r0, a.c0, a.r1, a.c1), (b.r0, b.c0, b.r1, b.c1));
     }
 
     #[test]

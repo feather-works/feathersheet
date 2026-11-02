@@ -47,11 +47,12 @@ pub fn para_workbook(lida: &PastaLida) -> Workbook {
 pub fn para_workbook_soltando(mut lida: PastaLida) -> Workbook {
     let colunas = lida.sheets.iter_mut().map(|a| (
         std::mem::take(&mut a.colunas_num), std::mem::take(&mut a.colunas_txt), std::mem::take(&mut a.colunas_formula),
+        a.prontas.take(),
     )).collect();
     montar(&lida, Some(colunas))
 }
 
-type ColunasDaAba = (Vec<ColunaNumLida>, Vec<ColunaTxtLida>, Vec<ColunaFormulaLida>);
+type ColunasDaAba = (Vec<ColunaNumLida>, Vec<ColunaTxtLida>, Vec<ColunaFormulaLida>, Option<crate::fshz_read::ColunasProntas>);
 
 fn montar(lida: &PastaLida, colunas: Option<Vec<ColunasDaAba>>) -> Workbook {
     // A barra da montagem anda por célula carregada.
@@ -62,7 +63,7 @@ fn montar(lida: &PastaLida, colunas: Option<Vec<ColunasDaAba>>) -> Workbook {
     };
     crate::progresso::etapa_total(lida.sheets.iter().enumerate().map(|(i, a)| {
         a.avulsas.len() as u64 + match colunas.as_ref().and_then(|c| c.get(i)) {
-            Some((n, t, f)) => tamanho(n, t, f),
+            Some((n, t, f, _)) => tamanho(n, t, f),
             None => tamanho(&a.colunas_num, &a.colunas_txt, &a.colunas_formula),
         }
     }).sum());
@@ -244,7 +245,11 @@ pub fn comentarios_de_json(v: &serde_json::Value) -> feathersheet_core::planilha
     }).collect()
 }
 
-fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &AbaLida, proprias: Option<ColunasDaAba>) {
+fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &AbaLida, mut proprias: Option<ColunasDaAba>) {
+    // As colunas compactadas na leitura apontam para este pool: ele entra antes de
+    // qualquer texto (avulsas, fórmulas) ser registrado.
+    let prontas = proprias.as_mut().and_then(|p| p.3.take());
+    let prontas = prontas.map(|p| { sheet.pool = p.pool; p.colunas });
     sheet.tab_color = aba.tc.clone();
     sheet.oculta = aba.oc;
     sheet.largura_padrao = aba.wp;
@@ -314,8 +319,14 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
     // Com as colunas próprias, cada uma é solta logo depois de carregada
     // (fim da volta do `for`); emprestadas, ficam com quem chamou.
     match proprias {
-        Some((num, txt, fx)) => carregar_colunas(sheet, num, txt, fx),
+        Some((num, txt, fx, _)) => carregar_colunas(sheet, num, txt, fx),
         None => carregar_colunas(sheet, &aba.colunas_num, &aba.colunas_txt, &aba.colunas_formula),
+    }
+
+    for (col, num, txt) in prontas.into_iter().flatten() {
+        let n = num.as_ref().map_or(0, |c| c.max_row + 1) + txt.as_ref().map_or(0, |c| c.max_row + 1);
+        sheet.instalar_coluna(col, num, txt);
+        crate::progresso::etapa_somar(n.max(0) as u64);
     }
 
     // 5) o estilo direto: por faixa (arquivos de 16/10/2026 em diante) e por
@@ -715,6 +726,7 @@ mod testes {
                 colunas_num: vec![num(1, [0.0, 101.03, 300.0]), num(2, [0.0, 11.06, 5.0])],
                 colunas_txt: vec![],
                 colunas_formula: vec![formula(3, 0, [0.0, 112.09, 305.0]), formula(4, 1, [0.0, 999.0, 350.75])],
+                prontas: None,
                 padroes_formula: vec![
                     "=\u{1}r-2;r0\u{1}+\u{1}r-1;r0\u{1}".into(),
                     "=SE(\u{1}r-1;r0\u{1}>200;\u{1}r-1;r0\u{1}*1.15;\u{1}r-1;r0\u{1}*1.05)".into(),
@@ -813,6 +825,7 @@ mod testes {
                 colunas_num: vec![],
                 colunas_txt: vec![],
                 colunas_formula: vec![],
+                prontas: None,
                 padroes_formula: vec![],
                 w: vec![(2, 150.0)],
                 h: vec![(7, 0.0)],

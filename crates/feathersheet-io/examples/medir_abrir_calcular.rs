@@ -6,7 +6,7 @@ fn main() {
     let caminho = std::path::PathBuf::from(std::env::args().nth(1).expect("arquivo"));
     let t = Instant::now();
     let mut w = if caminho.extension().is_some_and(|e| e == "fshz") {
-        let lida = feathersheet_io::fshz_read::ler_fshz_arquivo(&caminho).expect("ler FSHZ");
+        let lida = feathersheet_io::fshz_read::ler_fshz_arquivo_compacto(&caminho).expect("ler FSHZ");
         println!("[lido] {:.2} s", t.elapsed().as_secs_f64());
         feathersheet_io::para_workbook::para_workbook_soltando(lida)
     } else {

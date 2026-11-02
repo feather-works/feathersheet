@@ -527,19 +527,26 @@ impl<T: Valor> ChunkedColumn<T> {
     /// Bloco com pouco dado fica cru: o `vec![0; n]` só ocupa as páginas escritas, e o
     /// compacto ocuparia todas. Devolve os bytes de valores antes e depois.
     pub fn compactar(&mut self) -> (usize, usize) {
-        let (mut antes, mut depois) = (0, 0);
-        for (bloco, mascara) in self.chunks.iter_mut().zip(&self.presence) {
-            let (Some(Bloco::Cru(v)), Some(m)) = (bloco.as_ref(), mascara) else { continue };
-            let n: usize = m.iter().map(|b| b.count_ones() as usize).sum();
-            if n < CHUNK_SIZE / 8 { continue; }
-            let cru = v.len() * std::mem::size_of::<T>();
-            if let Some(c) = T::compactar(v, m).filter(|c| c.dados.len() < cru) {
-                antes += cru;
-                depois += c.dados.len();
-                *bloco = Some(Bloco::Compacto(Arc::new(c)));
+        (0..self.chunks.len()).map(|i| self.compactar_bloco(i))
+            .fold((0, 0), |(a, d), (x, y)| (a + x, d + y))
+    }
+
+    /// [`Self::compactar`] de um bloco só: a abertura compacta cada bloco assim que
+    /// ele chega do arquivo, sem a coluna crua inteira na memória.
+    pub fn compactar_bloco(&mut self, idx: usize) -> (usize, usize) {
+        let (Some(Some(bloco)), Some(Some(m))) = (self.chunks.get_mut(idx), self.presence.get(idx)) else { return (0, 0) };
+        let Bloco::Cru(v) = &*bloco else { return (0, 0) };
+        let n: usize = m.iter().map(|b| b.count_ones() as usize).sum();
+        if n < CHUNK_SIZE / 8 { return (0, 0); }
+        let cru = v.len() * std::mem::size_of::<T>();
+        match T::compactar(v, m).filter(|c| c.dados.len() < cru) {
+            Some(c) => {
+                let depois = c.dados.len();
+                *bloco = Bloco::Compacto(Arc::new(c));
+                (cru, depois)
             }
+            None => (0, 0),
         }
-        (antes, depois)
     }
 
 }

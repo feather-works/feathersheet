@@ -15,12 +15,63 @@ use std::collections::HashMap;
 use std::io::Read;
 
 use arrow::ipc::{root_as_message, MessageHeader, Type};
+use feathersheet_core::planilha::column_store::{ChunkedColumn, Valor, CHUNK_MASK, CHUNK_SHIFT, CHUNK_SIZE};
 
 /// Uma coluna lida: valores (posição sem dado fica 0) e máscara de presença
 /// (1 bit por linha, menos significativo primeiro).
 pub(crate) enum ColunaArrow {
     Float(Vec<f64>, Vec<u8>),
     Int(Vec<i32>, Vec<u8>),
+    /// Coluna de números montada em blocos já compactados (ver [`Plano`]).
+    NumBlocos(Montador<f64>),
+    /// Coluna de texto em blocos compactados, com os ids já do pool da aba.
+    TxtBlocos(Montador<i32>, Vec<i32>),
+}
+
+/// O que fazer com um campo ao ler: sem plano, a coluna vem inteira em vetor;
+/// com plano, em blocos de `CHUNK_SIZE` linhas compactados assim que ficam
+/// prontos, e o pico da abertura fica perto do tamanho final (só um bloco cru
+/// por coluna de cada vez).
+pub(crate) enum Plano {
+    Num,
+    /// Posição no dicionário do arquivo → id no pool da aba (`< 0`: célula vazia).
+    Txt(Vec<i32>),
+}
+
+/// Monta uma `ChunkedColumn` bloco a bloco, linhas em ordem crescente.
+pub(crate) struct Montador<T: Valor> {
+    pub(crate) coluna: ChunkedColumn<T>,
+    idx: usize,
+    valores: Vec<T>,
+    mascara: Vec<u8>,
+    sujo: bool,
+}
+
+impl<T: Valor> Montador<T> {
+    fn novo() -> Self {
+        Self { coluna: ChunkedColumn::new(), idx: 0, valores: vec![T::default(); CHUNK_SIZE], mascara: vec![0; CHUNK_SIZE >> 3], sujo: false }
+    }
+
+    fn por(&mut self, linha: usize, v: T) {
+        let idx = linha >> CHUNK_SHIFT;
+        if idx != self.idx {
+            self.fechar();
+            self.idx = idx;
+        }
+        let o = linha & CHUNK_MASK as usize;
+        self.valores[o] = v;
+        self.mascara[o >> 3] |= 1 << (o & 7);
+        self.sujo = true;
+    }
+
+    fn fechar(&mut self) {
+        if !self.sujo { return; }
+        let valores = std::mem::replace(&mut self.valores, vec![T::default(); CHUNK_SIZE]);
+        let mascara = std::mem::replace(&mut self.mascara, vec![0; CHUNK_SIZE >> 3]);
+        self.coluna.colocar_bloco(self.idx, valores.into_boxed_slice(), mascara.into_boxed_slice());
+        self.coluna.compactar_bloco(self.idx);
+        self.sujo = false;
+    }
 }
 
 /// Lê `n` bytes sem reservar o tamanho declarado de antemão: um arquivo
@@ -48,6 +99,11 @@ fn pular<R: Read>(r: &mut R, n: u64) -> Result<(), String> {
 /// Lê os `len` bytes do bloco Arrow da aba em `origem` e devolve as colunas
 /// pelo nome do campo, cada uma com `linhas` posições.
 pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result<HashMap<String, ColunaArrow>, String> {
+    ler_colunas_com_plano(origem, len, linhas, HashMap::new())
+}
+
+/// [`ler_colunas`] com um [`Plano`] por nome de campo; campo sem plano vem em vetor.
+pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32, mut planos: HashMap<String, Plano>) -> Result<HashMap<String, ColunaArrow>, String> {
     if linhas > feathersheet_core::MAX_ROWS {
         return Err(format!("Aba com {linhas} linhas passa do limite da planilha"));
     }
@@ -99,10 +155,14 @@ pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result
                 for campo in esquema.fields().into_iter().flatten() {
                     let nome = campo.name().unwrap_or_default().to_owned();
                     let mascara = vec![0u8; linhas.div_ceil(8)];
-                    colunas.push(match campo.type_type() {
-                        Type::FloatingPoint => ColunaArrow::Float(vec![0.0; linhas], mascara),
-                        Type::Int if campo.type_as_int().is_some_and(|i| i.bitWidth() == 32) => ColunaArrow::Int(vec![0; linhas], mascara),
-                        outro => return Err(format!("Tipo Arrow {outro:?} no campo \"{nome}\" não é do .fshz")),
+                    let int32 = campo.type_type() == Type::Int && campo.type_as_int().is_some_and(|i| i.bitWidth() == 32);
+                    colunas.push(match (planos.remove(&nome), campo.type_type()) {
+                        (Some(Plano::Num), Type::FloatingPoint) => ColunaArrow::NumBlocos(Montador::novo()),
+                        (Some(Plano::Txt(mapa)), _) if int32 => ColunaArrow::TxtBlocos(Montador::novo(), mapa),
+                        (Some(_), outro) => return Err(format!("Tipo Arrow {outro:?} no campo \"{nome}\" não bate com a coluna")),
+                        (None, Type::FloatingPoint) => ColunaArrow::Float(vec![0.0; linhas], mascara),
+                        (None, Type::Int) if int32 => ColunaArrow::Int(vec![0; linhas], mascara),
+                        (None, outro) => return Err(format!("Tipo Arrow {outro:?} no campo \"{nome}\" não é do .fshz")),
                     });
                     nomes.push(nome);
                 }
@@ -134,7 +194,7 @@ pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result
                     let presente = |k: usize| bits.is_empty() || bits.get(k >> 3).is_some_and(|b| b & (1 << (k & 7)) != 0);
                     let inicio = u64::try_from(valores.offset()).map_err(|_| "Buffer Arrow inválido")?;
                     pular(&mut r, inicio.checked_sub(pos).ok_or("Buffers Arrow fora de ordem")?)?;
-                    let largura = match coluna { ColunaArrow::Float(..) => 8, ColunaArrow::Int(..) => 4 };
+                    let largura = match coluna { ColunaArrow::Float(..) | ColunaArrow::NumBlocos(..) => 8, ColunaArrow::Int(..) | ColunaArrow::TxtBlocos(..) => 4 };
                     let total = usize::try_from(valores.length()).map_err(|_| "Buffer Arrow inválido")?;
                     let tamanho_do_lote = n.checked_mul(largura).ok_or("Lote Arrow inválido")?;
                     if total < tamanho_do_lote {
@@ -159,6 +219,14 @@ pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result
                                         v[linha] = i32::from_le_bytes(bytes.try_into().expect("4 bytes"));
                                         m[linha >> 3] |= 1 << (linha & 7);
                                     }
+                                    ColunaArrow::NumBlocos(m) => m.por(linha, f64::from_le_bytes(bytes.try_into().expect("8 bytes"))),
+                                    ColunaArrow::TxtBlocos(m, mapa) => {
+                                        let i = i32::from_le_bytes(bytes.try_into().expect("4 bytes"));
+                                        // Fora do dicionário, texto vazio ou pool cheio: célula vazia.
+                                        if let Some(&id) = usize::try_from(i).ok().and_then(|i| mapa.get(i)) {
+                                            if id >= 0 { m.por(linha, id); }
+                                        }
+                                    }
                                 }
                             }
                             k += 1;
@@ -177,6 +245,13 @@ pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result
     // O rodapé do formato de arquivo: não serve para ler em sequência.
     let resto = r.limit();
     pular(&mut r, resto)?;
+    for coluna in &mut colunas {
+        match coluna {
+            ColunaArrow::NumBlocos(m) => m.fechar(),
+            ColunaArrow::TxtBlocos(m, _) => m.fechar(),
+            _ => {}
+        }
+    }
     Ok(nomes.into_iter().zip(colunas).collect())
 }
 

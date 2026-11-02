@@ -308,6 +308,20 @@ impl Sheet {
         self.cresce_limites(ultima, col);
     }
 
+    /// Carga do `.fshz` em blocos: coluna já montada e compactada na leitura
+    /// (ids de texto do pool desta aba, que veio junto). Ver `DataTable::instalar_coluna`.
+    pub fn instalar_coluna(&mut self, col: u32,
+        num: Option<crate::planilha::column_store::ChunkedFloatColumn>,
+        txt: Option<crate::planilha::column_store::ChunkedInt32Column>) {
+        if col >= MAX_COLS { return; }
+        let min = num.as_ref().map_or(u32::MAX, |c| c.min_row).min(txt.as_ref().map_or(u32::MAX, |c| c.min_row));
+        let max = num.as_ref().map_or(-1, |c| c.max_row).max(txt.as_ref().map_or(-1, |c| c.max_row));
+        if max < 0 || max >= MAX_ROWS as i64 { return; }
+        self.data.instalar_coluna(col, num, txt);
+        self.cresce_limites(min, col);
+        self.cresce_limites(max as u32, col);
+    }
+
     /// Carga do `.fshz`: uma coluna inteira de texto, com o dicionário local
     /// do arquivo traduzido para o pool da aba uma vez por texto distinto.
     pub fn carregar_coluna_textos(&mut self, col: u32, indices: &[i32], bitmap: &[u8], dict: &[String]) {

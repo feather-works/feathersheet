@@ -468,7 +468,7 @@ impl App {
             return Ok((feathersheet_io::parquet_read::ler_parquet_arquivo(path)?, 0));
         }
         if path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("fshz")) {
-            let lida = feathersheet_io::fshz_read::ler_fshz_arquivo(path)?;
+            let lida = feathersheet_io::fshz_read::ler_fshz_arquivo_compacto(path)?;
             let folha = lida.a as usize;
             feathersheet_io::progresso::fase(feathersheet_io::progresso::Fase::Montando);
             return Ok((feathersheet_io::para_workbook::para_workbook_soltando(lida), folha));

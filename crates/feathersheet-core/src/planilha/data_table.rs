@@ -150,6 +150,18 @@ impl DataTable {
         Some(pontas)
     }
 
+    /// Carga do `.fshz` em blocos: a coluna já montada (e compactada) entra inteira.
+    /// Os ids de texto já são do pool da aba.
+    pub fn instalar_coluna(&mut self, col: u32, num: Option<ChunkedFloatColumn>, txt: Option<ChunkedInt32Column>) {
+        let max = num.as_ref().map_or(-1, |c| c.max_row).max(txt.as_ref().map_or(-1, |c| c.max_row));
+        if max < 0 { return; }
+        let entry = self.get_or_create_column(col);
+        if num.is_some() { entry.float_col = num; }
+        if txt.is_some() { entry.text_col = txt; }
+        self.tracked_max_row = self.tracked_max_row.max(max as u32);
+        self.tracked_max_col = self.tracked_max_col.max(col);
+    }
+
     /// Carga de arquivo: a coluna inteira de texto/booleano de uma vez, com
     /// os ids **já no pool da aba** (quem chama traduz o dicionário local do
     /// arquivo uma vez por texto distinto, não uma vez por célula).
