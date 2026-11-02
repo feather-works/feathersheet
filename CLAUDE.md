@@ -2,6 +2,21 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.6 — 02/11/2026: abrir sem pico de memória, "…" que não calculava, macros mais completas
+
+`.fshz` aberto pelo app (`fshz_read::ler_fshz_arquivo_compacto`): colunas de número e texto em
+blocos de 65.536 linhas compactados na hora (`arrow_fluxo::Plano`/`Montador`, `ChunkedColumn::
+compactar_bloco`), textos direto no pool da aba (os dicionários estão nos metadados, lidos antes
+do Arrow); `AbaLida::prontas` só vale com `para_workbook_soltando`. planilha-4M-EA (131 colunas de
+texto × 4 M): pico 2,2 → 1,07 GB, abrir 12,7 → 7,5 s (`dicionario_local` sem SipHash: 28% do tempo).
+"…" na tela: a grade anota em `CacheGrade::pendentes` as células que desenhou pendentes e o pulso
+calcula essas primeiro (`calcular_visiveis`; para se não houver progresso, `vistos_parados`); a
+estimativa por zoom pula linhas/colunas ocultas pelo eixo em cache (`EstadoEixos::visiveis_desde`, #140).
+Conversor VBA: `Collection`/`Scripting.Dictionary` (`gerar/colecao.rs`, `vba.colecao()`/`vba.dicionario()`),
+ByRef, MsgBox com todos os botões, AutoFilter, formas, `WScript.Shell`, evento Ao selecionar células.
+Instalador: `.xlsm` no "Abrir com" e `EstimatedSize`. Padrão da suíte para o que aparece fora da
+janela: `FeatherOffice/docs/PADRAO-SISTEMA-OPERACIONAL.md`.
+
 ## Depois da v0.2.5 (01/11/2026): vínculo externo empacotado e "Atualizar valores" em paralelo
 
 Fórmula que lê outro arquivo (`[Arq.xlsx]Aba!A1`) passa no `pattern_check` e vai para a coluna

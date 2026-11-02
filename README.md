@@ -4,7 +4,7 @@
 It opens huge files, calculates in parallel, takes formulas in Portuguese or English,
 and runs entirely on your machine: no account, no login, no telemetry (the only network call is the daily update check, which you can turn off).
 
-> **Status:** under active development. Latest release: **[v0.2.5](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-02).
+> **Status:** under active development. Latest release: **[v0.2.6](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-02).
 
 ![FeatherSheet with the Cash flow template and an income/expenses chart, with the mouse tooltip open on June](docs/imagens/planilha-e-grafico.png)
 
@@ -51,8 +51,10 @@ macro took 25 s.
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
 
-### Coming in the next version
+### New in v0.2.6
 
+- **Big `.fshz` files open without a memory spike:** number and text columns are compacted block by block while the file is read. 4 million rows × 131 columns: peak 2.2 GB → 1.1 GB, open 12.7 s → 7.5 s.
+- **Formulas on screen are always calculated:** cells no longer stay as "…" with a filter on or with the view scrolled far to the right (#140).
 - **Heavy `.xlsx` with external links opens in 4.4 s** (was 37.8 s) and the window no longer freezes while scrolling or resizing columns; selecting columns by their letters no longer lags.
 - **VBA macros, closer to Excel:** `ByRef` parameters return the new value to the caller; `MsgBox` with every button set (Abort/Retry/Ignore, Yes/No/Cancel…), icons and default button; `Range.AutoFilter` with criteria, `ShowAllData` and `AutoFilterMode = False` on the sheet's real AutoFilter; shapes and buttons with `.Visible`, `.OnAction`, `.Left`/`.Top`/`.Width`/`.Height`; `CreateObject("WScript.Shell").Run` (asks before running); `Collection` and `Scripting.Dictionary` (`Add`, `Item`, `Count`, `Exists`, `Keys`, `Remove`, `For Each`); `Range.Find`/`FindNext`; `Rnd`/`Randomize` giving the same sequence as Excel; `CallByName`.
 - **Macro that runs when you click a cell:** the *On selecting cells* event (VBA `Worksheet_SelectionChange`) gets the selected address, like Excel's `Target`.

@@ -21,6 +21,23 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.6",
+        data: "02/11/2026",
+        resumo: "Mais leve e mais certo no Windows",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("bolt", "Abrir .fshz grande sem pico de memória", "4 milhões de linhas: 1,1 GB em vez de 2,2 GB, e abre 40% mais rápido."),
+            ("table", "Fórmulas da tela sempre calculadas", "Células com \"…\" calculam sozinhas, com filtro ou com a tela rolada."),
+            ("code", "Macros do Excel mais completas", "Collection, Dictionary, ByRef, MsgBox com todos os botões, AutoFilter e formas."),
+            ("pointer", "Macro ao clicar numa célula", "Evento Ao selecionar células (o Worksheet_SelectionChange do VBA)."),
+        ],
+        tambem: &[
+            "O editor de macros (Alt+F11) abre vazio, sem a macro de exemplo (#139).",
+            "Instalador do Windows: .xlsm no \"Abrir com\" e tamanho em Programas e Recursos.",
+            "Arquivo .xlsx com vínculo externo: rolar e selecionar colunas sem atraso.",
+        ],
+    },
+    Versao {
         numero: "0.2.5",
         data: "01/11/2026",
         resumo: "Excel com milhões de fórmulas abre rápido",

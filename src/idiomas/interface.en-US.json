@@ -4235,5 +4235,17 @@
   "Ao abrir, no máximo uma vez por dia": "On startup, at most once a day",
   "Consulta só github.com/feather-works/feathersheet. Nada sobre você ou suas planilhas é enviado.": "Only queries github.com/feather-works/feathersheet. Nothing about you or your spreadsheets is sent.",
   "v{} → {}": "v{} → {}",
-  "Ao abrir, avisa quando há versão nova (uma vez por dia; desligue em Configurações → Sobre).": "On startup, tells you when a new version is out (once a day; turn it off in Settings → About)."
+  "Ao abrir, avisa quando há versão nova (uma vez por dia; desligue em Configurações → Sobre).": "On startup, tells you when a new version is out (once a day; turn it off in Settings → About).",
+  "Mais leve e mais certo no Windows": "Lighter and more reliable on Windows",
+  "Abrir .fshz grande sem pico de memória": "Big .fshz files open without a memory spike",
+  "4 milhões de linhas: 1,1 GB em vez de 2,2 GB, e abre 40% mais rápido.": "4 million rows: 1.1 GB instead of 2.2 GB, and opens 40% faster.",
+  "Fórmulas da tela sempre calculadas": "Formulas on screen always calculated",
+  "Células com \"…\" calculam sozinhas, com filtro ou com a tela rolada.": "Cells showing \"…\" now calculate on their own, with a filter or with the view scrolled.",
+  "Macros do Excel mais completas": "More complete Excel macros",
+  "Collection, Dictionary, ByRef, MsgBox com todos os botões, AutoFilter e formas.": "Collection, Dictionary, ByRef, MsgBox with every button set, AutoFilter and shapes.",
+  "Macro ao clicar numa célula": "Macro when you click a cell",
+  "Evento Ao selecionar células (o Worksheet_SelectionChange do VBA).": "On selecting cells event (VBA Worksheet_SelectionChange).",
+  "O editor de macros (Alt+F11) abre vazio, sem a macro de exemplo (#139).": "The macro editor (Alt+F11) opens empty, without the sample macro (#139).",
+  "Instalador do Windows: .xlsm no \"Abrir com\" e tamanho em Programas e Recursos.": "Windows installer: .xlsm in \"Open with\" and size shown in Programs and Features.",
+  "Arquivo .xlsx com vínculo externo: rolar e selecionar colunas sem atraso.": ".xlsx with external links: scrolling and selecting columns without lag."
 }

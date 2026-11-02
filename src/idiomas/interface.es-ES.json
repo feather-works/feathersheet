@@ -4231,5 +4231,17 @@
   "Ao abrir, no máximo uma vez por dia": "Al abrir, como máximo una vez al día",
   "Consulta só github.com/feather-works/feathersheet. Nada sobre você ou suas planilhas é enviado.": "Solo consulta github.com/feather-works/feathersheet. No se envía nada sobre usted ni sus hojas de cálculo.",
   "v{} → {}": "v{} → {}",
-  "Ao abrir, avisa quando há versão nova (uma vez por dia; desligue em Configurações → Sobre).": "Al abrir, avisa cuando hay una versión nueva (una vez al día; desactívelo en Configuración → Acerca de)."
+  "Ao abrir, avisa quando há versão nova (uma vez por dia; desligue em Configurações → Sobre).": "Al abrir, avisa cuando hay una versión nueva (una vez al día; desactívelo en Configuración → Acerca de).",
+  "Mais leve e mais certo no Windows": "Más liviano y más fiable en Windows",
+  "Abrir .fshz grande sem pico de memória": "Abrir .fshz grandes sin pico de memoria",
+  "4 milhões de linhas: 1,1 GB em vez de 2,2 GB, e abre 40% mais rápido.": "4 millones de filas: 1,1 GB en lugar de 2,2 GB, y abre un 40 % más rápido.",
+  "Fórmulas da tela sempre calculadas": "Fórmulas en pantalla siempre calculadas",
+  "Células com \"…\" calculam sozinhas, com filtro ou com a tela rolada.": "Las celdas con \"…\" se calculan solas, con filtro o con la vista desplazada.",
+  "Macros do Excel mais completas": "Macros de Excel más completas",
+  "Collection, Dictionary, ByRef, MsgBox com todos os botões, AutoFilter e formas.": "Collection, Dictionary, ByRef, MsgBox con todos los botones, AutoFilter y formas.",
+  "Macro ao clicar numa célula": "Macro al hacer clic en una celda",
+  "Evento Ao selecionar células (o Worksheet_SelectionChange do VBA).": "Evento Al seleccionar celdas (Worksheet_SelectionChange de VBA).",
+  "O editor de macros (Alt+F11) abre vazio, sem a macro de exemplo (#139).": "El editor de macros (Alt+F11) se abre vacío, sin la macro de ejemplo (#139).",
+  "Instalador do Windows: .xlsm no \"Abrir com\" e tamanho em Programas e Recursos.": "Instalador de Windows: .xlsm en \"Abrir con\" y tamaño en Programas y características.",
+  "Arquivo .xlsx com vínculo externo: rolar e selecionar colunas sem atraso.": ".xlsx con vínculo externo: desplazarse y seleccionar columnas sin retraso."
 }
