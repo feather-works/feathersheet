@@ -1,7 +1,9 @@
 ; Instalador do FeatherSheet para Windows (NSIS). Gerado por pacote/gerar.sh:
 ;   makensis -DVERSAO=0.0.1 -DEXE=caminho/feathersheet.exe -DSAIDA=caminho/instalador.exe pacote/feathersheet.nsi
-; Instala por usuário (sem pedir administrador), cria atalhos, associa o .fshz
-; e registra o desinstalador em "Aplicativos instalados".
+; Instala em Arquivos de Programas\FeatherWorks\FeatherSheet (pede administrador: a pasta é
+; protegida, nenhum programa comum altera o .exe), para todos os usuários; cria atalhos, associa o
+; .fshz e registra o desinstalador em "Programas e Recursos". Remove a instalação antiga por
+; usuário (%LOCALAPPDATA%\Programs\FeatherSheet, até a v0.2.6).
 
 Unicode true
 !include "MUI2.nsh"
@@ -12,9 +14,9 @@ Unicode true
 
 Name "FeatherSheet ${VERSAO}"
 OutFile "${SAIDA}"
-InstallDir "$LOCALAPPDATA\Programs\FeatherSheet"
-InstallDirRegKey HKCU "Software\FeatherWorks\FeatherSheet" "Pasta"
-RequestExecutionLevel user
+InstallDir "$PROGRAMFILES64\FeatherWorks\FeatherSheet"
+InstallDirRegKey HKLM "Software\FeatherWorks\FeatherSheet" "Pasta"
+RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
 !define MUI_ICON "icones\feathersheet.ico"
@@ -34,7 +36,25 @@ SetCompressor /SOLID lzma
 !include "FileFunc.nsh"
 !define DESINSTALAR "Software\Microsoft\Windows\CurrentVersion\Uninstall\FeatherSheet"
 
+Function .onInit
+  SetShellVarContext all
+  SetRegView 64
+FunctionEnd
+
+Function un.onInit
+  SetShellVarContext all
+  SetRegView 64
+FunctionEnd
+
 Section "FeatherSheet"
+  ; A instalação por usuário de antes (v0.2.6 e anteriores): sai, senão ficam duas.
+  SetShellVarContext current
+  IfFileExists "$LOCALAPPDATA\Programs\FeatherSheet\desinstalar.exe" 0 +2
+    ExecWait '"$LOCALAPPDATA\Programs\FeatherSheet\desinstalar.exe" /S _?=$LOCALAPPDATA\Programs\FeatherSheet'
+  Delete "$LOCALAPPDATA\Programs\FeatherSheet\desinstalar.exe"
+  RMDir "$LOCALAPPDATA\Programs\FeatherSheet"
+  SetShellVarContext all
+
   SetOutPath "$INSTDIR"
   File "/oname=feathersheet.exe" "${EXE}"
   File "icones\feathersheet.ico"
@@ -45,28 +65,28 @@ Section "FeatherSheet"
   CreateShortCut "$DESKTOP\FeatherSheet.lnk" "$INSTDIR\feathersheet.exe" "" "$INSTDIR\feathersheet.ico"
 
   ; Planilha do FeatherSheet (.fshz): ícone e abrir com dois cliques.
-  WriteRegStr HKCU "Software\Classes\.fshz" "" "FeatherSheet.Planilha"
-  WriteRegStr HKCU "Software\Classes\FeatherSheet.Planilha" "" "Planilha do FeatherSheet"
-  WriteRegStr HKCU "Software\Classes\FeatherSheet.Planilha\DefaultIcon" "" "$INSTDIR\feathersheet.ico"
-  WriteRegStr HKCU "Software\Classes\FeatherSheet.Planilha\shell\open\command" "" '"$INSTDIR\feathersheet.exe" "%1"'
+  WriteRegStr HKLM "Software\Classes\.fshz" "" "FeatherSheet.Planilha"
+  WriteRegStr HKLM "Software\Classes\FeatherSheet.Planilha" "" "Planilha do FeatherSheet"
+  WriteRegStr HKLM "Software\Classes\FeatherSheet.Planilha\DefaultIcon" "" "$INSTDIR\feathersheet.ico"
+  WriteRegStr HKLM "Software\Classes\FeatherSheet.Planilha\shell\open\command" "" '"$INSTDIR\feathersheet.exe" "%1"'
   ; "Abrir com" para .xlsx, .xlsm e .csv, sem tomar o lugar do programa padrão.
-  WriteRegStr HKCU "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha" ""
-  WriteRegStr HKCU "Software\Classes\.xlsm\OpenWithProgids" "FeatherSheet.Planilha" ""
-  WriteRegStr HKCU "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha" ""
+  WriteRegStr HKLM "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha" ""
+  WriteRegStr HKLM "Software\Classes\.xlsm\OpenWithProgids" "FeatherSheet.Planilha" ""
+  WriteRegStr HKLM "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha" ""
 
-  WriteRegStr HKCU "Software\FeatherWorks\FeatherSheet" "Pasta" "$INSTDIR"
-  WriteRegStr HKCU "${DESINSTALAR}" "DisplayName" "FeatherSheet"
-  WriteRegStr HKCU "${DESINSTALAR}" "DisplayVersion" "${VERSAO}"
-  WriteRegStr HKCU "${DESINSTALAR}" "Publisher" "FeatherWorks"
+  WriteRegStr HKLM "Software\FeatherWorks\FeatherSheet" "Pasta" "$INSTDIR"
+  WriteRegStr HKLM "${DESINSTALAR}" "DisplayName" "FeatherSheet"
+  WriteRegStr HKLM "${DESINSTALAR}" "DisplayVersion" "${VERSAO}"
+  WriteRegStr HKLM "${DESINSTALAR}" "Publisher" "FeatherWorks"
   ; Tamanho em "Programas e Recursos" (KB, do que foi instalado).
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
-  WriteRegDWORD HKCU "${DESINSTALAR}" "EstimatedSize" "$0"
-  WriteRegStr HKCU "${DESINSTALAR}" "DisplayIcon" "$INSTDIR\feathersheet.ico"
-  WriteRegStr HKCU "${DESINSTALAR}" "URLInfoAbout" "https://github.com/feather-works/feathersheet"
-  WriteRegStr HKCU "${DESINSTALAR}" "UninstallString" '"$INSTDIR\desinstalar.exe"'
-  WriteRegDWORD HKCU "${DESINSTALAR}" "NoModify" 1
-  WriteRegDWORD HKCU "${DESINSTALAR}" "NoRepair" 1
+  WriteRegDWORD HKLM "${DESINSTALAR}" "EstimatedSize" "$0"
+  WriteRegStr HKLM "${DESINSTALAR}" "DisplayIcon" "$INSTDIR\feathersheet.ico"
+  WriteRegStr HKLM "${DESINSTALAR}" "URLInfoAbout" "https://github.com/feather-works/feathersheet"
+  WriteRegStr HKLM "${DESINSTALAR}" "UninstallString" '"$INSTDIR\desinstalar.exe"'
+  WriteRegDWORD HKLM "${DESINSTALAR}" "NoModify" 1
+  WriteRegDWORD HKLM "${DESINSTALAR}" "NoRepair" 1
 SectionEnd
 
 Section "Uninstall"
@@ -77,13 +97,14 @@ Section "Uninstall"
   Delete "$INSTDIR\LICENSE.txt"
   Delete "$INSTDIR\desinstalar.exe"
   RMDir "$INSTDIR"
-  DeleteRegKey HKCU "Software\Classes\FeatherSheet.Planilha"
-  DeleteRegValue HKCU "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha"
-  DeleteRegValue HKCU "Software\Classes\.xlsm\OpenWithProgids" "FeatherSheet.Planilha"
-  DeleteRegValue HKCU "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha"
-  ReadRegStr $0 HKCU "Software\Classes\.fshz" ""
+  RMDir "$PROGRAMFILES64\FeatherWorks"
+  DeleteRegKey HKLM "Software\Classes\FeatherSheet.Planilha"
+  DeleteRegValue HKLM "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha"
+  DeleteRegValue HKLM "Software\Classes\.xlsm\OpenWithProgids" "FeatherSheet.Planilha"
+  DeleteRegValue HKLM "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha"
+  ReadRegStr $0 HKLM "Software\Classes\.fshz" ""
   StrCmp $0 "FeatherSheet.Planilha" 0 +2
-    DeleteRegKey HKCU "Software\Classes\.fshz"
-  DeleteRegKey HKCU "Software\FeatherWorks\FeatherSheet"
-  DeleteRegKey HKCU "${DESINSTALAR}"
+    DeleteRegKey HKLM "Software\Classes\.fshz"
+  DeleteRegKey HKLM "Software\FeatherWorks\FeatherSheet"
+  DeleteRegKey HKLM "${DESINSTALAR}"
 SectionEnd

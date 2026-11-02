@@ -41,7 +41,8 @@ pub enum Instalacao {
     Deb,
     /// `.tar.gz` com `instalar.sh` (`~/.local/bin`): troca sem senha.
     PastaDoUsuario,
-    /// Instalador do Windows (`%LOCALAPPDATA%\Programs\FeatherSheet`).
+    /// Instalador do Windows (`Arquivos de Programas\FeatherWorks\FeatherSheet`; até a v0.2.6,
+    /// `%LOCALAPPDATA%\Programs\FeatherSheet`).
     Windows,
     /// `FeatherSheet.app` no macOS.
     Mac,
@@ -83,7 +84,8 @@ impl Instalacao {
 pub fn instalacao_de(exe: &Path, casa: Option<&Path>) -> Instalacao {
     let texto = exe.to_string_lossy().replace('\\', "/");
     let minusculo = texto.to_lowercase();
-    if minusculo.contains("/programs/feathersheet/") && minusculo.ends_with(".exe") {
+    if (minusculo.contains("/programs/feathersheet/") || minusculo.contains("/featherworks/feathersheet/"))
+        && minusculo.ends_with(".exe") {
         return Instalacao::Windows;
     }
     if texto.contains(".app/Contents/MacOS/") {
@@ -228,7 +230,7 @@ pub fn roteiro(inst: Instalacao, versao: &str, pid: u32) -> Option<(String, Stri
              \n  Write-Host '== Baixando a versão {versao} do GitHub'\n  Invoke-WebRequest -UseBasicParsing -Uri '{url}' -OutFile $instalador\n  Invoke-WebRequest -UseBasicParsing -Uri '{somas}' -OutFile (Join-Path $pasta 'SHA256SUMS')\n\
              \n  Write-Host '== Conferindo se o arquivo é exatamente o publicado'\n  $linha = Select-String -Path (Join-Path $pasta 'SHA256SUMS') -Pattern ' {arquivo}$' | Select-Object -First 1\n  $esperado = $linha.Line.Split(' ')[0].ToLower()\n  $obtido = (Get-FileHash $instalador -Algorithm SHA256).Hash.ToLower()\n  if ($obtido -ne $esperado) {{ throw 'O arquivo baixado não confere com o publicado.' }}\n\
              \n  Write-Host '== Esperando o FeatherSheet fechar (feche a janela dele)'\n  Wait-Process -Id {pid} -ErrorAction SilentlyContinue\n\
-             \n  Write-Host '== Instalando por cima da versão atual'\n  Start-Process -FilePath $instalador -ArgumentList '/S' -Wait\n  Start-Process (Join-Path $env:LOCALAPPDATA 'Programs\\FeatherSheet\\feathersheet.exe')\n  Write-Host ''\n  Write-Host 'Pronto: FeatherSheet {versao} instalado.'\n\
+             \n  Write-Host '== Instalando por cima da versão atual'\n  Start-Process -FilePath $instalador -ArgumentList '/S' -Wait\n  Start-Process (Join-Path $env:ProgramFiles 'FeatherWorks\\FeatherSheet\\feathersheet.exe')\n  Write-Host ''\n  Write-Host 'Pronto: FeatherSheet {versao} instalado.'\n\
              }} catch {{\n  Write-Host ''\n  Write-Host \"Algo deu errado; a versão instalada continua a mesma. ($_)\"\n}}\nRead-Host 'Pressione Enter para fechar esta janela'\n",
             cabecalho("#"),
         )),
@@ -462,6 +464,7 @@ mod testes {
         assert_eq!(i("/usr/bin/feathersheet"), Instalacao::Deb);
         assert_eq!(i("/home/ana/.local/bin/feathersheet"), Instalacao::PastaDoUsuario);
         assert_eq!(i(r"C:\Users\Ana\AppData\Local\Programs\FeatherSheet\feathersheet.exe"), Instalacao::Windows);
+        assert_eq!(i(r"C:\Program Files\FeatherWorks\FeatherSheet\feathersheet.exe"), Instalacao::Windows);
         assert_eq!(i("/Applications/FeatherSheet.app/Contents/MacOS/feathersheet"), Instalacao::Mac);
         assert_eq!(i("/home/ana/GitHub/feathersheet/crates/feathersheet-gui/target/release/feathersheet"), Instalacao::Desconhecida);
     }
