@@ -331,13 +331,15 @@
       num commit, conteúdo depois.
 
 ### Melhorias
-- [ ] Editor de passos visual: lista de passos à direita, prévia que atualiza
-      ao clicar num passo, editar/remover/reordenar passos.
+- [x] Editor de passos visual: lista de passos, prévia que atualiza ao clicar num passo,
+      editar (engrenagem)/remover/reordenar passos (`openquery_ui/janela.rs`, `etapa.rs`).
 - [ ] Consultas guardadas dentro do `.fshz`, com botão Atualizar e "atualizar
-      ao abrir" (opção).
+      ao abrir" (opção). *Parcial: guardadas (`oq` da aba) e Atualizar feitos; falta "atualizar ao abrir".*
 - [ ] Fontes: aba, tabela, outro arquivo (`.fshz`, `.xlsx`, `.csv`, `.parquet`),
       pasta inteira (junta os arquivos). Web/API só por pedido explícito.
+      *Parcial: tabela/intervalo, Web, CSV/TSV/TXT/JSON/XLSX feitos; faltam `.fshz`, `.parquet` e pasta.*
 - [ ] Juntar (todos os tipos de join) e acrescentar entre fontes diferentes.
+      *Parcial: acrescentar feito; o motor tem os 6 joins, o assistente oferece 3 (esquerda, interna, direita).*
 - [ ] Tipos detectados por coluna, com aviso das linhas que não converteram.
 - [ ] Desfazer por passo.
 
@@ -351,11 +353,14 @@
 
 - [ ] Eventos automáticos do VBA convertidos e rodando (Worksheet_Change,
       SelectionChange, Activate, Workbook_Open com confirmação, BeforeSave).
-- [ ] Formulários do VBA (UserForm) viram componentes do editor de macros.
+      *Parcial: Change, SelectionChange e Activate rodam; Workbook_Open ainda à mão; falta BeforeSave.*
+- [x] Formulários do VBA (UserForm) viram formulários do editor de macros (`feathersheet-vba/src/formulario.rs`,
+      `importar_vba.rs::formulario_da_conversao`, #67).
 - [ ] Caminho de volta: macro JS → VBA, gravada no `.xlsm` (o Excel abre e roda).
 - [ ] Ida e volta sem perda: VBA → JS → VBA dá código equivalente (teste
       automático com o conjunto de arquivos).
 - [ ] Relatório de conversão: o que converteu, o que ficou como comentário e por quê.
+      *Parcial: módulo de pendências com cada trecho e o motivo; falta uma tela própria.*
 - [ ] Conjunto de teste com **pelo menos 50 `.xlsm` reais**.
 
 ### Integração com o FeatherDocs (pedido do usuário, 02/11/2026)
@@ -395,7 +400,7 @@ desse arquivo (medido em 02/11/2026).
 - [ ] Consulta na célula: `=CONSULTA("nome_da_consulta")` derrama o resultado
       e atualiza com a origem.
 - [ ] SQL na célula (`=SQL("SELECT … FROM Dados")`) sobre abas e tabelas.
-- [ ] Funções de texto com expressão regular completas (REGEX*).
+- [x] Funções de texto com expressão regular (REGEXTEST, REGEXEXTRACT, REGEXREPLACE, mais REGEXMATCH).
 - [ ] LAMBDA com nome no Gerenciador de nomes e funções da macro chamáveis
       da planilha (`sheet.defineFunction`).
 
@@ -409,6 +414,7 @@ desse arquivo (medido em 02/11/2026).
       gráficos e dinâmicas.
 - [ ] Impressão e PDF iguais à tela: cabeçalho/rodapé, repetir linhas,
       ajustar à página, quebras manuais.
+      *Parcial: cabeçalho/rodapé, quebras e ajustar à página feitos; falta repetir linhas (Imprimir títulos).*
 - [ ] Gráficos de mapa e funil.
 
 ### v0.7 — desempenho e memória
@@ -423,6 +429,7 @@ desse arquivo (medido em 02/11/2026).
       célula a célula, voltar).
 - [ ] Comentários com respostas e revisão (controlar alterações).
 - [ ] Proteger planilha e pasta com senha (cifrada de verdade).
+      *Parcial: proteger planilha e pasta com a senha no formato do Excel (hash); falta cifrar o arquivo.*
 - [ ] Referência a arquivo fechado lida direto do arquivo.
 
 ### v0.9 — plataformas e acesso
