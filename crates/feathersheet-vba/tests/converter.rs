@@ -233,3 +233,14 @@ fn wscript_shell_run_vira_app_shell() {
     assert_eq!(js.matches("app.shell(String(").count(), 3, "{js}");
     assert!(js.contains("\"calc.exe\""), "{js}");
 }
+
+#[test]
+fn autofilter_com_criterio_e_showalldata_convertem() {
+    let vba = "Sub Filtrar()\n  Dim ws As Worksheet\n  Set ws = Worksheets(\"MAIN\")\n  If ws.FilterMode Then ws.ShowAllData\n  ws.Range(\"A1:D50\").AutoFilter Field:=2, Criteria1:=\">100\"\n  ws.Range(\"A1:D50\").AutoFilter 3, Array(\"SP\", \"RJ\"), xlFilterValues\n  ws.Range(\"A1:D50\").AutoFilter Field:=4, Criteria1:=\"=A\", Operator:=xlOr, Criteria2:=\"=B\"\n  ws.AutoFilter.ShowAllData\n  ws.AutoFilterMode = False\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[("Sheet8", "MAIN")]);
+    let js = &c.macros[0].codigo;
+    assert!(c.pendencias.is_empty(), "{:#?}\n{js}", c.pendencias);
+    assert_eq!(js.matches(".autoFilter(\"A1:D50\", ").count(), 3, "{js}");
+    assert_eq!(js.matches(".showAllData()").count(), 2, "{js}");
+    assert!(js.contains(".autoFilterOff()") && js.contains("filtroCrit("), "{js}");
+}

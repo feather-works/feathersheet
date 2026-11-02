@@ -301,3 +301,21 @@ fn shell_so_anota_o_programa_e_some_se_a_macro_falha() {
     let r = executar(&mut wb, 0, r#"for (let i = 0; i < 30; i++) app.shell("x");"#);
     assert!(r.erro.is_some() && r.programas.is_empty(), "teto de 20 por execução");
 }
+
+#[test]
+fn autofilter_so_anota_o_pedido_e_confere_a_coluna() {
+    use feathersheet_core::celulas::refs::Rect;
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, r#"sheet.autoFilter("A1:C10", 2, ">100").autoFilter("A1:C10", 1, ["SP", "RJ"]).autoFilter("A1:C10", 3).showAllData().autoFilterOff();"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    let area = Rect::new(0, 0, 9, 2);
+    let acoes: Vec<_> = r.filtros.iter().map(|p| p.acao.clone()).collect();
+    assert_eq!(acoes, vec![
+        AcaoFiltro::Aplicar { area: area.clone(), coluna: Some(2), criterio: Some(serde_json::json!(">100")) },
+        AcaoFiltro::Aplicar { area: area.clone(), coluna: Some(1), criterio: Some(serde_json::json!(["SP", "RJ"])) },
+        AcaoFiltro::Aplicar { area, coluna: Some(3), criterio: None },
+        AcaoFiltro::MostrarTudo, AcaoFiltro::Remover]);
+    assert!(executar(&mut wb, 0, r#"sheet.autoFilter("A1:C10", 4, "x");"#).erro.is_some(), "coluna fora da área");
+    let r = executar(&mut wb, 0, r#"sheet.autoFilter("A1:C10", 1, "x"); throw new Error("x");"#);
+    assert!(r.erro.is_some() && r.filtros.is_empty(), "macro com erro não filtra");
+}

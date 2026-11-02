@@ -147,6 +147,8 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("sheet.protect", "sheet.protect(password?, { formatCells?, sort?, autoFilter?, … })", "sheet.protect(\"1234\", { sort: true });"),
         ("sheet.unprotect", "sheet.unprotect(password?)", "sheet.unprotect(\"1234\");"),
         ("sheet.showGridlines", "sheet.showGridlines(on)", "sheet.showGridlines(false);"),
+        ("sheet.autoFilter", "sheet.autoFilter(address, column?, criteria?)", "sheet.autoFilter(\"A1:D50\", 2, \">100\");"),
+        ("sheet.showAllData", "sheet.showAllData() / sheet.autoFilterOff()", "sheet.showAllData();"),
         ("sheet.shape", "sheet.shape(name).text / .font({ bold, italic, size, color }) / .exists", "sheet.shape(\"TextBox 1\").font({ bold: true, color: \"#00b050\" });"),
         ("wb.saveSheetsAs", "wb.saveSheetsAs(sheets, path)", "wb.saveSheetsAs([\"Dados\", \"Resumo\"], \"saida/parcial.fshz\");"),
     ]),
@@ -201,7 +203,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),144);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),146);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {

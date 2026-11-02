@@ -561,6 +561,9 @@ impl Gerador<'_> {
             },
             Obj::Aba(aba, nome_aba) => match n.as_str() {
                 "name" | "codename" => Ok(nome_aba.map_or_else(|| V::novo(format!("{aba}.name"), T::Texto), |x| V::novo(format!("{x:?}"), T::Texto))),
+                // shortcut: a macro não lê se há filtro; `true` deixa o `If ws.FilterMode Then ws.ShowAllData` mostrar tudo
+                // (sem filtro, mostrar tudo não faz nada). Ler de verdade pede o filtro na API das macros.
+                "filtermode" | "autofiltermode" => Ok(V::novo("true", T::Bool)),
                 _ => {
                     let o = self.membro_objeto(Obj::Aba(aba, nome_aba), nome, args)?;
                     self.valor_do_objeto(o)

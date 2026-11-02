@@ -412,3 +412,64 @@ mod testes {
         assert!(criar(&mut w,0,Rect::new(6,6,7,8),"Tabela2",true,false).is_err());
     }
 }
+
+/// Os filtros pedidos pela macro (`sheet.autoFilter`, `showAllData`, `autoFilterOff`; o
+/// `AutoFilter`/`ShowAllData` do VBA), com o mesmo AutoFiltro do botão: setas no cabeçalho e um
+/// Ctrl+Z por pedido. Devolve as falhas, para a macro mostrar.
+pub(super) fn aplicar_filtros_da_macro(w: &mut Workbook, pedidos: &[feathersheet_macros::PedidoFiltro]) -> Vec<String> {
+    use feathersheet_macros::AcaoFiltro;
+    let mut falhas = Vec::new();
+    for p in pedidos {
+        let Some(aba) = w.indice_do_id(p.aba) else { continue };
+        let filtros_da_aba = |w: &Workbook| w.aba(aba).and_then(|a| listar(&a.sheet).ok()).unwrap_or_default()
+            .into_iter().filter(|t| t["soFiltro"] == true).filter_map(|t| t["id"].as_str().map(str::to_string)).collect::<Vec<_>>();
+        let feito = match &p.acao {
+            AcaoFiltro::Aplicar { area, coluna, criterio } => (|| {
+                let existente = match sob_qualquer(w, aba, area.r0, area.c0) {
+                    Some(t) => t,
+                    None => {
+                        alternar_auto_filtro(w, aba, area.clone(), area.r0, area.c0)?;
+                        sob_qualquer(w, aba, area.r0, area.c0).ok_or_else(|| "não consegui ligar o AutoFiltro".to_string())?
+                    }
+                };
+                let Some(coluna) = coluna else { return Ok(()) };
+                let id = existente["id"].as_str().unwrap_or("").to_string();
+                // A coluna é relativa ao intervalo da macro; o filtro existente pode começar noutra.
+                let inicio = area_de(&existente).map_or(area.c0, |a| a.c0);
+                let absoluta = area.c0 + coluna - 1;
+                let rel = absoluta.checked_sub(inicio).ok_or_else(|| "coluna antes do filtro".to_string())?;
+                filtrar(w, aba, &id, rel, criterio.clone()).map(|_| ())
+            })(),
+            AcaoFiltro::MostrarTudo => filtros_da_aba(w).iter().try_for_each(|id| limpar_todos_filtros(w, aba, id).map(|_| ())),
+            AcaoFiltro::Remover => filtros_da_aba(w).iter().try_for_each(|id| {
+                limpar_todos_filtros(w, aba, id)?;
+                let a = sob_id(w, aba, id).ok().and_then(|t| area_de(&t)).ok_or_else(|| "filtro sem área".to_string())?;
+                alternar_auto_filtro(w, aba, a.clone(), a.r0, a.c0).map(|_| ())
+            }),
+        };
+        if let Err(e) = feito { falhas.push(format!("AutoFiltro da macro: {e}")); }
+    }
+    falhas
+}
+
+#[cfg(test)]
+mod testes_filtro_da_macro {
+    use super::*;
+    use feathersheet_macros::{AcaoFiltro, PedidoFiltro};
+
+    #[test]
+    fn filtro_pedido_pela_macro_esconde_mostra_e_remove() {
+        let mut w = Workbook::new();
+        let r = feathersheet_macros::executar(&mut w, 0, r#"sheet.set("A1:B5", [["Nome","UF"],["Bia","SP"],["Ana","RJ"],["Caio","SP"],["Davi","MG"]]);
+            sheet.autoFilter("A1:B5", 2, "SP");"#);
+        assert!(r.erro.is_none(), "{:?}", r.erro);
+        assert!(aplicar_filtros_da_macro(&mut w, &r.filtros).is_empty());
+        let oculta = |w: &Workbook, l: u32| w.aba(0).unwrap().sheet.row_heights.get(&l) == Some(&0);
+        assert!(!oculta(&w, 1) && oculta(&w, 2) && !oculta(&w, 3) && oculta(&w, 4));
+        let id = w.aba(0).unwrap().id;
+        assert!(aplicar_filtros_da_macro(&mut w, &[PedidoFiltro { aba: id, acao: AcaoFiltro::MostrarTudo }]).is_empty());
+        assert!(!oculta(&w, 2) && sob_qualquer(&w, 0, 0, 0).is_some(), "ShowAllData mantém as setas");
+        assert!(aplicar_filtros_da_macro(&mut w, &[PedidoFiltro { aba: id, acao: AcaoFiltro::Remover }]).is_empty());
+        assert!(sob_qualquer(&w, 0, 0, 0).is_none(), "AutoFilterMode = False tira o filtro");
+    }
+}

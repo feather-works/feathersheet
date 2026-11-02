@@ -30,6 +30,26 @@ pub struct PedidoProtecao {
     pub permitidas: Vec<feathersheet_core::planilha::sheet::protecao::Permissao>,
 }
 
+/// `sheet.autoFilter`/`showAllData`/`autoFilterOff`: o aplicativo filtra (com as setas do
+/// AutoFiltro e um Ctrl+Z) se a macro terminar bem.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PedidoFiltro {
+    pub aba: u32,
+    pub acao: AcaoFiltro,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum AcaoFiltro {
+    /// Liga o AutoFiltro em `area` (se ainda não há) e, com `coluna` (1 = primeira da área),
+    /// troca o critério dela; critério `None` limpa a coluna. O critério é o JSON do filtro
+    /// (`feathersheet_io::filtro_json`): lista, `{op, val}` ou o texto clássico (`">100"`).
+    Aplicar { area: Rect, coluna: Option<u32>, criterio: Option<serde_json::Value> },
+    /// `ShowAllData`: tira os critérios, o AutoFiltro fica.
+    MostrarTudo,
+    /// `AutoFilterMode = False`: tira o AutoFiltro da aba.
+    Remover,
+}
+
 /// O que o aplicativo informa à macro antes de rodar.
 #[derive(Debug, Default, Clone)]
 pub struct Contexto {
@@ -71,6 +91,7 @@ pub(crate) struct Acumulado {
     pub grades: Vec<(u32, bool)>,
     /// `app.openUrl(link)`: o app confere (só web/mailto) e abre no navegador.
     pub links: Vec<String>,
+    pub filtros: Vec<PedidoFiltro>,
 }
 
 /// Mais que isto numa execução é laço descontrolado, não exportação.
@@ -83,7 +104,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -254,6 +275,32 @@ pub(crate) fn executar(
             };
             a.grades.retain(|(x, _)| *x != aba);
             a.grades.push((aba, dados[1].as_bool().unwrap_or(true)));
+            Ok(Json::Null)
+        }
+        "filtro" => {
+            let Some(aba) = dados[0].as_u64().and_then(|id| ids.iter().copied().find(|&x| u64::from(x) == id)) else {
+                return Some(Err("Aba inexistente".into()));
+            };
+            let acao = match texto(dados, 1).as_str() {
+                "tudo" => AcaoFiltro::MostrarTudo,
+                "remover" => AcaoFiltro::Remover,
+                _ => {
+                    let end = texto(dados, 2);
+                    let Some(area) = parse_range_ref(end.trim()) else {
+                        return Some(Err(format!("autoFilter: intervalo inválido: {end}")));
+                    };
+                    let coluna = match &dados[3] {
+                        Json::Null => None,
+                        c => match c.as_f64().filter(|n| *n >= 1.0 && n.fract() == 0.0 && *n <= f64::from(area.c1 - area.c0 + 1)) {
+                            Some(n) => Some(n as u32),
+                            None => return Some(Err(format!("autoFilter: coluna {c} fora de {end}"))),
+                        },
+                    };
+                    AcaoFiltro::Aplicar { area, coluna, criterio: Some(dados[4].clone()).filter(|c| !c.is_null()) }
+                }
+            };
+            if a.filtros.len() >= LIMITE_ARQUIVOS { return Some(Err("Filtros demais numa macro".into())); }
+            a.filtros.push(PedidoFiltro { aba, acao });
             Ok(Json::Null)
         }
         "abaAtiva" => Ok(json!(a.ativou.unwrap_or(aba_ativa))),

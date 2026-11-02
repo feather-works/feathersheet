@@ -20,7 +20,7 @@ mod pasta;
 pub mod formularios;
 pub mod riscos;
 mod formas;
-pub use pasta::{Contexto, PedidoArquivo, PedidoProtecao};
+pub use pasta::{AcaoFiltro, Contexto, PedidoArquivo, PedidoFiltro, PedidoProtecao};
 pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;
 use feathersheet_core::{
@@ -64,6 +64,8 @@ pub struct Resultado {
     pub protecoes: Vec<PedidoProtecao>,
     /// `sheet.showGridlines(on)`: linhas de grade por aba (id), como o `DisplayGridlines`.
     pub grades: Vec<(u32, bool)>,
+    /// `sheet.autoFilter`/`showAllData`/`autoFilterOff`, na ordem; o aplicativo filtra se a macro terminou bem.
+    pub filtros: Vec<PedidoFiltro>,
     /// `app.openUrl(link)` (o `ShellExecute "open"` do VBA): o app abre os links web.
     pub links: Vec<String>,
 }
@@ -908,6 +910,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         protecoes: if vale { extra.protecoes } else { Vec::new() },
         grades: if vale { extra.grades } else { Vec::new() },
         links: if vale { extra.links } else { Vec::new() },
+        filtros: if vale { extra.filtros } else { Vec::new() },
         pergunta: extra.pergunta,
     }
 }
@@ -1153,6 +1156,11 @@ function __sheet(indice) {
         protect:(password=null,opts={})=>{__ft('protecao',[i,true,password==null?null:String(password),
             Object.keys(opts||{}).filter(k=>opts[k])]);return sheet;},
         showGridlines:on=>{__ft('grade',[i,!!on]);return sheet;},
+        // AutoFiltro: anotado; o aplicativo filtra se a macro terminar bem (as linhas somem no fim).
+        autoFilter:(address,field=null,criteria=null)=>{__ft('filtro',[i,'aplicar',String(address),
+            field==null?null:Number(field),criteria===undefined?null:criteria]);return sheet;},
+        showAllData:()=>{__ft('filtro',[i,'tudo',null,null,null]);return sheet;},
+        autoFilterOff:()=>{__ft('filtro',[i,'remover',null,null,null]);return sheet;},
         unprotect:(password=null)=>{__ft('protecao',[i,false,password==null?null:String(password),[]]);return sheet;},
         defineFunction:(nome)=>{log('Função '+nome+' definida só nesta macro: as fórmulas da planilha ainda não a usam.');},
         status:m=>app.status(m),

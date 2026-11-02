@@ -300,3 +300,22 @@ fn byref_alterado_volta_para_quem_chamou() {
     assert_eq!(wb.valor(0, 4, 0), Value::Number(130.0));
     assert_eq!(wb.valor(0, 5, 0), Value::Number(13.0));
 }
+
+#[test]
+fn autofilter_convertido_pede_o_filtro_certo() {
+    let c = converter_texto(&[("Módulo1", "Sub T()\n  Range(\"A1:B5\").AutoFilter Field:=2, Criteria1:=\">=10\"\n  Range(\"A1:B5\").AutoFilter 1, Array(\"=x\", \"y\"), xlFilterValues\n  Range(\"A1:B5\").AutoFilter 2, \"=a\", xlOr, \"=b\"\n  Range(\"A1:B5\").AutoFilter 2, 5, xlTop10Items\nEnd Sub\n")], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").expect("macro").codigo.clone();
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    let criterios: Vec<_> = r.filtros.iter().map(|p| match &p.acao {
+        feathersheet_macros::AcaoFiltro::Aplicar { coluna, criterio, .. } => (*coluna, criterio.as_ref().map(|c| c.to_string())),
+        outra => panic!("{outra:?}"),
+    }).filter(|(c, _)| c.is_some()).collect();
+    let t = |s: &str| Some(s.to_string());
+    assert_eq!(criterios, vec![(Some(2), t(r#"">=10""#)), (Some(1), t(r#"["x","y"]"#)), (Some(2), t(r#"["a","b"]"#)),
+        (Some(2), t(r#"{"op":"top10","topo":true,"n":5,"percentual":false}"#))]);
+    let c = converter_texto(&[("Módulo1", "Sub T()\n  Range(\"A1:B5\").AutoFilter 2, \">1\", xlAnd, \"<9\"\nEnd Sub\n")], &[]);
+    let r = feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo);
+    assert!(r.erro.as_deref().is_some_and(|e| e.contains("dois critérios")), "xlAnd de comparação avisa em vez de filtrar errado: {:?}", r.erro);
+}

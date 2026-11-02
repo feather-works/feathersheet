@@ -189,8 +189,15 @@ critério e `ws.AutoFilter.Sort` (ordena a tabela do filtro; os botões de filtr
 
 `ByRef` (02/11/2026): o parâmetro de valor simples que o procedimento altera vira caixa (`p.v`, `gerar/por_ref.rs`); variável passada volta alterada, expressão não; valor solto (evento, fórmula) é embrulhado na entrada. Limite: `Foo (x)` com parênteses ainda vai por referência.
 
-Próximos pela contagem: o resto das formas (botões, visibilidade, posição), `WScript.Shell.Run` →
-`app.shell`, `AutoFilter` com critério (precisa de filtro na API das macros), automação do Word (fica
+`CreateObject("WScript.Shell").Run` (02/11/2026) → `app.shell` (direto ou com `Set`). `AutoFilter`
+com critério (02/11/2026): `sheet.autoFilter(endereço, coluna, critério)`, `showAllData()` e
+`autoFilterOff()` anotam o pedido e o app filtra com o AutoFiltro da tela no fim da macro
+(`tabelas::aplicar_filtros_da_macro`); `vba.filtroCrit` leva `Criteria1` (texto do CONT.SE),
+`xlFilterValues`/`Array`, `xlOr` de dois valores e top 10. Ainda não: `xlAnd`/`xlOr` de comparação, cor,
+filtro dinâmico, e ler as linhas filtradas na mesma macro (`SpecialCells(xlCellTypeVisible)`):
+as linhas só somem no fim. `ws.FilterMode`/`AutoFilterMode` lidos valem sempre `True`.
+
+Próximos pela contagem: o resto das formas (botões, visibilidade, posição), automação do Word (fica
 para quando o FeatherDocs tiver API).
 
 ### Rodando de verdade (01/11/2026)

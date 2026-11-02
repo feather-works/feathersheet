@@ -37,6 +37,8 @@ const CONSTANTES: &[(&str, &str, T)] = &[
     ("xlbetween", "1", T::Num), ("xlnotbetween", "2", T::Num), ("xlequal", "3", T::Num), ("xlnotequal", "4", T::Num), ("xlgreater", "5", T::Num), ("xlless", "6", T::Num), ("xlgreaterequal", "7", T::Num), ("xllessequal", "8", T::Num),
     ("xlsortonvalues", "0", T::Num), ("xlsortnormal", "0", T::Num), ("xlsorttextasnumbers", "1", T::Num), ("xltoptobottom", "1", T::Num), ("xllefttoright", "2", T::Num), ("xlpinyin", "1", T::Num), ("xlstroke", "2", T::Num),
     ("xltypepdf", "0", T::Num), ("xltypexps", "1", T::Num), ("xlqualitystandard", "0", T::Num), ("xlqualityminimum", "1", T::Num), ("xlopenxmlworkbook", "51", T::Num), ("xlworkbookdefault", "51", T::Num),
+    ("xland", "1", T::Num), ("xlor", "2", T::Num), ("xltop10items", "3", T::Num), ("xlbottom10items", "4", T::Num), ("xltop10percent", "5", T::Num),
+    ("xlbottom10percent", "6", T::Num), ("xlfiltervalues", "7", T::Num), ("xlfiltercellcolor", "8", T::Num), ("xlfilterfontcolor", "9", T::Num), ("xlfilterdynamic", "11", T::Num),
     ("xlthemecolordark1", "1", T::Num), ("xlthemecolorlight1", "2", T::Num), ("xlthemecoloraccent1", "5", T::Num),
 ];
 

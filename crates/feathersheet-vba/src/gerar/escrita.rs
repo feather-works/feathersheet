@@ -283,6 +283,8 @@ impl Gerador<'_> {
     fn metodo_da_ordem(&mut self, aba: &str, n: &str, args: &[Arg]) -> R<String> {
         let o = self.ajuda("ordem");
         Ok(match n {
+            // `ws.AutoFilter.ShowAllData`.
+            "showalldata" => format!("{aba}.showAllData();"),
             "clear" => format!("vba.{o}({aba}).chaves = [];"),
             "add" | "add2" => {
                 let chave = self.arg_faixa(args, &["key"], 0)?.ok_or_else(|| Motivo::novo("SortFields.Add sem Key"))?;
@@ -421,6 +423,12 @@ impl Gerador<'_> {
         let v = self.valor(valor)?;
         Ok(match n {
             "name" => format!("wb.renameSheet({atual}, {});", v.js),
+            // `AutoFilterMode = False` tira o filtro; `True` não liga nada no Excel também.
+            "autofiltermode" => match constante(valor) {
+                Some(0) => format!("{aba}.autoFilterOff();"),
+                _ if matches!(valor, Expr::Bool(false)) => format!("{aba}.autoFilterOff();"),
+                _ => String::new(),
+            },
             "visible" => {
                 let visivel = match constante(valor) {
                     Some(0 | 2) => "false".to_string(),
@@ -512,9 +520,18 @@ impl Gerador<'_> {
             "unmerge" => format!("{aba}.unmerge({end});"),
             "delete" | "insert" => self.inserir_excluir(f, n == "delete", args)?,
             "sort" => self.ordenar_faixa(f, args)?,
-            // `Selection.AutoFilter` sem critério: guarda o intervalo para o `.AutoFilter.Sort`.
-            // shortcut: os botões de filtro não aparecem (a API das macros ainda não filtra); com critério, fica pendente.
-            "autofilter" if args.is_empty() => format!("vba.{}({aba}).filtro = {end};", self.ajuda("ordem")),
+            // `Selection.AutoFilter` sem critério: liga o AutoFiltro e guarda o intervalo para o `.AutoFilter.Sort`.
+            // shortcut: sem critério só liga (no Excel desliga quando já há filtro); `AutoFilterMode = False` desliga.
+            "autofilter" if args.is_empty() => format!("vba.{}({aba}).filtro = {end}; {aba}.autoFilter({end});", self.ajuda("ordem")),
+            // `AutoFilter Field, Criteria1, Operator, Criteria2`: o critério do Excel vira o do filtro da planilha.
+            "autofilter" => {
+                let campo = self.arg_js(args, &["field"], 0)?;
+                let c1 = self.arg_js(args, &["criteria1"], 1)?;
+                let op = self.arg_js(args, &["operator"], 2)?;
+                let c2 = self.arg_js(args, &["criteria2"], 3)?;
+                let ajuda = self.ajuda("filtroCrit");
+                format!("vba.{}({aba}).filtro = {end}; {aba}.autoFilter({end}, {campo}, vba.{ajuda}({c1}, {op}, {c2}));", self.ajuda("ordem"))
+            }
             "copy" => self.copiar(f, args, false)?,
             "cut" => self.copiar(f, args, true)?,
             "pastespecial" => {
@@ -671,6 +688,7 @@ impl Gerador<'_> {
                 format!("wb.activate({nome_js});")
             }
             "calculate" => "app.calculate();".into(),
+            "showalldata" => format!("{aba}.showAllData();"),
             "delete" => format!("wb.deleteSheet({nome_js});"),
             "exportasfixedformat" => self.exportar_pdf(aba, args)?,
             "printout" | "printpreview" => return Err(Motivo::novo("imprimir pela macro (use exportar PDF)")),

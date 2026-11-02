@@ -232,6 +232,21 @@ const AJUDAS: &[(&str, &[&str], &str)] = &[
   },"#),
     ("acharProx", &["achar"], "  /** `Range.FindNext(depois)`: a mesma busca do último `Find`. */\n  acharProx(depois) { const b = vba._busca; if (!b) throw new Error('FindNext sem Find antes'); return vba.achar(b.aba, b.faixa, b.texto, b.op, depois); },"),
     ("corVba", &[], "  /** \"#rrggbb\" → a cor do VBA (r + g·256 + b·65536); sem cor, `padrao`. */\n  corVba(h, padrao) { if (!h) return padrao; const n = parseInt(String(h).slice(1, 7), 16); return ((n >> 16) & 255) + ((n >> 8) & 255) * 256 + (n & 255) * 65536; },"),
+    ("filtroCrit", &["n"], r#"  /** O critério do `AutoFilter` (Criteria1, Operator, Criteria2) no formato do filtro da planilha: o texto do Excel (">100", "SP", "<>") vale como no CONT.SE; lista para xlFilterValues/Array; top 10. */
+  filtroCrit(c1, op, c2) {
+    op = op === undefined || op === null ? 0 : vba.n(op);
+    const igual = (x) => typeof x !== 'string' || !/^[<>]|[*?~]/.test(x.replace(/^=/, ''));
+    const valor = (x) => (typeof x === 'string' ? x.replace(/^=/, '') : x);
+    if (Array.isArray(c1)) { const v = []; for (let i = c1.lb ?? 0; i < c1.length; i++) v.push(valor(c1[i])); return v; }
+    if (op === 7) return [valor(c1)];
+    if (op >= 3 && op <= 6) return { op: 'top10', topo: op === 3 || op === 5, n: vba.n(c1), percentual: op >= 5 };
+    if (op > 2) throw new Error(`AutoFilter com Operator ${op} (cor ou filtro dinâmico) ainda não filtra pela macro`);
+    if (c2 !== undefined && c2 !== null) {
+      if (op === 2 && igual(c1) && igual(c2)) return [valor(c1), valor(c2)];
+      throw new Error('AutoFilter com dois critérios (xlAnd/xlOr de comparação) ainda não filtra pela macro');
+    }
+    return c1 === undefined ? null : c1;
+  },"#),
     ("formaEscolher", &[], "  /** `Shapes(…).Select`: a forma do `Selection.ShapeRange` seguinte. */\n  formaEscolher(f) { vba._forma = f; },"),
     ("formaSel", &["formaEscolher"], "  formaSel() { if (!vba._forma) throw new Error('Selection.ShapeRange sem forma selecionada (falta Shapes(\"…\").Select)'); return vba._forma; },"),
     ("validar", &["n"], "  /** `Validation.Add Type, AlertStyle, Operator, Formula1, Formula2` → a validação da API. */\n  validar(aba, e, tipo, alerta = 1, op = 1, f1, f2) { tipo = Number(tipo); if (!tipo) { aba.clearDataValidation(e); return; } const mode = Number(alerta) === 1 ? 'stop' : 'warn'; const t = f1 === undefined ? '' : String(f1).trim(); let regra; if (tipo === 3) { regra = t.startsWith('=') ? { type: 'list', source: t } : { type: 'list', values: t.split(/[,;]/).map((s) => s.trim()).filter((s) => s) }; } else if ((tipo === 1 || tipo === 2) && !t.startsWith('=')) { const o = { 1: 'between', 2: 'notBetween', 3: 'equal', 4: 'notEqual', 5: 'greaterThan', 6: 'lessThan', 7: 'greaterThanOrEqual', 8: 'lessThanOrEqual' }[Number(op)] ?? 'between'; regra = /etween/.test(o) ? { type: 'number', operator: o, min: vba.n(f1), max: vba.n(f2) } : { type: 'number', operator: o, value: vba.n(f1) }; regra.integer = tipo === 1; } else { log(`Validação do Excel (tipo ${tipo}${t.startsWith('=') ? ', com fórmula' : ''}) ainda sem equivalente: ${e} ficou sem regra.`); aba.clearDataValidation(e); return; } regra.mode = mode; aba.setDataValidation(e, regra); },"),
