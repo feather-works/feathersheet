@@ -7,7 +7,8 @@ fn main() {
     let t = Instant::now();
     let mut w = if caminho.extension().is_some_and(|e| e == "fshz") {
         let lida = feathersheet_io::fshz_read::ler_fshz_arquivo(&caminho).expect("ler FSHZ");
-        feathersheet_io::para_workbook::para_workbook(&lida)
+        println!("[lido] {:.2} s", t.elapsed().as_secs_f64());
+        feathersheet_io::para_workbook::para_workbook_soltando(lida)
     } else {
         feathersheet_io::xlsx_read::ler_xlsx_arquivo(&caminho).expect("ler").0
     };
