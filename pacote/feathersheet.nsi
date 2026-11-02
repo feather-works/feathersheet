@@ -31,6 +31,7 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "PortugueseBR"
 
+!include "FileFunc.nsh"
 !define DESINSTALAR "Software\Microsoft\Windows\CurrentVersion\Uninstall\FeatherSheet"
 
 Section "FeatherSheet"
@@ -48,14 +49,19 @@ Section "FeatherSheet"
   WriteRegStr HKCU "Software\Classes\FeatherSheet.Planilha" "" "Planilha do FeatherSheet"
   WriteRegStr HKCU "Software\Classes\FeatherSheet.Planilha\DefaultIcon" "" "$INSTDIR\feathersheet.ico"
   WriteRegStr HKCU "Software\Classes\FeatherSheet.Planilha\shell\open\command" "" '"$INSTDIR\feathersheet.exe" "%1"'
-  ; "Abrir com" para .xlsx e .csv, sem tomar o lugar do programa padrão.
+  ; "Abrir com" para .xlsx, .xlsm e .csv, sem tomar o lugar do programa padrão.
   WriteRegStr HKCU "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha" ""
+  WriteRegStr HKCU "Software\Classes\.xlsm\OpenWithProgids" "FeatherSheet.Planilha" ""
   WriteRegStr HKCU "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha" ""
 
   WriteRegStr HKCU "Software\FeatherWorks\FeatherSheet" "Pasta" "$INSTDIR"
   WriteRegStr HKCU "${DESINSTALAR}" "DisplayName" "FeatherSheet"
   WriteRegStr HKCU "${DESINSTALAR}" "DisplayVersion" "${VERSAO}"
   WriteRegStr HKCU "${DESINSTALAR}" "Publisher" "FeatherWorks"
+  ; Tamanho em "Programas e Recursos" (KB, do que foi instalado).
+  ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
+  IntFmt $0 "0x%08X" $0
+  WriteRegDWORD HKCU "${DESINSTALAR}" "EstimatedSize" "$0"
   WriteRegStr HKCU "${DESINSTALAR}" "DisplayIcon" "$INSTDIR\feathersheet.ico"
   WriteRegStr HKCU "${DESINSTALAR}" "URLInfoAbout" "https://github.com/feather-works/feathersheet"
   WriteRegStr HKCU "${DESINSTALAR}" "UninstallString" '"$INSTDIR\desinstalar.exe"'
@@ -73,6 +79,7 @@ Section "Uninstall"
   RMDir "$INSTDIR"
   DeleteRegKey HKCU "Software\Classes\FeatherSheet.Planilha"
   DeleteRegValue HKCU "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha"
+  DeleteRegValue HKCU "Software\Classes\.xlsm\OpenWithProgids" "FeatherSheet.Planilha"
   DeleteRegValue HKCU "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha"
   ReadRegStr $0 HKCU "Software\Classes\.fshz" ""
   StrCmp $0 "FeatherSheet.Planilha" 0 +2
