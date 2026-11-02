@@ -413,7 +413,21 @@ impl Gerador<'_> {
                 if matches!(n.to_lowercase().as_str(), "doevents" | "beep") {
                     return Ok(String::new());
                 }
+                if n.eq_ignore_ascii_case("randomize") {
+                    self.ajuda("rnd");
+                    return Ok("vba.randomize();".into());
+                }
                 Err(Motivo::novo(format!("{n} sem equivalente")))
+            }
+            Expr::Chamada(f, args) if matches!(&**f, Expr::Nome(n) if n.eq_ignore_ascii_case("callbyname")) => {
+                match self.call_by_name(args)? {
+                    (o, nome, 4 | 8, resto) => {
+                        let valor = resto.first().and_then(|a| a.valor.clone()).ok_or_else(|| Motivo::novo("CallByName VbLet sem valor"))?;
+                        let obj = self.objeto(&o)?;
+                        self.atribuir_propriedade(obj, &nome, &valor)
+                    }
+                    (o, nome, _, resto) => self.chamar(&Expr::Chamada(Box::new(Expr::Membro(Box::new(o), nome)), resto)),
+                }
             }
             Expr::Chamada(f, args) => match &**f {
                 // `Unload Me` / `Unload UserForm1` fecha o formulário; `Load` não tem o que fazer.
@@ -695,6 +709,9 @@ impl Gerador<'_> {
                     for d in ds {
                         let tipo = tipo_declarado(d.tipo.as_deref());
                         let js = self.declarar(&d.nome, tipo, d.dims.is_some());
+                        if d.dims.is_none() && d.tipo.as_deref() == Some("date") {
+                            self.escopo.datas.insert(js.clone());
+                        }
                         if e_inteiro(d.tipo.as_deref()) && d.dims.is_none() {
                             self.escopo.inteiros.insert(js);
                         }

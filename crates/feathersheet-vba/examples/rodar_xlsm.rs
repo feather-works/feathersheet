@@ -23,14 +23,17 @@ fn main() {
         let mut wb = pasta(&caminho);
         let ativa = aba.and_then(|a| wb.nomes().iter().position(|n| *n == a)).unwrap_or(0);
         let mut respostas = Vec::new();
+        let mut escolhas: Vec<u32> = Vec::new();
         let t = Instant::now();
         let r = loop {
             let contexto = feathersheet_macros::Contexto {
-                arquivo: Some(caminho.clone()), respostas: respostas.clone(),
+                arquivo: Some(caminho.clone()), respostas: respostas.clone(), escolhas: escolhas.clone(),
                 limites: feathersheet_macros::Limites { prazo: Duration::from_secs(20), parar: None },
                 ..Default::default()
             };
             let r = feathersheet_macros::executar_com(&mut wb, ativa, &codigo, contexto);
+            // Pergunta de vários botões (MsgBox com Sim/Não/Cancelar…): o botão padrão; Sim/Não: Sim.
+            if let (Some(e), true) = (&r.escolha, escolhas.len() < 20) { escolhas.push(e.padrao as u32); continue; }
             if r.pergunta.is_some() && respostas.len() < 20 { respostas.push(true); continue; }
             break r;
         };

@@ -76,6 +76,10 @@ fn significado(code: ErrorCode) -> (&'static str, &'static str) {
             "A fórmula depende dela mesma, direta ou indiretamente.",
             "Refaça a conta para que o ciclo se quebre: nenhuma célula pode se referenciar de volta.",
         ),
+        ErrorCode::Null => (
+            "Dois intervalos que deviam se cruzar não têm nenhuma célula em comum.",
+            "Confira os intervalos: entre eles vai ; ou :, não um espaço.",
+        ),
         ErrorCode::Calculating => (
             "Não é erro: a resposta ainda está a caminho.",
             "A célula se atualiza sozinha quando o resultado chegar.",

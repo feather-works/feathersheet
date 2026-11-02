@@ -2,15 +2,15 @@
 
 ## Resumo
 
-Atualizado em 01/11/2026 (a primeira avaliação foi em 15/10/2026, antes da v0.2.0).
+Atualizado em 02/11/2026 (a primeira avaliação foi em 15/10/2026, antes da v0.2.0).
 
 - Total de funções avaliadas: **141**
-- COBERTA: **105**
-- PARCIAL: **11**
-- FALTA: **1**
+- COBERTA: **116**
+- PARCIAL: **1**
+- FALTA: **0**
 - NÃO SE APLICA: **24**
 
-(Cobertura útil, COBERTA + PARCIAL, de 141: 116. Sem contar as que não se aplicam, de 117: 116, cerca de 99%.)
+(Sem contar as que não se aplicam, 116 de 117 cobertas; a única parcial é o CDec, que vira número de 64 bits em vez do Decimal de 28 algarismos.)
 
 Lista oficial: página "Functions (Visual Basic for Applications)" da Microsoft Learn (versão de 2024-02). Tipos de conversão foram incluídos pela família (CBool…CVDate), mesmo fora da página principal. Código conferido em `feathersheet/crates/feathersheet-vba/src/gerar/` (funcoes.rs, expr.rs, instr.rs) e no prelúdio `feathersheet-vba/src/gerar/ajuda.rs` (o bloco `const vba = {…}` que vai junto com o código gerado).
 
@@ -22,8 +22,8 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 |---|---|---|---|
 | Asc | conversão | COBERTA | funcoes.rs:133 (`charCodeAt(0)`); só o primeiro caractere |
 | Chr | conversão | COBERTA | funcoes.rs:132 (`String.fromCharCode`) |
-| CVErr | conversão | PARCIAL | `vba.cverr` → `app.error`; xlErrNull vira #ERROR! (a planilha não tem #NULL!) |
-| Format | conversão | PARCIAL | ajuda.rs:34-80, funcoes.rs:137. Faltam os formatos nomeados General Number, Scientific, Yes/No, On/Off e datas nomeadas |
+| CVErr | conversão | COBERTA | `vba.cverr` → `app.error`; `#NULL!` entrou no motor (02/11/2026). Erro constante gravado numa célula fica como o texto do erro, como o `.xlsx` com erro digitado |
+| Format | conversão | COBERTA | ajuda.rs (`format`, `_formatoNomeado`): máscaras e todos os formatos com nome (General Number, Currency, Fixed, Standard, Percent, Scientific, Yes/No, True/False, On/Off, as datas e horas com nome) |
 | Hex | conversão | COBERTA | `vba.hex(v, 16)`, negativo em complemento de dois |
 | Oct | conversão | COBERTA | `vba.hex(v, 8)` |
 | Str | conversão | COBERTA | `vba.strNum`: espaço do sinal em número não negativo |
@@ -36,14 +36,14 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | Int | matemática | COBERTA | funcoes.rs:156 (`Math.floor`, certo para negativos) |
 | Fix | matemática | COBERTA | funcoes.rs:157 (`Math.trunc`) |
 | Log | matemática | COBERTA | funcoes.rs:162 |
-| Rnd | matemática | PARCIAL | funcoes.rs:96 (`Math.random()`). Falta Rnd(-1)/Randomize e semente reproduzível |
+| Rnd | matemática | COBERTA | `vba.rnd`/`vba.randomize`: o gerador do VBA (24 bits, semente 327680): a mesma sequência do Excel, Rnd(0), Rnd(negativo) e Randomize |
 | Sgn | matemática | COBERTA | funcoes.rs:160 |
 | Sin | matemática | COBERTA | funcoes.rs:163 |
 | Sqr | matemática | COBERTA | funcoes.rs:159 |
 | Tan | matemática | COBERTA | funcoes.rs:163 |
 | CBool | conversão de tipo | COBERTA | funcoes.rs:152-155 (`como_bool`) |
 | CByte | conversão de tipo | COBERTA | `vba.faixaInt`, Estouro fora de 0..255 |
-| CCur | conversão de tipo | PARCIAL | funcoes.rs:151 (número JS). Sem precisão fixa de 4 casas |
+| CCur | conversão de tipo | COBERTA | `vba.ccur`: 4 casas com o arredondamento do banqueiro |
 | CDate | conversão de tipo | COBERTA | `vba.cdate` (ajuda.rs): número, dd/mm/aaaa, aaaa-mm-dd, com hh:mm[:ss], só hh:mm |
 | CDbl | conversão de tipo | COBERTA | funcoes.rs:151 |
 | CDec | conversão de tipo | PARCIAL | funcoes.rs:151 (número JS). Sem precisão decimal exata |
@@ -56,7 +56,7 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | CVar | conversão de tipo | COBERTA | o próprio valor |
 | CVDate | conversão de tipo | COBERTA | `vba.cdate` |
 | Array | outras | COBERTA | funcoes.rs:179 |
-| CallByName | outras | FALTA | não mapeada (chamada dinâmica de objeto) |
+| CallByName | outras | COBERTA | `call_by_name` (expr.rs): com o nome fixo, vira a chamada escrita direto (VbMethod, VbGet, VbLet, VbSet); nome calculado vira pendência |
 | Choose | outras | COBERTA | `vba.choose`; fora da faixa é Null |
 | Command | outras | NÃO SE APLICA | linha de comando do programa; sem equivalente no app |
 | CreateObject | outras | NÃO SE APLICA | funcoes.rs:185 recusa (automação de outro programa) |
@@ -78,10 +78,10 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | FileDateTime | outras | NÃO SE APLICA | funcoes.rs:187 recusa (arquivo) |
 | FileLen | outras | NÃO SE APLICA | funcoes.rs:187 recusa (arquivo) |
 | Filter | outras | COBERTA | `vba.filtrar`: incluir/excluir e vbTextCompare |
-| FormatCurrency | outras | PARCIAL | `vba.formatNumero` com "R$ "; mesmos limites do FormatNumber |
+| FormatCurrency | outras | COBERTA | `vba.formatNumero` com "R$ ": casas, zero à esquerda, negativo entre parênteses e agrupar |
 | FormatDateTime | outras | COBERTA | `vba.formatDataHora`: os cinco formatos, em pt-BR |
-| FormatNumber | outras | PARCIAL | `vba.formatNumero`: casas e agrupar; zero à esquerda e negativo entre parênteses ficam no padrão |
-| FormatPercent | outras | PARCIAL | `vba.formatNumero` com %; mesmos limites do FormatNumber |
+| FormatNumber | outras | COBERTA | `vba.formatNumero`: casas, zero à esquerda, negativo entre parênteses e agrupar |
+| FormatPercent | outras | COBERTA | `vba.formatNumero` com %: casas, zero à esquerda, negativo entre parênteses e agrupar |
 | FreeFile | outras | NÃO SE APLICA | funcoes.rs:187 recusa (arquivo) |
 | FV | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | GetAllSettings | outras | NÃO SE APLICA | registro do Windows; sem equivalente |
@@ -98,7 +98,7 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | IPmt | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | IRR | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | IsArray | outras | COBERTA | funcoes.rs:141 |
-| IsDate | outras | PARCIAL | `vba.isDate`: texto que o CDate entende; data guardada como número numa variável dá False |
+| IsDate | outras | COBERTA | `vba.isDate` para texto; variável `As Date` (guarda o serial) é data |
 | IsEmpty | outras | COBERTA | funcoes.rs:139 (`vba.vazio`) |
 | IsError | outras | COBERTA | `app.isError` (erro de célula da API) |
 | IsMissing | outras | COBERTA | `=== undefined` (Optional sem padrão) |
@@ -122,7 +122,7 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | MIRR | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | Month | outras | COBERTA | funcoes.rs:167 (`vba.mes`), ajuda.rs:124 |
 | MonthName | outras | COBERTA | `vba.nomeMes` (pt-BR) |
-| MsgBox | outras | PARCIAL | funcoes.rs:177, ajuda.rs:97. Só Sim/Não e OK/Cancelar (via confirm/alert). Faltam Abortar/Repetir/Ignorar e ícones |
+| MsgBox | outras | COBERTA | `vba.msgBox` → `app.choose`: todos os conjuntos de botões, ícones e botão padrão; devolve vbOK…vbNo |
 | Now | outras | COBERTA | `vba.agora()` (serial da data e hora locais) |
 | NPer | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | NPV | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
@@ -144,7 +144,7 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | Spc | outras | NÃO SE APLICA | só faz sentido com Print (saída de arquivo) |
 | Split | outras | COBERTA | `vba.split`: limite e vbTextCompare; texto vazio dá matriz vazia (UBound -1) |
 | StrComp | outras | COBERTA | `vba.strcomp`: binário e vbTextCompare |
-| StrConv | outras | PARCIAL | `vba.strconv`: vbUpperCase, vbLowerCase, vbProperCase; as conversões de Unicode/japonês não |
+| StrConv | outras | COBERTA | `vba.strconv`: maiúsculas, minúsculas, primeira maiúscula, vbWide/vbNarrow, vbKatakana/vbHiragana; vbUnicode/vbFromUnicode não mudam o texto (o JavaScript já é Unicode) |
 | String | outras | COBERTA | funcoes.rs:135. Usa só o primeiro caractere do segundo argumento (String(n, 65) não converte) |
 | StrReverse | outras | COBERTA | funcoes.rs:136 |
 | Switch | outras | COBERTA | `vba.switch`; nenhuma verdadeira é Null |
@@ -162,11 +162,9 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | WeekdayName | outras | COBERTA | `vba.nomeDia` (pt-BR, com primeiro dia da semana) |
 | Year | outras | COBERTA | funcoes.rs:166 (`vba.ano`), ajuda.rs:123 |
 
-## O que falta (01/11/2026)
+## O que falta (02/11/2026)
 
-- CallByName (não mapeada (chamada dinâmica de objeto))
-
-Parciais: CVErr, Format, Rnd, CCur, CDec, FormatCurrency, FormatNumber, FormatPercent, IsDate, MsgBox, StrConv (detalhe na tabela).
+- Nenhuma função falta. Parcial: CDec (sem o Decimal de 28 algarismos do VBA).
 
 ## Medido em .xlsm reais (01/11/2026)
 

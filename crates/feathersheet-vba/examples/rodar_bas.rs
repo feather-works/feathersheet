@@ -26,10 +26,13 @@ fn main() {
         };
         let mut wb = Workbook::new();
         let mut respostas = Vec::new();
+        let mut escolhas: Vec<u32> = Vec::new();
         let r = loop {
-            let ctx = feathersheet_macros::Contexto { respostas: respostas.clone(),
+            let ctx = feathersheet_macros::Contexto { respostas: respostas.clone(), escolhas: escolhas.clone(),
                 limites: feathersheet_macros::Limites { prazo: Duration::from_secs(20), parar: None }, ..Default::default() };
             let r = feathersheet_macros::executar_com(&mut wb, 0, &m.codigo, ctx);
+            // Pergunta de vários botões (MsgBox com Sim/Não/Cancelar…): o botão padrão; Sim/Não: Sim.
+            if let (Some(e), true) = (&r.escolha, escolhas.len() < 20) { escolhas.push(e.padrao as u32); continue; }
             if r.pergunta.is_some() && respostas.len() < 20 { respostas.push(true); continue; }
             break r;
         };

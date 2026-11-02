@@ -405,6 +405,7 @@ pub fn fn_isnontext(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 /// (`#ERRO!`, referência circular) ficam sem número.
 fn numero_do_erro(code: ErrorCode) -> Option<f64> {
     Some(match code {
+        ErrorCode::Null => 1.0,
         ErrorCode::Div0 => 2.0,
         ErrorCode::Value => 3.0,
         ErrorCode::Ref => 4.0,

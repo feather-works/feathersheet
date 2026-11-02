@@ -37,6 +37,8 @@ const CONSTANTES: &[(&str, &str, T)] = &[
     ("xlbetween", "1", T::Num), ("xlnotbetween", "2", T::Num), ("xlequal", "3", T::Num), ("xlnotequal", "4", T::Num), ("xlgreater", "5", T::Num), ("xlless", "6", T::Num), ("xlgreaterequal", "7", T::Num), ("xllessequal", "8", T::Num),
     ("xlsortonvalues", "0", T::Num), ("xlsortnormal", "0", T::Num), ("xlsorttextasnumbers", "1", T::Num), ("xltoptobottom", "1", T::Num), ("xllefttoright", "2", T::Num), ("xlpinyin", "1", T::Num), ("xlstroke", "2", T::Num),
     ("xltypepdf", "0", T::Num), ("xltypexps", "1", T::Num), ("xlqualitystandard", "0", T::Num), ("xlqualityminimum", "1", T::Num), ("xlopenxmlworkbook", "51", T::Num), ("xlworkbookdefault", "51", T::Num),
+    ("vbmethod", "1", T::Num), ("vbget", "2", T::Num), ("vblet", "4", T::Num), ("vbset", "8", T::Num),
+    ("vbwide", "4", T::Num), ("vbnarrow", "8", T::Num), ("vbkatakana", "16", T::Num), ("vbhiragana", "32", T::Num), ("vbunicode", "64", T::Num), ("vbfromunicode", "128", T::Num),
     ("xland", "1", T::Num), ("xlor", "2", T::Num), ("xltop10items", "3", T::Num), ("xlbottom10items", "4", T::Num), ("xltop10percent", "5", T::Num),
     ("xlbottom10percent", "6", T::Num), ("xlfiltervalues", "7", T::Num), ("xlfiltercellcolor", "8", T::Num), ("xlfilterfontcolor", "9", T::Num), ("xlfilterdynamic", "11", T::Num),
     ("xlthemecolordark1", "1", T::Num), ("xlthemecolorlight1", "2", T::Num), ("xlthemecoloraccent1", "5", T::Num),
@@ -107,7 +109,7 @@ impl Gerador<'_> {
             "date" => V::novo(format!("vba.{}()", self.ajuda("hoje")), T::Num),
             "time" => V::composto(format!("vba.{}() % 1", self.ajuda("agora")), T::Num),
             "timer" => V::composto("(Date.now() % 86400000) / 1000", T::Num),
-            "rnd" => V::novo("Math.random()", T::Num),
+            "rnd" => V::novo(format!("vba.{}()", self.ajuda("rnd")), T::Num),
             "doevents" | "beep" => V::novo("undefined", T::Var),
             _ => return None,
         })
@@ -168,7 +170,14 @@ impl Gerador<'_> {
                 let (lo, hi) = match n { "cint" => ("-32768", "32767"), "clng" => ("-2147483648", "2147483647"), _ => ("0", "255") };
                 V::novo(format!("vba.{f}({}, {lo}, {hi})", a.first()?.js), T::Num)
             }
-            "cdbl" | "csng" | "ccur" | "cdec" => V::novo(x(self), T::Num),
+            "ccur" => self.chamar_ajuda("ccur", a, T::Num),
+            // shortcut: CDec vira número de 64 bits (15–17 algarismos), não o Decimal de 28 do VBA.
+            "cdbl" | "csng" | "cdec" => V::novo(x(self), T::Num),
+            "rnd" => self.chamar_ajuda("rnd", a, T::Num),
+            "randomize" => {
+                self.ajuda("rnd");
+                V::novo(format!("vba.randomize({})", a.first().map_or("", |v| v.js.as_str())), T::Var)
+            }
             "cbool" => {
                 let b = self.como_bool(a.first()?);
                 V::novo(b, T::Bool)
@@ -235,6 +244,8 @@ impl Gerador<'_> {
             "choose" => self.chamar_ajuda("choose", a, T::Var),
             "switch" => self.chamar_ajuda("switch", a, T::Var),
             "strcomp" => self.chamar_ajuda("strcomp", a, T::Num),
+            // Variável `As Date` guarda o serial (número): é data mesmo assim.
+            "isdate" if a.first().is_some_and(|v| self.escopo.datas.contains(&v.js)) => V::novo("true", T::Bool),
             "isdate" => self.chamar_ajuda("isDate", a, T::Bool),
             "ismissing" => V::composto(format!("{} === undefined", a.first()?.par()), T::Bool),
             "hex" | "oct" => {
@@ -245,10 +256,10 @@ impl Gerador<'_> {
             "weekdayname" => self.chamar_ajuda("nomeDia", a, T::Texto),
             "formatnumber" | "formatcurrency" | "formatpercent" => {
                 let f = self.ajuda("formatNumero");
-                // (valor, casas, zero à esquerda, negativo entre parênteses, agrupar): o 3º e o 4º ficam no padrão.
+                // (valor, casas, zero à esquerda, negativo entre parênteses, agrupar).
                 let arg = |i: usize| a.get(i).map_or("undefined".to_string(), |v| v.js.clone());
                 let (antes, depois) = match n { "formatcurrency" => ("'R$ '", "''"), "formatpercent" => ("''", "'%'"), _ => ("''", "''") };
-                V::novo(format!("vba.{f}({}, {}, {}, {antes}, {depois})", a.first()?.js, arg(1), arg(4)), T::Texto)
+                V::novo(format!("vba.{f}({}, {}, {}, {antes}, {depois}, {}, {})", a.first()?.js, arg(1), arg(4), arg(2), arg(3)), T::Texto)
             }
             "formatdatetime" => self.chamar_ajuda("formatDataHora", a, T::Texto),
             "pmt" | "fv" | "pv" | "nper" | "ipmt" | "ppmt" | "npv" | "irr" | "mirr" | "rate" | "sln" | "syd" | "ddb" => {

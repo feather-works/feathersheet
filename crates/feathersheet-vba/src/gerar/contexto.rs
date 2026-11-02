@@ -148,6 +148,8 @@ pub struct Escopo {
     /// Variáveis inteiras (`As Long`/`Integer`/`Byte`), pelo nome JS: atribuir a elas
     /// arredonda, como no VBA.
     pub inteiros: BTreeSet<String>,
+    /// Variáveis `As Date` pelo nome JS: guardam o serial, e o `IsDate` delas é `True`.
+    pub datas: BTreeSet<String>,
 }
 
 /// O tipo declarado é inteiro (`Long`, `Integer`, `Byte`)?

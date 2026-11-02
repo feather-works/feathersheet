@@ -332,3 +332,54 @@ fn shapes_visible_onaction_e_posicao_rodam() {
     assert_eq!(wb.valor(0, 0, 0), Value::Text("Gravar".into()));
     assert_eq!(r.formas.len(), 4, "{:?}", r.formas);
 }
+
+#[test]
+fn paridade_rnd_ccur_format_strconv_isdate_e_callbyname() {
+    let vba = "Sub T()\n  Dim d As Date, x As Double\n  Range(\"A1\").Value = Round(Rnd(), 7)\n  Range(\"A2\").Value = Round(Rnd(), 6)\n  Range(\"A3\").Value = Round(Rnd(-1), 6)\n  Range(\"A4\").Value = Round(Rnd(0), 6)\n  x = Rnd(-1): Randomize 5\n  x = Rnd(): Range(\"A6\").Value = Rnd(-1): Randomize 5\n  Range(\"A5\").Value = (x <> Rnd())\n  Range(\"B1\").Value = CCur(1.00005)\n  Range(\"B2\").Value = CCur(1.00015)\n  Range(\"C1\").Value = Format(1234.5, \"Scientific\")\n  Range(\"C2\").Value = Format(0, \"Yes/No\") & Format(3, \"On/Off\")\n  Range(\"C3\").Value = Format(1234.5, \"General Number\")\n  Range(\"C4\").Value = Format(0.75, \"Medium Time\")\n  Range(\"C5\").Value = FormatNumber(-0.5, 2, vbFalse, vbTrue)\n  Range(\"D1\").Value = StrConv(\"abc\", vbUpperCase + vbWide)\n  Range(\"D2\").Value = StrConv(\"\u{30AB}\u{30BF}\", vbHiragana)\n  d = 45000\n  Range(\"E1\").Value = IsDate(d)\n  Range(\"E2\").Value = IsDate(x)\n  CallByName Range(\"F1\"), \"Value\", VbLet, 7\n  Range(\"F2\").Value = CallByName(Range(\"F1\"), \"Value\", VbGet) * 2\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let wb = roda(vba, "T");
+    let v = |l: u32, col: u32| wb.valor(0, l, col);
+    assert_eq!(v(0, 0), Value::Number(0.7055475), "primeiro Rnd do VBA");
+    assert_eq!(v(1, 0), Value::Number(0.533424));
+    assert_eq!(v(2, 0), Value::Number(0.224007), "Rnd(-1)");
+    assert_eq!(v(3, 0), Value::Number(0.224007), "Rnd(0) repete");
+    assert_eq!(v(4, 0), Value::Bool(false), "Rnd(-1) + Randomize com a mesma semente repete a sequência, como no VBA");
+    assert_eq!(v(0, 1), Value::Number(1.0), "CCur arredonda para o par");
+    assert_eq!(v(1, 1), Value::Number(1.0002));
+    assert_eq!(v(0, 2), Value::Text("1,23E+03".into()));
+    assert_eq!(v(1, 2), Value::Text("NãoAtivado".into()));
+    assert_eq!(v(2, 2), Value::Number(1234.5), "\"1234,5\" vira número na célula, como no Excel");
+    assert_eq!(v(3, 2), Value::Text("06:00 PM".into()));
+    assert_eq!(v(4, 2), Value::Text("(,50)".into()));
+    assert_eq!(v(0, 3), Value::Text("ＡＢＣ".into()));
+    assert_eq!(v(1, 3), Value::Text("\u{304B}\u{305F}".into()));
+    assert_eq!(v(0, 4), Value::Bool(true));
+    assert_eq!(v(1, 4), Value::Bool(false));
+    assert_eq!(v(0, 5), Value::Number(7.0));
+    assert_eq!(v(1, 5), Value::Number(14.0));
+}
+
+#[test]
+fn msgbox_de_tres_botoes_pergunta_e_devolve_o_codigo_do_vba() {
+    let vba = "Sub T()\n  Dim r As Integer\n  r = MsgBox(\"Arquivo em uso\", vbAbortRetryIgnore + vbCritical + vbDefaultButton2, \"Erro\")\n  Range(\"A1\").Value = r\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").unwrap().codigo.clone();
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(r.escolha, Some(feathersheet_macros::Escolha { botoes: vec![3, 4, 5], icone: 16, padrao: 1 }));
+    assert_eq!(r.pergunta.as_deref(), Some("Erro\n\nArquivo em uso"));
+    let r = feathersheet_macros::executar_com(&mut wb, 0, &js, feathersheet_macros::Contexto { escolhas: vec![2], ..Default::default() });
+    assert!(r.erro.is_none() && r.pergunta.is_none(), "{r:?}");
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(5.0), "vbIgnore");
+}
+
+#[test]
+fn cverr_xlerrnull_da_null() {
+    let wb = roda("Sub T()\n  Range(\"A1\").Value = IsError(CVErr(xlErrNull))\n  Range(\"A2\").Value = CVErr(xlErrNull)\n  Range(\"A3\").Value = CVErr(xlErrNA)\nEnd Sub\n", "T");
+    assert_eq!(wb.valor(0, 0, 0), Value::Bool(true), "#NULL! é erro de verdade dentro da macro");
+    // Erro constante numa célula fica como o texto do erro (é como o .xlsx com #N/A digitado abre).
+    assert_eq!(wb.valor(0, 1, 0), Value::Text("#NULL!".into()));
+    assert_eq!(wb.valor(0, 2, 0), Value::Text("#N/A".into()));
+}

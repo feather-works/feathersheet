@@ -129,7 +129,30 @@ impl Gerador<'_> {
         }
     }
 
+    /// `CallByName(objeto, "Nome", tipo, args…)` com o nome fixo: (objeto, nome, tipo, args). O
+    /// tipo é VbMethod 1, VbGet 2, VbLet 4 ou VbSet 8; a chamada vira a mesma coisa escrita direto.
+    pub fn call_by_name(&mut self, args: &[Arg]) -> R<(Expr, String, i64, Vec<Arg>)> {
+        let arg = |i: usize| args.get(i).and_then(|a| a.valor.clone());
+        let o = arg(0).ok_or_else(|| Motivo::novo("CallByName sem objeto"))?;
+        let Some(Expr::Texto(nome)) = arg(1) else {
+            return Err(Motivo::novo("CallByName com o nome calculado (só nome fixo converte)"));
+        };
+        let tipo = match arg(2) {
+            Some(Expr::Num(x)) => x as i64,
+            Some(Expr::Nome(c)) => super::funcoes::valor_da_constante(&c).ok_or_else(|| Motivo::novo(format!("CallByName: tipo {c}")))?,
+            _ => return Err(Motivo::novo("CallByName sem o tipo da chamada")),
+        };
+        if ![1, 2, 4, 8].contains(&tipo) { return Err(Motivo::novo(format!("CallByName: tipo {tipo}"))); }
+        Ok((o, nome, tipo, args.iter().skip(3).cloned().collect()))
+    }
+
     fn chamada_por_nome(&mut self, n: &str, args: &[Arg]) -> R<V> {
+        if n.eq_ignore_ascii_case("callbyname") && self.var(n).is_none() {
+            let (o, nome, tipo, resto) = self.call_by_name(args)?;
+            if tipo == 4 || tipo == 8 { return Err(Motivo::novo("CallByName VbLet/VbSet usado como valor")); }
+            let alvo = Expr::Membro(Box::new(o), nome);
+            return self.valor(&if resto.is_empty() { alvo } else { Expr::Chamada(Box::new(alvo), resto) });
+        }
         if let Some(v) = self.var(n).or_else(|| self.global(n)) {
             if v.matriz || matches!(v.tipo, Tipo::Valor(T::Var | T::Matriz)) {
                 let mut js = v.js.clone();

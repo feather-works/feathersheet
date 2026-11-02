@@ -22,7 +22,7 @@ pub mod riscos;
 mod formas;
 /// A forma de nome `nome` no JSON `ob` da aba (o nome padrão vale em qualquer língua).
 pub use formas::achar as achar_forma;
-pub use pasta::{AcaoFiltro, Contexto, PedidoArquivo, PedidoFiltro, PedidoForma, PedidoProtecao};
+pub use pasta::{AcaoFiltro, Contexto, Escolha, PedidoArquivo, PedidoFiltro, PedidoForma, PedidoProtecao};
 pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;
 use feathersheet_core::{
@@ -44,6 +44,9 @@ pub struct Resultado {
     /// aplicativo pergunta à pessoa e roda de novo com a resposta em
     /// [`Contexto::respostas`].
     pub pergunta: Option<String>,
+    /// A [`Self::pergunta`] é de vários botões (`app.choose`); `None` é Sim/Não. A resposta
+    /// (índice do botão) volta em [`Contexto::escolhas`].
+    pub escolha: Option<Escolha>,
     /// Mensagens de `alert`/`MsgBox`, na ordem, para o aplicativo mostrar.
     pub mensagens: Vec<String>,
     /// Aba que a macro deixou ativa (`wb.activate`, `sheet.activate()`).
@@ -194,6 +197,11 @@ fn bruto(v: &Json) -> String {
         Json::Number(n) => match n.as_f64() {
             Some(x) if x.fract() == 0.0 && x.abs() < 1e15 => format!("{}", x as i64),
             _ => n.to_string(),
+        },
+        // `app.error(…)`/`CVErr`: o literal do erro, que a célula lê de volta como erro (não o JSON do objeto).
+        Json::Object(m) => match m.get("__ftCellError").and_then(Json::as_str) {
+            Some(codigo) => codigo.to_string(),
+            None => v.to_string(),
         },
         outro => outro.to_string(),
     }
@@ -916,6 +924,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         links: if vale { extra.links } else { Vec::new() },
         filtros: if vale { extra.filtros } else { Vec::new() },
         formas: if vale { extra.formas } else { Vec::new() },
+        escolha: if extra.pergunta.is_some() { extra.escolha } else { None },
         pergunta: extra.pergunta,
     }
 }
@@ -964,7 +973,7 @@ const API: &str = r#"
 const __nome =(r,c) => { let s=''; for(let n=c+1;n>0;n=Math.floor((n-1)/26)) s=String.fromCharCode(65+(n-1)%26)+s; return s+(r+1); };
 // O tipo de erro vive no JavaScript da macro, mas os códigos validados
 // e a avaliação das fórmulas continuam pertencendo ao core Rust.
-const __codigosErro = new Set(['#DIV/0!','#VALUE!','#REF!','#NAME?','#ERROR!','#NUM!','#N/A','#SPILL!','#CIRCULAR!','#CALCULANDO!']);
+const __codigosErro = new Set(['#DIV/0!','#VALUE!','#REF!','#NAME?','#ERROR!','#NUM!','#N/A','#SPILL!','#CIRCULAR!','#CALCULANDO!','#NULL!']);
 class __CellError {
     constructor(code,detail) {
         if(!__codigosErro.has(code)) throw new Error('Código de erro de planilha inválido: '+code);
@@ -1222,6 +1231,10 @@ const app = {
     setEventsEnabled: () => {},
     setScreenUpdating: () => {},
     rgb: (r,g,b) => __ft('appRgb',[r,g,b]),
+    // Pergunta com até 3 botões (códigos do MsgBox: 1 OK, 2 Cancelar, 3 Anular, 4 Repetir, 5 Ignorar,
+    // 6 Sim, 7 Não); devolve o índice do escolhido.
+    choose: (text, buttons, icon=0, def=0) => __ft('escolher',[text===undefined?'':String(text),
+        Array.from(buttons||[], Number), Number(icon)||0, Number(def)||0]),
     vbaColorToHex: n => __ft('appVbaColorToHex',[n]),
     isError: v => v instanceof __CellError,
     // api-aplicacao.ts: mantém a sintaxe pública JS; validações/estado no Rust.

@@ -343,3 +343,18 @@ fn shape_esconde_troca_a_macro_e_pede_posicao() {
     assert!(executar(&mut wb, 0, r#"sheet.shape("Nada").visible = false;"#).erro.is_some());
     assert!(executar(&mut wb, 0, r#"sheet.shape("Button 2").width = -5;"#).erro.is_some());
 }
+
+#[test]
+fn choose_espera_o_botao_e_roda_de_novo_com_a_escolha() {
+    let mut wb = Workbook::new();
+    let codigo = r#"const i = app.choose("Arquivo em uso", [3, 4, 5], 16, 1); sheet.set("A1", i);"#;
+    let r = executar(&mut wb, 0, codigo);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.pergunta.as_deref(), Some("Arquivo em uso"));
+    assert_eq!(r.escolha, Some(Escolha { botoes: vec![3, 4, 5], icone: 16, padrao: 1 }));
+    assert_eq!(wb.valor(0, 0, 0), Value::Empty, "nada gravado enquanto espera");
+    let r = executar_com(&mut wb, 0, codigo, Contexto { escolhas: vec![2], ..Default::default() });
+    assert!(r.erro.is_none() && r.pergunta.is_none() && r.escolha.is_none(), "{r:?}");
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(2.));
+    assert!(executar(&mut wb, 0, r#"app.choose("x", [9]);"#).erro.is_some());
+}

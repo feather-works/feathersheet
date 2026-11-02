@@ -62,6 +62,17 @@ pub struct PedidoForma {
     pub altura: Option<f64>,
 }
 
+/// Pergunta de vários botões (`app.choose`): os códigos de botão do `MsgBox` do VBA (1 OK,
+/// 2 Cancelar, 3 Anular, 4 Repetir, 5 Ignorar, 6 Sim, 7 Não), o ícone (16 crítico, 32
+/// pergunta, 48 aviso, 64 informação, 0 nenhum) e o índice do botão padrão. O aplicativo
+/// traduz os rótulos.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Escolha {
+    pub botoes: Vec<u32>,
+    pub icone: u32,
+    pub padrao: usize,
+}
+
 /// O que o aplicativo informa à macro antes de rodar.
 #[derive(Debug, Default, Clone)]
 pub struct Contexto {
@@ -73,6 +84,9 @@ pub struct Contexto {
     /// A pergunta sem resposta interrompe a execução: o aplicativo pergunta à
     /// pessoa e roda a macro de novo com a resposta acrescentada.
     pub respostas: Vec<bool>,
+    /// Botões já escolhidos nas perguntas de vários botões (`app.choose`, o `MsgBox` com
+    /// Abortar/Repetir/Ignorar…), pelo índice, na ordem em que a macro as faz.
+    pub escolhas: Vec<u32>,
     /// O que foi preenchido no formulário cujo botão rodou a macro (`valores`).
     pub valores: Option<serde_json::Map<String, serde_json::Value>>,
     /// Prazo e sinal de parar (o app roda a macro do botão noutra thread, com mais tempo).
@@ -85,6 +99,9 @@ pub(crate) struct Acumulado {
     pub contexto: Contexto,
     pub perguntas_feitas: usize,
     pub pergunta: Option<String>,
+    pub escolhas_feitas: usize,
+    /// A pergunta pendente é de vários botões: os botões, o ícone e o botão padrão.
+    pub escolha: Option<Escolha>,
     pub mensagens: Vec<String>,
     /// Aplicados só se a macro terminar bem (o desfazer das abas não os cobre).
     pub nomes: Vec<(String, Rect)>,
@@ -117,7 +134,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -233,6 +250,27 @@ pub(crate) fn executar(
                     // é descartado e a pessoa responde de verdade.
                     a.pergunta.get_or_insert_with(|| texto(dados, 0));
                     Ok(json!(false))
+                }
+            }
+        }
+        "escolher" => {
+            let botoes: Vec<u32> = dados[1].as_array().map(|b| b.iter().filter_map(|x| x.as_u64())
+                .filter(|&x| (1..=7).contains(&x)).map(|x| x as u32).collect()).unwrap_or_default();
+            if botoes.is_empty() || botoes.len() > 3 { return Some(Err("app.choose: de 1 a 3 botões (1 a 7, os do MsgBox)".into())); }
+            let n = a.escolhas_feitas;
+            a.escolhas_feitas += 1;
+            match a.contexto.escolhas.get(n) {
+                Some(&i) if (i as usize) < botoes.len() => Ok(json!(i)),
+                Some(_) => Err("app.choose: resposta fora dos botões".into()),
+                None => {
+                    // Como no confirm: a macro segue sem efeito e roda de novo com a resposta.
+                    if a.pergunta.is_none() {
+                        a.pergunta = Some(texto(dados, 0));
+                        let icone = dados[2].as_u64().filter(|i| [16, 32, 48, 64].contains(i)).unwrap_or(0) as u32;
+                        let padrao = dados[3].as_u64().map_or(0, |p| (p as usize).min(botoes.len() - 1));
+                        a.escolha = Some(Escolha { botoes: botoes.clone(), icone, padrao });
+                    }
+                    Ok(json!(botoes.len() - 1))
                 }
             }
         }

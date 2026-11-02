@@ -18,6 +18,10 @@ pub(super) struct PerguntaMacro {
     nome: String,
     codigo: String,
     respostas: Vec<bool>,
+    /// Botões já escolhidos nas perguntas de vários botões (`app.choose`, o `MsgBox` do VBA).
+    escolhas: Vec<u32>,
+    /// A pergunta pendente é de vários botões; `None` é Sim/Não.
+    escolha: Option<feathersheet_macros::Escolha>,
     texto: String,
     /// O que disparou a macro e a linha dela no histórico: a reexecução
     /// depois da resposta continua na mesma linha.
@@ -34,26 +38,26 @@ impl App {
     pub(super) fn rodar_macro(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str, respostas: Vec<bool>)
         -> Option<feathersheet_macros::Resultado>
     {
-        self.rodar_macro_registrando(gatilho, nome, codigo, respostas, None)
+        self.rodar_macro_registrando(gatilho, nome, codigo, respostas, Vec::new(), None)
     }
 
     /// `continua`: a linha do histórico e o tempo já gasto, quando é a
     /// reexecução depois de uma resposta Sim/Não.
     fn rodar_macro_registrando(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str,
-        respostas: Vec<bool>, continua: Option<(u64, u128)>) -> Option<feathersheet_macros::Resultado>
+        respostas: Vec<bool>, escolhas: Vec<u32>, continua: Option<(u64, u128)>) -> Option<feathersheet_macros::Resultado>
     {
         let inicio_execucao = std::time::Instant::now();
-        let contexto = self.contexto_da_macro(respostas.clone());
+        let contexto = self.contexto_da_macro(respostas.clone(), escolhas.clone());
         let r = feathersheet_macros::executar_com(&mut self.workbook, self.folha, codigo, contexto);
-        self.concluir_macro(gatilho, nome, codigo, respostas, continua, inicio_execucao, r)
+        self.concluir_macro(gatilho, nome, codigo, respostas, escolhas, continua, inicio_execucao, r)
     }
 
     /// O arquivo, a seleção, as respostas Sim/Não e os campos do formulário para a macro.
-    pub(super) fn contexto_da_macro(&self, respostas: Vec<bool>) -> feathersheet_macros::Contexto {
+    pub(super) fn contexto_da_macro(&self, respostas: Vec<bool>, escolhas: Vec<u32>) -> feathersheet_macros::Contexto {
         let (r1, c1) = self.fim_selecao;
         let selecao = endereco_area(&Rect::new(self.linha, self.coluna, r1, c1));
         feathersheet_macros::Contexto {
-            arquivo: self.caminho.clone(), selecao: Some(selecao), respostas,
+            arquivo: self.caminho.clone(), selecao: Some(selecao), respostas, escolhas,
             valores: self.macro_valores.clone(), ..Default::default()
         }
     }
@@ -62,7 +66,7 @@ impl App {
     /// Sim/Não, formulário, arquivos pedidos e mensagens.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn concluir_macro(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str,
-        respostas: Vec<bool>, continua: Option<(u64, u128)>, inicio_execucao: std::time::Instant,
+        respostas: Vec<bool>, escolhas: Vec<u32>, continua: Option<(u64, u128)>, inicio_execucao: std::time::Instant,
         mut r: feathersheet_macros::Resultado) -> Option<feathersheet_macros::Resultado>
     {
         use historico_macros::{Execucao, ResultadoExecucao};
@@ -89,7 +93,7 @@ impl App {
         if let Some(texto) = r.pergunta.take() {
             let (historico, ms) = anotar(self, ResultadoExecucao::Esperando(texto.clone()), false, Vec::new());
             self.macro_pergunta = Some(PerguntaMacro {
-                nome: nome.to_owned(), codigo: codigo.to_owned(), respostas, texto,
+                nome: nome.to_owned(), codigo: codigo.to_owned(), respostas, escolhas, escolha: r.escolha.take(), texto,
                 gatilho, historico, ms,
             });
             return None;
@@ -153,9 +157,26 @@ impl App {
     }
 
     pub(super) fn responder_macro(&mut self, sim: bool) {
+        // Pergunta de vários botões respondida por Sim/Não (Enter/Esc, histórico): o padrão ou o último (Cancelar/Não).
+        if let Some(e) = self.macro_pergunta.as_ref().and_then(|p| p.escolha.as_ref()) {
+            let i = if sim { e.padrao } else { e.botoes.len() - 1 };
+            return self.escolher_na_macro(i);
+        }
         let Some(mut p) = self.macro_pergunta.take() else { return };
         p.respostas.push(sim);
-        let Some(r) = self.rodar_macro_registrando(p.gatilho, &p.nome, &p.codigo, p.respostas,
+        self.continuar_macro(p);
+    }
+
+    /// O botão `i` da pergunta de vários botões (`app.choose`, `MsgBox` com Abortar/Repetir/Ignorar…).
+    pub(super) fn escolher_na_macro(&mut self, i: usize) {
+        let Some(mut p) = self.macro_pergunta.take() else { return };
+        let Some(e) = p.escolha.take() else { return };
+        p.escolhas.push(i.min(e.botoes.len() - 1) as u32);
+        self.continuar_macro(p);
+    }
+
+    fn continuar_macro(&mut self, p: PerguntaMacro) {
+        let Some(r) = self.rodar_macro_registrando(p.gatilho, &p.nome, &p.codigo, p.respostas, p.escolhas,
             Some((p.historico, p.ms))) else { return };
         self.macro_saida = r.saida.join("\n");
         self.status = match r.erro {
@@ -174,7 +195,12 @@ impl App {
             if let Some(p) = &self.macro_programas { return self.dialogo_programas_da_macro(p, base); }
         }
         let (titulo, icone, corpo) = if let Some(p) = &self.macro_pergunta {
-            (p.nome.clone(), "help", p.texto.as_str())
+            let icone = match p.escolha.as_ref().map(|e| e.icone) {
+                Some(16 | 48) => "alert-triangle",
+                Some(64) => "info-circle",
+                _ => "help",
+            };
+            (p.nome.clone(), icone, p.texto.as_str())
         } else if let Some(texto) = self.macro_mensagens.first() {
             (tr!("Mensagem da macro").to_string(), "info-circle", texto.as_str())
         } else {
@@ -184,7 +210,19 @@ impl App {
             .icone(icone)
             .largura(460.0)
             .clique_fora_fecha(false);
-        let d = if self.macro_pergunta.is_some() {
+        let escolha = self.macro_pergunta.as_ref().and_then(|p| p.escolha.as_ref());
+        let d = if let Some(e) = escolha {
+            // Os botões do MsgBox na ordem do Excel; o padrão é o primário (Enter).
+            let rotulo = |b: u32| match b {
+                1 => "OK".to_string(), 2 => tr!("Cancelar").to_string(), 3 => tr!("Anular").to_string(),
+                4 => tr!("Repetir").to_string(), 5 => tr!("Ignorar").to_string(), 6 => tr!("Sim").to_string(), _ => tr!("Não").to_string(),
+            };
+            e.botoes.iter().enumerate().fold(d, |d, (i, &b)| if i == e.padrao {
+                d.primario(rotulo(b), Some(Msg::MacroEscolher(i)))
+            } else {
+                d.botao(dlg::botao_secundario(rotulo(b), Some(Msg::MacroEscolher(i))))
+            })
+        } else if self.macro_pergunta.is_some() {
             d.botao(dlg::botao_secundario(tr!("Não"), Some(Msg::MacroResponder(false))))
                 .primario(tr!("Sim"), Some(Msg::MacroResponder(true)))
         } else {
@@ -211,6 +249,22 @@ mod testes {
         assert_eq!(app.macro_mensagens, vec!["oi".to_string()]);
         app.update(Msg::MacroMensagemOk);
         assert!(app.macro_mensagens.is_empty());
+    }
+
+    #[test]
+    fn pergunta_de_tres_botoes_devolve_o_botao_escolhido() {
+        let mut app = App::default();
+        let codigo = "sheet.set('A1', app.choose('Arquivo em uso', [3, 4, 5], 16, 1));";
+        assert!(app.rodar_macro(GatilhoMacro::manual("teste"), "M", codigo, vec![]).is_none());
+        let e = app.macro_pergunta.as_ref().unwrap().escolha.clone().unwrap();
+        assert_eq!((e.botoes, e.icone, e.padrao), (vec![3, 4, 5], 16, 1));
+        app.update(Msg::MacroEscolher(2));
+        assert!(app.macro_pergunta.is_none());
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Number(2.));
+        // Enter (Sim) escolhe o padrão; Esc (Não), o último.
+        assert!(app.rodar_macro(GatilhoMacro::manual("teste"), "M", codigo, vec![]).is_none());
+        app.update(Msg::MacroResponder(true));
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Number(1.));
     }
 
     #[test]

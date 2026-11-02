@@ -31,7 +31,7 @@ impl App {
             return;
         }
         let parar = Arc::new(AtomicBool::new(false));
-        let mut contexto = self.contexto_da_macro(Vec::new());
+        let mut contexto = self.contexto_da_macro(Vec::new(), Vec::new());
         contexto.limites = feather_macros::Limites { prazo: PRAZO_EM_FUNDO, parar: Some(parar.clone()) };
         let espelho = espelho_da_pasta(&self.workbook);
         let mut pasta = std::mem::replace(&mut self.workbook, espelho);
@@ -69,7 +69,7 @@ impl App {
         let m = self.macro_rodando.take().expect("macro rodando");
         self.workbook = pasta;
         self.cache_grade.desenho.clear();
-        let Some(r) = self.concluir_macro(m.gatilho, &m.nome, &m.codigo, Vec::new(), None, m.inicio, r) else {
+        let Some(r) = self.concluir_macro(m.gatilho, &m.nome, &m.codigo, Vec::new(), Vec::new(), None, m.inicio, r) else {
             self.macro_saida = tr!("A macro fez uma pergunta: responda na janela.").into();
             return;
         };

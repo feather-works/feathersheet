@@ -35,15 +35,17 @@ const AJUDAS: &[(&str, &[&str], &str)] = &[
     ("strNum", &["str"], "  /** Str: número não negativo ganha o espaço do sinal (Str(5) = \" 5\"). */\n  strNum(v) { return typeof v === 'number' && v >= 0 ? ' ' + vba.str(v) : vba.str(v); },"),
     ("mod", &["cint"], "  /** Mod do VBA: arredonda os dois e fica com o sinal de quem divide. */\n  mod(a, b) { return vba.cint(a) % vba.cint(b); },"),
     ("divInt", &["cint"], "  /** A barra invertida do VBA: divisão inteira. */\n  divInt(a, b) { return Math.trunc(vba.cint(a) / vba.cint(b)); },"),
-    ("format", &["str", "numero", "formatoData", "mascara"], r#"  /** Format(valor, máscara): números (0 # . , % e literais com \x ou "…") e datas (dd/mm/yyyy, hh:nn, mmmm). */
+    ("format", &["str", "numero", "formatoData", "mascara", "formatDataHora", "cdate"], r#"  /** Format(valor, máscara): números (0 # . , % e literais com \x ou "…") e datas (dd/mm/yyyy, hh:nn, mmmm). */
   format(v, m) {
+    const especial = vba._formatoNomeado(v, m);
+    if (especial !== undefined) return especial;
     // A máscara é analisada uma vez; e, como é função pura e os dados se repetem (as mesmas
     // datas, os mesmos valores), o texto de cada valor também fica guardado.
     const guardadas = vba._mascaras ?? (vba._mascaras = {});
     let g = guardadas[m];
     if (!g) {
       let r = vba.str(m);
-      const nomeados = { fixed: '0.00', standard: '#,##0.00', percent: '0.00%', currency: 'R$ #,##0.00' };
+      const nomeados = { fixed: '0.00', standard: '#,##0.00', percent: '0.00%', currency: 'R$ #,##0.00', 'medium date': 'dd-mmm-yy' };
       if (nomeados[r.toLowerCase()]) r = nomeados[r.toLowerCase()];
       const f = vba.mascara(r);
       g = guardadas[m] = { m: r, memo: {}, n: 0, fichas: f, data: !f.some((x) => x.d) && /[dmyhns]/i.test(f.map((x) => x.l ?? '').join('')) };
@@ -53,6 +55,22 @@ const AJUDAS: &[(&str, &[&str], &str)] = &[
     const t = g.data ? vba.formatoData(v, g.m) : vba.formatoNumero(v, g);
     if (k !== null) g.memo[k] = t;
     return t;
+  },
+  /** Os formatos com nome do Format que não são máscara (General Number, Scientific, Yes/No, True/False, On/Off e as datas e horas com nome), em pt-BR. `undefined` quando `m` é máscara. */
+  _formatoNomeado(v, m) {
+    if (typeof m !== 'string') return undefined;
+    const nome = m.trim().toLowerCase();
+    const datas = { 'general date': 0, 'long date': 1, 'short date': 2, 'long time': 3, 'short time': 4 };
+    if (nome in datas) return vba.formatDataHora(v, datas[nome]);
+    if (nome === 'medium time') { const x = vba.cdate(v); const s = Math.round((x - Math.floor(x)) * 86400); const h = Math.floor(s / 3600) % 24, mi = Math.floor(s / 60) % 60; return `${String(h % 12 || 12).padStart(2, '0')}:${String(mi).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; }
+    const pares = { 'yes/no': ['Sim', 'Não'], 'true/false': ['Verdadeiro', 'Falso'], 'on/off': ['Ativado', 'Desativado'] };
+    if (!(nome in pares) && nome !== 'general number' && nome !== 'scientific') return undefined;
+    const x = typeof v === 'boolean' ? (v ? -1 : 0) : vba.numero(v);
+    if (Number.isNaN(x)) return vba.str(v);
+    if (nome in pares) return pares[nome][x !== 0 ? 0 : 1];
+    if (nome === 'general number') return vba.str(x);
+    const [mant, exp] = x.toExponential(2).split('e');
+    return mant.replace('.', ',') + 'E' + (exp[0] === '-' ? '-' : '+') + exp.replace(/^[+-]/, '').padStart(2, '0');
   },
   formatoNumero(v, g) {
     const m = g.m;
@@ -135,9 +153,9 @@ const AJUDAS: &[(&str, &[&str], &str)] = &[
     ("condAplicar", &[], "  /** Põe na planilha as regras de `FormatConditions.Add` guardadas. */\n  condAplicar() { for (const r of vba._regras ?? []) r.aba.addConditionalFormat(r.e, r.o); vba._regras = []; },"),
     ("condApagar", &["condAplicar"], "  /** `FormatConditions.Delete`: tira as regras que tocam o intervalo. */\n  condApagar(aba, e) { vba.condAplicar(); aba.clearConditionalFormats(e); },"),
     ("potencias", &[], r#"  _pot: [1, 10, 100, 1000, 10000, 100000, 1000000],"#),
-    ("strconv", &["str"], r#"  /** StrConv: vbUpperCase 1, vbLowerCase 2, vbProperCase 3 (primeira letra de cada palavra maiúscula; palavra = letras, algarismos e '). */
-  strconv(s, modo) { s = vba.str(s); switch (Number(modo)) { case 1: return s.toUpperCase(); case 2: return s.toLowerCase(); case 3: { const memo = vba._proper ?? (vba._proper = { n: 0 }); const ja = memo['k' + s]; if (ja !== undefined) return ja; if (memo.n++ > 50000) vba._proper = { n: 0 }; const b = s.toLowerCase(); let r = '', ult = 0, ant = false; for (let i = 0; i < b.length; i++) { const c = b.charCodeAt(i); const letra = (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 39 || (c >= 223 && c !== 247); if (letra && !ant && c > 96) { r += b.slice(ult, i) + b[i].toUpperCase(); ult = i + 1; } ant = letra; } return (vba._proper['k' + s] = r + b.slice(ult)); } } return s; },"#),
-    ("msgBox", &["str", "n"], "  /** MsgBox: Sim/Não e OK/Cancelar pelo confirm; o resto pelo alert. Devolve vbYes (6), vbNo (7), vbOK (1) ou vbCancel (2). */\n  msgBox(texto, botoes = 0, titulo = '') { const t = (titulo ? vba.str(titulo) + '\\n\\n' : '') + vba.str(texto); const b = vba.n(botoes) & 7; if (b === 3 || b === 4) return confirm(t) ? 6 : 7; if (b === 1) return confirm(t) ? 1 : 2; alert(t); return 1; },"),
+    ("strconv", &["str"], r#"  /** StrConv: vbUpperCase 1, vbLowerCase 2, vbProperCase 3 (primeira letra de cada palavra maiúscula; palavra = letras, algarismos e '), vbWide 4 e vbNarrow 8 (largura cheia/meia), vbKatakana 16 e vbHiragana 32; vbUnicode 64 e vbFromUnicode 128 não mudam o texto (o JavaScript já é Unicode). Somados, como no VBA. */
+  strconv(s, modo) { s = vba.str(s); modo = Number(modo); const resto = modo & ~3; if (resto) { s = vba.strconv(s, modo & 3); const troca = (de, ate, d) => s.replace(new RegExp(`[${de}-${ate}]`, 'gu'), (c) => String.fromCharCode(c.charCodeAt(0) + d)); if (resto & 4) s = troca('!', '~', 0xFEE0).replace(/ /g, '\u3000'); if (resto & 8) s = troca('\uFF01', '\uFF5E', -0xFEE0).replace(/\u3000/g, ' '); if (resto & 16) s = troca('\u3041', '\u3096', 0x60); if (resto & 32) s = troca('\u30A1', '\u30F6', -0x60); return s; } switch (modo) { case 1: return s.toUpperCase(); case 2: return s.toLowerCase(); case 3: { const memo = vba._proper ?? (vba._proper = { n: 0 }); const ja = memo['k' + s]; if (ja !== undefined) return ja; if (memo.n++ > 50000) vba._proper = { n: 0 }; const b = s.toLowerCase(); let r = '', ult = 0, ant = false; for (let i = 0; i < b.length; i++) { const c = b.charCodeAt(i); const letra = (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 39 || (c >= 223 && c !== 247); if (letra && !ant && c > 96) { r += b.slice(ult, i) + b[i].toUpperCase(); ult = i + 1; } ant = letra; } return (vba._proper['k' + s] = r + b.slice(ult)); } } return s; },"#),
+    ("msgBox", &["str", "n"], "  /** MsgBox: os botões do VBA (vbOKCancel 1, vbAbortRetryIgnore 2, vbYesNoCancel 3, vbYesNo 4, vbRetryCancel 5), o ícone (vbCritical 16, vbQuestion 32, vbExclamation 48, vbInformation 64) e o botão padrão (vbDefaultButton2 256, 3 512). Devolve vbOK 1, vbCancel 2, vbAbort 3, vbRetry 4, vbIgnore 5, vbYes 6, vbNo 7. */\n  msgBox(texto, botoes = 0, titulo = '') { const t = (titulo ? vba.str(titulo) + '\\n\\n' : '') + vba.str(texto); const b = vba.n(botoes); const lista = [[1], [1, 2], [3, 4, 5], [6, 7, 2], [6, 7], [4, 2]][b & 7]; if (!lista) throw new Error('MsgBox: botões ' + (b & 7) + ' não existem'); if (lista.length === 1) { alert(t); return 1; } return lista[app.choose(t, lista, b & 0x70, (b >> 8) & 3)]; },"),
     ("inputBox", &["str"], "  inputBox(texto, titulo = '', padrao = '') { return prompt((titulo ? vba.str(titulo) + '\\n\\n' : '') + vba.str(texto), vba.str(padrao)) ?? ''; },"),
     ("partes", &[], "  /** \"$B$3:C5\" → [linha, coluna, linha, coluna] (do 1). Linha inteira (\"3:5\") e coluna inteira (\"B:D\") também. */\n  partes(e) { const ref = (r) => { const m = r.replace(/\\$/g, '').match(/^([A-Z]*)(\\d*)$/i); if (!m) throw new Error(`Endereço inválido: ${e}`); let c = 0; for (const ch of m[1].toUpperCase()) c = c * 26 + ch.charCodeAt(0) - 64; return [m[2] ? Number(m[2]) : 0, c]; }; const [a, b = a] = String(e).split('!').pop().split(':'); return [...ref(a), ...ref(b)]; },"),
     ("linha", &["partes"], "  /** A linha (do 1) da primeira célula do endereço. */\n  linha(e) { return vba.partes(e)[0] || 1; },"),
@@ -190,7 +208,7 @@ const AJUDAS: &[(&str, &[&str], &str)] = &[
     ("hex", &["round"], "  /** Hex/Oct: número arredondado; negativo em complemento de dois (16 bits se cabe no Integer, senão 32). */\n  hex(v, b) { let n = vba.round(v); if (n < 0) n = n >= -32768 ? n & 0xFFFF : n >>> 0; return n.toString(b).toUpperCase(); },"),
     ("nomeMes", &["formatoData", "n"], "  /** MonthName(mês, [abreviado]). */\n  nomeMes(m, abrev = false) { const t = vba._meses[vba.n(m) - 1]; if (t === undefined) throw new RangeError('MonthName: mês fora de 1 a 12'); return abrev ? t.slice(0, 3) : t; },"),
     ("nomeDia", &["formatoData", "n"], "  /** WeekdayName(dia, [abreviado], [primeiro dia]): o dia conta do primeiro dia da semana (vbSunday 1 é o padrão). */\n  nomeDia(d, abrev = false, primeiro = 1) { const p = vba.n(primeiro) || 1; const t = vba._dias[(vba.n(d) - 1 + p - 1) % 7]; if (t === undefined || vba.n(d) < 1 || vba.n(d) > 7) throw new RangeError('WeekdayName: dia fora de 1 a 7'); return abrev ? t.slice(0, 3) : t; },"),
-    ("formatNumero", &["format", "n"], "  /** FormatNumber/FormatCurrency/FormatPercent(valor, [casas], , , [agrupar]): casas -1 (padrão) é 2; agrupar vbFalse/False tira o milhar. */\n  formatNumero(v, casas = -1, agrupar = -2, antes = '', depois = '') { let c = casas === undefined || casas === null ? -1 : vba.n(casas); if (c < 0) c = 2; const g = agrupar !== 0 && agrupar !== false; return vba.format(v, antes + (g ? '#,##0' : '0') + (c > 0 ? '.' + '0'.repeat(c) : '') + depois); },"),
+    ("formatNumero", &["format", "n"], "  /** FormatNumber/FormatCurrency/FormatPercent(valor, [casas], [zero à esquerda], [negativo entre parênteses], [agrupar]): casas -1 (padrão) é 2; vbFalse no 3º tira o 0 de ',5'; vbTrue no 4º escreve '(1,00)'; vbFalse no 5º tira o milhar. */\n  formatNumero(v, casas = -1, agrupar = -2, antes = '', depois = '', zero = -2, parenteses = -2) { let c = casas === undefined || casas === null ? -1 : vba.n(casas); if (c < 0) c = 2; const g = agrupar !== 0 && agrupar !== false; const x = vba.numero(v); const negativo = !Number.isNaN(x) && x < 0 && (parenteses === -1 || parenteses === true); let r = vba.format(negativo ? -x : v, antes + (g ? '#,##0' : '0') + (c > 0 ? '.' + '0'.repeat(c) : '') + depois); if (zero === 0 || zero === false) r = r.replace(/(^|[^0-9])0,/, '$1,'); return negativo ? '(' + r + ')' : r; },"),
     ("formatDataHora", &["formatoData", "dp", "cdate", "n"], "  /** FormatDateTime(data, [formato]): vbGeneralDate 0, vbLongDate 1, vbShortDate 2, vbLongTime 3, vbShortTime 4. */\n  formatDataHora(v, f = 0) { const x = vba.cdate(v); const curta = 'dd/mm/yyyy', hora = 'hh:nn:ss'; switch (vba.n(f)) { case 1: { const d = vba.dp(x); return `${vba._dias[d.getUTCDay()]}, ${d.getUTCDate()} de ${vba._meses[d.getUTCMonth()]} de ${d.getUTCFullYear()}`; } case 2: return vba.formatoData(x, curta); case 3: return vba.formatoData(x, hora); case 4: return vba.formatoData(x, 'hh:nn'); default: { const dia = Math.floor(x), fr = x - dia; if (!dia) return vba.formatoData(x, hora); return vba.formatoData(x, fr ? curta + ' ' + hora : curta); } } },"),
     ("fin", &["n"], r#"  /** As financeiras do VBA (as mesmas contas do Excel). `tipo` 1 = pagamento no começo do período. */
   _f(x, d = 0) { return x === undefined || x === null ? d : vba.n(x); },
@@ -216,9 +234,30 @@ const AJUDAS: &[(&str, &[&str], &str)] = &[
     ("typeName", &["tipo"], "  typeName(v) { return vba._tipo(v)[0]; },"),
     ("varType", &["tipo"], "  varType(v) { return vba._tipo(v)[1]; },"),
     ("isObject", &["tipo"], "  isObject(v) { return vba._tipo(v)[1] === 9; },"),
-    ("cverr", &["n"], "  /** CVErr(xlErrNA…): o erro de célula da API (`app.error`). */\n  cverr(n) { const c = { 2000: '#NULL!', 2007: '#DIV/0!', 2015: '#VALUE!', 2023: '#REF!', 2029: '#NAME?', 2036: '#NUM!', 2042: '#N/A' }[vba.n(n)]; if (!c) throw new RangeError('CVErr: código de erro desconhecido ' + n); return app.error(c === '#NULL!' ? '#ERROR!' : c); },"),
+    ("cverr", &["n"], "  /** CVErr(xlErrNA…): o erro de célula da API (`app.error`). */\n  cverr(n) { const c = { 2000: '#NULL!', 2007: '#DIV/0!', 2015: '#VALUE!', 2023: '#REF!', 2029: '#NAME?', 2036: '#NUM!', 2042: '#N/A' }[vba.n(n)]; if (!c) throw new RangeError('CVErr: código de erro desconhecido ' + n); return app.error(c); },"),
     ("filtrar", &["str", "n"], "  /** Filter(matriz, texto, [incluir], [modo]): os itens que contêm (ou não) o texto, numa matriz do 0. */\n  filtrar(m, p, incluir = true, modo = 0) { const t = vba.n(modo) === 1, q = t ? vba.str(p).toLowerCase() : vba.str(p); const sim = incluir !== false && incluir !== 0; const r = []; for (let i = m.lb ?? 0; i < m.length; i++) { const x = vba.str(m[i]); if ((t ? x.toLowerCase() : x).includes(q) === sim) r.push(x); } return r; },"),
     ("particao", &["n"], "  /** Partition(número, início, fim, intervalo): a faixa como \" 20: 29\" (largura dos números do VBA). */\n  particao(x, a, b, k) { x = Math.trunc(vba.n(x)); a = Math.trunc(vba.n(a)); b = Math.trunc(vba.n(b)); k = Math.trunc(vba.n(k)); if (a < 0 || b <= a || k < 1) { const e = new RangeError('Chamada de procedimento ou argumento inválido'); e.number = 5; throw e; } const w = Math.max(String(b + 1).length, String(a - 1).length); const f = (y) => String(y).padStart(w, ' '); const vazio = ' '.repeat(w); if (x < a) return vazio + ':' + f(a - 1); if (x > b) return f(b + 1) + ':' + vazio; const lo = a + Math.floor((x - a) / k) * k; return f(lo) + ':' + f(Math.min(lo + k - 1, b)); },"),
+    ("rnd", &["n"], r#"  /** Rnd com o gerador do próprio VBA (congruencial de 24 bits, semente inicial 327680): a mesma sequência do Excel. Rnd(0) repete o último; Rnd(negativo) recomeça pela semente desse número (Rnd(-1) é sempre 0,224007). */
+  rnd(n) {
+    let s = vba._semente ?? 0x50000;
+    if (n !== undefined && n !== null) {
+      n = vba.n(n);
+      if (n === 0) return s / 16777216;
+      if (n < 0) { const d = new DataView(new ArrayBuffer(4)); d.setFloat32(0, n, true); const u = d.getUint32(0, true); s = (u + (u >>> 24)) & 0xFFFFFF; }
+    }
+    s = (Math.imul(s, 0x43FD43FD) + 0xC39EC3) & 0xFFFFFF;
+    vba._semente = s;
+    return s / 16777216;
+  },
+  /** Randomize [semente]: mistura a semente (sem ela, o Timer) no gerador do Rnd, como o VBA. */
+  randomize(n) {
+    const x = n === undefined || n === null ? (Date.now() % 86400000) / 1000 : vba.n(n);
+    const d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, x, true);
+    let h = d.getUint32(4, true);
+    h = ((h & 0xFFFF) ^ (h >>> 16)) << 8;
+    vba._semente = ((vba._semente ?? 0x50000) & 0xFF) | (h & 0xFFFF00);
+  },"#),
+    ("ccur", &["n"], "  /** CCur: 4 casas, com o arredondamento do banqueiro (0,00005 → 0; 0,00015 → 0,0002), como o Currency do VBA. */\n  ccur(v) { const f = vba.n(v) * 10000; const t = Math.trunc(f); const meio = Math.abs(Math.abs(f - t) - 0.5) < 1e-7; const r = meio ? (t % 2 === 0 ? t : t + Math.sign(f)) : Math.round(f); return r / 10000; },"),
     ("qbcolor", &["n"], "  /** QBColor(0–15): as 16 cores do QuickBASIC, como número RGB do VBA. */\n  qbcolor(i) { const c = [0, 8388608, 32768, 8421376, 128, 8388736, 32896, 12632256, 8421504, 16711680, 65280, 16776960, 255, 16711935, 65535, 16777215][vba.n(i)]; if (c === undefined) throw new RangeError('QBColor: cor fora de 0 a 15'); return c; },"),
     ("textoErro", &["erro", "n"], "  /** Error(n): o texto do erro do VBA; sem número, o do último erro (Err.Description). */\n  textoErro(n) { if (n === undefined) return vba.erroTexto(); return { 3: 'Return sem GoSub', 5: 'Chamada de procedimento ou argumento inválido', 6: 'Estouro', 7: 'Memória insuficiente', 9: 'Subscrito fora do intervalo', 10: 'Esta matriz é fixa ou está temporariamente bloqueada', 11: 'Divisão por zero', 13: 'Tipo incompatível', 28: 'Espaço de pilha insuficiente', 53: 'Arquivo não encontrado', 91: 'Variável de objeto ou variável do bloco With não definida', 92: 'Loop For não inicializado', 94: 'Uso inválido de Nulo', 424: 'Objeto necessário', 438: 'O objeto não aceita esta propriedade ou método', 1004: 'Erro definido pelo aplicativo ou pelo objeto' }[vba.n(n)] ?? 'Erro definido pelo aplicativo ou pelo objeto'; },"),
     ("achar", &["partes", "letra"], r#"  /** `Range.Find`: depois de `depois` (sem ele, depois da primeira célula, que fica por último, como no Excel), linha a linha, dando a volta. O endereço ou null. */

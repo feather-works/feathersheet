@@ -507,7 +507,7 @@ pub enum Msg {
     CapturarAtalho(&'static str), RestaurarAtalhos,
     FecharMenu, Cancelar, Descartar, SalvarAntes, GuardarTemporariamente,
     /// Resposta à pergunta Sim/Não da macro; fecha a mensagem da macro.
-    MacroResponder(bool), MacroMensagemOk, MacroProgramas(bool),
+    MacroResponder(bool), MacroEscolher(usize), MacroMensagemOk, MacroProgramas(bool),
     /// A macro em segundo plano: conferir se terminou / o botão Parar.
     MacroPulso, MacroParar,
     Busca, BuscaTexto(String), Substituicao(String), BuscaMaiusculas(bool),

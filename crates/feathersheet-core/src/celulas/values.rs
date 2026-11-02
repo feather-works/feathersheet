@@ -20,6 +20,8 @@ pub enum ErrorCode {
     Circular,
     /// Não é erro: a resposta ainda está a caminho.
     Calculating,
+    /// `#NULL!`: interseção vazia. Vem de arquivo do Excel ou do `CVErr(xlErrNull)` das macros.
+    Null,
 }
 
 impl ErrorCode {
@@ -35,6 +37,7 @@ impl ErrorCode {
             ErrorCode::Spill => "#SPILL!",
             ErrorCode::Circular => "#CIRCULAR!",
             ErrorCode::Calculating => "#CALCULANDO!",
+            ErrorCode::Null => "#NULL!",
         }
     }
 
@@ -52,6 +55,7 @@ impl ErrorCode {
             "#SPILL!" => ErrorCode::Spill,
             "#CIRCULAR!" => ErrorCode::Circular,
             "#CALCULANDO!" => ErrorCode::Calculating,
+            "#NULL!" | "#NULO!" => ErrorCode::Null,
             // Os nomes do Excel em português, digitados ou vindos de arquivo.
             "#N/D" => ErrorCode::Na,
             "#VALOR!" => ErrorCode::Value,
