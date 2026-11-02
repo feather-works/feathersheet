@@ -358,6 +358,26 @@
 - [ ] Relatório de conversão: o que converteu, o que ficou como comentário e por quê.
 - [ ] Conjunto de teste com **pelo menos 50 `.xlsm` reais**.
 
+### Integração com o FeatherDocs (pedido do usuário, 02/11/2026)
+
+O caso que puxou: a "Planilha de Informações v6.0a.xlsm" gera a procuração e o contrato
+abrindo um modelo `.docx` no Word, trocando marcadores (`#NOME#`, `#CPF#`, `#CEP#`…) pelos
+valores das células e salvando como "PROCURAÇÃO - <nome>.docx". São 26 das 42 pendências
+desse arquivo (medido em 02/11/2026).
+- [ ] API de documentos nas macros (`docs.open(modelo)`, `doc.replace(de, para)`,
+      `doc.saveAs(caminho)`, `doc.exportPdf`), com o motor `.docx` do FeatherDocs como
+      biblioteca: funciona sem o Word e sem o FeatherDocs aberto.
+- [ ] Conversor VBA: `CreateObject("Word.Application")`, `Documents.Open`,
+      `Selection.Find`/`Replacement` com `wdReplaceAll`, `StoryRanges`, `TypeText` e
+      `SaveAs` viram essa API.
+- [ ] Gravar só na pasta da planilha (ou subpasta), como o `saveSheetsAs`; o aviso
+      "Ativar macros?" lista o que a macro grava.
+- [ ] Ao vivo: com o FeatherDocs aberto, o documento gerado abre nele (canal local entre
+      as janelas, como o vínculo entre planilhas).
+- [ ] Mala direta: uma linha da planilha → um documento (o "Mala direta" do Word).
+- [ ] Teste com a "Planilha de Informações": procuração e contrato gerados iguais aos do
+      Word (texto e formatação).
+
 ### Metas de número
 - [ ] **≥ 95%** das macros do conjunto convertem e rodam com o mesmo resultado
       do Excel (conferido célula a célula).
