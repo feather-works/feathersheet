@@ -29,6 +29,16 @@ systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 nice -n 19 \
 
 Saída em `/tmp/fs-v0.2.3/pacote/saida/0.2.3/`.
 
+## 2b. Antivírus antes de publicar
+
+Enviar o `.exe` do Windows ao https://www.virustotal.com e só publicar com **0 ou 1** alerta de
+heurística de baixa certeza (ex.: `Suspicious.low.ml.score`). Alerta de antivírus grande (Microsoft,
+Kaspersky, ESET, Avast, Bitdefender) ou nome de família (`Trojan:…`) para tudo: achar o gatilho
+(shell escondido, ver `FeatherOffice/docs/PADRAO-SISTEMA-OPERACIONAL.md`) ou mandar o falso positivo
+ao fornecedor antes de lançar. O Defender na máquina ainda pode acusar por reputação (`!ml`, arquivo
+novo sem assinatura) mesmo com o VirusTotal limpo: falso positivo em
+https://www.microsoft.com/en-us/wdsi/filesubmission.
+
 ## 3. Release no GitHub
 
 Os nomes na release são **sem versão** (o link "baixar a última" do README e o snap dependem disso):
