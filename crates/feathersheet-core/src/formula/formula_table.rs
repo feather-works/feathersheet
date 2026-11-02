@@ -45,7 +45,7 @@ use crate::celulas::mapa_chave::HasherChave;
 
 use crate::celulas::mapa_chave::MapaColuna;
 type ConjuntoId = HashSet<i32, BuildHasherDefault<HasherChave>>;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use crate::planilha::column_store::{ChunkedFloatColumn, ChunkedInt32Column};
 use crate::formula::formula_pattern::{expand_pattern, pattern_for, refs_of_pattern, PatternRef};
@@ -170,6 +170,9 @@ pub struct FormulaTable {
     errors: Vec<CellError>,
     error_ids: HashMap<String, i32>,
     count: u32,
+    /// [`Self::assinatura_vinculos`] guardada (0 = refazer): o pulso dos vínculos pergunta
+    /// várias vezes por segundo e varrer as colunas custava 50 ms no arquivo do #136.
+    assinatura: AtomicU64,
 }
 
 impl FormulaTable {
@@ -292,9 +295,15 @@ impl FormulaTable {
     /// Muda quando um padrão que lê outro arquivo entra numa coluna, sai dela ou muda de alcance.
     pub fn assinatura_vinculos(&self) -> u64 {
         use std::hash::{Hash, Hasher};
+        let guardada = self.assinatura.load(Ordering::Relaxed);
+        if guardada != 0 {
+            return guardada;
+        }
         let mut h = std::collections::hash_map::DefaultHasher::new();
         self.padroes_com_vinculo().hash(&mut h);
-        h.finish()
+        let nova = h.finish().max(1);
+        self.assinatura.store(nova, Ordering::Relaxed);
+        nova
     }
 
     pub fn le_de_fora_em(&self, row: u32, col: u32) -> bool {
@@ -358,6 +367,7 @@ impl FormulaTable {
     }
 
     fn set_por_id(&mut self, row: u32, col: u32, id: i32) -> bool {
+        self.assinatura.store(0, Ordering::Relaxed);
         if self.le_a_propria_coluna(id, col) {
             return false;
         }
@@ -397,6 +407,7 @@ impl FormulaTable {
         if r1 > r0 {
             let id = self.pattern_ids[&padrao];
             self.column(col).slot.preencher_faixa(r0 + 1, r1, (id << KIND_BITS) | KIND_DIRTY);
+            self.assinatura.store(0, Ordering::Relaxed);
             self.count += r1 - r0;
         }
         true
@@ -405,6 +416,7 @@ impl FormulaTable {
     /// Esvazia `r0..=r1` da coluna, em blocos (o desfazer do
     /// [`Self::preencher_padrao`]).
     pub fn limpar_faixa(&mut self, col: u32, r0: u32, r1: u32) {
+        self.assinatura.store(0, Ordering::Relaxed);
         let Some(entry) = self.columns.get_mut(&col) else { return };
         let mut tinha = 0u32;
         if entry.slot.max_row >= r0 as i64 {
@@ -582,6 +594,7 @@ impl FormulaTable {
     }
 
     pub fn clear_cell(&mut self, row: u32, col: u32) {
+        self.assinatura.store(0, Ordering::Relaxed);
         let Some(entry) = self.columns.get_mut(&col) else {
             return;
         };
@@ -594,6 +607,7 @@ impl FormulaTable {
     }
 
     pub fn clear(&mut self) {
+        self.assinatura.store(0, Ordering::Relaxed);
         self.patterns.clear();
         self.pattern_ids.clear();
         self.pattern_refs.clear();
@@ -711,6 +725,7 @@ impl FormulaTable {
     }
 
     pub fn shift_columns(&mut self, at: u32, count: u32, removing: bool) {
+        self.assinatura.store(0, Ordering::Relaxed);
         if count == 0 {
             return;
         }
@@ -768,6 +783,7 @@ impl FormulaTable {
     /// fórmula lê é da mesma linha e de dentro de `c0..=c1` — o que andou
     /// com ela. Senão, a célula fica suja.
     pub fn permutar_linhas(&mut self, col: u32, first: u32, ordem: &[u32], c0: u32, c1: u32) -> Vec<(u32, u32, String)> {
+        self.assinatura.store(0, Ordering::Relaxed);
         let Some(entry) = self.columns.get(&col) else {
             return Vec::new();
         };
@@ -837,6 +853,7 @@ impl FormulaTable {
     }
 
     pub fn shift_rows(&mut self, at: u32, count: u32, removing: bool) {
+        self.assinatura.store(0, Ordering::Relaxed);
         if count == 0 {
             return;
         }
@@ -1023,6 +1040,7 @@ impl FormulaTable {
     #[allow(clippy::too_many_arguments)]
     pub fn load_column_partes(&mut self, col: u32, slots: &[i32], payload: &[f64], bitmap: &[u8],
         dict: &[String], erros: &[(&str, Option<&str>)], length: u32, pool: &mut StringPool) {
+        self.assinatura.store(0, Ordering::Relaxed);
         let length = (length as usize).min(slots.len()).min(payload.len()).min(bitmap.len() * 8);
         let pool_ids: Vec<i32> = dict.iter().map(|t| pool.get_or_create(t)).collect();
         let erros_locais: Vec<i32> = erros

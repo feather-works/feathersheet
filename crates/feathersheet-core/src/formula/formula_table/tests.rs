@@ -226,3 +226,18 @@ fn padrao_inexistente_no_arquivo_e_descartado_na_carga() {
     assert_eq!(lida.raw_at(2, 1), None);
     let _ = lida.columns_in_use();
 }
+
+#[test]
+fn assinatura_dos_vinculos_guardada_muda_quando_a_formula_externa_entra_ou_sai() {
+    let mut t = FormulaTable::new();
+    assert!(t.set(0, 5, "=B1+1", |_| true));
+    let sem = t.assinatura_vinculos();
+    assert_eq!(t.assinatura_vinculos(), sem, "sem mudança, a guardada vale");
+    assert!(t.set(1, 5, "=[Vendas.xlsx]Dados!A2", |_| true));
+    let com = t.assinatura_vinculos();
+    assert_ne!(com, sem);
+    t.store(1, 5, &Value::Number(3.0), &mut StringPool::new());
+    assert_eq!(t.assinatura_vinculos(), com, "guardar o resultado não muda o alcance");
+    t.clear_cell(1, 5);
+    assert_ne!(t.assinatura_vinculos(), com);
+}
