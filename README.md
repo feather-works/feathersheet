@@ -4,7 +4,7 @@
 It opens huge files, calculates in parallel, takes formulas in Portuguese or English,
 and runs entirely on your machine: no account, no login, no telemetry (the only network call is the daily update check, which you can turn off).
 
-> **Status:** under active development. Alpha release planned for **10/30/2026**.
+> **Status:** under active development. Latest release: **[v0.2.5](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-02).
 
 ![FeatherSheet with the Cash flow template and an income/expenses chart, with the mouse tooltip open on June](docs/imagens/planilha-e-grafico.png)
 
@@ -53,6 +53,9 @@ Help menu, under *What's new*).
 
 ### Coming in the next version
 
+- **Heavy `.xlsx` with external links opens in 4.4 s** (was 37.8 s) and the window no longer freezes while scrolling or resizing columns; selecting columns by their letters no longer lags.
+- **VBA macros, closer to Excel:** `ByRef` parameters return the new value to the caller; `MsgBox` with every button set (Abort/Retry/Ignore, Yes/No/Cancel…), icons and default button; `Range.AutoFilter` with criteria, `ShowAllData` and `AutoFilterMode = False` on the sheet's real AutoFilter; shapes and buttons with `.Visible`, `.OnAction`, `.Left`/`.Top`/`.Width`/`.Height`; `CreateObject("WScript.Shell").Run` (asks before running); `Range.Find`/`FindNext`; `Rnd`/`Randomize` giving the same sequence as Excel; `CallByName`.
+- **New macro API:** `sheet.autoFilter`, `sheet.showAllData`, `sheet.autoFilterOff`, `shape.visible`/`onAction`/`move`, `range.getFormat()` and `app.choose` (a question with up to three buttons).
 - **OpenQuery with no size limit**, with a ▾ menu on each column, multi-column selection (Ctrl/Shift), steps editable through the ⚙ gear and *Split column* into columns, like Power Query.
 - **OpenQuery script:** each query is a short editable script: `let fonte = lerCsv("sales.csv");` and then one line per step, such as `fonte.renomearColuna("DT", "date");`, with columns referenced by name.
 - **Data › Get & Transform Data:** from Text/CSV, from the Web, from Table/Range, recent sources and existing connections.
@@ -185,7 +188,7 @@ The generator command is at the top of this section.
 |---|---|---|
 | **Features** (ribbon commands, button by button) | **211 / 290** (72.8%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
 | **Worksheet functions** | **520 / 520** | [function catalog](docs/funcionalidades/FUNCOES.md) · [known limits](docs/planejamento/FUNCOES-FALTANTES.md) |
-| **VBA functions** (VBA → JavaScript converter) | **52** covered and **12** partial, out of **141** | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
+| **VBA functions** (VBA → JavaScript converter) | **116** covered and **1** partial (`CDec`), out of **117** that apply (141 listed; 24 are files, registry or printer) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 
 The scores measure breadth (the command or function exists and works), not
 visual fidelity; each document explains its criteria. The linked documents
