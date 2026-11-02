@@ -1609,7 +1609,7 @@ impl App {
                 a_cada(16).map(|_| Msg::Grafico(graficos::Evento::QuadroTransicao))
             } else { Subscription::none() },
             if self.resumo_selecao.borrow().pendente {
-                // 8 ms de soma a cada 16 ms: a tela continua a 60 quadros.
+                // 4 ms de soma a cada 16 ms: selecionar colunas pelas letras continua leve (#136).
                 a_cada(16).map(|_| Msg::ResumoPulso)
             } else { Subscription::none() },
         ])
