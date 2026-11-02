@@ -244,6 +244,7 @@ impl canvas::Program<Msg> for Grade<'_> {
         // (desenhada depois) e a própria grade não as cobrem, e duas bordas no mesmo lado
         // viram uma linha só (#69).
         let mut tracos_borda: Vec<(Point, Size, Color)> = Vec::new();
+        let mut memo_estilos = feathersheet_core::planilha::sheet::MemoEstilos::default();
         for (ic, &(c, x, desenhar_w)) in colunas_visiveis.iter().enumerate() {
             let w = larguras_inteiras[ic];
             if c == coluna_atual {
@@ -277,8 +278,9 @@ impl canvas::Program<Msg> for Grade<'_> {
                 }));
             for (il, &(r, y, desenhar_h)) in linhas_visiveis.iter().enumerate() {
                 let h = alturas_inteiras[il];
-                let estilo = self.workbook.aba(self.aba)
-                    .and_then(|a|a.sheet.estilo_resolvido(r,c));
+                let estilo_memo = self.workbook.aba(self.aba)
+                    .and_then(|a| a.sheet.estilo_com_memo(r, c, &mut memo_estilos));
+                let estilo = estilo_memo.as_ref().map(|m| &m.1);
                 // Cor condicional tem prioridade VISUAL, sem alterar estilo
                 // nem valor armazenado. Calcula somente as células do quadro.
                 let cond = self.condicional.borrow_mut().formato(self.workbook,self.aba,r,c);
@@ -286,7 +288,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                 // contrato Tables; fórmulas e armazenamento permanecem no core.
                 let cond_estilo = cond.as_ref().and_then(|f| f.style.as_ref());
                 let projetado = crate::estilos_comuns::projetar_estilo(
-                    estilo.as_ref(), cond_estilo,
+                    estilo, cond_estilo,
                 );
                 let cor_fundo = projetado.comum.basico.fundo.map(|[r, g, b, a]|
                     Color::rgb8(r, g, b).alpha(a as f32 / 255.0));
@@ -420,23 +422,30 @@ impl canvas::Program<Msg> for Grade<'_> {
                 if !val.is_empty() {
                     // Links importados do XLSX e URLs digitadas no CSV têm
                     // aparência clicável, sem criar estilos por célula.
-                    let link_visivel = estilo.as_ref()
+                    let link_visivel = estilo
                         .and_then(|s| s.link.as_deref())
                         .and_then(crate::app::link_ui::normalizar_link)
                         .is_some()
                         || crate::app::link_ui::normalizar_link(&val).is_some();
-                    let ajuste = self.workbook.aba(self.aba)
-                        .map(|a| ajustes_texto(&a.sheet,r,c)).unwrap_or_default();
+                    let ajuste = ajustes_texto(estilo_memo.as_ref().map(|m| &m.0));
                     let val = if ajuste.vertical {
                         val.chars().take(120).map(|ch| ch.to_string()).collect::<Vec<_>>().join("\n")
                     } else { val };
                     // Reticências somente para visualização; valor real permanece no motor.
+                    // Texto girado (90° no Excel) corre pela altura: cortar pela largura deixava
+                    // "2.153" como "2…" numa coluna estreita.
+                    let giro = estilo.and_then(|s| s.rotation).unwrap_or(0).clamp(-90, 90);
                     let limite = if ajuste.vertical {
                         ((h - 8.0) / 11.0).floor().max(2.0) as usize
-                    } else { ((w - 16.0)/7.1).floor().max(2.0) as usize };
+                    } else if giro != 0 {
+                        let (sen, cos) = (giro as f32).abs().to_radians().sin_cos();
+                        let pela_altura = if sen > 0.01 { (h - 6.0) / sen } else { f32::MAX };
+                        let pela_largura = if cos > 0.01 { (w - 6.0) / cos } else { f32::MAX };
+                        (pela_altura.min(pela_largura) / 7.1).floor().max(2.0) as usize
+                    } else { ((w - 16.0) / 7.1).floor().max(2.0) as usize };
                     let curto = if ajuste.quebrar && !ajuste.reduzir && !ajuste.vertical {
                         // shortcut: largura por caractere estimada (meia letra); medir o texto se a quebra sair torta.
-                        let letra = estilo.as_ref().and_then(|s| s.font_size).unwrap_or(self.tamanho_fonte_padrao as f32).max(6.0);
+                        let letra = estilo.and_then(|s| s.font_size).unwrap_or(self.tamanho_fonte_padrao as f32).max(6.0);
                         let largura = (((w - 16.0) / (letra * 0.5)).floor().max(2.0)) as usize;
                         let linhas = (((h - 4.0) / (letra * 1.3)).floor().max(1.0)) as usize;
                         comentarios::quebrar(val.trim_end(), largura, linhas).join("\n")
@@ -448,7 +457,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                         }).collect::<Vec<_>>().join("\n")
                     } else { val };
                     // Formato personalizado: `*x` enche a largura e a seção pode ter cor.
-                    let extra = self.formato_extra(r, c, estilo.as_ref()).filter(|e| e.texto == curto);
+                    let extra = self.formato_extra(r, c, estilo).filter(|e| e.texto == curto);
                     let curto = match extra.as_ref() {
                         Some(e) if !ajuste.reduzir && !ajuste.vertical => e.preenchido(limite),
                         _ => curto,
@@ -538,7 +547,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                         vertical_alignment: alinhamento_vertical,
                         ..Text::default()
                     };
-                    let rotacao = estilo.as_ref().and_then(|s| s.rotation)
+                    let rotacao = estilo.and_then(|s| s.rotation)
                         .unwrap_or(0).clamp(-90, 90);
                     if rotacao == 0 {
                         // O conteúdo de A29 não pode escapar para A30. Dentro do
@@ -659,15 +668,14 @@ impl canvas::Program<Msg> for Grade<'_> {
                     [85, 96, 110, 255]
                 };
                 let bordas = crate::bordas_comuns::adaptar_bordas(
-                    estilo.as_ref().and_then(|e| e.borders.as_ref()), fallback
+                    estilo.and_then(|e| e.borders.as_ref()), fallback
                 );
                 // O estilo fino/médio/grosso/tracejado vem do mesmo
                 // EstiloParcial que a janela Formatar Células modifica.
                 // Na ausência dele preserva 1,5 px da engine compartilhada.
-                let tipo_traco = if estilo.as_ref().is_some_and(|s| s.borders.is_some()) {
-                    self.workbook.aba(self.aba)
-                        .and_then(|aba| aba.sheet.estilo_mesclado(r, c))
-                        .and_then(|m| match m.get("borderLineStyle") {
+                let tipo_traco = if estilo.is_some_and(|s| s.borders.is_some()) {
+                    estilo_memo.as_ref()
+                        .and_then(|m| match m.0.get("borderLineStyle") {
                             Some(feathersheet_core::celulas::estilo_parcial::Campo::Texto(v)) =>
                                 Some(v.clone()),
                             _ => None,
@@ -824,13 +832,21 @@ impl canvas::Program<Msg> for Grade<'_> {
                     let link_visivel = estilo.as_ref().and_then(|s| s.link.as_deref())
                         .and_then(crate::app::link_ui::normalizar_link).is_some()
                         || crate::app::link_ui::normalizar_link(&valor).is_some();
-                    let ajuste=ajustes_texto(&aba.sheet,m.r0,m.c0);
+                    let ajuste=ajustes_texto(aba.sheet.estilo_mesclado(m.r0,m.c0).as_ref());
                     let valor=if ajuste.vertical {
                         valor.chars().take(120).map(|ch|ch.to_string()).collect::<Vec<_>>().join("\n")
                     } else {valor};
+                    // Texto girado (90° no Excel) corre pela altura: cortar pela largura deixava
+                    // "2.153" como "2…" numa coluna estreita.
+                    let giro = estilo.as_ref().and_then(|s| s.rotation).unwrap_or(0).clamp(-90, 90);
                     let limite = if ajuste.vertical {
-                        ((ht-8.)/11.).floor().max(2.) as usize
-                    } else {((wt-16.)/7.1).floor().max(2.) as usize};
+                        ((ht - 8.0) / 11.0).floor().max(2.0) as usize
+                    } else if giro != 0 {
+                        let (sen, cos) = (giro as f32).abs().to_radians().sin_cos();
+                        let pela_altura = if sen > 0.01 { (ht - 6.0) / sen } else { f32::MAX };
+                        let pela_largura = if cos > 0.01 { (wt - 6.0) / cos } else { f32::MAX };
+                        (pela_altura.min(pela_largura) / 7.1).floor().max(2.0) as usize
+                    } else { ((wt - 16.0) / 7.1).floor().max(2.0) as usize };
                     let curto = if ajuste.quebrar && !ajuste.reduzir && !ajuste.vertical {
                         // shortcut: largura por caractere estimada (meia letra); medir o texto se a quebra sair torta.
                         let letra = estilo.as_ref().and_then(|s| s.font_size).unwrap_or(self.tamanho_fonte_padrao as f32).max(6.0);

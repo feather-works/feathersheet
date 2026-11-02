@@ -439,6 +439,9 @@ impl App {
         let (mut workbook, folha) = Self::decodificar_sem_calcular(path, separador)?;
         feathersheet_io::progresso::fase(feathersheet_io::progresso::Fase::Calculando);
         workbook.calcular_em_paralelo();
+        // A lista dos arquivos citados fica guardada na pasta: montada aqui, na thread da
+        // abertura, a janela não para 2 s lendo 780 mil fórmulas de vínculo (#136).
+        if workbook.tem_vinculos_externos() { let _ = workbook.areas_citadas(); }
         // Ainda na thread da abertura: os blocos de números que cabem em 1, 2 ou 4 bytes
         // sem perda encolhem (o 2026_03, 13,7 M linhas: 4,45 → 2,05 GB, 1,3 s).
         let t = Instant::now();
@@ -541,6 +544,11 @@ impl App {
             if let Some(origem) = self.recuperacao.origem_pendente.take() { self.origem = origem; }
         }
         self.alterado = ext != "fshz" || recuperacao;
+        // O arquivo recém-aberto está no disco: a cópia de recuperação só começa quando a pessoa
+        // mexer. Antes, 3 s depois de abrir um .xlsx, a cópia da pasta inteira era montada na
+        // thread da janela (3,2 milhões de células: janela travada e +3 GB, #136).
+        self.recuperacao.versoes = (!recuperacao).then(|| (0..self.workbook.len())
+            .filter_map(|i| self.workbook.aba(i)).map(|a| (a.id, a.versao)).collect());
         self.linha_inicio = 0;
         self.coluna_inicio = 0;
         self.trocar_selecao(0,0);

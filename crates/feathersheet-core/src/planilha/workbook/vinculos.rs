@@ -87,6 +87,19 @@ impl Workbook {
     /// As áreas de outros arquivos que as fórmulas leem, sem repetição (uma
     /// área dentro de outra do mesmo arquivo e aba some), em ordem estável.
     pub fn areas_citadas(&self) -> Vec<AreaCitada> {
+        // Só muda quando uma fórmula de vínculo entra ou sai de alguma aba.
+        let geracoes: Vec<(u32, u64)> = self.abas.iter().map(|a| (a.id, a.sheet.geracao_externas())).collect();
+        if let Some((g, areas)) = self.areas_cache.borrow().as_ref() {
+            if *g == geracoes {
+                return areas.clone();
+            }
+        }
+        let todas = self.areas_citadas_sem_guardar();
+        *self.areas_cache.borrow_mut() = Some((geracoes, todas.clone()));
+        todas
+    }
+
+    fn areas_citadas_sem_guardar(&self) -> Vec<AreaCitada> {
         let mut todas: Vec<AreaCitada> = Vec::new();
         for aba in &self.abas {
             for &k in &aba.sheet.externas {
@@ -97,6 +110,11 @@ impl Workbook {
                         }
                     });
                 });
+            }
+            for (_, nome, area) in aba.sheet.vinculos_empacotados() {
+                if let Some((arquivo, aba_ext)) = separar(&nome) {
+                    todas.push(AreaCitada { arquivo: arquivo.into_owned(), aba: aba_ext.to_string(), area });
+                }
             }
         }
         let ordem = |a: &AreaCitada| (chave_arquivo(&a.arquivo), a.aba.to_lowercase(), a.area.r0, a.area.c0, a.area.r1, a.area.c1);
@@ -249,6 +267,16 @@ impl Workbook {
     }
 
     /// Instala o que o `.fshz` guardou das pastas externas (na abertura).
+    /// Os valores guardados no próprio arquivo, na abertura: sem sujar quem os lê, porque o
+    /// resultado que o arquivo traz de cada fórmula foi calculado com esses mesmos valores. Sujar
+    /// 780 mil fórmulas de vínculo e quem depende delas levava ~10 s ao abrir (#136).
+    pub fn instalar_externos_na_leitura(&mut self, livros: Vec<LivroGuardado>) {
+        for livro in livros {
+            let abas = livro.abas.iter().map(|(nome, celulas)| vinculo::aba_de_valores(nome, celulas)).collect();
+            self.externos.instalar_com(&livro.nome, abas, livro.caminho, livro.atualizado_em);
+        }
+    }
+
     pub fn instalar_externos_guardados(&mut self, livros: Vec<LivroGuardado>) {
         for livro in livros {
             let abas = livro.abas.iter().map(|(nome, celulas)| vinculo::aba_de_valores(nome, celulas)).collect();
@@ -261,6 +289,10 @@ impl Workbook {
     /// pasta), em todas as abas. Os valores que já havia continuam valendo
     /// até chegarem os da nova origem. Devolve quantas fórmulas mudaram.
     pub fn trocar_origem_externa(&mut self, antigo: &str, novo: &str) -> usize {
+        self.trocar_origem_com(antigo, novo, true)
+    }
+
+    fn trocar_origem_com(&mut self, antigo: &str, novo: &str, desfazer: bool) -> usize {
         let alvo = chave_arquivo(antigo);
         let mut total = 0;
         for i in 0..self.abas.len() {
@@ -294,6 +326,29 @@ impl Workbook {
                         edicoes.push((r, c, depois));
                     }
                 }
+                // Empacotadas: os nomes de aba vêm das referências do padrão da coluna.
+                let mut por_coluna: std::collections::BTreeMap<u32, BTreeSet<String>> = Default::default();
+                for (col, nome, _) in sheet.vinculos_empacotados() {
+                    if separar(&nome).is_some_and(|(arquivo, _)| chave_arquivo(&arquivo) == alvo) {
+                        por_coluna.entry(col).or_default().insert(nome);
+                    }
+                }
+                for (col, nomes) in por_coluna {
+                    let mut linhas = Vec::new();
+                    sheet.formulas.for_each_in_range(0, MAX_ROWS - 1, col, col, |r, _| linhas.push(r));
+                    for r in linhas {
+                        let antes = sheet.get_raw(r, col);
+                        let mut depois = antes.clone();
+                        for nome in &nomes {
+                            if let Some((_, aba)) = separar(nome) {
+                                depois = reescrever_aba(&depois, nome, &vinculo::nome_de_aba(novo, aba));
+                            }
+                        }
+                        if depois != antes {
+                            edicoes.push((r, col, depois));
+                        }
+                    }
+                }
             }
             if edicoes.is_empty() {
                 continue;
@@ -301,9 +356,18 @@ impl Workbook {
             total += edicoes.len();
             let aba = &mut self.abas[i];
             aba.sheet.abrir_transacao();
+            // Uma cascata só no fim: uma por fórmula reescrita levava minutos ao abrir um
+            // `.xlsx` com milhões de fórmulas lendo `[1]Aba!` (#136).
+            aba.sheet.adiar_cascata();
             for (r, c, raw) in edicoes {
-                aba.sheet.set_cell(r, c, &raw);
+                if desfazer {
+                    aba.sheet.set_cell(r, c, &raw);
+                } else {
+                    let style = aba.sheet.style_for(r, c, &raw);
+                    aba.sheet.apply(r, c, Some(crate::planilha::sheet::edicao::Snap { raw, style }), false);
+                }
             }
+            aba.sheet.soltar_cascata();
             aba.sheet.fechar_transacao();
             aba.versao = proxima_versao(aba.versao);
         }

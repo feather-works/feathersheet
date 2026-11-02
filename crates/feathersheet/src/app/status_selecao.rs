@@ -29,7 +29,7 @@ fn tem_formula(sheet: &feathersheet_core::planilha::sheet::Sheet, c0: u32, c1: u
         || sheet.cells.len() > 100_000
         || sheet.cells.keys().any(|&k| { let c = feathersheet_core::celulas::refs::key_col(k); c >= c0 && c <= c1 })
 }
-const ORCAMENTO_MS: u128 = 12;
+const ORCAMENTO_MS: u128 = 4;
 const COR_ERRO: pelicano::Color = pelicano::Color::rgb(220.0 / 255.0, 75.0 / 255.0, 77.0 / 255.0);
 
 #[derive(Clone, Debug, PartialEq, Eq)]

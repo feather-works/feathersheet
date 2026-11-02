@@ -43,7 +43,7 @@ impl Sheet {
         let k = Self::cell_key(row, col);
         let mut chaves = Vec::new();
         self.deps.step_dependents(k, |d| chaves.push(d));
-        self.step_pattern_dependents(k, &mut |d| chaves.push(d), None);
+        self.step_pattern_dependents(k, &self.formulas.columns_in_use(), &mut |d| chaves.push(d), None);
         chaves.sort_unstable();
         chaves.dedup();
         chaves.into_iter().filter(|&d| d != k).map(Self::key_to_coord).collect()

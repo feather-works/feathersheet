@@ -21,6 +21,29 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.5",
+        data: "01/11/2026",
+        resumo: "Excel com milhões de fórmulas abre rápido",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("bolt", "Abrir .xlsx pesado: de 10 min para 4 s", "Milhões de fórmulas com vínculo abrem com os valores do Excel (antes travava em 80%)."),
+        ],
+        tambem: &[
+            "SUBTOTAL com DESLOC por linha (contar só as visíveis no SOMARPRODUTO) dá o valor do Excel.",
+            "Ao abrir, avisa quando há versão nova (uma vez por dia; desligue em Configurações → Sobre).",
+        ],
+    },
+    Versao {
+        numero: "0.2.4",
+        data: "01/11/2026",
+        resumo: "Janela certa no Windows 10",
+        ilustracao: Ilustracao::Planilha,
+        destaques: &[
+            ("bolt", "Janela no lugar no Windows 10", "Placas sem DirectX 12 (como a Intel HD 2500) deixavam a janela deslocada, com faixa preta."),
+        ],
+        tambem: &[],
+    },
+    Versao {
         numero: "0.2.3",
         data: "01/11/2026",
         resumo: "Macros do Excel quase completas",

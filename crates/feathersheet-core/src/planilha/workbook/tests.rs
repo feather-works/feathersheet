@@ -1099,3 +1099,55 @@ fn lambda_sem_fim_e_rept_gigante_viram_erro() {
     w.escrever_celula(0, 3, 0, "=REPT(\"ab\";3)".into());
     assert_eq!(w.valor(0, 3, 0), Value::Text("ababab".into()));
 }
+
+/// `CONT.SE` com faixa no critério conta cada item, como no Excel (#136): `SOMA` soma as
+/// contagens e `MENOR(SE(CONT.SE(…)=1;…))` vê uma por item.
+#[test]
+fn cont_se_com_faixa_no_criterio_conta_cada_item() {
+    let mut w = Workbook::new();
+    for (i, v) in [1, 2, 4, 6, 3].iter().enumerate() {
+        w.escrever_celula(0, 0, i as u32, v.to_string()); // A1:E1
+    }
+    for (i, v) in [1, 2, 3, 4, 5].iter().enumerate() {
+        w.escrever_celula(0, 1, i as u32, v.to_string()); // A2:E2
+    }
+    w.escrever_celula(0, 3, 0, "=SOMA(CONT.SE(A1:E1;A2:E2))".into());
+    w.escrever_celula(0, 3, 1, "=CONT.SE(A1:E1;A2)".into());
+    w.escrever_celula(0, 3, 2, "=MENOR(SE(CONT.SE(A1:E1;A2:E2)=1;\"\";A2:E2);1)".into());
+    assert_eq!(w.valor(0, 3, 0), Value::Number(4.0));
+    assert_eq!(w.valor(0, 3, 1), Value::Number(1.0));
+    assert_eq!(w.valor(0, 3, 2), Value::Number(5.0));
+}
+
+#[test]
+fn areas_citadas_guardadas_acompanham_a_formula_de_vinculo() {
+    let mut w = Workbook::new();
+    w.escrever_celula(0, 0, 0, "=[Vendas.xlsx]Dados!A1".into());
+    assert_eq!(w.areas_citadas().len(), 1);
+    // Largura de coluna não muda a lista (e não relê as fórmulas).
+    w.editar(0, |s| { s.definir_dimensao(true, 3, 200); });
+    assert_eq!(w.areas_citadas()[0].arquivo, "Vendas.xlsx");
+    // Trocar a fórmula no mesmo lugar troca a lista.
+    w.escrever_celula(0, 0, 0, "=[Compras.xlsx]Dados!B2".into());
+    let areas = w.areas_citadas();
+    assert_eq!(areas.len(), 1);
+    assert_eq!(areas[0].arquivo, "Compras.xlsx");
+    w.escrever_celula(0, 0, 0, "1".into());
+    assert!(w.areas_citadas().is_empty());
+}
+
+#[test]
+fn total_no_topo_e_dados_lendo_a_coluna_do_total_vao_em_paralelo() {
+    // E1 soma D; D3:D200 lê E na própria linha (vazia). Por coluna era um
+    // ciclo (D lê E, E lê D) e tudo ia para o cálculo sob demanda; por linha, não.
+    let mut w = Workbook::new();
+    for r in 2..200u32 {
+        w.escrever_celula(0, r, 0, "1".into());
+        w.escrever_celula(0, r, 3, format!("=A{}+E{}", r + 1, r + 1));
+    }
+    w.escrever_celula(0, 0, 4, "=SOMA(D3:D200)".into());
+    w.escrever_celula(0, 2, 0, "5".into());
+    assert!(w.calcular_em_paralelo() >= 198);
+    assert_eq!(w.valor(0, 2, 3), Value::Number(5.0));
+    assert_eq!(w.valor(0, 0, 4), Value::Number(202.0));
+}

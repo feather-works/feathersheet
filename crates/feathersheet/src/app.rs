@@ -831,6 +831,8 @@ pub struct App {
     cache_grade: crate::grade::CacheGrade,
     /// Procurar atualizações (Configurações → Sobre), só a pedido.
     atualizacao: atualizacao::Estado,
+    /// Versão nova achada na abertura: o cartão no canto da grade.
+    aviso_atualizacao: Option<atualizacao::Lancamento>,
     config: Configuracao,
     janelas: Janelas<Auxiliar>,
     ultimo_clique_barra: Option<Instant>,
@@ -1126,7 +1128,7 @@ impl Default for App {
             condicional_italico: false,
             condicional_sublinhado: false,
             condicional_riscado: false,
-            workbook: Workbook::new(), eixos_grade: RefCell::new(Default::default()), duplicados:None, impressao: Default::default(), resumo_selecao: RefCell::new(status_selecao::Estado::default()), atualizacao: Default::default(), cache_grade: Default::default(),
+            workbook: Workbook::new(), eixos_grade: RefCell::new(Default::default()), duplicados:None, impressao: Default::default(), resumo_selecao: RefCell::new(status_selecao::Estado::default()), atualizacao: Default::default(), aviso_atualizacao: None, cache_grade: Default::default(),
             config: Configuracao::default(),
             janelas: Janelas::default(), ultimo_clique_barra: None,
             caminho: None, recuperacao: Default::default(), origem: None, alterado: false, tela_inteira: false, folha: 0,
@@ -1281,7 +1283,8 @@ impl App {
         // `batch`, nunca `chain`: no Iced 0.13, `chain` com tarefa vazia
         // DESCARTA a primeira, e a janela principal não abriria.
         let boas_vindas = app.janela_de_boas_vindas().map_or_else(Task::none, |aux| app.alternar(aux));
-        let janela = Task::batch([task, Task::done(Msg::AuxAberta), boas_vindas, app.ligar_caneta(id)]);
+        let atualizacao = app.procurar_atualizacao_ao_abrir();
+        let janela = Task::batch([task, Task::done(Msg::AuxAberta), boas_vindas, app.ligar_caneta(id), atualizacao]);
         let tarefas = if let Some(p) = inicial {
             Task::batch([janela, Self::carregar_em_background(p, app.config.separador_csv())])
         } else {
@@ -1424,6 +1427,13 @@ impl App {
     }
 
     pub fn update(&mut self, msg: Msg) -> Task<Msg> {
+        crate::grade::modelo::alturas_proprias::marcar_update(true);
+        let tarefa = self.update_dentro(msg);
+        crate::grade::modelo::alturas_proprias::marcar_update(false);
+        tarefa
+    }
+
+    fn update_dentro(&mut self, msg: Msg) -> Task<Msg> {
         let msg = match msg {
             Msg::Lote(lote) => return Task::batch(lote.into_iter().map(|m| self.update(m)).collect::<Vec<_>>()),
             msg => msg,
@@ -1599,7 +1609,7 @@ impl App {
                 a_cada(16).map(|_| Msg::Grafico(graficos::Evento::QuadroTransicao))
             } else { Subscription::none() },
             if self.resumo_selecao.borrow().pendente {
-                // 8 ms de soma a cada 16 ms: a tela continua a 60 quadros.
+                // 4 ms de soma a cada 16 ms: selecionar colunas pelas letras continua leve (#136).
                 a_cada(16).map(|_| Msg::ResumoPulso)
             } else { Subscription::none() },
         ])

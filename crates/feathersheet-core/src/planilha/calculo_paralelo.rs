@@ -29,7 +29,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::celulas::pool::StringPool;
-use crate::celulas::refs::{key_col, Rect};
+use crate::celulas::mapa_chave::MapaChave;
+use crate::celulas::refs::Rect;
 use crate::celulas::values::{CellError, ErrorCode, Value};
 use crate::formula::ast::Node;
 use crate::formula::evaluator::{EvalContext, Evaluator};
@@ -61,8 +62,10 @@ struct Vista<'a> {
     /// `Sheet::linhas_ocultas_desde`: ocultas até o fim da aba.
     linhas_ocultas_desde: Option<u32>,
     topicos: &'a crate::planilha::sheet::topicos::EixoTopicos,
-    /// Colunas com fórmula avulsa: o valor delas mora no `RefCell` da aba.
-    colunas_avulsas: HashSet<u32>,
+    /// Linhas (em ordem) das fórmulas avulsas por coluna: o valor delas mora
+    /// no `RefCell` da aba, e só as de `prontas` podem ser lidas daqui.
+    avulsas: HashMap<u32, Vec<u32>>,
+    prontas: &'a MapaChave<Value>,
     /// O retângulo usado (`None`: aba vazia) — a faixa não passa dele.
     usado: Option<Rect>,
     /// Áreas derramadas por matriz dinâmica: o valor mora no `RefCell` da aba.
@@ -70,9 +73,14 @@ struct Vista<'a> {
 }
 
 impl<'a> Vista<'a> {
-    fn nova(sheet: &'a Sheet) -> Self {
+    fn nova(sheet: &'a Sheet, prontas: &'a MapaChave<Value>) -> Self {
+        Self::com_nome(sheet, &sheet.name, prontas)
+    }
+
+    /// Aba de outro arquivo (`[Vendas.xlsx]Dados`), achada pelo nome como a fórmula escreveu.
+    fn com_nome(sheet: &'a Sheet, nome: &'a str, prontas: &'a MapaChave<Value>) -> Self {
         Vista {
-            nome: &sheet.name,
+            nome,
             data: &sheet.data,
             formulas: &sheet.formulas,
             pool: &sheet.pool,
@@ -80,7 +88,8 @@ impl<'a> Vista<'a> {
             row_heights: &sheet.row_heights,
             linhas_ocultas_desde: sheet.linhas_ocultas_desde,
             topicos: &sheet.topicos.linhas,
-            colunas_avulsas: colunas_avulsas_de(sheet),
+            avulsas: avulsas_por_coluna(sheet),
+            prontas,
             derramadas: sheet.areas_derramadas(),
             usado: (!sheet.is_empty()).then(|| sheet.used_rect()),
         }
@@ -177,9 +186,14 @@ impl Contexto<'_, '_> {
                 return v.clone();
             }
         }
-        if vista.cells.contains_key(&Sheet::cell_key(row, col))
-            || vista.derramadas.iter().any(|a| row >= a.r0 && row <= a.r1 && col >= a.c0 && col <= a.c1)
-        {
+        if vista.derramadas.iter().any(|a| row >= a.r0 && row <= a.r1 && col >= a.c0 && col <= a.c1) {
+            return self.falhar();
+        }
+        let chave = Sheet::cell_key(row, col);
+        if let Some(v) = vista.prontas.get(&chave) {
+            return v.clone();
+        }
+        if vista.cells.contains_key(&chave) {
             return self.falhar();
         }
         if vista.formulas.has(row, col) {
@@ -208,15 +222,25 @@ impl EvalContext for Contexto<'_, '_> {
         let vista = &self.abas[aba];
         let dentro = |r: u32, c: u32| r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1;
         let cruza = |a: &Rect| a.r0 <= rect.r1 && a.r1 >= rect.r0 && a.c0 <= rect.c1 && a.c1 >= rect.c0;
-        if vista.derramadas.iter().any(cruza)
-            || (vista.colunas_avulsas.iter().any(|&c| c >= rect.c0 && c <= rect.c1)
-                && vista.cells.keys().any(|&k| {
-                    let (r, c) = Sheet::key_to_coord(k);
-                    dentro(r, c)
-                }))
-        {
+        if vista.derramadas.iter().any(cruza) {
             self.falhar();
             return;
+        }
+        // Avulsa ainda por calcular: falha. Já calculada: só a leitura célula
+        // a célula (`ler`) a enxerga, o caminho em bloco do fim, não.
+        let mut com_avulsa = false;
+        for (&c, linhas) in &vista.avulsas {
+            if c < rect.c0 || c > rect.c1 {
+                continue;
+            }
+            let i = linhas.partition_point(|&r| r < rect.r0);
+            for &r in linhas[i..].iter().take_while(|&&r| r <= rect.r1) {
+                if !vista.prontas.contains_key(&Sheet::cell_key(r, c)) {
+                    self.falhar();
+                    return;
+                }
+                com_avulsa = true;
+            }
         }
         if self.corrente.is_some_and(|c| c.aba == aba && dentro(c.primeira.max(rect.r0), c.col)) {
             self.falhar();
@@ -243,6 +267,10 @@ impl EvalContext for Contexto<'_, '_> {
                     }
                 }
             }
+            return;
+        }
+        if com_avulsa {
+            self.falhar();
             return;
         }
         let mut suja = false;
@@ -438,15 +466,19 @@ struct Tarefa<'n> {
 /// Monta os nós e a ordem. Devolve os níveis (índices em `nos`).
 /// Colunas cujo valor mora no `RefCell` da aba: as das fórmulas avulsas e as
 /// cobertas por matriz derramada.
-fn colunas_avulsas_de(sheet: &Sheet) -> HashSet<u32> {
-    let mut colunas: HashSet<u32> = sheet.cells.keys().map(|&k| key_col(k)).collect();
-    for a in sheet.areas_derramadas() {
-        colunas.extend(a.c0..=a.c1);
+fn avulsas_por_coluna(sheet: &Sheet) -> HashMap<u32, Vec<u32>> {
+    let mut m: HashMap<u32, Vec<u32>> = HashMap::new();
+    for &k in sheet.cells.keys() {
+        let (r, c) = Sheet::key_to_coord(k);
+        m.entry(c).or_default().push(r);
     }
-    colunas
+    for v in m.values_mut() {
+        v.sort_unstable();
+    }
+    m
 }
 
-fn planejar(abas: &[AbaViva]) -> (Vec<No>, Vec<Vec<usize>>) {
+fn planejar(abas: &[AbaViva], externas: &[(String, &Sheet)], prontas: &[MapaChave<Value>]) -> (Vec<No>, Vec<Vec<usize>>) {
     let mut nos = Vec::new();
     let mut indice: HashMap<(usize, u32), usize> = HashMap::new();
     for (a, aba) in abas.iter().enumerate() {
@@ -459,10 +491,39 @@ fn planejar(abas: &[AbaViva]) -> (Vec<No>, Vec<Vec<usize>>) {
         }
     }
     let achar_aba = |nome: &str| abas.iter().position(|x| mesmo_nome(&x.sheet.name, nome));
-    let colunas_avulsas: Vec<HashSet<u32>> = abas.iter()
-        .map(|a| colunas_avulsas_de(&a.sheet))
-        .collect();
+    // Aba de outro arquivo com valores carregados: só valores, nenhuma coluna para esperar.
+    let externa = |nome: &str| externas.iter().any(|(n, _)| mesmo_nome(n, nome));
+    // Linhas por coluna onde o valor mora no `RefCell` (avulsas e derramadas).
+    // Por linha, não por coluna: um cabeçalho avulso na linha 8 não tira do
+    // paralelo a coluna de 50 mil linhas abaixo dele.
+    let mut avulsas: Vec<HashMap<u32, Vec<(u32, u32)>>> = vec![HashMap::new(); abas.len()];
+    for (a, aba) in abas.iter().enumerate() {
+        for &k in aba.sheet.cells.keys().filter(|k| !prontas[a].contains_key(k)) {
+            let (r, c) = Sheet::key_to_coord(k);
+            avulsas[a].entry(c).or_default().push((r, r));
+        }
+        for d in aba.sheet.areas_derramadas() {
+            for c in d.c0..=d.c1 {
+                avulsas[a].entry(c).or_default().push((d.r0, d.r1));
+            }
+        }
+    }
+    let avulsa_em = |aba: usize, c0: u32, c1: u32, r0: u32, r1: u32| {
+        avulsas[aba].iter().any(|(&c, rs)| c >= c0 && c <= c1 && rs.iter().any(|&(a, b)| a <= r1 && b >= r0))
+    };
+    // Linhas que a referência lê, para as linhas `lo..=hi` da coluna.
+    let linhas_lidas = |lock: bool, v: i64, lo: u32, hi: u32| -> (u32, u32) {
+        let f = |x: i64| x.clamp(0, u32::MAX as i64) as u32;
+        if lock { (f(v), f(v)) } else { (f(lo as i64 + v), f(hi as i64 + v)) }
+    };
 
+    // Só espera outra coluna quem lê alguma linha suja dela: os totais da linha 2
+    // leem os dados, e os dados leem a linha deles nas colunas dos totais.
+    let sujas: Vec<Vec<u32>> = nos.iter().map(|n| n.linhas.clone()).collect();
+    let toca = |d: usize, r0: u32, r1: u32| {
+        let l = &sujas[d];
+        l.get(l.partition_point(|&r| r < r0)).is_some_and(|&r| r <= r1)
+    };
     // Dependências e quem não pode ir em paralelo.
     let mut deps: Vec<HashSet<usize>> = vec![HashSet::new(); nos.len()];
     let mut fora = vec![false; nos.len()];
@@ -470,8 +531,10 @@ fn planejar(abas: &[AbaViva]) -> (Vec<No>, Vec<Vec<usize>>) {
         let sheet = &abas[no.aba].sheet;
         let usos = sheet.formulas.columns_in_use();
         let Some(uso) = usos.iter().find(|u| u.col == no.col) else { continue };
+        let (lo, hi) = (no.linhas[0], no.linhas[no.linhas.len() - 1]);
         // Pontas de faixa qualificada: a coluna depende de tudo entre elas.
-        let mut faixas: HashMap<usize, (u32, u32)> = HashMap::new();
+        // (c0, c1, r0, r1): colunas e linhas lidas.
+        let mut faixas: HashMap<usize, (u32, u32, u32, u32)> = HashMap::new();
         for padrao in &uso.usos {
             // Intervalo local: a coluna depende de todas as colunas dele.
             // Passar pela própria coluna nem vira empacotada (`FormulaTable`).
@@ -481,11 +544,20 @@ fn planejar(abas: &[AbaViva]) -> (Vec<No>, Vec<Vec<usize>>) {
                     fora[i] = true;
                     continue;
                 }
-                let e = faixas.entry(no.aba).or_insert((c0, c1));
+                // Faixa que sai por cima na primeira linha lê desde a linha 1.
+                let (a, b) = (f.rect_em(lo, no.col), f.rect_em(hi, no.col));
+                let r0 = a.map_or(0, |x| x.0.min(b.map_or(x.0, |y| y.0)));
+                let r1 = b.map_or(u32::MAX, |x| x.2).max(a.map_or(0, |x| x.2));
+                let e = faixas.entry(no.aba).or_insert((c0, c1, r0, r1));
                 e.0 = e.0.min(c0);
                 e.1 = e.1.max(c1);
+                e.2 = e.2.min(r0);
+                e.3 = e.3.max(r1);
             }
             for r in &padrao.refs {
+                if r.sheet.as_deref().is_some_and(|n| achar_aba(n).is_none() && externa(n)) {
+                    continue;
+                }
                 let alvo = match &r.sheet {
                     None => Some(no.aba),
                     Some(n) => achar_aba(n),
@@ -497,7 +569,12 @@ fn planejar(abas: &[AbaViva]) -> (Vec<No>, Vec<Vec<usize>>) {
                     continue;
                 }
                 let c = c as u32;
+                let (r0, r1) = linhas_lidas(r.row_lock, r.row as i64, lo, hi);
                 if alvo == no.aba && c == no.col {
+                    // Linha fixa fora das que esta coluna recalcula: já está limpa.
+                    if r.row_lock && no.linhas.binary_search(&r0).is_err() {
+                        continue;
+                    }
                     if r.row_lock || r.row >= 0 {
                         fora[i] = true;
                     } else {
@@ -506,25 +583,27 @@ fn planejar(abas: &[AbaViva]) -> (Vec<No>, Vec<Vec<usize>>) {
                     continue;
                 }
                 if r.sheet.is_some() {
-                    let f = faixas.entry(alvo).or_insert((c, c));
+                    let f = faixas.entry(alvo).or_insert((c, c, r0, r1));
                     f.0 = f.0.min(c);
                     f.1 = f.1.max(c);
+                    f.2 = f.2.min(r0);
+                    f.3 = f.3.max(r1);
                 } else {
-                    if colunas_avulsas[alvo].contains(&c) {
+                    if avulsa_em(alvo, c, c, r0, r1) {
                         fora[i] = true;
                     }
-                    if let Some(&d) = indice.get(&(alvo, c)) {
+                    if let Some(&d) = indice.get(&(alvo, c)).filter(|&&d| toca(d, r0, r1)) {
                         deps[i].insert(d);
                     }
                 }
             }
         }
-        for (alvo, (c0, c1)) in faixas {
-            if colunas_avulsas[alvo].iter().any(|&c| c >= c0 && c <= c1) {
+        for (alvo, (c0, c1, r0, r1)) in faixas {
+            if avulsa_em(alvo, c0, c1, r0, r1) {
                 fora[i] = true;
             }
             for c in c0..=c1 {
-                if let Some(&d) = indice.get(&(alvo, c)) {
+                if let Some(&d) = indice.get(&(alvo, c)).filter(|&&d| toca(d, r0, r1)) {
                     if d != i {
                         deps[i].insert(d);
                     }
@@ -643,12 +722,14 @@ fn arvore(
 
 /// Calcula em paralelo o que dá das fórmulas empacotadas da pasta. Devolve
 /// quantas células ficaram calculadas.
-pub(crate) fn calcular(abas: &mut [AbaViva], funcoes: &HashSet<String>) -> usize {
+pub(crate) fn calcular(abas: &mut [AbaViva], funcoes: &HashSet<String>, externas: &[(String, &Sheet)]) -> usize {
     for aba in abas.iter_mut() {
         aba.sheet.preparar_calculo_paralelo();
     }
     let inicio = std::time::Instant::now();
-    let (nos, niveis) = planejar(abas);
+    let prontas: Vec<MapaChave<Value>> = abas.iter().map(|a| a.sheet.avulsas_prontas()).collect();
+    let prontas_externas: Vec<MapaChave<Value>> = externas.iter().map(|(_, s)| s.avulsas_prontas()).collect();
+    let (nos, niveis) = planejar(abas, externas, &prontas);
     let threads = crate::paralelismo::nucleos().max(1);
     let fora: usize = {
         let nos_planejados: HashSet<usize> = niveis.iter().flatten().copied().collect();
@@ -679,7 +760,9 @@ pub(crate) fn calcular(abas: &mut [AbaViva], funcoes: &HashSet<String>) -> usize
         }
         for lote in lotes {
             let resultados = {
-                let vistas: Vec<Vista<'_>> = abas.iter().map(|a| Vista::nova(&a.sheet)).collect();
+                // As abas de outro arquivo vêm depois das da pasta: os índices das da pasta não mudam.
+                let vistas: Vec<Vista<'_>> = abas.iter().zip(&prontas).map(|(a, p)| Vista::nova(&a.sheet, p))
+                    .chain(externas.iter().zip(&prontas_externas).map(|((nome, s), p)| Vista::com_nome(s, nome, p))).collect();
                 let linhas: usize = lote.iter().map(|&i| nos[i].linhas.len()).sum();
                 let fatia = (linhas / (threads * TAREFAS_POR_THREAD)).max(1);
                 let mut tarefas = Vec::new();

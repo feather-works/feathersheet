@@ -11,7 +11,12 @@ pub const INTERVALO_MAXIMO_MS: u64 = 30_000;
 /// células: a fotografia trava a janela 3,3 s e dobra a memória (+4,4 GB), e
 /// a gravação leva 60 s com pico de 12 GB — uma cópia sozinha arrisca
 /// derrubar a máquina. Nessa pasta, só o Ctrl+S da pessoa grava.
-pub const LIMITE_CELULAS_COPIA_AUTOMATICA: u64 = 100_000_000;
+/// Baixado para 1 milhão em 01/11/2026 (#136): a fotografia roda na thread da janela, e num
+/// `.xlsx` de 3,2 milhões de células com 2,3 milhões de fórmulas ela travava a janela 2,8 s a
+/// cada cópia e deixava o processo em 4,8 GB.
+// shortcut: o limite protege a janela porque a fotografia (`da_workbook`) é feita nela; tirar a
+// fotografia da thread da janela e voltar a proteger as pastas grandes.
+pub const LIMITE_CELULAS_COPIA_AUTOMATICA: u64 = 1_000_000;
 
 /// A pasta é grande demais para cópia automática (ver o limite acima).
 #[inline]

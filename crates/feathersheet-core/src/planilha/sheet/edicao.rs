@@ -633,6 +633,23 @@ impl Sheet {
         Some(r.unwrap_or_default())
     }
 
+    /// [`Self::estilo_mesclado`] e o resolvido juntos, lembrados em `memo` por (estilo direto,
+    /// coluna com estilo, linha com estilo): as células de um quadro repetem poucas combinações,
+    /// e mesclar e converter célula a célula custava ~20 ms por quadro (#136). O `memo` vale
+    /// enquanto o estilo da aba não muda (um quadro).
+    pub fn estilo_com_memo(&self, row: u32, col: u32, memo: &mut MemoEstilos)
+        -> Option<std::rc::Rc<(EstiloParcial, crate::celulas::style::Style)>> {
+        let k = key(row, col);
+        let direto = match self.cells.get(&k) { Some(c) => c.style_idx, None => self.styles.get(k) };
+        let chave = (direto.unwrap_or(usize::MAX),
+            if self.col_styles.contains_key(&col) { col } else { u32::MAX },
+            if self.row_styles.contains_key(&row) { row } else { u32::MAX });
+        memo.entry(chave).or_insert_with(|| self.estilo_mesclado(row, col).map(|e| {
+            let s = crate::celulas::estilo_parcial::para_style(&e);
+            std::rc::Rc::new((e, s))
+        })).clone()
+    }
+
     /// O estilo mesclado, resolvido para formatar.
     pub fn estilo_resolvido(&self, row: u32, col: u32) -> Option<crate::celulas::style::Style> {
         self.estilo_mesclado(row, col).map(|e| crate::celulas::estilo_parcial::para_style(&e))
@@ -1457,7 +1474,7 @@ impl Sheet {
         }
         if self.formulas.size() > 0 { self.formulas.clear_cell(row, col); }
         if !self.textos.is_empty() { self.textos.remove(&k); }
-        if !self.externas.is_empty() { self.externas.remove(&k); }
+        if !self.externas.is_empty() && self.externas.remove(&k) { self.geracao_externas = super::nova_geracao_externas(); }
         if !self.cells.is_empty() { self.cells.remove(&k); }
         if !self.styles.is_empty() { self.styles.remove(&k); }
         let mut calc = self.calc.borrow_mut();
@@ -2691,7 +2708,7 @@ impl Sheet {
             let cell = self.cells.remove(&k).expect("listada acima");
             self.deps.unlink(k, &mut |_, _| {});
             self.deps.volatiles.remove(&k);
-            self.externas.remove(&k);
+            if self.externas.remove(&k) { self.geracao_externas = super::nova_geracao_externas(); }
             voltam.push((novo(k), key_row(k), cell));
         }
 
@@ -2955,6 +2972,11 @@ impl Sheet {
     /// Suja só as fórmulas que leem a aba `aba` em alguma coluna de `rects`
     /// (e quem depende delas). Devolve se sujou alguma.
     pub fn sujar_externas_de(&mut self, aba: &str, rects: &[Rect]) -> bool {
+        // Nenhuma célula tocada (largura de coluna, altura de linha): nada a sujar. Percorrer as
+        // 780 mil fórmulas de vínculo para concluir isso custava 360 ms por ajuste (#136).
+        if rects.is_empty() {
+            return false;
+        }
         let toca = |c0: u32, c1: u32| rects.iter().any(|r| r.c0 <= c1 && c0 <= r.c1);
         // Avulsas: as que citam a aba (ou um nome, que pode apontar para ela).
         let avulsas: Vec<CellKey> = self.externas.iter().copied().filter(|k| {
@@ -3001,9 +3023,11 @@ impl Sheet {
         if !colunas.is_empty() {
             self.invalidar_colunas_e_dependentes(colunas, &usos);
         }
+        self.adiar_cascata();
         for k in avulsas {
             self.mark_dirty_cascade(k);
         }
+        self.soltar_cascata();
         true
     }
 
@@ -3016,9 +3040,11 @@ impl Sheet {
             return;
         }
         let externas: Vec<CellKey> = self.externas.iter().copied().collect();
+        self.adiar_cascata();
         for k in externas {
             self.mark_dirty_cascade(k);
         }
+        self.soltar_cascata();
     }
 }
 

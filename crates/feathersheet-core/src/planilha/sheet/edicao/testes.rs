@@ -692,3 +692,22 @@ fn ctrl_seta_pelas_mascaras_da_o_mesmo_que_linha_a_linha() {
         }
     }
 }
+
+#[test]
+fn estilo_com_memo_da_o_mesmo_que_o_resolvido_e_separa_coluna_linha_e_celula() {
+    let mut s = Sheet::new("A");
+    s.col_styles.insert(1, negrito());
+    let mut italico = EstiloParcial::new();
+    italico.insert("italic".into(), Campo::Logico(true));
+    s.row_styles.insert(2, italico.clone());
+    s.set_style(&Rect::new(4, 1, 4, 1), &italico);
+    let mut memo = MemoEstilos::default();
+    for r in 0..6 {
+        for c in 0..3 {
+            let m = s.estilo_com_memo(r, c, &mut memo);
+            assert_eq!(m.as_ref().map(|m| m.1.clone()), s.estilo_resolvido(r, c), "({r}, {c})");
+            assert_eq!(m.map(|m| m.0.clone()), s.estilo_mesclado(r, c), "({r}, {c})");
+        }
+    }
+    assert!(memo.len() <= 6, "células iguais dividem a entrada: {}", memo.len());
+}

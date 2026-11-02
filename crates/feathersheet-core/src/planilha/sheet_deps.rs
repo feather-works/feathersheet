@@ -14,6 +14,19 @@ const BLOCK_SHIFT: u32 = 10;
 /// entradas por faixa — 70 ms por fórmula, e `MÍNIMOSES(AO:AO;A:A;A2;…)`
 /// preenchida em 13,7 milhões de linhas travou o app (17/10/2026).
 const BLOCOS_FAIXA_ALTA: u32 = 64;
+/// O índice de blocos também separa por colunas (de 16 em 16): sem isso, 2,3 milhões de fórmulas
+/// lendo `$O$8:$AC$8` faziam cada célula das primeiras 1024 linhas, de qualquer coluna, conferir
+/// todas elas (o `.xlsx` de #136 não abria). Faixa com mais blocos de colunas que
+/// [`BLOCOS_COL_LARGA`] fica num bloco "todas as colunas" ([`COL_TODAS`]).
+const COL_SHIFT: u32 = 4;
+const BLOCOS_COL_LARGA: u32 = 64;
+const COL_TODAS: u32 = u32::MAX;
+
+/// Os blocos de coluna em que a faixa entra no índice.
+fn blocos_de_coluna(rect: &Rect) -> std::ops::RangeInclusive<u32> {
+    let (c0, c1) = (rect.c0 >> COL_SHIFT, rect.c1 >> COL_SHIFT);
+    if c1 - c0 + 1 > BLOCOS_COL_LARGA { COL_TODAS..=COL_TODAS } else { c0..=c1 }
+}
 
 fn faixa_alta(rect: &Rect) -> bool {
     let blocos = (rect.r1 >> BLOCK_SHIFT).saturating_sub(rect.r0 >> BLOCK_SHIFT) + 1;
@@ -118,8 +131,10 @@ pub struct DependencyGraph {
     pub dependents: HashMap<CellKey, HashSet<CellKey>>,
     /// fórmula -> intervalos que ela lê.
     pub range_deps: HashMap<CellKey, Vec<Rect>>,
-    /// bloco de linhas -> fórmulas com intervalos que tocam o bloco.
-    pub range_index: HashMap<u32, HashSet<CellKey>>,
+    /// (bloco de linhas, bloco de colunas) -> faixa (r0, c0, r1, c1) -> fórmulas que a leem.
+    /// Agrupar pela faixa faz milhões de fórmulas lendo a mesma `$O$8:$AC$8` custarem uma
+    /// conferência por bloco, não uma por fórmula (#136).
+    pub range_index: HashMap<(u32, u32), HashMap<[u32; 4], HashSet<CellKey>>>,
     /// coluna -> fórmulas com intervalos **altos** ([`faixa_alta`]) que
     /// passam pela coluna. Esses não entram em `range_index`.
     pub range_cols: HashMap<u32, HashSet<CellKey>>,
@@ -477,10 +492,17 @@ impl DependencyGraph {
         }
 
         let contem = |rect: &Rect| row >= rect.r0 && row <= rect.r1 && col >= rect.c0 && col <= rect.c1;
-        if let Some(candidates) = self.range_index.get(&(row >> BLOCK_SHIFT)) {
-            for &dep in candidates {
-                let Some(rects) = self.range_deps.get(&dep) else { continue };
-                if rects.iter().any(|r| !faixa_alta(r) && contem(r)) {
+        // Fórmula com várias faixas que contêm a célula aparece mais de uma vez: visita uma só.
+        let mut vistas: Option<HashSet<CellKey>> = None;
+        for cb in [col >> COL_SHIFT, COL_TODAS] {
+            let Some(faixas) = self.range_index.get(&(row >> BLOCK_SHIFT, cb)) else { continue };
+            for (&[r0, c0, r1, c1], formulas) in faixas {
+                if !(row >= r0 && row <= r1 && col >= c0 && col <= c1) { continue; }
+                for &dep in formulas {
+                    if self.range_deps.get(&dep).is_some_and(|r| r.len() > 1)
+                        && !vistas.get_or_insert_with(HashSet::new).insert(dep) {
+                        continue;
+                    }
                     visit(dep);
                 }
             }
@@ -504,22 +526,35 @@ impl DependencyGraph {
             }
         } else {
             for b in (rect.r0 >> BLOCK_SHIFT)..=(rect.r1 >> BLOCK_SHIFT) {
-                self.range_index.entry(b).or_default().insert(k);
+                for cb in blocos_de_coluna(rect) {
+                    self.range_index.entry((b, cb)).or_default()
+                        .entry([rect.r0, rect.c0, rect.r1, rect.c1]).or_default().insert(k);
+                }
             }
         }
     }
 
     fn desindexar_faixa(&mut self, k: CellKey, rect: &Rect) {
-        let (indice, de, ate) = if faixa_alta(rect) {
-            (&mut self.range_cols, rect.c0, rect.c1)
-        } else {
-            (&mut self.range_index, rect.r0 >> BLOCK_SHIFT, rect.r1 >> BLOCK_SHIFT)
-        };
-        for i in de..=ate {
+        fn tirar<I: std::hash::Hash + Eq>(indice: &mut HashMap<I, HashSet<CellKey>>, i: I, k: CellKey) {
             if let Some(set) = indice.get_mut(&i) {
                 set.remove(&k);
                 if set.is_empty() {
                     indice.remove(&i);
+                }
+            }
+        }
+        if faixa_alta(rect) {
+            for c in rect.c0..=rect.c1 {
+                tirar(&mut self.range_cols, c, k);
+            }
+        } else {
+            for b in (rect.r0 >> BLOCK_SHIFT)..=(rect.r1 >> BLOCK_SHIFT) {
+                for cb in blocos_de_coluna(rect) {
+                    let Some(faixas) = self.range_index.get_mut(&(b, cb)) else { continue };
+                    tirar(faixas, [rect.r0, rect.c0, rect.r1, rect.c1], k);
+                    if faixas.is_empty() {
+                        self.range_index.remove(&(b, cb));
+                    }
                 }
             }
         }
@@ -638,6 +673,33 @@ mod tests {
         g.unlink(formula_key, &mut |_, _| {});
         assert!(!g.dependents.contains_key(&key(0, 0)));
         assert!(!g.precedents.contains_key(&formula_key));
+    }
+
+    #[test]
+    fn indice_de_faixas_separa_colunas() {
+        // Muitas fórmulas lendo O8:AC8 (como o .xlsx do #136): B5 não confere nenhuma, O8 acha todas.
+        let mut g = DependencyGraph::new();
+        let ast = crate::formula::parser::parse_formula("SUM(COUNTIF($O$8:$AC$8;B10:F10))").unwrap();
+        for r in 10..2010 {
+            g.link(crate::celulas::refs::key(r, 60), &ast, &|_| true, &mut |_, _| {});
+        }
+        let visitas = |g: &DependencyGraph, r, c| { let mut v = 0; g.step_dependents(crate::celulas::refs::key(r, c), |_| v += 1); v };
+        assert_eq!(visitas(&g, 4, 1), 0, "B5");
+        assert_eq!(visitas(&g, 7, 14), 2000, "O8");
+        assert_eq!(visitas(&g, 9, 1), 2000, "B10");
+        // Faixa larga (A1:ZZ5) vai para o bloco de todas as colunas e é visitada uma vez.
+        let larga = crate::formula::parser::parse_formula("SUM(A1:ZZ5;C1:C2)").unwrap();
+        let k = crate::celulas::refs::key(0, 700);
+        g.link(k, &larga, &|_| true, &mut |_, _| {});
+        let mut vistas = Vec::new();
+        g.step_dependents(crate::celulas::refs::key(0, 2), |d| vistas.push(d));
+        assert_eq!(vistas, vec![k]);
+        assert_eq!(visitas(&g, 3, 600), 1);
+        g.unlink(k, &mut |_, _| {});
+        for r in 10..2010 {
+            g.unlink(crate::celulas::refs::key(r, 60), &mut |_, _| {});
+        }
+        assert!(g.range_index.is_empty());
     }
 
     #[test]

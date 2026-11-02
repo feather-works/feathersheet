@@ -2,6 +2,58 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## Depois da v0.2.5 (01/11/2026): vínculo externo empacotado e "Atualizar valores" em paralelo
+
+Fórmula que lê outro arquivo (`[Arq.xlsx]Aba!A1`) passa no `pattern_check` e vai para a coluna
+empacotada: no `.xlsx` do #136, 1,29 mi → 92 mil avulsas, abrir 4,4 → 2,3 s e 1,66 GB → 320 MB.
+Quem acha essas fórmulas: `FormulaTable::padroes_com_vinculo` (por padrão: col, 1ª e última linha) e
+`Sheet::vinculos_empacotados(_por_padrao)` (área pela análise da 1ª e da última linha);
+`sujar_vinculo` suja a coluna (padrão ≥ 1.000 linhas) ou as linhas; `geracao_externas` mistura a
+`assinatura_vinculos`. O cálculo paralelo lê as abas de fora (`Vista::com_nome`). **Planejador por
+linha** (`calculo_paralelo::planejar`): avulsa só exclui quem lê a linha dela, e uma coluna só espera
+outra se ler linha suja dela (totais na linha 2 lendo os dados e dados lendo a coluna dos totais na
+própria linha era ciclo por coluna); avulsas já calculadas vão às threads por cópia
+(`Sheet::avulsas_prontas`); `Workbook::calcular_em_paralelo` calcula até 1.000 avulsas sujas entre
+rodadas (até 3). "Atualizar valores" nesse arquivo: 1,75 mi de fórmulas em paralelo, ~6 s (antes ~3 s
++ ~12 s sob demanda); conferido célula a célula, e na ida e volta `.xlsx`/`.fshz`. Seleção de colunas:
+`SheetCtx::varrer` percorre as posições quando o retângulo é menor que as avulsas.
+
+## v0.2.5 — 01/11/2026: .xlsx com milhões de fórmulas e vínculo externo (#136)
+
+Um `.xlsx` de 54 mil linhas com 2,3 milhões de `{=SOMA(CONT.SE($O$8:$AC$8;…))}` lendo `[1]FILTROS!`
+não abria (>10 min); agora 4,4 s (4 núcleos) e 1,4 GB. `DependencyGraph::range_index` é por (bloco de linhas,
+bloco de 16 colunas) e agrupado pela faixa (`[r0, c0, r1, c1]`): milhões de fórmulas lendo a mesma
+faixa custam uma conferência. `step_pattern_dependents` recebe o `columns_in_use()` montado uma vez
+por cascata. A troca `[N]` → arquivo na leitura (`trocar_origem_externa_na_leitura`) não guarda
+desfazer, e ela, `sujar_vinculo` e `sujar_externas(_de)` fazem uma cascata só (`adiar_cascata`).
+**Abertura sem recálculo:** `[N]` vira o nome do arquivo no texto da fórmula ao ler a aba
+(`xlsx_read/vinculos::trocar_numeros`; os livros são lidos antes das abas), e os valores guardados
+dos vínculos (`instalar_externos_na_leitura`) e os nomes definidos (`definir_nome_na_leitura`) entram
+sem sujar nada: o resultado que o Excel gravou vale (37,8 → 4,4 s; conferido célula a célula contra o
+recálculo). `SUBTOTAL(3;DESLOC(faixa;LIN(faixa)-LIN(x);0;1))` dá um valor por linha
+(`fn_subtotal::desloc_por_item`), como no Excel.
+**Na janela, com a mesma pasta:** largura de coluna não suja nada (`sujar_externas_de` sai com
+`rects` vazio: 360 → 0 ms); a lista de arquivos citados (`Workbook::areas_citadas`) fica guardada
+pela `Sheet::geracao_externas` (sobe quando uma fórmula de vínculo entra ou sai) e é montada na
+thread da abertura; o scroll usa a soma acumulada das alturas (`grade::modelo::alturas_proprias`,
+refeita a cada `update`); recém-aberta não ganha cópia de recuperação, e a cópia automática só vale
+até 1 milhão de células (`LIMITE_CELULAS_COPIA_AUTOMATICA`: a fotografia ainda é feita na thread da
+janela, 2,8 s e +3 GB nessa pasta). Texto girado corta pela altura, não pela largura.
+Medir: `cargo run --release --example medir_abrir_calcular -- arquivo.xlsx` no `feathersheet-io`.
+**Aviso de versão nova** (`app/atualizacao.rs`): ao abrir, no máximo uma vez por dia
+(`procurar_atualizacoes`/`ultima_procura_atualizacao` na configuração), lê `releases?per_page=15`
+(pré-lançamentos inclusive, rascunho não) e mostra o cartão no meio da grade (Novidades / Depois /
+Atualizar e reiniciar, que roda o roteiro de sempre e fecha o app no Windows/macOS). Foto:
+`FEATHERSHEET_CAPTURAR_ATUALIZACAO=0.2.6`.
+
+## v0.2.4 — 01/11/2026: janela certa no Windows 10 (#135)
+
+pelicano v0.1.22 e feather-ui v0.3.10: no Windows, sem DX12/Vulkan (Intel HD 2500 no Windows 10),
+o pelicano não cai mais no OpenGL, que desenhava a imagem deslocada com faixa preta; a janela
+mostra pela CPU (o mesmo que `PELICANO_GPU=nenhuma`, conferido na máquina do #135). Diagnóstico
+de janela sem o pelicano: `examples/janela_diag.rs` (só local, no repositório do pelicano).
+Traduções en/es das novidades da 0.2.3, que tinham saído sem.
+
 ## v0.2.3 — 01/11/2026: paridade do VBA e manifesto do Windows
 
 Conversor VBA com ~99% das funções (lista e medição em `docs/planejamento/PARIDADE-VBA-FUNCOES.md`;

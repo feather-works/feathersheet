@@ -109,7 +109,8 @@ pub(crate) struct Estado {
     pub(crate) assinantes: HashMap<u64, Assinante>,
     pub(crate) origens: Vec<Origem>,
     /// Versão das abas na última conta das áreas citadas.
-    versoes_citadas: Vec<u32>,
+    /// Geração das fórmulas externas de cada aba na última lista (ver `Sheet::geracao_externas`).
+    versoes_citadas: Vec<u64>,
     faixa_fechada: bool,
     pub(crate) editar_aberto: bool,
     /// Origens sendo lidas do disco agora.
@@ -466,7 +467,10 @@ impl App {
     fn conferir_origens(&mut self) -> Task<Msg> {
         // Os pedidos do motor ficam cobertos pelas áreas citadas.
         let _ = self.workbook.externos_pedidos();
-        let versoes: Vec<u32> = (0..self.workbook.len()).map(|i| self.workbook.versao(i)).collect();
+        // Só relê as fórmulas quando alguma de vínculo entrou ou saiu: reler as 780 mil de uma aba
+        // a cada largura de coluna travava a janela (#136).
+        let versoes: Vec<u64> = (0..self.workbook.len())
+            .map(|i| self.workbook.aba(i).map_or(0, |a| a.sheet.geracao_externas())).collect();
         let refez = versoes != self.vinculos.versoes_citadas;
         if refez {
             self.vinculos.versoes_citadas = versoes;

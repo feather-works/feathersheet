@@ -40,6 +40,13 @@
 //! arquivo, mesma função.
 
 use std::cell::RefCell;
+
+/// Geração única (na execução inteira) para [`Sheet::geracao_externas`]: duas abas nunca
+/// repetem um número, então quem guarda por ele não confunde uma aba trocada por outra.
+pub(crate) fn nova_geracao_externas() -> u64 {
+    static PROXIMA: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    PROXIMA.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
 use std::collections::{HashMap, HashSet};
 
 use crate::formula::ast::Node;
@@ -173,11 +180,9 @@ pub(crate) fn pattern_check(raw: &str) -> bool {
         // 17/10/2026 (`FaixaPadrao`): `MÍNIMOSES(AO:AO;A:A;A2;…)` em 13,7
         // milhões de linhas não cabia no caminho de uma fórmula por célula.
         Node::Name(_) => precisa_do_grafo = true,
-        // Outro arquivo (`[Vendas.fshz]Dados!A1`): fica avulsa, onde a
-        // atualização que chega de fora acha quem lê cada célula
-        // (`vinculo_externo.rs`) e onde o cálculo em paralelo não vai.
-        Node::Ref { sheet: Some(s), .. } | Node::Range { sheet: Some(s), .. }
-            if crate::planilha::vinculo::e_externa(s) => precisa_do_grafo = true,
+        // Outro arquivo (`[Vendas.fshz]Dados!A1`) também cabe no padrão desde 01/11/2026 (#136):
+        // a atualização acha a coluna pelas referências do padrão (`sujar_vinculo`). Eram 1,3
+        // milhão de fórmulas avulsas num `.xlsx` de sorteios, 3,7 s só para gravá-las ao abrir.
         Node::Ref { sheet: Some(_), .. } => qualificadas += 1,
         Node::Range { sheet: Some(_), .. } => qualificadas += 2,
         _ => {},
@@ -190,6 +195,10 @@ pub(crate) fn pattern_check(raw: &str) -> bool {
     pattern_for(raw, 0, 0).and_then(|p| refs_of_pattern(&p))
         .is_some_and(|refs| refs.iter().filter(|r| r.sheet.is_some()).count() == qualificadas)
 }
+
+/// O memo do [`Sheet::estilo_com_memo`], um por quadro desenhado.
+pub type MemoEstilos = std::collections::HashMap<(usize, u32, u32),
+    Option<std::rc::Rc<(EstiloParcial, crate::celulas::style::Style)>>>;
 
 #[derive(Default)]
 pub struct Sheet {
@@ -295,12 +304,18 @@ pub struct Sheet {
     /// Escrita em lote ([`Self::adiar_cascata`]): as células escritas
     /// esperam aqui e sujam os dependentes numa cascata só, no fim.
     cascata_adiada: RefCell<Option<Vec<CellKey>>>,
+    /// Quantos `adiar_cascata` ainda esperam o `soltar_cascata`: lotes dentro de lotes (a
+    /// abertura do `.xlsx` envolve a troca de vínculo e a instalação dos valores) soltam uma vez só.
+    adiamentos: std::cell::Cell<u32>,
     /// Algo saiu da borda do retângulo usado: recalcular antes de responder.
     pub(crate) bounds_dirty: bool,
     /// Fórmulas avulsas que leem outra aba ou um nome. As compactas guardam
     /// essas dependências nos padrões da `FormulaTable`. A pasta consulta
     /// ambas as fontes por `tem_formulas_externas`.
     pub(crate) externas: HashSet<CellKey>,
+    /// Sobe a cada fórmula que entra ou sai de `externas`: quem lista os arquivos citados
+    /// (painel de vínculos) só relê quando ela muda, não a cada largura de coluna (#136).
+    geracao_externas: u64,
     /// Quem lê quem, entre fórmulas — usado para saber quem sujar quando uma
     /// célula muda. Ver a nota de [`CalcCache`].
     deps: DependencyGraph,
@@ -375,8 +390,10 @@ impl Sheet {
             hist: edicao::Historico::default(),
             rastro: RefCell::new(Rastro::default()),
             cascata_adiada: RefCell::new(None),
+            adiamentos: std::cell::Cell::new(0),
             bounds_dirty: false,
             externas: HashSet::new(),
+            geracao_externas: 0,
             deps: DependencyGraph::new(),
             calc: RefCell::new(CalcCache::default()),
             geracao: std::cell::Cell::new(0),
@@ -432,7 +449,7 @@ impl Sheet {
         self.deps.unlink(k, &mut |_, _| {});
         self.formulas.clear_cell(row, col);
         self.textos.remove(&k);
-        self.externas.remove(&k);
+        if self.externas.remove(&k) { self.geracao_externas = nova_geracao_externas(); }
 
         if trimmed.is_empty() {
             self.cells.remove(&k);
@@ -490,6 +507,7 @@ impl Sheet {
                     self.deps.link(k, &node, &is_self, &mut |_, _| {});
                     if le_de_fora(&node, &self.name) {
                         self.externas.insert(k);
+                        self.geracao_externas = nova_geracao_externas();
                     }
                     if is_volatile(stripped) {
                         self.deps.volatiles.insert(k);
@@ -756,11 +774,16 @@ impl Sheet {
             return Value::Empty;
         };
         let val = match arvore {
-            Ok(node) => {
-                let ctx = SheetCtx { sheet: self, host };
-                let ev = Evaluator::na_celula(&ctx, row, col);
-                ev.eval(&node)
-            }
+            // O `#REF!` da faixa de outro arquivo sem valores, como na avulsa.
+            Ok(node) => match host.is_some().then(|| self.formulas.le_de_fora_em(row, col))
+                .filter(|&fora| fora).and_then(|_| self.intervalo_externo_sem_valores(&node, host)) {
+                Some(erro) => erro,
+                None => {
+                    let ctx = SheetCtx { sheet: self, host };
+                    let ev = Evaluator::na_celula(&ctx, row, col);
+                    ev.eval(&node)
+                }
+            },
             Err(e) => Value::Error(CellError::com_motivo(ErrorCode::Name, e)),
         };
 
@@ -846,6 +869,26 @@ impl Sheet {
     /// resultado limpo vai para a coluna, e a fórmula empacotada que está em
     /// `calc.dirty` passa a ser suja na própria coluna. Assim as threads, que
     /// não podem tocar o `RefCell`, decidem tudo olhando a `FormulaTable`.
+    /// Valores das fórmulas avulsas já calculadas (fora do `dirty`): o cálculo
+    /// paralelo lê daqui, sem tocar no `RefCell`. Cabeçalhos avulsos (`$O$8`)
+    /// lidos por colunas inteiras deixavam essas colunas fora do paralelo.
+    pub(crate) fn avulsas_prontas(&self) -> crate::celulas::mapa_chave::MapaChave<Value> {
+        let calc = self.calc.borrow();
+        calc.cache.iter()
+            .filter(|(k, _)| self.cells.contains_key(k) && !calc.dirty.contains(k))
+            .map(|(&k, v)| (k, v.clone()))
+            .collect()
+    }
+
+    /// As fórmulas avulsas fora de [`Self::avulsas_prontas`]: sujas ou nunca calculadas.
+    pub(crate) fn avulsas_sujas(&self) -> Vec<(u32, u32)> {
+        let calc = self.calc.borrow();
+        self.cells.keys()
+            .filter(|k| calc.dirty.contains(k) || !calc.cache.contains_key(k))
+            .map(|&k| Self::key_to_coord(k))
+            .collect()
+    }
+
     pub(crate) fn preparar_calculo_paralelo(&mut self) {
         while self.consolidar_calculos(usize::MAX) > 0 {}
         let calc = self.calc.get_mut();
@@ -926,6 +969,7 @@ impl Sheet {
     /// cascata percorrer a cadeia inteira até o fim: quadrático (2 mil
     /// linhas = 3,3 s; 1 milhão, mais de 13 min).
     pub fn adiar_cascata(&self) {
+        self.adiamentos.set(self.adiamentos.get() + 1);
         let mut adiadas = self.cascata_adiada.borrow_mut();
         if adiadas.is_none() {
             *adiadas = Some(Vec::new());
@@ -935,6 +979,11 @@ impl Sheet {
     /// Fim da escrita em lote: uma cascata só, com uma memória de visitadas
     /// para todas as células anotadas.
     pub fn soltar_cascata(&self) {
+        let nivel = self.adiamentos.get().saturating_sub(1);
+        self.adiamentos.set(nivel);
+        if nivel > 0 {
+            return;
+        }
         let Some(adiadas) = self.cascata_adiada.borrow_mut().take() else { return };
         if adiadas.is_empty() {
             return;
@@ -996,6 +1045,7 @@ impl Sheet {
         let mut colunas_inteiras = std::collections::HashSet::new();
         // Sem matriz dinâmica na aba, o passo 0 abaixo não custa nada.
         let tem_derrame = !self.deps.array_cells.is_empty() || !self.derrame.borrow().vazio();
+        let usos = self.formulas.columns_in_use();
 
         while let Some(curr) = queue.pop() {
             if !visited.insert(curr) {
@@ -1049,7 +1099,7 @@ impl Sheet {
             // 2) Dependentes de padrões colunares em FormulaTable. O que
             // suja a coluna inteira (`A:A`, `$B$1`) vai por coluna, no fim:
             // enfileirar 13 milhões de células uma a uma era o travamento.
-            self.step_pattern_dependents(curr, &mut |dep| {
+            self.step_pattern_dependents(curr, &usos, &mut |dep| {
                 if !visited.contains(&dep) {
                     queue.push(dep);
                 }
@@ -1057,7 +1107,6 @@ impl Sheet {
         }
         if !colunas_inteiras.is_empty() {
             self.rastro.borrow_mut().desconhecer();
-            let usos = self.formulas.columns_in_use();
             self.invalidar_colunas_e_dependentes(colunas_inteiras, &usos);
         }
     }
@@ -1065,15 +1114,17 @@ impl Sheet {
     /// As fórmulas empacotadas que leem `k`. Com `inteiras`, quando a coluna
     /// inteira do padrão lê `k` (referência ou intervalo de linhas fixas),
     /// a coluna vai para lá em vez de cada célula ir para `marcar`.
-    fn step_pattern_dependents(&self, k: CellKey, marcar: &mut impl FnMut(CellKey),
-        mut inteiras: Option<&mut std::collections::HashSet<u32>>) {
+    /// `usos` é o `columns_in_use()` da aba, montado uma vez por quem chama: montar a cada
+    /// célula da cascata copiava todos os padrões (milhões de vezes no `.xlsx` do #136).
+    fn step_pattern_dependents(&self, k: CellKey, usos: &[crate::formula::formula_table::ColumnUse],
+        marcar: &mut impl FnMut(CellKey), mut inteiras: Option<&mut std::collections::HashSet<u32>>) {
         if self.formulas.size() == 0 {
             return;
         }
         let (alvo_linha, alvo_col) = Self::key_to_coord(k);
-        for col_use in self.formulas.columns_in_use() {
+        for col_use in usos {
             let col = col_use.col;
-            for uso in col_use.usos {
+            for uso in &col_use.usos {
                 for faixa in &uso.faixas {
                     let Some((c0, c1)) = faixa.colunas_em(col) else { continue };
                     if alvo_col < c0 || alvo_col > c1 {
@@ -1212,6 +1263,12 @@ impl Sheet {
             Some(Cru::Texto(id)) => Some(crate::planilha::data_table::sem_marca(self.pool.get(id))),
             _ => None,
         }
+    }
+
+    /// Ver o campo `geracao_externas`.
+    pub fn geracao_externas(&self) -> u64 {
+        // As empacotadas que leem outro arquivo entram pela assinatura das colunas.
+        self.geracao_externas ^ self.formulas.assinatura_vinculos().rotate_left(17)
     }
 
     pub fn get_raw(&self, row: u32, col: u32) -> String {
@@ -1575,6 +1632,7 @@ impl Sheet {
     /// (`None` = a célula foi excluída); senão a fórmula que lê nome ou outra
     /// aba deixa de ser avisada quando a fonte muda.
     fn reposicionar_externas(&mut self, nova: impl Fn(u32, u32) -> Option<(u32, u32)>) {
+        self.geracao_externas = nova_geracao_externas();
         self.externas = std::mem::take(&mut self.externas).into_iter().filter_map(|k| {
             let (r, c) = Self::key_to_coord(k);
             nova(r, c).map(|(r, c)| Self::cell_key(r, c))
@@ -1921,11 +1979,18 @@ impl SheetCtx<'_> {
             }
             return;
         }
-        // Em ordem de chave: o `HashMap` muda de ordem a cada execução.
-        let mut avulsas: Vec<CellKey> = self.sheet.cells.keys().copied().filter(|&k| {
-            let (r, c) = Sheet::key_to_coord(k);
-            r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1
-        }).collect();
+        // Em ordem de chave: o `HashMap` muda de ordem a cada execução. Retângulo menor que o
+        // mapa: procura posição a posição. Varrer as 2,3 milhões de avulsas de um `.xlsx` a cada
+        // lote do rodapé custava 10–40 ms por coluna selecionada (#136).
+        let mut avulsas: Vec<CellKey> = if area < self.sheet.cells.len() as u64 {
+            (rect.r0..=rect.r1).flat_map(|r| (rect.c0..=rect.c1).map(move |c| key(r, c)))
+                .filter(|k| self.sheet.cells.contains_key(k)).collect()
+        } else {
+            self.sheet.cells.keys().copied().filter(|&k| {
+                let (r, c) = Sheet::key_to_coord(k);
+                r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1
+            }).collect()
+        };
         avulsas.sort_unstable();
         for k in avulsas {
             let (r, c) = Sheet::key_to_coord(k);
