@@ -1118,3 +1118,20 @@ fn cont_se_com_faixa_no_criterio_conta_cada_item() {
     assert_eq!(w.valor(0, 3, 1), Value::Number(1.0));
     assert_eq!(w.valor(0, 3, 2), Value::Number(5.0));
 }
+
+#[test]
+fn areas_citadas_guardadas_acompanham_a_formula_de_vinculo() {
+    let mut w = Workbook::new();
+    w.escrever_celula(0, 0, 0, "=[Vendas.xlsx]Dados!A1".into());
+    assert_eq!(w.areas_citadas().len(), 1);
+    // Largura de coluna não muda a lista (e não relê as fórmulas).
+    w.editar(0, |s| { s.definir_dimensao(true, 3, 200); });
+    assert_eq!(w.areas_citadas()[0].arquivo, "Vendas.xlsx");
+    // Trocar a fórmula no mesmo lugar troca a lista.
+    w.escrever_celula(0, 0, 0, "=[Compras.xlsx]Dados!B2".into());
+    let areas = w.areas_citadas();
+    assert_eq!(areas.len(), 1);
+    assert_eq!(areas[0].arquivo, "Compras.xlsx");
+    w.escrever_celula(0, 0, 0, "1".into());
+    assert!(w.areas_citadas().is_empty());
+}

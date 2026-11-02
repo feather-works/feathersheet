@@ -39,6 +39,46 @@ pub fn fn_subtotal(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     executar(func, ocultas, false, true, &args[1..], None, ev)
 }
 
+/// `SUBTOTAL(3; DESLOC(faixa; LIN(faixa)-LIN(início); 0; 1))`: com uma matriz no
+/// deslocamento, o DESLOC dá uma referência por item e o SUBTOTAL, um resultado por item —
+/// é o jeito do Excel de contar só as linhas visíveis dentro do `SOMARPRODUTO`. `None` quando
+/// a chamada não é desse formato (segue o caminho comum).
+pub fn e_desloc(args: &[Node]) -> bool {
+    matches!(args, [_, Node::Call { name, args: dentro }]
+        if dentro.len() >= 3 && crate::funcoes::functions::canonical(name).unwrap_or(name).eq_ignore_ascii_case("OFFSET"))
+}
+
+pub fn desloc_por_item(args: &[Node], ev: &Evaluator<'_>) -> Option<Computed> {
+    if !e_desloc(args) { return None; }
+    let [codigo, Node::Call { name, args: dentro }] = args else { return None };
+    let (i, m) = dentro.iter().enumerate().skip(1).find_map(|(i, a)| match ev.eval_array(a) {
+        Computed::Matrix(m) if m.size() > 1 => Some((i, m)),
+        _ => None,
+    })?;
+    let code = match ev.number(codigo) {
+        Ok(n) => n.trunc() as i64,
+        Err(e) => return Some(Computed::Scalar(Value::Error(e))),
+    };
+    let func = if code > 100 { code - 100 } else { code };
+    if !(1..=11).contains(&func) {
+        return Some(erro(ErrorCode::Value));
+    }
+    let ocultas = if code > 100 { Ocultas::Todas } else { Ocultas::ForaDeTopico };
+    let mut novos = dentro.clone();
+    let linhas = m.rows().iter().map(|linha| linha.iter().map(|v| {
+        let Value::Number(n) = v else { return Value::erro(ErrorCode::Value) };
+        novos[i] = Node::Num(*n);
+        match crate::funcoes::fn_referencia::referencia(name, &novos, ev) {
+            Ok(no) => match executar(func, ocultas, false, true, std::slice::from_ref(&no), None, ev) {
+                Computed::Scalar(v) => v,
+                _ => Value::erro(ErrorCode::Value),
+            },
+            Err(e) => Value::Error(e),
+        }
+    }).collect()).collect();
+    Some(Computed::Matrix(crate::celulas::values::Matrix::new(linhas)))
+}
+
 /// `=AGGREGATE(função; opções; ref1; ...)` / `=AGREGAR(...)`
 pub fn fn_aggregate(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if args.len() < 3 {
@@ -249,6 +289,17 @@ mod testes {
         assert_eq!(num(&mut s, "=SUBTOTAL(109;A1:A4)", 9), Value::Number(80.0));
         assert_eq!(num(&mut s, "=SUBTOTAL(103;A1:A4)", 9), Value::Number(3.0));
         assert_eq!(num(&mut s, "=SUM(A1:A4)", 9), Value::Number(100.0));
+    }
+
+    #[test]
+    fn subtotal_de_desloc_com_matriz_da_um_por_linha() {
+        // Contar só as linhas visíveis que batem com o critério (A2 = 20 está oculta).
+        let mut s = aba();
+        let f = "=SOMARPRODUTO(SUBTOTAL(3;DESLOC(A1:A4;LIN(A1:A4)-LIN(A1);0;1));--(A1:A4>15))";
+        assert_eq!(num(&mut s, f, 9), Value::Number(2.0));
+        assert_eq!(num(&mut s, "=SOMARPRODUTO(SUBTOTAL(9;DESLOC(A1;LIN(A1:A4)-1;0)))", 9), Value::Number(80.0));
+        // Sem matriz no DESLOC segue o caminho comum.
+        assert_eq!(num(&mut s, "=SUBTOTAL(9;DESLOC(A1;0;0;4))", 9), Value::Number(80.0));
     }
 
     #[test]

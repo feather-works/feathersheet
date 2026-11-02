@@ -131,9 +131,47 @@ pub(crate) fn inicio_y(w: &Workbook, aba: usize, linha: u32) -> f32 {
 pub(crate) fn inicio_y_da(sheet: &feathersheet_core::planilha::sheet::Sheet, linha: u32) -> f32 {
     // Linhas ocultas até o fim não somam altura.
     let linha = sheet.linhas_ocultas_desde.map_or(linha, |n| linha.min(n));
-    let proprias: f32 = sheet.row_heights.iter()
-        .filter(|(r, _)| **r < linha).map(|(_, h)| *h as f32 - ALTURA_PADRAO).sum();
+    let proprias = alturas_proprias::antes_de(sheet, linha).unwrap_or_else(|| sheet.row_heights.iter()
+        .filter(|(r, _)| **r < linha).map(|(_, h)| *h as f32 - ALTURA_PADRAO).sum());
     linha as f32 * ALTURA_PADRAO + proprias
+}
+
+/// Soma acumulada das alturas próprias, montada uma vez por quadro. Somar o mapa inteiro a cada
+/// objeto e mesclada desenhados pesava o scroll numa aba com 92 mil linhas de altura própria
+/// (#136). As alturas só mudam dentro do `update`: lá a conta é direta, e cada `update` invalida
+/// a tabela ([`marcar_update`]).
+pub(crate) mod alturas_proprias {
+    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+    use std::sync::Mutex;
+    use feathersheet_core::planilha::sheet::Sheet;
+
+    static GERACAO: AtomicU64 = AtomicU64::new(0);
+    static DENTRO_DO_UPDATE: AtomicUsize = AtomicUsize::new(0);
+    /// (aba, geração, [(linha, soma das diferenças até ela, inclusive)] em ordem).
+    static TABELA: Mutex<Option<(usize, u64, Vec<(u32, f32)>)>> = Mutex::new(None);
+
+    /// Entrar (`true`) e sair (`false`) do `update`: a geração muda nas duas pontas.
+    pub(crate) fn marcar_update(entrando: bool) {
+        if entrando { DENTRO_DO_UPDATE.fetch_add(1, Ordering::SeqCst); } else { DENTRO_DO_UPDATE.fetch_sub(1, Ordering::SeqCst); }
+        GERACAO.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// `None`: conta direta (poucas alturas, ou no meio de um `update`).
+    pub(crate) fn antes_de(sheet: &Sheet, linha: u32) -> Option<f32> {
+        if sheet.row_heights.len() < 256 || DENTRO_DO_UPDATE.load(Ordering::SeqCst) > 0 { return None; }
+        let chave = (sheet as *const Sheet as usize, GERACAO.load(Ordering::SeqCst));
+        let mut tabela = TABELA.lock().ok()?;
+        if tabela.as_ref().is_none_or(|(a, g, _)| (*a, *g) != chave) {
+            let mut v: Vec<(u32, f32)> = sheet.row_heights.iter().map(|(&r, &h)| (r, h as f32 - super::ALTURA_PADRAO)).collect();
+            v.sort_unstable_by_key(|(r, _)| *r);
+            let mut soma = 0.0;
+            for item in &mut v { soma += item.1; item.1 = soma; }
+            *tabela = Some((chave.0, chave.1, v));
+        }
+        let v = &tabela.as_ref()?.2;
+        let i = v.partition_point(|(r, _)| *r < linha);
+        Some(if i == 0 { 0.0 } else { v[i - 1].1 })
+    }
 }
 
 pub(crate) fn altura(w: &Workbook, aba: usize, linha: u32) -> f32 {

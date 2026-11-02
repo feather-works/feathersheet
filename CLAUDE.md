@@ -5,11 +5,24 @@
 ## v0.2.5 — 01/11/2026: .xlsx com milhões de fórmulas e vínculo externo (#136)
 
 Um `.xlsx` de 54 mil linhas com 2,3 milhões de `{=SOMA(CONT.SE($O$8:$AC$8;…))}` lendo `[1]FILTROS!`
-não abria (>10 min); agora 37 s e 1,8 GB. `DependencyGraph::range_index` é por (bloco de linhas,
+não abria (>10 min); agora 4,4 s (4 núcleos) e 1,4 GB. `DependencyGraph::range_index` é por (bloco de linhas,
 bloco de 16 colunas) e agrupado pela faixa (`[r0, c0, r1, c1]`): milhões de fórmulas lendo a mesma
 faixa custam uma conferência. `step_pattern_dependents` recebe o `columns_in_use()` montado uma vez
 por cascata. A troca `[N]` → arquivo na leitura (`trocar_origem_externa_na_leitura`) não guarda
 desfazer, e ela, `sujar_vinculo` e `sujar_externas(_de)` fazem uma cascata só (`adiar_cascata`).
+**Abertura sem recálculo:** `[N]` vira o nome do arquivo no texto da fórmula ao ler a aba
+(`xlsx_read/vinculos::trocar_numeros`; os livros são lidos antes das abas), e os valores guardados
+dos vínculos (`instalar_externos_na_leitura`) e os nomes definidos (`definir_nome_na_leitura`) entram
+sem sujar nada: o resultado que o Excel gravou vale (37,8 → 4,4 s; conferido célula a célula contra o
+recálculo). `SUBTOTAL(3;DESLOC(faixa;LIN(faixa)-LIN(x);0;1))` dá um valor por linha
+(`fn_subtotal::desloc_por_item`), como no Excel.
+**Na janela, com a mesma pasta:** largura de coluna não suja nada (`sujar_externas_de` sai com
+`rects` vazio: 360 → 0 ms); a lista de arquivos citados (`Workbook::areas_citadas`) fica guardada
+pela `Sheet::geracao_externas` (sobe quando uma fórmula de vínculo entra ou sai) e é montada na
+thread da abertura; o scroll usa a soma acumulada das alturas (`grade::modelo::alturas_proprias`,
+refeita a cada `update`); recém-aberta não ganha cópia de recuperação, e a cópia automática só vale
+até 1 milhão de células (`LIMITE_CELULAS_COPIA_AUTOMATICA`: a fotografia ainda é feita na thread da
+janela, 2,8 s e +3 GB nessa pasta). Texto girado corta pela altura, não pela largura.
 Medir: `cargo run --release --example medir_abrir_calcular -- arquivo.xlsx` no `feathersheet-io`.
 
 ## v0.2.4 — 01/11/2026: janela certa no Windows 10 (#135)

@@ -123,6 +123,8 @@ pub struct Workbook {
     /// Os formulários das macros (`sheet.showComponent`), JSON opaco como as
     /// macros; o modelo mora no `feathersheet-macros`.
     pub formularios: Option<String>,
+    /// Ver [`Workbook::areas_citadas`]: reler 780 mil fórmulas de vínculo custava 2 s (#136).
+    areas_cache: std::cell::RefCell<AreasGuardadas>,
 }
 
 /// Uma duplicação de aba, desfazível. `aba` é `Some` enquanto a cópia está
@@ -137,6 +139,9 @@ struct OpDuplicar {
     /// não é esta duplicação e o Ctrl+Z não deve tocá-la.
     assinatura: Vec<(u32, u32)>,
 }
+
+/// As áreas externas citadas, guardadas com a geração das fórmulas externas de cada aba.
+type AreasGuardadas = Option<(Vec<(u32, u64)>, Vec<crate::planilha::workbook::vinculos::AreaCitada>)>;
 
 #[derive(Default)]
 struct HistoricoAbas {
@@ -173,6 +178,7 @@ impl Workbook {
             propriedades: Propriedades::default(),
             macros: None,
             formularios: None,
+            areas_cache: std::cell::RefCell::new(None),
         }
     }
 
@@ -477,6 +483,14 @@ impl Workbook {
         let limpo = nome.trim().to_string();
         self.nomeados.insert(limpo.to_uppercase(), Nomeado { nome: limpo, area });
         self.depois_de_mudar(usize::MAX);
+    }
+
+    /// O nome definido que vem no arquivo, na abertura: sem sujar as fórmulas, que chegam com o
+    /// resultado que o arquivo guardou. Sujar todas as que leem de fora a cada nome lido levava
+    /// ~6 s num `.xlsx` com milhões de fórmulas (#136).
+    pub fn definir_nome_na_leitura(&mut self, nome: &str, area: Rect) {
+        let limpo = nome.trim().to_string();
+        self.nomeados.insert(limpo.to_uppercase(), Nomeado { nome: limpo, area });
     }
 
     pub fn remover_nome(&mut self, nome: &str) -> bool {

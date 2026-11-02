@@ -40,6 +40,13 @@
 //! arquivo, mesma função.
 
 use std::cell::RefCell;
+
+/// Geração única (na execução inteira) para [`Sheet::geracao_externas`]: duas abas nunca
+/// repetem um número, então quem guarda por ele não confunde uma aba trocada por outra.
+pub(crate) fn nova_geracao_externas() -> u64 {
+    static PROXIMA: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    PROXIMA.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
 use std::collections::{HashMap, HashSet};
 
 use crate::formula::ast::Node;
@@ -304,6 +311,9 @@ pub struct Sheet {
     /// essas dependências nos padrões da `FormulaTable`. A pasta consulta
     /// ambas as fontes por `tem_formulas_externas`.
     pub(crate) externas: HashSet<CellKey>,
+    /// Sobe a cada fórmula que entra ou sai de `externas`: quem lista os arquivos citados
+    /// (painel de vínculos) só relê quando ela muda, não a cada largura de coluna (#136).
+    geracao_externas: u64,
     /// Quem lê quem, entre fórmulas — usado para saber quem sujar quando uma
     /// célula muda. Ver a nota de [`CalcCache`].
     deps: DependencyGraph,
@@ -381,6 +391,7 @@ impl Sheet {
             adiamentos: std::cell::Cell::new(0),
             bounds_dirty: false,
             externas: HashSet::new(),
+            geracao_externas: 0,
             deps: DependencyGraph::new(),
             calc: RefCell::new(CalcCache::default()),
             geracao: std::cell::Cell::new(0),
@@ -436,7 +447,7 @@ impl Sheet {
         self.deps.unlink(k, &mut |_, _| {});
         self.formulas.clear_cell(row, col);
         self.textos.remove(&k);
-        self.externas.remove(&k);
+        if self.externas.remove(&k) { self.geracao_externas = nova_geracao_externas(); }
 
         if trimmed.is_empty() {
             self.cells.remove(&k);
@@ -494,6 +505,7 @@ impl Sheet {
                     self.deps.link(k, &node, &is_self, &mut |_, _| {});
                     if le_de_fora(&node, &self.name) {
                         self.externas.insert(k);
+                        self.geracao_externas = nova_geracao_externas();
                     }
                     if is_volatile(stripped) {
                         self.deps.volatiles.insert(k);
@@ -1226,6 +1238,11 @@ impl Sheet {
         }
     }
 
+    /// Ver o campo `geracao_externas`.
+    pub fn geracao_externas(&self) -> u64 {
+        self.geracao_externas
+    }
+
     pub fn get_raw(&self, row: u32, col: u32) -> String {
         let k = Self::cell_key(row, col);
         if let Some(t) = self.textos.get(&k) {
@@ -1587,6 +1604,7 @@ impl Sheet {
     /// (`None` = a célula foi excluída); senão a fórmula que lê nome ou outra
     /// aba deixa de ser avisada quando a fonte muda.
     fn reposicionar_externas(&mut self, nova: impl Fn(u32, u32) -> Option<(u32, u32)>) {
+        self.geracao_externas = nova_geracao_externas();
         self.externas = std::mem::take(&mut self.externas).into_iter().filter_map(|k| {
             let (r, c) = Self::key_to_coord(k);
             nova(r, c).map(|(r, c)| Self::cell_key(r, c))

@@ -4215,6 +4215,7 @@
   "Sort sem SetRange ordena a tabela inteira, não só a coluna da chave.": "Sort sin SetRange ordena toda la tabla, no solo la columna de la clave.",
   "Str(5) dá \" 5\" e CInt fora da faixa dá Estouro, como no VBA.": "Str(5) da \" 5\" y CInt fuera de rango da Desbordamiento, como en VBA.",
   "Excel com milhões de fórmulas abre rápido": "Excel con millones de fórmulas abre rápido",
-  "Abrir .xlsx pesado: de 10 min para 37 s": "Abrir .xlsx pesado: de 10 min a 37 s",
-  "Milhões de fórmulas de matriz com vínculo externo: 37 s e 1,8 GB (antes travava em 80%).": "Millones de fórmulas matriciales con vínculos externos: 37 s y 1,8 GB (antes se colgaba en 80%)."
+  "Abrir .xlsx pesado: de 10 min para 4 s": "Abrir .xlsx pesado: de 10 min a 4 s",
+  "Milhões de fórmulas com vínculo abrem com os valores do Excel (antes travava em 80%).": "Millones de fórmulas con vínculos externos abren con los valores de Excel (antes se colgaba en 80%).",
+  "SUBTOTAL com DESLOC por linha (contar só as visíveis no SOMARPRODUTO) dá o valor do Excel.": "SUBTOTAL con DESREF por fila (contar solo las visibles en SUMAPRODUCTO) da el valor de Excel."
 }

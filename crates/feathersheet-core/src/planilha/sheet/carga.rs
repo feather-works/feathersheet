@@ -265,6 +265,7 @@ impl Sheet {
                         self.deps.link(k, &node, &is_self, &mut |_, _| {});
                         if le_de_fora(&node, &self.name) {
                             self.externas.insert(k);
+                            self.geracao_externas = super::nova_geracao_externas();
                         }
                         if volatil {
                             self.deps.volatiles.insert(k);

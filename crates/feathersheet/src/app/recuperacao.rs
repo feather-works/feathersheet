@@ -41,7 +41,7 @@ pub(super) struct Orfa {
 pub(super) struct Estado {
     pub(super) gravando: bool,
     /// Versões das abas na última cópia: sem mudança, não grava de novo.
-    versoes: Option<Vec<(u32, u32)>>,
+    pub(super) versoes: Option<Vec<(u32, u32)>>,
     ultima: Option<Instant>,
     pulso: Option<Instant>,
     custo_ms: u64,
@@ -189,9 +189,14 @@ impl App {
         Task::perform(async move {
             let inicio = Instant::now();
             tokio::task::spawn_blocking(move || {
-                feathersheet_io::arquivo::gravar_atomico_com(&fshz, |arquivo| {
+                let r = feathersheet_io::arquivo::gravar_atomico_com(&fshz, |arquivo| {
                     feathersheet_io::fshz_write::gravar_fshz_para(arquivo, &pasta_wb).map_err(std::io::Error::other)
-                }).map_err(|e| e.to_string())
+                }).map_err(|e| e.to_string());
+                // A fotografia e a compressão passam de 2 GB numa pasta de milhões de fórmulas; sem
+                // devolver, o processo ficava em 4,6 GB depois da primeira cópia (#136).
+                drop(pasta_wb);
+                feathersheet_core::paralelismo::devolver_memoria_ao_sistema();
+                r
             }).await.unwrap_or_else(|e| Err(e.to_string()))
                 .map(|()| inicio.elapsed().as_millis().min(u128::from(u64::MAX)) as u64)
         }, |r| Msg::Recuperacao(Evento::Gravada(r)))

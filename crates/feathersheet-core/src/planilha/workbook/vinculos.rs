@@ -87,6 +87,19 @@ impl Workbook {
     /// As áreas de outros arquivos que as fórmulas leem, sem repetição (uma
     /// área dentro de outra do mesmo arquivo e aba some), em ordem estável.
     pub fn areas_citadas(&self) -> Vec<AreaCitada> {
+        // Só muda quando uma fórmula de vínculo entra ou sai de alguma aba.
+        let geracoes: Vec<(u32, u64)> = self.abas.iter().map(|a| (a.id, a.sheet.geracao_externas())).collect();
+        if let Some((g, areas)) = self.areas_cache.borrow().as_ref() {
+            if *g == geracoes {
+                return areas.clone();
+            }
+        }
+        let todas = self.areas_citadas_sem_guardar();
+        *self.areas_cache.borrow_mut() = Some((geracoes, todas.clone()));
+        todas
+    }
+
+    fn areas_citadas_sem_guardar(&self) -> Vec<AreaCitada> {
         let mut todas: Vec<AreaCitada> = Vec::new();
         for aba in &self.abas {
             for &k in &aba.sheet.externas {
@@ -249,6 +262,16 @@ impl Workbook {
     }
 
     /// Instala o que o `.fshz` guardou das pastas externas (na abertura).
+    /// Os valores guardados no próprio arquivo, na abertura: sem sujar quem os lê, porque o
+    /// resultado que o arquivo traz de cada fórmula foi calculado com esses mesmos valores. Sujar
+    /// 780 mil fórmulas de vínculo e quem depende delas levava ~10 s ao abrir (#136).
+    pub fn instalar_externos_na_leitura(&mut self, livros: Vec<LivroGuardado>) {
+        for livro in livros {
+            let abas = livro.abas.iter().map(|(nome, celulas)| vinculo::aba_de_valores(nome, celulas)).collect();
+            self.externos.instalar_com(&livro.nome, abas, livro.caminho, livro.atualizado_em);
+        }
+    }
+
     pub fn instalar_externos_guardados(&mut self, livros: Vec<LivroGuardado>) {
         for livro in livros {
             let abas = livro.abas.iter().map(|(nome, celulas)| vinculo::aba_de_valores(nome, celulas)).collect();
@@ -262,13 +285,6 @@ impl Workbook {
     /// até chegarem os da nova origem. Devolve quantas fórmulas mudaram.
     pub fn trocar_origem_externa(&mut self, antigo: &str, novo: &str) -> usize {
         self.trocar_origem_com(antigo, novo, true)
-    }
-
-    /// A mesma troca feita pela leitura do `.xlsx` (`[1]Aba` → nome do arquivo): sem Ctrl+Z.
-    /// Guardar o texto antigo de 2,3 milhões de fórmulas para jogar fora no fim da abertura
-    /// levava o pico de memória de 1,5 GB a 6 GB (#136).
-    pub fn trocar_origem_externa_na_leitura(&mut self, antigo: &str, novo: &str) -> usize {
-        self.trocar_origem_com(antigo, novo, false)
     }
 
     fn trocar_origem_com(&mut self, antigo: &str, novo: &str, desfazer: bool) -> usize {

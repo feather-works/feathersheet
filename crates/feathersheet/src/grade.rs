@@ -431,9 +431,17 @@ impl canvas::Program<Msg> for Grade<'_> {
                         val.chars().take(120).map(|ch| ch.to_string()).collect::<Vec<_>>().join("\n")
                     } else { val };
                     // Reticências somente para visualização; valor real permanece no motor.
+                    // Texto girado (90° no Excel) corre pela altura: cortar pela largura deixava
+                    // "2.153" como "2…" numa coluna estreita.
+                    let giro = estilo.as_ref().and_then(|s| s.rotation).unwrap_or(0).clamp(-90, 90);
                     let limite = if ajuste.vertical {
                         ((h - 8.0) / 11.0).floor().max(2.0) as usize
-                    } else { ((w - 16.0)/7.1).floor().max(2.0) as usize };
+                    } else if giro != 0 {
+                        let (sen, cos) = (giro as f32).abs().to_radians().sin_cos();
+                        let pela_altura = if sen > 0.01 { (h - 6.0) / sen } else { f32::MAX };
+                        let pela_largura = if cos > 0.01 { (w - 6.0) / cos } else { f32::MAX };
+                        (pela_altura.min(pela_largura) / 7.1).floor().max(2.0) as usize
+                    } else { ((w - 16.0) / 7.1).floor().max(2.0) as usize };
                     let curto = if ajuste.quebrar && !ajuste.reduzir && !ajuste.vertical {
                         // shortcut: largura por caractere estimada (meia letra); medir o texto se a quebra sair torta.
                         let letra = estilo.as_ref().and_then(|s| s.font_size).unwrap_or(self.tamanho_fonte_padrao as f32).max(6.0);
@@ -828,9 +836,17 @@ impl canvas::Program<Msg> for Grade<'_> {
                     let valor=if ajuste.vertical {
                         valor.chars().take(120).map(|ch|ch.to_string()).collect::<Vec<_>>().join("\n")
                     } else {valor};
+                    // Texto girado (90° no Excel) corre pela altura: cortar pela largura deixava
+                    // "2.153" como "2…" numa coluna estreita.
+                    let giro = estilo.as_ref().and_then(|s| s.rotation).unwrap_or(0).clamp(-90, 90);
                     let limite = if ajuste.vertical {
-                        ((ht-8.)/11.).floor().max(2.) as usize
-                    } else {((wt-16.)/7.1).floor().max(2.) as usize};
+                        ((ht - 8.0) / 11.0).floor().max(2.0) as usize
+                    } else if giro != 0 {
+                        let (sen, cos) = (giro as f32).abs().to_radians().sin_cos();
+                        let pela_altura = if sen > 0.01 { (ht - 6.0) / sen } else { f32::MAX };
+                        let pela_largura = if cos > 0.01 { (wt - 6.0) / cos } else { f32::MAX };
+                        (pela_altura.min(pela_largura) / 7.1).floor().max(2.0) as usize
+                    } else { ((wt - 16.0) / 7.1).floor().max(2.0) as usize };
                     let curto = if ajuste.quebrar && !ajuste.reduzir && !ajuste.vertical {
                         // shortcut: largura por caractere estimada (meia letra); medir o texto se a quebra sair torta.
                         let letra = estilo.as_ref().and_then(|s| s.font_size).unwrap_or(self.tamanho_fonte_padrao as f32).max(6.0);

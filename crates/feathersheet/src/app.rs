@@ -1424,6 +1424,13 @@ impl App {
     }
 
     pub fn update(&mut self, msg: Msg) -> Task<Msg> {
+        crate::grade::modelo::alturas_proprias::marcar_update(true);
+        let tarefa = self.update_dentro(msg);
+        crate::grade::modelo::alturas_proprias::marcar_update(false);
+        tarefa
+    }
+
+    fn update_dentro(&mut self, msg: Msg) -> Task<Msg> {
         let msg = match msg {
             Msg::Lote(lote) => return Task::batch(lote.into_iter().map(|m| self.update(m)).collect::<Vec<_>>()),
             msg => msg,

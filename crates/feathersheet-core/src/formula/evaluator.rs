@@ -340,6 +340,8 @@ impl<'a> Evaluator<'a> {
                     },
                     "MAP" | "MAPEAR" => self.eval_map(args),
                     "REDUCE" | "REDUZIR" => self.eval_reduce(args),
+                    "SUBTOTAL" if crate::funcoes::fn_subtotal::e_desloc(args) => crate::funcoes::fn_subtotal::desloc_por_item(args, self)
+                        .unwrap_or_else(|| sem_zero_negativo(crate::funcoes::fn_subtotal::fn_subtotal(&self.resolver_referencias(args), self))),
                     _ => match functions::lookup(&maiusculo) {
                         Some(f) => sem_zero_negativo(f(&self.resolver_referencias(args), self)),
                         None if self.ctx.funcao_externa(&maiusculo) => self.chamar_externa(&maiusculo, args),

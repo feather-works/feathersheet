@@ -1457,7 +1457,7 @@ impl Sheet {
         }
         if self.formulas.size() > 0 { self.formulas.clear_cell(row, col); }
         if !self.textos.is_empty() { self.textos.remove(&k); }
-        if !self.externas.is_empty() { self.externas.remove(&k); }
+        if !self.externas.is_empty() && self.externas.remove(&k) { self.geracao_externas = super::nova_geracao_externas(); }
         if !self.cells.is_empty() { self.cells.remove(&k); }
         if !self.styles.is_empty() { self.styles.remove(&k); }
         let mut calc = self.calc.borrow_mut();
@@ -2691,7 +2691,7 @@ impl Sheet {
             let cell = self.cells.remove(&k).expect("listada acima");
             self.deps.unlink(k, &mut |_, _| {});
             self.deps.volatiles.remove(&k);
-            self.externas.remove(&k);
+            if self.externas.remove(&k) { self.geracao_externas = super::nova_geracao_externas(); }
             voltam.push((novo(k), key_row(k), cell));
         }
 
@@ -2955,6 +2955,11 @@ impl Sheet {
     /// Suja só as fórmulas que leem a aba `aba` em alguma coluna de `rects`
     /// (e quem depende delas). Devolve se sujou alguma.
     pub fn sujar_externas_de(&mut self, aba: &str, rects: &[Rect]) -> bool {
+        // Nenhuma célula tocada (largura de coluna, altura de linha): nada a sujar. Percorrer as
+        // 780 mil fórmulas de vínculo para concluir isso custava 360 ms por ajuste (#136).
+        if rects.is_empty() {
+            return false;
+        }
         let toca = |c0: u32, c1: u32| rects.iter().any(|r| r.c0 <= c1 && c0 <= r.c1);
         // Avulsas: as que citam a aba (ou um nome, que pode apontar para ela).
         let avulsas: Vec<CellKey> = self.externas.iter().copied().filter(|k| {

@@ -341,6 +341,7 @@ fn ler_aba(
     imagens: &HashMap<u32, String>,
     folha: &mut Sheet,
     nucleos: usize,
+    livros: &[(usize, String)],
 ) -> Result<sheet::SheetJson, String> {
     let arquivo = match archive.by_name(caminho) {
         Ok(arquivo) => arquivo,
@@ -502,7 +503,7 @@ fn ler_aba(
                         bruto.push_str(url);
                     } else if let Some(f) = formula_comum {
                         bruto.push(MARCA_FORMULA);
-                        bruto.push_str(f);
+                        bruto.push_str(&super::vinculos::trocar_numeros(f, livros));
                     } else if celula.f.get().is_none() && tipo == "n" {
                         if let Some(v) = celula.v.get().filter(|v| !v.trim().is_empty()) {
                             bruto.push(MARCA_NUMERO);
@@ -515,7 +516,8 @@ fn ler_aba(
                             bruto.push_str(&texto);
                         }
                     } else {
-                        bruto.push_str(&sheet::cell_raw(celula, strings, xf, &mut shared, at.row, at.col));
+                        let texto = sheet::cell_raw(celula, strings, xf, &mut shared, at.row, at.col);
+                        bruto.push_str(&super::vinculos::trocar_numeros(&texto, livros));
                     }
                     let raw = &bruto;
                     // Numa linha com estilo, a célula usa a variante que cobre o da linha.
@@ -668,6 +670,9 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     let estilos = estilos_parciais(&xfs);
     // Imagens "Colocar na célula" (vm → data URL), lidas uma vez para todas as abas.
     let imagens_vm = super::imagens_celula::ler(&mut arquivo);
+    // Os vínculos antes das abas: a leitura delas já troca `[N]` pelo nome do arquivo.
+    let mut externos = super::vinculos::ler(&mut arquivo, &book, &rels);
+    let livros = super::vinculos::nomes_finais(&mut externos);
     let mut workbook = Workbook::vazia();
     let mut resumos = Vec::new();
     let mut caminhos = Vec::new();
@@ -718,7 +723,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         let _paleta = super::cores::instalar(&tema_xml, &estilos_xml);
         let (pasta, basename) = caminho.rsplit_once('/').unwrap_or(("", caminho.as_str()));
         let rels_aba = sheet::read_rels(&entry_text(zip, &format!("{pasta}/_rels/{basename}.rels"))?);
-        let resumo = ler_aba(zip, caminho, nome, &strings, &xfs, &estilos, &rels_aba, &imagens_vm, &mut folha, por_aba)?;
+        let resumo = ler_aba(zip, caminho, nome, &strings, &xfs, &estilos, &rels_aba, &imagens_vm, &mut folha, por_aba, &livros)?;
         folha.comentarios = super::comentarios::ler_comentarios(zip, caminho);
         Ok::<_, String>((idx, folha, resumo))
     });
@@ -805,9 +810,8 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
             n.r0 as u32, n.c0 as u32, n.r1 as u32, n.c1 as u32,
         );
         area.sheet = n.sheet;
-        workbook.definir_nome(&n.name, area);
+        workbook.definir_nome_na_leitura(&n.name, area);
     }
-    let externos = super::vinculos::ler(&mut arquivo, &book, &rels);
     super::vinculos::instalar(&mut workbook, externos);
     // Dinâmica sem resultado nas células (Google Planilhas, `refreshOnLoad`)
     // é calculada aqui; com resultado, só ganha a área para o painel editar.

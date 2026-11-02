@@ -68,11 +68,11 @@ pub(super) fn scroll_em_pixels(sheet: &Sheet, linha: u32, coluna: u32) -> (f64, 
             .filter(|(idx, _)| **idx < coluna)
             .map(|(_, w)| f64::from(*w) - f64::from(padrao))
             .sum::<f64>();
-    let y = f64::from(linha) * f64::from(ALTURA_PADRAO)
-        + sheet.row_heights.iter()
-            .filter(|(idx, _)| **idx < linha)
-            .map(|(_, h)| f64::from(*h) - f64::from(ALTURA_PADRAO))
-            .sum::<f64>();
+    let proprias = crate::grade::modelo::alturas_proprias::antes_de(sheet, linha).map(f64::from).unwrap_or_else(|| sheet.row_heights.iter()
+        .filter(|(idx, _)| **idx < linha)
+        .map(|(_, h)| f64::from(*h) - f64::from(ALTURA_PADRAO))
+        .sum::<f64>());
+    let y = f64::from(linha) * f64::from(ALTURA_PADRAO) + proprias;
     (x, y)
 }
 
