@@ -16,6 +16,7 @@ impl App {
     /// sobrou alguma, liga o pulso que chama de novo no quadro seguinte.
     pub(super) fn calcular_visiveis(&mut self, orcamento: Duration) {
         if self.carregando || self.mostrar_formulas {
+            self.cache_grade.pendentes.borrow_mut().clear();
             self.calculo_pendente = false;
             return;
         }
@@ -40,6 +41,22 @@ impl App {
         drop(eixos);
         let inicio = Instant::now();
         let mut resta = false;
+        // Primeiro o que o último quadro desenhou como "…": é o que a pessoa está vendo.
+        // Célula que continua pendente depois de calculada (ex.: vínculo esperando "Atualizar
+        // valores") seria anotada de novo a cada quadro: sem progresso, o pulso para.
+        let vistos = std::mem::take(&mut *self.cache_grade.pendentes.borrow_mut());
+        let (mut andou, mut presas) = (false, false);
+        for (i, &(a, r, c)) in vistos.iter().enumerate() {
+            if a != aba || !self.workbook.calculo_pendente(a, r, c) { continue; }
+            if inicio.elapsed() >= orcamento {
+                self.cache_grade.pendentes.borrow_mut().extend_from_slice(&vistos[i..]);
+                resta = true;
+                break;
+            }
+            let _ = self.workbook.valor(a, r, c);
+            if self.workbook.calculo_pendente(a, r, c) { presas = true; } else { andou = true; }
+        }
+        self.vistos_parados = presas && !andou;
         'fora: for &r in &rs {
             for &c in &cs {
                 if !self.workbook.calculo_pendente(aba, r, c) {
@@ -96,5 +113,19 @@ mod testes {
         }
         app.calcular_visiveis(Duration::from_secs(5));
         assert!(!app.workbook.calculo_pendente(0, 2500, 1), "a linha visível depois das ocultas foi calculada");
+    }
+
+    /// O que a grade desenhou como "…" é calculado mesmo fora da área que o app estima
+    /// (a tela rolada para colunas além da conta do zoom ficava em "…", 02/11/2026).
+    #[test]
+    fn calcula_o_que_a_grade_desenhou_pendente() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "4".into());
+        app.workbook.escrever_celula(0, 5, 300, "=A1*2".into());
+        assert!(app.workbook.calculo_pendente(0, 5, 300));
+        app.cache_grade.pendentes.borrow_mut().push((0, 5, 300));
+        app.calcular_visiveis(Duration::from_secs(5));
+        assert!(!app.workbook.calculo_pendente(0, 5, 300), "a célula desenhada foi calculada");
+        assert!(!app.vistos_parados);
     }
 }

@@ -217,6 +217,8 @@ impl Grade<'_> {
         // O desenho nunca calcula: conta pendente aparece como "…" e o app
         // calcula fora daqui (`App::calcular_visiveis`).
         if self.workbook.calculo_pendente(self.aba, r, c) {
+            let mut vistos = self.cache.pendentes.borrow_mut();
+            if vistos.len() < 20_000 { vistos.push((self.aba, r, c)); }
             return "…".into();
         }
         let estilo = self.workbook.aba(self.aba).and_then(|a|a.sheet.estilo_resolvido(r,c));

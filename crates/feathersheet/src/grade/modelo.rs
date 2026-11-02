@@ -46,6 +46,9 @@ pub struct CacheGrade {
     /// Ícone do mouse que a grade escolheu neste quadro: a camada da lista, por
     /// cima, repete ele (no pelicano o canvas de cima decide o ícone).
     pub cursor: std::cell::Cell<pelicano::CursorIcon>,
+    /// Células (aba, linha, coluna) que este quadro desenhou como "…": o app calcula
+    /// exatamente essas no pulso seguinte (`App::calcular_visiveis`), sem adivinhar a área visível.
+    pub pendentes: std::cell::RefCell<Vec<(usize, u32, u32)>>,
 }
 
 pub struct Grade<'a> {

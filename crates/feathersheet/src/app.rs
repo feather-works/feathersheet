@@ -831,6 +831,8 @@ pub struct App {
     resumo_selecao: RefCell<status_selecao::Estado>,
     /// Desenho das células em cache (ver `Grade::draw` e `update`).
     cache_grade: crate::grade::CacheGrade,
+    /// As células "…" do último quadro não andaram ao calcular: o pulso não insiste nelas.
+    vistos_parados: bool,
     /// Procurar atualizações (Configurações → Sobre), só a pedido.
     atualizacao: atualizacao::Estado,
     /// Versão nova achada na abertura: o cartão no canto da grade.
@@ -1130,7 +1132,7 @@ impl Default for App {
             condicional_italico: false,
             condicional_sublinhado: false,
             condicional_riscado: false,
-            workbook: Workbook::new(), eixos_grade: RefCell::new(Default::default()), duplicados:None, impressao: Default::default(), resumo_selecao: RefCell::new(status_selecao::Estado::default()), atualizacao: Default::default(), aviso_atualizacao: None, cache_grade: Default::default(),
+            workbook: Workbook::new(), eixos_grade: RefCell::new(Default::default()), duplicados:None, impressao: Default::default(), resumo_selecao: RefCell::new(status_selecao::Estado::default()), atualizacao: Default::default(), aviso_atualizacao: None, cache_grade: Default::default(), vistos_parados: false,
             config: Configuracao::default(),
             janelas: Janelas::default(), ultimo_clique_barra: None,
             caminho: None, recuperacao: Default::default(), origem: None, alterado: false, tela_inteira: false, folha: 0,
@@ -1596,7 +1598,7 @@ impl App {
             if self.passo_captura < 2 && std::env::var_os("FEATHERSHEET_CAPTURAR").is_some() {
                 a_cada(1500).map(|_| Msg::CapturarTela)
             } else { Subscription::none() },
-            if self.calculo_pendente {
+            if self.calculo_pendente || (!self.vistos_parados && !self.cache_grade.pendentes.borrow().is_empty()) {
                 a_cada(16).map(|_| Msg::CalcularPulso)
             } else { Subscription::none() },
             if self.carregando {
