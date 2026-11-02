@@ -633,6 +633,23 @@ impl Sheet {
         Some(r.unwrap_or_default())
     }
 
+    /// [`Self::estilo_mesclado`] e o resolvido juntos, lembrados em `memo` por (estilo direto,
+    /// coluna com estilo, linha com estilo): as células de um quadro repetem poucas combinações,
+    /// e mesclar e converter célula a célula custava ~20 ms por quadro (#136). O `memo` vale
+    /// enquanto o estilo da aba não muda (um quadro).
+    pub fn estilo_com_memo(&self, row: u32, col: u32, memo: &mut MemoEstilos)
+        -> Option<std::rc::Rc<(EstiloParcial, crate::celulas::style::Style)>> {
+        let k = key(row, col);
+        let direto = match self.cells.get(&k) { Some(c) => c.style_idx, None => self.styles.get(k) };
+        let chave = (direto.unwrap_or(usize::MAX),
+            if self.col_styles.contains_key(&col) { col } else { u32::MAX },
+            if self.row_styles.contains_key(&row) { row } else { u32::MAX });
+        memo.entry(chave).or_insert_with(|| self.estilo_mesclado(row, col).map(|e| {
+            let s = crate::celulas::estilo_parcial::para_style(&e);
+            std::rc::Rc::new((e, s))
+        })).clone()
+    }
+
     /// O estilo mesclado, resolvido para formatar.
     pub fn estilo_resolvido(&self, row: u32, col: u32) -> Option<crate::celulas::style::Style> {
         self.estilo_mesclado(row, col).map(|e| crate::celulas::estilo_parcial::para_style(&e))

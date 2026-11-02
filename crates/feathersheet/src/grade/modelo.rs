@@ -1,6 +1,6 @@
 //! Estrutura da grade e helpers leves, separados da rotina de desenho Canvas.
 //! Nunca armazena ou materializa conteúdo de células.
-use feathersheet_core::{celulas::refs::Rect, formula::ref_drag::Caixa, planilha::{workbook::Workbook,sheet::Sheet}};
+use feathersheet_core::{celulas::refs::Rect, formula::ref_drag::Caixa, planilha::workbook::Workbook};
 use crate::condicional::Estado as EstadoCondicional;
 use std::cell::RefCell;
 use super::{LARGURA_PADRAO, ALTURA_PADRAO};
@@ -19,9 +19,9 @@ pub(super) struct AjustesTexto {
     /// Sublinhado duplo (Página Inicial > Sublinhado ▾): dois traços.
     pub(super) sublinhado_duplo: bool,
 }
-pub(super) fn ajustes_texto(sheet: &Sheet, r: u32, c: u32) -> AjustesTexto {
+pub(super) fn ajustes_texto(estilo: Option<&feathersheet_core::celulas::estilo_parcial::EstiloParcial>) -> AjustesTexto {
     use feathersheet_core::celulas::estilo_parcial::Campo;
-    let Some(estilo)=sheet.estilo_mesclado(r,c) else {return AjustesTexto::default()};
+    let Some(estilo)=estilo else {return AjustesTexto::default()};
     let ativo=|chave:&str| matches!(estilo.get(chave),Some(Campo::Logico(true)));
     let recuo=match estilo.get("indent") {
         Some(Campo::Numero(v)) => (*v as f32).clamp(0.,50.),

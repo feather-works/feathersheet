@@ -196,6 +196,10 @@ pub(crate) fn pattern_check(raw: &str) -> bool {
         .is_some_and(|refs| refs.iter().filter(|r| r.sheet.is_some()).count() == qualificadas)
 }
 
+/// O memo do [`Sheet::estilo_com_memo`], um por quadro desenhado.
+pub type MemoEstilos = std::collections::HashMap<(usize, u32, u32),
+    Option<std::rc::Rc<(EstiloParcial, crate::celulas::style::Style)>>>;
+
 #[derive(Default)]
 pub struct Sheet {
     pub name: String,
