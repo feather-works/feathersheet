@@ -197,8 +197,13 @@ com critério (02/11/2026): `sheet.autoFilter(endereço, coluna, critério)`, `s
 filtro dinâmico, e ler as linhas filtradas na mesma macro (`SpecialCells(xlCellTypeVisible)`):
 as linhas só somem no fim. `ws.FilterMode`/`AutoFilterMode` lidos valem sempre `True`.
 
-Próximos pela contagem: o resto das formas (botões, visibilidade, posição), automação do Word (fica
-para quando o FeatherDocs tiver API).
+Formas (02/11/2026): `Shapes`/`Buttons`/`Pictures("…")` com `.Visible` (guarda `oculto` na forma; a
+camada da grade não desenha nem clica), `.OnAction` (lido e escrito) e `.Left`/`.Top`/`.Width`/`.Height`
+(pontos; o app reancora a forma quando a macro termina, `objetos::aplicar_formas_da_macro`). Ler a
+posição ainda não converte.
+
+Próximos: automação do Word (fica para quando o FeatherDocs tiver API), `CallByName`, MsgBox com
+Abortar/Repetir/Ignorar e ícones.
 
 ### Rodando de verdade (01/11/2026)
 

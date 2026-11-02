@@ -319,3 +319,16 @@ fn autofilter_convertido_pede_o_filtro_certo() {
     let r = feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo);
     assert!(r.erro.as_deref().is_some_and(|e| e.contains("dois critérios")), "xlAnd de comparação avisa em vez de filtrar errado: {:?}", r.erro);
 }
+
+#[test]
+fn shapes_visible_onaction_e_posicao_rodam() {
+    let c = converter_texto(&[("Módulo1", "Sub T()\n  With ActiveSheet.Shapes(\"Button 1\")\n    .Visible = msoFalse\n    .OnAction = \"Gravar\"\n    .Left = 72: .Top = 36: .Width = 90: .Height = 30\n  End With\n  If ActiveSheet.Shapes(\"Button 1\").Visible = False Then Range(\"A1\").Value = ActiveSheet.Shapes(\"Button 1\").OnAction\nEnd Sub\nSub Gravar()\nEnd Sub\n")], &[]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let js = c.macros.iter().find(|m| m.nome == "T").expect("macro").codigo.clone();
+    let mut wb = Workbook::new();
+    wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"Botão 1"}]}"##.into())); });
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(wb.valor(0, 0, 0), Value::Text("Gravar".into()));
+    assert_eq!(r.formas.len(), 4, "{:?}", r.formas);
+}

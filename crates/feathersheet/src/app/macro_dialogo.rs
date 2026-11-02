@@ -109,6 +109,11 @@ impl App {
             let falhas = self.abrir_links_da_macro(&r.links);
             r.mensagens.extend(falhas);
         }
+        if r.erro.is_none() && !r.formas.is_empty() {
+            let falhas = objetos::aplicar_formas_da_macro(&mut self.workbook, &r.formas);
+            self.alterado = true;
+            r.mensagens.extend(falhas);
+        }
         if r.erro.is_none() && !r.filtros.is_empty() {
             let falhas = tabelas::aplicar_filtros_da_macro(&mut self.workbook, &r.filtros);
             self.alterado = true;

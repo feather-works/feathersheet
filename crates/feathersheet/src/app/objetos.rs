@@ -56,6 +56,29 @@ impl Regua for ReguaAba<'_> {
     }
 }
 
+/// `shape.left/top/width/height = …` das macros (pontos do VBA → px lógicos): a forma é presa às
+/// células do retângulo novo, um Ctrl+Z por pedido. Devolve as falhas, para a macro mostrar.
+pub(super) fn aplicar_formas_da_macro(w: &mut Workbook, pedidos: &[feathersheet_macros::PedidoForma]) -> Vec<String> {
+    const PX_POR_PONTO: f64 = 96.0 / 72.0;
+    let mut falhas = Vec::new();
+    for p in pedidos {
+        let Some(aba) = w.indice_do_id(p.aba).and_then(|i| w.aba_mut(i)) else { continue };
+        let json: serde_json::Value = aba.sheet.ob.as_deref().and_then(|t| serde_json::from_str(t).ok()).unwrap_or_default();
+        let mut lidos = modelo::ler_da_aba(&aba.sheet);
+        let Some(o) = feathersheet_macros::achar_forma(&json, &p.nome).and_then(|i| lidos.objetos.get_mut(i)) else {
+            falhas.push(format!("A aba não tem a forma \"{}\"", p.nome));
+            continue;
+        };
+        let regua = ReguaAba(&aba.sheet);
+        let mut ret = o.retangulo(&regua);
+        let px = |v: Option<f64>, atual: f32| v.map_or(atual, |pt| (pt * PX_POR_PONTO) as f32);
+        ret = Retangulo { x: px(p.esquerda, ret.x), y: px(p.topo, ret.y), largura: px(p.largura, ret.largura), altura: px(p.altura, ret.altura) };
+        o.ancorar(ret, &regua);
+        modelo::gravar_na_aba(&mut aba.sheet, &lidos);
+    }
+    falhas
+}
+
 /// Painel de cores aberto (pela barra ou pela aba).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Painel {

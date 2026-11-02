@@ -9,7 +9,7 @@ use feathersheet_core::planilha::sheet::Sheet;
 use serde_json::{json, Map, Value as Json};
 
 /// As operações desta parte.
-pub(crate) const OPERACOES: &[&str] = &["formaLer", "formaFonte", "formaTexto"];
+pub(crate) const OPERACOES: &[&str] = &["formaLer", "formaFonte", "formaTexto", "formaVisivel", "formaMacro"];
 
 fn objetos(sheet: &Sheet) -> Result<Json, String> {
     match sheet.ob.as_deref() {
@@ -43,7 +43,7 @@ fn padrao(nome: &str) -> Option<(usize, &str)> {
 
 /// A posição da forma de nome `nome` (sem diferenciar maiúsculas, como o VBA; o nome padrão
 /// vale em qualquer língua).
-fn achar(ob: &Json, nome: &str) -> Option<usize> {
+pub fn achar(ob: &Json, nome: &str) -> Option<usize> {
     let lista = ob["objetos"].as_array()?;
     let nome_de = |o: &Json| o["nome"].as_str().map(str::trim).map(str::to_owned);
     lista.iter().position(|o| nome_de(o).is_some_and(|n| n.to_lowercase() == nome.trim().to_lowercase()))
@@ -69,7 +69,8 @@ fn ler(ob: &Json, nome: &str) -> Json {
     let f = &o["fonte"];
     json!({ "exists": true, "text": o["texto"].as_str().unwrap_or(""),
         "bold": f["negrito"].as_bool().unwrap_or(false), "italic": f["italico"].as_bool().unwrap_or(false),
-        "size": f["tamanho"], "color": f["cor"] })
+        "size": f["tamanho"], "color": f["cor"],
+        "visible": o["oculto"] != json!(true), "onAction": o["macro"].as_str().unwrap_or("") })
 }
 
 /// Aplica `mudar` à forma e grava; `Ok(false)` se nada mudou.
@@ -111,6 +112,19 @@ pub(crate) fn executar(op: &str, sheet: &mut Sheet, dados: &Json) -> Result<(Jso
             let t: String = match &dados[2] { Json::String(s) => s.clone(), Json::Null => String::new(), v => v.to_string() };
             alterar(sheet, nome, |o| { o.insert("texto".into(), json!(t.chars().take(32_768).collect::<String>())); Ok(()) }).map(|m| (Json::Null, m))
         }
+        // `oculto` atravessa o `.fshz` como chave extra da forma; a camada da grade não a desenha nem a clica.
+        "formaVisivel" => alterar(sheet, nome, |o| {
+            if dados[2].as_bool().unwrap_or(true) { o.remove("oculto"); } else { o.insert("oculto".into(), json!(true)); }
+            Ok(())
+        }).map(|m| (Json::Null, m)),
+        // `OnAction`: a macro que o clique na forma roda ("" tira).
+        "formaMacro" => alterar(sheet, nome, |o| {
+            match dados[2].as_str().map(str::trim).filter(|m| !m.is_empty()) {
+                Some(m) => { o.insert("macro".into(), json!(m.chars().take(255).collect::<String>())); }
+                None => { o.remove("macro"); }
+            }
+            Ok(())
+        }).map(|m| (Json::Null, m)),
         _ => Err(format!("Operação desconhecida: {op}")),
     }
 }

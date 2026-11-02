@@ -28,7 +28,7 @@ impl Gerador<'_> {
         if SEM_EFEITO.contains(&n.as_str()) {
             return Ok(String::new());
         }
-        if n == "onaction" {
+        if n == "onaction" && !matches!(o, Obj::Forma(_)) {
             return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)"));
         }
         if let Some((o, end)) = por_area(&o) {
@@ -52,6 +52,19 @@ impl Gerador<'_> {
                 "text" | "caption" => {
                     let v = self.valor(valor)?;
                     Ok(format!("{js}.text = {};", self.como_texto(&v)))
+                }
+                // `msoTrue` é -1 e `msoFalse` 0: qualquer número diferente de 0 mostra.
+                "visible" => {
+                    let v = self.valor(valor)?;
+                    Ok(format!("{js}.visible = {};", self.como_bool(&v)))
+                }
+                "onaction" => {
+                    let v = self.valor(valor)?;
+                    Ok(format!("{js}.onAction = {};", self.como_texto(&v)))
+                }
+                "left" | "top" | "width" | "height" => {
+                    let v = self.valor(valor)?;
+                    Ok(format!("{js}.{n} = vba.{}({});", self.ajuda("n"), v.js))
                 }
                 _ => Err(Motivo::novo(format!("Shape.{prop}"))),
             },

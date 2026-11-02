@@ -321,9 +321,9 @@ impl Gerador<'_> {
             "rows" => self.linha_ou_coluna(aba, Inteira::Linhas, &args[0])?,
             "columns" => self.linha_ou_coluna(aba, Inteira::Colunas, &args[0])?,
             "usedrange" => Obj::Faixa(Faixa::dinamica(aba, format!("({aba}.getDataRange()?.address ?? 'A1')"))),
-            "shapes" if args.is_empty() => Obj::Formas(aba.into()),
-            "shapes" => self.forma_do_argumento(aba, &args[0])?,
-            "buttons" | "chartobjects" | "pictures" => return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)")),
+            "shapes" | "buttons" | "pictures" if args.is_empty() => Obj::Formas(aba.into()),
+            "shapes" | "buttons" | "pictures" => self.forma_do_argumento(aba, &args[0])?,
+            "chartobjects" => return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)")),
             // `ws.AutoFilter.Sort`: a mesma ordenação do `ws.Sort`, sobre o intervalo do filtro.
             "sort" | "autofilter" => Obj::Ordem(aba.into()),
             "pagesetup" => return Err(Motivo::novo("configuração de página")),
@@ -553,6 +553,8 @@ impl Gerador<'_> {
         let n = nome.to_lowercase();
         match o {
             Obj::Faixa(f) => self.propriedade_da_faixa(f, &n, args),
+            Obj::Forma(js) if n == "visible" => Ok(V::novo(format!("{js}.visible"), T::Bool)),
+            Obj::Forma(js) if n == "onaction" => Ok(V::novo(format!("{js}.onAction"), T::Texto)),
             Obj::Shell if n == "run" => Ok(V::novo(format!("app.shell(String({}))", self.arg_js(args, &["command"], 0)?), T::Num)),
             Obj::Controle(c) => propriedade_do_controle(&c, &n),
             Obj::Formulario(f) => match self.p.controle(&f, nome) {

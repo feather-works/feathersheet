@@ -50,6 +50,18 @@ pub enum AcaoFiltro {
     Remover,
 }
 
+/// `shape.left/top/width/height = …` (pontos, como no VBA): a posição depende das larguras da
+/// grade, então o aplicativo move a forma se a macro terminar bem.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PedidoForma {
+    pub aba: u32,
+    pub nome: String,
+    pub esquerda: Option<f64>,
+    pub topo: Option<f64>,
+    pub largura: Option<f64>,
+    pub altura: Option<f64>,
+}
+
 /// O que o aplicativo informa à macro antes de rodar.
 #[derive(Debug, Default, Clone)]
 pub struct Contexto {
@@ -92,6 +104,7 @@ pub(crate) struct Acumulado {
     /// `app.openUrl(link)`: o app confere (só web/mailto) e abre no navegador.
     pub links: Vec<String>,
     pub filtros: Vec<PedidoFiltro>,
+    pub formas: Vec<PedidoForma>,
 }
 
 /// Mais que isto numa execução é laço descontrolado, não exportação.
@@ -104,7 +117,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -301,6 +314,23 @@ pub(crate) fn executar(
             };
             if a.filtros.len() >= LIMITE_ARQUIVOS { return Some(Err("Filtros demais numa macro".into())); }
             a.filtros.push(PedidoFiltro { aba, acao });
+            Ok(Json::Null)
+        }
+        "formaPosicao" => {
+            let Some(aba) = dados[0].as_u64().and_then(|id| ids.iter().copied().find(|&x| u64::from(x) == id)) else {
+                return Some(Err("Aba inexistente".into()));
+            };
+            let p = &dados[2];
+            let mut erro = None;
+            let mut campo = |k: &str, minimo: f64| p.get(k).filter(|v| !v.is_null()).and_then(|v| match v.as_f64() {
+                Some(n) if n.is_finite() && n >= minimo && n <= 1e7 => Some(n),
+                _ => { erro = Some(format!("shape.{k}: número de {minimo} a 10000000")); None }
+            });
+            let pedido = PedidoForma { aba, nome: texto(dados, 1), esquerda: campo("left", 0.0), topo: campo("top", 0.0),
+                largura: campo("width", 1.0), altura: campo("height", 1.0) };
+            if let Some(e) = erro { return Some(Err(e)); }
+            if a.formas.len() >= LIMITE_ARQUIVOS { return Some(Err("Mudanças de forma demais numa macro".into())); }
+            a.formas.push(pedido);
             Ok(Json::Null)
         }
         "abaAtiva" => Ok(json!(a.ativou.unwrap_or(aba_ativa))),

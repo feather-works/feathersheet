@@ -319,3 +319,27 @@ fn autofilter_so_anota_o_pedido_e_confere_a_coluna() {
     let r = executar(&mut wb, 0, r#"sheet.autoFilter("A1:C10", 1, "x"); throw new Error("x");"#);
     assert!(r.erro.is_some() && r.filtros.is_empty(), "macro com erro não filtra");
 }
+
+#[test]
+fn shape_esconde_troca_a_macro_e_pede_posicao() {
+    let mut wb = Workbook::new();
+    wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"Botão 2","macro":"Velha"}]}"##.into())); });
+    let r = executar(&mut wb, 0, r#"
+        const b = sheet.shape("Button 2");
+        if (!b.visible || b.onAction !== "Velha") throw new Error("leitura");
+        b.visible = false; b.onAction = "Modulo1.Gravar";
+        b.left = 72; b.top = 36; b.move({ width: 90, height: 30 });
+        if (b.visible || b.onAction !== "Modulo1.Gravar") throw new Error("releitura");"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    let ob: serde_json::Value = serde_json::from_str(wb.aba(0).unwrap().sheet.ob.as_deref().unwrap()).unwrap();
+    assert_eq!(ob["objetos"][0]["oculto"], true);
+    assert_eq!(ob["objetos"][0]["macro"], "Modulo1.Gravar");
+    let p: Vec<_> = r.formas.iter().map(|p| (p.nome.as_str(), p.esquerda, p.topo, p.largura, p.altura)).collect();
+    assert_eq!(p, vec![("Button 2", Some(72.), None, None, None), ("Button 2", None, Some(36.), None, None), ("Button 2", None, None, Some(90.), Some(30.))]);
+    let r = executar(&mut wb, 0, r#"sheet.shape("Button 2").visible = true; sheet.shape("Button 2").onAction = "";"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    let ob: serde_json::Value = serde_json::from_str(wb.aba(0).unwrap().sheet.ob.as_deref().unwrap()).unwrap();
+    assert!(ob["objetos"][0].get("oculto").is_none() && ob["objetos"][0].get("macro").is_none());
+    assert!(executar(&mut wb, 0, r#"sheet.shape("Nada").visible = false;"#).erro.is_some());
+    assert!(executar(&mut wb, 0, r#"sheet.shape("Button 2").width = -5;"#).erro.is_some());
+}

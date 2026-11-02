@@ -142,7 +142,9 @@ impl App {
             return base;
         }
         let regua = ReguaAba(&aba.sheet);
-        let mut itens: Vec<ItemTela> = lidos.objetos.iter().map(|o| ItemTela::de(o, &regua)).collect();
+        // Forma escondida pela macro (`shape.visible = false`): nem desenha nem recebe clique.
+        let mut itens: Vec<ItemTela> = lidos.objetos.iter().filter(|o| o.extras.get("oculto") != Some(&serde_json::Value::Bool(true)))
+            .map(|o| ItemTela::de(o, &regua)).collect();
         // Texto que começa com "=" é fórmula, como no Excel: a forma mostra o
         // resultado (=A2 mostra A2 como a grade mostra) e acompanha a célula.
         for it in &mut itens {

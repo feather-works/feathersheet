@@ -420,3 +420,19 @@ fn forma_com_macro_respeita_o_bloqueio_de_macros() {
     let _ = app.update(Msg::Objetos(Evento::ExecutarMacro(id)));
     assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(0, 0), "RODOU");
 }
+
+#[test]
+fn macro_move_e_esconde_a_forma() {
+    let mut w = feathersheet_core::planilha::workbook::Workbook::new();
+    w.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{"linha":0,"coluna":0},"ate":{"linha":2,"coluna":2},"nome":"Botão 1"}]}"##.into())); });
+    let r = feathersheet_macros::executar(&mut w, 0, r#"const b = sheet.shape("Button 1"); b.left = 75; b.top = 30; b.width = 150; b.height = 45; b.visible = false;"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert!(super::aplicar_formas_da_macro(&mut w, &r.formas).is_empty());
+    let aba = w.aba(0).unwrap();
+    let id = aba.id;
+    let o = &modelo::ler_da_aba(&aba.sheet).objetos[0];
+    let ret = o.retangulo(&ReguaAba(&aba.sheet));
+    assert_eq!((ret.x.round(), ret.y.round(), ret.largura.round(), ret.altura.round()), (100.0, 40.0, 200.0, 60.0), "pontos × 4/3");
+    assert_eq!(o.extras.get("oculto"), Some(&serde_json::Value::Bool(true)));
+    assert!(!super::aplicar_formas_da_macro(&mut w, &[feathersheet_macros::PedidoForma { aba: id, nome: "Nada".into(), esquerda: Some(1.0), topo: None, largura: None, altura: None }]).is_empty());
+}

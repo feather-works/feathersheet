@@ -20,7 +20,9 @@ mod pasta;
 pub mod formularios;
 pub mod riscos;
 mod formas;
-pub use pasta::{AcaoFiltro, Contexto, PedidoArquivo, PedidoFiltro, PedidoProtecao};
+/// A forma de nome `nome` no JSON `ob` da aba (o nome padrão vale em qualquer língua).
+pub use formas::achar as achar_forma;
+pub use pasta::{AcaoFiltro, Contexto, PedidoArquivo, PedidoFiltro, PedidoForma, PedidoProtecao};
 pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;
 use feathersheet_core::{
@@ -66,6 +68,8 @@ pub struct Resultado {
     pub grades: Vec<(u32, bool)>,
     /// `sheet.autoFilter`/`showAllData`/`autoFilterOff`, na ordem; o aplicativo filtra se a macro terminou bem.
     pub filtros: Vec<PedidoFiltro>,
+    /// `shape.left/top/width/height = …`, na ordem; o aplicativo move a forma se a macro terminou bem.
+    pub formas: Vec<PedidoForma>,
     /// `app.openUrl(link)` (o `ShellExecute "open"` do VBA): o app abre os links web.
     pub links: Vec<String>,
 }
@@ -911,6 +915,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         grades: if vale { extra.grades } else { Vec::new() },
         links: if vale { extra.links } else { Vec::new() },
         filtros: if vale { extra.filtros } else { Vec::new() },
+        formas: if vale { extra.formas } else { Vec::new() },
         pergunta: extra.pergunta,
     }
 }
@@ -990,6 +995,17 @@ const __forma = (i, nome) => {
         // font() lê; font({ bold, italic, size, color }) muda só o que vier.
         font(o){ if (o === undefined) { const r = ler(); return { bold:r.bold, italic:r.italic, size:r.size, color:r.color }; }
             __ft('formaFonte',[i,nome,o]); return f; },
+        get visible(){ return ler().visible; },
+        set visible(v){ ler(); __ft('formaVisivel',[i,nome,!!v]); },
+        // A macro que o clique na forma roda (o OnAction do VBA).
+        get onAction(){ return ler().onAction; },
+        set onAction(v){ ler(); __ft('formaMacro',[i,nome,v==null?'':String(v)]); },
+        // Posição e tamanho em pontos, como no VBA; o aplicativo move a forma quando a macro termina.
+        move(o){ ler(); __ft('formaPosicao',[i,nome,o||{}]); return f; },
+        set left(v){ f.move({ left: Number(v) }); },
+        set top(v){ f.move({ top: Number(v) }); },
+        set width(v){ f.move({ width: Number(v) }); },
+        set height(v){ f.move({ height: Number(v) }); },
     };
     return f;
 };

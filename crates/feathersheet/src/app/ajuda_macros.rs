@@ -149,7 +149,7 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("sheet.showGridlines", "sheet.showGridlines(on)", "sheet.showGridlines(false);"),
         ("sheet.autoFilter", "sheet.autoFilter(address, column?, criteria?)", "sheet.autoFilter(\"A1:D50\", 2, \">100\");"),
         ("sheet.showAllData", "sheet.showAllData() / sheet.autoFilterOff()", "sheet.showAllData();"),
-        ("sheet.shape", "sheet.shape(name).text / .font({ bold, italic, size, color }) / .exists", "sheet.shape(\"TextBox 1\").font({ bold: true, color: \"#00b050\" });"),
+        ("sheet.shape", "sheet.shape(name).text / .font({ bold, italic, size, color }) / .exists / .visible / .onAction / .left .top .width .height", "sheet.shape(\"TextBox 1\").font({ bold: true, color: \"#00b050\" });"),
         ("wb.saveSheetsAs", "wb.saveSheetsAs(sheets, path)", "wb.saveSheetsAs([\"Dados\", \"Resumo\"], \"saida/parcial.fshz\");"),
     ]),
     ("excel-app", &[
