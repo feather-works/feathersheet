@@ -504,10 +504,10 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D21.  **Issue:** criar (bug relatado em 29/10).  **Tamanho:** M.
 
 ### EDI-2. Número digitado como texto (indicador)
-- **Onde:** `grade/` (canto da célula); regra em `planilha/` (a conferir) — GridCraft tem o recurso.
+- **Onde:** `grade/` (canto da célula); regra em `planilha/` (a conferir).
 - **Pronto:** célula com "1" como texto mostra o indicador e o aviso ao passar o mouse (foto);
   desligável nas Configurações. Desenho aprovado antes (regra 21).
-- **Depende:** D22.  **Issue:** criar (paridade GridCraft).  **Tamanho:** M.
+- **Depende:** D22.  **Issue:** criar (paridade).  **Tamanho:** M.
 
 ---
 
@@ -603,10 +603,10 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ---
 
-## Frente 9 — Paridade com o GridCraft (teste de 28/10)
+## Frente 9 — Paridade com outros programas (teste de 28/10)
 
-### GRI-1. Roteiro comparativo GridCraft × FeatherSheet com dados pequenos
-- **Onde:** memória `teste-gridcraft-vs-feathersheet`; a planilha é montada uma vez (`.xlsx`) e aberta nos dois.
+### GRI-1. Roteiro comparativo com outro programa com dados pequenos
+- **Onde:** a planilha é montada uma vez (`.xlsx`) e aberta nos dois.
 - **Pronto:** tabela com abrir, recalcular e editar uma célula da base, nos dois, mais a conferência dos
   resultados (FILTRO, desvio padrão, INCLINAÇÃO) entre os dois e com o Excel. O usuário roda o pesado.
 - **Depende:** nada.  **Issue:** nenhuma.  **Tamanho:** M.
@@ -915,7 +915,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 10. **Grade e faixa:** EDI-3 → EDI-4 (#134) → EDI-1 (barra de colunas ocultas, D21) → INT-1 → INT-2 (#68, D12) → INT-3 (#82) → INT-4 (#83) → INT-5 (#79) → INT-6 (#80).
 11. **MCP e IA:** SEG-1 → MCP-1 → MCP-3 → MCP-4 → MCP-5 → MCP-6 → MCP-7 → INT-14 (#9, D10).
 12. **Segurança restante e macros:** SEG-3 → SEG-5 → MAC-1 (#8).
-13. **Paridade GridCraft:** GRI-1 (roteiro, usuário) → GRI-2 (D17) → EDI-2 (D22) → GRI-3 (D14).
+13. **Paridade:** GRI-1 (roteiro, usuário) → GRI-2 (D17) → EDI-2 (D22) → GRI-3 (D14).
 14. **Idioma e textos:** INT-7 → INT-8 e INT-9 (D15) → INT-10 a INT-12.
 15. **Windows:** WIN-1 (usuário) → WIN-3 (job no CI) → WIN-2 (usuário) → WIN-4 (D14).
 16. **Documentação:** DOC-4 (cedo, para o roteiro ficar certo) → DOC-5 → DOC-1 (durante cada item) → DOC-2 (#71) → DOC-3 (depois de DIN-16 e ROB-7).
@@ -954,7 +954,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **D15 — Idioma: fases 5 e 6** (mensagens do Rust, descrições das funções, nomes localizados). Função de
   motor, a decisão é do usuário (memória e CLAUDE.md). Bloqueia INT-8, INT-9.
 - **D16 — Snap: publicar na loja como stable na 0.3.0 ou só beta?** Bloqueia LAN-7.
-- **D17 — Cálculo iterativo (GridCraft) entra na 0.3.0?** Bloqueia GRI-2.
+- **D17 — Cálculo iterativo entra na 0.3.0?** Bloqueia GRI-2.
 - **D18 — Distintos, mediana e percentil (além do Excel) entram na 0.3.0?** Bloqueia DIN-12.
 - **D19 — Arquivos não rastreados:** `.claude/` (ignorar ou commitar o que for compartilhado), e os
   dois arquivos de `docs/planejamento/video-v0.2/` (commitar ou manter fora). Bloqueia PUB-1.
@@ -988,9 +988,9 @@ Conferir antes de abrir, e não duplicar issue existente (`gh issue list`):
 | `feathersheet --version` abre a janela | INT-13 | relato de 29/10 |
 | Job de Windows no CI | WIN-3 | falta no CI |
 | Contagem de distintos, mediana, percentil | DIN-12 | buraco listado |
-| Número como texto | EDI-2 | paridade GridCraft |
-| Cálculo iterativo | GRI-2 | paridade GridCraft |
-| Senha em `.xlsx` | GRI-3 | paridade GridCraft |
+| Número como texto | EDI-2 | paridade |
+| Cálculo iterativo | GRI-2 | paridade |
+| Senha em `.xlsx` | GRI-3 | paridade |
 | Sincronia MCP: parâmetros e tela | MCP-3, MCP-4 | relato de 19/10 |
 | Feather Sans: teste do pelicano | PUB-4 | teste quebrado pela mudança de fonte |
 

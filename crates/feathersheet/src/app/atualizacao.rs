@@ -359,7 +359,7 @@ impl App {
         )
     }
 
-    /// Cartão no meio da grade quando há versão nova (como o aviso do GridCraft/VS Code).
+    /// Cartão no meio da grade quando há versão nova (como o aviso do VS Code).
     pub(super) fn cartao_atualizacao(&self) -> Option<pelicano::Element<'_, Msg>> {
         use super::*;
         let l = self.aviso_atualizacao.as_ref()?;

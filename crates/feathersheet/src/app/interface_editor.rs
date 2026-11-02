@@ -349,7 +349,7 @@ impl App {
             ].height(Length::FILL).width(Length::FILL).into(),
             None => centro,
         };
-        // Versão nova: cartão no meio da grade, sobre a planilha (como o aviso do GridCraft).
+        // Versão nova: cartão no meio da grade, sobre a planilha.
         let centro: Element<'_, Msg> = match self.cartao_atualizacao() {
             Some(cartao) => stack![
                 centro,
