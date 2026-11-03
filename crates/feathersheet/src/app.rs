@@ -476,6 +476,8 @@ pub enum Msg {
     FecharContexto, ContextoEscolher(usize),
     PonteiroSobreAbas(f32), AlternarPaletaAba, VoltarMenuAba, PintarAba(Option<&'static str>),
     Configuracoes, Ajuda, Monitor, AuxAberta, AuxFechada(window::Id),
+    /// Traz a janela para a frente (as boas-vindas, depois que a principal aparece).
+    TrazerParaFrente(window::Id),
     AjudaSecao(usize),
     /// Abre a Ajuda F1 numa seção pelo id ("macros", "atalhos"…).
     AjudaAbrirSecao(&'static str),
@@ -1287,7 +1289,14 @@ impl App {
         // novo abrem por cima, depois da janela principal.
         // `batch`, nunca `chain`: no Iced 0.13, `chain` com tarefa vazia
         // DESCARTA a primeira, e a janela principal não abriria.
-        let boas_vindas = app.janela_de_boas_vindas().map_or_else(Task::none, |aux| app.alternar(aux));
+        let boas_vindas = app.janela_de_boas_vindas().map_or_else(Task::none, |aux| {
+            let abrir = app.alternar(aux);
+            // A principal aparece depois e ficava por cima, escondendo as boas-vindas: traz de volta à frente.
+            // shortcut: espera fixa de 800 ms; trocar por um aviso "janela principal visível" se o pelicano ganhar um.
+            let frente = app.janelas.id(aux).map_or_else(Task::none, |id| Task::perform(
+                async { tokio::time::sleep(Duration::from_millis(800)).await }, move |_| Msg::TrazerParaFrente(id)));
+            Task::batch([abrir, frente])
+        });
         let atualizacao = app.procurar_atualizacao_ao_abrir();
         let janela = Task::batch([task, Task::done(Msg::AuxAberta), boas_vindas, app.ligar_caneta(id), atualizacao]);
         let tarefas = if let Some(p) = inicial {
