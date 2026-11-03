@@ -193,7 +193,7 @@
       "vba": {
         "titulo": "Excel, VBA and forms",
         "corpo": [
-          "Opening an .xlsm converts its VBA macros to JavaScript. Before any macro from the file runs, the app asks \"Enable macros?\" — only accept if you trust the source.",
+          "Opening an .xlsm converts its VBA macros to JavaScript. Before any macro from the file runs, the app asks \"Enable macros?\" — only accept if you trust the source. Saving as .xlsm (or as .fshz) keeps the original VBA project unchanged, with its forms and the link to each sheet, and Excel runs the macros as before; .xlsx carries no macros, as in Excel.",
           "The converter understands VBA's text, number and date functions, the Format family (FormatNumber, FormatCurrency, FormatDateTime…), Choose, Switch, StrComp and the financial ones (Pmt, PV, FV, NPV, IRR, Rate…). Shell becomes app.shell, which shows the command and asks before running it. A ByRef parameter changed by the Sub or Function passes the new value back to the caller, as in Excel. CreateObject(\"WScript.Shell\").Run also becomes app.shell, and Range.AutoFilter (with Criteria1, xlFilterValues, xlOr of two values and top 10), ShowAllData and AutoFilterMode = False use the sheet's AutoFilter. MsgBox has every button set (Abort/Retry/Ignore, Yes/No/Cancel…), icons and default button; Rnd and Randomize give the same sequence as Excel; CallByName with a fixed name, CCur with 4 decimals, Format's named formats (Scientific, Yes/No, Medium Time…) and StrConv width and kana also convert. Worksheet_SelectionChange becomes the On selecting cells event: it runs when the selection changes on the sheet (when dragging, on mouse release), with the address in valores.intervalo. Anything without an equivalent stays in the code as a \"VBA não convertido\" comment.",
           "Forms (VBA's UserForm): in the macro editor (Alt+F11), draw the window with text boxes, lists, options and buttons, and link each button to a macro. In a macro, sheet.showComponent(\"name\") opens the form.",
           "A long macro runs in the background: the app shows it is running, with the elapsed time and a Stop button."
@@ -202,7 +202,7 @@
       "arquivos": {
         "titulo": "Files",
         "corpo": [
-          "The native format is .fshz. Ctrl+S saves and Ctrl+Shift+S saves under another name. Open also reads .xlsx, .xlsm, .csv, .tsv and .parquet.",
+          "The native format is .fshz. Ctrl+S saves and Ctrl+Shift+S (Save as…) saves under another name as .fshz, .xlsx or .xlsm. An open .xlsx or .xlsm is saved back in the same format by Ctrl+S. Open also reads .csv, .tsv and .parquet.",
           "Arquivo → Exportar writes the workbook as .xlsx or the current sheet as .csv.",
           "Autosave works ONLY for .fshz files that were already saved: it writes over them at the interval chosen in Settings. An opened .xlsx, .csv or .parquet file, or a new spreadsheet, is never written automatically — to use autosave, choose Save as… and pick .fshz.",
           "Automatic recovery covers everything else: it keeps a copy of any changed spreadsheet (including .xlsx, .parquet and never-saved ones) in Documents/FeatherSheet/Temporarios/Recuperacao. If the computer shuts down, it shows up on the start screen to recover. It does not replace saving: the copy is removed when you save or discard. Very large workbooks (over 100 million cells) get no automatic copy, because each copy would freeze the window and double the memory: save them with Ctrl+S.",

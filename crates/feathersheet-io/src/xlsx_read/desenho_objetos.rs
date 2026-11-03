@@ -261,15 +261,7 @@ fn figura(zip: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>, caminho: &str) -> 
 }
 
 pub(super) fn base64(bytes: &[u8]) -> String {
-    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut s = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for b in bytes.chunks(3) {
-        let n = (u32::from(b[0]) << 16) | (u32::from(*b.get(1).unwrap_or(&0)) << 8) | u32::from(*b.get(2).unwrap_or(&0));
-        for i in 0..4 {
-            if i <= b.len() { s.push(T[((n >> (18 - 6 * i)) & 63) as usize] as char) } else { s.push('=') }
-        }
-    }
-    s
+    crate::base64::codificar(bytes)
 }
 
 /// Contexto da leitura de um desenho.

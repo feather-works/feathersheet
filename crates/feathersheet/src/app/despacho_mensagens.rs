@@ -866,6 +866,7 @@ impl App {
                 self.gravar_delimitado(path,tsv)
             }
             Msg::DestinoDelimitado(None,_) => Task::none(),
+            Msg::DestinoSalvar(Some(path)) if documento_operacoes::formato_excel(&path).is_some() => self.gravar(path),
             Msg::DestinoSalvar(Some(path)) => match documento_operacoes::com_extensao_fshz(path) {
                 Ok(path) => self.gravar(path),
                 Err(e) => { self.pendente = None; self.status = e; Task::none() }

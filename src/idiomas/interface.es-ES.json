@@ -4243,5 +4243,6 @@
   "Evento Ao selecionar células (o Worksheet_SelectionChange do VBA).": "Evento Al seleccionar celdas (Worksheet_SelectionChange de VBA).",
   "O editor de macros (Alt+F11) abre vazio, sem a macro de exemplo (#139).": "El editor de macros (Alt+F11) se abre vacío, sin la macro de ejemplo (#139).",
   "Instalador do Windows: .xlsm no \"Abrir com\" e tamanho em Programas e Recursos.": "Instalador de Windows: .xlsm en \"Abrir con\" y tamaño en Programas y características.",
-  "Arquivo .xlsx com vínculo externo: rolar e selecionar colunas sem atraso.": ".xlsx con vínculo externo: desplazarse y seleccionar columnas sin retraso."
+  "Arquivo .xlsx com vínculo externo: rolar e selecionar colunas sem atraso.": ".xlsx con vínculo externo: desplazarse y seleccionar columnas sin retraso.",
+  "Salvo como .xlsx: as macros VBA não vão neste formato (use .xlsm para mantê-las).": "Guardado como .xlsx: las macros VBA no van en este formato (use .xlsm para conservarlas)."
 }

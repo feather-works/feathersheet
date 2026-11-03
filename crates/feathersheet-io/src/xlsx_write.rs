@@ -1486,6 +1486,50 @@ const METADATA_MATRIZ_DINAMICA: &str = r#"<?xml version="1.0" encoding="UTF-8" s
 <metadata xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:xda="http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray"><metadataTypes count="1"><metadataType name="XLDAPR" minSupportedVersion="120000" copy="1" pasteAll="1" pasteValues="1" merge="1" splitFirst="1" rowColShift="1" clearFormats="1" clearComments="1" assign="1" coerce="1" cellMeta="1"/></metadataTypes><futureMetadata name="XLDAPR" count="1"><bk><extLst><ext uri="{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"><xda:dynamicArrayProperties fDynamic="1" fCollapsed="0"/></ext></extLst></bk></futureMetadata><cellMetadata count="1"><bk><rc t="1" v="0"/></bk></cellMetadata></metadata>"#;
 
 pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
+    montar_partes_formato(pasta, false)
+}
+
+/// As partes do pacote; `macros` = `.xlsm`: o livro "com macros" e, se a pasta veio de um
+/// `.xlsm`, o `vbaProject.bin` como veio e os `codeName` da pasta e das abas.
+pub fn montar_partes_formato(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> {
+    let mut partes = montar_partes_xlsx(pasta, macros);
+    if macros {
+        com_macros(pasta, &mut partes);
+    }
+    partes
+}
+
+const CT_LIVRO: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
+const CT_LIVRO_MACROS: &str = "application/vnd.ms-excel.sheet.macroEnabled.main+xml";
+
+/// Acrescenta numa parte de texto `extra` logo depois da marca de abertura `<tag …>`.
+fn inserir_depois_da_abertura(partes: &mut [(String, Vec<u8>)], nome: &str, tag: &str, extra: &str) {
+    let Some((_, bytes)) = partes.iter_mut().find(|(n, _)| n == nome) else { return };
+    let texto = String::from_utf8_lossy(bytes).into_owned();
+    let Some(fim) = texto.find(tag).and_then(|i| texto[i..].find('>').map(|j| i + j + 1)) else { return };
+    *bytes = format!("{}{extra}{}", &texto[..fim], &texto[fim..]).into_bytes();
+}
+
+fn trocar_na_parte(partes: &mut [(String, Vec<u8>)], nome: &str, de: &str, para: &str) {
+    if let Some((_, bytes)) = partes.iter_mut().find(|(n, _)| n == nome) {
+        *bytes = String::from_utf8_lossy(bytes).replacen(de, para, 1).into_bytes();
+    }
+}
+
+fn com_macros(pasta: &Workbook, partes: &mut Vec<(String, Vec<u8>)>) {
+    trocar_na_parte(partes, "[Content_Types].xml", CT_LIVRO, CT_LIVRO_MACROS);
+    let Some(vba) = pasta.vba.as_ref() else { return };
+    trocar_na_parte(partes, "[Content_Types].xml", "<Default Extension=\"xml\"",
+        "<Default Extension=\"bin\" ContentType=\"application/vnd.ms-office.vbaProject\"/><Default Extension=\"xml\"");
+    // `workbookPr` vem antes de `workbookProtection` e de `bookViews` no CT_Workbook.
+    inserir_depois_da_abertura(partes, "xl/workbook.xml", "<workbook ",
+        &format!("<workbookPr codeName=\"{}\"/>", escape_xml(&vba.nome_pasta)));
+    trocar_na_parte(partes, "xl/_rels/workbook.xml.rels", "</Relationships>",
+        "<Relationship Id=\"rIdVba\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProject\" Target=\"vbaProject.bin\"/></Relationships>");
+    partes.push(("xl/vbaProject.bin".into(), vba.binario.clone()));
+}
+
+fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> {
     let mut estilos = TabelaDeEstilos::nova();
     let mut textos = TextosCompartilhados::default();
     let mut abas = Vec::with_capacity(pasta.len());
@@ -1503,6 +1547,12 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
     crate::xlsx_write_vinculos::usar_ordem(&livros_externos);
     for i in 0..pasta.len() {
         let (mut xml, mut rels) = aba_xml(pasta, i, &mut estilos, &mut textos);
+        // `.xlsm`: o `codeName` liga o módulo de documento do VBA a esta aba; `sheetPr` é o primeiro filho.
+        if let Some(nome) = pasta.codinome_da_aba(i).filter(|_| macros && pasta.vba.is_some()) {
+            if let Some(fim) = xml.find("<worksheet ").and_then(|p| xml[p..].find('>').map(|j| p + j + 1)) {
+                xml.insert_str(fim, &format!("<sheetPr codeName=\"{}\"/>", escape_xml(nome)));
+            }
+        }
         let tn = pasta.aba(i).and_then(|a| a.sheet.tn.as_deref());
         let tinta = crate::tinta_aba::desenho_xlsx(tn);
         if let Some(desenho) = crate::xlsx_write_graficos::desenho_da_aba(pasta, i, tinta, &mut contador_graficos) {
@@ -1751,8 +1801,13 @@ thread_local! {
 /// Como [`gerar_xlsx`], devolvendo também as funções usadas nas fórmulas
 /// (nome internacional, em maiúscula), para avisar das que o Excel não tem.
 pub fn gerar_xlsx_com_funcoes(pasta: &Workbook) -> Result<(Vec<u8>, std::collections::BTreeSet<String>), String> {
+    gerar_excel_com_funcoes(pasta, false)
+}
+
+/// Como [`gerar_xlsx_com_funcoes`]; `macros` = `.xlsm` (ver [`montar_partes_formato`]).
+pub fn gerar_excel_com_funcoes(pasta: &Workbook, macros: bool) -> Result<(Vec<u8>, std::collections::BTreeSet<String>), String> {
     FUNCOES_USADAS.with(|f| *f.borrow_mut() = Some(Default::default()));
-    let partes = montar_partes(pasta);
+    let partes = montar_partes_formato(pasta, macros);
     let usadas = FUNCOES_USADAS.with(|f| f.borrow_mut().take()).unwrap_or_default();
     Ok((zipar(partes)?, usadas))
 }

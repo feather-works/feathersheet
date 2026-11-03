@@ -537,7 +537,9 @@ impl App {
         // Uma cópia de recuperação é uma nova planilha NÃO salva: nunca
         // sobrescrever automaticamente o snapshot nem colocá-lo em Recentes.
         let recuperacao = path.starts_with(Self::pasta_temporarios());
-        self.caminho = if ext == "fshz" && !recuperacao { Some(path.clone()) } else { None };
+        // `.xlsx`/`.xlsm` também: Ctrl+S grava de volta no mesmo formato, como no Excel
+        // (o salvamento automático continua só no `.fshz`).
+        self.caminho = if matches!(ext.as_str(), "fshz" | "xlsx" | "xlsm") && !recuperacao { Some(path.clone()) } else { None };
         self.origem = (ext != "fshz" && !recuperacao).then(|| path.clone());
         if recuperacao {
             // Planilha recuperada: o nome do documento original volta.
@@ -628,12 +630,7 @@ impl App {
         let destino = path.clone();
         Task::perform(async move {
             let inicio = Instant::now();
-            let resultado = tokio::task::spawn_blocking(move || {
-                feathersheet_io::arquivo::gravar_atomico_com(&destino, |arquivo| {
-                    feathersheet_io::fshz_write::gravar_fshz_para(arquivo, &pasta)
-                        .map_err(std::io::Error::other)
-                }).map_err(|e| e.to_string())
-            }).await.unwrap_or_else(|e| Err(trf!("Falha na tarefa de gravação: {e}")));
+            let resultado = tokio::task::spawn_blocking(move || gravar_retrato(&pasta, &destino)).await.unwrap_or_else(|e| Err(trf!("Falha na tarefa de gravação: {e}")));
             resultado.map(|()| inicio.elapsed().as_millis().min(u128::from(u64::MAX)) as u64)
         }, move |resultado| Msg::Gravado(path.clone(), copia, resultado))
     }
@@ -645,10 +642,7 @@ impl App {
     pub(super) fn concluir_gravacao_teste(&mut self, path: PathBuf, copia: bool) {
         assert!(self.salvando, "nenhuma gravação foi iniciada");
         let pasta = feathersheet_io::da_workbook::da_workbook(&self.workbook, self.folha as u32);
-        let resultado = feathersheet_io::arquivo::gravar_atomico_com(&path, |arquivo| {
-            feathersheet_io::fshz_write::gravar_fshz_para(arquivo, &pasta)
-                .map_err(std::io::Error::other)
-        }).map(|()| 1).map_err(|e| e.to_string());
+        let resultado = gravar_retrato(&pasta, &path).map(|()| 1);
         let _ = self.gravacao_terminou(path, copia, resultado);
     }
 
@@ -666,6 +660,10 @@ impl App {
                 self.registrar_arquivo_recente(&path);
                 let tamanho = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                 self.status = trf!("Salvo: {:.1} MB em {:.1} s", tamanho as f64 / 1_048_576.0, ms as f64 / 1000.0);
+                // Como o Excel: o `.xlsx` não leva macros VBA.
+                if self.workbook.vba.is_some() && formato_excel(&path) == Some(false) {
+                    self.status = tr!("Salvo como .xlsx: as macros VBA não vão neste formato (use .xlsm para mantê-las).").into();
+                }
                 if let Some(p) = self.apos_gravar.take() { return self.executar_pendente(p); }
             }
             Err(e) => {
@@ -929,11 +927,21 @@ impl App {
     }
 
     pub(super) fn dialogo_salvar(&self) -> Task<Msg> {
-        let nome = format!("{}.fshz", self.nome_base_documento());
+        // Sugere o formato do arquivo aberto (um `.xlsm` continua `.xlsm`); o primeiro filtro vem marcado.
+        let ext = self.caminho.as_ref().or(self.origem.as_ref())
+            .and_then(|p| p.extension()).and_then(|e| e.to_str()).map(str::to_ascii_lowercase)
+            .filter(|e| e == "xlsx" || e == "xlsm").unwrap_or_else(|| "fshz".into());
+        let nome = format!("{}.{ext}", self.nome_base_documento());
+        let mut filtros = vec![
+            ("fshz", tr!("Pasta de trabalho do FeatherSheet (.fshz)")),
+            ("xlsx", tr!("Pasta de trabalho do Excel (.xlsx)")),
+            ("xlsm", tr!("Pasta de trabalho do Excel com macros (.xlsm)")),
+        ];
+        if let Some(i) = filtros.iter().position(|(e, _)| *e == ext) { filtros.swap(0, i); }
         Task::perform(async move {
-            rfd::AsyncFileDialog::new().set_directory(dialogos::pasta_padrao()).add_filter("FeatherSheet", &["fshz"])
-                .set_file_name(&nome)
-                .save_file().await.map(|f| f.path().to_path_buf())
+            let mut dialogo = rfd::AsyncFileDialog::new().set_directory(dialogos::pasta_padrao());
+            for (e, rotulo) in filtros { dialogo = dialogo.add_filter(rotulo, &[e]); }
+            dialogo.set_file_name(&nome).save_file().await.map(|f| f.path().to_path_buf())
         }, Msg::DestinoSalvar)
     }
 
@@ -944,8 +952,9 @@ impl App {
         let pasta = atual.parent().map(PathBuf::from).unwrap_or_else(dialogos::pasta_padrao);
         let nome = atual.file_name().map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| tr!("Sem título.fshz").into());
+        let ext = atual.extension().and_then(|e| e.to_str()).unwrap_or("fshz").to_ascii_lowercase();
         Task::perform(async move {
-            rfd::AsyncFileDialog::new().set_directory(pasta).add_filter("FeatherSheet", &["fshz"])
+            rfd::AsyncFileDialog::new().set_directory(pasta).add_filter(ext.to_uppercase(), &[ext.as_str()])
                 .set_file_name(&nome)
                 .save_file().await.map(|f| f.path().to_path_buf())
         }, Msg::DestinoRenomear)
@@ -959,8 +968,10 @@ impl App {
             self.status = tr!("Salve a planilha antes de renomear").into();
             return;
         };
-        if novo.extension().and_then(|s| s.to_str()) != Some("fshz") {
-            novo.set_extension("fshz");
+        // Renomear não troca o formato: um `.xlsx` continua `.xlsx`.
+        let ext = antigo.extension().and_then(|s| s.to_str()).unwrap_or("fshz").to_owned();
+        if novo.extension().and_then(|s| s.to_str()) != Some(ext.as_str()) {
+            novo.set_extension(&ext);
         }
         if novo == antigo { return; }
         if novo.exists() {
@@ -968,9 +979,7 @@ impl App {
             return;
         }
         if self.alterado {
-            if let Err(e) = feathersheet_io::da_workbook::pasta_gravar_arquivo(
-                &self.workbook, self.folha as u32, &antigo
-            ) {
+            if let Err(e) = gravar_retrato(&feathersheet_io::da_workbook::da_workbook(&self.workbook, self.folha as u32), &antigo) {
                 self.status = trf!("Erro ao salvar antes de renomear: {e}");
                 return;
             }
@@ -1119,6 +1128,33 @@ fn exportar_retrato(pasta: &feathersheet_io::fshz_write::PastaBruta, folha: usiz
     }
 }
 
+/// `Some(macros)` quando o caminho é do Excel (`.xlsx` = `false`, `.xlsm` = `true`).
+pub(super) fn formato_excel(path: &std::path::Path) -> Option<bool> {
+    match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
+        "xlsx" => Some(false),
+        "xlsm" => Some(true),
+        _ => None,
+    }
+}
+
+/// Grava o retrato da pasta no formato do caminho: `.fshz`, ou `.xlsx`/`.xlsm` (o `.xlsm` com o
+/// projeto VBA que veio do arquivo). O Excel sai pelo mesmo caminho da exportação.
+pub(super) fn gravar_retrato(pasta: &feathersheet_io::fshz_write::PastaBruta, path: &std::path::Path) -> Result<(), String> {
+    match formato_excel(path) {
+        None => feathersheet_io::arquivo::gravar_atomico_com(path, |arquivo| {
+            feathersheet_io::fshz_write::gravar_fshz_para(arquivo, pasta).map_err(std::io::Error::other)
+        }).map_err(|e| e.to_string()),
+        Some(macros) => {
+            let bytes = feathersheet_io::fshz_write::gerar_fshz2(pasta)?;
+            let wb = feathersheet_io::para_workbook::para_workbook_soltando(feathersheet_io::fshz_read::ler_fshz(&bytes)?);
+            drop(bytes);
+            let (xlsx, _) = feathersheet_io::xlsx_write::gerar_excel_com_funcoes(&wb, macros)
+                .map_err(|e| trf!("Erro ao gerar Excel: {e}"))?;
+            feathersheet_io::arquivo::gravar_atomico(path, &xlsx).map_err(|e| e.to_string())
+        }
+    }
+}
+
 /// O destino do Salvar com `.fshz` no fim: acrescenta, não troca ("Relatório 2026.10"
 /// vira "Relatório 2026.10.fshz", não "Relatório 2026.fshz"). A janela de arquivo só
 /// perguntou sobre o nome digitado: se o nome final é outro arquivo que já existe, recusa.
@@ -1134,6 +1170,34 @@ pub(super) fn com_extensao_fshz(path: PathBuf) -> Result<PathBuf, String> {
 #[cfg(test)]
 mod testes_exportar {
     use super::*;
+
+    #[test]
+    fn ctrl_s_num_xlsm_aberto_grava_xlsm_com_o_vba_e_o_xlsx_sem() {
+        let pasta = std::env::temp_dir().join(format!("fs-xlsm-{}", std::process::id()));
+        std::fs::create_dir_all(&pasta).unwrap();
+        let mut wb = feathersheet_core::planilha::workbook::Workbook::new();
+        wb.definir_vba(vec![0xD0, 0xCF, 1, 2], "EstaPasta_de_trabalho".into(), vec![Some("Planilha1".into())]);
+        let original = pasta.join("lofa.xlsm");
+        std::fs::write(&original, feathersheet_io::xlsx_write::gerar_excel_com_funcoes(&wb, true).unwrap().0).unwrap();
+        let mut app = App::default();
+        app.carregar(original.clone(), std::fs::read(&original).unwrap()).unwrap();
+        assert_eq!(app.caminho.as_deref(), Some(original.as_path()), "o .xlsm aberto vira o arquivo de trabalho");
+        app.workbook.escrever_celula(0, 0, 0, "7".into());
+        app.alterado = true;
+        let _ = app.update(Msg::Salvar);
+        app.concluir_gravacao_teste(original.clone(), false);
+        let (relido, _) = feathersheet_io::xlsx_read::ler_xlsx_arquivo(&original).unwrap();
+        assert_eq!(relido.vba.as_ref().unwrap().binario, vec![0xD0, 0xCF, 1, 2]);
+        assert_eq!(relido.codinome_da_aba(0), Some("Planilha1"));
+        assert_eq!(relido.valor(0, 0, 0), feathersheet_core::Value::Number(7.0));
+        // Salvar como .xlsx: sem macros, como no Excel, e a pessoa é avisada.
+        let xlsx = pasta.join("lofa.xlsx");
+        let _ = app.update(Msg::DestinoSalvar(Some(xlsx.clone())));
+        app.concluir_gravacao_teste(xlsx.clone(), false);
+        assert!(feathersheet_io::xlsx_read::ler_xlsx_arquivo(&xlsx).unwrap().0.vba.is_none());
+        assert!(app.status.contains(".xlsm"), "{}", app.status);
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
 
     #[test]
     fn exportar_pelo_retrato_grava_os_valores_calculados() {

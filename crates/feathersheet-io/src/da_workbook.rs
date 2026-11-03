@@ -62,8 +62,17 @@ pub fn da_workbook(workbook: &Workbook, ativa: u32) -> PastaBruta {
         mc: workbook.macros.as_deref().and_then(|t| serde_json::from_str(t).ok()),
         ex: crate::externos_guardados::para_json(&workbook.externos_para_gravar()),
         fm: workbook.formularios.as_deref().and_then(|t| serde_json::from_str(t).ok()),
+        vb: workbook.vba.as_ref().map(|_| vba_para_json(workbook)),
         sheets,
     }
+}
+
+/// O projeto VBA no `.fshz`: o binário em base64, o `codeName` da pasta e o das abas por
+/// posição (os `id` das abas não vão para o arquivo).
+pub fn vba_para_json(workbook: &Workbook) -> serde_json::Value {
+    let Some(vba) = workbook.vba.as_ref() else { return serde_json::Value::Null };
+    let abas: Vec<Option<&str>> = (0..workbook.len()).map(|i| workbook.codinome_da_aba(i)).collect();
+    serde_json::json!({ "bin": crate::base64::codificar(&vba.binario), "pasta": vba.nome_pasta, "abas": abas })
 }
 
 /// Gera o conteúdo binário compactado (`.fshz`) diretamente da `Workbook`.
@@ -609,6 +618,30 @@ mod testes {
         let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
         let v: serde_json::Value = serde_json::from_str(crate::para_workbook::para_workbook(&lida).macros.as_deref().unwrap()).unwrap();
         assert_eq!(v["macros"][0]["name"], "Colorir");
+    }
+
+    #[test]
+    fn projeto_vba_volta_igual_no_xlsm_some_no_xlsx_e_fica_no_fshz() {
+        let mut wb = Workbook::new();
+        wb.criar_aba("Dados");
+        wb.definir_vba(vec![0xD0, 0xCF, 0x11, 0xE0, 7, 8, 9], "EstaPasta_de_trabalho".into(), vec![Some("Planilha1".into()), Some("Plan2".into())]);
+        let confere = |w: &Workbook| {
+            let v = w.vba.as_ref().expect("projeto VBA");
+            assert_eq!(v.binario, vec![0xD0, 0xCF, 0x11, 0xE0, 7, 8, 9]);
+            assert_eq!(v.nome_pasta, "EstaPasta_de_trabalho");
+            assert_eq!((w.codinome_da_aba(0), w.codinome_da_aba(1)), (Some("Planilha1"), Some("Plan2")));
+        };
+        let (xlsm, _) = crate::xlsx_write::gerar_excel_com_funcoes(&wb, true).unwrap();
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(xlsm.clone()).unwrap();
+        confere(&lida);
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(xlsm)).unwrap();
+        let mut tipos = String::new();
+        std::io::Read::read_to_string(&mut zip.by_name("[Content_Types].xml").unwrap(), &mut tipos).unwrap();
+        assert!(tipos.contains("macroEnabled.main+xml") && tipos.contains("vbaProject"), "{tipos}");
+        let (xlsx, _) = crate::xlsx_write::gerar_excel_com_funcoes(&wb, false).unwrap();
+        assert!(crate::xlsx_read::ler_xlsx_workbook(xlsx).unwrap().0.vba.is_none());
+        let fshz = pasta_gravar_bytes(&wb, 0).unwrap();
+        confere(&crate::para_workbook::para_workbook(&crate::fshz_read::ler_fshz(&fshz).unwrap()));
     }
 
     #[test]

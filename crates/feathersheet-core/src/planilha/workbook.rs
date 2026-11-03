@@ -68,6 +68,18 @@ pub struct Nomeado {
 /// Propriedades do arquivo (no Excel, Arquivo → Informações): quem criou,
 /// quem alterou por último e a organização. A interface preenche com os
 /// "Seus dados" das Configurações; nada sai do computador.
+/// O projeto VBA do `.xlsm`: o `xl/vbaProject.bin` byte a byte (módulos, UserForms, referências)
+/// e os nomes de código (`codeName`) que ligam os módulos de documento do VBA à pasta e às abas.
+/// O motor não lê o VBA (quem converte é o `feathersheet-vba`); só guarda e devolve.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ProjetoVba {
+    pub binario: Vec<u8>,
+    /// `<workbookPr codeName>` ("EstaPasta_de_trabalho", "ThisWorkbook").
+    pub nome_pasta: String,
+    /// `<sheetPr codeName>` por `id` da aba: acompanha a aba quando ela muda de lugar.
+    pub nomes_abas: Vec<(u32, String)>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Propriedades {
     pub autor: String,
@@ -123,6 +135,8 @@ pub struct Workbook {
     /// Os formulários das macros (`sheet.showComponent`), JSON opaco como as
     /// macros; o modelo mora no `feathersheet-macros`.
     pub formularios: Option<String>,
+    /// O projeto VBA de um `.xlsm` aberto, guardado como veio, para salvar o `.xlsm` igual.
+    pub vba: Option<ProjetoVba>,
     /// Ver [`Workbook::areas_citadas`]: reler 780 mil fórmulas de vínculo custava 2 s (#136).
     areas_cache: std::cell::RefCell<AreasGuardadas>,
 }
@@ -178,6 +192,7 @@ impl Workbook {
             propriedades: Propriedades::default(),
             macros: None,
             formularios: None,
+            vba: None,
             areas_cache: std::cell::RefCell::new(None),
         }
     }
@@ -228,6 +243,18 @@ impl Workbook {
         self.abas[em].sheet.manual.set(self.manual);
         self.hist_abas = HistoricoAbas::default();
         em
+    }
+
+    /// Guarda o projeto VBA com os `codeName` das abas na ordem atual (`None` = aba sem nome de código).
+    pub fn definir_vba(&mut self, binario: Vec<u8>, nome_pasta: String, por_posicao: Vec<Option<String>>) {
+        let nomes_abas = self.abas.iter().zip(por_posicao).filter_map(|(a, n)| Some((a.id, n?))).collect();
+        self.vba = Some(ProjetoVba { binario, nome_pasta, nomes_abas });
+    }
+
+    /// O `codeName` da aba nesta posição, se a pasta veio de um `.xlsm`.
+    pub fn codinome_da_aba(&self, indice: usize) -> Option<&str> {
+        let id = self.abas.get(indice)?.id;
+        self.vba.as_ref()?.nomes_abas.iter().find(|(i, _)| *i == id).map(|(_, n)| n.as_str())
     }
 
     /// O índice da aba com este `id`.

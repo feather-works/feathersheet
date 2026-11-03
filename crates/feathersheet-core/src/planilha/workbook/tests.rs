@@ -1151,3 +1151,15 @@ fn total_no_topo_e_dados_lendo_a_coluna_do_total_vao_em_paralelo() {
     assert_eq!(w.valor(0, 2, 3), Value::Number(5.0));
     assert_eq!(w.valor(0, 0, 4), Value::Number(202.0));
 }
+
+#[test]
+fn codinome_do_vba_acompanha_a_aba_quando_outra_entra_antes() {
+    let mut w = Workbook::new();
+    w.criar_aba("Dados");
+    w.definir_vba(vec![1, 2, 3], "EstaPasta_de_trabalho".into(), vec![Some("Planilha1".into()), None]);
+    assert_eq!(w.codinome_da_aba(0), Some("Planilha1"));
+    assert_eq!(w.codinome_da_aba(1), None);
+    w.inserir_aba("Nova", 0);
+    assert_eq!(w.codinome_da_aba(0), None);
+    assert_eq!(w.codinome_da_aba(1), Some("Planilha1"));
+}

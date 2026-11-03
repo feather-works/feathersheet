@@ -10,6 +10,7 @@
 /// Vigia de memória RAM da suíte (limite das Configurações).
 pub use feather_io::memoria;
 pub mod arquivo;
+pub mod base64;
 mod arrow_fluxo;
 pub mod backup_policy;
 pub mod backup_snapshot;

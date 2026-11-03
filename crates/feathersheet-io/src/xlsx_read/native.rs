@@ -816,6 +816,13 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     // Dinâmica sem resultado nas células (Google Planilhas, `refreshOnLoad`)
     // é calculada aqui; com resultado, só ganha a área para o painel editar.
     super::dinamica_importada::materializar(&mut workbook);
+    // Projeto VBA do `.xlsm`: guardado como veio, para salvar o `.xlsm` igual.
+    if let Some(binario) = super::vba::binario(&mut arquivo) {
+        let nome_pasta = book.child("workbookPr").and_then(|n| n.attr("codeName"))
+            .unwrap_or("EstaPasta_de_trabalho").to_string();
+        let por_posicao = caminhos.iter().map(|(_, c, _)| super::vba::codinome_da_aba(&mut arquivo, c)).collect();
+        workbook.definir_vba(binario, nome_pasta, por_posicao);
+    }
     // A aba que o Excel mostrava ao salvar (`activeTab`), se estiver visível.
     let ativa = aba_ativa(&book).filter(|&i| workbook.aba(i).is_some_and(|a| !a.sheet.oculta)).unwrap_or(0);
     Ok((workbook, ativa))

@@ -380,8 +380,11 @@ impl App {
         let valor = aberto.valores.get(&c.nome).and_then(Json::as_str).unwrap_or("");
         let campo_estilo = move |t: &pelicano::Theme, s: pelicano::Status| aparencia::sobre(c, pelicano::input_default(t, s));
         // Rótulo, caixa e opção: o fundo e a borda vão numa caixa em volta.
+        // Como no UserForm: o rótulo começa no topo, quebra a linha e corta o que passar da caixa
+        // (a nossa letra é mais larga que a Tahoma 8; sem cortar, o texto invadia o vizinho).
         let caixa = move |w: Element<'a, Msg>| -> Element<'a, Msg> {
-            container(w).width(Length::FILL).height(Length::FILL).align_y(pelicano::Align::Center)
+            container(w).width(Length::FILL).height(Length::FILL).clip(true)
+                .align_y(if c.tipo == TipoControle::Rotulo { pelicano::Align::Start } else { pelicano::Align::Center })
                 .align_x(aparencia::alinhamento(c)).padding([0, if c.fundo.is_empty() && c.borda.is_empty() { 0 } else { 6 }])
                 .style(move |_| aparencia::sobre(c, pelicano::Style::default())).into()
         };

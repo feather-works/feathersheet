@@ -99,6 +99,11 @@ fn montar(lida: &PastaLida, colunas: Option<Vec<ColunasDaAba>>) -> Workbook {
     }
     pasta.macros = lida.mc.as_ref().map(|v| v.to_string());
     pasta.formularios = lida.fm.as_ref().map(|v| v.to_string());
+    if let Some(binario) = lida.vb.as_ref().and_then(|v| crate::base64::decodificar(v["bin"].as_str()?)) {
+        let vb = lida.vb.as_ref().expect("lido acima");
+        let abas = vb["abas"].as_array().map(|l| l.iter().map(|n| n.as_str().map(String::from)).collect()).unwrap_or_default();
+        pasta.definir_vba(binario, vb["pasta"].as_str().unwrap_or("EstaPasta_de_trabalho").to_string(), abas);
+    }
     // Os últimos valores das pastas externas: valem até a origem abrir.
     if let Some(ex) = &lida.ex {
         pasta.instalar_externos_guardados(crate::externos_guardados::de_json(ex));
@@ -706,6 +711,7 @@ mod testes {
             mc: None,
             ex: None,
             fm: None,
+            vb: None,
             sheets: vec![AbaLida {
                 estilos: Default::default(),
                 n: "Planilha1".into(),
@@ -805,6 +811,7 @@ mod testes {
             mc: None,
             ex: None,
             fm: None,
+            vb: None,
             sheets: vec![AbaLida {
                 estilos: Default::default(),
                 n: "Planilha1".into(),
