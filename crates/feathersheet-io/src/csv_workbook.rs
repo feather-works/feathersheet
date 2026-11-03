@@ -128,6 +128,13 @@ pub fn importar_csv_tsv_com_separador(
 pub fn exportar_delimitado<W: std::io::Write>(
     workbook: &Workbook, indice: usize, tsv: bool, destino: &mut W,
 ) -> std::io::Result<()> {
+    exportar_com_separador(workbook, indice, if tsv { '\t' } else { ',' }, destino)
+}
+
+/// Com `;` (o CSV do Excel em português) o número sai com vírgula decimal, para reabrir igual.
+pub fn exportar_com_separador<W: std::io::Write>(
+    workbook: &Workbook, indice: usize, separador: char, destino: &mut W,
+) -> std::io::Result<()> {
     use feathersheet_core::Value;
     let sheet = &workbook.aba(indice).ok_or_else(|| std::io::Error::new(
         std::io::ErrorKind::NotFound, "Aba para exportação não encontrada",
@@ -136,7 +143,6 @@ pub fn exportar_delimitado<W: std::io::Write>(
     // Sem o BOM o Excel lê o arquivo como ANSI e estraga os acentos.
     destino.write_all(b"\xEF\xBB\xBF")?;
     let utilizado = sheet.used_rect();
-    let separador = if tsv { '\t' } else { ',' };
     let sep = [separador as u8];
     for linha in 0..=utilizado.r1 {
         for coluna in 0..=utilizado.c1 {
@@ -144,6 +150,7 @@ pub fn exportar_delimitado<W: std::io::Write>(
             let celula = match workbook.valor(indice, linha, coluna) {
                 Value::Empty => String::new(),
                 // A mesma escrita da tela (1e21, 1e-7), não a do Rust.
+                Value::Number(v) if separador == ';' => feathersheet_core::celulas::number::to_js_string(v).replace('.', ","),
                 Value::Number(v) => feathersheet_core::celulas::number::to_js_string(v),
                 Value::Text(s) => s,
                 Value::Bool(true) => "VERDADEIRO".to_owned(),
@@ -158,15 +165,27 @@ pub fn exportar_delimitado<W: std::io::Write>(
     Ok(())
 }
 
+/// O separador do CSV que já está em `path` (pelo começo do arquivo), se houver.
+fn separador_do_arquivo(path: &std::path::Path) -> Option<char> {
+    use std::io::Read;
+    let mut inicio = Vec::with_capacity(64 * 1024);
+    std::fs::File::open(path).ok()?.take(64 * 1024).read_to_end(&mut inicio).ok()?;
+    if inicio.is_empty() { return None; }
+    // Só separador de verdade: com um título na 1ª linha o detector responde "sem separador" (`\0`).
+    Some(escolher_separador(&texto_de_bytes(inicio), None)).filter(|c| matches!(c, ',' | ';' | '\t'))
+}
+
 /// Gravação atômica em streaming: não altera o .fshz aberto e preserva
 /// o destino anterior caso ocorra qualquer erro de exportação.
 pub fn gravar_csv_tsv(
     workbook: &Workbook, indice: usize, path: &std::path::Path, tsv: bool,
 ) -> std::io::Result<()> {
     use std::io::{BufWriter, Write};
+    // Regravar um CSV que já existe mantém o separador dele (o `;` não vira `,`).
+    let separador = if tsv { '\t' } else { separador_do_arquivo(path).unwrap_or(',') };
     crate::arquivo::gravar_atomico_com(path, |arquivo| {
         let mut escrita = BufWriter::with_capacity(64 * 1024, arquivo);
-        exportar_delimitado(workbook, indice, tsv, &mut escrita)?;
+        exportar_com_separador(workbook, indice, separador, &mut escrita)?;
         escrita.flush()
     })
 }
@@ -378,5 +397,26 @@ mod testes {
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(),1);
         std::fs::remove_file(path).unwrap();
         std::fs::remove_dir(dir).unwrap();
+    }
+
+    #[test]
+    fn regravar_csv_com_ponto_e_virgula_mantem_o_separador() {
+        let dir = std::env::temp_dir().join(format!("fs-csv-sep-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("br.csv");
+        std::fs::write(&path, "nome;valor\nCaneta;1,5\n").unwrap();
+        let livro = importar_csv_tsv(std::fs::read(&path).unwrap(), false).unwrap();
+        gravar_csv_tsv(&livro, 0, &path, false).unwrap();
+        let texto = String::from_utf8(std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(texto.trim_start_matches('\u{feff}'), "nome;valor\nCaneta;1,5");
+        // Título na primeira linha: não pode virar separador `\0`.
+        std::fs::write(&path, "Relatório de vendas\nnome,valor\nCaneta,2\n").unwrap();
+        gravar_csv_tsv(&livro, 0, &path, false).unwrap();
+        assert!(!std::fs::read(&path).unwrap().contains(&0u8));
+        // Arquivo novo continua com vírgula e ponto.
+        let novo = dir.join("novo.csv");
+        gravar_csv_tsv(&livro, 0, &novo, false).unwrap();
+        assert!(String::from_utf8(std::fs::read(&novo).unwrap()).unwrap().ends_with("Caneta,1.5"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

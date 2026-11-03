@@ -47,6 +47,9 @@ pub struct Assincronos {
     chegada: u64,
     /// Perguntadas e ainda não entregues à interface, na ordem.
     pendentes: Vec<String>,
+    /// As mesmas de `pendentes`, para conferir sem varrer a lista (50 mil fórmulas
+    /// `IMPORTARDADOS` faziam 1,25 bilhão de comparações por recálculo).
+    pendentes_set: HashSet<String>,
     /// Entregues à interface, esperando a resposta.
     em_curso: HashSet<String>,
     /// As células que fizeram cada pergunta, para recalcular quando chegar.
@@ -61,7 +64,7 @@ impl Assincronos {
         if let Some((r, _)) = self.respondidas.get(chave) {
             return r.computado();
         }
-        if !self.em_curso.contains(chave) && !self.pendentes.iter().any(|p| p == chave) {
+        if !self.em_curso.contains(chave) && self.pendentes_set.insert(chave.to_string()) {
             self.pendentes.push(chave.to_string());
         }
         Computed::Scalar(Value::Error(CellError::new(ErrorCode::Calculating)))
@@ -70,6 +73,7 @@ impl Assincronos {
     /// As perguntas novas, que passam a estar "em curso".
     pub fn tomar_pendentes(&mut self) -> Vec<String> {
         let novas: Vec<String> = std::mem::take(&mut self.pendentes);
+        self.pendentes_set.clear();
         self.em_curso.extend(novas.iter().cloned());
         novas
     }
@@ -81,7 +85,7 @@ impl Assincronos {
     /// Guarda a resposta e devolve as células que a pediram.
     pub fn resolver(&mut self, chave: &str, resposta: Resposta) -> Vec<u64> {
         self.em_curso.remove(chave);
-        self.pendentes.retain(|p| p != chave);
+        if self.pendentes_set.remove(chave) { self.pendentes.retain(|p| p != chave); }
         self.chegada += 1;
         self.respondidas.insert(chave.to_string(), (resposta, self.chegada));
         self.descartar_antigas();

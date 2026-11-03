@@ -96,12 +96,30 @@ pub(super) fn ler(vml: &str) -> Vec<ObjetoSolto> {
         let ate = Ancora { coluna: a[4] as u32, dx: a[5], linha: a[6] as u32, dy: a[7] };
         let mut o = ObjetoSolto::novo_controle(ControleFormulario::novo(tipo), de, ate);
         o.texto = texto_da_caixa(forma);
-        // `<font size="280">`: vigésimos de ponto.
-        let tamanho = forma.split("<font").nth(1).and_then(|f| f.split("size=\"").nth(1)).and_then(|t| t.split('"').next())
-            .and_then(|t| t.parse::<f32>().ok()).map(|v| v / 20.0).filter(|v| (4.0..=96.0).contains(v));
-        if let Some(t) = tamanho {
-            o.fonte = Some(crate::objetos_aba::FonteTexto { tamanho: Some(t), ..Default::default() });
-        }
+        // `<font face="Calibri" size="280" color="#ff0000">`: tamanho em vigésimos de ponto; `<b>`/`<i>` em volta.
+        let marca_fonte = forma.split("<font").nth(1).map(|f| &f[..f.find('>').unwrap_or(f.len())]).unwrap_or("");
+        // Desescapado: `face="A&amp;B"` voltava como `&amp;amp;` a cada salvamento.
+        let atributo = |marca: &str, nome: &str| marca.split(&format!("{nome}=\"")).nth(1).and_then(|t| t.split('"').next()).map(desescapar);
+        let tamanho = atributo(marca_fonte, "size").and_then(|t| t.parse::<f32>().ok()).map(|v| v / 20.0).filter(|v| (4.0..=96.0).contains(v));
+        let fonte = crate::objetos_aba::FonteTexto {
+            tamanho,
+            negrito: forma.contains("<b>"),
+            italico: forma.contains("<i>"),
+            // Preto é o padrão: só guarda cor diferente.
+            cor: atributo(marca_fonte, "color").filter(|c| c.starts_with('#') && !c.eq_ignore_ascii_case("#000000")),
+            familia: atributo(marca_fonte, "face").filter(|f| !f.is_empty() && f != "Calibri"),
+            ..Default::default()
+        };
+        if fonte != crate::objetos_aba::FonteTexto::default() { o.fonte = Some(fonte); }
+        use crate::objetos_aba::{AlinharH, AlinharV};
+        o.alinhar.h = match campo(dados, "TextHAlign") { Some("Left") => AlinharH::Esquerda, Some("Right") => AlinharH::Direita, _ => AlinharH::Centro };
+        o.alinhar.v = match campo(dados, "TextVAlign") { Some("Top") => AlinharV::Topo, Some("Bottom") => AlinharV::Baixo, _ => AlinharV::Meio };
+        let abre = &forma[..forma.find('>').unwrap_or(0)];
+        // `#ff9 [43]` → `#ff9`; cor com nome (`yellow [13]`) fica como veio, para voltar igual ao salvar.
+        let cor = |nome: &str| atributo(abre, nome).map(|c| match c.split_once(' ') {
+            Some((h, _)) if h.starts_with('#') => h.to_owned(),
+            _ => c,
+        }).filter(|c| !c.is_empty() && !c.contains("windowText") && !c.contains("buttonFace") && !c.contains("infoBackground") && !c.starts_with("none"));
         let mut c = ControleFormulario::novo(tipo);
         c.celula = campo(dados, "FmlaLink").filter(|v| !v.is_empty()).map(desescapar);
         c.faixa = campo(dados, "FmlaRange").filter(|v| !v.is_empty()).map(desescapar);
@@ -113,6 +131,19 @@ pub(super) fn ler(vml: &str) -> Vec<ObjetoSolto> {
         c.marcado = numero(dados, "Checked").map(|v| v.clamp(0, 2) as u8);
         c.linhas = numero(dados, "DropLines").map(|v| v.clamp(0, 1000) as u32);
         c.horizontal = dados.contains("<x:Horiz");
+        let falso = |m: &str| campo(dados, m).is_some_and(|v| v.eq_ignore_ascii_case("false"));
+        c.desbloqueado = falso("Locked");
+        c.texto_desbloqueado = falso("LockText");
+        c.nao_imprimir = falso("PrintObject");
+        // Exato: `<x:NoThreeD2/>` é outra marca (da lista).
+        c.sem_3d = dados.contains("<x:NoThreeD/>") || dados.contains("<x:NoThreeD>");
+        c.fundo = cor("fillcolor").filter(|_| !abre.contains("filled=\"f\""));
+        c.linha = cor("strokecolor").filter(|_| !abre.contains("stroked=\"f\""));
+        // A presença diz que NÃO move/redimensiona (as notas do Excel trazem as duas).
+        c.posicao = match (dados.contains("<x:MoveWithCells"), dados.contains("<x:SizeWithCells")) { (true, _) => 2, (false, true) => 1, _ => 0 };
+        // `alt` só da marca de abertura da forma (antes do primeiro `>`).
+        c.texto_alt = forma[..forma.find('>').unwrap_or(0)].split(" alt=\"").nth(1).and_then(|t| t.split('"').next())
+            .filter(|t| !t.is_empty()).map(desescapar);
         c.macro_excel = campo(dados, "FmlaMacro").filter(|v| !v.is_empty()).map(desescapar);
         // Como nas formas: a macro pelo nome que o conversor dá (o fim de `[0]!Modulo1.Sub`).
         o.macro_nome = c.macro_excel.as_deref().map(|m| m.rsplit(['!', '.']).next().unwrap_or(m).to_string()).filter(|m| !m.is_empty());

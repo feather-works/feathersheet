@@ -49,6 +49,8 @@ pub(super) struct Estado {
     pub orfas: Vec<Orfa>,
     /// Origem do documento recuperado que está abrindo (vira o nome sugerido).
     pub origem_pendente: Option<Option<PathBuf>>,
+    /// A cópia órfã que está abrindo: só sai do disco e da lista quando abrir de verdade.
+    pub recuperando: Option<Orfa>,
 }
 
 pub(super) fn pasta() -> PathBuf {
@@ -222,18 +224,16 @@ impl App {
                 Task::none()
             }
             Evento::Recuperar(i) => {
-                let Some(o) = self.recuperacao.orfas.get(i).cloned() else { return Task::none() };
-                // Vai para Temporarios/: abre como planilha nova não salva.
-                self.recuperacao.origem_pendente = Some(o.origem.clone().or_else(|| Some(PathBuf::from(&o.nome))));
-                self.recuperacao.orfas.remove(i);
-                // A cópia passa a esta sessão (que grava a própria logo depois).
-                let destino = pasta().join(format!("recuperada-{}.fshz", std::process::id()));
-                if std::fs::rename(&o.fshz, &destino).is_err() {
-                    self.status = tr!("Não foi possível abrir a cópia recuperada.").into();
+                if self.carregando {
+                    self.status = tr!("Aguarde a planilha em carregamento.").into();
                     return Task::none();
                 }
-                let _ = std::fs::remove_file(&o.json);
-                self.recente_destino = Some(destino);
+                let Some(o) = self.recuperacao.orfas.get(i).cloned() else { return Task::none() };
+                // Abre de onde está (Temporarios/: planilha nova não salva). Nada sai do disco nem
+                // da lista antes de abrir: cancelar o "salvar alterações?" mantém a cópia.
+                self.recuperacao.origem_pendente = Some(o.origem.clone().or_else(|| Some(PathBuf::from(&o.nome))));
+                self.recente_destino = Some(o.fshz.clone());
+                self.recuperacao.recuperando = Some(o);
                 self.proteger(Pendente::Recente)
             }
             Evento::Descartar(i) => {

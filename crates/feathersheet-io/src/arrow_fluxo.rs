@@ -76,6 +76,9 @@ impl<T: Valor> Montador<T> {
 
 /// Lê `n` bytes sem reservar o tamanho declarado de antemão: um arquivo
 /// forjado pode dizer gigabytes e trazer meia dúzia de bytes.
+/// Teto de células (campos × linhas) que um `.fshz` pode declarar: ~8 GB de números.
+const MAX_CELULAS_DECLARADAS: u64 = 1_000_000_000;
+
 fn ler_exato<R: Read>(r: &mut std::io::Take<R>, n: usize) -> Result<Vec<u8>, String> {
     if n as u64 > r.limit() {
         return Err("Bloco Arrow truncado".into());
@@ -152,8 +155,17 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
         match msg.header_type() {
             MessageHeader::Schema => {
                 let esquema = msg.header_as_schema().ok_or("Esquema Arrow inválido")?;
+                let mut alocadas = 0u64;
                 for campo in esquema.fields().into_iter().flatten() {
                     let nome = campo.name().unwrap_or_default().to_owned();
+                    // Linhas e campos vêm do arquivo: um `.fshz` de 100 KB declarando 100 milhões de
+                    // linhas em mil campos pedia ~800 GB (no Windows, o programa fechava).
+                    if !planos.contains_key(&nome) {
+                        alocadas += linhas as u64;
+                        if alocadas > MAX_CELULAS_DECLARADAS {
+                            return Err(format!("O arquivo declara células demais ({} campos × {linhas} linhas).", colunas.len() + 1));
+                        }
+                    }
                     let mascara = vec![0u8; linhas.div_ceil(8)];
                     let int32 = campo.type_type() == Type::Int && campo.type_as_int().is_some_and(|i| i.bitWidth() == 32);
                     colunas.push(match (planos.remove(&nome), campo.type_type()) {

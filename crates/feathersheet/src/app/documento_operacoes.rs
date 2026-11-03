@@ -544,6 +544,12 @@ impl App {
         if recuperacao {
             // Planilha recuperada: o nome do documento original volta.
             if let Some(origem) = self.recuperacao.origem_pendente.take() { self.origem = origem; }
+            // Abriu: a cópia órfã passa a esta sessão (que grava a própria logo depois).
+            if let Some(o) = self.recuperacao.recuperando.take().filter(|o| o.fshz == path) {
+                self.recuperacao.orfas.retain(|x| x.fshz != o.fshz);
+                let _ = std::fs::remove_file(&o.json);
+                let _ = std::fs::remove_file(&o.fshz);
+            }
         }
         self.alterado = ext != "fshz" || recuperacao;
         // O arquivo recém-aberto está no disco: a cópia de recuperação só começa quando a pessoa
@@ -653,6 +659,8 @@ impl App {
                 self.registrar_arquivo_recente(&path);
                 self.status = trf!("Cópia salva em: {}", path.display());
                 let _ = ms;
+                // Fechar pedido durante a cópia: pergunta de novo se ainda há alteração.
+                if let Some(p) = self.apos_gravar.take() { return self.proteger(p); }
             }
             Ok(ms) => {
                 self.auto_salvar_ultimo_custo_ms = ms;
@@ -664,7 +672,8 @@ impl App {
                 if self.workbook.vba.is_some() && formato_excel(&path) == Some(false) {
                     self.status = tr!("Salvo como .xlsx: as macros VBA não vão neste formato (use .xlsm para mantê-las).").into();
                 }
-                if let Some(p) = self.apos_gravar.take() { return self.executar_pendente(p); }
+                // O que foi digitado durante a gravação não está neste arquivo: `proteger` pergunta de novo.
+                if let Some(p) = self.apos_gravar.take() { return self.proteger(p); }
             }
             Err(e) => {
                 if !copia { self.alterado = true; }
@@ -964,6 +973,11 @@ impl App {
     /// caminho. Se há alterações pendentes, grava antes, como o TypeScript.
     pub(super) fn renomear_arquivo_atual(&mut self, mut novo: PathBuf) {
         self.confirmar();
+        // A gravação em andamento terminaria no nome antigo e deixaria o novo com o conteúdo velho.
+        if self.salvando {
+            self.status = tr!("Aguarde: o salvamento anterior ainda está em andamento.").into();
+            return;
+        }
         let Some(antigo) = self.caminho.clone() else {
             self.status = tr!("Salve a planilha antes de renomear").into();
             return;
@@ -1065,7 +1079,7 @@ impl App {
         }, Msg::Exportado)
     }
 
-    pub(super) fn exportacao_terminou(&mut self, resultado: Result<(String, std::collections::BTreeSet<String>), String>) {
+    pub(super) fn exportacao_terminou(&mut self, resultado: Result<(String, std::collections::BTreeSet<String>), String>) -> Task<Msg> {
         self.salvando = false;
         match resultado {
             Ok((aviso, usadas)) => {
@@ -1074,6 +1088,8 @@ impl App {
             }
             Err(e) => self.status = e,
         }
+        // Exportar não salva o documento: fechar pedido no meio volta a perguntar.
+        match self.apos_gravar.take() { Some(p) => self.proteger(p), None => Task::none() }
     }
 
     /// Pergunta o destino antes de percorrer as células; cancelar não faz IO.

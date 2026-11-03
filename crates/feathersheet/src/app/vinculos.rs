@@ -409,7 +409,7 @@ impl App {
     /// valores (a pasta de destino pode ter mudado de lugar).
     pub(crate) fn resolver_origem(&self, arquivo: &str) -> Option<PathBuf> {
         let p = Path::new(arquivo);
-        if p.is_absolute() {
+        if p.is_absolute() || canal::de_rede(p) {
             return Some(p.to_path_buf());
         }
         let guardado = self.workbook.livro_externo(arquivo).and_then(|l| l.caminho.clone()).map(PathBuf::from);
@@ -420,7 +420,8 @@ impl App {
                 return Some(junto);
             }
         }
-        if let Some(g) = guardado.as_ref().filter(|g| g.exists()) {
+        // Caminho de rede guardado no arquivo: não testar (ver `canal::de_rede`).
+        if let Some(g) = guardado.as_ref().filter(|g| !canal::de_rede(g) && g.exists()) {
             return Some(g.clone());
         }
         base.map(|b| b.join(p)).or(guardado)

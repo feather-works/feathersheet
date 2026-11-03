@@ -346,7 +346,7 @@ pub fn fn_sort(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     source.sort_by(|row_a, row_b| {
         let val_a = &row_a[idx];
         let val_b = &row_b[idx];
-        let cmp = crate::celulas::values::compare(val_a, val_b).unwrap_or(std::cmp::Ordering::Equal);
+        let cmp = crate::celulas::values::compare_exato(val_a, val_b).unwrap_or(std::cmp::Ordering::Equal);
         if ascending { cmp } else { cmp.reverse() }
     });
 

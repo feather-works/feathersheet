@@ -1423,6 +1423,7 @@ impl Sheet {
             let mut agregados = self.agregados.borrow_mut();
             if agregados.geracao != geracao {
                 agregados.mapa.clear();
+                agregados.grupos = 0;
                 agregados.geracao = geracao;
             }
             if let Some(a) = agregados.mapa.get(&chave) {
@@ -1478,7 +1479,13 @@ impl Sheet {
         }
         let agregado = std::sync::Arc::new(agregado);
         if self.geracao.get() == geracao {
-            self.agregados.borrow_mut().mapa.insert(chave, agregado.clone());
+            let mut agregados = self.agregados.borrow_mut();
+            if agregados.grupos + agregado.len() > crate::planilha::agregado::LIMITE_GRUPOS {
+                agregados.mapa.clear();
+                agregados.grupos = 0;
+            }
+            agregados.grupos += agregado.len();
+            agregados.mapa.insert(chave, agregado.clone());
         }
         Some(agregado)
     }

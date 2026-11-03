@@ -400,7 +400,8 @@ fn montar_aba_lida_com_pool(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>
                             Some(fv) => {
                                 let payload = tirar_float(&mut arrow, fv)
                                     .map(|(v, _)| v)
-                                    .unwrap_or_else(|| vec![0.0; linhas as usize]);
+                                    // Tamanho dos dados lidos, não o declarado no arquivo.
+                                    .unwrap_or_else(|| vec![0.0; ids.len()]);
                                 (ids, payload)
                             }
                             // Formato antigo: `f` só tinha o número do padrão.
@@ -410,7 +411,8 @@ fn montar_aba_lida_com_pool(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>
                             // comportava mesmo.
                             None => {
                                 let slots: Vec<i32> = ids.iter().map(|id| id << 8).collect();
-                                (slots, vec![0.0; linhas as usize])
+                                let n = slots.len();
+                                (slots, vec![0.0; n])
                             }
                         };
                         colunas_formula.push(ColunaFormulaLida {

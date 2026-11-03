@@ -453,7 +453,23 @@ fn comparar_texto(x: &str, y: &str) -> Ordering {
 }
 
 /// Compara dois valores — ou devolve o erro, se algum dos lados for um.
+/// O Excel guarda 15 dígitos significativos: `0,1+0,2` (0,30000000000000004) é igual a `0,3`.
+pub fn iguais_15_digitos(x: f64, y: f64) -> bool {
+    // Infinito só é igual a ele mesmo (`∞ − 5 <= ∞·1e-15` daria verdadeiro).
+    x == y || (x.is_finite() && y.is_finite() && (x - y).abs() <= x.abs().max(y.abs()) * 1e-15)
+}
+
+/// Para `=`, critérios e buscas: números iguais até 15 dígitos contam como iguais.
 pub fn compare(a: &Value, b: &Value) -> Result<Ordering, CellError> {
+    comparar_com(a, b, true)
+}
+
+/// Para ordenar: sem a tolerância (que não é transitiva e o `sort` do Rust exige ordem total).
+pub fn compare_exato(a: &Value, b: &Value) -> Result<Ordering, CellError> {
+    comparar_com(a, b, false)
+}
+
+fn comparar_com(a: &Value, b: &Value, tolerante: bool) -> Result<Ordering, CellError> {
     if let Value::Error(e) = a {
         return Err(e.clone());
     }
@@ -481,6 +497,7 @@ pub fn compare(a: &Value, b: &Value) -> Result<Ordering, CellError> {
         return Ok(ra.cmp(&rb));
     }
     Ok(match (&*a, &*b) {
+        (Value::Number(x), Value::Number(y)) if tolerante && iguais_15_digitos(*x, *y) => Ordering::Equal,
         (Value::Number(x), Value::Number(y)) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
         (Value::Bool(x), Value::Bool(y)) => x.cmp(y),
         (Value::Text(x), Value::Text(y)) => comparar_texto(x, y),
@@ -496,6 +513,16 @@ pub fn compare(a: &Value, b: &Value) -> Result<Ordering, CellError> {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn numeros_iguais_ate_15_digitos_como_no_excel() {
+        let n = |v: f64| Value::Number(v);
+        assert_eq!(compare(&n(0.1 + 0.2), &n(0.3)), Ok(Ordering::Equal));
+        assert_eq!(compare(&n(1e-20), &n(0.0)), Ok(Ordering::Greater), "perto de zero não vira zero");
+        assert_eq!(compare(&n(1.0000000000001), &n(1.0)), Ok(Ordering::Greater), "o 14º dígito ainda conta");
+        assert_eq!(compare(&n(f64::INFINITY), &n(5.0)), Ok(Ordering::Greater));
+        assert_eq!(compare(&n(f64::INFINITY), &n(f64::NEG_INFINITY)), Ok(Ordering::Greater));
+    }
 
     #[test]
     fn coercoes_numericas_fieis_ao_typescript_legado() {

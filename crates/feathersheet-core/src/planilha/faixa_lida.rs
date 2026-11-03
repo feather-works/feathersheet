@@ -34,6 +34,10 @@ pub struct FaixaLida {
     /// que a consultam. Montado na primeira busca; `None` quando a faixa não
     /// é um vetor ou tem `NaN` (que casa com qualquer número).
     indice_exato: std::sync::OnceLock<Option<HashMap<crate::planilha::agregado::ChaveCriterio, u32>>>,
+    /// Os números em ordem crescente (PERCENTIL, MED, MAIOR, MENOR), montados uma vez:
+    /// `PERCENTIL($B$2:$B$50001;0,9)` em 50 mil linhas ordenava a faixa 50 mil vezes.
+    /// `None` quando a faixa tem erro (quem chama lê de novo e devolve o erro).
+    ordenados: std::sync::OnceLock<Option<std::sync::Arc<Vec<f64>>>>,
 }
 
 static VAZIO: Value = Value::Empty;
@@ -41,7 +45,24 @@ static VAZIO: Value = Value::Empty;
 impl FaixaLida {
     pub(crate) fn nova(r0: u32, c0: u32, linhas: u32, colunas: u32, valores: Vec<Value>) -> Self {
         debug_assert_eq!(valores.len() as u64, linhas as u64 * colunas as u64);
-        FaixaLida { r0, c0, linhas, colunas, valores, indice_exato: std::sync::OnceLock::new() }
+        FaixaLida { r0, c0, linhas, colunas, valores, indice_exato: std::sync::OnceLock::new(), ordenados: std::sync::OnceLock::new() }
+    }
+
+    /// Os números da faixa (texto, lógico e vazio de fora, como um intervalo numa função
+    /// estatística) em ordem crescente; `None` se há erro na faixa.
+    pub fn numeros_ordenados(&self) -> Option<std::sync::Arc<Vec<f64>>> {
+        self.ordenados.get_or_init(|| {
+            let mut v = Vec::new();
+            for valor in &self.valores {
+                match valor {
+                    Value::Number(n) => v.push(*n),
+                    Value::Error(_) => return None,
+                    _ => {}
+                }
+            }
+            v.sort_by(f64::total_cmp);
+            Some(std::sync::Arc::new(v))
+        }).clone()
     }
 
     /// A posição (no vetor: linha ou coluna, a partir de zero) do primeiro

@@ -172,12 +172,36 @@ pub struct ControleFormulario {
     /// A macro como o Excel grava (`FmlaMacro`: `[0]!AbrirPainel`), para o `.xlsm` voltar igual.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub macro_excel: Option<String>,
+    /// Formatar controle > Proteção: "Bloqueado" e "Bloquear texto" desmarcados (`Locked`/`LockText` False).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub desbloqueado: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub texto_desbloqueado: bool,
+    /// Propriedades: "Imprimir objeto" desmarcado (`PrintObject` False).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub nao_imprimir: bool,
+    /// Controle: "Sombreamento 3D" desmarcado (`NoThreeD`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sem_3d: bool,
+    /// Texto Alt. (o `alt` da forma VML).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub texto_alt: Option<String>,
+    /// Cores e linhas: `#rrggbb` do fundo e da linha; `None` = o visual padrão do Excel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fundo: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linha: Option<String>,
+    /// Propriedades > Posicionamento: 0 move e redimensiona com as células, 1 só move, 2 nenhum dos dois.
+    #[serde(default, skip_serializing_if = "zero")]
+    pub posicao: u8,
 }
 
 impl ControleFormulario {
     pub fn novo(tipo: TipoControleForm) -> Self {
         Self { tipo, celula: None, faixa: None, valor: None, min: None, max: None, passo: None, pagina: None,
-            marcado: None, linhas: None, horizontal: false, macro_excel: None }
+            marcado: None, linhas: None, horizontal: false, macro_excel: None,
+            desbloqueado: false, texto_desbloqueado: false, nao_imprimir: false, sem_3d: false, texto_alt: None,
+            fundo: None, linha: None, posicao: 0 }
     }
 
     /// Botão de girar e barra de rolagem: o valor depois de andar `passos` setas (+/-) ou páginas,
@@ -392,6 +416,8 @@ pub fn cor_valida(hex: &str) -> bool {
     let s = hex.trim().trim_start_matches('#');
     (s.len() == 6 || s.len() == 8) && s.chars().all(|c| c.is_ascii_hexdigit())
 }
+
+fn zero(v: &u8) -> bool { *v == 0 }
 
 fn nao(v: &bool) -> bool {
     !*v

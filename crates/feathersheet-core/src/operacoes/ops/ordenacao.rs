@@ -65,7 +65,7 @@ pub fn planejar_ordenacao_com(
             let (va, vb) = (&valores[ki][(a - first) as usize], &valores[ki][(b - first) as usize]);
             // Com erro de um dos lados, a chave não decide (o `typeof res
             // === 'number'` do TypeScript).
-            if let Ok(mut o) = crate::celulas::values::compare(va, vb) {
+            if let Ok(mut o) = crate::celulas::values::compare_exato(va, vb) {
                 if o == std::cmp::Ordering::Equal && maiusculas { o = desempate_por_caixa(va, vb); }
                 if o != std::cmp::Ordering::Equal {
                     return if k.ascending { o } else { o.reverse() };

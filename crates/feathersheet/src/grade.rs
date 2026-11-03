@@ -244,6 +244,9 @@ impl canvas::Program<Msg> for Grade<'_> {
         // (desenhada depois) e a própria grade não as cobrem, e duas bordas no mesmo lado
         // viram uma linha só (#69).
         let mut tracos_borda: Vec<(Point, Size, Color)> = Vec::new();
+        // Texto que passa para as vizinhas vazias (como no Excel): desenhado depois de todas
+        // as células, para o fundo da vizinha (desenhada depois) não cobri-lo.
+        let mut transbordos: Vec<(Rectangle, Text)> = Vec::new();
         let mut memo_estilos = feathersheet_core::planilha::sheet::MemoEstilos::default();
         for (ic, &(c, x, desenhar_w)) in colunas_visiveis.iter().enumerate() {
             let w = larguras_inteiras[ic];
@@ -435,6 +438,29 @@ impl canvas::Program<Msg> for Grade<'_> {
                     // Texto girado (90° no Excel) corre pela altura: cortar pela largura deixava
                     // "2.153" como "2…" numa coluna estreita.
                     let giro = estilo.and_then(|s| s.rotation).unwrap_or(0).clamp(-90, 90);
+                    // Texto (não número) sem quebra, sem giro: invade as células vazias do lado
+                    // para onde está alinhado, até caber ou achar uma ocupada.
+                    let (x_txt, w_txt, extra_txt) = {
+                        let cabe = |largura: f32| val.lines().map(|l| l.chars().count()).max().unwrap_or(0) as f32 * 7.1 <= largura - 16.0;
+                        let pode = !ajuste.quebrar && !ajuste.reduzir && !ajuste.vertical && giro == 0 && !self.mostrar_formulas
+                            && matches!(self.workbook.valor(self.aba, r, c), feathersheet_core::Value::Text(_)) && !cabe(w);
+                        let alinhado = self.alinhar(r, c);
+                        let mut extra = 0.0f32;
+                        let mut x0 = x;
+                        if pode && alinhado != pelicano::Align::Center {
+                            let livre = |c2: u32| self.texto(r, c2).is_empty() && !texto_mesclado.contains(&(r, c2))
+                                && !mesclas.iter().any(|m| m.contains(r, c2));
+                            let vizinhas: Vec<(u32, f32, f32)> = if alinhado == pelicano::Align::End {
+                                colunas_visiveis[..ic].iter().rev().copied().collect()
+                            } else { colunas_visiveis[ic + 1..].to_vec() };
+                            for (c2, x2, w2) in vizinhas {
+                                if cabe(w + extra) || !livre(c2) { break; }
+                                extra += w2;
+                                if alinhado == pelicano::Align::End { x0 = x2; }
+                            }
+                        }
+                        (x0, w + extra, extra)
+                    };
                     let limite = if ajuste.vertical {
                         ((h - 8.0) / 11.0).floor().max(2.0) as usize
                     } else if giro != 0 {
@@ -442,7 +468,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                         let pela_altura = if sen > 0.01 { (h - 6.0) / sen } else { f32::MAX };
                         let pela_largura = if cos > 0.01 { (w - 6.0) / cos } else { f32::MAX };
                         (pela_altura.min(pela_largura) / 7.1).floor().max(2.0) as usize
-                    } else { ((w - 16.0) / 7.1).floor().max(2.0) as usize };
+                    } else { ((w_txt - 16.0) / 7.1).floor().max(2.0) as usize };
                     let curto = if ajuste.quebrar && !ajuste.reduzir && !ajuste.vertical {
                         // shortcut: largura por caractere estimada (meia letra); medir o texto se a quebra sair torta.
                         let letra = estilo.and_then(|s| s.font_size).unwrap_or(self.tamanho_fonte_padrao as f32).max(6.0);
@@ -531,7 +557,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                         y_texto += if ajuste.subscrito {h*0.18} else {-h*0.18};
                     }
                     let largura_texto = (curto.chars().count() as f32 * tamanho_fonte * 0.54)
-                        .min((w - 14.0).max(0.0));
+                        .min((w_txt - 14.0).max(0.0));
                     let inicio_texto = match alinhar {
                         pelicano::Align::End => (tx - largura_texto).max(x + 4.0),
                         pelicano::Align::Center => (tx - largura_texto/2.0).max(x + 4.0),
@@ -549,7 +575,10 @@ impl canvas::Program<Msg> for Grade<'_> {
                     };
                     let rotacao = estilo.and_then(|s| s.rotation)
                         .unwrap_or(0).clamp(-90, 90);
-                    if rotacao == 0 {
+                    if rotacao == 0 && extra_txt > 0.0 {
+                        let caixa = Rectangle::new(Point::new(x_txt, y), Size::new(desenhar_w + extra_txt, desenhar_h));
+                        transbordos.push((caixa, Text { position: Point::new(tx - x_txt, y_texto - y), ..desenho_texto }));
+                    } else if rotacao == 0 {
                         // O conteúdo de A29 não pode escapar para A30. Dentro do
                         // recorte a origem passa a ser o canto da célula.
                         recortar_celula(&mut f, self.zoom,
@@ -729,6 +758,9 @@ impl canvas::Program<Msg> for Grade<'_> {
                 f.fill_rectangle(Point::new(x+desenhar_w-1.0,CABECALHO_COLUNA),
                     Size::new(1.0,bounds.height-CABECALHO_COLUNA),borda);
             }
+        }
+        for (caixa, t) in transbordos {
+            recortar_celula(&mut f, self.zoom, caixa, |frame| frame.fill_text(t));
         }
         for (p, t, cor) in tracos_borda {
             f.fill_rectangle(p, t, cor);

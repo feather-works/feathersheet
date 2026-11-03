@@ -355,6 +355,8 @@ pub(super) struct ItemTela {
     pub icone: bool,
     /// WordArt: o texto vira contorno deformado (`forma` = deformação), sem alças de ajuste.
     pub wordart: Option<super::wordart::WordArtTela>,
+    /// Controle de formulário do Excel com o valor da célula ligada (preenchido pela grade).
+    pub controle: Option<super::controles::ControleTela>,
     /// Degradê do preenchimento (vem do `.xlsx`).
     pub gradiente: Option<modelo::Gradiente>,
     pub sombra: Option<modelo::Sombra>,
@@ -387,6 +389,7 @@ impl ItemTela {
             tem_macro: o.macro_nome.is_some(),
             icone,
             wordart,
+            controle: None,
             gradiente: o.gradiente.clone().filter(|g| !g.paradas.is_empty()),
             sombra: o.sombra.clone(),
             fonte: o.fonte.clone(),
@@ -670,7 +673,8 @@ impl Camada {
             }
         }
         let it = self.itens.iter().rev().find(|it| self.acerta(it, p))?;
-        let macro_ativa = it.tem_macro && !ctrl && self.selecionado != Some(it.id);
+        // O controle responde ao clique como no Excel (Ctrl+clique seleciona para mover).
+        let macro_ativa = (it.controle.is_some() || it.tem_macro && self.selecionado != Some(it.id)) && !ctrl;
         Some((it.id, if macro_ativa { TipoGesto::Macro } else { TipoGesto::Mover }))
     }
 
@@ -716,6 +720,10 @@ impl Camada {
     /// recortado nela pelo `with_clip`).
     fn desenhar_forma(frame: &mut Frame, it: &ItemTela, ajustes: &[f32], forma: &str, r: Rectangle, giro: f32, z: f32, com_texto: bool, visivel: Rectangle) {
         let c = r.center();
+        if let Some(ct) = &it.controle {
+            super::controles::desenhar(frame, ct, it.texto.as_deref(), it.fonte.as_ref(), it.alinhar, r, z);
+            return;
+        }
         if let Some(wa) = &it.wordart {
             // O texto é o próprio desenho (não sai centrado por cima, como o da forma).
             let texto = it.texto.as_deref().unwrap_or(tr!(super::wordart::TEXTO_PADRAO));
@@ -993,6 +1001,15 @@ impl Camada {
                     let mut m = estado.medida.borrow_mut();
                     m.eventos += 1;
                     m.us_eventos += t0.elapsed().as_micros() as u64;
+                    // Barra de rolagem: a caixa acompanha o arrasto.
+                    let barra = (g.tipo == TipoGesto::Macro).then_some(g.id).flatten()
+                        .and_then(|id| self.itens.iter().find(|i| i.id == id))
+                        .filter(|it| it.controle.as_ref().is_some_and(|c| c.tipo == feathersheet_io::objetos_aba::TipoControleForm::Rolagem));
+                    if let Some(it) = barra {
+                        let (r, z) = (self.ret_tela(it.ret), self.z().max(0.01));
+                        let (x0, y0, x, y) = ((g.inicio.x - r.x) / z, (g.inicio.y - r.y) / z, (p.x - r.x) / z, (p.y - r.y) / z);
+                        return (Captured::Yes, msg(Evento::ArrastarBarra { id: it.id, x0, y0, x, y, solto: false }));
+                    }
                     (Captured::Yes, None)
                 }
                 _ => (Captured::No, None),
@@ -1014,7 +1031,20 @@ impl Camada {
                     return (Captured::Yes, None);
                 };
                 if g.tipo == TipoGesto::Macro {
-                    return (Captured::Yes, if parado { msg(Evento::ExecutarMacro(it.id)) } else { None });
+                    if !parado {
+                        // Soltou a caixa arrastada da barra de rolagem: grava o valor.
+                        if it.controle.as_ref().is_some_and(|c| c.tipo == feathersheet_io::objetos_aba::TipoControleForm::Rolagem) {
+                            let (r, z) = (self.ret_tela(it.ret), self.z().max(0.01));
+                            let (x0, y0, x, y) = ((g.inicio.x - r.x) / z, (g.inicio.y - r.y) / z, (g.atual.x - r.x) / z, (g.atual.y - r.y) / z);
+                            return (Captured::Yes, msg(Evento::ArrastarBarra { id: it.id, x0, y0, x, y, solto: true }));
+                        }
+                        return (Captured::Yes, None);
+                    }
+                    if it.controle.is_some() {
+                        let (r, z) = (self.ret_tela(it.ret), self.z().max(0.01));
+                        return (Captured::Yes, msg(Evento::ClicarControle { id: it.id, x: (g.inicio.x - r.x) / z, y: (g.inicio.y - r.y) / z }));
+                    }
+                    return (Captured::Yes, msg(Evento::ExecutarMacro(it.id)));
                 }
                 if parado {
                     return (Captured::Yes, None);

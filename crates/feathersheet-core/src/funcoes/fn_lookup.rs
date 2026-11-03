@@ -4,7 +4,7 @@ use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::{broadcast_all, Evaluator};
 use crate::funcoes::fn_extra::posicao_xmatch;
-use crate::funcoes::fn_helpers::{arity, err_na, err_value, has, valores_iguais, LeitorFaixa};
+use crate::funcoes::fn_helpers::{arity, err_na, err_value, has, linhas_com_conteudo, valores_iguais, LeitorFaixa};
 use crate::celulas::values::{compare, to_boolean, CellError, Computed, ErrorCode, Value};
 
 
@@ -129,7 +129,7 @@ pub fn fn_vlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         Err(e) => return Computed::Scalar(Value::Error(e)),
     };
     let target_col = rect.c0 + col_idx - 1;
-    let n = (rect.r1 - rect.r0 + 1) as usize;
+    let n = linhas_para_procurar(ev, &rect, &lookup_val, rect.r1 - rect.r0 + 1);
     let aba = rect.sheet.as_deref();
     match posicao_xmatch(n, |i| ev.ctx.get_value(rect.r0 + i as u32, rect.c0, aba), &lookup_val, modo, 1) {
         Ok(i) => Computed::Scalar(ev.ctx.get_value(rect.r0 + i as u32, target_col, aba)),
@@ -220,7 +220,7 @@ pub fn fn_match(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         if !linha && rect.c0 != rect.c1 {
             return err_na();
         }
-        let n = if linha { rect.c1 - rect.c0 + 1 } else { rect.r1 - rect.r0 + 1 } as usize;
+        let n = if linha { (rect.c1 - rect.c0 + 1) as usize } else { linhas_para_procurar(ev, &rect, &lookup_val, rect.r1 - rect.r0 + 1) };
         posicao_xmatch(n, |i| {
             let i = i as u32;
             if linha { ev.ctx.get_value(rect.r0, rect.c0 + i, aba) } else { ev.ctx.get_value(rect.r0 + i, rect.c0, aba) }
@@ -410,6 +410,14 @@ pub fn fn_xlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     } else {
         err_na()
     }
+}
+
+/// Linhas da coluna que valem a busca: depois da última usada tudo é vazio e não casa com
+/// um valor preenchido (`PROCV(A2;Base!A:C;2;0)` não varre 1.048.576 linhas por fórmula).
+/// Procurando vazio, varre tudo como antes.
+fn linhas_para_procurar(ev: &Evaluator<'_>, rect: &crate::celulas::refs::Rect, procurado: &Value, linhas: u32) -> usize {
+    let vazio = matches!(procurado, Value::Empty) || matches!(procurado, Value::Text(t) if t.is_empty());
+    (if vazio { linhas } else { linhas_com_conteudo(ev, linhas, [rect]) }) as usize
 }
 
 #[cfg(test)]

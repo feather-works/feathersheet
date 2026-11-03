@@ -10,6 +10,28 @@ pub use feather_ui::novidades::Versao;
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.8",
+        data: "03/11/2026",
+        resumo: "Controles de formulário do Excel e arquivos mais seguros",
+        ilustracao: Ilustracao::Atualizacao,
+        destaques: &[
+            ("forms", "Controles de formulário", "Crie na aba Macros, ligue a uma célula e ajuste em Formatar controle."),
+            ("text-wrap", "Texto passa para a vizinha", "Texto comprido aparece inteiro por cima das células vazias do lado, como no Excel."),
+            ("device-floppy", "Nada se perde ao fechar", "Fechar no meio de um salvamento pergunta de novo pelo que foi digitado."),
+            ("lock", "Arquivos baixados mais seguros", "Formulário de macro respeita o bloqueio; caminho de rede só com a sua permissão."),
+        ],
+        tambem: &[
+            "F12 mostra o que o .xlsx tem e não foi convertido (ActiveX, segmentação de dados, minigráficos…).",
+            "Ctrl+S num .xlsx com partes não convertidas pede onde salvar, para não apagá-las.",
+            "Salvar em .xlsx com mais de 1.048.576 linhas avisa em vez de perder linhas.",
+            "CSV com ponto e vírgula continua com ponto e vírgula ao salvar de novo.",
+            "=(0,1+0,2)=0,3 dá VERDADEIRO, como no Excel; MÍNIMO(;5) e CONT.VALORES com texto vazio também.",
+            "PROCV, CORRESP, PERCENTIL, MED e CONT.SE arrastado em milhares de linhas ficam bem mais rápidos.",
+            "Recuperar uma cópia só a tira da lista depois que ela abre.",
+            "Esta janela de novidades e os Primeiros passos não ficam mais escondidos atrás da planilha.",
+        ],
+    },
+    Versao {
         numero: "0.2.7",
         data: "03/11/2026",
         resumo: "Macros do Excel preservadas e Windows mais leve",

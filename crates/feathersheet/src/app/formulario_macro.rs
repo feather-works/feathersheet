@@ -284,6 +284,13 @@ impl App {
     /// Roda a macro do controle `i` com o preenchido em `valores`. Falso se ela deu
     /// erro ou ficou esperando um Sim/Não (o formulário fica como está).
     fn rodar_macro_do_controle(&mut self, i: usize) -> bool {
+        let tem_macro = self.formulario_macro.as_ref().and_then(|a| a.form.controles.get(i))
+            .and_then(|c| c.macro_nome.as_deref()).is_some_and(|n| !n.trim().is_empty());
+        // Arquivo baixado com macros ainda bloqueadas: o formulário não roda nada (reabre o aviso).
+        if tem_macro && !self.macros_liberadas() {
+            self.status = tr!("Macros desativadas neste arquivo: ative no aviso da janela principal.").into();
+            return false;
+        }
         let Some(aberto) = self.formulario_macro.as_ref() else { return false };
         let Some(c) = aberto.form.controles.get(i) else { return false };
         let Some(nome) = c.macro_nome.as_deref().filter(|n| !n.trim().is_empty()) else { return true };

@@ -181,7 +181,9 @@ mod unix {
         if let Some(proprio) = std::env::var_os("FEATHERSHEET_MCP_SOCKET") {
             return PathBuf::from(proprio);
         }
-        let base = std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).unwrap_or_else(|| {
+        // Sem XDG_RUNTIME_DIR: `~/.cache` (o mesmo do app, em `vinculos/canal.rs`), não o /tmp de todos.
+        let base = std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache"))).unwrap_or_else(|| {
             let usuario = std::env::var("USER").unwrap_or_else(|_| "usuario".into());
             std::env::temp_dir().join(format!("feathersheet-{usuario}"))
         });

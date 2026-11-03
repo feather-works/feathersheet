@@ -109,6 +109,8 @@ struct Faixas {
     /// Agregados por critério (SOMASES, CONT.SES…), montados das faixas
     /// acima uma vez por conjunto de faixas e usados por todas as threads.
     agregados: Mutex<HashMap<ChaveAgregado, Arc<OnceLock<Option<Arc<Agregado>>>>>>,
+    /// Grupos guardados nos agregados acima; passou do teto, para de agregar (conta direto).
+    grupos: AtomicUsize,
 }
 
 type AreaFaixa = (u32, u32, u32, u32);
@@ -350,8 +352,16 @@ impl EvalContext for Contexto<'_, '_> {
         }
         let area = |r: &Rect| (r.r0, r.c0, r.r1, r.c1);
         let chave = (aba, soma.map(area), criterios.iter().map(area).collect::<Vec<_>>());
-        let celula = self.faixas.agregados.lock().expect("agregados").entry(chave).or_default().clone();
-        celula.get_or_init(|| {
+        // `CONT.SE($A$2:A2;A2)` arrastado: uma faixa nova por linha, e sem teto a memória acabava.
+        let cheio = self.faixas.grupos.load(std::sync::atomic::Ordering::Relaxed) > crate::planilha::agregado::LIMITE_GRUPOS;
+        let existente = self.faixas.agregados.lock().expect("agregados").get(&chave).cloned();
+        if cheio && existente.is_none() { return None; }
+        let celula = existente.unwrap_or_else(|| self.faixas.agregados.lock().expect("agregados").entry(chave).or_default().clone());
+        let contar = |a: Option<Arc<Agregado>>| {
+            if let Some(a) = &a { self.faixas.grupos.fetch_add(a.len(), std::sync::atomic::Ordering::Relaxed); }
+            a
+        };
+        celula.get_or_init(|| contar((|| {
             let sem_pool = |_: i32| "";
             let leitor = std::cell::RefCell::new(crate::planilha::agregado::LeitorChaves::novo(&sem_pool));
             let lidas: Option<Vec<Arc<FaixaLida>>> = criterios.iter().map(|r| self.faixa_lida(r)).collect();
@@ -387,7 +397,7 @@ impl EvalContext for Contexto<'_, '_> {
             // Alguma célula ilegível daqui (avulsa, ainda suja): varre célula por célula.
             if self.falhou.replace(antes) { return None; }
             agregado.map(Arc::new)
-        }).clone()
+        })())).clone()
     }
 
     fn resolve_name(&self, _name: &str) -> Option<Rect> {

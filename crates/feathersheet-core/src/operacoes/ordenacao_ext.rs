@@ -12,7 +12,7 @@
 //! (outra cor, ou valor). Para ordenar por várias cores, um nível por cor.
 
 use crate::celulas::refs::Rect;
-use crate::celulas::values::{compare, Value};
+use crate::celulas::values::{compare_exato, Value};
 use crate::operacoes::filtro::{mesma_cor, AlvoCor, CoresDaCelula};
 use crate::planilha::sheet::edicao::Snap;
 use crate::planilha::sheet::Sheet;
@@ -123,7 +123,7 @@ fn ordenar_posicoes(
     ordem.sort_by(|&a, &b| {
         for (k, lido) in chaves.iter().zip(&lidos) {
             let o = match lido {
-                Lido::Valores(v) => match compare(&v[a], &v[b]) {
+                Lido::Valores(v) => match compare_exato(&v[a], &v[b]) {
                     Ok(mut o) => {
                         if o == Ordering::Equal && maiusculas {
                             o = super::ops::desempate_por_caixa(&v[a], &v[b]);
@@ -142,7 +142,7 @@ fn ordenar_posicoes(
                         (Some(x), Some(y)) => x.cmp(&y),
                         (Some(_), None) => Ordering::Less,
                         (None, Some(_)) => Ordering::Greater,
-                        (None, None) => compare(&v[a], &v[b]).unwrap_or(Ordering::Equal),
+                        (None, None) => compare_exato(&v[a], &v[b]).unwrap_or(Ordering::Equal),
                     };
                     if k.ascendente { o } else { o.reverse() }
                 }

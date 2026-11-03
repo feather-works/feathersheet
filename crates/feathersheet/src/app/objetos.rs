@@ -24,6 +24,8 @@ mod figura;
 pub(super) mod geometria;
 mod interface;
 mod wordart;
+mod controles;
+pub mod formatar_controle;
 
 pub(super) use camada::arrastando;
 use camada::ItemTela;
@@ -213,6 +215,24 @@ pub enum Evento {
     MacroConfirmar,
     MacroCancelar,
     ExecutarMacro(u64),
+    /// Clique num controle de formulário em (x, y), px lógicos do canto de cima à esquerda dele.
+    ClicarControle { id: u64, x: f32, y: f32 },
+    /// Arrastando a caixa da barra de rolagem de (x0, y0) até (x, y); `solto` grava na célula.
+    ArrastarBarra { id: u64, x0: f32, y0: f32, x: f32, y: f32, solto: bool },
+    /// Botão direito > Formatar controle…, os campos digitados, OK e Cancelar.
+    FormatarControle(u64),
+    /// Macros > Controles: um controle de formulário novo perto da célula ativa.
+    InserirControle(modelo::TipoControleForm),
+    ControleCampo(formatar_controle::Campo, String),
+    ControleMarcado(u8),
+    ControleAba(formatar_controle::AbaControle),
+    ControleOpcao(formatar_controle::Opcao, bool),
+    ControleCor(formatar_controle::AlvoCor, Option<String>),
+    ControleAlinharH(modelo::AlinharH),
+    ControleAlinharV(modelo::AlinharV),
+    ControlePosicao(u8),
+    ControleOk,
+    ControleCancelar,
     /// Abre a aba Editar forma.
     FormatarForma,
     CampoLargura(String),
@@ -283,6 +303,12 @@ pub(super) struct EstadoObjetos {
     area: Vec<ObjetoSolto>,
     copia_de_objeto: bool,
     pub travar: bool,
+    /// Caixa de combinação (controle de formulário) com a lista aberta.
+    pub combo_aberto: Option<u64>,
+    /// Barra de rolagem sendo arrastada: o valor que a caixa mostra até soltar.
+    pub barra_arrastada: Option<(u64, i64)>,
+    /// Diálogo Formatar controle aberto, com o que está sendo digitado.
+    pub formatar_controle: Option<formatar_controle::Rascunho>,
     pub campos: Campos,
     /// Objetos já lidos por aba: (aba, ponteiro e tamanho do texto `ob`).
     cache: std::cell::RefCell<Option<(u32, usize, usize, Arc<ObjetosAba>)>>,
@@ -751,6 +777,20 @@ impl App {
             }
             Evento::MacroCancelar => self.objetos.macro_dialogo = None,
             Evento::ExecutarMacro(id) => self.executar_macro_da_forma(id),
+            Evento::ClicarControle { id, x, y } => self.clicar_controle(id, x, y),
+            Evento::ArrastarBarra { id, x0, y0, x, y, solto } => self.arrastar_barra(id, (x0, y0), (x, y), solto),
+            Evento::FormatarControle(id) => self.abrir_formatar_controle(id),
+            Evento::ControleAba(a) => if let Some(r) = &mut self.objetos.formatar_controle { r.aba = a },
+            Evento::ControleOpcao(o, v) => if let Some(r) = &mut self.objetos.formatar_controle { r.opcao(o, v) },
+            Evento::ControleCor(a, c) => if let Some(r) = &mut self.objetos.formatar_controle { r.cor(a, c) },
+            Evento::ControleAlinharH(h) => if let Some(r) = &mut self.objetos.formatar_controle { r.alinhar.h = h },
+            Evento::ControleAlinharV(v) => if let Some(r) = &mut self.objetos.formatar_controle { r.alinhar.v = v },
+            Evento::ControlePosicao(p) => if let Some(r) = &mut self.objetos.formatar_controle { r.posicao = p },
+            Evento::ControleCampo(campo, t) => if let Some(r) = &mut self.objetos.formatar_controle { r.campo(campo, t) },
+            Evento::ControleMarcado(v) => if let Some(r) = &mut self.objetos.formatar_controle { r.marcado = v },
+            Evento::ControleOk => self.confirmar_formatar_controle(),
+            Evento::InserirControle(t) => self.inserir_controle(t),
+            Evento::ControleCancelar => self.objetos.formatar_controle = None,
             Evento::FormatarForma => {
                 if self.tem_forma_selecionada() {
                     self.faixa_ativa = AbaFaixa::EditarForma;
@@ -1163,6 +1203,7 @@ impl App {
         self.objetos.mais_cores = false;
         let o = &mut self.objetos;
         if o.macro_dialogo.take().is_some()
+            || o.formatar_controle.take().is_some()
             || o.texto.take().is_some()
             || o.contexto.take().is_some()
             || o.menu.take().is_some()

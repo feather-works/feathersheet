@@ -451,6 +451,18 @@ impl App {
                         self.faixa_pequeno(tr!("Editar"), "edit", Some(Msg::Macros), false),
                     ]),
                 ])));
+                {
+                    // Desenvolvedor > Inserir > Controles de formulário do Excel.
+                    use feathersheet_io::objetos_aba::TipoControleForm as T;
+                    let c = |rotulo: &'static str, icone: &'static str, t: T| {
+                        self.faixa_pequeno(tr!(rotulo), icone, Some(Msg::Objetos(super::objetos::Evento::InserirControle(t))), false)
+                    };
+                    grupos.push(self.faixa_grupo(tr!("Controles"), self.faixa_linha(vec![
+                        self.faixa_pilha(vec![c("Botão", "square", T::Botao), c("Seleção", "checkbox", T::Caixa), c("Opção", "circle-dot", T::Opcao)]),
+                        self.faixa_pilha(vec![c("Lista", "list", T::Lista), c("Combinação", "list-select", T::Combo), c("Rótulo", "text-size", T::Rotulo)]),
+                        self.faixa_pilha(vec![c("Rotação", "arrows-vertical", T::Girar), c("Rolagem", "arrows-horizontal", T::Rolagem), c("Grupo", "layout-grid", T::Grupo)]),
+                    ])));
+                }
                 grupos.push(self.faixa_grupo(tr!("Executar"), self.faixa_linha(vec![
                     self.faixa_grande(tr!("Executar macro"), "player-play", Some(Msg::MacroExecutar), false),
                     self.faixa_grande(tr!("Componentes"), "componentes", Some(Msg::MacroComponentes), false),

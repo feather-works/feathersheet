@@ -24,6 +24,7 @@ mod condicional;
 mod cores;
 mod comentarios;
 mod controles;
+pub mod nao_convertidos;
 mod refs;
 mod sheet;
 mod styles;

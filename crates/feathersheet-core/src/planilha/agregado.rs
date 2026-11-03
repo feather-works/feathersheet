@@ -325,7 +325,13 @@ pub(crate) struct Agregados {
     pub geracao: u64,
     /// `(faixa agregada, faixas de critério) → agregado`.
     pub mapa: HashMap<(Option<Area>, Vec<Area>), Arc<Agregado>>,
+    /// Grupos guardados em todos os agregados do mapa (para o teto [`LIMITE_GRUPOS`]).
+    pub grupos: usize,
 }
+
+/// Teto de grupos guardados por aba (~200 MB): `CONT.SE($A$2:A2;A2)` arrastado em 30 mil
+/// linhas monta uma tabela nova por linha, e sem teto passava de dezenas de GB.
+pub(crate) const LIMITE_GRUPOS: usize = 2_000_000;
 
 #[cfg(test)]
 mod testes {

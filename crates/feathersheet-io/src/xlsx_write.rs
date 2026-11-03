@@ -539,6 +539,21 @@ fn estilos_xml(tabela: &TabelaDeEstilos) -> String {
 
 // ============================================================== textos
 
+/// O maior número que uma célula do Excel guarda.
+const NUMERO_MAXIMO_EXCEL: f64 = 9.99999999999999e307;
+
+/// O Excel recusa o arquivo com mais de 32.767 caracteres (UTF-16) numa célula: corta ali.
+fn no_limite_do_excel(t: &str) -> &str {
+    const LIMITE: usize = 32_767;
+    if t.len() <= LIMITE { return t; }
+    let mut unidades = 0;
+    for (i, c) in t.char_indices() {
+        unidades += c.len_utf16();
+        if unidades > LIMITE { return &t[..i]; }
+    }
+    t
+}
+
 /// Cada texto uma vez só; é o que faz o arquivo não inchar.
 #[derive(Default)]
 struct TextosCompartilhados {
@@ -560,7 +575,7 @@ impl TextosCompartilhados {
         let mut itens = String::new();
         for s in &self.lista {
             itens.push_str("<si><t xml:space=\"preserve\">");
-            escrever_escapado(&mut itens, s);
+            escrever_escapado(&mut itens, no_limite_do_excel(s));
             itens.push_str("</t></si>");
         }
         let n = self.lista.len();
@@ -1020,6 +1035,12 @@ fn escrever_c(
             escrever_escapado(out, e.code.as_str());
             out.push_str("</v></c>");
         }
+        // Fora do que o Excel guarda (±9,99999999999999E+307, infinito): o arquivo não abriria.
+        Value::Number(n) if !n.is_finite() || n.abs() > NUMERO_MAXIMO_EXCEL => {
+            out.push_str(" t=\"e\">");
+            fx(out);
+            out.push_str("<v>#NUM!</v></c>");
+        }
         Value::Number(n) => {
             out.push('>');
             fx(out);
@@ -1038,7 +1059,7 @@ fn escrever_c(
             out.push_str(" t=\"str\">");
             fx(out);
             out.push_str("<v>");
-            escrever_escapado(out, t);
+            escrever_escapado(out, no_limite_do_excel(t));
             out.push_str("</v></c>");
         }
         Value::Text(t) => {
@@ -1802,7 +1823,24 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
 
 /// A pasta inteira num `.xlsx`.
 pub fn gerar_xlsx(pasta: &Workbook) -> Result<Vec<u8>, String> {
+    cabe_no_excel(pasta)?;
     zipar(montar_partes(pasta))
+}
+
+/// O `.xlsx` guarda até 1.048.576 linhas: além disso o Excel recusa o arquivo e a
+/// releitura perderia o resto. Erro antes de gravar, para o usuário salvar em `.fshz`.
+fn cabe_no_excel(pasta: &Workbook) -> Result<(), String> {
+    let nomes = pasta.nomes();
+    for i in 0..pasta.len() {
+        let Some(aba) = pasta.aba(i) else { continue };
+        if !aba.sheet.is_empty() && aba.sheet.used_rect().r1 >= MAX_ROWS_XLSX {
+            return Err(format!(
+                "A aba \"{}\" tem {} linhas e o Excel aceita até {MAX_ROWS_XLSX}. Salve em .fshz para não perder linhas.",
+                nomes.get(i).map_or("", String::as_str), aba.sheet.used_rect().r1 + 1,
+            ));
+        }
+    }
+    Ok(())
 }
 
 thread_local! {
@@ -1820,6 +1858,7 @@ pub fn gerar_xlsx_com_funcoes(pasta: &Workbook) -> Result<(Vec<u8>, std::collect
 
 /// Como [`gerar_xlsx_com_funcoes`]; `macros` = `.xlsm` (ver [`montar_partes_formato`]).
 pub fn gerar_excel_com_funcoes(pasta: &Workbook, macros: bool) -> Result<(Vec<u8>, std::collections::BTreeSet<String>), String> {
+    cabe_no_excel(pasta)?;
     FUNCOES_USADAS.with(|f| *f.borrow_mut() = Some(Default::default()));
     let partes = montar_partes_formato(pasta, macros);
     let usadas = FUNCOES_USADAS.with(|f| f.borrow_mut().take()).unwrap_or_default();
@@ -1892,6 +1931,29 @@ pub fn gerar_delimitado(pasta: &mut Workbook, indice: usize, separador: char) ->
 
 #[cfg(test)]
 mod testes {
+    #[test]
+    fn texto_longo_e_numero_enorme_nao_estragam_o_arquivo_para_o_excel() {
+        assert_eq!(super::no_limite_do_excel(&"a".repeat(40_000)).len(), 32_767);
+        assert_eq!(super::no_limite_do_excel("curto"), "curto");
+        // Emoji conta 2 unidades UTF-16: não pode cortar no meio.
+        let e = "😀".repeat(20_000);
+        assert_eq!(super::no_limite_do_excel(&e).chars().count(), 16_383);
+        let mut wb = feathersheet_core::planilha::workbook::Workbook::new();
+        wb.escrever_celula(0, 0, 0, "a".repeat(40_000));
+        wb.escrever_celula(0, 1, 0, "=10^308".into());
+        let bytes = super::gerar_xlsx(&wb).unwrap();
+        let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        let mut aba = String::new();
+        std::io::Read::read_to_string(&mut z.by_name("xl/worksheets/sheet1.xml").unwrap(), &mut aba).unwrap();
+        assert!(aba.contains("<v>#NUM!</v>"), "{aba}");
+        let mut sst = String::new();
+        std::io::Read::read_to_string(&mut z.by_name("xl/sharedStrings.xml").unwrap(), &mut sst).unwrap();
+        assert!(!sst.contains(&"a".repeat(32_768)));
+        // Linha além de 1.048.576: erro em vez de arquivo que o Excel recusa.
+        wb.escrever_celula(0, super::MAX_ROWS_XLSX, 0, "fora".into());
+        assert!(super::gerar_xlsx(&wb).unwrap_err().contains("1048576"));
+    }
+
     use super::*;
 
     #[test]

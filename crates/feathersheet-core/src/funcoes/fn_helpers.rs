@@ -52,6 +52,8 @@ pub fn arity(args: &[Node], min: usize, max: usize) -> Option<CellError> {
 pub fn collect(args: &[Node], ev: &Evaluator<'_>) -> Result<Vec<f64>, CellError> {
     let mut out = Vec::new();
     for a in args {
+        // Argumento em branco vale 0, como no Excel: `MÍNIMO(;5)` = 0, `MÉDIA(;4)` = 2.
+        if matches!(a, Node::Blank) { out.push(0.0); continue; }
         if let Some(e) = ev.for_each_number(a, &mut |n| out.push(n)) {
             return Err(e);
         }

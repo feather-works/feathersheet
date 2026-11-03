@@ -843,6 +843,8 @@ pub struct App {
     janelas: Janelas<Auxiliar>,
     ultimo_clique_barra: Option<Instant>,
     caminho: Option<PathBuf>,
+    /// F12: o que o .xlsx/.xlsm aberto tem e não foi convertido (lido uma vez por arquivo).
+    nao_convertidos: RefCell<Option<(PathBuf, Option<std::time::SystemTime>, Result<Vec<feathersheet_io::xlsx_read::nao_convertidos::NaoConvertido>, String>)>>,
     /// Cópia de recuperação automática e as cópias de sessões que morreram.
     recuperacao: recuperacao::Estado,
     /// Arquivo de outro formato aberto (`.xlsx`, `.csv`…): ainda sem
@@ -1137,7 +1139,7 @@ impl Default for App {
             workbook: Workbook::new(), eixos_grade: RefCell::new(Default::default()), duplicados:None, impressao: Default::default(), resumo_selecao: RefCell::new(status_selecao::Estado::default()), atualizacao: Default::default(), aviso_atualizacao: None, cache_grade: Default::default(), vistos_parados: false,
             config: Configuracao::default(),
             janelas: Janelas::default(), ultimo_clique_barra: None,
-            caminho: None, recuperacao: Default::default(), origem: None, alterado: false, tela_inteira: false, folha: 0,
+            caminho: None, nao_convertidos: Default::default(), recuperacao: Default::default(), origem: None, alterado: false, tela_inteira: false, folha: 0,
             linha: 0, coluna: 0, fim_selecao: (0, 0), linha_inicio: 0, coluna_inicio: 0,
             ancorar_rodape: false,
             edicao: String::new(), edicao_inline: None, multilinha: None, editor_formula:EditorFormula::default(), endereco: "A1".into(), endereco_digitado: false,

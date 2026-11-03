@@ -120,6 +120,9 @@ fn pasta_base() -> PathBuf {
     let base = std::env::var_os("XDG_RUNTIME_DIR")
         .or_else(|| std::env::var_os("LOCALAPPDATA"))
         .map(PathBuf::from)
+        // Sem XDG_RUNTIME_DIR: a pasta do próprio usuário. Em /tmp outro usuário do PC podia
+        // criar a pasta antes e se passar pelo FeatherSheet.
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))
         .unwrap_or_else(|| {
             let usuario = std::env::var("USER").or_else(|_| std::env::var("USERNAME")).unwrap_or_else(|_| "usuario".into());
             std::env::temp_dir().join(format!("feathersheet-{usuario}"))
@@ -146,9 +149,17 @@ fn criar_pasta_privada(pasta: &Path) -> std::io::Result<()> {
 /// O caminho como chave: canônico quando o arquivo existe; no Windows sem
 /// diferença de maiúscula nem de barra.
 pub fn chave_caminho(caminho: &Path) -> String {
-    let canonico = std::fs::canonicalize(caminho).unwrap_or_else(|_| caminho.to_path_buf());
+    let canonico = if de_rede(caminho) { caminho.to_path_buf() }
+        else { std::fs::canonicalize(caminho).unwrap_or_else(|_| caminho.to_path_buf()) };
     let texto = canonico.to_string_lossy().into_owned();
     if cfg!(windows) { texto.replace('\\', "/").to_lowercase() } else { texto }
+}
+
+/// `\\servidor\pasta` (ou `//servidor/`): no Windows, só testar se existe já manda a
+/// credencial do usuário (hash NTLM) ao servidor. Um arquivo aberto não pode fazer isso sozinho.
+pub fn de_rede(caminho: &Path) -> bool {
+    let t = caminho.to_string_lossy();
+    t.starts_with("\\\\") || t.starts_with("//")
 }
 
 /// FNV-1a de 64 bits: estável entre execuções e versões (o `DefaultHasher`
@@ -663,5 +674,19 @@ mod testes {
         assert!(!disponivel());
         assert!(!registrar_aberto("/x/a.fshz"));
         assert!(conectar_origem("/x/a.fshz", &[]).is_none());
+    }
+}
+
+#[cfg(test)]
+mod testes_rede {
+    #[test]
+    fn caminho_de_rede_nao_e_tocado() {
+        use std::path::Path;
+        assert!(super::de_rede(Path::new(r"\\servidor\pasta\a.xlsx")));
+        assert!(super::de_rede(Path::new("//servidor/pasta/a.xlsx")));
+        assert!(!super::de_rede(Path::new("/home/a.xlsx")));
+        assert!(!super::de_rede(Path::new(r"C:\dados\a.xlsx")));
+        // A chave sai do texto, sem perguntar ao sistema.
+        assert_eq!(super::chave_caminho(Path::new("//servidor/x.xlsx")), "//servidor/x.xlsx");
     }
 }

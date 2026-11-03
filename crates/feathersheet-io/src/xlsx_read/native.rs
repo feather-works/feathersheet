@@ -526,10 +526,15 @@ fn ler_aba(
                     if raw.is_empty() && !tem_estilo { continue; }
                     if raw.is_empty() {
                         so_formatadas += 1;
+                        // Passou do teto: só a formatação das vazias seguintes fica de fora (nenhum
+                        // dado se perde). Recusar o arquivo inteiro impedia reabrir um salvo por nós.
                         if so_formatadas > MAX_CELULAS_VAZIAS_FORMATADAS {
-                            return Err(format!(
-                                "XLSX contém mais de {MAX_CELULAS_VAZIAS_FORMATADAS} células vazias apenas formatadas na aba '{nome}'. Remova a formatação de áreas sem dados."
-                            ));
+                            if so_formatadas == MAX_CELULAS_VAZIAS_FORMATADAS + 1 {
+                                feathersheet_core::diario::anotar(format!(
+                                    "Aba '{nome}': mais de {MAX_CELULAS_VAZIAS_FORMATADAS} células vazias só formatadas; a formatação das seguintes não foi lida."
+                                ));
+                            }
+                            continue;
                         }
                     }
                     celulas += 1;
@@ -661,7 +666,9 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     }
     let rels = sheet::read_rels(&entry_text(&mut arquivo, "xl/_rels/workbook.xml.rels")?);
     let strings = strings_compartilhadas(&mut arquivo)?;
-    let estilos_xml = entry_text(&mut arquivo, "xl/styles.xml")?;
+    // Estilos e `.rels` crescem com o arquivo (um link por linha = uma relação): o mesmo teto
+    // das strings compartilhadas, senão um arquivo salvo por nós mesmos não reabria.
+    let estilos_xml = super::entry_text_com_limite(&mut arquivo, "xl/styles.xml", MAX_SHARED_STRINGS_XML)?;
     // Tema e cores indexadas do arquivo valem até o fim da leitura (regras
     // condicionais e gráficos também resolvem cor por tema).
     let tema_xml = entry_text(&mut arquivo, "xl/theme/theme1.xml").unwrap_or_default();
@@ -722,7 +729,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         // A paleta é por thread (`cores::instalar`).
         let _paleta = super::cores::instalar(&tema_xml, &estilos_xml);
         let (pasta, basename) = caminho.rsplit_once('/').unwrap_or(("", caminho.as_str()));
-        let rels_aba = sheet::read_rels(&entry_text(zip, &format!("{pasta}/_rels/{basename}.rels"))?);
+        let rels_aba = sheet::read_rels(&super::entry_text_com_limite(zip, &format!("{pasta}/_rels/{basename}.rels"), MAX_SHARED_STRINGS_XML)?);
         let resumo = ler_aba(zip, caminho, nome, &strings, &xfs, &estilos, &rels_aba, &imagens_vm, &mut folha, por_aba, &livros)?;
         folha.comentarios = super::comentarios::ler_comentarios(zip, caminho);
         // Controles de formulário (botão, botão de girar…): objetos da aba, com as formas.

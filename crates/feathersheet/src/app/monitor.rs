@@ -5,6 +5,14 @@ use super::{App, Msg};
 use feather_ui::monitor::{Metricas, Nivel};
 use pelicano::Element;
 
+/// "2 × Controle ActiveX — aba Vendas".
+pub(super) fn descrever(x: &feathersheet_io::xlsx_read::nao_convertidos::NaoConvertido) -> String {
+    match &x.aba {
+        Some(a) => format!("{} × {} — {} {a}", x.quantos, tr!(x.o_que), tr!("aba")),
+        None => format!("{} × {}", x.quantos, tr!(x.o_que)),
+    }
+}
+
 impl App {
     /// Métricas que o motor anotou (abrir, desfazer…) vão para o Console.
     pub(super) fn recolher_diario_motor(&mut self) {
@@ -33,19 +41,50 @@ impl App {
             .filter_map(|i| self.workbook.aba(i))
             .map(|a| a.sheet.len())
             .sum();
+        let mut linhas = vec![
+            (tr!("Documento").into(), self.nome_documento()),
+            (tr!("Estado").into(), if self.alterado { tr!("Alterações não salvas") } else { tr!("Salvo") }.into()),
+            (tr!("Operação").into(), if self.carregando { tr!("Importando planilha") } else { tr!("Pronto") }.into()),
+        ];
+        linhas.extend(self.linhas_nao_convertidas());
         let metricas = Metricas {
             cartoes: vec![
                 (tr!("Abas").into(), self.workbook.len().to_string(), tr!("No documento atual").into()),
                 (tr!("Células ocupadas").into(), celulas.to_string(), tr!("Dados e fórmulas").into()),
             ],
-            linhas: vec![
-                (tr!("Documento").into(), self.nome_documento()),
-                (tr!("Estado").into(), if self.alterado { tr!("Alterações não salvas") } else { tr!("Salvo") }.into()),
-                (tr!("Operação").into(), if self.carregando { tr!("Importando planilha") } else { tr!("Pronto") }.into()),
-            ],
+            linhas,
             ocupado: self.carregando.then(|| tr!("Importação em andamento").into()),
         };
         self.monitor.view(metricas, Msg::MonitorEvento)
+    }
+
+    /// Uma linha por tipo do que o .xlsx/.xlsm aberto tem e não foi convertido (por aba).
+    /// O que o .xlsx/.xlsm aberto tem e não foi convertido; `None` se não é Excel.
+    /// Guardado por caminho e data do arquivo (salvar por cima muda a lista).
+    pub(super) fn nao_convertidos_do_arquivo(&self) -> Option<Result<Vec<feathersheet_io::xlsx_read::nao_convertidos::NaoConvertido>, String>> {
+        let c = self.caminho.as_ref().filter(|c| {
+            c.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("xlsx") || e.eq_ignore_ascii_case("xlsm"))
+        })?;
+        let data = std::fs::metadata(c).and_then(|m| m.modified()).ok();
+        let mut cache = self.nao_convertidos.borrow_mut();
+        if cache.as_ref().map(|(p, d, _)| (p, *d)) != Some((c, data)) {
+            // shortcut: lê o arquivo de novo (F12 ou Ctrl+S); se ficar lento em arquivo grande, guardar na importação.
+            let lista = std::fs::read(c).map_err(|e| e.to_string())
+                .and_then(feathersheet_io::xlsx_read::nao_convertidos::nao_convertidos);
+            *cache = Some((c.clone(), data, lista));
+        }
+        cache.as_ref().map(|(_, _, l)| l.clone())
+    }
+
+    /// Uma linha por tipo do que o .xlsx/.xlsm aberto tem e não foi convertido (por aba).
+    fn linhas_nao_convertidas(&self) -> Vec<(String, String)> {
+        let rotulo = || tr!("Não convertido do Excel").to_owned();
+        match self.nao_convertidos_do_arquivo() {
+            None => Vec::new(),
+            Some(Err(e)) => vec![(rotulo(), e)],
+            Some(Ok(lista)) if lista.is_empty() => vec![(rotulo(), tr!("Nada encontrado").into())],
+            Some(Ok(lista)) => lista.iter().map(|x| (rotulo(), descrever(x))).collect(),
+        }
     }
 }
 

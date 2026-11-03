@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use crate::celulas::date_serial::serial_to_ymd;
 use crate::celulas::number::to_js_string;
-use crate::celulas::values::{compare, to_number, Value};
+use crate::celulas::values::{compare_exato, to_number, Value};
 use crate::funcoes::fn_helpers::make_predicate;
 
 mod limites;
@@ -477,7 +477,7 @@ fn aplicar_passo(t: Tabela, passo: &Passo, fontes: &HashMap<String, Tabela>) -> 
             // O `sort` do JavaScript é estável, e o `sort_by` também.
             linhas.sort_by(|a, b| {
                 for chave in por {
-                    let n = compare(celula_ref(a, chave.col), celula_ref(b, chave.col)).unwrap_or(Ordering::Equal);
+                    let n = compare_exato(celula_ref(a, chave.col), celula_ref(b, chave.col)).unwrap_or(Ordering::Equal);
                     if n != Ordering::Equal {
                         return if chave.desc.unwrap_or(false) { n.reverse() } else { n };
                     }

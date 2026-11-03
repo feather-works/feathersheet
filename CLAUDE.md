@@ -2,6 +2,27 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.8 — 03/11/2026: controles de formulário, texto que transborda, auditoria
+
+Controles de formulário do Excel ligados na camada de objetos (`app/objetos/controles.rs`): botão
+direito próprio, Formatar controle com as abas de cada tipo (`formatar_controle.rs`: Fonte,
+Alinhamento, Cores e linhas, Tamanho, Proteção, Propriedades, Texto Alt., Controle) gravadas no
+VML (`xlsx_write_controles.rs`/`xlsx_read/controles.rs`), grupo Controles na aba Macros, arrastar a
+caixa da barra de rolagem. F12 lista o que o .xlsx tem e não foi convertido
+(`xlsx_read/nao_convertidos.rs`); Ctrl+S num .xlsx com essas partes pede "Salvar como". Texto
+comprido invade as vizinhas vazias (`grade.rs`, `transbordos`, desenhado depois das células).
+Auditoria: fechar durante gravação/exportação volta a perguntar (`gravacao_terminou`/
+`exportacao_terminou` chamam `proteger`); .xlsx acima de 1.048.576 linhas dá erro (`cabe_no_excel`);
+texto >32.767 e número >9,99E+307 cortados; recuperar órfã só apaga depois de abrir; formulário de
+macro respeita `macros_liberadas`; caminho de rede (`canal::de_rede`) não é tocado antes da
+permissão; pasta de canais sem XDG_RUNTIME_DIR em `~/.cache`; cache de agregados com teto
+(`LIMITE_GRUPOS`); PROCV/CORRESP cortam na última linha usada; PERCENTIL/MED/MAIOR/MENOR usam
+`FaixaLida::numeros_ordenados`; `.fshz` não declara mais de `MAX_CELULAS_DECLARADAS`. Motor:
+`compare` iguala números até 15 dígitos (finitos), `compare_exato` para ordenar; argumento em
+branco vale 0 em `collect`; CONT.VALORES conta texto vazio. CSV regravado mantém o separador do
+arquivo. Exemplo: `cargo run --release --example exemplo_controles -- saida.xlsx` no
+`feathersheet-io`.
+
 ## v0.2.7 — 03/11/2026: .xlsm com o VBA original, pelicano v0.1.27
 
 Salvar como `.xlsm` mantém o projeto VBA do arquivo original; `.xlsx`/`.xlsm` abrem como o arquivo

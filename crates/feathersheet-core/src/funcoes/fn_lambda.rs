@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::celulas::values::{compare, to_boolean, to_text, Computed, Lambda, Matrix, Value};
+use crate::celulas::values::{compare_exato, to_boolean, to_text, Computed, Lambda, Matrix, Value};
 use crate::formula::ast::Node;
 use crate::formula::evaluator::{marca_omitido, ArgOrValue, Evaluator};
 use crate::funcoes::fn_helpers::*;
@@ -58,6 +58,9 @@ pub fn aplicar(ev: &Evaluator<'_>, f: &Funcao, valores: Vec<Computed>) -> Comput
                     Computed::Matrix(m) => Node::Array {
                         rows: m.rows().iter().map(|l| l.iter().map(literal).collect()).collect(),
                     },
+                    // Célula vazia vai como matriz 1×1 vazia: `Node::Blank` solto é o argumento em
+                    // branco (`MÍNIMO(;5)`), que conta como 0, e `MAP(A1:A3;CONT.VALORES)` contaria a vazia.
+                    Computed::Scalar(Value::Empty) => Node::Array { rows: vec![vec![Node::Blank]] },
                     Computed::Scalar(v) => literal(v),
                     Computed::Lambda(_) => Node::Error("#VALUE!".into()),
                 })
@@ -179,7 +182,7 @@ fn chave(vals: &[Value]) -> String {
 }
 
 fn comparar(a: &Value, b: &Value) -> std::cmp::Ordering {
-    compare(a, b).unwrap_or(std::cmp::Ordering::Equal)
+    compare_exato(a, b).unwrap_or(std::cmp::Ordering::Equal)
 }
 
 /// Os cabeçalhos: 0 não tem, 1 tem e não mostra, 2 não tem e gera, 3 tem e
@@ -452,6 +455,17 @@ mod testes {
         assert_eq!(m.as_matrix().unwrap().rows(), &[vec![n(1.0), n(3.0)], vec![n(6.0), n(10.0)]]);
         let m = calc_matriz("CRIARMATRIZ(2;3;LAMBDA(l;c;l*c))");
         assert_eq!(m, vec![vec![n(1.0), n(2.0), n(3.0)], vec![n(2.0), n(4.0), n(6.0)]]);
+    }
+
+    #[test]
+    fn funcao_por_nome_com_celula_vazia_nao_conta_como_argumento_em_branco() {
+        let cel = [("A1", n(1.0)), ("A3", t("x"))];
+        // VARRER chama CONT.VALORES(acumulado; célula): a vazia (A2) não pode contar.
+        let m = calc_com(&cel, "VARRER(0;A1:A3;CONT.VALORES)");
+        assert_eq!(m.as_matrix().unwrap().rows(), &[vec![n(2.0)], vec![n(1.0)], vec![n(2.0)]]);
+        // O argumento em branco de verdade continua valendo 0.
+        assert_eq!(calc("MÍNIMO(;5)"), n(0.0));
+        assert_eq!(calc("CONT.VALORES(\"a\";\"\";1)"), n(3.0));
     }
 
     #[test]

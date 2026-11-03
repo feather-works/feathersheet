@@ -813,6 +813,13 @@ impl App {
             Msg::Salvar => {
                 self.menu_aberto = false;
                 self.confirmar();
+                // Salvar por cima de um .xlsx apagaria o que não foi convertido (segmentação, Power
+                // Pivot…): pede "Salvar como", dizendo o que se perderia. Escolher o mesmo arquivo confirma.
+                if let Some(Ok(lista)) = self.nao_convertidos_do_arquivo().filter(|l| l.as_ref().is_ok_and(|l| !l.is_empty())) {
+                    let itens: Vec<String> = lista.iter().map(super::monitor::descrever).collect();
+                    self.status = trf!("Salvar por cima apagaria do arquivo: {}. Escolha onde salvar.", itens.join("; "));
+                    return self.dialogo_salvar();
+                }
                 if let Some(path) = self.caminho.clone() { self.gravar(path) }
                 else { self.dialogo_salvar() }
             }
@@ -840,7 +847,7 @@ impl App {
                 self.gravar_xlsx(path)
             }
             Msg::DestinoXlsx(None) => Task::none(),
-            Msg::Exportado(resultado) => { self.exportacao_terminou(resultado); Task::none() }
+            Msg::Exportado(resultado) => self.exportacao_terminou(resultado),
             Msg::ExportarJson => {
                 self.menu_aberto = false;
                 self.confirmar();

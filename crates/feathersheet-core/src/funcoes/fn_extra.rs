@@ -12,7 +12,7 @@
 //! versões sem B, que é o que fazem aqui.
 
 use crate::celulas::refs::col_name;
-use crate::celulas::values::{compare, Computed, Matrix, Value};
+use crate::celulas::values::{compare, compare_exato, Computed, Matrix, Value};
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
 use crate::funcoes::fn_helpers::make_predicate;
@@ -337,7 +337,7 @@ pub fn fn_sortby(args: &[Node], ev: &Evaluator<'_>) -> Computed {
             let mut ordem: Vec<usize> = (0..n).collect();
             ordem.sort_by(|&x, &y| {
                 for (valores, sentido) in &criterios {
-                    let c = compare(&valores[x], &valores[y]).unwrap_or(std::cmp::Ordering::Equal);
+                    let c = compare_exato(&valores[x], &valores[y]).unwrap_or(std::cmp::Ordering::Equal);
                     let c = if *sentido < 0 { c.reverse() } else { c };
                     if c != std::cmp::Ordering::Equal {
                         return c;

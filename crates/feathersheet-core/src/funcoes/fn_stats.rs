@@ -89,13 +89,14 @@ pub fn fn_count(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 /// `=CONT.VALORES(args...)` / `=COUNTA(args...)`
 pub fn fn_counta(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     // Cada célula do intervalo conta, não o intervalo inteiro como uma coisa
-    // só: o `ev.eval` reduzia `B1:B5` ao primeiro valor e contava 1. Mesma
-    // regra do TypeScript: vazio e texto vazio não contam, erro interrompe.
+    // só: o `ev.eval` reduzia `B1:B5` ao primeiro valor e contava 1. Como no
+    // Excel: só a célula vazia não conta; o texto vazio (`=""`) e o argumento
+    // em branco contam; erro interrompe.
     let mut count = 0.0;
     for a in args {
+        if matches!(a, Node::Blank) { count += 1.0; continue; }
         let erro = ev.for_each_value(a, &mut |v, _| {
-            let vazio = matches!(v, Value::Empty) || matches!(v, Value::Text(t) if t.is_empty());
-            if !vazio {
+            if !matches!(v, Value::Empty) {
                 count += 1.0;
             }
         });
@@ -248,6 +249,19 @@ pub fn fn_mode_sngl(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     }
 }
 
+/// Os números de `arg` em ordem crescente. Intervalo grande: os da faixa lida, ordenados
+/// uma vez por versão da aba; senão, coletados e ordenados aqui.
+fn crescentes(arg: &Node, ev: &Evaluator<'_>) -> Result<std::sync::Arc<Vec<f64>>, crate::celulas::values::CellError> {
+    if matches!(arg, Node::Range { .. }) {
+        if let Some(v) = node_rect(arg, ev).and_then(|r| ev.ctx.faixa_lida(&r)).and_then(|f| f.numeros_ordenados()) {
+            return Ok(v);
+        }
+    }
+    let mut ns = collect(std::slice::from_ref(arg), ev)?;
+    ns.sort_by(f64::total_cmp);
+    Ok(std::sync::Arc::new(ns))
+}
+
 /// `=PERCENTIL.INC(array; k)` / `=PERCENTILE.INC(array; k)`
 pub fn fn_percentile_inc(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if let Some(err) = arity(args, 2, 2) {
@@ -260,12 +274,11 @@ pub fn fn_percentile_inc(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if k < 0.0 || k > 1.0 {
         return Computed::Scalar(Value::erro(ErrorCode::Num));
     }
-    match collect(&args[0..1], ev) {
-        Ok(mut nums) => {
+    match crescentes(&args[0], ev) {
+        Ok(nums) => {
             if nums.is_empty() {
                 return Computed::Scalar(Value::erro(ErrorCode::Num));
             }
-            nums.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let idx = k * (nums.len() - 1) as f64;
             let i = idx.floor() as usize;
             let frac = idx - i as f64;
@@ -672,6 +685,16 @@ pub fn fn_countunique(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 
 /// `=MEDIANA(args...)` / `=MEDIAN(args...)`
 pub fn fn_median(args: &[Node], ev: &Evaluator<'_>) -> Computed {
+    // Um intervalo só (o caso comum, arrastado em milhares de linhas): os ordenados da faixa.
+    if let [faixa @ Node::Range { .. }] = args {
+        if let Some(ns) = node_rect(faixa, ev).and_then(|r| ev.ctx.faixa_lida(&r)).and_then(|f| f.numeros_ordenados()) {
+            return match ns.len() {
+                0 => Computed::Scalar(Value::erro(ErrorCode::Num)),
+                n if n % 2 == 1 => Computed::Scalar(Value::Number(ns[n / 2])),
+                n => Computed::Scalar(Value::Number((ns[n / 2 - 1] + ns[n / 2]) / 2.0)),
+            };
+        }
+    }
     let mut ns = match collect(args, ev) {
         Ok(ns) => ns,
         Err(e) => return Computed::Scalar(Value::Error(e)),
@@ -687,7 +710,7 @@ pub fn fn_large(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if let Some(err) = arity(args, 2, 2) {
         return Computed::Scalar(Value::Error(err));
     }
-    let mut ns = match collect(&[args[0].clone()], ev) {
+    let ns = match crescentes(&args[0], ev) {
         Ok(ns) => ns,
         Err(e) => return Computed::Scalar(Value::Error(e)),
     };
@@ -698,8 +721,7 @@ pub fn fn_large(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if k < 1 || k > ns.len() {
         return err_num();
     }
-    ns.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-    Computed::Scalar(Value::Number(ns[k - 1]))
+    Computed::Scalar(Value::Number(ns[ns.len() - k]))
 }
 
 /// `=MENOR(matriz; k)` / `=SMALL(array; k)`
@@ -707,7 +729,7 @@ pub fn fn_small(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if let Some(err) = arity(args, 2, 2) {
         return Computed::Scalar(Value::Error(err));
     }
-    let mut ns = match collect(&[args[0].clone()], ev) {
+    let ns = match crescentes(&args[0], ev) {
         Ok(ns) => ns,
         Err(e) => return Computed::Scalar(Value::Error(e)),
     };
@@ -718,7 +740,6 @@ pub fn fn_small(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if k < 1 || k > ns.len() {
         return err_num();
     }
-    ns.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     Computed::Scalar(Value::Number(ns[k - 1]))
 }
 
@@ -1736,6 +1757,25 @@ pub fn fn_fisherinv(args: &[Node], ev: &Evaluator<'_>) -> Computed {
 mod tests {
     use super::*;
     use crate::planilha::sheet::Sheet;
+
+    #[test]
+    fn percentil_maior_menor_med_na_faixa_grande_ordenada_uma_vez() {
+        // 300 números (1 a 300, de trás para frente) e um texto: a faixa é lida de uma vez.
+        let mut sheet = Sheet::new("Plan1");
+        for i in 0..300u32 { sheet.set_cell_raw(i, 0, (300 - i).to_string(), None); }
+        sheet.set_cell_raw(300, 0, "texto".into(), None);
+        let f = |sheet: &mut Sheet, r: u32, formula: &str| { sheet.set_cell_raw(r, 2, formula.into(), None); sheet.get_value(r, 2) };
+        for _ in 0..2 {
+            assert_eq!(f(&mut sheet, 0, "=MAIOR(A1:A301;1)"), Value::Number(300.0));
+            assert_eq!(f(&mut sheet, 1, "=MENOR(A1:A301;2)"), Value::Number(2.0));
+            assert_eq!(f(&mut sheet, 2, "=MED(A1:A301)"), Value::Number(150.5));
+            assert_eq!(f(&mut sheet, 3, "=PERCENTIL(A1:A301;0)"), Value::Number(1.0));
+        }
+        // Erro na faixa continua aparecendo.
+        sheet.set_cell_raw(10, 0, "=1/0".into(), None);
+        assert!(matches!(f(&mut sheet, 4, "=MED(A1:A301)"), Value::Error(_)));
+        assert!(matches!(f(&mut sheet, 5, "=MAIOR(A1:A301;1)"), Value::Error(_)));
+    }
 
     #[test]
     fn test_estatisticas_condicionais() {

@@ -147,7 +147,11 @@ impl App {
             .map(|o| ItemTela::de(o, &regua)).collect();
         // Texto que começa com "=" é fórmula, como no Excel: a forma mostra o
         // resultado (=A2 mostra A2 como a grade mostra) e acompanha a célula.
+        let opcoes = super::controles::opcoes_da_aba(&lidos);
         for it in &mut itens {
+            if let Some(o) = lidos.obter(it.id).filter(|o| o.controle.is_some()) {
+                it.controle = self.controle_tela(o, &opcoes, o.retangulo(&regua).altura);
+            }
             if let Some(corpo) = it.texto.as_deref().and_then(|t| t.strip_prefix('=')).filter(|c| !c.trim().is_empty()) {
                 it.texto = Some(self.texto_de_formula_da_forma(corpo));
             }
@@ -584,6 +588,33 @@ impl App {
     pub(super) fn itens_contexto(&self, o: &ObjetoSolto) -> Vec<ItemMenu> {
         let e = |x: Evento| ev(Evento::DoContexto(Box::new(x)));
         let pode_colar = !self.objetos.area.is_empty();
+        if let Some(c) = &o.controle {
+            // Controle de formulário: o menu do Excel (sem trocar forma nem formatar forma).
+            use feathersheet_io::objetos_aba::TipoControleForm as T;
+            let com_texto = matches!(c.tipo, T::Botao | T::Rotulo | T::Caixa | T::Opcao | T::Grupo);
+            return vec![
+                ItemMenu::acao(tr!("Recortar"), "cut", e(Evento::Recortar)).com_atalho("Ctrl+X"),
+                ItemMenu::acao(tr!("Copiar"), "copy", e(Evento::Copiar)).com_atalho("Ctrl+C"),
+                ItemMenu::talvez(tr!("Colar"), "clipboard", pode_colar.then(|| e(Evento::Colar)), tr!("Copie ou recorte uma forma antes"))
+                    .com_atalho("Ctrl+V"),
+                ItemMenu::Separador,
+                ItemMenu::talvez(tr!("Editar texto"), "text-size", com_texto.then(|| e(Evento::EditarTexto(o.id))), tr!("Este controle não tem texto")),
+                ItemMenu::em_breve(tr!("Agrupar"), "object", tr!("Em breve: agrupar várias formas selecionadas")),
+                ItemMenu::sub(tr!("Trazer para frente"), "arrow-up", vec![
+                    ItemMenu::acao(tr!("Trazer para frente"), "arrow-up", e(Evento::Ordem(Ordem::Frente))),
+                    ItemMenu::acao(tr!("Avançar um nível"), "chevron-up", e(Evento::Ordem(Ordem::Avancar))),
+                ]),
+                ItemMenu::sub(tr!("Enviar para trás"), "arrow-down", vec![
+                    ItemMenu::acao(tr!("Enviar para trás"), "arrow-down", e(Evento::Ordem(Ordem::Tras))),
+                    ItemMenu::acao(tr!("Recuar um nível"), "chevron-down", e(Evento::Ordem(Ordem::Recuar))),
+                ]),
+                ItemMenu::Separador,
+                ItemMenu::acao(tr!("Atribuir macro…"), "code", e(Evento::AtribuirMacro)),
+                ItemMenu::acao(tr!("Formatar controle…"), "forms", e(Evento::FormatarControle(o.id))),
+                ItemMenu::Separador,
+                ItemMenu::acao(tr!("Excluir"), "trash", e(Evento::Apagar)).com_atalho(tr!("Delete")),
+            ];
+        }
         vec![
             ItemMenu::acao(tr!("Recortar"), "cut", e(Evento::Recortar)).com_atalho("Ctrl+X"),
             ItemMenu::acao(tr!("Copiar"), "copy", e(Evento::Copiar)).com_atalho("Ctrl+C"),
@@ -754,6 +785,7 @@ impl App {
             ]);
             base = menu_contexto::sobrepor(base, &itens, None, |_| g(G::PassouNoMenu), g(G::FecharContexto), (x, y), janela);
         }
+        base = self.sobrepor_formatar_controle(base);
         if let Some(dialogo) = self.dialogo_macro() {
             base = stack![
                 base,
