@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.feather_works.FeatherSheet</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>FeatherSheet</name>
+  <summary>Fast local spreadsheet, no account needed</summary>
+  <developer id="io.github.feather_works">
+    <name>FeatherWorks</name>
+  </developer>
+  <description>
+    <p>
+      A spreadsheet written in Rust with a native interface. It opens huge files,
+      reads and writes .xlsx, .csv and .parquet, runs Excel (VBA) and JavaScript
+      macros, and accepts formulas in English or Portuguese.
+    </p>
+    <ul>
+      <li>All 520 Excel functions, dynamic arrays and LAMBDA</li>
+      <li>Up to 100 million rows, with parallel calculation</li>
+      <li>Opens .xlsm files and runs their VBA macros, buttons and forms</li>
+      <li>Charts, pivot tables and Excel form controls</li>
+    </ul>
+    <p>Everything runs on your machine: no account, no login, no telemetry.</p>
+  </description>
+  <launchable type="desktop-id">io.github.feather_works.FeatherSheet.desktop</launchable>
+  <url type="homepage">https://github.com/feather-works/feathersheet</url>
+  <url type="bugtracker">https://github.com/feather-works/feathersheet/issues</url>
+  <url type="vcs-browser">https://github.com/feather-works/feathersheet</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>A cash flow sheet with a chart</caption>
+      <image>https://raw.githubusercontent.com/feather-works/feathersheet/v0.2.8/docs/imagens/planilha-e-grafico.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Chart gallery</caption>
+      <image>https://raw.githubusercontent.com/feather-works/feathersheet/v0.2.8/docs/imagens/galeria-graficos.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Formatting a chart</caption>
+      <image>https://raw.githubusercontent.com/feather-works/feathersheet/v0.2.8/docs/imagens/formatar-grafico.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <categories>
+    <category>Office</category>
+    <category>Spreadsheet</category>
+  </categories>
+  <keywords>
+    <keyword>excel</keyword>
+    <keyword>xlsx</keyword>
+    <keyword>csv</keyword>
+    <keyword>spreadsheet</keyword>
+  </keywords>
+  <provides>
+    <binary>feathersheet</binary>
+  </provides>
+  <releases>
+    <release version="0.2.8" date="2026-11-03">
+      <description>
+        <ul>
+          <li>Excel form controls work: click them and the linked cell changes</li>
+          <li>Format Control dialog with the same tabs as Excel</li>
+          <li>Long text spills over empty neighboring cells</li>
+          <li>Safer saving to .xlsx and CSV; faster lookups on whole columns</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+</component>

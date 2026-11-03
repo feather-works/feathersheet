@@ -1,0 +1,45 @@
+app-id: io.github.feather_works.FeatherSheet
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: feathersheet
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Abre e salva planilhas em qualquer pasta, e lê arquivos vinculados (=[outro.xlsx]...).
+  - --filesystem=home
+  - --filesystem=/media
+  - --filesystem=/run/media
+  # Vínculos e macros que buscam dados na rede.
+  - --share=network
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/feathersheet/cargo
+    CARGO_NET_OFFLINE: 'true'
+modules:
+  - name: feathersheet
+    buildsystem: simple
+    build-commands:
+      - cargo --offline build --release --manifest-path crates/feathersheet/Cargo.toml
+      - install -Dm755 crates/feathersheet/target/release/feathersheet -t /app/bin
+      - install -Dm644 pacote/feathersheet.desktop /app/share/applications/${FLATPAK_ID}.desktop
+      - desktop-file-edit --set-icon=${FLATPAK_ID} /app/share/applications/${FLATPAK_ID}.desktop
+      - install -Dm644 pacote/feathersheet-mime.xml /app/share/mime/packages/${FLATPAK_ID}.xml
+      - install -Dm644 pacote/icones/feathersheet.svg /app/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+      - for t in 16 24 32 48 64 128 256 512; do install -Dm644 pacote/icones/feathersheet-$t.png /app/share/icons/hicolor/${t}x${t}/apps/${FLATPAK_ID}.png; done
+      - install -Dm644 pacote/flatpak/${FLATPAK_ID}.metainfo.xml -t /app/share/metainfo
+    sources:
+      # Teste local. Para o Flathub, trocar por:
+      #   - type: git
+      #     url: https://github.com/feather-works/feathersheet.git
+      #     tag: v0.2.9
+      #     commit: <hash da tag>
+      - type: dir
+        path: ../..
+        skip: [target, feathersheet_0.2.2_amd64.snap, feathersheet_0.2.8_amd64.snap, crates/feathersheet/0, crates/feathersheet/target, pacote/saida, pacote/flatpak/.flatpak-builder, pacote/flatpak/build]
+      - cargo-sources.json

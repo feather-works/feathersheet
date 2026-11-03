@@ -348,7 +348,9 @@ impl App {
             self.aviso_atualizacao = Some(Lancamento { versao: v, notas: String::new(), pagina: PAGINA_VERSOES.to_owned() });
             return Task::none();
         }
-        if cfg!(test) || std::env::var_os("FEATHERSHEET_CAPTURAR").is_some()
+        // Snap e Flatpak: a loja atualiza sozinha (o Flathub não aceita app que se atualiza).
+        let pela_loja = std::env::var_os("SNAP").is_some() || std::env::var_os("FLATPAK_ID").is_some();
+        if cfg!(test) || pela_loja || std::env::var_os("FEATHERSHEET_CAPTURAR").is_some()
             || !consultar_ao_abrir(self.config.procurar_atualizacoes, self.config.ultima_procura_atualizacao, agora_s())
         {
             return Task::none();
