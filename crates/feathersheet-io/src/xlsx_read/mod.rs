@@ -23,6 +23,7 @@ mod autofiltro;
 mod condicional;
 mod cores;
 mod comentarios;
+mod controles;
 mod refs;
 mod sheet;
 mod styles;

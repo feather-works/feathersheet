@@ -1539,7 +1539,8 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     let mut partes_graficos: Vec<crate::xlsx_write_graficos::ParteGrafico> = Vec::new();
     let mut contador_graficos = 0usize;
     // Comentários: `xl/commentsN.xml` + `xl/drawings/vmlDrawingN.vml`.
-    let mut comentarios: Vec<(usize, (String, String))> = Vec::new();
+    // (aba, (notas, VML)): as notas e os controles de formulário dividem o mesmo VML.
+    let mut comentarios: Vec<(usize, (Option<String>, String))> = Vec::new();
     // Tabelas dinâmicas (`xl/pivotCache/…`, `xl/pivotTables/…`): `xlsx_write_dinamica`.
     let mut dinamicas: Vec<crate::xlsx_write_dinamica::ParteDinamica> = Vec::new();
     let mut contador_dinamicas = 0usize;
@@ -1577,14 +1578,25 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
             desenhos.push((i + 1, desenho.xml, desenho.rels));
         }
         // Comentários: `legacyDrawing` vem depois de `drawing` no CT_Worksheet.
-        if let Some(c) = pasta.aba(i).and_then(|a| crate::xlsx_write_comentarios::partes(&a.sheet, i + 1)) {
+        let notas = pasta.aba(i).and_then(|a| crate::xlsx_write_comentarios::partes(&a.sheet, i + 1));
+        let controles = pasta.aba(i).and_then(|a| crate::xlsx_write_controles::formas_vml(&a.sheet, i + 1));
+        let vml = match (&notas, controles) {
+            (Some((_, v)), Some(c)) => Some(v.replacen("</xml>", &format!("{c}</xml>"), 1)),
+            (Some((_, v)), None) => Some(v.clone()),
+            (None, Some(c)) => Some(crate::xlsx_write_controles::vml_sozinho(&c, i + 1)),
+            (None, None) => None,
+        };
+        if let Some(vml) = vml {
+            let lista = notas.map(|(l, _)| l);
             if let Some(fim) = xml.rfind("</worksheet>") {
                 xml.insert_str(fim, "<legacyDrawing r:id=\"rIdVmlNotas\"/>");
             }
             let relacao = format!(
-                "<Relationship Id=\"rIdNotas\" Type=\"{NS_REL}/comments\" Target=\"../comments{n}.xml\"/><Relationship Id=\"rIdVmlNotas\" Type=\"{NS_REL}/vmlDrawing\" Target=\"../drawings/vmlDrawing{n}.vml\"/>",
+                "{}<Relationship Id=\"rIdVmlNotas\" Type=\"{NS_REL}/vmlDrawing\" Target=\"../drawings/vmlDrawing{n}.vml\"/>",
+                if lista.is_some() { format!("<Relationship Id=\"rIdNotas\" Type=\"{NS_REL}/comments\" Target=\"../comments{}.xml\"/>", i + 1) } else { String::new() },
                 n = i + 1
             );
+            let c = (lista, vml);
             rels = Some(match rels {
                 Some(mut r) => {
                     if let Some(fim) = r.rfind("</Relationships>") {
@@ -1670,7 +1682,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         .chain(desenhos.iter().map(|(i, _, _)| {
             format!("<Override PartName=\"/xl/drawings/drawing{i}.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>")
         }))
-        .chain(comentarios.iter().map(|(i, _)| {
+        .chain(comentarios.iter().filter(|(_, (lista, _))| lista.is_some()).map(|(i, _)| {
             format!("<Override PartName=\"/xl/comments{i}.xml\" ContentType=\"{}\"/>", crate::xlsx_write_comentarios::TIPO_COMENTARIOS)
         }))
         .chain(std::iter::once(crate::xlsx_write_dinamica::tipos_de_conteudo(&dinamicas)))
@@ -1778,7 +1790,9 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     }
     partes.extend(partes_graficos.into_iter().map(|p| (p.caminho, p.xml.into_bytes())));
     for (i, (lista, vml)) in comentarios {
-        partes.push((format!("xl/comments{i}.xml"), lista.into_bytes()));
+        if let Some(lista) = lista {
+            partes.push((format!("xl/comments{i}.xml"), lista.into_bytes()));
+        }
         partes.push((format!("xl/drawings/vmlDrawing{i}.vml"), vml.into_bytes()));
     }
     partes.extend(crate::xlsx_write_dinamica::arquivos(dinamicas));

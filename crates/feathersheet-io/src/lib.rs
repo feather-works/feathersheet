@@ -42,6 +42,7 @@ pub mod web;
 
 pub mod xlsx_read;
 pub mod xlsx_write;
+mod xlsx_write_controles;
 mod xlsx_validacao_custom;
 mod xlsx_write_condicional;
 mod xlsx_write_futuras;

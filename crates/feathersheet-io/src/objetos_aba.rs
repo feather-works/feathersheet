@@ -86,6 +86,107 @@ pub enum TipoObjeto {
     /// empilhamento das formas (a do `.xlsx` vem assim). Os bytes ficam em
     /// [`ObjetoSolto::imagem`].
     Imagem,
+    /// Controle de formulário do Excel (botão, botão de girar, caixa de seleção…): ver
+    /// [`ControleFormulario`]. O rótulo fica em `texto`, a macro em `macro`.
+    Controle,
+}
+
+/// O tipo do controle de formulário (`ObjectType` do VML do Excel).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TipoControleForm {
+    Botao,
+    Girar,
+    Caixa,
+    Opcao,
+    Combo,
+    Lista,
+    Rolagem,
+    Rotulo,
+    Grupo,
+}
+
+impl TipoControleForm {
+    /// `ObjectType` do VML.
+    pub fn do_excel(t: &str) -> Option<Self> {
+        Some(match t {
+            "Button" => Self::Botao,
+            "Spin" => Self::Girar,
+            "Checkbox" => Self::Caixa,
+            "Radio" => Self::Opcao,
+            "Drop" => Self::Combo,
+            "List" => Self::Lista,
+            "Scroll" => Self::Rolagem,
+            "Label" => Self::Rotulo,
+            "GBox" => Self::Grupo,
+            _ => return None,
+        })
+    }
+
+    pub fn para_excel(self) -> &'static str {
+        match self {
+            Self::Botao => "Button",
+            Self::Girar => "Spin",
+            Self::Caixa => "Checkbox",
+            Self::Opcao => "Radio",
+            Self::Combo => "Drop",
+            Self::Lista => "List",
+            Self::Rolagem => "Scroll",
+            Self::Rotulo => "Label",
+            Self::Grupo => "GBox",
+        }
+    }
+}
+
+/// Um controle de formulário do Excel, com os mesmos campos do VML (`x:ClientData`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ControleFormulario {
+    pub tipo: TipoControleForm,
+    /// Célula ligada (`FmlaLink`, como no arquivo: `$C$8` ou `Aba!$C$8`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub celula: Option<String>,
+    /// Intervalo de entrada da lista/caixa de combinação (`FmlaRange`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub faixa: Option<String>,
+    /// Valor atual (`Val`; na lista e na combinação, o item escolhido, `Sel`, a partir de 1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valor: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max: Option<i64>,
+    /// Quanto cada seta soma (`Inc`) e cada clique no trilho (`Page`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub passo: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pagina: Option<i64>,
+    /// Caixa e opção: 0 desmarcada, 1 marcada, 2 misto (`Checked`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub marcado: Option<u8>,
+    /// Linhas da lista aberta da caixa de combinação (`DropLines`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linhas: Option<u32>,
+    /// Barra de rolagem deitada (`Horiz`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub horizontal: bool,
+    /// A macro como o Excel grava (`FmlaMacro`: `[0]!AbrirPainel`), para o `.xlsm` voltar igual.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub macro_excel: Option<String>,
+}
+
+impl ControleFormulario {
+    pub fn novo(tipo: TipoControleForm) -> Self {
+        Self { tipo, celula: None, faixa: None, valor: None, min: None, max: None, passo: None, pagina: None,
+            marcado: None, linhas: None, horizontal: false, macro_excel: None }
+    }
+
+    /// Botão de girar e barra de rolagem: o valor depois de andar `passos` setas (+/-) ou páginas,
+    /// preso entre o mínimo e o máximo, como no Excel (0 a 100 e passo 1 quando o arquivo não diz).
+    pub fn andar(&self, passos: i64, pagina: bool) -> i64 {
+        let (min, max) = (self.min.unwrap_or(0), self.max.unwrap_or(100));
+        let passo = if pagina { self.pagina.unwrap_or(10) } else { self.passo.unwrap_or(1) };
+        (self.valor.unwrap_or(min) + passos * passo).clamp(min.min(max), max.max(min))
+    }
 }
 
 /// Degradê do preenchimento (o `gradFill` do Office).
@@ -376,6 +477,9 @@ pub struct ObjetoSolto {
     /// Só no `tipo: "imagem"`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub imagem: Option<ImagemObjeto>,
+    /// Só no `tipo: "controle"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub controle: Option<ControleFormulario>,
     /// Chaves que esta versão não conhece: atravessam intactas.
     #[serde(flatten)]
     pub extras: Map<String, Value>,
@@ -402,10 +506,21 @@ impl ObjetoSolto {
             sombra: None,
             fonte: None,
             imagem: None,
+            controle: None,
             extras: Map::new(),
         };
         o.ancorar(ret, regua);
         o
+    }
+
+    /// Controle de formulário preso às células `de`/`ate`.
+    pub fn novo_controle(controle: ControleFormulario, de: Ancora, ate: Ancora) -> Self {
+        Self {
+            id: 0, tipo: TipoObjeto::Controle, forma: "retangulo".into(), de, ate, giro: 0.0,
+            espelhar_h: false, espelhar_v: false, ajustes: Vec::new(), aparencia: Aparencia::default(),
+            texto: None, alinhar: AlinharTexto::default(), macro_nome: None, gradiente: None, sombra: None,
+            fonte: None, imagem: None, controle: Some(controle), extras: Map::new(),
+        }
     }
 
     /// O retângulo absoluto (sem o giro) pela régua atual.

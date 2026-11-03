@@ -315,6 +315,10 @@ impl Leitura<'_> {
     }
 
     fn forma(&mut self, sp: &XmlNode, ret: Retangulo, herdado: &Herdado) {
+        // O Excel põe um retângulo oculto no lugar de cada controle de formulário; o controle
+        // mesmo vem do VML (`controles.rs`).
+        let cnvpr = ["nvSpPr", "nvCxnSpPr"].iter().find_map(|n| sp.child(n)).and_then(|n| n.child("cNvPr"));
+        if cnvpr.and_then(|c| c.attr("hidden")).is_some_and(|h| h == "1" || h == "true") { return; }
         let (t, alinhar, fonte) = texto(sp);
         let pr = sp.child("spPr");
         let (forma, ajustes) = geometria(pr);
@@ -335,6 +339,10 @@ impl Leitura<'_> {
         o.alinhar = alinhar;
         o.fonte = fonte;
         o.macro_nome = sp.attr("macro").map(|m| m.rsplit(['!', '.']).next().unwrap_or(m).to_string()).filter(|m| !m.is_empty());
+        // O nome completo (`[0]!Modulo1.Botao1_Clique`), para o `.xlsm` gravar de volta igual.
+        if let Some(m) = sp.attr("macro").filter(|m| !m.is_empty()) {
+            o.extras.insert("macro_excel".into(), serde_json::Value::String(m.to_string()));
+        }
         if let Some(v) = sp.attr("textlink").filter(|v| !v.is_empty()) {
             o.extras.insert("vinculo".into(), serde_json::Value::String(v.to_string()));
         }

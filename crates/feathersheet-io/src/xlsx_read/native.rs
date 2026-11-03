@@ -725,6 +725,13 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         let rels_aba = sheet::read_rels(&entry_text(zip, &format!("{pasta}/_rels/{basename}.rels"))?);
         let resumo = ler_aba(zip, caminho, nome, &strings, &xfs, &estilos, &rels_aba, &imagens_vm, &mut folha, por_aba, &livros)?;
         folha.comentarios = super::comentarios::ler_comentarios(zip, caminho);
+        // Controles de formulário (botão, botão de girar…): objetos da aba, com as formas.
+        let controles = super::controles::ler_da_aba(zip, caminho);
+        if !controles.is_empty() {
+            let mut lista = crate::objetos_aba::ObjetosAba::default();
+            for o in controles { lista.adicionar(o); }
+            folha.ob = lista.gravar();
+        }
         Ok::<_, String>((idx, folha, resumo))
     });
     for (lida, (_, _, oculta)) in lidas.into_iter().zip(&caminhos) {
@@ -800,7 +807,12 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     for (aba, objetos) in super::desenho_objetos::objetos_dos_desenhos(&mut arquivo, &reguas) {
         let mut lista = crate::objetos_aba::ObjetosAba::default();
         for o in objetos.into_iter().take(crate::objetos_aba::MAX_OBJETOS) { lista.adicionar(o); }
-        if let Some(viva) = workbook.aba_mut(aba) { viva.sheet.ob = lista.gravar(); }
+        let Some(viva) = workbook.aba_mut(aba) else { continue };
+        // Os controles do VML (lidos com a aba) ficam por cima das formas, como no Excel.
+        if let Ok(controles) = crate::objetos_aba::ObjetosAba::ler(viva.sheet.ob.as_deref()) {
+            for mut o in controles.objetos { o.id = 0; lista.adicionar(o); }
+        }
+        viva.sheet.ob = lista.gravar();
     }
     for n in sheet::read_names(&book) {
         // Nomes ocultos que o Excel cria para os gráficos novos (`chartEx`).
