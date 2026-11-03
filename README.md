@@ -4,11 +4,13 @@
 It opens huge files, calculates in parallel, takes formulas in Portuguese or English,
 and runs entirely on your machine: no account, no login, no telemetry (the only network call is the daily update check, which you can turn off).
 
-> **Status:** under active development. Latest release: **[v0.2.6](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-02).
+> **Status:** under active development. Latest release: **[v0.2.8](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-03).
 
 ![FeatherSheet with the Cash flow template and an income/expenses chart, with the mouse tooltip open on June](docs/imagens/planilha-e-grafico.png)
 
 ## Download
+
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/feathersheet)
 
 [![Download for Windows](https://img.shields.io/badge/Windows-download-0078D6?style=for-the-badge&logo=windows11&logoColor=white)](https://github.com/feather-works/feathersheet/releases/latest/download/FeatherSheet-windows-x64.exe)
 [![Download for Linux (.deb)](https://img.shields.io/badge/Linux%20.deb-download-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/feather-works/feathersheet/releases/latest/download/feathersheet-linux-amd64.deb)
@@ -19,6 +21,7 @@ and runs entirely on your machine: no account, no login, no telemetry (the only 
 |---|---|---|
 | **Windows 10/11** | [FeatherSheet-windows-x64.exe](https://github.com/feather-works/feathersheet/releases/latest/download/FeatherSheet-windows-x64.exe) | run the installer (no administrator rights needed) |
 | **Linux** (Ubuntu, Debian, Mint…) | [feathersheet-linux-amd64.deb](https://github.com/feather-works/feathersheet/releases/latest/download/feathersheet-linux-amd64.deb) | `sudo apt install ./feathersheet-linux-amd64.deb` |
+| **Linux** (Snap Store) | [snapcraft.io/feathersheet](https://snapcraft.io/feathersheet) | `sudo snap install feathersheet` (updates by itself) |
 | **Linux** (any distribution) | [feathersheet-linux-x86_64.tar.gz](https://github.com/feather-works/feathersheet/releases/latest/download/feathersheet-linux-x86_64.tar.gz) | extract it and run `./instalar.sh` |
 | **macOS** (Apple Silicon) | `FeatherSheet-<version>-macos-apple-silicon.dmg`, on the [releases page](https://github.com/feather-works/feathersheet/releases/latest) | open the `.dmg` and drag it to Applications |
 
@@ -50,6 +53,23 @@ macro took 25 s.
 
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
+
+### New in v0.2.8
+
+- **Excel form controls work:** spin buttons, check boxes, option buttons, list and combo boxes, scroll bars, labels, group boxes and buttons from `.xlsx`/`.xlsm` files. Click them and the linked cell changes; drag the scroll bar's box.
+- **Format Control…** on the control's right-click menu, with the same tabs as Excel (Font, Alignment, Colors and Lines, Size, Protection, Properties, Alt Text, Control). Everything is saved back to the file.
+- **Create new controls** from the **Macros** tab (Controls group).
+- **Long text spills over the empty cells next to it**, as in Excel.
+- **F12 lists what an `.xlsx` contains that was not converted** (ActiveX, slicers, sparklines, chart sheets…); Ctrl+S on such a file asks where to save, so those parts are not removed from the original.
+- **Safer saving:** more than 1,048,576 rows in `.xlsx` shows an error instead of losing rows; a semicolon CSV keeps its separator and decimal comma.
+- **Closer to Excel:** `=(0.1+0.2)=0.3` is TRUE, blank arguments count as 0 (`MIN(,5)`), COUNTA counts empty text.
+- **Faster:** VLOOKUP and MATCH on whole columns, PERCENTILE/MEDIAN/LARGE/SMALL and COUNTIF with a growing range.
+
+### New in v0.2.7
+
+- **Save as `.xlsm` keeping the original VBA project**; `.xlsx` and `.xlsm` open as the working file (Ctrl+S saves to them).
+- **Excel form controls** are read from `.xlsx` and written back when saving.
+- **Lighter on Windows without GPU painting**, and a Windows installer for all users.
 
 ### New in v0.2.6
 
