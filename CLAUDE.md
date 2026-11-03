@@ -2,6 +2,13 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.7 — 03/11/2026: .xlsm com o VBA original, pelicano v0.1.27
+
+Salvar como `.xlsm` mantém o projeto VBA do arquivo original; `.xlsx`/`.xlsm` abrem como o arquivo
+de trabalho. Instalador do Windows em Program Files\FeatherWorks\FeatherSheet para todos os usuários.
+pelicano v0.1.27 e feather-ui v0.3.12 (no Windows sem pintura na placa, o quadro da CPU vai direto
+para a janela).
+
 ## v0.2.6 — 02/11/2026: abrir sem pico de memória, "…" que não calculava, macros mais completas
 
 `.fshz` aberto pelo app (`fshz_read::ler_fshz_arquivo_compacto`): colunas de número e texto em

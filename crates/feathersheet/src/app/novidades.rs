@@ -21,6 +21,20 @@ pub struct Versao {
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.2.7",
+        data: "03/11/2026",
+        resumo: "Macros do Excel preservadas e Windows mais leve",
+        ilustracao: Ilustracao::Atualizacao,
+        destaques: &[
+            ("code", "Salvar como .xlsm com o VBA original", "As macros do arquivo do Excel continuam nele ao salvar."),
+            ("bolt", "Mais leve sem placa de vídeo", "No Windows, o quadro desenhado pela CPU vai direto para a janela."),
+        ],
+        tambem: &[
+            ".xlsx e .xlsm abrem como o arquivo de trabalho (Ctrl+S grava neles).",
+            "Instalador do Windows para todos os usuários, em Arquivos de Programas\\FeatherWorks\\FeatherSheet.",
+        ],
+    },
+    Versao {
         numero: "0.2.6",
         data: "02/11/2026",
         resumo: "Mais leve e mais certo no Windows",
