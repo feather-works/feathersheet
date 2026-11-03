@@ -1291,10 +1291,8 @@ impl App {
         // DESCARTA a primeira, e a janela principal não abriria.
         let boas_vindas = app.janela_de_boas_vindas().map_or_else(Task::none, |aux| {
             let abrir = app.alternar(aux);
-            // A principal aparece depois e ficava por cima, escondendo as boas-vindas: traz de volta à frente.
-            // shortcut: espera fixa de 800 ms; trocar por um aviso "janela principal visível" se o pelicano ganhar um.
-            let frente = app.janelas.id(aux).map_or_else(Task::none, |id| Task::perform(
-                async { tokio::time::sleep(Duration::from_millis(800)).await }, move |_| Msg::TrazerParaFrente(id)));
+            // A principal aparece depois e ficava por cima, escondendo as boas-vindas.
+            let frente = app.janelas.id(aux).map_or_else(Task::none, |id| feather_ui::novidades::trazer_para_frente(id, Msg::TrazerParaFrente));
             Task::batch([abrir, frente])
         });
         let atualizacao = app.procurar_atualizacao_ao_abrir();

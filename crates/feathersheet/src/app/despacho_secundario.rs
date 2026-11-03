@@ -1474,7 +1474,7 @@ impl App {
                 }
             }
             Msg::AuxAberta => Task::none(),
-            Msg::TrazerParaFrente(id) => Task::window_of(id, pelicano::WindowCmd::Focus),
+            Msg::TrazerParaFrente(id) => feather_ui::novidades::focar(id),
             Msg::AuxFechada(id) => {
                 if self.janelas.principal == Some(id) { mcp_vivo::encerrar(); vinculos::encerrar(); Task::window(pelicano::WindowCmd::Exit) }
                 else {

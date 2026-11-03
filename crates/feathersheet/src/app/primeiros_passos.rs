@@ -151,26 +151,13 @@ impl App {
 
     /// A decisão de [`App::janela_de_boas_vindas`], sem as travas (testável).
     pub(super) fn boas_vindas_pendente(&mut self) -> Option<Auxiliar> {
-        let atual = super::atualizacao::versao_atual();
-        // Instalação nova: sem preferências de antes. Quem já usava uma
-        // versão anterior (até a 0.0.2 não havia `versao_vista`) está
-        // atualizando e vê as novidades; os Primeiros passos ficam no menu.
-        let instalacao_nova = !self.config.existia && !self.config.primeiros_passos_vistos;
-        let janela = if instalacao_nova {
-            self.config.primeiros_passos_vistos = true;
-            Some(Auxiliar::PrimeirosPassos)
-        } else if self.config.versao_vista != atual {
-            self.config.primeiros_passos_vistos = true;
-            self.novidades_versao = 0;
-            Some(Auxiliar::Novidades)
-        } else {
-            None
-        };
-        if janela.is_some() {
-            // Fechar pelo X também conta como visto: não volta a abrir sozinha.
-            self.config.versao_vista = atual.to_owned();
-            self.config.gravar();
-        }
+        let c = &mut self.config;
+        let tela = feather_ui::novidades::ao_abrir(c.existia, &mut c.primeiros_passos_vistos, &mut c.versao_vista, super::atualizacao::versao_atual());
+        let janela = tela.map(|t| match t {
+            feather_ui::novidades::Tela::PrimeirosPassos => Auxiliar::PrimeirosPassos,
+            feather_ui::novidades::Tela::Novidades => { self.novidades_versao = 0; Auxiliar::Novidades }
+        });
+        if janela.is_some() { self.config.gravar(); }
         janela
     }
 

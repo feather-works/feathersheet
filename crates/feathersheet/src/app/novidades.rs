@@ -3,20 +3,9 @@
 //! as versões, cabeçalho com a marca, cartões dos destaques e a lista do
 //! resto. O conteúdo é embutido no app; nada é buscado na internet.
 use super::*;
-use feather_ui::consulta::{self, Ilustracao};
+use feather_ui::consulta::Ilustracao;
 
-/// Uma versão publicada e o que ela trouxe.
-pub struct Versao {
-    pub numero: &'static str,
-    pub data: &'static str,
-    pub resumo: &'static str,
-    /// Figura do cabeçalho da versão.
-    pub ilustracao: Ilustracao,
-    /// Cartões: ícone, título, descrição curta (até ~84 caracteres).
-    pub destaques: &'static [(&'static str, &'static str, &'static str)],
-    /// "Também nesta versão": melhorias menores e correções.
-    pub tambem: &'static [&'static str],
-}
+pub use feather_ui::novidades::Versao;
 
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
@@ -446,45 +435,9 @@ impl App {
     }
 
     pub(super) fn view_novidades(&self) -> Element<'_, Msg> {
-        use pelicano::column;
-        let atual = self.novidades_versao.min(VERSOES.len() - 1);
-        let mut nav = column![consulta::rotulo_grupo(tr!("Versões"))].spacing(2);
-        for (i, v) in VERSOES.iter().enumerate() {
-            nav = nav.push(consulta::item_nav(trf!("Versão {}", v.numero),
-                if i == 0 { "sparkles" } else { "history" }, i == atual,
-                Some(Msg::Novidades(Evento::Versao(i)))));
-        }
-        let v = &VERSOES[atual];
-        let instalada = v.numero == super::atualizacao::versao_atual();
-        let mut tambem = column(Vec::<pelicano::Element<_>>::new()).spacing(8);
-        for item in v.tambem {
-            tambem = tambem.push(row![
-                feather_ui::icones::icone("check", 15.),
-                text(tr!(*item)).size(13).line_height(1.4),
-            ].spacing(9).align(pelicano::Align::Start));
-        }
-        let conteudo = column![
-            consulta::cabecalho(trf!("Versão {}", v.numero),
-                format!("{} · {}{}", v.data, tr!(v.resumo), if instalada { tr!(" · instalada neste computador") } else { "" }),
-                Some(consulta::ilustracao(v.ilustracao))),
-            consulta::negrito(tr!("Destaques"), 18.),
-            consulta::grade(v.destaques.iter()
-                .map(|(icone, titulo, descricao)| consulta::cartao(icone, tr!(*titulo), tr!(*descricao), None))
-                .collect(), 3),
-            consulta::divisor(),
-            consulta::negrito(tr!("Também nesta versão"), 18.),
-            tambem,
-        ].spacing(17);
-        let rodape = row![
-            Space::new(Length::FILL, 0.0),
-            button(row![feather_ui::icones::icone("link", 15.), text(tr!("Ver no GitHub")).size(12)]
-                .spacing(6).align(pelicano::Align::Center))
-                .padding([8, 13]).style(consulta::estilo_cartao)
-                .on_press(Msg::Novidades(Evento::VerNoGithub)),
-            button(text("OK").size(12)).padding([8, 18]).style(estilo_botao_primario)
-                .on_press(Msg::Novidades(Evento::Fechar)),
-        ].spacing(10).align(pelicano::Align::Center);
-        consulta::janela(consulta::lateral(nav, None), conteudo.into(), Some(rodape.into()))
+        feather_ui::novidades::tela(VERSOES, self.novidades_versao, super::atualizacao::versao_atual(), 3, |k| tr!(k).to_owned(),
+            feather_ui::novidades::Acoes { escolher: |i| Msg::Novidades(Evento::Versao(i)),
+                ver_no_github: Msg::Novidades(Evento::VerNoGithub), fechar: Msg::Novidades(Evento::Fechar) })
     }
 }
 
