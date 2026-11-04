@@ -768,16 +768,6 @@ dependencies = [
 
 [[package]]
 name = "feather-charts"
-version = "0.3.2"
-source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.2#306961e46e887b2fa0dd9f0f8dfcd2a58c4c1a5f"
-dependencies = [
- "feather-draw",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "feather-charts"
 version = "0.3.4"
 source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.4#2480ff40c5ba384e6b1fb791b6fb0e0bb839acc2"
 dependencies = [
@@ -793,18 +783,18 @@ source = "git+https://github.com/feather-works/feather-draw?tag=v0.1.1#17404b4da
 
 [[package]]
 name = "feather-image"
-version = "0.2.0"
-source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
+version = "0.2.1"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.1#36adc9ff897a753166dac702cb2c3a3f793db5d1"
 dependencies = [
  "image",
 ]
 
 [[package]]
 name = "feather-io"
-version = "0.2.0"
-source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
+version = "0.2.1"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.1#36adc9ff897a753166dac702cb2c3a3f793db5d1"
 dependencies = [
- "feather-charts 0.3.2",
+ "feather-charts",
  "feather-draw",
  "feather-image",
  "feather-tables",
@@ -814,8 +804,8 @@ dependencies = [
 
 [[package]]
 name = "feather-macros"
-version = "0.2.0"
-source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
+version = "0.2.1"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.1#36adc9ff897a753166dac702cb2c3a3f793db5d1"
 dependencies = [
  "boa_engine",
  "boa_gc",
@@ -826,8 +816,8 @@ dependencies = [
 
 [[package]]
 name = "feather-tables"
-version = "0.2.0"
-source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
+version = "0.2.1"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.1#36adc9ff897a753166dac702cb2c3a3f793db5d1"
 
 [[package]]
 name = "feathersheet-core"
@@ -841,7 +831,7 @@ name = "feathersheet-io"
 version = "0.0.2"
 dependencies = [
  "arrow",
- "feather-charts 0.3.4",
+ "feather-charts",
  "feather-draw",
  "feather-io",
  "feathersheet-core",

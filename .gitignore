@@ -21,3 +21,5 @@ pacote/saida/
 
 # Trava do LibreOffice com um arquivo aberto
 .~lock.*#
+pacote/flatpak/build/
+pacote/flatpak/.flatpak-builder/

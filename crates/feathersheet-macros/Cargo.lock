@@ -395,8 +395,8 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "feather-macros"
-version = "0.2.0"
-source = "git+https://github.com/feather-works/feather-io?tag=v0.2.0#81aa1285bf95f4bd8500c4ca5589ff2c36bc5f5e"
+version = "0.2.1"
+source = "git+https://github.com/feather-works/feather-io?tag=v0.2.1#36adc9ff897a753166dac702cb2c3a3f793db5d1"
 dependencies = [
  "boa_engine",
  "boa_gc",

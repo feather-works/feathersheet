@@ -5,7 +5,7 @@ edition = "2021"
 description = "Execução local de macros JavaScript no motor Falcão (ou no Boa, sem a opção falcao)"
 
 [dependencies]
-feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.0" }
+feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.1" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 feathersheet-core = { path = "../feathersheet-core" }
