@@ -80,3 +80,29 @@ fn show_campos_unload_e_eventos_dos_controles() {
     assert!(c.pendencias.iter().any(|p| p.modulo == "UserForm1" && p.vba.contains("MsgBox") && !p.aviso), "{:?}", c.pendencias);
     assert!(c.pendencias.iter().any(|p| p.vba.contains("UserForm_QueryClose") && p.aviso));
 }
+
+/// #137: o formulário do LOFA_POSICIONAL lê `.Text`, usa `Rnd()` e chama uma Sub
+/// de um módulo comum com `Call`; nada disso pode ficar como "não convertido".
+#[test]
+fn formulario_chama_sub_de_modulo_com_call_e_le_text() {
+    let modulo = |nome: &str, tipo, codigo: &str| ModuloVba { nome: nome.into(), tipo, codigo: codigo.into() };
+    let projeto = ProjetoVba {
+        modulos: vec![
+            modulo("Modulo1", TipoDeModulo::Padrao, "Sub ProcessarDesdobramento(qtd As Integer)\n    Dim col As New Collection\n    col.Add Int(Rnd() * 25) + 1\n    Range(\"A1\").Value = qtd + col.Count\nEnd Sub\n"),
+            modulo("frmJogos", TipoDeModulo::Classe, "Private Sub btnGerar_Click()\n    Dim QtdJogos As Integer\n    QtdJogos = CInt(txtQtdJogos.Text)\n    Call ProcessarDesdobramento(QtdJogos)\n    Unload Me\nEnd Sub\n"),
+        ],
+        formularios: vec![FormularioVba {
+            nome: "frmJogos".into(),
+            titulo: "Jogos".into(),
+            controles: vec![controle("txtQtdJogos", TipoVba::Texto), controle("btnGerar", TipoVba::Botao)],
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    let c = converter(&projeto, "Jogos");
+    let erros: Vec<_> = c.pendencias.iter().filter(|p| !p.aviso).collect();
+    assert!(erros.is_empty(), "não convertido: {erros:?}");
+    let js = &c.macros.iter().find(|m| m.nome == "frmJogos").expect("módulo do formulário").codigo;
+    assert!(js.contains(r#"sheet.field("txtQtdJogos").value"#), "{js}");
+    assert!(js.contains("ProcessarDesdobramento("), "{js}");
+}
