@@ -1908,8 +1908,8 @@ source = "git+https://github.com/feather-works/feather-io?tag=v0.2.1#36adc9ff897
 
 [[package]]
 name = "feather-ui"
-version = "0.3.13"
-source = "git+https://github.com/feather-works/feather-ui.git?tag=v0.3.13#5d4ff654a6bc14d3810f415f1d37d1977ef59920"
+version = "0.3.14"
+source = "git+https://github.com/feather-works/feather-ui.git?tag=v0.3.14#336839c6a860b261c07126a5a5a90eb8c1319a5b"
 dependencies = [
  "pelicano",
  "windows-sys 0.59.0",
