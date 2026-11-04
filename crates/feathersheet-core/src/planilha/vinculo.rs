@@ -285,11 +285,6 @@ impl Externos {
     pub fn vazio(&self) -> bool {
         self.livros.is_empty() && self.pedidos.borrow().is_empty()
     }
-
-    pub fn esquecer_tudo(&mut self) {
-        self.livros.clear();
-        self.pedidos.borrow_mut().clear();
-    }
 }
 
 #[cfg(test)]

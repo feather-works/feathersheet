@@ -242,8 +242,18 @@ pub fn roteiro(inst: Instalacao, versao: &str, pid: u32) -> Option<(String, Stri
 pub fn abrir_no_terminal(inst: Instalacao, versao: &str) -> Result<(), String> {
     let (nome, texto) = roteiro(inst, versao, std::process::id())
         .ok_or_else(|| tr!("Esta cópia não foi instalada por um pacote: baixe pela página de versões.").to_owned())?;
-    let caminho = std::env::temp_dir().join(nome);
-    std::fs::write(&caminho, texto).map_err(|e| trf!("Não consegui gravar o roteiro: {e}"))?;
+    // Pasta nova só deste processo (0700 no Unix): com nome fixo em /tmp, outro usuário da
+    // máquina podia criar o arquivo antes e trocar o roteiro enquanto o sudo pede a senha.
+    let pasta = std::env::temp_dir().join(format!("feathersheet-atualizar-{}-{}", std::process::id(),
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos())));
+    let mut criar = std::fs::DirBuilder::new();
+    #[cfg(unix)]
+    { use std::os::unix::fs::DirBuilderExt; criar.mode(0o700); }
+    criar.create(&pasta).map_err(|e| trf!("Não consegui gravar o roteiro: {e}"))?;
+    let caminho = pasta.join(nome);
+    std::fs::OpenOptions::new().write(true).create_new(true).open(&caminho)
+        .and_then(|mut f| std::io::Write::write_all(&mut f, texto.as_bytes()))
+        .map_err(|e| trf!("Não consegui gravar o roteiro: {e}"))?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -443,8 +453,9 @@ impl App {
                 }
             }
             Evento::AbrirPagina => {
+                // O endereço vem da API do GitHub: só abre se for página do próprio repositório.
                 let url = match &self.atualizacao {
-                    Estado::Disponivel(l) => l.pagina.clone(),
+                    Estado::Disponivel(l) if l.pagina.starts_with("https://github.com/feather-works/feathersheet/") => l.pagina.clone(),
                     _ => PAGINA_VERSOES.to_owned(),
                 };
                 abrir_endereco(&url);

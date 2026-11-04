@@ -244,8 +244,14 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
             let raw = converter(bruto, xf, xfs);
             let inicio = saida.len() as u32;
             saida.push_str(&raw);
-            let pronta = CelulaPreparada::preparar(r, c, &raw, (inicio, saida.len() as u32), xf, v, &mut padroes)
-                .com_ida_e_volta(&raw, estilo_de(xf));
+            let mut pronta = CelulaPreparada::preparar(r, c, &raw, (inicio, saida.len() as u32), xf, v, &mut padroes);
+            // Número do Excel: o valor é o `<v>` inteiro. O texto formatado ("16,91%", a data sem
+            // a hora) é só aparência; lido de volta perdia casas e a hora (auditoria de 04/11/2026).
+            if let (Some(n), Preparo::Literal(feathersheet_core::Value::Number(_))) =
+                (bruto.strip_prefix(MARCA_NUMERO).and_then(|t| t.trim().parse::<f64>().ok()), &pronta.preparo) {
+                if n.is_finite() { pronta.preparo = Preparo::Literal(feathersheet_core::Value::Number(n)); }
+            }
+            let pronta = pronta.com_ida_e_volta(&raw, estilo_de(xf));
             if com_chave {
                 if let Preparo::Formula { padrao: Some(p), arvore, volatil } = &pronta.preparo {
                     ja_vistas.insert(chave.clone(), (p.clone(), *volatil, arvore.is_some()));
@@ -794,6 +800,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
             .filter(|(r, _)| *r >= 0)
             .map(|(r, h)| (r as u32, h.max(0) as u32)));
         if !resumo.charts.is_empty() { folha.g = Some(serde_json::Value::Array(resumo.charts).to_string()); }
+        folha.mg = crate::minigraficos_aba::gravar(&resumo.minigraficos);
         if !resumo.rules.is_empty() { folha.r = Some(serde_json::Value::Array(resumo.rules).to_string()); }
         if !resumo.mesclas.is_empty() { folha.mc = Some(serde_json::Value::Array(resumo.mesclas).to_string()); }
         if !resumo.tabelas.is_empty() { folha.tb = Some(serde_json::Value::Array(resumo.tabelas).to_string()); }

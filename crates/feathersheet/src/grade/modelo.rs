@@ -150,8 +150,8 @@ pub(crate) mod alturas_proprias {
 
     static GERACAO: AtomicU64 = AtomicU64::new(0);
     static DENTRO_DO_UPDATE: AtomicUsize = AtomicUsize::new(0);
-    /// (aba, geração, [(linha, soma das diferenças até ela, inclusive)] em ordem).
-    static TABELA: Mutex<Option<(usize, u64, Vec<(u32, f32)>)>> = Mutex::new(None);
+    /// (aba, geração, impressão digital das alturas, [(linha, soma das diferenças até ela, inclusive)] em ordem).
+    static TABELA: Mutex<Option<(usize, u64, u64, Vec<(u32, f32)>)>> = Mutex::new(None);
 
     /// Entrar (`true`) e sair (`false`) do `update`: a geração muda nas duas pontas.
     pub(crate) fn marcar_update(entrando: bool) {
@@ -159,19 +159,37 @@ pub(crate) mod alturas_proprias {
         GERACAO.fetch_add(1, Ordering::SeqCst);
     }
 
+    /// Soma misturada de (linha, altura), sem ordem: passar pelo mapa custa bem menos que
+    /// juntar e ordenar, e a maioria das mensagens (mover o mouse) não mexe em altura.
+    fn digital(sheet: &Sheet) -> u64 {
+        sheet.row_heights.iter().fold(sheet.row_heights.len() as u64, |acc, (&r, &h)| {
+            let mut z = ((r as u64) << 32 | h as u64).wrapping_add(0x9E37_79B9_7F4A_7C15);
+            z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+            z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+            acc.wrapping_add(z ^ (z >> 31))
+        })
+    }
+
     /// `None`: conta direta (poucas alturas, ou no meio de um `update`).
     pub(crate) fn antes_de(sheet: &Sheet, linha: u32) -> Option<f32> {
         if sheet.row_heights.len() < 256 || DENTRO_DO_UPDATE.load(Ordering::SeqCst) > 0 { return None; }
-        let chave = (sheet as *const Sheet as usize, GERACAO.load(Ordering::SeqCst));
+        let aba = sheet as *const Sheet as usize;
+        let geracao = GERACAO.load(Ordering::SeqCst);
         let mut tabela = TABELA.lock().ok()?;
-        if tabela.as_ref().is_none_or(|(a, g, _)| (*a, *g) != chave) {
-            let mut v: Vec<(u32, f32)> = sheet.row_heights.iter().map(|(&r, &h)| (r, h as f32 - super::ALTURA_PADRAO)).collect();
-            v.sort_unstable_by_key(|(r, _)| *r);
-            let mut soma = 0.0;
-            for item in &mut v { soma += item.1; item.1 = soma; }
-            *tabela = Some((chave.0, chave.1, v));
+        if tabela.as_ref().is_none_or(|(a, g, ..)| (*a, *g) != (aba, geracao)) {
+            let d = digital(sheet);
+            match tabela.as_mut() {
+                Some(t) if t.0 == aba && t.2 == d => t.1 = geracao,
+                _ => {
+                    let mut v: Vec<(u32, f32)> = sheet.row_heights.iter().map(|(&r, &h)| (r, h as f32 - super::ALTURA_PADRAO)).collect();
+                    v.sort_unstable_by_key(|(r, _)| *r);
+                    let mut soma = 0.0;
+                    for item in &mut v { soma += item.1; item.1 = soma; }
+                    *tabela = Some((aba, geracao, d, v));
+                }
+            }
         }
-        let v = &tabela.as_ref()?.2;
+        let v = &tabela.as_ref()?.3;
         let i = v.partition_point(|(r, _)| *r < linha);
         Some(if i == 0 { 0.0 } else { v[i - 1].1 })
     }

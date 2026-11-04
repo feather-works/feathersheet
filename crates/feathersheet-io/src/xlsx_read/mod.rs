@@ -21,6 +21,7 @@ mod formula;
 mod pt_name;
 mod autofiltro;
 mod condicional;
+mod minigraficos;
 mod cores;
 mod comentarios;
 mod controles;

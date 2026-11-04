@@ -1,6 +1,6 @@
 //! O que um `.xlsx`/`.xlsm` tem e o FeatherSheet ainda não converte (ActiveX, segmentação de
-//! dados, minigráficos…), para o F12 mostrar por aba. Só lê a lista do zip, os `.rels` e
-//! (para os minigráficos) o XML de cada aba; não monta planilha nenhuma.
+//! dados…), para o F12 mostrar por aba. Só lê a lista do zip e os `.rels`; não monta
+//! planilha nenhuma. Minigráficos saíram da lista: são convertidos (`minigraficos.rs`).
 use super::{entry_text, sheet, xml};
 use std::io::Cursor;
 use zip::ZipArchive;
@@ -56,10 +56,6 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         for alvo in sheet::read_rels(&entry_text(&mut z, &format!("{pasta}/_rels/{arquivo}.rels")).unwrap_or_default()).values() {
             if let Some(o) = pelo_alvo(alvo) { somar(Some(nome), o, 1); }
         }
-        // Minigráficos moram no extLst do XML da aba (sem parte própria).
-        if let Ok(x) = entry_text(&mut z, &caminho) {
-            somar(Some(nome), "Minigráfico (sparkline)", x.matches("<x14:sparkline>").count());
-        }
     }
     let partes: Vec<String> = z.file_names().map(str::to_owned).collect();
     for p in &partes {
@@ -75,7 +71,7 @@ mod testes {
     use zip::write::SimpleFileOptions;
 
     #[test]
-    fn acha_activex_minigraficos_e_partes_do_arquivo() {
+    fn acha_activex_e_partes_do_arquivo_e_nao_conta_minigrafico() {
         let mut bytes = Vec::new();
         {
             let mut zw = zip::ZipWriter::new(Cursor::new(&mut bytes));
@@ -94,7 +90,6 @@ mod testes {
         assert_eq!(v, vec![
             (None, "Conexão de dados externos", 1),
             (Some("Vendas"), "Controle ActiveX", 2),
-            (Some("Vendas"), "Minigráfico (sparkline)", 2),
             (None, "Planilha de gráfico", 1),
         ]);
     }

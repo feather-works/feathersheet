@@ -906,7 +906,7 @@ mod testes {
         for aba in [
             AbaFaixa::Inicio, AbaFaixa::Inserir, AbaFaixa::Formulas,
             AbaFaixa::Dados, AbaFaixa::Revisao, AbaFaixa::Exibir, AbaFaixa::Macros,
-            AbaFaixa::Tabela, AbaFaixa::Ferramentas, AbaFaixa::EditarForma, AbaFaixa::Dinamica,
+            AbaFaixa::Tabela, AbaFaixa::Ferramentas, AbaFaixa::EditarForma, AbaFaixa::Dinamica, AbaFaixa::Minigrafico,
         ] {
             app.faixa_ativa = aba;
             let total = app.montar_grupos_faixa().len();

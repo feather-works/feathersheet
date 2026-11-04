@@ -936,7 +936,6 @@ impl Workbook {
 
         // 3) o texto, na posição nova.
         let eixo = if coluna { crate::formula::formula_text::Axis::Col } else { crate::formula::formula_text::Axis::Row };
-        let mexidas: Vec<usize> = consertos.iter().map(|(j, _)| *j).chain([indice]).collect();
         for (j, lista) in consertos {
             let mesma = j == indice;
             let alvo = &mut self.abas[j];
@@ -975,8 +974,10 @@ impl Workbook {
                 alvo.versao = proxima_versao(alvo.versao);
             }
         }
-        for j in mexidas {
-            self.abas[j].sheet.esquecer_historico();
+        // Todas as abas: o desfazer de qualquer uma pode guardar fórmula com a
+        // referência antiga a esta aba, mesmo sem conserto agora (auditoria 04/11/2026).
+        for a in &mut self.abas {
+            a.sheet.esquecer_historico();
         }
         // Estrutura: tudo pode ter mudado de lugar.
         self.mudar_com_alcance(indice, vec![sujo], None, |_| {})

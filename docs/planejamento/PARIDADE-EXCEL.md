@@ -2,7 +2,7 @@
 
 > Levantamento realizado em 13/10/2026, conferindo botão por botão da interface Rust/Iced (`feathersheet-gui`). O inventário contém 290 comandos para avaliar a cobertura funcional do FeatherSheet em relação ao Excel. Conta como **implementado** o comando que tem botão, menu, atalho ou botão direito ligado a uma ação de verdade; botão desabilitado ("Em breve") conta como **faltando**. Mede só **amplitude**, não profundidade nem fidelidade. A avaliação geral e o desempenho estão em [`PARIDADE-AVALIACAO.md`](PARIDADE-AVALIACAO.md).
 
-**Geral: 211 / 290 comandos implementados (72,8%).** A aba Desenvolvedor (macros) não entra nesse total: fica à parte, em "Desenvolvedor: 4 / 19" (seção no fim do checklist). Atualizado em 15/10 (tarde): Página Inicial fechada, 93 / 94 — Sublinhado ▾ com sublinhado duplo, caneta de borda (Desenhar borda, grade, Apagar, cor e estilo da linha), recuo pela faixa e por Ctrl+Alt+Tab, Limpar tudo e Limpar hiperlinks no Limpar ▾, Reaplicar no Classificar e filtrar ▾ (6 comandos); Suplementos fica fora do escopo. Antes, no mesmo dia: Preenchimento relâmpago (Ctrl+E, Preencher ▾ e Dados > Ferramentas de dados; 2 comandos). Antes, no mesmo dia: comentários (anotações) na aba Revisão nova, em Inserir > Comentário e em Limpar ▾ > Limpar comentários (8 comandos). Antes, no mesmo dia, Inserir ganhou Formas (`c5543c9f`), Ícones (`01c9ed76`), Caixa de seleção (`316961b9`, `92dcf633`) e WordArt (`9970bdf2`). Em 14/10 (noite): aba Desenhar inteira (Caneta, Borracha, Laço, Tinta para forma). Antes, à tarde: Desproteger planilha (o mesmo botão de Proteger, contado à parte); Proteger planilha; Inserir/Excluir células, Novo estilo de célula, Largura padrão e a estrutura de tópicos da aba Dados (Agrupar, Desagrupar, Subtotal, Mostrar e Ocultar detalhe). Antes, no mesmo dia: aba Fórmulas na faixa (recentes, Financeira, Usar em fórmula, rastrear precedentes/dependentes, remover setas, opções de cálculo, F9 e Shift+F9).
+**Geral: 212 / 290 comandos implementados (73,1%).** A aba Desenvolvedor (macros) não entra nesse total: fica à parte, em "Desenvolvedor: 4 / 19" (seção no fim do checklist). Atualizado em 15/10 (tarde): Página Inicial fechada, 93 / 94 — Sublinhado ▾ com sublinhado duplo, caneta de borda (Desenhar borda, grade, Apagar, cor e estilo da linha), recuo pela faixa e por Ctrl+Alt+Tab, Limpar tudo e Limpar hiperlinks no Limpar ▾, Reaplicar no Classificar e filtrar ▾ (6 comandos); Suplementos fica fora do escopo. Antes, no mesmo dia: Preenchimento relâmpago (Ctrl+E, Preencher ▾ e Dados > Ferramentas de dados; 2 comandos). Antes, no mesmo dia: comentários (anotações) na aba Revisão nova, em Inserir > Comentário e em Limpar ▾ > Limpar comentários (8 comandos). Antes, no mesmo dia, Inserir ganhou Formas (`c5543c9f`), Ícones (`01c9ed76`), Caixa de seleção (`316961b9`, `92dcf633`) e WordArt (`9970bdf2`). Em 14/10 (noite): aba Desenhar inteira (Caneta, Borracha, Laço, Tinta para forma). Antes, à tarde: Desproteger planilha (o mesmo botão de Proteger, contado à parte); Proteger planilha; Inserir/Excluir células, Novo estilo de célula, Largura padrão e a estrutura de tópicos da aba Dados (Agrupar, Desagrupar, Subtotal, Mostrar e Ocultar detalhe). Antes, no mesmo dia: aba Fórmulas na faixa (recentes, Financeira, Usar em fórmula, rastrear precedentes/dependentes, remover setas, opções de cálculo, F9 e Shift+F9).
 
 > **Recontagem parcial em 02/11/2026** (leitura do código, sem rodar o app): Inserir 17/25 (gráficos
 > recomendados, gráfico dinâmico, segmentação, caixa de texto, cabeçalho e rodapé, símbolo), Layout da
@@ -148,7 +148,7 @@ Fora do escopo:
 
 - `home.addIns` Suplementos (Suplementos) — a suíte não tem loja nem extensões de terceiros (privacidade por padrão); não entra.
 
-## Inserir (11 / 25, 44%)
+## Inserir (12 / 25, 48%)
 
 Implementado:
 
@@ -163,12 +163,12 @@ Implementado:
 - `insert.checkbox` Caixa de seleção (Controles de célula) — Checkbox: caixas na seleção (VERDADEIRO/FALSO), clique e Espaço marcam, o botão aceso remove (`316961b9`, `92dcf633`, 15/10)
 - `insert.wordArt` WordArt (Texto) — Inserir > WordArt: 4 estilos, deformação, sombra, texto editável (`9970bdf2`, 15/10)
 - `review.newComment` Comentário (Comentários) — Inserir > Comentário abre o editor de comentário da célula ativa (15/10)
+- `insert.sparkline` Minigráficos (Minigráficos) — Linha, Coluna e Ganhos/Perdas: diálogo Criar Minigráficos, aba contextual Minigráfico (tipo, pontos em destaque, estilo, mesmo eixo, limpar), `.fshz` e `.xlsx` (04/11)
 
 Faltando:
 
 - `insert.recommendedCharts` Gráficos recomendados (Gráficos)
 - `insert.pivotChart` Gráfico dinâmico (Gráficos)
-- `insert.sparkline` Minigráficos (Minigráficos) — botões desabilitados com a dica "Em breve"
 - `insert.slicer` Segmentação de dados (Filtros) — botão desabilitado com a dica "Em breve"
 - `insert.textBox` Caixa de texto (Texto)
 - `pageLayout.headerFooter` Cabeçalho e rodapé (Texto)
@@ -582,7 +582,7 @@ Faltando:
 - [ ] Elementos analíticos de gráfico: linha de tendência com equação e R², barras de erro, linhas de projeção, máximo/mínimo, barras superiores/inferiores.
 - [ ] Modelos de gráfico e aba só de gráfico.
 - [ ] Gráfico dinâmico.
-- [ ] Minigráficos (sparklines): botões na faixa desabilitados, com a dica "Em breve" (15/10).
+- [x] Minigráficos (sparklines): Linha, Coluna e Ganhos/Perdas, com aba contextual, `.fshz` e `.xlsx` (04/11).
 - [ ] Mapas coropléticos e Mapas 3D.
 - [ ] Ferramenta Câmera.
 - [x] Imagem na célula e imagem flutuante, com `=IMAGEM`, base64 e efeitos de imagem. Remover plano de fundo falta.

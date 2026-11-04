@@ -112,6 +112,8 @@ struct AbaMetaLida {
     #[serde(default)]
     ob: Option<Json>,
     #[serde(default)]
+    mg: Option<Json>,
+    #[serde(default)]
     ce: Option<Json>,
     #[serde(default)]
     c: Vec<CelulaAvulsaMetaLida>,
@@ -269,6 +271,8 @@ pub struct AbaLida {
     pub tn: Option<Json>,
     /// Objetos soltos sobre a grade (formas; ver `objetos_aba`), opacos para o leitor.
     pub ob: Option<Json>,
+    /// Minigráficos da aba (ver `minigraficos_aba`), opacos para o leitor.
+    pub mg: Option<Json>,
     pub ce: Option<Json>,
 }
 
@@ -480,6 +484,7 @@ fn montar_aba_lida_com_pool(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>
         bt: aba.bt,
         tn: aba.tn,
         ob: aba.ob,
+        mg: aba.mg,
         ce: aba.ce,
     })
 }
@@ -544,6 +549,14 @@ fn ler_fluxo_com<R: Read>(origem: R, versao: u32, compacto: bool) -> Result<Past
     };
     if metadados.limit() != 0 || livro.v != versao {
         return Err("Tamanho ou versão dos metadados FSH3 inválido".into());
+    }
+    // O teto de células vale para o arquivo inteiro, não por aba: 20 abas de 1 bilhão
+    // pediam ~160 GB (auditoria de 04/11/2026).
+    let declaradas: u64 = livro.s.iter()
+        .map(|a| a.cols.as_ref().map_or(0, |c| c.len() as u64).saturating_mul(a.len.unwrap_or(0) as u64))
+        .fold(0u64, u64::saturating_add);
+    if declaradas > crate::arrow_fluxo::MAX_CELULAS_DECLARADAS {
+        return Err(format!("O arquivo declara células demais ({declaradas} no total)."));
     }
     let mut deslocamento = 0usize;
     let tabela = std::sync::Arc::new(livro.t);
@@ -688,6 +701,24 @@ pub fn ler_fshz(bytes: &[u8]) -> Result<PastaLida, String> {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    /// O teto de células é do arquivo: 20 abas de 100 milhões (cada uma abaixo do teto) são recusadas.
+    #[test]
+    fn teto_de_celulas_vale_para_o_arquivo_inteiro() {
+        use std::io::Write;
+        let aba = |n: usize| serde_json::json!({"n": format!("A{n}"), "len": 100_000_000u32,
+            "cols": [{"f": "n0", "c": 0, "k": "num"}]});
+        let livro: LivroMetaLida = serde_json::from_value(serde_json::json!({
+            "v": 3, "a": 0, "s": (0..20).map(aba).collect::<Vec<_>>() })).unwrap();
+        let meta = rmp_serde::to_vec_named(&livro).unwrap();
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        gz.write_all(&(meta.len() as u32).to_le_bytes()).unwrap();
+        gz.write_all(&meta).unwrap();
+        let mut bytes = b"FSH3".to_vec();
+        bytes.extend(gz.finish().unwrap());
+        let erro = ler_fshz(&bytes).err().expect("tem de recusar");
+        assert!(erro.contains("células demais"), "{erro}");
+    }
     use crate::fshz_write::{
         AbaBruta, CelulaAvulsaBruta, ColunaFormulaBruta, ColunaNumBruta, ColunaTxtBruta, ErroBruto, PastaBruta,
     };
@@ -743,6 +774,7 @@ mod testes {
             bt: None,
             tn: None,
             ob: None,
+            mg: None,
             ce: None,
             avulsas: vec![],
             estilos_literais: vec![],

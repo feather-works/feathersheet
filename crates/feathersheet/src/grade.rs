@@ -146,6 +146,7 @@ impl canvas::Program<Msg> for Grade<'_> {
             .map(|aba| crate::dinamica_visual::com_cache(&aba.sheet,aba.versao))
             .unwrap_or_default();
         let dinamica_acento = feather_ui::tema::COR_AZUL_ACENTO();
+        let minigraficos = crate::minigraficos_visual::Visiveis::da_aba(self.workbook, self.aba);
         // Apenas uma normalização por frame, mesmo com muitas colunas.
         let (bg, header, texto, fraco, borda, ativo, selecao) = if self.escuro {
             (Color::rgb8(34,37,42), Color::rgb8(45,49,55),
@@ -326,6 +327,10 @@ impl canvas::Program<Msg> for Grade<'_> {
                             );
                         }
                     }
+                }
+                // Minigráfico: como a barra de dados, acima do fundo e abaixo da seleção e do texto.
+                if let Some(m) = &minigraficos {
+                    m.desenhar(&mut f, self.workbook, self.aba, r, c, Point::new(x, y), Size::new(desenhar_w, desenhar_h), self.escuro);
                 }
                 if (r >= self.area.r0 && r <= self.area.r1 && c >= self.area.c0 && c <= self.area.c1)
                     || self.areas_extras.iter().any(|a| a.contains(r, c)) {

@@ -54,6 +54,7 @@ impl Sheet {
         copia.bt = self.bt.clone();
         copia.tn = self.tn.clone();
         copia.ob = self.ob.clone();
+        copia.mg = self.mg.clone();
         copia.ce = self.ce.clone();
 
         let mut celulas: Vec<(u32, u32, edicao::Snap)> = Vec::new();

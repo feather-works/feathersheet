@@ -389,6 +389,24 @@ fn alterar_objetos_registra_um_passo_por_operacao() {
     assert_eq!(sheet.duplicar("Cópia").ob, a);
 }
 
+/// Minigráficos (campo `mg`): cada gravação é um Ctrl+Z e a cópia da aba os leva.
+#[test]
+fn alterar_minigraficos_registra_um_passo_por_operacao() {
+    let mut sheet = Sheet::new("Aba");
+    let a = Some(r#"[{"tipo":"linha","itens":[{"linha":0,"coluna":5,"dados":"A1:E1"}]}]"#.to_string());
+    let b = Some(r#"[{"tipo":"coluna","itens":[{"linha":0,"coluna":5,"dados":"A1:E1"}]}]"#.to_string());
+    assert!(sheet.alterar_minigraficos(a.clone()));
+    assert!(!sheet.alterar_minigraficos(a.clone()), "igual não cria passo");
+    assert!(sheet.alterar_minigraficos(b.clone()));
+    assert!(sheet.undo());
+    assert_eq!(sheet.mg, a);
+    assert!(sheet.undo());
+    assert_eq!(sheet.mg, None);
+    assert!(sheet.redo());
+    assert_eq!(sheet.mg, a);
+    assert_eq!(sheet.duplicar("Cópia").mg, a);
+}
+
 #[test]
 fn soma_de_vazio_e_zero_sem_sinal() {
     use crate::celulas::{style::format_value, values::Value};

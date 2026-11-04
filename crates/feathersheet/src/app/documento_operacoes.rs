@@ -83,6 +83,9 @@ impl App {
         if self.faixa_ativa == AbaFaixa::Dinamica && !self.dinamica_na_faixa() {
             self.faixa_ativa = AbaFaixa::Inicio;
         }
+        if self.faixa_ativa == AbaFaixa::Minigrafico && self.minigrafico_na_celula().is_none() {
+            self.faixa_ativa = AbaFaixa::Inicio;
+        }
         if self.faixa_ativa == AbaFaixa::Tabela && self.tabela_editando.is_none() {
             self.faixa_ativa = AbaFaixa::Inicio;
         }
@@ -672,6 +675,7 @@ impl App {
                 if self.workbook.vba.is_some() && formato_excel(&path) == Some(false) {
                     self.status = tr!("Salvo como .xlsx: as macros VBA não vão neste formato (use .xlsm para mantê-las).").into();
                 }
+                self.avisar_textos_cortados(&path);
                 // O que foi digitado durante a gravação não está neste arquivo: `proteger` pergunta de novo.
                 if let Some(p) = self.apos_gravar.take() { return self.proteger(p); }
             }
@@ -682,6 +686,14 @@ impl App {
             }
         }
         Task::none()
+    }
+
+    /// O Excel guarda no máximo 32.767 caracteres por célula: diz quantas foram cortadas.
+    pub(super) fn avisar_textos_cortados(&mut self, path: &std::path::Path) {
+        let n = feathersheet_io::xlsx_write::textos_cortados();
+        if formato_excel(path).is_some() && n > 0 {
+            self.status = trf!("Salvo, mas {n} célula(s) com mais de 32.767 caracteres foram cortadas (limite do Excel).");
+        }
     }
 
     /// Diretório persistente (e acessível pelo gerenciador de arquivos).
@@ -1133,7 +1145,10 @@ fn exportar_retrato(pasta: &feathersheet_io::fshz_write::PastaBruta, folha: usiz
             let (bytes, usadas) = feathersheet_io::xlsx_write::gerar_xlsx_com_funcoes(&wb)
                 .map_err(|e| trf!("Erro ao gerar Excel: {e}"))?;
             feathersheet_io::arquivo::gravar_atomico(path, &bytes).map_err(|e| trf!("Erro ao gravar Excel: {e}"))?;
-            Ok((trf!("Excel exportado: {}", path.display()), usadas))
+            let cortados = feathersheet_io::xlsx_write::textos_cortados();
+            let msg = if cortados == 0 { trf!("Excel exportado: {}", path.display()) }
+                else { trf!("Excel exportado, mas {cortados} célula(s) com mais de 32.767 caracteres foram cortadas (limite do Excel).") };
+            Ok((msg, usadas))
         }
         Exportacao::Json => feathersheet_io::json_workbook::gravar_json(&wb, folha, path)
             .map(|()| (trf!("JSON exportado: {}", path.display()), Default::default()))

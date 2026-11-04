@@ -549,9 +549,21 @@ fn no_limite_do_excel(t: &str) -> &str {
     let mut unidades = 0;
     for (i, c) in t.char_indices() {
         unidades += c.len_utf16();
-        if unidades > LIMITE { return &t[..i]; }
+        if unidades > LIMITE {
+            TEXTOS_CORTADOS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            return &t[..i];
+        }
     }
     t
+}
+
+/// Quantos textos a última geração do Excel cortou no limite (a pessoa precisa saber).
+/// shortcut: contador global, certo enquanto o app gera um Excel por vez (`salvando` trava); se gerar em paralelo, devolver no resultado.
+static TEXTOS_CORTADOS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// Textos cortados em 32.767 caracteres pela última [`gerar_excel_com_funcoes`].
+pub fn textos_cortados() -> usize {
+    TEXTOS_CORTADOS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Cada texto uma vez só; é o que faz o arquivo não inchar.
@@ -1644,6 +1656,12 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
             });
             dinamicas.extend(novas);
         }
+        // Minigráficos: o `extLst` é o último filho do CT_Worksheet.
+        if let Some(ext) = pasta.aba(i).and_then(|a| crate::xlsx_write_minigraficos::ext_da_aba(&a.sheet)) {
+            if let Some(fim) = xml.rfind("</worksheet>") {
+                xml.insert_str(fim, &ext);
+            }
+        }
         abas.push((xml, rels));
     }
 
@@ -1859,6 +1877,7 @@ pub fn gerar_xlsx_com_funcoes(pasta: &Workbook) -> Result<(Vec<u8>, std::collect
 /// Como [`gerar_xlsx_com_funcoes`]; `macros` = `.xlsm` (ver [`montar_partes_formato`]).
 pub fn gerar_excel_com_funcoes(pasta: &Workbook, macros: bool) -> Result<(Vec<u8>, std::collections::BTreeSet<String>), String> {
     cabe_no_excel(pasta)?;
+    TEXTOS_CORTADOS.store(0, std::sync::atomic::Ordering::Relaxed);
     FUNCOES_USADAS.with(|f| *f.borrow_mut() = Some(Default::default()));
     let partes = montar_partes_formato(pasta, macros);
     let usadas = FUNCOES_USADAS.with(|f| f.borrow_mut().take()).unwrap_or_default();

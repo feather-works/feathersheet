@@ -348,6 +348,7 @@ impl Hospede for HospedeApp<'_> {
         // As mesmas duas etapas do botão Inserir/Excluir da faixa.
         let tabela = tabelas::refluir(&mut self.app.workbook, aba, coluna, at, quantas, removendo);
         let mescla = mesclas::refluir(&mut self.app.workbook, aba, coluna, at, quantas, removendo);
+        self.app.refluir_minigraficos(aba, coluna, at, quantas, removendo);
         // Como no botão: o Ctrl+Z não volta para antes da estrutura (#46).
         if let Some(a) = self.app.workbook.aba_mut(aba) { a.sheet.esquecer_historico(); }
         if aba == self.app.folha { self.app.trocar_selecao(self.app.linha, self.app.coluna); }
@@ -604,6 +605,10 @@ impl App {
             let roteiro = args["roteiro"].as_str().unwrap_or("");
             let erro = match alvo {
                 None => Some(format!("A janela \"{janela}\" não está aberta.")),
+                // O cursor do agente não clica em diálogo de segurança (macros, programas externos):
+                // essa decisão é da pessoa na frente da tela.
+                Some(_) if self.aviso_macros || self.macro_programas.is_some() =>
+                    Some("Há um aviso de segurança aberto (macros ou programas externos); só a pessoa pode responder.".to_string()),
                 Some(_) if roteiro.trim().is_empty() => Some("Falta o roteiro.".to_string()),
                 Some(_) => pelicano::validar_roteiro(roteiro).err().map(|e| format!("Roteiro inválido: {e}")),
             };

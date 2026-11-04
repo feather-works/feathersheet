@@ -276,6 +276,7 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
     sheet.bt = aba.bt.as_ref().map(|v| v.to_string());
     sheet.tn = aba.tn.as_ref().map(|v| v.to_string());
     sheet.ob = aba.ob.as_ref().map(|v| v.to_string());
+    sheet.mg = aba.mg.as_ref().map(|v| v.to_string());
     sheet.ce = aba.ce.as_ref().map(|v| v.to_string());
     sheet.col_styles = aba.estilos_coluna.iter().filter_map(|(c, v)| estilo_parcial_de_json(v).map(|e| (*c, e))).collect();
     sheet.row_styles = aba.estilos_linha.iter().filter_map(|(r, v)| estilo_parcial_de_json(v).map(|e| (*r, e))).collect();
@@ -326,6 +327,24 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
     match proprias {
         Some((num, txt, fx, _)) => carregar_colunas(sheet, num, txt, fx),
         None => carregar_colunas(sheet, &aba.colunas_num, &aba.colunas_txt, &aba.colunas_formula),
+    }
+
+    // Número com o texto próprio ("16,9%", do .xlsx) vem como avulsa e na coluna; a
+    // coluna, carregada depois, fica com o número, e o texto volta ao `textos` (#138).
+    for celula in &aba.avulsas {
+        let v = celula.v.as_str();
+        if v.trim_start().starts_with('=') { continue; }
+        let (row, col) = ((celula.k / 16384) as u32, (celula.k % 16384) as u32);
+        let k = feathersheet_core::planilha::sheet::Sheet::cell_key(row, col);
+        if sheet.cells.contains_key(&k) || sheet.textos.contains_key(&k) { continue; }
+        if let feathersheet_core::Value::Number(n) = sheet.get_value(row, col) {
+            // "16,9%" lido dá 0,16899999999999998: o número da coluna vale, o texto é só o que se vê.
+            let perto = |m: f64| (m - n).abs() <= 1e-12 * m.abs().max(n.abs());
+            if feathersheet_core::celulas::number::to_js_string(n) != v
+                && matches!(feathersheet_core::celulas::input::parse_literal(v.trim()).value, feathersheet_core::Value::Number(m) if perto(m)) {
+                sheet.textos.insert(k, v);
+            }
+        }
     }
 
     for (col, num, txt) in prontas.into_iter().flatten() {
@@ -752,6 +771,7 @@ mod testes {
                 bt: None,
                 tn: None,
                 ob: None,
+                mg: None,
                 ce: None,
             }],
         }
@@ -849,6 +869,7 @@ mod testes {
                 bt: None,
                 tn: None,
                 ob: None,
+                mg: None,
                 ce: None,
             }],
         };

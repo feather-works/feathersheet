@@ -7,6 +7,7 @@ pub mod colagem;
 pub mod fill;
 pub mod ir_para_especial;
 pub mod mesclagem;
+pub mod minigraficos;
 pub mod filtro;
 pub mod filtro_data;
 pub mod ordenacao_ext;

@@ -157,9 +157,12 @@ pub fn chave_caminho(caminho: &Path) -> String {
 
 /// `\\servidor\pasta` (ou `//servidor/`): no Windows, só testar se existe já manda a
 /// credencial do usuário (hash NTLM) ao servidor. Um arquivo aberto não pode fazer isso sozinho.
+/// Vale qualquer par de barras (`\\`, `//`, `/\`, `\/`): o Windows trata todos como UNC,
+/// e um `externalLink` com `file:///\\srv` vira `/\\srv` (auditoria de 04/11/2026).
 pub fn de_rede(caminho: &Path) -> bool {
     let t = caminho.to_string_lossy();
-    t.starts_with("\\\\") || t.starts_with("//")
+    let mut b = t.chars();
+    matches!((b.next(), b.next()), (Some('\\' | '/'), Some('\\' | '/')))
 }
 
 /// FNV-1a de 64 bits: estável entre execuções e versões (o `DefaultHasher`
@@ -684,6 +687,8 @@ mod testes_rede {
         use std::path::Path;
         assert!(super::de_rede(Path::new(r"\\servidor\pasta\a.xlsx")));
         assert!(super::de_rede(Path::new("//servidor/pasta/a.xlsx")));
+        assert!(super::de_rede(Path::new(r"/\servidor\pasta\a.xlsx")), "file:///\\srv vira /\\srv");
+        assert!(super::de_rede(Path::new(r"\/servidor/a.xlsx")));
         assert!(!super::de_rede(Path::new("/home/a.xlsx")));
         assert!(!super::de_rede(Path::new(r"C:\dados\a.xlsx")));
         // A chave sai do texto, sem perguntar ao sistema.

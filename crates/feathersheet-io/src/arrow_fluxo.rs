@@ -77,7 +77,7 @@ impl<T: Valor> Montador<T> {
 /// Lê `n` bytes sem reservar o tamanho declarado de antemão: um arquivo
 /// forjado pode dizer gigabytes e trazer meia dúzia de bytes.
 /// Teto de células (campos × linhas) que um `.fshz` pode declarar: ~8 GB de números.
-const MAX_CELULAS_DECLARADAS: u64 = 1_000_000_000;
+pub(crate) const MAX_CELULAS_DECLARADAS: u64 = 1_000_000_000;
 
 fn ler_exato<R: Read>(r: &mut std::io::Take<R>, n: usize) -> Result<Vec<u8>, String> {
     if n as u64 > r.limit() {

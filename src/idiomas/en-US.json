@@ -144,6 +144,7 @@
         "titulo": "Charts and images",
         "corpo": [
           "Select the data and use Insert → Charts: Recommended, or a type directly (columns, lines, pie, scatter, waterfall…). There are more than 25 types. The chart floats over the grid: drag to move, pull the corner to resize, and the side editor changes the type, series and colors. It follows the data when it changes.",
+          "Sparklines: Insert → Sparklines (Line, Column or Win/Loss) draws a small chart inside the cell. Enter the data range and the location (a row or column of cells; each one gets one row or column of the data). With the cell selected, the Sparkline tab changes the type, highlights high, low, negative, first and last points, changes the style, uses the same axis for the group or clears it.",
           "Images: Inserir → Imagem, paste (Ctrl+V) or drop the file on the grid."
         ]
       },
@@ -204,6 +205,7 @@
         "corpo": [
           "The native format is .fshz. Ctrl+S saves and Ctrl+Shift+S (Save as…) saves under another name as .fshz, .xlsx or .xlsm. An open .xlsx or .xlsm is saved back in the same format by Ctrl+S. Open also reads .csv, .tsv and .parquet.",
           "Arquivo → Exportar writes the workbook as .xlsx or the current sheet as .csv.",
+          "This help can become a file too: in the Help window (F1), Export as Markdown saves everything to a .md, in the app's language.",
           "Autosave works ONLY for .fshz files that were already saved: it writes over them at the interval chosen in Settings. An opened .xlsx, .csv or .parquet file, or a new spreadsheet, is never written automatically — to use autosave, choose Save as… and pick .fshz.",
           "Automatic recovery covers everything else: it keeps a copy of any changed spreadsheet (including .xlsx, .parquet and never-saved ones) in Documents/FeatherSheet/Temporarios/Recuperacao. If the computer shuts down, it shows up on the start screen to recover. It does not replace saving: the copy is removed when you save or discard. Very large workbooks (over 100 million cells) get no automatic copy, because each copy would freeze the window and double the memory: save them with Ctrl+S.",
           "Everything runs on your machine: no account, no login, none of your content leaves it."

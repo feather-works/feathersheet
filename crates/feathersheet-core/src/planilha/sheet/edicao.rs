@@ -332,6 +332,8 @@ enum Passo {
     /// Objetos soltos (JSON ob): criar, mover, redimensionar, girar, apagar
     /// ou mudar a aparência é um passo.
     Objetos { antes: Option<String>, depois: Option<String> },
+    /// Minigráficos da aba (JSON mg): criar, mudar o tipo, a cor ou apagar é um passo.
+    Minigraficos { antes: Option<String>, depois: Option<String> },
     /// Gráficos da aba (JSON g): cada edição do painel Formatar gráfico,
     /// mover, redimensionar ou excluir é um passo.
     Graficos { antes: Option<String>, depois: Option<String> },
@@ -490,6 +492,25 @@ pub struct Historico {
 /// O TypeScript guarda as últimas 200 transações.
 const LIMITE_DO_DESFAZER: usize = 200;
 
+/// E no máximo isto de memória estimada (a última transação fica sempre).
+const LIMITE_DO_DESFAZER_BYTES: usize = 512 * 1024 * 1024;
+
+/// Memória aproximada de uma transação: o registro de cada passo e os textos que ele guarda.
+fn custo_da_transacao(t: &[Passo]) -> usize {
+    let snap = |s: &Option<Snap>| s.as_ref().map_or(0, |s| s.raw.len() + if s.style.is_some() { 64 } else { 0 });
+    let texto = |s: &Option<String>| s.as_ref().map_or(0, String::len);
+    t.iter().map(|p| std::mem::size_of::<Passo>() + match p {
+        Passo::Celula(ch) => snap(&ch.antes) + snap(&ch.depois),
+        Passo::Compacto(b) => b.alteracoes.len() * std::mem::size_of::<EdicaoCompacta>() + b.textos.len()
+            + b.estilos.len() * std::mem::size_of::<EstiloParcial>(),
+        Passo::Permutacao { ordem, quebradas, .. } => ordem.len() * 4 + quebradas.iter().map(|q| q.2.len() + 24).sum::<usize>(),
+        Passo::Mesclas { antes, depois, .. } | Passo::Tabelas { antes, depois, .. } | Passo::Dinamicas { antes, depois, .. }
+        | Passo::Imagens { antes, depois } | Passo::Botoes { antes, depois } | Passo::Tinta { antes, depois }
+        | Passo::Objetos { antes, depois } | Passo::Minigraficos { antes, depois } | Passo::Graficos { antes, depois } => texto(antes) + texto(depois),
+        _ => 0,
+    }).sum()
+}
+
 /// Até quantas células o `setStyle`/`clear` percorre o retângulo inteiro.
 /// Acima disso só mexe no que já existe. Igual ao `sheet.ts`.
 const AREA_PEQUENA: u64 = 500;
@@ -511,6 +532,12 @@ fn display_raw(valor: &Value, estilo: Option<&EstiloParcial>) -> Option<String> 
         Value::Bool(b) => Some(if *b { "VERDADEIRO" } else { "FALSO" }.to_string()),
         _ => None,
     }
+}
+
+/// O analisador leria este texto como outra coisa (número, lógico, fórmula) ou o aparava.
+fn texto_ambiguo(t: &str) -> bool {
+    !t.is_empty() && (t.trim() != t || t.starts_with('=')
+        || crate::celulas::input::parse_literal(t).value != Value::Text(t.to_owned()))
 }
 
 /// `roundTrips` do `sheet.ts`.
@@ -580,12 +607,16 @@ impl Sheet {
             return Some(Snap { raw: cell.raw.clone(), style });
         }
         if self.data.has_cell(row, col) {
-            let raw = match self.textos.get(&k) {
-                Some(t) => t.to_owned(),
-                None => {
-                    let v = self.data.get_cell_value(row, col, &self.pool);
-                    display_raw(&v, style.as_ref()).unwrap_or_default()
-                }
+            // A foto tem de voltar igual pelo `apply` (auditoria de 04/11/2026): número inteiro,
+            // não o texto formatado ("1234,57", a data sem a hora); texto que o analisador leria
+            // como outra coisa ("00123", "=x", "VERDADEIRO", espaço nas pontas) vai com a marca de texto.
+            let v = self.data.get_cell_value(row, col, &self.pool);
+            let raw = match (&v, self.textos.get(&k)) {
+                (Value::Number(n), Some(t)) if crate::celulas::input::parse_literal(t.trim()).value == Value::Number(*n) => t.to_owned(),
+                (Value::Number(n), _) => to_js_string(*n),
+                (_, Some(t)) => t.to_owned(),
+                (Value::Text(t), None) if texto_ambiguo(t) => format!("{}{t}", crate::planilha::data_table::MARCA_TEXTO),
+                _ => display_raw(&v, style.as_ref()).unwrap_or_default(),
             };
             if !raw.is_empty() {
                 return Some(Snap { raw, style });
@@ -1032,6 +1063,14 @@ impl Sheet {
         }
         if next.raw.starts_with('=') {
             self.set_cell_raw(row, col, next.raw, idx);
+            return true;
+        }
+        // Texto marcado pela foto: volta como texto, sem passar pelo analisador.
+        if let Some(t) = next.raw.strip_prefix(crate::planilha::data_table::MARCA_TEXTO) {
+            self.data.set_cell_value(row, col, &Value::Text(t.to_owned()), &mut self.pool);
+            if let Some(i) = idx { self.styles.insert(k, i); }
+            self.cresce_limites(row, col);
+            self.mark_dirty_cascade(k);
             return true;
         }
         let valor = crate::celulas::input::parse_literal(&next.raw).value;
@@ -1793,6 +1832,13 @@ impl Sheet {
                 self.hist.desfazer.remove(0);
                 self.hist.descartadas += 1;
             }
+            // Teto também em memória: 200 colagens de milhões de células não cabem na RAM.
+            // shortcut: soma tudo a cada transação (O(passos guardados)); guardar o custo por transação se pesar.
+            let mut total: usize = self.hist.desfazer.iter().map(|t| custo_da_transacao(t)).sum();
+            while total > LIMITE_DO_DESFAZER_BYTES && self.hist.desfazer.len() > 1 {
+                total -= custo_da_transacao(&self.hist.desfazer.remove(0));
+                self.hist.descartadas += 1;
+            }
             self.hist.refazer.clear();
         }
     }
@@ -1909,6 +1955,18 @@ impl Sheet {
         true
     }
 
+    /// Salva os minigráficos da aba (mg) em UMA etapa de Ctrl+Z/Ctrl+Y.
+    pub fn alterar_minigraficos(&mut self, novo: Option<String>) -> bool {
+        if self.mg == novo { return false; }
+        self.abrir_transacao();
+        let antes = std::mem::replace(&mut self.mg, novo.clone());
+        if let Some(pendente) = self.hist.pendente.as_mut() {
+            pendente.push(Passo::Minigraficos { antes, depois: novo });
+        }
+        self.fechar_transacao();
+        true
+    }
+
     /// Salva os gráficos da aba (g) em UMA etapa de Ctrl+Z/Ctrl+Y. Com
     /// `juntar`, se a última etapa da pilha for só uma troca de gráficos (e
     /// nada foi refeito depois), ela é estendida em vez de criar outra: é
@@ -2002,7 +2060,7 @@ impl Sheet {
                         Passo::Divisao { area, .. } => *area,
                         Passo::Estilos { area, .. } => *area,
                         Passo::Regravacao { area, .. } => *area,
-                        Passo::Imagens { .. } | Passo::Botoes { .. } | Passo::Tinta { .. } | Passo::Objetos { .. } | Passo::Graficos { .. }
+                        Passo::Imagens { .. } | Passo::Botoes { .. } | Passo::Tinta { .. } | Passo::Objetos { .. } | Passo::Minigraficos { .. } | Passo::Graficos { .. }
                         | Passo::LarguraPadrao { .. }
                         | Passo::Topicos { .. } => [0, 0, 0, 0],
                         Passo::OcultasDesde { .. } => [0, 0, 0, 0],
@@ -2057,6 +2115,7 @@ impl Sheet {
             Passo::Botoes { antes, .. } => self.bt = antes.clone(),
             Passo::Tinta { antes, .. } => self.tn = antes.clone(),
             Passo::Objetos { antes, .. } => self.ob = antes.clone(),
+            Passo::Minigraficos { antes, .. } => self.mg = antes.clone(),
             Passo::Graficos { antes, .. } => self.g = antes.clone(),
             Passo::Comentario { linha, coluna, antes, .. } =>
                 self.aplicar_comentario(*linha, *coluna, antes.as_deref().cloned()),
@@ -2107,6 +2166,7 @@ impl Sheet {
             Passo::Botoes { depois, .. } => self.bt = depois.clone(),
             Passo::Tinta { depois, .. } => self.tn = depois.clone(),
             Passo::Objetos { depois, .. } => self.ob = depois.clone(),
+            Passo::Minigraficos { depois, .. } => self.mg = depois.clone(),
             Passo::Graficos { depois, .. } => self.g = depois.clone(),
             Passo::Comentario { linha, coluna, depois, .. } =>
                 self.aplicar_comentario(*linha, *coluna, depois.as_deref().cloned()),
@@ -2841,7 +2901,7 @@ impl Sheet {
             Passo::Mesclas { .. } | Passo::Condicionais { .. } | Passo::Estilos { .. } => pede(P::FormatarCelulas),
             Passo::Tabelas { .. } => (!prot.permite(P::AutoFiltro)).then(Recusa::planilha_protegida),
             Passo::Dinamicas { .. } => pede(P::TabelaDinamica),
-            Passo::Imagens { .. } | Passo::Botoes { .. } | Passo::Tinta { .. } | Passo::Objetos { .. } | Passo::Graficos { .. }
+            Passo::Imagens { .. } | Passo::Botoes { .. } | Passo::Tinta { .. } | Passo::Objetos { .. } | Passo::Minigraficos { .. } | Passo::Graficos { .. }
             | Passo::Comentario { .. } => pede(P::EditarObjetos),
             Passo::Validacoes { .. } | Passo::Topicos { .. } => Some(Recusa::planilha_protegida()),
         }
@@ -2858,12 +2918,6 @@ impl Sheet {
 
     pub fn profundidade_do_refazer(&self) -> usize {
         self.hist.refazer.len()
-    }
-
-    /// Joga fora o que foi empilhado depois da marca (`truncarHistorico`).
-    pub fn truncar_historico(&mut self, profundidade: usize) {
-        let manter = profundidade.saturating_sub(self.hist.descartadas);
-        self.hist.desfazer.truncate(manter);
     }
 
     /// Desloca linhas (`coluna == false`) ou colunas inteiras: o

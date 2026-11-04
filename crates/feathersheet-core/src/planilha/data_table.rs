@@ -89,11 +89,6 @@ impl DataTable {
             .collect()
     }
 
-    /// Exporta todas as colunas de texto para gravação no formato colunar `.fshz`.
-    pub fn exportar_colunas_txt(&self, linhas: u32) -> Vec<(u32, Vec<i32>, Vec<u8>)> {
-        self.colunas_txt().into_iter().filter_map(|col| self.exportar_coluna_txt(col, linhas).map(|(i, b)| (col, i, b))).collect()
-    }
-
     /// As colunas com texto, em ordem.
     pub fn colunas_txt(&self) -> Vec<u32> {
         self.colunas_com(|e| e.text_col.as_ref().is_some_and(|tc| tc.max_row >= 0))

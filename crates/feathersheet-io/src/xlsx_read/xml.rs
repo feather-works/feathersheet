@@ -447,7 +447,13 @@ pub fn parse_xml_linhas_rapidas<R: BufRead>(
         let mut linha = LinhaXml::default();
         rapido::linhas(&mut source, sobra, &mut linha, ler)?
     };
-    source.read_to_end(&mut resto).map_err(|e| format!("XML: {e}"))?;
+    // O que vem depois das linhas (mesclas, condicional, links…) é pequeno: com teto, um
+    // arquivo forjado não pede gigabytes de memória (auditoria de 04/11/2026).
+    const MAX_DEPOIS_DAS_LINHAS: u64 = 64 * 1024 * 1024;
+    let lidos = source.by_ref().take(MAX_DEPOIS_DAS_LINHAS + 1).read_to_end(&mut resto).map_err(|e| format!("XML: {e}"))?;
+    if lidos as u64 > MAX_DEPOIS_DAS_LINHAS {
+        return Err("O XML da aba passa do tamanho aceito depois das linhas: o arquivo não parece um .xlsx de verdade.".into());
+    }
     if vazio {
         // `<sheetData/>` já fechou no prefixo.
         prefixo.extend_from_slice(&resto);
@@ -488,6 +494,10 @@ fn parse_xml_linhas_quick<R: BufRead>(
                 ler(&linha)?;
             }
             Ok(Event::Start(e)) => {
+                // O mesmo teto do `parse_xml_impl`: aninhamento sem fim estoura a pilha ao soltar a árvore.
+                if stack.len() > MAX_PROFUNDIDADE {
+                    return Err(format!("XML aninhado demais (mais de {MAX_PROFUNDIDADE} níveis): o arquivo não parece um .xlsx de verdade."));
+                }
                 stack.push(XmlNode { name: local_name(e.name().as_ref()), attrs: read_attrs(&e, decoder), ..Default::default() });
             }
             Ok(Event::Empty(e)) => {
@@ -542,6 +552,19 @@ mod tests {
         }
         let arvore = arvore.map(|a| { let mut s = String::new(); canon(&a, &mut s); s });
         (linhas, format!("{arvore:?}"))
+    }
+
+    /// Aninhamento sem fim depois das linhas é recusado, nos dois leitores (antes estourava a pilha).
+    #[test]
+    fn xml_aninhado_demais_depois_das_linhas_e_recusado() {
+        let mut xml = b"<worksheet><sheetData><row r=\"1\"/></sheetData>".to_vec();
+        xml.extend("<x>".repeat(5000).bytes());
+        xml.extend("</x>".repeat(5000).bytes());
+        xml.extend(b"</worksheet>");
+        for rapido in [true, false] {
+            let (_, arvore) = ler_com(&xml, rapido, 8192);
+            assert!(arvore.contains("aninhado demais"), "rápido={rapido}: {arvore}");
+        }
     }
 
     /// `FEATHERSHEET_XLSX=a.xlsx,b.xlsx`: os dois leitores em todas as abas,

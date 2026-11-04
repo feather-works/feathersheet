@@ -121,6 +121,15 @@ fn montar_aba_bruta(sheet: &Sheet) -> AbaBruta {
         }
     }
 
+    // 1b) Número com o texto como veio do .xlsx ("16,9%"): a coluna guarda só o
+    //     número, então o texto vai também como avulsa (#138).
+    for (&k, texto) in sheet.textos.iter() {
+        if !sheet.cells.contains_key(&k) {
+            avulsas.push(CelulaAvulsaBruta { k, v: texto.to_owned(), estilo: None });
+        }
+    }
+    avulsas.sort_unstable_by_key(|c| c.k);
+
     // 2) Estilo direto das células literais e das fórmulas empacotadas, por
     //    faixa — como a aba guarda. O JSON de cada estilo é montado uma vez
     //    por entrada da tabela, não uma vez por célula (eram 6 milhões de
@@ -205,6 +214,7 @@ fn montar_aba_bruta(sheet: &Sheet) -> AbaBruta {
         bt: parse_json_opt(&sheet.bt),
         tn: parse_json_opt(&sheet.tn),
         ob: parse_json_opt(&sheet.ob),
+        mg: parse_json_opt(&sheet.mg),
         ce: parse_json_opt(&sheet.ce),
         avulsas,
         estilos_literais: Vec::new(),
@@ -494,6 +504,50 @@ mod testes {
         let bytes = crate::xlsx_write::gerar_xlsx(&wb).unwrap();
         let (de_volta, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();
         assert_eq!(de_volta.aba(0).unwrap().sheet.comentarios, esperado);
+    }
+
+    /// #138: texto com espaço nas pontas e número com o texto do .xlsx ("16,9%")
+    /// voltam iguais do `.fshz` (aba pequena, tudo vira avulsa).
+    #[test]
+    fn texto_com_espacos_e_texto_do_numero_sobrevivem_ao_fshz() {
+        use feathersheet_core::planilha::sheet::Sheet;
+        let mut wb = Workbook::new();
+        wb.editar(0, |s| {
+            s.carregar_coluna_textos(0, &[0, 1], &[0b11], &["TOTAL ".into(), " FILTRADOS".into()]);
+            s.set_cell_raw(0, 1, "0.169".into(), None);
+            s.textos.insert(Sheet::cell_key(0, 1), "16,9%");
+        });
+        let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
+        let volta = crate::para_workbook::para_workbook(&lida);
+        let aba = &volta.aba(0).unwrap().sheet;
+        assert_eq!((aba.get_raw(0, 0), aba.get_raw(1, 0)), ("TOTAL ".to_string(), " FILTRADOS".to_string()));
+        assert_eq!((aba.get_raw(0, 1), volta.valor(0, 0, 1)), ("16,9%".to_string(), feathersheet_core::Value::Number(0.169)));
+    }
+
+    #[test]
+    fn minigraficos_sobrevivem_fshz_e_xlsx() {
+        use feathersheet_core::celulas::refs::parse_range_ref;
+        use feathersheet_core::operacoes::minigraficos::{criar, Tipo};
+        let r = |a| parse_range_ref(a).unwrap();
+        let mut wb = Workbook::new();
+        wb.escrever_celula(0, 0, 0, "10".into());
+        let mut linha = criar(Tipo::Linha, r("A1:E2"), None, r("F1:F2")).unwrap();
+        linha.alto = true;
+        linha.marcadores = true;
+        linha.cor = "#1F77B4".into();
+        let mut ganhos = criar(Tipo::GanhosPerdas, r("A1:E1"), Some("Outra aba"), r("G1")).unwrap();
+        ganhos.eixo_igual = true;
+        let esperado = vec![linha, ganhos];
+        wb.editar(0, |s| s.mg = crate::minigraficos_aba::gravar(&esperado));
+        let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
+        let restaurada = crate::para_workbook::para_workbook(&lida);
+        assert_eq!(crate::minigraficos_aba::ler(restaurada.aba(0).unwrap().sheet.mg.as_deref()), esperado);
+        let bytes = crate::xlsx_write::gerar_xlsx(&wb).unwrap();
+        let (de_volta, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();
+        assert_eq!(crate::minigraficos_aba::ler(de_volta.aba(0).unwrap().sheet.mg.as_deref()), esperado);
+        // Sem minigráfico, a aba não ganha `extLst` nem o campo no `.fshz`.
+        let vazia = Workbook::new();
+        assert!(crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&vazia, 0).unwrap()).unwrap().sheets[0].mg.is_none());
     }
 
     #[test]

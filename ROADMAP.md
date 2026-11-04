@@ -9,7 +9,7 @@ The numbers come from the detailed surveys (current as of v0.2.0, 10/27/2026):
 
 | Front | Today | Survey |
 |---|---|---|
-| Ribbon commands | **211 / 290** (72.8%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
+| Ribbon commands | **212 / 290** (73.1%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
 | Developer tab | **4 / 19** | same, "Desenvolvedor" section |
 | Worksheet functions | **520 / 520** | [`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md) |
 | VBA functions in the converter | **52** covered, **12** partial, **53** missing (of 117 applicable) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
@@ -74,9 +74,10 @@ In order of how much users miss them.
 - [ ] Themes, theme Colors, Fonts and Effects.
 - [ ] Arrange objects: Bring Forward, Send Backward, Align, Group, Rotate, Selection Pane.
 
-**Insert (11 / 25):**
+**Insert (12 / 25):**
 - [ ] Text Box, Header & Footer, Symbol, Equation.
-- [ ] Sparklines, Recommended Charts.
+- [x] Sparklines.
+- [ ] Recommended Charts.
 - [ ] Timeline.
 - [ ] SmartArt (the engine already exists in [`feather-shapes`](https://github.com/feather-works/feather-shapes)), Screenshot, Maps, Signature Line, Object.
 
@@ -142,7 +143,8 @@ The engine is [`feather-charts`](https://github.com/feather-works/feather-charts
 Done: 25 types, trendlines with equation and R², error bars, max/min/average
 lines, mouse tooltip, clickable legend, pivot charts.
 
-- [ ] Sparklines and chart templates.
+- [x] Sparklines.
+- [ ] Chart templates.
 - [ ] Drag the title and legend inside the chart.
 
 ## Phase 6 — Advanced data

@@ -320,6 +320,8 @@ impl App {
             aba: e.aba.clone()?, evento: e.evento.to_string(),
             modulo: novos.get(c.macros.len() + i)?.name.clone(),
         })).collect();
+        // Código de outro arquivo: os eventos só rodam depois de "Ativar macros" (auditoria de 04/11/2026).
+        if !self.eventos_vba.is_empty() { self.macros_bloqueadas = true; self.aviso_macros = true; }
         let primeiro = novos[0].clone();
         let mut catalogo = base;
         let n = novos.len();

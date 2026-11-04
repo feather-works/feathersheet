@@ -83,6 +83,10 @@ impl App {
             if self.dinamica_na_faixa() {
                 self.aba_faixa(tr!("Tabela Dinâmica"), AbaFaixa::Dinamica)
             } else { Space::new(0, 0.0).into() },
+            // Contextual: "Minigráfico" com a célula ativa num minigráfico.
+            if self.minigrafico_na_celula().is_some() {
+                self.aba_faixa(tr!("Minigráfico"), AbaFaixa::Minigrafico)
+            } else { Space::new(0, 0.0).into() },
             // Contextual: "Editar forma" só enquanto houver forma selecionada.
             if self.tem_forma_selecionada() { self.aba_editar_forma() }
             else { Space::new(0, 0.0).into() },
@@ -364,6 +368,7 @@ impl App {
         };
         let centro = self.sobrepor_atingir_meta(centro);
         let centro = self.sobrepor_tabela_dados(centro);
+        let centro = self.sobrepor_minigrafico(centro);
         let centro = self.sobrepor_cenarios(centro);
         let editor_visivel: Element<'_, Msg> = if self.mostrar_fx {
             container(editor).style(estilo_container_topo).into()

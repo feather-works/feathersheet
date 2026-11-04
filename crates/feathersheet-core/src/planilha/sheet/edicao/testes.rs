@@ -711,3 +711,23 @@ fn estilo_com_memo_da_o_mesmo_que_o_resolvido_e_separa_coluna_linha_e_celula() {
     }
     assert!(memo.len() <= 6, "células iguais dividem a entrada: {}", memo.len());
 }
+
+#[test]
+fn desfazer_volta_o_valor_exato_e_o_texto_que_pareceria_outra_coisa() {
+    let mut s = Sheet::new("A");
+    let textos = ["00123", "=abc", "VERDADEIRO", "TOTAL ", "  x"];
+    for (i, t) in textos.iter().enumerate() {
+        s.data.set_cell_value(i as u32, 0, &Value::Text((*t).into()), &mut s.pool);
+    }
+    s.data.set_cell_value(0, 1, &Value::Number(1234.5678), &mut s.pool);
+    let mut moeda = EstiloParcial::new();
+    moeda.insert("format".into(), Campo::Texto("currency".into()));
+    s.set_style(&Rect::new(0, 1, 0, 1), &moeda);
+    s.clear_history();
+    s.clear(&Rect::new(0, 0, 10, 1));
+    assert!(s.undo());
+    for (i, t) in textos.iter().enumerate() {
+        assert_eq!(s.get_value(i as u32, 0), Value::Text((*t).into()), "linha {i}");
+    }
+    assert_eq!(s.get_value(0, 1), Value::Number(1234.5678));
+}

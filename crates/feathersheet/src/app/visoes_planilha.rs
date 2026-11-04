@@ -414,7 +414,13 @@ impl App {
     }
 
     pub(super) fn view_ajuda(&self) -> Element<'_, Msg> {
-        ajuda::modelo().view(&self.ajuda_estado).map(Msg::AjudaEvento)
+        let exportar = button(row![feather_ui::icones::icone("file-export", 15.0), text(tr!("Exportar como Markdown")).size(12)]
+                .spacing(6).align(pelicano::Align::Center))
+            .padding([4, 10]).on_press(Msg::AjudaExportar).style(estilo_botao_pequeno(false));
+        pelicano::column![
+            container(exportar).width(Length::FILL).align_x(pelicano::Align::End).padding([6, 12]),
+            ajuda::modelo().view(&self.ajuda_estado).map(Msg::AjudaEvento),
+        ].into()
     }
 
 }

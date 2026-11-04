@@ -16,6 +16,7 @@ pub fn gravar_atomico_com(
     escrever: impl FnOnce(&mut fs::File) -> io::Result<()>,
 ) -> io::Result<()> {
     let nome = destino.file_name().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "Arquivo sem nome"))?;
+    apagar_parciais_velhos(destino);
     let mut tentativa = 0;
     let (temporario, mut arquivo) = loop {
         let mut nome_temporario = nome.to_os_string();
@@ -32,15 +33,54 @@ pub fn gravar_atomico_com(
         escrever(&mut arquivo)?;
         arquivo.sync_all()?;
         drop(arquivo);
-        fs::rename(&temporario, destino)
+        fs::rename(&temporario, destino)?;
+        // A troca de nome só fica no disco com a pasta sincronizada (queda de luz logo depois
+        // voltava a versão anterior). No Windows abrir a pasta falha: lá o rename já é durável.
+        if let Some(pasta) = destino.parent() { let _ = fs::File::open(pasta).and_then(|d| d.sync_all()); }
+        Ok(())
     })();
     if resultado.is_err() { let _ = fs::remove_file(&temporario); }
     resultado
 }
 
+/// `.parcial` deste arquivo que sobrou de um salvamento interrompido (app fechado à força)
+/// há mais de uma hora: tem o tamanho do arquivo e ficava para sempre na pasta da pessoa.
+fn apagar_parciais_velhos(destino: &Path) {
+    let (Some(pasta), Some(nome)) = (destino.parent(), destino.file_name().and_then(|n| n.to_str())) else { return };
+    let prefixo = format!("{nome}.");
+    let Ok(itens) = fs::read_dir(if pasta.as_os_str().is_empty() { Path::new(".") } else { pasta }) else { return };
+    for item in itens.flatten() {
+        let n = item.file_name();
+        let Some(n) = n.to_str() else { continue };
+        let velho = item.metadata().and_then(|m| m.modified()).ok()
+            .and_then(|t| t.elapsed().ok()).is_some_and(|d| d.as_secs() > 3600);
+        if n.starts_with(&prefixo) && n.ends_with(".parcial") && velho {
+            let _ = fs::remove_file(item.path());
+        }
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn parcial_velho_de_salvamento_interrompido_some_no_proximo() {
+        let dir = std::env::temp_dir().join(format!("feathersheet-io-p-{}-{}", std::process::id(), SEQUENCIA.fetch_add(1, Ordering::Relaxed)));
+        fs::create_dir(&dir).unwrap();
+        let destino = dir.join("planilha.fshz");
+        let velho = dir.join("planilha.fshz.999.0.parcial");
+        let novo = dir.join("planilha.fshz.998.0.parcial");
+        let outro = dir.join("outra.fshz.999.0.parcial");
+        for p in [&velho, &novo, &outro] { fs::write(p, b"x").unwrap(); }
+        let duas_horas = std::time::SystemTime::now() - std::time::Duration::from_secs(7200);
+        for p in [&velho, &outro] { fs::File::options().write(true).open(p).unwrap().set_modified(duas_horas).unwrap(); }
+        gravar_atomico(&destino, b"dados").unwrap();
+        assert!(!velho.exists(), "o .parcial velho deste arquivo some");
+        assert!(novo.exists(), "um salvamento recente (outro processo) não é tocado");
+        assert!(outro.exists(), "parcial de outro arquivo não é tocado");
+        fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn substitui_e_remove_temporario_em_falha() {

@@ -180,6 +180,9 @@ pub struct AbaBruta {
     /// Objetos soltos sobre a grade (formas; ver `objetos_aba`).
     #[serde(default)]
     pub ob: Option<Json>,
+    /// Minigráficos da aba (ver `minigraficos_aba`).
+    #[serde(default)]
+    pub mg: Option<Json>,
     #[serde(default)]
     pub ce: Option<Json>,
     #[serde(default)]
@@ -330,6 +333,8 @@ struct AbaMeta<'a> {
     tn: Option<Json>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ob: Option<Json>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mg: Option<Json>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ce: Option<Json>,
     c: Vec<CelulaAvulsaMeta<'a>>,
@@ -602,7 +607,8 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
         }
     }
 
-    // Inclui as colunas esparsas derramadas acima.
+    // Inclui as colunas esparsas derramadas acima. A ordenação é estável: o texto
+    // de um número (#138) vem antes e a derramada, com o número exato, depois.
     avulsas.sort_by_key(|c| c.k);
     let st: Vec<(u64, usize)> =
         aba.estilos_literais.iter().map(|(k, estilo)| (*k, estilos.indexar(estilo))).collect();
@@ -639,6 +645,7 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
         bt: aba.bt.clone(),
         tn: aba.tn.clone(),
         ob: aba.ob.clone(),
+        mg: aba.mg.clone(),
         ce: aba.ce.clone(),
         c: avulsas,
         st,
@@ -700,7 +707,8 @@ fn tem_texto_ambiguo(col: &ColunaTxtBruta, linhas: u32) -> bool {
             return false;
         }
         let t = col.dict[i].as_str();
-        t.trim_start().starts_with('=')
+        // A avulsa é lida aparada (`set_cell_raw`): espaço nas pontas é dado da pessoa (#138).
+        t.trim_start().starts_with('=') || t.trim() != t
             || feathersheet_core::celulas::input::parse_literal(t).value != feathersheet_core::Value::Text(t.to_owned())
     })
 }
@@ -979,6 +987,7 @@ mod testes {
                 bt: None,
                 tn: None,
                 ob: None,
+                mg: None,
                 ce: None,
                 avulsas: vec![CelulaAvulsaBruta { k: 0, v: "10".into(), estilo: None }],
                 estilos_literais: vec![],
@@ -1046,6 +1055,7 @@ mod testes {
                 bt: None,
                 tn: None,
                 ob: None,
+                mg: None,
                 ce: None,
                 avulsas: vec![],
                 estilos_literais: vec![],
@@ -1122,6 +1132,7 @@ mod testes {
                 bt: None,
                 tn: None,
                 ob: None,
+                mg: None,
                 ce: None,
                 avulsas: vec![],
                 estilos_literais: vec![],
@@ -1183,6 +1194,7 @@ mod testes {
                 bt: None,
                 tn: None,
                 ob: None,
+                mg: None,
                 ce: None,
                 avulsas: vec![
                     CelulaAvulsaBruta { k: 0, v: "a".into(), estilo: Some(estilo.clone()) },
@@ -1255,6 +1267,7 @@ mod testes {
                 bt: None,
                 tn: None,
                 ob: None,
+                mg: None,
                 ce: None,
                 avulsas: vec![],
                 estilos_literais: vec![],
@@ -1332,6 +1345,7 @@ mod testes {
                 bt: None,
                 tn: None,
                 ob: None,
+                mg: None,
                 ce: None,
                 avulsas: vec![],
                 estilos_literais: vec![],

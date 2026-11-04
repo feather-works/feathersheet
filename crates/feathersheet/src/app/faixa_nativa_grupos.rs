@@ -252,9 +252,12 @@ impl App {
                         Some(Msg::Dinamica(dinamica_ui::Evento::GraficoDinamico)), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Minigráficos"), self.faixa_linha(vec![
-                    em_breve(self.faixa_grande(tr!("Linha"), "sparkline-line", None, false), tr!("Em breve: minigráfico de linha")),
-                    em_breve(self.faixa_grande(tr!("Coluna"), "sparkline-columns", None, false), tr!("Em breve: minigráfico de colunas")),
-                    em_breve(self.faixa_grande("Ganhos/Perdas", "sparkline-winloss", None, false), tr!("Em breve: minigráfico de ganhos e perdas")),
+                    self.faixa_grande(tr!("Linha"), "sparkline-line",
+                        Some(Msg::Minigrafico(minigraficos_ui::Evento::Abrir(feathersheet_core::operacoes::minigraficos::Tipo::Linha))), false),
+                    self.faixa_grande(tr!("Coluna"), "sparkline-columns",
+                        Some(Msg::Minigrafico(minigraficos_ui::Evento::Abrir(feathersheet_core::operacoes::minigraficos::Tipo::Coluna))), false),
+                    self.faixa_grande(tr!("Ganhos/Perdas"), "sparkline-winloss",
+                        Some(Msg::Minigrafico(minigraficos_ui::Evento::Abrir(feathersheet_core::operacoes::minigraficos::Tipo::GanhosPerdas))), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Filtros"), self.faixa_linha(vec![
                     self.faixa_grande(tr!("Segmentação de dados"), "slicer",
@@ -317,6 +320,7 @@ impl App {
             AbaFaixa::Revisao => grupos.extend(self.grupos_revisao()),
             // Contextual: só com forma selecionada (objetos/interface.rs).
             AbaFaixa::EditarForma => grupos.extend(self.grupos_editar_forma()),
+            AbaFaixa::Minigrafico => grupos.extend(self.grupos_faixa_minigrafico()),
             AbaFaixa::Dados => {
                 // Obter e Transformar Dados do Excel: tudo passa pelo OpenQuery.
                 let abrir = |e: EventoOpenQuery| Some(Msg::OpenQuery(EventoOpenQuery::AbrirCom(Box::new(e))));

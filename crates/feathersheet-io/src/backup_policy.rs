@@ -3,7 +3,6 @@
 //! Protege a interface de cópias frequentes muito caras. A gravação explícita
 //! do usuário não é bloqueada por esta política.
 pub const MAX_CELULAS_COPIA: u64 = 300_000;
-pub const CUSTO_INTOLERAVEL_MS: u64 = 300;
 pub const INTERVALO_MINIMO_MS: u64 = 800;
 pub const INTERVALO_MAXIMO_MS: u64 = 30_000;
 /// Acima disto não há cópia automática (recuperação nem salvamento
@@ -29,12 +28,6 @@ pub fn grande_demais_para_copia_automatica(celulas: u64) -> bool {
 #[inline]
 pub fn copia_vale_a_pena(celulas: u64, importacao_em_lote: bool) -> bool {
     !importacao_em_lote && celulas <= MAX_CELULAS_COPIA
-}
-
-/// Custos acima de 300 ms são intoleráveis para snapshots rápidos.
-#[inline]
-pub fn custo_insustentavel(custo_ms: u64) -> bool {
-    custo_ms > CUSTO_INTOLERAVEL_MS
 }
 
 /// Mantém a UI gastando no máximo ~10% do tempo com snapshots rápidos.
@@ -77,8 +70,6 @@ mod testes {
         assert!(copia_vale_a_pena(300_000,false));
         assert!(!copia_vale_a_pena(300_001,false));
         assert!(!copia_vale_a_pena(1,true));
-        assert!(!custo_insustentavel(300));
-        assert!(custo_insustentavel(301));
         for (custo, espera) in [
             (0,800), (20,800), (80,800), (150,1_500),
             (301,3_010), (8_000,30_000),

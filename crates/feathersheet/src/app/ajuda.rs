@@ -124,6 +124,28 @@ pub fn modelo() -> &'static Catalogo {
     }
 }
 /// F1 dentro de fórmula: busca a assinatura da função ativa; não altera célula.
+/// A ajuda inteira em Markdown, no idioma em uso (#71): uma seção por `##`,
+/// um tópico por `###`, exemplos em bloco de código.
+pub fn markdown(c: &Catalogo) -> String {
+    let mut md = format!("# {}\n", c.titulo);
+    for s in &c.secoes {
+        md.push_str(&format!("\n## {}\n", s.titulo));
+        if !s.introducao.is_empty() { md.push_str(&format!("\n{}\n", s.introducao)); }
+        for t in &s.topicos {
+            md.push_str(&format!("\n### {}\n\n", t.titulo));
+            for l in &t.linhas {
+                match l {
+                    Linha::Texto(x) => md.push_str(&format!("{x}\n\n")),
+                    Linha::Marcador(x) => md.push_str(&format!("- {x}\n")),
+                    Linha::Atalho { descricao, tecla } => md.push_str(&format!("- **{tecla}**: {descricao}\n")),
+                    Linha::Exemplo(x) => md.push_str(&format!("```\n{x}\n```\n\n")),
+                }
+            }
+        }
+    }
+    md
+}
+
 pub fn abrir_funcao(estado:&mut Estado, nome: &str) {
     estado.abrir(modelo(),"funcoes",None);
     if !nome.trim().is_empty() {
@@ -162,6 +184,14 @@ pub fn primeiro_exemplo(estado: &Estado) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn markdown_tem_todas_as_secoes_e_os_exemplos() {
+        let c = construir("pt-BR");
+        let md = markdown(&c);
+        assert!(md.starts_with(&format!("# {}\n", c.titulo)));
+        for s in &c.secoes { assert!(md.contains(&format!("\n## {}\n", s.titulo)), "{}", s.titulo); }
+        assert!(md.contains("### SOMA") || md.contains("SOMA("), "funções com exemplo");
+        assert!(md.contains("```\n"), "exemplos em bloco de código");
+    }
     #[test] fn ambos_os_idiomas_carregam_guia_completo() {
         for idioma in ["pt-BR","en-US","es-ES"] {
             let c=construir(idioma);

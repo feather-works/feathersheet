@@ -85,6 +85,9 @@ pub struct SheetJson {
     pub row_heights: Vec<(i64, i64)>,
     pub charts: Vec<serde_json::Value>,
     pub rules: Vec<serde_json::Value>,
+    /// Minigráficos do `extLst` (só o leitor nativo os leva para a aba).
+    #[serde(skip)]
+    pub minigraficos: Vec<feathersheet_core::operacoes::minigraficos::Grupo>,
     /// Células mescladas, `{ r0, c0, r1, c1 }` — o `mesclas` do `loadJSON`.
     pub mesclas: Vec<serde_json::Value>,
     pub tabelas: Vec<serde_json::Value>,
@@ -584,6 +587,7 @@ fn aplicar_metadados(
         );
     }
     sheet.rules = condicional.regras;
+    sheet.minigraficos = super::minigraficos::ler(root, &sheet.name);
 
     sheet
 }

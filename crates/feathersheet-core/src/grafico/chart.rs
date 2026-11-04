@@ -1037,12 +1037,6 @@ pub fn extract_chart_data_visiveis(
     ChartData { title: titulo, categories, series, x_values, z_values, amostrado, aviso: None }
 }
 
-/// `extractRawChartSeries`: todas as séries, inclusive as escondidas, com o
-/// nome puro da coluna — é o que o editor mostra nos chips.
-pub fn extract_raw_chart_series(sheet: &Sheet, config: &ChartConfig) -> Vec<(u32, String)> {
-    extract_raw_chart_series_with(&|r, c| sheet.get_value(r, c), config)
-}
-
 pub fn extract_raw_chart_series_with(
     celula: &dyn Fn(u32, u32) -> Value,
     config: &ChartConfig,

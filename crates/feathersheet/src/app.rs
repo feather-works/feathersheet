@@ -22,6 +22,7 @@ mod ir_para;
 mod classificar;
 mod atingir_meta;
 mod tabela_dados;
+mod minigraficos_ui;
 mod cenarios_ui;
 mod selecao_regiao;
 mod preenchimento_ui;
@@ -152,7 +153,7 @@ impl Auxiliar {
 pub enum DirecaoPreenchimento { Baixo, Direita, Cima, Esquerda, AteOFim }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AbaFaixa { Inicio, Inserir, Desenhar, Layout, Formulas, Dados, Revisao, Exibir, Macros, Ferramentas, Tabela, EditarForma, Dinamica }
+pub enum AbaFaixa { Inicio, Inserir, Desenhar, Layout, Formulas, Dados, Revisao, Exibir, Macros, Ferramentas, Tabela, EditarForma, Dinamica, Minigrafico }
 
 impl AbaFaixa {
     /// Chaves fixas da antiga Ribbon TypeScript (ribbon.ts, ABA_KEY),
@@ -170,7 +171,7 @@ impl AbaFaixa {
             Self::Macros => Some("macros"),
             Self::Ferramentas => Some("ferramentas"),
             // Abas contextuais não são preferência global.
-            Self::Tabela | Self::EditarForma | Self::Dinamica => None,
+            Self::Tabela | Self::EditarForma | Self::Dinamica | Self::Minigrafico => None,
         }
     }
 
@@ -482,6 +483,9 @@ pub enum Msg {
     /// Abre a Ajuda F1 numa seção pelo id ("macros", "atalhos"…).
     AjudaAbrirSecao(&'static str),
     AjudaEvento(feather_ui::ajuda::Evento),
+    /// Ajuda F1 → Exportar como Markdown (#71): escolher o arquivo e gravar.
+    AjudaExportar,
+    AjudaExportarDestino(Option<PathBuf>),
     /// Ajuda ▸ Primeiros passos e o assistente da primeira abertura.
     PrimeirosPassosAbrir,
     PrimeirosPassos(primeiros_passos::Evento),
@@ -530,6 +534,7 @@ pub enum Msg {
     Classificar(classificar::Evento),
     AtingirMeta(atingir_meta::Evento),
     TabelaDados(tabela_dados::Evento),
+    Minigrafico(minigraficos_ui::Evento),
     Cenarios(cenarios_ui::Evento),
     Ordenar(bool), CabecalhoDados(bool), RemoverDuplicados, Duplicados(EventoDuplicados), Impressao(EventoImpressao), ApararEspacos, AutoSoma, AutoConta(&'static str),
     DividirTextoOutro(String), DividirTextoAplicar,
@@ -773,6 +778,8 @@ pub struct App {
     atingir_meta: Option<atingir_meta::Estado>,
     /// Janela "Tabela de dados" e a última tabela feita (para Atualizar).
     tabela_dados: Option<tabela_dados::Estado>,
+    /// Diálogo "Criar Minigráficos" aberto.
+    minigrafico: Option<minigraficos_ui::Estado>,
     tabela_dados_ultima: Option<tabela_dados::Ultima>,
     /// Gerenciador de cenários (não modal).
     cenarios: Option<cenarios_ui::Estado>,
@@ -1099,6 +1106,7 @@ impl Default for App {
             classificar: None,
             atingir_meta: None,
             tabela_dados: None,
+            minigrafico: None,
             tabela_dados_ultima: None,
             cenarios: None,
             colar_especial_ultimo: Default::default(),

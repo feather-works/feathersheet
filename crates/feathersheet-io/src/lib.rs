@@ -35,6 +35,7 @@ pub mod fshz_write;
 pub mod tinta_aba;
 /// Objetos soltos sobre a grade (formas, ícones, SmartArt) do campo `ob`.
 pub mod objetos_aba;
+pub mod minigraficos_aba;
 pub mod impressao_pdf;
 pub mod parquet_read;
 pub mod recents;
@@ -49,6 +50,7 @@ mod xlsx_write_futuras;
 mod xlsx_write_autofiltro;
 mod xlsx_write_comentarios;
 mod xlsx_write_dinamica;
+mod xlsx_write_minigraficos;
 mod xlsx_write_graficos;
 mod xlsx_write_vinculos;
 pub mod zip_write;

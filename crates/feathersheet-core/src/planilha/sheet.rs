@@ -279,6 +279,10 @@ pub struct Sheet {
     /// `feathersheet_io::objetos_aba`). O motor só guarda e devolve;
     /// `alterar_objetos` registra o desfazer.
     pub ob: Option<String>,
+    /// Minigráficos da aba (Inserir ▸ Minigráficos): lista de grupos em JSON
+    /// (modelo em [`crate::operacoes::minigraficos`]); `alterar_minigraficos`
+    /// registra o desfazer.
+    pub mg: Option<String>,
     /// Cenários do Gerenciador de cenários (nome, células variáveis e
     /// valores) em JSON opaco: o motor só os guarda e devolve ao arquivo.
     pub ce: Option<String>,
@@ -381,6 +385,7 @@ impl Sheet {
             bt: None,
             tn: None,
             ob: None,
+            mg: None,
             ce: None,
             col_styles: HashMap::new(),
             row_styles: HashMap::new(),

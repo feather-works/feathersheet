@@ -2,6 +2,32 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.2.9 — 04/11/2026: minigráficos, desfazer exato, auditoria
+
+Inserir ▸ Minigráficos (Linha, Coluna, Ganhos/Perdas): modelo e contas em
+`feathersheet-core/src/operacoes/minigraficos.rs` (`criar`, `refluir`, `desenhar` em frações da
+célula), campo `mg` da aba (JSON; `feathersheet-io/src/minigraficos_aba.rs`), `Passo::Minigraficos`
+(um Ctrl+Z, `alterar_minigraficos`). `.xlsx`: `xlsx_read/minigraficos.rs` e
+`xlsx_write_minigraficos.rs` (`extLst` x14 `sparklineGroups`; saíram do `nao_convertidos`).
+Tela: `minigraficos_visual.rs` (desenho na célula, valores ao vivo) e `app/minigraficos_ui.rs`
+(diálogo Criar Minigráficos, aba contextual Minigráfico, `refluir_minigraficos` nos 4 lugares de
+inserir/excluir). Limites: cor por tema no `.xlsx` vira a padrão; faixa de dados de outra aba não
+anda com inserir/excluir feito lá; eixo mín/máx personalizado e "vazias como zero" não existem.
+F1 ▸ "Exportar como Markdown" (`ajuda::markdown`, #71). `.fshz` guarda texto com espaço nas pontas e
+o texto do número (`tem_texto_ambiguo`, #138). Auditoria (ponytail-audit de 04/11): a foto do
+desfazer (`snapshot`) guarda o número inteiro (`to_js_string`) e marca com `MARCA_TEXTO` o texto que o
+analisador leria como outra coisa; `.xlsx` lido com formato guarda o `<v>` exato; Ctrl+S com erro ao
+conferir o arquivo pede "Salvar como"; `de_rede` aceita `/\` misturados; parser rápido de XML com
+teto de 64 MB e de profundidade; teto de células do `.fshz` vale para o arquivo inteiro; atualizador
+em pasta privada (0700) e link de novidades só do repositório; VBA importado com eventos começa
+bloqueado; parciais velhos de salvamento apagados; `//` dentro de aspas não é comentário nos riscos de
+macro; inserir/excluir esquece o desfazer de todas as abas; MCP `sheet_mouse` recusa com aviso de
+segurança aberto; aviso de cópia automática desligada; textos cortados no `.xlsx` contados
+(`xlsx_write::textos_cortados`); tabela de alturas por impressão digital, não por mensagem; desfazer
+com teto de 512 MB (`LIMITE_DO_DESFAZER_BYTES`); `bloco.rs` ficou só com `texto_formatado`.
+Não feito: compactar o `StringPool` na sessão (o arquivo já grava dicionário por coluna) e gerar o
+`.xlsx` direto da pasta viva (travaria a tela).
+
 ## v0.2.8 — 03/11/2026: controles de formulário, texto que transborda, auditoria
 
 Controles de formulário do Excel ligados na camada de objetos (`app/objetos/controles.rs`): botão

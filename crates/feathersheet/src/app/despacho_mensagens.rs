@@ -815,10 +815,18 @@ impl App {
                 self.confirmar();
                 // Salvar por cima de um .xlsx apagaria o que não foi convertido (segmentação, Power
                 // Pivot…): pede "Salvar como", dizendo o que se perderia. Escolher o mesmo arquivo confirma.
-                if let Some(Ok(lista)) = self.nao_convertidos_do_arquivo().filter(|l| l.as_ref().is_ok_and(|l| !l.is_empty())) {
-                    let itens: Vec<String> = lista.iter().map(super::monitor::descrever).collect();
-                    self.status = trf!("Salvar por cima apagaria do arquivo: {}. Escolha onde salvar.", itens.join("; "));
-                    return self.dialogo_salvar();
+                match self.nao_convertidos_do_arquivo() {
+                    Some(Ok(lista)) if !lista.is_empty() => {
+                        let itens: Vec<String> = lista.iter().map(super::monitor::descrever).collect();
+                        self.status = trf!("Salvar por cima apagaria do arquivo: {}. Escolha onde salvar.", itens.join("; "));
+                        return self.dialogo_salvar();
+                    }
+                    // Sem conseguir ler o original, não dá para saber o que se apagaria: pergunta.
+                    Some(Err(erro)) => {
+                        self.status = trf!("Não deu para conferir o arquivo original ({erro}). Escolha onde salvar.");
+                        return self.dialogo_salvar();
+                    }
+                    _ => {}
                 }
                 if let Some(path) = self.caminho.clone() { self.gravar(path) }
                 else { self.dialogo_salvar() }
@@ -928,6 +936,7 @@ impl App {
                 // Atingir meta aberto: o clique também preenche o campo ativo.
                 self.atingir_meta_clique(r, c);
                 self.tabela_dados_clique(r, c);
+                self.minigrafico_selecao(Rect::cell(r, c));
                 self.cenarios_clique(r, c);
                 // Clicar na grade encerra a edição inline da guia, como no Excel.
                 if self.editando_nome_aba {
@@ -1076,6 +1085,7 @@ impl App {
                 self.confirmar();
                 self.fim_selecao = (r.min(MAX_ROWS-1), c.min(MAX_COLS-1));
                 let area = self.area_selecionada();
+                self.minigrafico_selecao(area.clone());
                 self.endereco = endereco_area(&area);
                 Task::none()
             }

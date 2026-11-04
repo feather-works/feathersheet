@@ -16,6 +16,7 @@ mod grade;
 mod imagem_celula;
 mod caixas;
 mod dinamica_visual;
+mod minigraficos_visual;
 mod condicional;
 mod geometria_overlay;
 mod bordas_comuns;

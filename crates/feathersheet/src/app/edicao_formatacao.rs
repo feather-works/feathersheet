@@ -285,6 +285,7 @@ impl App {
         if resultado.is_some() {
             let tabela = tabelas::refluir(&mut self.workbook, self.folha, coluna, at, 1, false);
             let mescla = mesclas::refluir(&mut self.workbook, self.folha, coluna, at, 1, false);
+            self.refluir_minigraficos(self.folha, coluna, at, 1, false);
             // Tabelas e mesclas reajustadas também guardam o "antes": um Ctrl+Z
             // as poria nas coordenadas velhas, com as células já deslocadas (#46).
             if let Some(aba) = self.workbook.aba_mut(self.folha) { aba.sheet.esquecer_historico(); }
@@ -319,6 +320,7 @@ impl App {
             let pos=if coluna {self.coluna} else {self.linha};
             let tabela=tabelas::refluir(&mut self.workbook,self.folha,coluna,pos,1,removendo);
             let mescla=mesclas::refluir(&mut self.workbook,self.folha,coluna,pos,1,removendo);
+            self.refluir_minigraficos(self.folha,coluna,pos,1,removendo);
             // Tabelas e mesclas reajustadas também guardam o "antes": um Ctrl+Z
             // as poria nas coordenadas velhas, com as células já deslocadas (#46).
             if let Some(aba) = self.workbook.aba_mut(self.folha) { aba.sheet.esquecer_historico(); }

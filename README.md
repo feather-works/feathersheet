@@ -4,7 +4,7 @@
 It opens huge files, calculates in parallel, takes formulas in Portuguese or English,
 and runs entirely on your machine: no account, no login, no telemetry (the only network call is the daily update check, which you can turn off).
 
-> **Status:** under active development. Latest release: **[v0.2.8](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-03).
+> **Status:** under active development. Latest release: **[v0.2.9](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-04).
 
 ![FeatherSheet with the Cash flow template and an income/expenses chart, with the mouse tooltip open on June](docs/imagens/planilha-e-grafico.png)
 
@@ -54,13 +54,21 @@ macro took 25 s.
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
 
+### New in v0.2.9
+
+- **Sparklines:** Insert → Sparklines draws a line, column or win/loss chart inside the cell, with a Sparkline tab to change type, markers and colors. They are read from and saved to `.xlsx`.
+- **Exact undo:** Ctrl+Z brings back the full number (not the rounded formatted text) and text that looks like a number or formula ("00123", "=abc").
+- **Help as Markdown:** the F1 help can be exported to a `.md` file.
+- **More faithful files:** text with leading/trailing spaces and formatted numbers survive `.fshz` and `.xlsx`; dates, times and percentages from `.xlsx` keep their exact value.
+- **Safer:** event macros from imported VBA start blocked; the updater works in a private folder; huge or deeply nested XML in an `.xlsx` is refused instead of freezing; interrupted saves leave no partial file; saving to `.xlsx` reports cells cut at Excel's 32,767-character limit.
+
 ### New in v0.2.8
 
 - **Excel form controls work:** spin buttons, check boxes, option buttons, list and combo boxes, scroll bars, labels, group boxes and buttons from `.xlsx`/`.xlsm` files. Click them and the linked cell changes; drag the scroll bar's box.
 - **Format Control…** on the control's right-click menu, with the same tabs as Excel (Font, Alignment, Colors and Lines, Size, Protection, Properties, Alt Text, Control). Everything is saved back to the file.
 - **Create new controls** from the **Macros** tab (Controls group).
 - **Long text spills over the empty cells next to it**, as in Excel.
-- **F12 lists what an `.xlsx` contains that was not converted** (ActiveX, slicers, sparklines, chart sheets…); Ctrl+S on such a file asks where to save, so those parts are not removed from the original.
+- **F12 lists what an `.xlsx` contains that was not converted** (ActiveX, slicers, chart sheets…); Ctrl+S on such a file asks where to save, so those parts are not removed from the original.
 - **Safer saving:** more than 1,048,576 rows in `.xlsx` shows an error instead of losing rows; a semicolon CSV keeps its separator and decimal comma.
 - **Closer to Excel:** `=(0.1+0.2)=0.3` is TRUE, blank arguments count as 0 (`MIN(,5)`), COUNTA counts empty text.
 - **Faster:** VLOOKUP and MATCH on whole columns, PERCENTILE/MEDIAN/LARGE/SMALL and COUNTIF with a growing range.
@@ -93,7 +101,7 @@ Help menu, under *What's new*).
 | **Formulas** | all 520 Excel functions, with Portuguese or English names following the interface language; step-by-step formula evaluation; dynamic arrays, `LAMBDA`, volatile functions |
 | **Big files** | up to 100 million rows; opens `.parquet` and large `.csv`; parallel calculation with selective invalidation; instant sum and count in the status bar; pasting a value into all 100 million rows of a column in 0.3 s; a formula over a whole 13.7-million-row column in milliseconds; pivot tables computed in the background, without freezing the window |
 | **Excel** | opens and saves `.xlsx` with theme colors, shapes, images, gradients, charts in the right place, pivot tables and links to other files; opens `.xlsm`, converts the VBA macros to JavaScript and runs them, with buttons, shapes and UserForms |
-| **Charts** | 25 types (combo, waterfall, radar, Gantt, heat map…), mouse tooltip and clickable legend; charts editable through the *Format chart* panel (themes, per-point color, axes, labels), using the shared [`feather-charts`](https://github.com/feather-works/feather-charts) engine |
+| **Charts** | 25 types (combo, waterfall, radar, Gantt, heat map…), mouse tooltip and clickable legend; sparklines (line, column, win/loss) inside the cell; charts editable through the *Format chart* panel (themes, per-point color, axes, labels), using the shared [`feather-charts`](https://github.com/feather-works/feather-charts) engine |
 | **Data** | OpenQuery (the Power Query equivalent: get data from a file, the Web or a table and transform it in editable steps), tables, pivot tables (show values as, pivot charts, slicers, drill-down on double click), conditional formatting, data validation, group/subtotal, sheet protection, Text to columns |
 | **Links** | references to another file (`=[Sales.fshz]Data!A1`) that stay live while both are open; point to a cell by clicking in the other window |
 | **Macros** | Alt+F11 editor with JavaScript macros (local [Falcão](https://github.com/feather-works/falcao) engine) stored inside the file itself; forms like VBA UserForms |
@@ -209,7 +217,7 @@ The generator command is at the top of this section.
 
 | What is compared | Score | Details |
 |---|---|---|
-| **Features** (ribbon commands, button by button) | **211 / 290** (72.8%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
+| **Features** (ribbon commands, button by button) | **212 / 290** (73.1%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
 | **Worksheet functions** | **520 / 520** | [function catalog](docs/funcionalidades/FUNCOES.md) · [known limits](docs/planejamento/FUNCOES-FALTANTES.md) |
 | **VBA functions** (VBA → JavaScript converter) | **116** covered and **1** partial (`CDec`), out of **117** that apply (141 listed; 24 are files, registry or printer) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 

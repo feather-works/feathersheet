@@ -45,6 +45,8 @@ pub(super) struct Estado {
     ultima: Option<Instant>,
     pulso: Option<Instant>,
     custo_ms: u64,
+    /// Já avisou que a pasta é grande demais para a cópia de segurança (avisa uma vez).
+    avisou_grande: bool,
     /// Cópias de sessões que morreram, oferecidas na tela inicial.
     pub orfas: Vec<Orfa>,
     /// Origem do documento recuperado que está abrindo (vira o nome sugerido).
@@ -173,6 +175,11 @@ impl App {
         let celulas = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i))
             .map(|aba| aba.sheet.len() as u64).fold(0u64, u64::saturating_add);
         if feathersheet_io::backup_policy::grande_demais_para_copia_automatica(celulas) {
+            // Sem cópia a pessoa precisa saber: um travamento perde o que não foi salvo.
+            if !self.recuperacao.avisou_grande {
+                self.recuperacao.avisou_grande = true;
+                self.status = tr!("Pasta grande demais para a cópia de segurança automática: salve com Ctrl+S de vez em quando.").into();
+            }
             return Task::none();
         }
         let intervalo = feathersheet_io::backup_policy::intervalo_autosave(INTERVALO_MS, self.recuperacao.custo_ms, celulas, false);

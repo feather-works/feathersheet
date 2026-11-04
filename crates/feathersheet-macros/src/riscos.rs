@@ -38,7 +38,7 @@ impl Riscos {
             if !self.binario.contains(&motivo) { self.binario.push(motivo); }
         }
         for linha in codigo.lines() {
-            let (codigo, comentario) = match linha.find("//") {
+            let (codigo, comentario) = match inicio_do_comentario(linha) {
                 Some(i) => (&linha[..i], &linha[i..]),
                 None => (linha, ""),
             };
@@ -155,9 +155,35 @@ fn anotar(lista: &mut Vec<&'static str>, conhecidas: &[&'static str], palavra: &
     if let Some(k) = achada.filter(|k| !lista.contains(k)) { lista.push(k); }
 }
 
+/// Onde começa o `//` de comentário da linha, fora de aspas (`"http://x"` não é comentário).
+fn inicio_do_comentario(linha: &str) -> Option<usize> {
+    let mut aspa: Option<char> = None;
+    let mut anterior = ' ';
+    for (i, c) in linha.char_indices() {
+        match aspa {
+            Some(a) if c == a && anterior != '\\' => aspa = None,
+            Some(_) => {}
+            None if matches!(c, '"' | '\'' | '`') => aspa = Some(c),
+            None if c == '/' && linha[i + 1..].starts_with('/') => return Some(i),
+            None => {}
+        }
+        anterior = if anterior == '\\' && c == '\\' { ' ' } else { c };
+    }
+    None
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn url_entre_aspas_nao_esconde_o_resto_da_linha() {
+        assert_eq!(inicio_do_comentario(r#"const u = "http://x"; app.shell("calc")"#), None);
+        assert_eq!(inicio_do_comentario(r#"let a = 'b\'c'; // nota"#), Some(16));
+        let mut r = Riscos::default();
+        r.ler(r#"const u = "http://x"; app.shell("calc")"#);
+        assert!(!r.executa.is_empty(), "app.shell depois da URL tem de aparecer no aviso");
+    }
 
     #[test]
     fn acha_gravacao_e_vba_perigoso_so_onde_conta() {

@@ -46,6 +46,7 @@ impl App {
             Msg::Classificar(evento) => self.evento_classificar(evento),
             Msg::AtingirMeta(evento) => self.evento_atingir_meta(evento),
             Msg::TabelaDados(evento) => self.evento_tabela_dados(evento),
+            Msg::Minigrafico(evento) => self.evento_minigrafico(evento),
             Msg::Cenarios(evento) => self.evento_cenarios(evento),
             Msg::MesclarModo(modo) => { self.mesclar_modo(modo); Task::none() }
             Msg::AjustarAltura => { self.ajustar_altura_da_selecao(); Task::none() }
@@ -1472,6 +1473,23 @@ impl App {
                     ]),
                     None => Task::none(),
                 }
+            }
+            Msg::AjudaExportar => Task::perform(async {
+                rfd::AsyncFileDialog::new().set_directory(dialogos::pasta_padrao())
+                    .add_filter(tr!("Documento Markdown"), &["md"])
+                    .set_file_name("FeatherSheet-Ajuda.md")
+                    .save_file().await.map(|f| f.path().to_path_buf())
+            }, Msg::AjudaExportarDestino),
+            Msg::AjudaExportarDestino(destino) => {
+                if let Some(mut caminho) = destino {
+                    caminho.set_extension("md");
+                    let md = ajuda::markdown(ajuda::modelo());
+                    self.status = match feathersheet_io::arquivo::gravar_atomico(&caminho, md.as_bytes()) {
+                        Ok(()) => trf!("Ajuda exportada: {}", caminho.display()),
+                        Err(e) => trf!("Falha ao gravar a ajuda: {e}"),
+                    };
+                }
+                Task::none()
             }
             Msg::AuxAberta => Task::none(),
             Msg::TrazerParaFrente(id) => feather_ui::novidades::focar(id),
