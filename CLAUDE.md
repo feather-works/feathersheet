@@ -25,6 +25,10 @@ macro; inserir/excluir esquece o desfazer de todas as abas; MCP `sheet_mouse` re
 segurança aberto; aviso de cópia automática desligada; textos cortados no `.xlsx` contados
 (`xlsx_write::textos_cortados`); tabela de alturas por impressão digital, não por mensagem; desfazer
 com teto de 512 MB (`LIMITE_DO_DESFAZER_BYTES`); `bloco.rs` ficou só com `texto_formatado`.
+SUBTOTAL/AGREGAR recalculam quando uma linha aparece ou some (`Sheet::visibilidade_mudou`, marcado em
+`aplicar_dimensao`/`aplicar_ocultas_desde` e no filtro de tabela; consumido por `sujar_subtotais_se_mudou`
+no fim da transação, no desfazer/refazer e no `editar`): o total de tabela com filtro somava as escondidas
+desde o rastro de células do #136.
 Não feito: compactar o `StringPool` na sessão (o arquivo já grava dicionário por coluna) e gerar o
 `.xlsx` direto da pasta viva (travaria a tela).
 

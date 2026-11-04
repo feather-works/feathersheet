@@ -18,9 +18,10 @@ pub const VERSOES: &[Versao] = &[
             ("sparkline-line", "Minigráficos", "Inserir → Minigráficos desenha linha, coluna ou ganhos/perdas na célula."),
             ("arrow-back-up", "Desfazer exato", "Ctrl+Z devolve o número inteiro e o texto como era, mesmo com formatação."),
             ("file-export", "Ajuda em Markdown", "A ajuda (F1) pode ser exportada como um arquivo Markdown."),
-            ("shield-lock", "Mais segurança", "Macros de evento de VBA importado começam bloqueadas, e o atualizador usa uma pasta privada."),
+            ("shield-lock", "Mais segurança", "Macros de evento de VBA importado começam bloqueadas; atualizador em pasta privada."),
         ],
         tambem: &[
+            "Total de tabela e SUBTOTAL voltam a contar só as linhas visíveis quando o filtro muda.",
             "Texto com espaço nas pontas e números com formatação continuam iguais no .fshz e no .xlsx.",
             "Data, hora e porcentagem lidas do .xlsx guardam o valor exato, sem arredondar pela formatação.",
             "Salvar em .xlsx avisa quantas células passaram de 32.767 caracteres e foram cortadas.",

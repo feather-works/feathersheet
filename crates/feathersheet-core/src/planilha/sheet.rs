@@ -283,6 +283,9 @@ pub struct Sheet {
     /// (modelo em [`crate::operacoes::minigraficos`]); `alterar_minigraficos`
     /// registra o desfazer.
     pub mg: Option<String>,
+    /// Uma linha passou a aparecer ou sumir: SUBTOTAL/AGREGAR precisam recalcular
+    /// (esconder linha não toca célula nenhuma, então a cascata não chega neles).
+    pub visibilidade_mudou: bool,
     /// Cenários do Gerenciador de cenários (nome, células variáveis e
     /// valores) em JSON opaco: o motor só os guarda e devolve ao arquivo.
     pub ce: Option<String>,
@@ -386,6 +389,7 @@ impl Sheet {
             tn: None,
             ob: None,
             mg: None,
+            visibilidade_mudou: false,
             ce: None,
             col_styles: HashMap::new(),
             row_styles: HashMap::new(),
@@ -954,6 +958,14 @@ impl Sheet {
             }
         });
         self.sujar_celulas(&chaves);
+    }
+
+    /// Recalcula SUBTOTAL/AGREGAR da aba se alguma linha apareceu ou sumiu desde a última vez.
+    pub fn sujar_subtotais_se_mudou(&mut self) {
+        if !std::mem::take(&mut self.visibilidade_mudou) { return; }
+        for nome in ["SUBTOTAL(", "AGREGAR(", "AGGREGATE("] {
+            self.sujar_as_que_citam(nome);
+        }
     }
 
     /// Marca `k` para recalcular e faz a cascata: toda fórmula que depende

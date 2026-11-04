@@ -791,6 +791,7 @@ impl Workbook {
     {
         let aba = self.abas.get_mut(indice)?;
         let alcance = acao(&mut aba.sheet);
+        aba.sheet.sujar_subtotais_se_mudou();
         aba.sheet.tocar();
         aba.versao = proxima_versao(aba.versao);
         let versao = aba.versao;

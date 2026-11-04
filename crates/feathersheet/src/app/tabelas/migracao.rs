@@ -280,6 +280,8 @@ fn limpar_visibilidade(w: &mut Workbook, aba: usize, t: &Json) -> Result<(), Str
         for r in a..=b { viva.sheet.row_heights.remove(&r); }
     }
     for (r,h) in backups { viva.sheet.row_heights.insert(r,h); }
+    viva.sheet.visibilidade_mudou = true;
+    viva.sheet.sujar_subtotais_se_mudou();
     Ok(())
 }
 
@@ -357,6 +359,8 @@ pub(in crate::app) fn filtrar(w: &mut Workbook, aba: usize, id: &str, col_rel: u
                 }
             }
         }
+        viva.sheet.visibilidade_mudou = true;
+        viva.sheet.sujar_subtotais_se_mudou();
     }
     // limpar_visibilidade já restaurou TODAS as alturas anteriores,
     // inclusive as linhas ocultas manualmente (altura 0). Ao inserir as

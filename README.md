@@ -59,6 +59,7 @@ Help menu, under *What's new*).
 - **Sparklines:** Insert → Sparklines draws a line, column or win/loss chart inside the cell, with a Sparkline tab to change type, markers and colors. They are read from and saved to `.xlsx`.
 - **Exact undo:** Ctrl+Z brings back the full number (not the rounded formatted text) and text that looks like a number or formula ("00123", "=abc").
 - **Help as Markdown:** the F1 help can be exported to a `.md` file.
+- **Table totals with filters fixed:** totals and SUBTOTAL count only the visible rows again when a filter changes.
 - **More faithful files:** text with leading/trailing spaces and formatted numbers survive `.fshz` and `.xlsx`; dates, times and percentages from `.xlsx` keep their exact value.
 - **Safer:** event macros from imported VBA start blocked; the updater works in a private folder; huge or deeply nested XML in an `.xlsx` is refused instead of freezing; interrupted saves leave no partial file; saving to `.xlsx` reports cells cut at Excel's 32,767-character limit.
 

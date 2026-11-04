@@ -1,4 +1,7 @@
 {
+ "Total de tabela e SUBTOTAL voltam a contar só as linhas visíveis quando o filtro muda.": "Table totals and SUBTOTAL again count only visible rows when the filter changes.",
+ "Não deu para conferir o arquivo original ({erro}). Escolha onde salvar.": "Could not check the original file ({erro}). Choose where to save.",
+ "Macros de evento de VBA importado começam bloqueadas; atualizador em pasta privada.": "Event macros from imported VBA start blocked; updater in a private folder.",
  "Inserir → Minigráficos desenha linha, coluna ou ganhos/perdas na célula.": "Insert → Sparklines draws a line, column or win/loss chart in the cell.",
  "Minigráficos na célula e arquivos mais fiéis": "Sparklines in cells and more faithful files",
  "Desfazer exato": "Exact undo",
@@ -6,7 +9,6 @@
  "Ajuda em Markdown": "Help as Markdown",
  "A ajuda (F1) pode ser exportada como um arquivo Markdown.": "The help (F1) can be exported as a Markdown file.",
  "Mais segurança": "More security",
- "Macros de evento de VBA importado começam bloqueadas, e o atualizador usa uma pasta privada.": "Event macros from imported VBA start blocked, and the updater uses a private folder.",
  "Texto com espaço nas pontas e números com formatação continuam iguais no .fshz e no .xlsx.": "Text with leading or trailing spaces and formatted numbers stay the same in .fshz and .xlsx.",
  "Data, hora e porcentagem lidas do .xlsx guardam o valor exato, sem arredondar pela formatação.": "Dates, times and percentages read from .xlsx keep the exact value, not rounded by the format.",
  "Salvar em .xlsx avisa quantas células passaram de 32.767 caracteres e foram cortadas.": "Saving as .xlsx tells how many cells had more than 32,767 characters and were cut.",

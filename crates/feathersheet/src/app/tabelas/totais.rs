@@ -220,7 +220,7 @@ mod testes {
         let mut w = base();
         alternar_totais(&mut w, 0, "tab_Tabela1", true).unwrap();
         assert_eq!(num(&w, 4, 1), Some(60.0));
-        w.editar(0, |s| { s.row_heights.insert(2, 0); }); // filtro esconde "y" (20)
+        w.editar(0, |s| { s.registrar_dimensao(false, 2, Some(0)); }); // filtro esconde "y" (20)
         assert_eq!(num(&w, 4, 1), Some(40.0));
         definir_total(&mut w, 0, "tab_Tabela1", 1, "contagem").unwrap();
         assert_eq!(num(&w, 4, 1), Some(2.0));

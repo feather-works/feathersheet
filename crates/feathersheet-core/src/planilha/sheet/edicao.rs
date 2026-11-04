@@ -1578,7 +1578,7 @@ impl Sheet {
     // -------------------------------------------------------- dimensões
 
     fn aplicar_ocultas_desde(&mut self, coluna: bool, valor: Option<u32>) {
-        if coluna { self.colunas_ocultas_desde = valor } else { self.linhas_ocultas_desde = valor }
+        if coluna { self.colunas_ocultas_desde = valor } else { self.linhas_ocultas_desde = valor; self.visibilidade_mudou = true; }
     }
 
     /// Grava "ocultas a partir de `valor`" com um passo de desfazer.
@@ -1596,8 +1596,8 @@ impl Sheet {
 
     fn aplicar_dimensao(&mut self, coluna: bool, indice: u32, valor: Option<u32>) {
         let mapa = if coluna { &mut self.col_widths } else { &mut self.row_heights };
-        if let Some(valor) = valor { mapa.insert(indice, valor); }
-        else { mapa.remove(&indice); }
+        let antes = if let Some(valor) = valor { mapa.insert(indice, valor) } else { mapa.remove(&indice) };
+        if !coluna && (antes == Some(0)) != (valor == Some(0)) { self.visibilidade_mudou = true; }
     }
 
     /// Redimensiona uma linha ou coluna, registrando um passo de histórico.
@@ -1841,6 +1841,7 @@ impl Sheet {
             }
             self.hist.refazer.clear();
         }
+        self.sujar_subtotais_se_mudou();
     }
 
     /// Tudo ou nada: volta o que a transação aberta já escreveu e a fecha
@@ -2697,6 +2698,7 @@ impl Sheet {
         }
         if em_lote { self.soltar_cascata(); }
         self.hist.refazer.push(t);
+        self.sujar_subtotais_se_mudou();
         true
     }
 
@@ -2716,6 +2718,7 @@ impl Sheet {
         }
         if em_lote { self.soltar_cascata(); }
         self.hist.desfazer.push(t);
+        self.sujar_subtotais_se_mudou();
         true
     }
 
