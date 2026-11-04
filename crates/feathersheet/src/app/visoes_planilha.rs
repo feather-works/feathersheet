@@ -36,7 +36,7 @@ impl App {
             "Reexibir linhas" | "Reexibir colunas" => "eye",
             "AutoSoma" | "Funções..." => "list-numbers",
             "Localizar" => "search", "Limpar valores" => "trash",
-            "Formatar..." => "palette", "75%" | "100%" | "125%" => "zoom-in",
+            "Formatar..." | "Formatar células…" => "palette", "75%" | "100%" | "125%" => "zoom-in",
             "Tema claro" | "Tema escuro" => "palette",
             "− Linha" | "− Coluna" | "Excluir aba" => "x",
             "R$ Moeda" => "list-numbers", "%" => "list-numbers",

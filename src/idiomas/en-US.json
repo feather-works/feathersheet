@@ -63,6 +63,7 @@
         "corpo": [
           "• Drag the small square at the corner of the selection (the fill handle) to continue a series: 1, 2, 3…, dates, \"Item 1, Item 2…\" and formulas.",
           "• Double-clicking the handle fills down to the end of the data in the neighbouring column.",
+          "• A single number is copied; hold Ctrl while dragging to count up (7, 8, 9). With a series, Ctrl does the opposite and copies.",
           "• Ctrl+D copies the cell above downwards; Ctrl+R copies the cell on the left to the right.",
           "• Dragging the border of the selection moves the cells; formulas that read the block follow along.",
           "• Ctrl+Shift+V pastes values only.",

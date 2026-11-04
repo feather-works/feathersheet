@@ -63,6 +63,7 @@
         "corpo": [
           "• Arraste o quadradinho no canto da seleção (a alça) para continuar uma série: 1, 2, 3…, datas, \"Item 1, Item 2…\" e fórmulas.",
           "• Duplo clique na alça preenche até o fim dos dados da coluna ao lado.",
+          "• Um número sozinho é copiado; com Ctrl apertado ao arrastar, ele conta (7, 8, 9). Com uma sequência, o Ctrl faz o contrário e copia.",
           "• Ctrl+D copia a célula de cima para baixo; Ctrl+R copia a da esquerda para a direita.",
           "• Arrastar a borda da seleção move as células; as fórmulas que liam o bloco acompanham.",
           "• Ctrl+Shift+V cola somente os valores.",

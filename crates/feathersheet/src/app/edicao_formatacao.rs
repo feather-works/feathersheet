@@ -123,7 +123,7 @@ impl App {
                 _ => Task::none(),
             }
             "formato" => {
-                if opcao == "Personalizado…" {
+                if opcao == "Mais formatos de número…" {
                     return self.abrir_formatar_celulas(formatar_celulas::Aba::Numero);
                 }
                 let valor = match opcao {

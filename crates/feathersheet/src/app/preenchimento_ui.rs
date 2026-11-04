@@ -62,7 +62,7 @@ impl App {
             };
             (origem, selecao.clone())
         };
-        self.aplicar_preenchimento(&origem, &destino, direcao == DirecaoPreenchimento::AteOFim);
+        self.aplicar_preenchimento(&origem, &destino, direcao == DirecaoPreenchimento::AteOFim, false);
     }
 
     /// A alça de preenchimento arrastada: a seleção é a origem e `destino`
@@ -74,7 +74,9 @@ impl App {
         let origem = self.area_selecionada().normalized();
         let destino = destino.normalized();
         if destino == origem { return; }
-        self.aplicar_preenchimento(&origem, &destino, true);
+        // Ctrl no arrasto da alça inverte cópia/sequência, como no Excel.
+        let ctrl = self.ctrl_pressionado;
+        self.aplicar_preenchimento(&origem, &destino, true, ctrl);
     }
 
     /// Fórmula descendo para uma coluna vazia (Ctrl+D, alça, até o fim): vai
@@ -115,7 +117,7 @@ impl App {
 
     /// Validações comuns e a escrita (um Ctrl+Z). Com `selecionar_destino`,
     /// a seleção cobre o destino inteiro depois de preencher.
-    pub(super) fn aplicar_preenchimento(&mut self, origem: &Rect, destino: &Rect, selecionar_destino: bool) {
+    pub(super) fn aplicar_preenchimento(&mut self, origem: &Rect, destino: &Rect, selecionar_destino: bool, ctrl: bool) {
         let (origem, destino) = (origem.clone(), destino.clone());
         let quantidade = tamanho(&destino).saturating_sub(tamanho(&origem));
         if quantidade == 0 {
@@ -163,7 +165,7 @@ impl App {
         }
         let mut preenchidas = 0usize;
         if self.workbook.editar(self.folha, |aba| {
-            preenchidas = aba.preencher(&origem, &destino);
+            preenchidas = aba.preencher_com(&origem, &destino, ctrl);
         }).is_none() {
             self.status = tr!("A planilha não está disponível para preenchimento.").into();
             return;
@@ -355,7 +357,7 @@ mod testes {
         let mut app = App::default();
         app.workbook.escrever_celula(0, 0, 0, "=1+A2".into());
         let destino = Rect::new(0, 0, feathersheet_core::MAX_ROWS - 1, feathersheet_core::MAX_COLS - 1);
-        app.aplicar_preenchimento(&Rect::new(0, 0, 0, 0), &destino, true);
+        app.aplicar_preenchimento(&Rect::new(0, 0, 0, 0), &destino, true, false);
         assert!(app.status.contains("250 milhões"), "{}", app.status);
         assert!(!app.alterado);
         assert!(app.workbook.aba(0).unwrap().sheet.get_raw(1, 0).is_empty());

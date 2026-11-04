@@ -159,6 +159,15 @@ pub fn plan_fill<F>(read: F, source: &Rect, target: &Rect) -> Vec<FillCell>
 where
     F: Fn(u32, u32) -> SourceCell,
 {
+    plan_fill_ctrl(read, source, target, false)
+}
+
+/// Como [`plan_fill`]; `ctrl` = alça arrastada com Ctrl, que inverte como no Excel:
+/// um número sozinho vira sequência de 1 em 1, e série (ou "Lote 1") vira cópia.
+pub fn plan_fill_ctrl<F>(read: F, source: &Rect, target: &Rect, ctrl: bool) -> Vec<FillCell>
+where
+    F: Fn(u32, u32) -> SourceCell,
+{
     let axis = match axis_of(source, target) {
         Some(a) => a,
         None => return Vec::new(),
@@ -223,7 +232,11 @@ where
         }
         let all_numbers = numbers.len() == pattern.len()
             && pattern.iter().all(|p| !p.cell.raw.starts_with('='));
-        let step = if all_numbers { step_of(&numbers) } else { None };
+        let step = match (all_numbers, ctrl, numbers.len()) {
+            (true, true, 1) => Some(1.0),
+            (true, false, _) => step_of(&numbers),
+            _ => None,
+        };
         let last = if all_numbers && !numbers.is_empty() {
             numbers[numbers.len() - 1]
         } else {
@@ -235,7 +248,7 @@ where
         } else {
             None
         };
-        let seed = if let Some(s) = single {
+        let seed = if let Some(s) = single.filter(|_| !ctrl) {
             if !s.cell.raw.starts_with('=') && !matches!(s.cell.value, Value::Number(_)) {
                 trailing_number(&s.cell.raw)
             } else {
@@ -388,7 +401,12 @@ impl Sheet {
     /// `applyFill` da grade escrevia célula a célula — arrastar mil linhas
     /// eram duas mil idas. Devolve quantas células preencheu.
     pub fn preencher(&mut self, origem: &Rect, destino: &Rect) -> usize {
-        let plano = plan_fill(
+        self.preencher_com(origem, destino, false)
+    }
+
+    /// [`Self::preencher`] com a alça arrastada com Ctrl ([`plan_fill_ctrl`]).
+    pub fn preencher_com(&mut self, origem: &Rect, destino: &Rect, ctrl: bool) -> usize {
+        let plano = plan_fill_ctrl(
             |r, c| {
                 let raw = self.get_raw(r, c);
                 // Fórmula não entra na conta da série: não precisa calcular.
@@ -397,6 +415,7 @@ impl Sheet {
             },
             origem,
             destino,
+            ctrl,
         );
         if plano.is_empty() {
             return 0;
@@ -435,12 +454,17 @@ mod testes {
         let cel = [((0, 0), "1"), ((1, 0), "3")];
         let p = plan_fill(ler(&cel), &Rect::new(0, 0, 1, 0), &Rect::new(0, 0, 4, 0));
         assert_eq!(crus(&p), ["5", "7", "9"]);
+        // Com Ctrl a série é copiada (Excel).
+        let p = plan_fill_ctrl(ler(&cel), &Rect::new(0, 0, 1, 0), &Rect::new(0, 0, 4, 0), true);
+        assert_eq!(crus(&p), ["1", "3", "1"]);
     }
 
     #[test]
     fn uma_celula_so_e_copiada_e_texto_com_numero_vira_sequencia() {
         let sete = |_: u32, _: u32| SourceCell { raw: "7".into(), value: Value::Number(7.0), style: None };
-        assert_eq!(crus(&plan_fill(sete, &Rect::new(0, 0, 0, 0), &Rect::new(0, 0, 2, 0))), ["7", "7"]);
+        assert_eq!(crus(&plan_fill(&sete, &Rect::new(0, 0, 0, 0), &Rect::new(0, 0, 2, 0))), ["7", "7"]);
+        // Ctrl inverte, como no Excel: o número sozinho conta 8, 9; "Semana 1" é copiada.
+        assert_eq!(crus(&plan_fill_ctrl(&sete, &Rect::new(0, 0, 0, 0), &Rect::new(0, 0, 2, 0), true)), ["8", "9"]);
         let semana = |_: u32, _: u32| SourceCell { raw: "Semana 1".into(), value: Value::Text("Semana 1".into()), style: None };
         assert_eq!(crus(&plan_fill(semana, &Rect::new(0, 0, 0, 0), &Rect::new(0, 0, 2, 0))), ["Semana 2", "Semana 3"]);
     }

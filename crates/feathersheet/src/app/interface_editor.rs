@@ -778,6 +778,7 @@ impl App {
                 opcoes.extend(self.opcoes_contexto_comentario());
                 opcoes.extend([
                     None,
+                    Some((tr!("Formatar células…").into(), Msg::FormatarCelulasNa(super::formatar_celulas::Aba::Numero))),
                     Some((tr!("Limpar formatação").into(), Msg::LimparFormato)),
                     Some((tr!("Definir intervalo nomeado…").into(), Msg::NomesAbrir(true))),
                     Some((tr!("Perfil da coluna").into(), Msg::PerfilColunaAbrir)),

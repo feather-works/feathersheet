@@ -140,7 +140,7 @@ impl App {
             // A mesma regra da alça: as células preenchidas do começo são o padrão.
             let o = origem(sheet, &estado.area, estado.direcao, true, |raw, _| !raw.is_empty());
             self.serie = None;
-            self.aplicar_preenchimento(&o, &estado.area, false);
+            self.aplicar_preenchimento(&o, &estado.area, false, false);
             return;
         }
         let cfg = match estado.config() {

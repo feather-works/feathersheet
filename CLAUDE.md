@@ -2,6 +2,14 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## Depois da v0.2.9 (04/11/2026): pedidos de quem vem do Excel — entram na próxima versão (lote)
+
+Alça com Ctrl inverte cópia/sequência como no Excel (`plan_fill_ctrl`, `Sheet::preencher_com`;
+`preencher_pela_alca` lê `ctrl_pressionado`; Ctrl+D e Série seguem sem inverter). Botão direito da
+célula ganhou "Formatar células…" (aba Número) acima de "Limpar formatação". **Novidades da próxima
+versão** (pôr em `VERSOES`): também "Ctrl ao arrastar a alça conta 7, 8, 9; sem Ctrl o número é
+copiado, como no Excel." e "Formatar células… no botão direito da célula.".
+
 ## v0.2.9 — 04/11/2026: minigráficos, desfazer exato, auditoria
 
 Inserir ▸ Minigráficos (Linha, Coluna, Ganhos/Perdas): modelo e contas em

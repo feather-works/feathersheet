@@ -13,7 +13,7 @@ pub(super) const RESERVA_BOTAO_MAIS: f32 = 108.0;
 
 pub(super) const FONTES: &[&str] = &["Padrão", "Serifada", "Monoespaçada", "Arial", "Georgia", "Courier New", "Verdana", "Times New Roman"];
 pub(super) const TAMANHOS: &[&str] = &["6", "8", "9", "10", "11", "12", "13", "14", "16", "18", "20", "24", "28", "32", "36", "48", "72", "96"];
-pub(super) const FORMATOS: &[&str] = &["Geral", "1.234,56", "1.235", "R$ 1.234,56", "12,34%", "Data", "Data e hora", "Hora", "Texto", "Personalizado…"];
+pub(super) const FORMATOS: &[&str] = &["Geral", "1.234,56", "1.235", "R$ 1.234,56", "12,34%", "Data", "Data e hora", "Hora", "Texto", "Mais formatos de número…"];
 pub(super) const ZOOMS: &[&str] = &["25%", "50%", "75%", "90%", "100%", "125%", "150%", "200%", "250%", "300%", "400%"];
 pub(super) const FUNCOES: &[&str] = &["SOMA", "MÉDIA", "COUNT", "MAX", "MIN"];
 /// "Todas" + as categorias do catálogo do motor, na mesma ordem dos
