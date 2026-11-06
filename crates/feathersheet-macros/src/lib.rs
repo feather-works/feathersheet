@@ -25,7 +25,7 @@ pub mod riscos;
 mod formas;
 /// A forma de nome `nome` no JSON `ob` da aba (o nome padrão vale em qualquer língua).
 pub use formas::achar as achar_forma;
-pub use pasta::{AcaoFiltro, Contexto, Escolha, PedidoArquivo, PedidoFiltro, PedidoForma, PedidoProtecao};
+pub use pasta::{AcaoFiltro, Contexto, Escolha, PedidoArquivo, PedidoFiltro, PedidoForma, PedidoImagem, PedidoProtecao};
 pub use feather_macros::Limites;
 use feather_macros::HospedeiroMacros;
 use feathersheet_core::{
@@ -79,6 +79,8 @@ pub struct Resultado {
     pub filtros: Vec<PedidoFiltro>,
     /// `shape.left/top/width/height = …`, na ordem; o aplicativo move a forma se a macro terminou bem.
     pub formas: Vec<PedidoForma>,
+    /// `sheet.pastePicture`: as imagens de intervalo a colar, se a macro terminou bem.
+    pub imagens: Vec<PedidoImagem>,
     /// `app.openUrl(link)` (o `ShellExecute "open"` do VBA): o app abre os links web.
     pub links: Vec<String>,
 }
@@ -937,6 +939,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         links: if vale { extra.links } else { Vec::new() },
         filtros: if vale { extra.filtros } else { Vec::new() },
         formas: if vale { extra.formas } else { Vec::new() },
+        imagens: if vale { extra.imagens } else { Vec::new() },
         escolha: if extra.pergunta.is_some() { extra.escolha } else { None },
         entrada: if extra.pergunta.is_some() { extra.entrada } else { None },
         pergunta: extra.pergunta,
@@ -1209,6 +1212,11 @@ function __sheet(indice) {
             field==null?null:Number(field),criteria===undefined?null:criteria]);return sheet;},
         showAllData:()=>{__ft('filtro',[i,'tudo',null,null,null]);__ft('mostrarListaAvancada',[i]);return sheet;},
         // Filtro Avançado do Excel: { copyTo, sheet, unique }. Sem copyTo, esconde no lugar as linhas que não passam.
+        // Cola a imagem de um intervalo (o CopyPicture + Paste do VBA) com o canto em `cell`; o app a desenha no fim.
+        // Devolve a figura: width/height em pontos.
+        pastePicture:(source,cell,opts={})=>{const de=opts.sheet==null?i:wb.sheet(String(opts.sheet)).__id;
+            const n=__ft('colarImagem',[i,de,String(source),String(cell)]);
+            return {set width(v){__ft('tamanhoImagem',[n,'width',Number(v)]);},set height(v){__ft('tamanhoImagem',[n,'height',Number(v)]);}};},
         advancedFilter:(list,criteria=null,opts={})=>{const r=__ft('filtroAvancado',[i,String(list),criteria==null?null:String(criteria),opts.copyTo==null?null:String(opts.copyTo),!!opts.unique]);
             if(r)sheet.copy(r,String(opts.copyTo),opts.sheet?{sheet:String(opts.sheet)}:{});return sheet;},
         autoFilterOff:()=>{__ft('filtro',[i,'remover',null,null,null]);return sheet;},

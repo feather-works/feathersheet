@@ -422,6 +422,19 @@ pub(super) fn ler_png_da_area_de_transferencia() -> Option<Vec<u8>> {
         dados.bytes.into_owned()).ok()
 }
 
+/// Bloqueante: chamar fora do loop da interface.
+pub(super) fn gravar_png_na_area_de_transferencia(png: &[u8]) -> Result<(), String> {
+    // No Linux a área de transferência é servida pelo processo enquanto houver um `Clipboard` vivo.
+    static VIVA: std::sync::Mutex<Option<arboard::Clipboard>> = std::sync::Mutex::new(None);
+    let img = image::load_from_memory(png).map_err(|e| e.to_string())?.into_rgba8();
+    let (largura, altura) = img.dimensions();
+    let mut area = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    area.set_image(arboard::ImageData { width: largura as usize, height: altura as usize, bytes: img.into_raw().into() })
+        .map_err(|e| e.to_string())?;
+    if let Ok(mut viva) = VIVA.lock() { *viva = Some(area); }
+    Ok(())
+}
+
 /// Recupera a última imagem importada na aba para edição manual.
 /// O editor não muda a seleção ou o posicionamento de imagens na grade.
 pub(super) fn ultima_imagem(sheet: &Sheet) -> Result<Option<(String, Vec<u8>, String)>, String> {

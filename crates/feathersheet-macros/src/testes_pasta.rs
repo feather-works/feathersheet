@@ -404,6 +404,19 @@ fn filtro_avancado_copia_esconde_e_showalldata_reexibe() {
 }
 
 #[test]
+fn colar_imagem_de_intervalo_so_anota_o_pedido() {
+    let mut wb = pasta_com_dados();
+    let r = executar(&mut wb, 0, r#"const f = sheet.pastePicture("A1:G40", "A104", { sheet: "Dados" }); f.width = 500;"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    let ids = wb.ids();
+    assert_eq!(r.imagens, vec![PedidoImagem { origem: ids[1], area: feathersheet_core::celulas::refs::Rect::new(0, 0, 39, 6),
+        destino: ids[0], celula: (103, 0), largura: Some(500.0), altura: None }]);
+    let r = executar(&mut wb, 0, r#"sheet.pastePicture("A1:B2", "C3"); throw new Error("x");"#);
+    assert!(r.imagens.is_empty(), "macro com erro não cola");
+    assert!(executar(&mut wb, 0, r#"sheet.pastePicture("xx", "C3");"#).erro.is_some());
+}
+
+#[test]
 fn shape_esconde_troca_a_macro_e_pede_posicao() {
     let mut wb = Workbook::new();
     wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"Botão 2","macro":"Velha"}]}"##.into())); });

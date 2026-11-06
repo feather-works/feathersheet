@@ -436,3 +436,28 @@ fn macro_move_e_esconde_a_forma() {
     assert_eq!(o.extras.get("oculto"), Some(&serde_json::Value::Bool(true)));
     assert!(!super::aplicar_formas_da_macro(&mut w, &[feathersheet_macros::PedidoForma { aba: id, nome: "Nada".into(), esquerda: Some(1.0), topo: None, largura: None, altura: None }]).is_empty());
 }
+
+/// O CopyPicture + Paste da macro vira uma figura: PNG que abre, no canto pedido, com a largura
+/// em pontos e a altura na proporção; um Ctrl+Z tira.
+#[test]
+fn macro_cola_imagem_do_intervalo() {
+    let mut app = app();
+    app.workbook.inserir_aba("Dados", 1);
+    app.workbook.escrever_celula(1, 0, 0, "Total".into());
+    app.workbook.escrever_celula(1, 1, 1, "=2+3".into());
+    let codigo = "sheet.pastePicture('A1:B3', 'C5', { sheet: 'Dados' }).width = 300;";
+    let r = app.rodar_macro(historico_macros::GatilhoMacro::manual("teste"), "M", codigo, Vec::new()).unwrap();
+    assert!(r.erro.is_none() && app.macro_mensagens.is_empty(), "{:?} {:?}", r.erro, app.macro_mensagens);
+    let o = lidos(&app).objetos.pop().expect("figura colada");
+    assert_eq!(o.tipo, modelo::TipoObjeto::Imagem);
+    assert_eq!((o.de.linha, o.de.coluna), (4, 2), "canto em C5");
+    let regua = ReguaAba(&app.workbook.aba(0).unwrap().sheet);
+    let ret = o.retangulo(&regua);
+    assert!((ret.largura - 400.0).abs() < 0.5, "300 pt = 400 px: {}", ret.largura);
+    assert!((ret.altura - 400.0 * 84.0 / 244.0).abs() < 0.5, "proporção de 244 × 84 px: {}", ret.altura);
+    let img = figura::pixels(o.imagem.as_ref().unwrap()).expect("PNG válido");
+    assert_eq!(img.dimensions(), (488, 168), "no dobro da resolução");
+    app.update(Msg::Desfazer);
+    assert!(lidos(&app).objetos.is_empty(), "um Ctrl+Z tira a figura");
+}
+

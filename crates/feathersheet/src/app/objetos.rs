@@ -81,6 +81,57 @@ pub(super) fn aplicar_formas_da_macro(w: &mut Workbook, pedidos: &[feathersheet_
     falhas
 }
 
+/// A imagem de um intervalo em PNG (o "Copiar como imagem"), desenhada no dobro da resolução para
+/// sair nítida no PDF, e o tamanho dela em px da planilha. `grade`: com as linhas de grade.
+pub(super) fn png_do_intervalo(w: &Workbook, aba: usize, area: Rect, grade: bool) -> Result<(Vec<u8>, f32, f32), String> {
+    let (svg, l, a) = feathersheet_io::impressao_pdf::svg_da_area(w, aba, area, grade)?;
+    // shortcut: rasteriza na thread da janela; o teto de 16 milhões de pixels (~100 ms) segura as áreas grandes.
+    let escala = (16e6 / (f64::from(l) * f64::from(a))).sqrt().min(2.0);
+    let (pl, pa) = (((f64::from(l) * escala).round() as u32).max(1), ((f64::from(a) * escala).round() as u32).max(1));
+    let rgba = camada::rgba_do_svg(&svg, pl, pa).ok_or_else(|| tr!("não consegui desenhar a imagem").to_string())?;
+    let img = image::RgbaImage::from_raw(pl, pa, rgba).ok_or_else(|| tr!("não consegui desenhar a imagem").to_string())?;
+    let mut png = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).map_err(|e| e.to_string())?;
+    Ok((png, l as f32, a as f32))
+}
+
+/// Cola a imagem de `area` da aba `origem` como figura com o canto em `celula` da aba `destino` (um
+/// Ctrl+Z). `largura`/`altura` em px; se só uma vier, a outra segue a proporção, como no Excel.
+pub(super) fn colar_imagem_do_intervalo(w: &mut Workbook, origem: usize, area: Rect, destino: usize, celula: (u32, u32),
+    largura: Option<f32>, altura: Option<f32>, grade: bool) -> Result<u64, String>
+{
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    let (png, l, a) = png_do_intervalo(w, origem, area, grade)?;
+    let (l, a) = match (largura, altura) {
+        (Some(x), Some(y)) => (x, y),
+        (Some(x), None) => (x, a * x / l),
+        (None, Some(y)) => (l * y / a, y),
+        (None, None) => (l, a),
+    };
+    let viva = w.aba_mut(destino).ok_or(tr!("Aba inexistente"))?;
+    let regua = ReguaAba(&viva.sheet);
+    let ret = Retangulo { x: regua.inicio_coluna(celula.1), y: regua.inicio_linha(celula.0), largura: l, altura: a };
+    let mut o = ObjetoSolto::nova_forma(0, "rect", ret, &regua);
+    o.tipo = modelo::TipoObjeto::Imagem;
+    o.aparencia = modelo::Aparencia { preenchimento: None, contorno: None, espessura: 0.0, transparencia: 0.0 };
+    o.imagem = Some(modelo::ImagemObjeto { src: format!("data:image/png;base64,{}", STANDARD.encode(&png)), duotom: None, recorte: None });
+    let mut lidos = modelo::ler_da_aba(&viva.sheet);
+    let id = lidos.adicionar(o).ok_or(tr!("A aba já tem objetos demais"))?;
+    modelo::gravar_na_aba(&mut viva.sheet, &lidos);
+    Ok(id)
+}
+
+/// `sheet.pastePicture` das macros (o `CopyPicture` + `Paste` do VBA). Devolve as falhas.
+pub(super) fn aplicar_imagens_da_macro(w: &mut Workbook, pedidos: &[feathersheet_macros::PedidoImagem], grade_oculta: &std::collections::HashSet<u32>) -> Vec<String> {
+    const PX_POR_PONTO: f64 = 96.0 / 72.0;
+    let px = |v: Option<f64>| v.map(|pt| (pt * PX_POR_PONTO) as f32);
+    pedidos.iter().filter_map(|p| {
+        let (Some(origem), Some(destino)) = (w.indice_do_id(p.origem), w.indice_do_id(p.destino)) else { return Some(tr!("Imagem da macro: aba inexistente").to_string()) };
+        colar_imagem_do_intervalo(w, origem, p.area.clone(), destino, p.celula, px(p.largura), px(p.altura), !grade_oculta.contains(&p.origem))
+            .err().map(|e| trf!("Imagem da macro: {e}"))
+    }).collect()
+}
+
 /// Painel de cores aberto (pela barra ou pela aba).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Painel {

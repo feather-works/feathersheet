@@ -413,7 +413,7 @@ pub enum Msg {
     /// Procurar e instalar atualização (Configurações → Sobre).
     Atualizacao(atualizacao::Evento),
     Rolar(i32,i32), RolarNaGrade(u32,u32,i32,bool), Roda(i32), ControleZoom(bool),
-    TeclaLiberada(keyboard::Key), Copiar, Recortar, ColarSolicitar, ColarTextoLido(String), ColarImagemLida(Option<Vec<u8>>), Colar(String),
+    TeclaLiberada(keyboard::Key), Copiar, CopiarComoImagem, CopiarImagemPronta(Result<(), String>), Recortar, ColarSolicitar, ColarTextoLido(String), ColarImagemLida(Option<Vec<u8>>), Colar(String),
     ColarValoresSolicitar, ColarValores(String), ColarFormatoSolicitar, ColarFormato(String),
     ColarEspecialSolicitar(ModoColagem), ColarEspecial(String, ModoColagem),
     AlternarMenuColagem, FecharMenuColagem,

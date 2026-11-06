@@ -54,7 +54,7 @@ pub(super) fn decodificar(im: &ImagemObjeto) -> Option<Image> {
 }
 
 /// Pixels RGBA da figura com recorte e duotom aplicados.
-fn pixels(im: &ImagemObjeto) -> Option<image::RgbaImage> {
+pub(super) fn pixels(im: &ImagemObjeto) -> Option<image::RgbaImage> {
     let dados = im.src.split_once(";base64,")?.1;
     let bytes = STANDARD.decode(dados.trim()).ok()?;
     let mut img = image::load_from_memory(&bytes).ok()?.to_rgba8();

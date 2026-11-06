@@ -1283,6 +1283,30 @@ impl App {
                 }
                 None => Task::none(),
             },
+            Msg::CopiarComoImagem => {
+                self.confirmar();
+                if self.tem_varias_areas() {
+                    self.status = tr!("Copiar como imagem não funciona com várias áreas selecionadas").into();
+                    return Task::none();
+                }
+                let grade = !self.workbook.aba(self.folha).is_some_and(|a| self.grade_oculta.contains(&a.id));
+                match objetos::png_do_intervalo(&self.workbook, self.folha, self.area_selecionada().normalized(), grade) {
+                    Ok((png, _, _)) => {
+                        // O Ctrl+V seguinte cola a imagem, não a cópia de células anterior.
+                        self.area_copiada = None;
+                        self.marca_copia = None;
+                        Task::perform(async move {
+                            tokio::task::spawn_blocking(move || imagens_importadas::gravar_png_na_area_de_transferencia(&png))
+                                .await.map_err(|e| e.to_string()).and_then(|r| r)
+                        }, Msg::CopiarImagemPronta)
+                    }
+                    Err(e) => { self.status = trf!("Copiar como imagem: {e}"); Task::none() }
+                }
+            }
+            Msg::CopiarImagemPronta(r) => {
+                self.status = match r { Ok(()) => tr!("Imagem copiada para a área de transferência.").into(), Err(e) => trf!("Copiar como imagem: {e}") };
+                Task::none()
+            }
             Msg::Recortar => {
                 match self.copiar_selecao() {
                     Some(dados) => {

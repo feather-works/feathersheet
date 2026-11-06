@@ -4379,5 +4379,13 @@
  "Exportar como Markdown": "Exportar como Markdown",
  "Documento Markdown": "Documento Markdown",
  "Ajuda exportada: {}": "Ayuda exportada: {}",
- "Falha ao gravar a ajuda: {e}": "No se pudo guardar la ayuda: {e}"
+ "Falha ao gravar a ajuda: {e}": "No se pudo guardar la ayuda: {e}",
+ "Copiar como imagem": "Copiar como imagen",
+ "Copiar como imagem não funciona com várias áreas selecionadas": "Copiar como imagen no funciona con varias áreas seleccionadas",
+ "Copiar como imagem: {e}": "Copiar como imagen: {e}",
+ "Imagem copiada para a área de transferência.": "Imagen copiada al portapapeles.",
+ "não consegui desenhar a imagem": "no se pudo dibujar la imagen",
+ "Imagem da macro: aba inexistente": "Imagen de la macro: la hoja no existe",
+ "Imagem da macro: {e}": "Imagen de la macro: {e}",
+ "A aba já tem objetos demais": "La hoja ya tiene demasiados objetos"
 }

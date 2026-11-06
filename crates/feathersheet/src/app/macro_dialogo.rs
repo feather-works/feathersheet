@@ -124,6 +124,11 @@ impl App {
             self.alterado = true;
             r.mensagens.extend(falhas);
         }
+        if r.erro.is_none() && !r.imagens.is_empty() {
+            let falhas = objetos::aplicar_imagens_da_macro(&mut self.workbook, &r.imagens, &self.grade_oculta);
+            self.alterado = true;
+            r.mensagens.extend(falhas);
+        }
         if r.erro.is_none() && !r.filtros.is_empty() {
             let falhas = tabelas::aplicar_filtros_da_macro(&mut self.workbook, &r.filtros);
             self.alterado = true;

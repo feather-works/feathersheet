@@ -155,6 +155,9 @@ impl Gerador<'_> {
             }
             "hidden" => self.esconder(f, &v)?,
             "orientation" => format!("{aba}.setTextRotation({end}, {});", self.como_num(&v)),
+            // `Selection.Width = 500` logo depois de colar uma imagem: o tamanho da figura (no Excel, a
+            // seleção é ela). Range.Width de célula é só leitura no Excel; sem figura, dá erro também.
+            "width" | "height" => format!("vba.{}('{n}', {});", self.ajuda("figuraTamanho"), v.js),
             _ => return Err(Motivo::novo(format!("escrever Range.{n}"))),
         })
     }
@@ -595,7 +598,8 @@ impl Gerador<'_> {
                 let (va, vb) = (self.valor(a)?, self.valor(b)?);
                 format!("{aba}.replace({end}, {}, {});", va.js, vb.js)
             }
-            "copypicture" => return Err(Motivo::novo("copiar como imagem (CopyPicture)")),
+            // `CopyPicture [Appearance, Format]`: o `Paste` seguinte cola a imagem do intervalo.
+            "copypicture" => format!("vba.{}({}, {});", self.ajuda("copiarImagem"), f.aba, f.end),
             "texttocolumns" => self.texto_para_colunas(f, args)?,
             "removeduplicates" => {
                 let cols = self.arg_js(args, &["columns"], 0)?;

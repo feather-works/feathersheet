@@ -725,6 +725,7 @@ impl App {
             opcoes.extend([
                 Some((tr!("Recortar").into(), Msg::Recortar)),
                 Some((tr!("Copiar").into(), Msg::Copiar)),
+                Some((tr!("Copiar como imagem").into(), Msg::CopiarComoImagem)),
                 Some((tr!("Colar").into(), Msg::ColarSolicitar)),
                 // As variações de colar ficam no submenu (submenu_contexto 0).
                 Some((tr!("Colar especial").into(), Msg::ContextoSub(Some(SUB_COLAR)))),

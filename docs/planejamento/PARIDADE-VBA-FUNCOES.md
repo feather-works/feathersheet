@@ -245,6 +245,12 @@ UserForm (06/11/2026): Tab e Shift+Tab na janela do formulário seguem o `TabInd
 Só os campos de digitar recebem foco (botões e caixas não têm foco no pelicano); o designer edita a ordem
 ("Ordem do Tab" nas propriedades). Importar `.frm` solto continua de fora: o desenho está no `.frx` binário, falta um par real.
 
+`CopyPicture` (06/11/2026, pedido pelo arquivo Info): `Range.CopyPicture` + `Paste` → `sheet.pastePicture`
+(o intervalo desenhado como a impressão desenha, `impressao_pdf::svg_da_area`, rasterizado em PNG pelo app
+e colado como figura, um Ctrl+Z); `Selection.Width/Height` logo depois ajusta a figura (`vba.figuraTamanho`,
+só um mantém a proporção). Na tela: botão direito → "Copiar como imagem" põe o PNG na área de transferência.
+Ainda não: `Format:=xlBitmap`/`xlPicture` (sai sempre PNG), colar a imagem em outra aba que não a ativa.
+
 ### Rodando de verdade (01/11/2026)
 
 `cargo run --release --example rodar_xlsm -- arquivo.xlsm [filtro]` roda cada macro e evento

@@ -4383,5 +4383,13 @@
  "Exportar como Markdown": "Export as Markdown",
  "Documento Markdown": "Markdown document",
  "Ajuda exportada: {}": "Help exported: {}",
- "Falha ao gravar a ajuda: {e}": "Couldn't save the help: {e}"
+ "Falha ao gravar a ajuda: {e}": "Couldn't save the help: {e}",
+ "Copiar como imagem": "Copy as picture",
+ "Copiar como imagem não funciona com várias áreas selecionadas": "Copy as picture does not work with several areas selected",
+ "Copiar como imagem: {e}": "Copy as picture: {e}",
+ "Imagem copiada para a área de transferência.": "Picture copied to the clipboard.",
+ "não consegui desenhar a imagem": "could not draw the picture",
+ "Imagem da macro: aba inexistente": "Macro picture: sheet does not exist",
+ "Imagem da macro: {e}": "Macro picture: {e}",
+ "A aba já tem objetos demais": "The sheet already has too many objects"
 }

@@ -483,3 +483,21 @@ fn advancedfilter_copia_e_filtra_no_lugar() {
     assert_eq!(wb.valor(0, 3, 6), t("Valor"), "o cabeçalho vai junto");
     assert_eq!(wb.valor(0, 0, 7), Value::Number(2.0), "no lugar: as duas de SP visíveis");
 }
+
+#[test]
+fn copypicture_cola_a_imagem_e_ajusta_a_largura() {
+    let vba = "Sub T()\n  Sheets(\"Dados\").Activate\n  Range(\"A1:G40\").Select\n  Selection.CopyPicture xlScreen, xlBitmap\n  Sheets(\"Planilha1\").Activate\n  Range(\"A104:J104\").Select\n  ActiveSheet.Paste\n  Selection.Width = 500\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let mut wb = Workbook::new();
+    wb.inserir_aba("Dados", 1);
+    let r = feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo);
+    assert!(r.erro.is_none(), "{:?}\n{}", r.erro, c.macros[0].codigo);
+    let ids = wb.ids();
+    assert_eq!(r.imagens.len(), 1, "{:?}", r.imagens);
+    let p = &r.imagens[0];
+    assert_eq!((p.origem, p.destino, p.celula, p.largura), (ids[1], ids[0], (103, 0), Some(500.0)));
+    // Sem imagem colada antes, Width de célula continua erro (é só leitura no Excel).
+    let c = converter_texto(&[("Módulo1", "Sub T()\n  Selection.Width = 5\nEnd Sub\n")], &[]);
+    assert!(feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo).erro.is_some());
+}

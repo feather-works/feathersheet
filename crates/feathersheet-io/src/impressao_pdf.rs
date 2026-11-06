@@ -7,6 +7,7 @@
 //! esquerdo da página, y para baixo. Só Helvetica (fontes padrão do PDF).
 
 use feather_draw::pdf::{largura_texto, DocumentoPdf, FontePdf, PaginaPdf};
+use std::fmt::Write as _;
 use feather_draw::Cor;
 use feathersheet_core::celulas::refs::{col_name, Rect};
 use feathersheet_core::celulas::style::{effective_align, format_number, Align, Style};
@@ -228,6 +229,90 @@ fn rodape_pagina(p: &mut PaginaPdf, cfg: &ConfigPagina, n: usize, total: usize, 
     p.texto(x + l - w, y + 14.0, &dir, FontePdf::Helvetica, 9.0, CINZA_RODAPE);
 }
 
+/// Onde a tabela é desenhada: a página do PDF ou o SVG da cópia como imagem ([`svg_da_area`]).
+trait Pincel {
+    fn retangulo_preenchido(&mut self, x: f32, y: f32, l: f32, a: f32, c: Cor);
+    fn retangulo_contorno(&mut self, x: f32, y: f32, l: f32, a: f32, c: Cor, espessura: f32);
+    fn linha(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, c: Cor, espessura: f32, tracejado: bool);
+    fn recorte(&mut self, x: f32, y: f32, l: f32, a: f32);
+    fn fim_recorte(&mut self);
+    fn texto(&mut self, x: f32, y: f32, texto: &str, fonte: FontePdf, tamanho: f32, c: Cor);
+}
+
+impl Pincel for PaginaPdf {
+    fn retangulo_preenchido(&mut self, x: f32, y: f32, l: f32, a: f32, c: Cor) { PaginaPdf::retangulo_preenchido(self, x, y, l, a, c) }
+    fn retangulo_contorno(&mut self, x: f32, y: f32, l: f32, a: f32, c: Cor, e: f32) { PaginaPdf::retangulo_contorno(self, x, y, l, a, c, e) }
+    fn linha(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, c: Cor, e: f32, t: bool) { PaginaPdf::linha(self, x0, y0, x1, y1, c, e, t) }
+    fn recorte(&mut self, x: f32, y: f32, l: f32, a: f32) { PaginaPdf::recorte(self, x, y, l, a) }
+    fn fim_recorte(&mut self) { PaginaPdf::fim_recorte(self) }
+    fn texto(&mut self, x: f32, y: f32, t: &str, f: FontePdf, tam: f32, c: Cor) { PaginaPdf::texto(self, x, y, t, f, tam, c) }
+}
+
+/// O desenho em SVG, em pt (a mesma conta do PDF): o texto usa uma Helvetica/Arial do sistema.
+#[derive(Default)]
+struct Svg {
+    corpo: String,
+    recortes: usize,
+}
+
+fn cor_svg(c: Cor) -> String {
+    let base = format!("#{:02x}{:02x}{:02x}", c.r, c.g, c.b);
+    if c.a == 255 { format!("\"{base}\"") } else { format!("\"{base}\" fill-opacity=\"{:.3}\"", f32::from(c.a) / 255.0) }
+}
+
+fn escapar_xml(t: &str) -> String {
+    t.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+}
+
+impl Pincel for Svg {
+    fn retangulo_preenchido(&mut self, x: f32, y: f32, l: f32, a: f32, c: Cor) {
+        let _ = write!(self.corpo, "<rect x=\"{x:.2}\" y=\"{y:.2}\" width=\"{l:.2}\" height=\"{a:.2}\" fill={}/>", cor_svg(c));
+    }
+    fn retangulo_contorno(&mut self, x: f32, y: f32, l: f32, a: f32, c: Cor, e: f32) {
+        let _ = write!(self.corpo, "<rect x=\"{x:.2}\" y=\"{y:.2}\" width=\"{l:.2}\" height=\"{a:.2}\" fill=\"none\" stroke=\"#{:02x}{:02x}{:02x}\" stroke-width=\"{e:.2}\"/>", c.r, c.g, c.b);
+    }
+    fn linha(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, c: Cor, e: f32, t: bool) {
+        let traco = if t { " stroke-dasharray=\"3 2\"" } else { "" };
+        let _ = write!(self.corpo, "<line x1=\"{x0:.2}\" y1=\"{y0:.2}\" x2=\"{x1:.2}\" y2=\"{y1:.2}\" stroke=\"#{:02x}{:02x}{:02x}\" stroke-width=\"{e:.2}\"{traco}/>", c.r, c.g, c.b);
+    }
+    fn recorte(&mut self, x: f32, y: f32, l: f32, a: f32) {
+        self.recortes += 1;
+        let n = self.recortes;
+        let _ = write!(self.corpo, "<clipPath id=\"r{n}\"><rect x=\"{x:.2}\" y=\"{y:.2}\" width=\"{l:.2}\" height=\"{a:.2}\"/></clipPath><g clip-path=\"url(#r{n})\">");
+    }
+    fn fim_recorte(&mut self) {
+        self.corpo.push_str("</g>");
+    }
+    fn texto(&mut self, x: f32, y: f32, t: &str, f: FontePdf, tam: f32, c: Cor) {
+        let peso = if matches!(f, FontePdf::Negrito | FontePdf::NegritoItalico) { " font-weight=\"bold\"" } else { "" };
+        let estilo = if matches!(f, FontePdf::Italico | FontePdf::NegritoItalico) { " font-style=\"italic\"" } else { "" };
+        let _ = write!(self.corpo, "<text x=\"{x:.2}\" y=\"{y:.2}\" font-family=\"Helvetica, Arial, Liberation Sans, sans-serif\" font-size=\"{tam:.2}\"{peso}{estilo} fill={} xml:space=\"preserve\">{}</text>", cor_svg(c), escapar_xml(t));
+    }
+}
+
+/// Teto da cópia como imagem, em px de cada lado (a figura vai inteira para a memória).
+const MAX_LADO_IMAGEM: f32 = 8000.0;
+
+/// A área como aparece na planilha, em SVG (o "Copiar como imagem", o `CopyPicture` do Excel):
+/// fundos, mesclas, bordas e o texto formatado, com as linhas de grade se `grade`; sem os
+/// cabeçalhos A/B/1/2. Devolve o SVG e o tamanho em px da planilha.
+pub fn svg_da_area(wb: &Workbook, folha: usize, area: Rect, grade: bool) -> Result<(String, u32, u32), String> {
+    let a = area.normalized();
+    let config = ConfigPagina { cabecalhos: false, linhas_de_grade: grade, escala: Escala::Porcentagem(100), ..ConfigPagina::default() };
+    let plano = plano_da_area(wb, folha, AreaImpressao { linha0: a.r0, coluna0: a.c0, linha1: a.r1, coluna1: a.c1 }, &config)?;
+    let (l, h) = (plano.colunas.iter().map(|c| c.1).sum::<f32>(), plano.linhas.iter().map(|r| r.1).sum::<f32>());
+    if l <= 0.0 || h <= 0.0 { return Err("a área não tem linha nem coluna visível".into()); }
+    if l / PX > MAX_LADO_IMAGEM || h / PX > MAX_LADO_IMAGEM {
+        return Err(format!("área grande demais para virar imagem (mais de {MAX_LADO_IMAGEM} px de lado)"));
+    }
+    let ctx = Ctx { wb, folha, config: &config, escala: 1.0, ox: 0.0, oy: 0.0, larg_cab: 0.0, alt_cab: 0.0, mesclas: &plano.mesclas };
+    let mut svg = Svg::default();
+    svg.retangulo_preenchido(0.0, 0.0, l, h, Cor::rgb(255, 255, 255));
+    desenhar_tabela(&mut svg, &ctx, &plano.colunas, &plano.linhas, l, h);
+    let doc = format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{l:.2}\" height=\"{h:.2}\" viewBox=\"0 0 {l:.2} {h:.2}\">{}</svg>", svg.corpo);
+    Ok((doc, (l / PX).round() as u32, (h / PX).round() as u32))
+}
+
 struct Ctx<'a> {
     wb: &'a Workbook,
     folha: usize,
@@ -240,7 +325,7 @@ struct Ctx<'a> {
     mesclas: &'a [Rect],
 }
 
-fn desenhar_tabela(p: &mut PaginaPdf, ctx: &Ctx, cols: &[(u32, f32)], lins: &[(u32, f32)], util_l: f32, util_a: f32) {
+fn desenhar_tabela(p: &mut impl Pincel, ctx: &Ctx, cols: &[(u32, f32)], lins: &[(u32, f32)], util_l: f32, util_a: f32) {
     let s = ctx.escala;
     // Posições acumuladas (já em pt de página, escaladas).
     let x0 = ctx.ox + ctx.larg_cab * s;
@@ -360,7 +445,7 @@ fn desenhar_tabela(p: &mut PaginaPdf, ctx: &Ctx, cols: &[(u32, f32)], lins: &[(u
 }
 
 /// Texto, bordas e decoração de uma célula (o fundo já foi pintado).
-fn celula(p: &mut PaginaPdf, ctx: &Ctx, r: u32, c: u32, x: f32, y: f32, w: f32, h: f32) {
+fn celula(p: &mut impl Pincel, ctx: &Ctx, r: u32, c: u32, x: f32, y: f32, w: f32, h: f32) {
     let s = ctx.escala;
     let sheet = &ctx.wb.aba(ctx.folha).unwrap().sheet;
     let estilo: Option<Style> = sheet.estilo_resolvido(r, c);
@@ -412,7 +497,7 @@ fn celula(p: &mut PaginaPdf, ctx: &Ctx, r: u32, c: u32, x: f32, y: f32, w: f32, 
     }
 }
 
-fn texto_centro(p: &mut PaginaPdf, x: f32, y: f32, w: f32, h: f32, t: &str, fs: f32) {
+fn texto_centro(p: &mut impl Pincel, x: f32, y: f32, w: f32, h: f32, t: &str, fs: f32) {
     let tw = largura_texto(t, FontePdf::Negrito, fs);
     p.texto(x + (w - tw) / 2.0, y + h / 2.0 + fs * 0.35, t, FontePdf::Negrito, fs, CAB_TEXTO);
 }
@@ -468,6 +553,19 @@ fn data_hoje() -> String {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn area_vira_svg_do_tamanho_da_planilha() {
+        let wb = pasta(3);
+        let (svg, l, h) = svg_da_area(&wb, 0, Rect::new(0, 0, 2, 1), true).unwrap();
+        assert_eq!((l, h), (244, 84), "duas colunas de 122 px, três linhas de 28");
+        assert!(svg.starts_with("<svg") && svg.contains(">Linha 2 ação</text>") && svg.contains("<line"), "{svg}");
+        assert!(!svg_da_area(&wb, 0, Rect::new(0, 0, 2, 1), false).unwrap().0.contains("<line"), "sem grade");
+        assert!(svg_da_area(&wb, 0, Rect::new(0, 0, 1_000_000, 1), false).is_err(), "teto do tamanho");
+        let mut wb = pasta(1);
+        wb.aba_mut(0).unwrap().sheet.set_cell(0, 0, "a<b & \"c\"");
+        assert!(svg_da_area(&wb, 0, Rect::new(0, 0, 0, 0), false).unwrap().0.contains("a&lt;b &amp; &quot;c&quot;"));
+    }
 
     #[test]
     fn cor_com_acento_nao_entra_em_panico() {

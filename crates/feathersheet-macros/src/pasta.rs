@@ -50,6 +50,19 @@ pub enum AcaoFiltro {
     Remover,
 }
 
+/// `sheet.pastePicture(origem, célula)` (o `CopyPicture` + `Paste` do VBA): o aplicativo desenha
+/// `area` da aba `origem` como imagem e a cola com o canto em `celula` da aba `destino`, se a
+/// macro terminar bem. `largura`/`altura` em pontos, como o `Selection.Width` do VBA.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PedidoImagem {
+    pub origem: u32,
+    pub area: Rect,
+    pub destino: u32,
+    pub celula: (u32, u32),
+    pub largura: Option<f64>,
+    pub altura: Option<f64>,
+}
+
 /// `shape.left/top/width/height = …` (pontos, como no VBA): a posição depende das larguras da
 /// grade, então o aplicativo move a forma se a macro terminar bem.
 #[derive(Clone, Debug, PartialEq)]
@@ -129,6 +142,7 @@ pub(crate) struct Acumulado {
     pub links: Vec<String>,
     pub filtros: Vec<PedidoFiltro>,
     pub formas: Vec<PedidoForma>,
+    pub imagens: Vec<PedidoImagem>,
 }
 
 /// Mais que isto numa execução é laço descontrolado, não exportação.
@@ -141,7 +155,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher", "perguntarTexto", "separadorDecimal"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher", "perguntarTexto", "separadorDecimal", "colarImagem", "tamanhoImagem"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -259,6 +273,25 @@ pub(crate) fn executar(
                     Ok(json!(false))
                 }
             }
+        }
+        "colarImagem" => {
+            let id = |v: &Json| v.as_u64().and_then(|id| ids.iter().copied().find(|&x| u64::from(x) == id));
+            let (Some(destino), Some(origem)) = (id(&dados[0]), id(&dados[1])) else { return Some(Err("Aba inexistente".into())) };
+            let end = texto(dados, 2);
+            let Some(area) = parse_range_ref(end.trim().trim_start_matches('=')).map(|r| r.normalized()).filter(|r| r.sheet.is_none()) else {
+                return Some(Err(format!("pastePicture: intervalo inválido: {end}")));
+            };
+            let cel = texto(dados, 3);
+            let Some(c) = parse_range_ref(cel.trim()).map(|r| r.normalized()) else { return Some(Err(format!("pastePicture: célula inválida: {cel}"))) };
+            if a.imagens.len() >= LIMITE_ARQUIVOS { return Some(Err("Imagens demais numa macro".into())); }
+            a.imagens.push(PedidoImagem { origem, area, destino, celula: (c.r0, c.c0), largura: None, altura: None });
+            Ok(json!(a.imagens.len() - 1))
+        }
+        "tamanhoImagem" => {
+            let Some(p) = dados[0].as_u64().and_then(|i| a.imagens.get_mut(i as usize)) else { return Some(Err("Imagem colada inexistente".into())) };
+            let Some(v) = dados[2].as_f64().filter(|v| v.is_finite() && *v >= 1.0 && *v <= 1e5) else { return Some(Err("Tamanho da imagem: número de 1 a 100000 pontos".into())) };
+            if texto(dados, 1) == "height" { p.altura = Some(v) } else { p.largura = Some(v) }
+            Ok(Json::Null)
         }
         "separadorDecimal" => Ok(json!(a.contexto.separador_decimal.unwrap_or(',').to_string())),
         "perguntarTexto" => {

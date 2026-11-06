@@ -20,7 +20,7 @@ impl App {
             "Desfazer" => "arrow-back-up", "Refazer" => "arrow-forward-up",
             "Em cima" | "No meio" | "Embaixo" => "align-center",
             "Tachado" => "strikethrough", "S" => "underline",
-            "Recortar" => "cut", "Copiar" => "copy", "Colar" | "Colar especial" => "clipboard",
+            "Recortar" => "cut", "Copiar" => "copy", "Copiar como imagem" => "photo", "Colar" | "Colar especial" => "clipboard",
             "Inserir" => "plus", "Excluir…" => "trash",
             "Excluir linha" | "Excluir coluna" => "trash",
             "Inserir linha acima" | "Inserir linha abaixo" |

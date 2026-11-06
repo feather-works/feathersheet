@@ -454,7 +454,7 @@ fn fontes_svg() -> std::sync::Arc<resvg::usvg::fontdb::Database> {
 }
 
 /// Os pixels (RGBA, alfa à parte) do SVG em `w` x `h`.
-fn rgba_do_svg(svg: &str, w: u32, h: u32) -> Option<Vec<u8>> {
+pub(in crate::app) fn rgba_do_svg(svg: &str, w: u32, h: u32) -> Option<Vec<u8>> {
     let opcoes = resvg::usvg::Options { fontdb: fontes_svg(), ..Default::default() };
     let arvore = resvg::usvg::Tree::from_str(svg, &opcoes).ok()?;
     let mut img = resvg::tiny_skia::Pixmap::new(w, h)?;
