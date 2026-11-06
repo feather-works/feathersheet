@@ -570,3 +570,44 @@ fn trocar_planilha_pelo_script_rele_o_arquivo_e_recusa_a_que_nao_existe() {
     assert!(e.erro.contains("Mar"), "{}", e.erro);
     assert_eq!(e.origem_aba, "Arquivo: vendas.fshz ▸ Planilha Fev");
 }
+
+#[test]
+fn renomear_e_mover_seguidos_viram_uma_etapa_e_filtro_por_lista() {
+    let mut app = App::default();
+    for (r, l) in [["UF", "Valor", "Nome"], ["SP", "1", "a"], ["RJ", "2", "b"], ["SP", "3", "c"]].iter().enumerate() {
+        for (c, v) in l.iter().enumerate() { app.workbook.escrever_celula(0, r as u32, c as u32, (*v).into()); }
+    }
+    abrir_aba_para_teste(&mut app);
+    let renomear = |app: &mut App, col: usize, nome: &str| {
+        app.openquery.as_mut().unwrap().coluna = col;
+        app.evento_openquery(Evento::Adicionar("renomear"));
+        app.evento_openquery(Evento::Etapa(etapa::Evento::Texto(nome.into())));
+        app.evento_openquery(Evento::Etapa(etapa::Evento::Aplicar));
+    };
+    renomear(&mut app, 0, "Estado");
+    renomear(&mut app, 1, "Total");
+    renomear(&mut app, 0, "UF2");
+    let e = app.openquery.as_ref().unwrap();
+    assert!(matches!(&e.passos[..], [Passo::RenomearColunas { nomes }] if nomes.len() == 2), "{:?}", e.passos);
+    assert_eq!(e.resultado.cabecalho, ["UF2", "Total", "Nome"]);
+    // Mover a coluna 0 duas vezes para a direita: uma etapa, e a seleção vai junto.
+    app.openquery.as_mut().unwrap().coluna = 0;
+    app.evento_openquery(Evento::Adicionar("mover_direita"));
+    app.evento_openquery(Evento::Adicionar("mover_direita"));
+    let e = app.openquery.as_ref().unwrap();
+    assert_eq!(e.passos.len(), 2);
+    assert_eq!(e.resultado.cabecalho, ["Total", "Nome", "UF2"]);
+    // Filtro pela lista: só SP marcado.
+    app.openquery.as_mut().unwrap().coluna = 2;
+    app.evento_openquery(Evento::Adicionar("filtrar"));
+    app.evento_openquery(Evento::Etapa(etapa::Evento::FiltroLista(true)));
+    // Valores ordenados: RJ, SP. Desmarca o RJ.
+    app.evento_openquery(Evento::Etapa(etapa::Evento::Marcar(0)));
+    app.evento_openquery(Evento::Etapa(etapa::Evento::Aplicar));
+    let e = app.openquery.as_ref().unwrap();
+    assert!(e.modal.is_none(), "{}", e.erro_modal);
+    assert_eq!(e.resultado.linhas.len(), 2);
+    // Duplicar a coluna.
+    app.evento_openquery(Evento::Adicionar("duplicar"));
+    assert_eq!(app.openquery.as_ref().unwrap().resultado.cabecalho.last().map(String::as_str), Some("UF2 - Cópia"));
+}

@@ -39,7 +39,7 @@ mod manual;
 mod janela;
 mod script;
 mod qualidade;
-mod etapa;
+pub(in crate::app) mod etapa;
 #[cfg(test)]
 mod testes;
 
@@ -299,6 +299,34 @@ fn tabelas_existentes(workbook: &Workbook) -> Vec<(usize, String, Rect)> {
         }
     }
     tabelas
+}
+
+/// Acrescenta a etapa. Renomear seguido de renomear vira uma etapa só ("Colunas renomeadas"),
+/// e mover seguido de mover também, como no Power Query; `total` = colunas antes dela.
+fn empilhar(passos: &mut Vec<Passo>, passo: Passo, total: usize) {
+    match (passos.last_mut(), passo) {
+        (Some(ultimo @ (Passo::Renomear { .. } | Passo::RenomearColunas { .. })), Passo::Renomear { col, nome }) => {
+            let mut nomes = match std::mem::replace(ultimo, Passo::Inverter) {
+                Passo::Renomear { col, nome } => vec![(col, nome)],
+                Passo::RenomearColunas { nomes } => nomes,
+                _ => unreachable!(),
+            };
+            match nomes.iter_mut().find(|(c, _)| *c == col) {
+                Some(par) => par.1 = nome,
+                None => nomes.push((col, nome)),
+            }
+            *ultimo = Passo::RenomearColunas { nomes };
+        }
+        (Some(Passo::Reordenar { ordem: antes }), Passo::Reordenar { ordem }) => {
+            let mut cheia: Vec<usize> = antes.clone();
+            cheia.extend((0..total).filter(|c| !antes.contains(c)));
+            let mut nova: Vec<usize> = ordem.iter().filter_map(|&i| cheia.get(i).copied()).collect();
+            let faltam: Vec<usize> = cheia.iter().copied().filter(|c| !nova.contains(c)).collect();
+            nova.extend(faltam);
+            *antes = nova;
+        }
+        (_, passo) => passos.push(passo),
+    }
 }
 
 /// Monta a tabela inteira da opção escolhida no Navegador fora da thread da janela.
@@ -588,6 +616,22 @@ impl Estado {
             "indice" => Passo::Indice { inicio: Some(1.0), incremento: Some(1.0), nome: None },
             "promover" => Passo::PromoverCabecalho,
             "transpor" => Passo::Transpor,
+            "duplicar" => Passo::DuplicarColuna { col, nome: None },
+            "mover_esquerda" | "mover_direita" | "mover_inicio" | "mover_fim" => {
+                let destino = match tipo {
+                    "mover_esquerda" => col.saturating_sub(1),
+                    "mover_direita" => (col + 1).min(total.saturating_sub(1)),
+                    "mover_inicio" => 0,
+                    _ => total.saturating_sub(1),
+                };
+                if destino == col { return; }
+                let mut ordem: Vec<usize> = (0..total).filter(|c| *c != col).collect();
+                ordem.insert(destino, col);
+                // A seleção acompanha a coluna, para mover de novo.
+                self.coluna = destino;
+                self.selecionadas = vec![destino];
+                Passo::Reordenar { ordem }
+            }
             "inverter" => Passo::Inverter,
             "rebaixar" => Passo::RebaixarCabecalho,
             "remover_erros" => Passo::RemoverErros { col },
@@ -643,7 +687,7 @@ impl Estado {
             }
             _ => return,
         };
-        self.passos.push(passo);
+        empilhar(&mut self.passos, passo, total);
         self.registrar_passos();
     }
 }
@@ -986,6 +1030,7 @@ impl App {
                             .unwrap_or(Tabela { cabecalho: Vec::new(), linhas: Vec::new() });
                         e.modal = etapa::Modal::de_passo(passo, i, entrada.cabecalho.clone())
                             .map(|m| m.com_amostra(&entrada, e.fontes.clone()));
+                        if let Some(m) = &mut e.modal { if let Some(c) = m.quer_valores() { m.definir_valores(&entrada, c); } }
                         e.erro_modal.clear();
                     }
             },
@@ -1051,12 +1096,25 @@ impl App {
                         let editar = m.editar;
                         match editar {
                             Some(i) if i < e.passos.len() => e.passos[i] = passo,
-                            _ => e.passos.push(passo),
+                            _ => empilhar(&mut e.passos, passo, e.resultado.cabecalho.len()),
                         }
                         e.modal = None;
                         e.registrar_passos();
                     }
-                    outro => if let Some(m) = &mut e.modal { m.atualizar(outro); },
+                    outro => if let Some(m) = &mut e.modal {
+                        m.atualizar(outro);
+                        // Filtro por lista: os valores da coluna escolhida, da tabela que chega à etapa.
+                        if let Some(c) = m.quer_valores() {
+                            match m.editar {
+                                Some(i) => {
+                                    let entrada = executar_query_limitado(e.fonte.clone(), &e.passos[..i.min(e.passos.len())], &e.fontes, u64::MAX)
+                                        .unwrap_or(Tabela { cabecalho: Vec::new(), linhas: Vec::new() });
+                                    m.definir_valores(&entrada, c);
+                                }
+                                None => m.definir_valores(&e.resultado, c),
+                            }
+                        }
+                    },
                 }
             },
             Evento::ColunaNumero(numero) => if let Some(e) = &mut self.openquery {
@@ -1078,8 +1136,10 @@ impl App {
                     if colunas.is_empty() {
                         e.erro = tr!("Selecione uma fonte de dados para iniciar.").into();
                     } else {
-                        e.modal = Some(etapa::Modal::novo(tipo, colunas, e.coluna, &e.selecionadas)
-                            .com_amostra(&e.resultado, e.fontes.clone()));
+                        let mut m = etapa::Modal::novo(tipo, colunas, e.coluna, &e.selecionadas)
+                            .com_amostra(&e.resultado, e.fontes.clone());
+                        if tipo == "extrair_texto_nova" { m = m.em_coluna_nova(); }
+                        e.modal = Some(m);
                         e.erro_modal.clear();
                     }
                 } else {
@@ -1570,6 +1630,12 @@ fn passo_rotulo(p: &Passo) -> &'static str {
         Passo::Inverter => tr!("Inverter linhas"),
         Passo::DividirPosicoes { .. } => tr!("Dividir por posição"),
         Passo::Personalizada { .. } => tr!("Coluna personalizada"),
+        Passo::FiltrarVarias { .. } => tr!("Filtrar (várias condições)"),
+        Passo::FiltrarValores { .. } => tr!("Filtrar valores"),
+        Passo::ExtrairTexto { .. } => tr!("Extrair texto"),
+        Passo::RenomearColunas { .. } => tr!("Colunas renomeadas"),
+        Passo::Reordenar { .. } => tr!("Colunas reordenadas"),
+        Passo::DuplicarColuna { .. } => tr!("Coluna duplicada"),
     }
 }
 

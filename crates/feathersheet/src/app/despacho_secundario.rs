@@ -1249,6 +1249,9 @@ impl App {
                                 let _ = self.evento_openquery(openquery_ui::Evento::Carregar);
                                 let _ = self.evento_openquery_janela(openquery_ui::Evento::AbrirCom(Box::new(openquery_ui::Evento::CarregarSelecao)));
                                 let _ = self.evento_openquery(openquery_ui::Evento::Dependencias(true));
+                            } else if resto == ":filtrar_lista" {
+                                let _ = self.evento_openquery(openquery_ui::Evento::Adicionar("filtrar"));
+                                let _ = self.evento_openquery(openquery_ui::Evento::Etapa(openquery_ui::etapa::Evento::FiltroLista(true)));
                             } else if resto == ":menu" {
                                 let _ = self.evento_openquery(openquery_ui::Evento::MenuObter(true));
                                 let _ = self.evento_openquery(openquery_ui::Evento::Submenu(Some(0)));

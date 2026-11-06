@@ -63,7 +63,8 @@ pub(super) fn verificar(
     match passo {
         Passo::Colunas { manter } => colunas = manter.len() as u64,
         Passo::Mesclar { .. } | Passo::Derivar { .. } |
-        Passo::Indice { .. } | Passo::Condicional { .. } | Passo::Personalizada { .. } => colunas += 1,
+        Passo::Indice { .. } | Passo::Condicional { .. } | Passo::Personalizada { .. } |
+        Passo::DuplicarColuna { .. } | Passo::ExtrairTexto { nome: Some(_), .. } => colunas += 1,
         Passo::Transpor => {
             colunas = linhas;
             linhas = tabela.cabecalho.len() as u64;

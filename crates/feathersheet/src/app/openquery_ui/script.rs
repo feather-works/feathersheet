@@ -25,6 +25,8 @@ enum Arg {
     Ordem,
     /// `[["Valor", "soma", "Total"]]`.
     Agregados,
+    /// `[["UF", "SP"], ["Valor", ">100"]]`: a coluna e o que vem com ela.
+    Pares,
 }
 use Arg::*;
 
@@ -60,6 +62,12 @@ const METODOS: &[(&str, &str, &[(&str, Arg)])] = &[
     ("inverter", "inverterLinhas", &[]),
     ("dividirPosicoes", "dividirPorPosicao", &[("col", Col), ("posicoes", Valor), ("cada", Valor)]),
     ("personalizada", "colunaPersonalizada", &[("nome", Valor), ("formula", Valor)]),
+    ("filtrarVarias", "filtrarVarias", &[("condicoes", Pares), ("ou", Valor)]),
+    ("filtrarValores", "filtrarValores", &[("col", Col), ("valores", Valor)]),
+    ("extrairTexto", "extrairTexto", &[("col", Col), ("como", Valor), ("texto", Valor), ("texto2", Valor), ("quantos", Valor), ("nome", Valor)]),
+    ("renomearColunas", "renomearColunas", &[("nomes", Pares)]),
+    ("reordenar", "reordenarColunas", &[("ordem", Cols)]),
+    ("duplicarColuna", "duplicarColuna", &[("col", Col), ("nome", Valor)]),
 ];
 
 /// Etapa sem método próprio: o objeto JSON inteiro, com as colunas em número.
@@ -76,6 +84,7 @@ pub(super) fn modelos(coluna: &str) -> Vec<(&'static str, String, String)> {
             Cols => format!("[{c}]"),
             Ordem => format!("[[{c}, \"asc\"]]"),
             Agregados => format!("[[{c}, \"soma\", \"Total\"]]"),
+            Pares => format!("[[{c}, \"\"]]"),
         }).collect::<Vec<_>>().join(", ");
         (*metodo, nomes, format!("fonte.{metodo}({args});"))
     }).collect()
@@ -171,6 +180,11 @@ fn para_script(arg: Arg, cab: &[String], v: &Json) -> Json {
             col_para_script(cab, &k["col"]),
             if k["desc"].as_bool().unwrap_or(false) { "desc" } else { "asc" },
         ])).collect()),
+        Pares => Json::Array(lista(v).iter().map(|par| {
+            let mut item = lista(par);
+            if let Some(c) = item.first_mut() { *c = col_para_script(cab, c); }
+            Json::Array(item)
+        }).collect()),
         Agregados => Json::Array(lista(v).iter().map(|a| {
             let mut item = vec![col_para_script(cab, &a["col"]), a["como"].clone()];
             if !a["nome"].is_null() { item.push(a["nome"].clone()); }
@@ -188,6 +202,12 @@ fn do_script(arg: Arg, cab: &[String], v: &Json) -> Result<Json, String> {
         Cols if v.is_null() => Json::Null,
         Cols => Json::Array(vec![col_do_script(cab, v)?]),
         ColOuCols => col_do_script(cab, v)?,
+        Pares => Json::Array(lista(v)?.iter().map(|par| {
+            let mut item = par.as_array().cloned().filter(|p| p.len() == 2)
+                .ok_or_else(|| tr!("Cada item é [\"coluna\", valor].").to_owned())?;
+            item[0] = col_do_script(cab, &item[0])?;
+            Ok(Json::Array(item))
+        }).collect::<Result<_, String>>()?),
         Ordem => Json::Array(lista(v)?.iter().map(|k| {
             let par = k.as_array().ok_or_else(|| tr!("Cada ordem é [\"coluna\", \"asc\" ou \"desc\"].").to_owned())?;
             let col = col_do_script(cab, par.first().unwrap_or(&Json::Null))?;
@@ -381,6 +401,23 @@ mod testes {
         for metodo in ["formatarTexto(", "preencher(", "removerLinhas(", "colunaPersonalizada(", "dividirPorPosicao(", "inverterLinhas(", "transpor("] {
             assert!(texto.contains(metodo), "{metodo}: {texto}");
         }
+        let lidos = ler(&texto, &fonte(), &HashMap::new()).unwrap();
+        assert_eq!(json_passos::escrever(&lidos).unwrap(), json_passos::escrever(&passos).unwrap());
+    }
+
+    #[test]
+    fn filtros_texto_e_colunas_vao_e_voltam_pelo_script() {
+        let passos = vec![
+            Passo::FiltrarVarias { condicoes: vec![(0, Value::Text("Norte".into())), (2, Value::Text(">5".into()))], ou: true },
+            Passo::FiltrarValores { col: 0, valores: vec![Value::Text("Norte".into())] },
+            Passo::ExtrairTexto { col: 0, como: "primeiros".into(), texto: None, texto2: None, quantos: Some(2), nome: Some("Sigla".into()) },
+            Passo::RenomearColunas { nomes: vec![(1, "Exercício".into()), (2, "Consumo".into())] },
+            Passo::Reordenar { ordem: vec![2, 0, 1] },
+            Passo::DuplicarColuna { col: 0, nome: None },
+        ];
+        let (texto, _) = gerar("Planilha1", &fonte(), &passos, &HashMap::new()).unwrap();
+        assert!(texto.contains("fonte.filtrarVarias([[\"Regiao\",\"Norte\"],[\"MWh\",\">5\"]], true);"), "{texto}");
+        assert!(texto.contains("fonte.renomearColunas([[\"Ano\",\"Exercício\"],[\"MWh\",\"Consumo\"]]);"), "{texto}");
         let lidos = ler(&texto, &fonte(), &HashMap::new()).unwrap();
         assert_eq!(json_passos::escrever(&lidos).unwrap(), json_passos::escrever(&passos).unwrap());
     }

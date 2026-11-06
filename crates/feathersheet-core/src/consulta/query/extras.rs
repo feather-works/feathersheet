@@ -182,6 +182,46 @@ pub(super) fn personalizada(t: Tabela, nome: &str, formula: &str) -> Tabela {
     Tabela { cabecalho, linhas }
 }
 
+/// Parte do texto da coluna (`como`: antes, depois, entre, primeiros, ultimos, tamanho).
+/// Delimitador que não aparece dá vazio, como o TEXTOANTES/TEXTODEPOIS dão #N/D.
+/// Com `nome`, o resultado vai numa coluna nova no fim; sem, troca a coluna.
+pub(super) fn extrair_texto(t: Tabela, col: usize, como: &str, texto: Option<&str>, texto2: Option<&str>,
+    quantos: Option<usize>, nome: Option<&str>) -> Tabela
+{
+    let (a, b, n) = (texto.unwrap_or(""), texto2.unwrap_or(""), quantos.unwrap_or(0));
+    let parte = |v: &Value| -> Value {
+        if vazio(v) { return Value::Empty; }
+        let s = string_js(v);
+        let pedaco = match como {
+            "antes" if !a.is_empty() => s.split_once(a).map(|(x, _)| x.to_owned()),
+            "depois" if !a.is_empty() => s.split_once(a).map(|(_, y)| y.to_owned()),
+            "entre" if !a.is_empty() && !b.is_empty() => s.split_once(a).and_then(|(_, y)| y.split_once(b)).map(|(x, _)| x.to_owned()),
+            "primeiros" => Some(s.chars().take(n).collect()),
+            "ultimos" => { let total = s.chars().count(); Some(s.chars().skip(total.saturating_sub(n)).collect()) }
+            "tamanho" => return Value::Number(s.chars().count() as f64),
+            _ => None,
+        };
+        pedaco.map_or(Value::Empty, Value::Text)
+    };
+    let mut t = t;
+    match nome {
+        Some(nome) => {
+            let largura = t.cabecalho.len();
+            t.cabecalho.push(nome.to_owned());
+            for l in &mut t.linhas {
+                let v = parte(celula_ref(l, col));
+                l.resize(largura, Value::Empty);
+                l.push(v);
+            }
+        }
+        None => for l in &mut t.linhas {
+            let v = parte(celula_ref(l, col));
+            gravar_em(l, col, v);
+        },
+    }
+    t
+}
+
 /// Texto para comparar na mesclagem aproximada: minúsculas, sem acento nem
 /// pontuação, espaços únicos ("Cia. São Paulo" → "cia sao paulo").
 pub(super) fn normalizar(s: &str) -> String {
@@ -241,6 +281,37 @@ mod testes {
     fn tx(s: &str) -> Value { Value::Text(s.into()) }
 
     fn semelhanca(a: &str, b: &str) -> f64 { semelhanca_minima(a, b, 0.0).unwrap() }
+
+    #[test]
+    fn extrair_texto_antes_depois_entre_e_tamanho() {
+        let base = t(&["Email"], &[&[tx("ana@x.com.br")], &[tx("sem arroba")], &[Value::Empty]]);
+        let antes = extrair_texto(base.clone(), 0, "antes", Some("@"), None, None, None);
+        assert_eq!(antes.linhas.iter().map(|l| l[0].clone()).collect::<Vec<_>>(), [tx("ana"), Value::Empty, Value::Empty], "no lugar; sem @ fica vazio");
+        let depois = extrair_texto(base.clone(), 0, "depois", Some("@"), None, None, Some("Domínio"));
+        assert_eq!((depois.cabecalho[1].as_str(), &depois.linhas[0][1], &depois.linhas[0][0]), ("Domínio", &tx("x.com.br"), &tx("ana@x.com.br")));
+        assert_eq!(extrair_texto(base.clone(), 0, "entre", Some("@"), Some("."), None, None).linhas[0][0], tx("x"));
+        assert_eq!(extrair_texto(base.clone(), 0, "primeiros", None, None, Some(2), None).linhas[0][0], tx("an"));
+        assert_eq!(extrair_texto(base.clone(), 0, "ultimos", None, None, Some(2), None).linhas[0][0], tx("br"));
+        assert_eq!(extrair_texto(base, 0, "tamanho", None, None, None, None).linhas[0][0], Value::Number(12.0));
+    }
+
+    #[test]
+    fn filtros_renomear_reordenar_e_duplicar() {
+        let base = t(&["UF", "Valor"], &[&[tx("SP"), Value::Number(50.)], &[tx("RJ"), Value::Number(150.)], &[tx("MG"), Value::Number(10.)]]);
+        let rodar = |p: Passo| executar_query(base.clone(), &[p], &HashMap::new());
+        let ou = rodar(Passo::FiltrarVarias { condicoes: vec![(0, tx("SP")), (1, tx(">100"))], ou: true });
+        assert_eq!(ou.linhas.len(), 2, "SP ou >100");
+        let e = rodar(Passo::FiltrarVarias { condicoes: vec![(0, tx("<>SP")), (1, tx(">20"))], ou: false });
+        assert_eq!(e.linhas, vec![vec![tx("RJ"), Value::Number(150.)]]);
+        let lista = rodar(Passo::FiltrarValores { col: 0, valores: vec![tx("MG"), tx("SP")] });
+        assert_eq!(lista.linhas.len(), 2);
+        assert_eq!(rodar(Passo::FiltrarValores { col: 1, valores: vec![tx("150")] }).linhas.len(), 1, "número pelo texto");
+        assert_eq!(rodar(Passo::RenomearColunas { nomes: vec![(0, "Estado".into()), (1, "Total".into())] }).cabecalho, ["Estado", "Total"]);
+        let r = rodar(Passo::Reordenar { ordem: vec![1] });
+        assert_eq!((r.cabecalho.as_slice(), &r.linhas[0][0]), (&["Valor".to_string(), "UF".into()][..], &Value::Number(50.)));
+        let d = rodar(Passo::DuplicarColuna { col: 0, nome: None });
+        assert_eq!((d.cabecalho[2].as_str(), &d.linhas[1][2]), ("UF - Cópia", &tx("RJ")));
+    }
 
     #[test]
     fn formatar_texto_e_preencher() {

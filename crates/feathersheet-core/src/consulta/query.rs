@@ -175,6 +175,26 @@ pub enum Passo {
     DividirPosicoes { col: usize, #[serde(default)] posicoes: Vec<usize>, #[serde(default)] cada: Option<usize> },
     /// Coluna calculada por fórmula da planilha: `=[Preço]*[Qtd]`.
     Personalizada { nome: String, formula: String },
+    /// Várias condições `[coluna, critério]` (o critério do `Filtrar`), todas (E) ou qualquer uma (`ou`).
+    FiltrarVarias { condicoes: Vec<(usize, Value)>, #[serde(default, deserialize_with = "bool_ou_nulo")] ou: bool },
+    /// Mantém as linhas cujo valor está na lista (as caixas de seleção do filtro do Excel).
+    FiltrarValores { col: usize, valores: Vec<Value> },
+    /// Parte do texto: antes, depois, entre (`texto`/`texto2`), primeiros, ultimos (`quantos`) ou
+    /// tamanho. Com `nome`, numa coluna nova; sem, no lugar.
+    ExtrairTexto {
+        col: usize,
+        como: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")] texto: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")] texto2: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")] quantos: Option<usize>,
+        #[serde(default, skip_serializing_if = "Option::is_none")] nome: Option<String>,
+    },
+    /// Vários nomes de uma vez `[coluna, nome]` (o "Colunas Renomeadas" do Power Query).
+    RenomearColunas { nomes: Vec<(usize, String)> },
+    /// A nova ordem das colunas; as que não estão na lista vão para o fim.
+    Reordenar { ordem: Vec<usize> },
+    /// Cópia da coluna no fim da tabela.
+    DuplicarColuna { col: usize, #[serde(default, skip_serializing_if = "Option::is_none")] nome: Option<String> },
 }
 
 /// Lógico que aceita `null` como falso: o script da consulta escreve o argumento
@@ -532,6 +552,49 @@ fn aplicar_passo(t: Tabela, passo: &Passo, fontes: &HashMap<String, Tabela>) -> 
         Passo::Inverter => { let mut t = t; t.linhas.reverse(); t }
         Passo::DividirPosicoes { col, posicoes, cada } => extras::dividir_posicoes(t, *col, posicoes, *cada),
         Passo::Personalizada { nome, formula } => extras::personalizada(t, nome, formula),
+        Passo::FiltrarVarias { condicoes, ou } => {
+            let testes: Vec<(usize, Box<dyn Fn(&Value) -> bool>)> = condicoes.iter()
+                .map(|(c, criterio)| (*c, Box::new(make_predicate(criterio)) as Box<dyn Fn(&Value) -> bool>)).collect();
+            let passa = |l: &Vec<Value>| if *ou { testes.iter().any(|(c, t)| t(&celula(l, *c))) }
+                else { testes.iter().all(|(c, t)| t(&celula(l, *c))) };
+            let linhas = t.linhas.into_iter().filter(|l| testes.is_empty() || passa(l)).collect();
+            Tabela { cabecalho: t.cabecalho, linhas }
+        }
+        Passo::FiltrarValores { col, valores } => {
+            let aceitos: HashSet<String> = valores.iter().map(string_js).collect();
+            let linhas = t.linhas.into_iter().filter(|l| aceitos.contains(&string_js(&celula(l, *col)))).collect();
+            Tabela { cabecalho: t.cabecalho, linhas }
+        }
+        Passo::ExtrairTexto { col, como, texto, texto2, quantos, nome } =>
+            extras::extrair_texto(t, *col, como, texto.as_deref(), texto2.as_deref(), *quantos, nome.as_deref()),
+        Passo::RenomearColunas { nomes } => {
+            let mut cabecalho = t.cabecalho;
+            for (c, nome) in nomes {
+                if let Some(h) = cabecalho.get_mut(*c) { *h = nome.clone(); }
+            }
+            Tabela { cabecalho, linhas: t.linhas }
+        }
+        Passo::Reordenar { ordem } => {
+            let n = t.cabecalho.len();
+            let mut todas: Vec<usize> = ordem.iter().copied().filter(|c| *c < n).collect();
+            todas.dedup();
+            todas.extend((0..n).filter(|c| !ordem.contains(c)));
+            Tabela {
+                cabecalho: todas.iter().map(|&c| nome_da_coluna(&t, c)).collect(),
+                linhas: t.linhas.iter().map(|l| todas.iter().map(|&c| celula(l, c)).collect()).collect(),
+            }
+        }
+        Passo::DuplicarColuna { col, nome } => {
+            let mut cabecalho = t.cabecalho.clone();
+            cabecalho.push(nome.clone().unwrap_or_else(|| format!("{} - Cópia", nome_da_coluna(&t, *col))));
+            let linhas = t.linhas.into_iter().map(|mut l| {
+                let v = celula(&l, *col);
+                l.resize(cabecalho.len() - 1, Value::Empty);
+                l.push(v);
+                l
+            }).collect();
+            Tabela { cabecalho, linhas }
+        }
         Passo::Agrupar { por, agregar } => agrupar(t, por, agregar),
         Passo::Pivotar { linhas, colunas, valores } => pivotar(t, linhas, colunas, valores),
         Passo::Acrescentar { fonte } => {

@@ -809,27 +809,40 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
             grupo_ribbon(tr!("TABELA"), vec![
                 botao_ribbon(tr!("Agrupar\npor"), "chart-bar", LARANJA, Evento::Adicionar("agrupar"), false),
                 pilha(vec![
-                    p(tr!("Usar 1ª linha como cabeçalho"), "table", VERDE, Evento::Adicionar("promover")),
-                    p(tr!("Usar cabeçalho como 1ª linha"), "list", LARANJA, Evento::Adicionar("rebaixar")),
+                    p(tr!("1ª linha como cabeçalho"), "table", VERDE, Evento::Adicionar("promover")),
+                    p(tr!("Cabeçalho como 1ª linha"), "list", LARANJA, Evento::Adicionar("rebaixar")),
                     p(tr!("Transpor"), "arrows-maximize", ROXO, Evento::Adicionar("transpor")),
                 ]),
             ], escuro),
-            grupo_ribbon(tr!("COLUNA DE TEXTO"), vec![pilha(vec![
-                p(tr!("Dividir coluna…"), "columns", AZUL, Evento::Adicionar("dividir")),
-                p(tr!("Mesclar colunas"), "link", VERDE, Evento::Adicionar("mesclar")),
-                p(tr!("Formatar…"), "text-size", ROXO, Evento::Adicionar("formatar")),
-            ])], escuro),
-            grupo_ribbon(tr!("DATA"), vec![pilha(vec![
-                p(tr!("Extrair da data…"), "clock", LARANJA, Evento::Adicionar("derivar")),
-            ])], escuro),
+            grupo_ribbon(tr!("TEXTO E DATA"), vec![
+                pilha(vec![
+                    p(tr!("Dividir coluna…"), "columns", AZUL, Evento::Adicionar("dividir")),
+                    p(tr!("Mesclar colunas"), "link", VERDE, Evento::Adicionar("mesclar")),
+                    p(tr!("Formatar…"), "text-size", ROXO, Evento::Adicionar("formatar")),
+                ]),
+                pilha(vec![
+                    p(tr!("Extrair texto…"), "cut", AZUL, Evento::Adicionar("extrair_texto")),
+                    p(tr!("Extrair da data…"), "clock", LARANJA, Evento::Adicionar("derivar")),
+                ]),
+            ], escuro),
+            grupo_ribbon(tr!("MOVER"), vec![
+                pilha(vec![
+                    p(tr!("Esquerda"), "arrow-left", AZUL, Evento::Adicionar("mover_esquerda")),
+                    p(tr!("Direita"), "arrow-right", AZUL, Evento::Adicionar("mover_direita")),
+                ]),
+                pilha(vec![
+                    p(tr!("Início"), "chevron-left", AZUL, Evento::Adicionar("mover_inicio")),
+                    p(tr!("Fim"), "chevron-right", AZUL, Evento::Adicionar("mover_fim")),
+                ]),
+            ], escuro),
             grupo_ribbon("LINHAS", vec![pilha(vec![
                 p(tr!("Filtrar…"), "filter", ROXO, Evento::Adicionar("filtrar")),
                 p(tr!("Remover erros"), "eraser", VERMELHO, Evento::Adicionar("remover_erros")),
                 p(tr!("Inverter linhas"), "arrows-vertical", AZUL, Evento::Adicionar("inverter")),
             ])], escuro),
             grupo_ribbon("ORDENAR", vec![pilha(vec![
-                p(tr!("Classificar crescente"), "sort-ascending", AZUL, Evento::Adicionar("ordenar")),
-                p(tr!("Classificar decrescente"), "sort-descending", AZUL, Evento::Adicionar("decrescente")),
+                p(tr!("Crescente"), "sort-ascending", AZUL, Evento::Adicionar("ordenar")),
+                p(tr!("Decrescente"), "sort-descending", AZUL, Evento::Adicionar("decrescente")),
             ])], escuro),
         ],
         AbaFaixa::Adicionar => vec![
@@ -840,6 +853,10 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("Coluna condicional…"), "bolt", LARANJA, Evento::Adicionar("condicional")),
                     p(tr!("Mesclar colunas"), "link", VERDE, Evento::Adicionar("mesclar")),
                     p(tr!("Extrair da data…"), "clock", LARANJA, Evento::Adicionar("derivar")),
+                ]),
+                pilha(vec![
+                    p(tr!("Extrair texto…"), "cut", AZUL, Evento::Adicionar("extrair_texto_nova")),
+                    p(tr!("Duplicar coluna"), "copy", VERDE, Evento::Adicionar("duplicar")),
                 ]),
             ], escuro),
             grupo_ribbon("CONSULTAS", vec![pilha(vec![
@@ -949,6 +966,14 @@ fn menu_da_coluna(e: &Estado, c: usize) -> Vec<crate::app::menu_contexto::ItemMe
             acao(tr!("Número"), "math-function", "numero"),
         ]),
         acao(tr!("Dividir coluna…"), "columns", "dividir"),
+        acao(tr!("Extrair texto…"), "cut", "extrair_texto"),
+        acao(tr!("Duplicar coluna"), "copy", "duplicar"),
+        ItemMenu::sub(tr!("Mover"), "arrows-horizontal", vec![
+            acao(tr!("Para a esquerda"), "arrow-left", "mover_esquerda"),
+            acao(tr!("Para a direita"), "arrow-right", "mover_direita"),
+            acao(tr!("Para o início"), "chevron-left", "mover_inicio"),
+            acao(tr!("Para o fim"), "chevron-right", "mover_fim"),
+        ]),
         acao(tr!("Agrupar por…"), "chart-bar", "agrupar"),
         ItemMenu::Separador,
         acao(if varias { tr!("Remover colunas") } else { tr!("Remover coluna") }, "trash", "remover_coluna"),

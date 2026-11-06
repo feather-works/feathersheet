@@ -7,8 +7,59 @@ use super::*;
 use pelicano::{column, row};
 
 /// Etapas que têm modal (as outras são aplicadas direto).
-pub(super) const COM_MODAL: [&str; 15] = ["filtrar", "renomear", "limite", "dividir", "ordenar", "tipar", "agrupar",
-    "formatar", "preencher", "remover_linhas", "substituir", "substituir_erros", "condicional", "derivar", "personalizada"];
+pub(super) const COM_MODAL: [&str; 17] = ["filtrar", "renomear", "limite", "dividir", "ordenar", "tipar", "agrupar",
+    "formatar", "preencher", "remover_linhas", "substituir", "substituir_erros", "condicional", "derivar", "personalizada",
+    "extrair_texto", "extrair_texto_nova"];
+
+/// Operadores do filtro (valor, rótulo); viram o critério do CONT.SE em [`criterio_de`].
+const OPS_FILTRO: [(&str, &str); 11] = [("=", "é igual a"), ("<>", "é diferente de"), (">", "é maior que"),
+    (">=", "é maior ou igual a"), ("<", "é menor que"), ("<=", "é menor ou igual a"), ("contem", "contém"),
+    ("comeca", "começa com"), ("termina", "termina com"), ("vazio", "está vazio"), ("nao_vazio", "não está vazio")];
+
+/// Extrair texto: (valor, rótulo).
+const EXTRACOES: [(&str, &str); 6] = [("antes", "Texto antes do delimitador"), ("depois", "Texto depois do delimitador"),
+    ("entre", "Texto entre delimitadores"), ("primeiros", "Primeiros caracteres"), ("ultimos", "Últimos caracteres"),
+    ("tamanho", "Tamanho (quantos caracteres)")];
+
+/// Quantos valores distintos a lista do filtro mostra.
+const MAX_VALORES_FILTRO: usize = 1000;
+
+/// Uma condição do filtro: coluna, operador (de [`OPS_FILTRO`]) e valor digitado.
+#[derive(Debug, Clone)]
+struct Condicao { col: usize, op: &'static str, valor: String }
+
+/// O critério do CONT.SE que o motor entende (`>100`, `*sp*`, `=`…).
+fn criterio_de(c: &Condicao) -> String {
+    let v = c.valor.trim();
+    match c.op {
+        "contem" => format!("*{v}*"),
+        "comeca" => format!("{v}*"),
+        "termina" => format!("*{v}"),
+        "vazio" => "=".into(),
+        "nao_vazio" => "<>".into(),
+        "=" => format!("={v}"),
+        op => format!("{op}{v}"),
+    }
+}
+
+/// O caminho de volta, para editar uma etapa de filtro já feita.
+fn condicao_de(col: usize, criterio: &str) -> Condicao {
+    let c = |op: &'static str, valor: &str| Condicao { col, op, valor: valor.to_owned() };
+    match criterio {
+        "=" => return c("vazio", ""),
+        "<>" => return c("nao_vazio", ""),
+        _ => {}
+    }
+    for op in [">=", "<=", "<>", ">", "<", "="] {
+        if let Some(resto) = criterio.strip_prefix(op) { return c(op, resto); }
+    }
+    match (criterio.strip_prefix('*'), criterio.strip_suffix('*')) {
+        (Some(_), Some(_)) if criterio.len() > 1 => c("contem", &criterio[1..criterio.len() - 1]),
+        (None, Some(v)) => c("comeca", v),
+        (Some(v), None) => c("termina", v),
+        _ => c("=", criterio),
+    }
+}
 
 const AGREGACOES: [(&str, Agregacao); 8] = [
     ("Contar linhas", Agregacao::ContarValores),
@@ -52,6 +103,21 @@ pub enum Evento {
     NomeNovo(usize, String),
     MaisAgregacao,
     MenosAgregacao(usize),
+    /// Filtro: `true` = lista de valores; `false` = condições.
+    FiltroLista(bool),
+    CondColuna(usize, usize),
+    CondOperador(usize, usize),
+    CondValor(usize, String),
+    MaisCondicao,
+    MenosCondicao(usize),
+    /// Filtro: qualquer condição (OU) em vez de todas (E).
+    Ou(bool),
+    Marcar(usize),
+    MarcarTodos(bool),
+    Busca(String),
+    /// Extrair texto: o resultado vai numa coluna nova (com o nome em `texto3`... ver `nome_nova`).
+    NovaColuna(bool),
+    NomeNova(String),
     Aplicar,
     Fechar,
 }
@@ -80,6 +146,21 @@ pub(super) struct Modal {
     contas: Vec<Conta>,
     /// O `erros` da etapa de tipo (mantido ao editar pela engrenagem).
     erros_tipo: bool,
+    /// Filtro por lista de valores (as caixas do Excel) em vez de condições.
+    filtro_lista: bool,
+    condicoes: Vec<Condicao>,
+    ou: bool,
+    /// Os valores distintos da coluna `valores_col` (até [`MAX_VALORES_FILTRO`]) e quais estão marcados.
+    valores: Vec<Value>,
+    pub valores_col: Option<usize>,
+    marcados: Vec<bool>,
+    valores_cortados: bool,
+    /// Os que a etapa editada já mantinha (marcados quando a lista chega).
+    pre_marcados: Option<Vec<Value>>,
+    busca: String,
+    /// Extrair texto numa coluna nova, com este nome.
+    nova_coluna: bool,
+    nome_nova: String,
     /// As primeiras linhas que chegam à etapa, para a prévia do modal.
     amostra: Tabela,
     fontes: HashMap<String, Tabela>,
@@ -127,12 +208,54 @@ impl Modal {
             _ => (String::new(), String::new(), String::new(), ""),
         };
         let grupo = if selecionadas.is_empty() { vec![col] } else { selecionadas.to_vec() };
+        let (tipo, opcao) = match tipo {
+            "extrair_texto" | "extrair_texto_nova" => ("extrair_texto", "antes"),
+            outro => (outro, opcao),
+        };
         Self {
+            nova_coluna: false, nome_nova: format!("{nome_col} - {}", tr!("Texto")),
+            filtro_lista: false, condicoes: vec![Condicao { col, op: "=", valor: String::new() }], ou: false,
+            valores: Vec::new(), valores_col: None, marcados: Vec::new(), valores_cortados: false,
+            pre_marcados: None, busca: String::new(),
             tipo, editar: None, colunas, col, texto, texto2, texto3, em_linhas: false, desc: false, para: "texto",
             opcao, grupo, contas: vec![Conta { operacao: 0, col, nome: tr!("Quantidade").into() }],
             erros_tipo: true,
             amostra: Tabela { cabecalho: Vec::new(), linhas: Vec::new() }, fontes: HashMap::new(),
         }
+    }
+
+    /// Pela faixa Adicionar Coluna: o extrair texto já vem em coluna nova.
+    pub fn em_coluna_nova(mut self) -> Self {
+        self.nova_coluna = true;
+        self
+    }
+
+    /// Precisa da lista de valores da coluna (filtro por lista, coluna nova ou ainda sem lista).
+    pub fn quer_valores(&self) -> Option<usize> {
+        (self.tipo == "filtrar" && self.filtro_lista && self.valores_col != Some(self.col)).then_some(self.col)
+    }
+
+    /// Os valores distintos da coluna `col` de `entrada`, para as caixas do filtro.
+    pub fn definir_valores(&mut self, entrada: &Tabela, col: usize) {
+        let mut vistos = std::collections::HashSet::new();
+        let mut valores = Vec::new();
+        self.valores_cortados = false;
+        for l in &entrada.linhas {
+            let v = l.get(col).cloned().unwrap_or(Value::Empty);
+            if vistos.insert(feathersheet_core::celulas::values::to_text(&v)) {
+                if valores.len() == MAX_VALORES_FILTRO { self.valores_cortados = true; break; }
+                valores.push(v);
+            }
+        }
+        valores.sort_by(|a, b| feathersheet_core::celulas::values::to_text(a).to_lowercase()
+            .cmp(&feathersheet_core::celulas::values::to_text(b).to_lowercase()));
+        let texto = feathersheet_core::celulas::values::to_text;
+        self.marcados = match self.pre_marcados.take() {
+            Some(pre) => { let pre: Vec<String> = pre.iter().map(texto).collect(); valores.iter().map(|v| pre.contains(&texto(v))).collect() }
+            None => vec![true; valores.len()],
+        };
+        self.valores = valores;
+        self.valores_col = Some(col);
     }
 
     /// Guarda as primeiras linhas de `entrada` (e as fontes, para o juntar) para a prévia.
@@ -154,7 +277,7 @@ impl Modal {
     /// Ícone (o mesmo da faixa) e o que a etapa faz, numa linha.
     fn icone_e_descricao(&self) -> (&'static str, &'static str) {
         match self.tipo {
-            "filtrar" => ("filter", tr!("Mantém só as linhas em que a coluna passa no critério.")),
+            "filtrar" => ("filter", tr!("Mantém só as linhas que passam nas condições, ou cujo valor está marcado na lista.")),
             "renomear" => ("edit", tr!("Troca o nome da coluna; os dados não mudam.")),
             "limite" => ("list-numbers", tr!("Mantém só as primeiras linhas da tabela.")),
             "remover_linhas" => ("trash", tr!("Tira linhas do começo, do fim ou as que estão em branco.")),
@@ -168,6 +291,7 @@ impl Modal {
             "condicional" => ("bolt", tr!("Cria uma coluna com um valor quando a condição vale e outro quando não.")),
             "derivar" => ("clock", tr!("Cria uma coluna com uma parte da data: ano, mês, dia…")),
             "personalizada" => ("math-function", tr!("Cria uma coluna calculada por fórmula, linha a linha.")),
+            "extrair_texto" => ("cut", tr!("Pega uma parte do texto: antes ou depois de um delimitador, os primeiros ou os últimos caracteres.")),
             _ => ("chart-bar", tr!("Resume as linhas por grupo, com uma ou mais contas.")),
         }
     }
@@ -179,7 +303,28 @@ impl Modal {
         match passo {
             Passo::Filtrar { col, criterio } => {
                 m.col = *col;
-                m.texto = feathersheet_core::celulas::values::to_text(criterio);
+                m.condicoes = vec![condicao_de(*col, &feathersheet_core::celulas::values::to_text(criterio))];
+            }
+            Passo::FiltrarVarias { condicoes, ou } => {
+                m.condicoes = condicoes.iter().map(|(c, v)| condicao_de(*c, &feathersheet_core::celulas::values::to_text(v))).collect();
+                m.ou = *ou;
+                if m.condicoes.is_empty() { return None; }
+                m.col = m.condicoes[0].col;
+            }
+            Passo::FiltrarValores { col, valores } => {
+                m.col = *col;
+                m.filtro_lista = true;
+                m.pre_marcados = Some(valores.clone());
+            }
+            Passo::ExtrairTexto { col, como, texto, texto2, quantos, nome } => {
+                m.tipo = "extrair_texto";
+                m.col = *col;
+                m.opcao = opcao_de(&EXTRACOES, como);
+                m.texto = texto.clone().unwrap_or_default();
+                m.texto2 = texto2.clone().unwrap_or_default();
+                m.texto3 = quantos.map(|n| n.to_string()).unwrap_or_default();
+                m.nova_coluna = nome.is_some();
+                if let Some(n) = nome { m.nome_nova = n.clone(); }
             }
             Passo::Renomear { col, nome } => { m.tipo = "renomear"; m.col = *col; m.texto = nome.clone(); }
             Passo::Limite { quantas } => { m.tipo = "limite"; m.texto = quantas.to_string(); }
@@ -314,6 +459,26 @@ impl Modal {
                 self.contas.push(Conta { operacao: 1, col, nome: String::new() });
             }
             Evento::MenosAgregacao(i) => if self.contas.len() > 1 && i < self.contas.len() { self.contas.remove(i); },
+            Evento::FiltroLista(v) => self.filtro_lista = v,
+            Evento::CondColuna(i, c) => if let Some(x) = self.condicoes.get_mut(i) { x.col = c },
+            Evento::CondOperador(i, op) => if let Some(x) = self.condicoes.get_mut(i) { x.op = OPS_FILTRO[op.min(OPS_FILTRO.len() - 1)].0 },
+            Evento::CondValor(i, v) => if let Some(x) = self.condicoes.get_mut(i) { x.valor = v },
+            Evento::MaisCondicao => {
+                let col = self.condicoes.last().map_or(self.col, |c| c.col);
+                self.condicoes.push(Condicao { col, op: "=", valor: String::new() });
+            }
+            Evento::MenosCondicao(i) => if self.condicoes.len() > 1 && i < self.condicoes.len() { self.condicoes.remove(i); },
+            Evento::Ou(v) => self.ou = v,
+            Evento::Marcar(i) => if let Some(m) = self.marcados.get_mut(i) { *m = !*m },
+            Evento::MarcarTodos(v) => {
+                let busca = self.busca.trim().to_lowercase();
+                for (m, valor) in self.marcados.iter_mut().zip(&self.valores) {
+                    if busca.is_empty() || feathersheet_core::celulas::values::to_text(valor).to_lowercase().contains(&busca) { *m = v; }
+                }
+            }
+            Evento::Busca(t) => self.busca = t,
+            Evento::NovaColuna(v) => self.nova_coluna = v,
+            Evento::NomeNova(t) => self.nome_nova = t,
             Evento::Aplicar | Evento::Fechar => {}
         }
     }
@@ -332,7 +497,37 @@ impl Modal {
             Ok(n)
         };
         Ok(match self.tipo {
-            "filtrar" => Passo::Filtrar { col, criterio: Value::Text(self.texto.clone()) },
+            "filtrar" if self.filtro_lista => {
+                let valores: Vec<Value> = self.valores.iter().zip(&self.marcados).filter(|(_, m)| **m).map(|(v, _)| v.clone()).collect();
+                if valores.is_empty() { return Err(tr!("Marque ao menos um valor").into()); }
+                Passo::FiltrarValores { col, valores }
+            }
+            "filtrar" => {
+                if let Some(c) = self.condicoes.iter().find(|c| !matches!(c.op, "vazio" | "nao_vazio") && c.valor.trim().is_empty()) {
+                    let _ = c;
+                    return Err(tr!("Preencha o valor de cada condição").into());
+                }
+                match self.condicoes.as_slice() {
+                    [c] => Passo::Filtrar { col: c.col, criterio: Value::Text(criterio_de(c)) },
+                    lista => Passo::FiltrarVarias {
+                        condicoes: lista.iter().map(|c| (c.col, Value::Text(criterio_de(c)))).collect(), ou: self.ou },
+                }
+            }
+            "extrair_texto" => {
+                let precisa = |t: &str, msg: &'static str| if t.is_empty() { Err(tr!(msg).to_string()) } else { Ok(Some(t.to_owned())) };
+                let (texto, texto2, quantos) = match self.opcao {
+                    "antes" | "depois" => (precisa(&self.texto, "Informe o delimitador")?, None, None),
+                    "entre" => (precisa(&self.texto, "Informe o delimitador")?, precisa(&self.texto2, "Informe o delimitador final")?, None),
+                    "primeiros" | "ultimos" => (None, None, Some(self.texto3.trim().parse::<usize>()
+                        .map_err(|_| tr!("Informe quantos caracteres").to_string())?)),
+                    _ => (None, None, None),
+                };
+                let nome = if self.nova_coluna {
+                    if self.nome_nova.trim().is_empty() { return Err(tr!("Informe o nome da nova coluna").into()); }
+                    Some(self.nome_nova.trim().to_owned())
+                } else { None };
+                Passo::ExtrairTexto { col, como: self.opcao.into(), texto, texto2, quantos, nome }
+            }
             "renomear" => {
                 if self.texto.trim().is_empty() {
                     return Err(tr!("Informe o novo nome da coluna").into());
@@ -420,6 +615,7 @@ impl Modal {
             "condicional" => tr!("Coluna condicional"),
             "derivar" => tr!("Extrair da data"),
             "personalizada" => tr!("Coluna personalizada"),
+            "extrair_texto" => tr!("Extrair texto"),
             _ => tr!("Agrupar por"),
         }
     }
@@ -473,13 +669,31 @@ fn radios<'a>(opcoes: &[(&'static str, &'static str)], atual: &'static str) -> E
 /// O cartão do modal (o fundo escurecido é do `view_openquery`).
 pub(super) fn painel<'a>(m: &'a Modal, erro: &'a str) -> Element<'a, Msg> {
     let mut corpo = column![].spacing(ESPACO_GRANDE);
-    if !matches!(m.tipo, "limite" | "agrupar" | "remover_linhas" | "personalizada") {
+    if !matches!(m.tipo, "limite" | "agrupar" | "remover_linhas" | "personalizada") && !(m.tipo == "filtrar" && !m.filtro_lista) {
         corpo = corpo.push(campo(tr!("Coluna"), escolha_coluna(&m.colunas, m.col, Evento::Coluna)));
     }
     match m.tipo {
-        "filtrar" => {
-            corpo = corpo.push(campo(tr!("Manter linhas em que o valor é"), entrada(&m.texto, "Ex.: >100, SP*, <>0", Evento::Texto)))
-                .push(legenda_oq(tr!("Aceita =, <>, >, <, >=, <= e * como coringa.")));
+        "filtrar" => corpo = corpo.push(painel_filtro(m)),
+        "extrair_texto" => {
+            corpo = corpo.push(campo(tr!("O que extrair"), escolha_opcao(&EXTRACOES, m.opcao)));
+            match m.opcao {
+                "antes" | "depois" => corpo = corpo.push(campo(tr!("Delimitador"), entrada(&m.texto, "-", Evento::Texto))),
+                "entre" => corpo = corpo.push(row![
+                    container(campo(tr!("Depois de"), entrada(&m.texto, "(", Evento::Texto))).width(Length::Fill(1)),
+                    container(campo(tr!("Antes de"), entrada(&m.texto2, ")", Evento::Texto2))).width(Length::Fill(1)),
+                ].spacing(ESPACO_MEDIO)),
+                "primeiros" | "ultimos" => corpo = corpo.push(campo(tr!("Quantos caracteres"), entrada(&m.texto3, "3", Evento::Texto3))),
+                _ => {}
+            }
+            let mut destino = row![].spacing(ESPACO_GRANDE);
+            for (rotulo, nova) in [(tr!("Na mesma coluna"), false), (tr!("Numa coluna nova"), true)] {
+                destino = destino.push(pelicano::radio(rotulo, nova, Some(m.nova_coluna), |v| ev(Evento::NovaColuna(v))).size(TAM_TEXTO));
+            }
+            corpo = corpo.push(campo(tr!("Resultado"), destino.into()));
+            if m.nova_coluna {
+                corpo = corpo.push(campo(tr!("Nome da nova coluna"), entrada(&m.nome_nova, "Texto", Evento::NomeNova)));
+            }
+            corpo = corpo.push(legenda_oq(tr!("Se o delimitador não aparece, a célula fica vazia.")));
         }
         "renomear" => corpo = corpo.push(campo(tr!("Novo nome"), entrada(&m.texto, "Nome", Evento::Texto))),
         "limite" => corpo = corpo.push(campo(tr!("Quantidade de linhas"), entrada(&m.texto, "100", Evento::Texto))),
@@ -604,7 +818,7 @@ pub(super) fn painel<'a>(m: &'a Modal, erro: &'a str) -> Element<'a, Msg> {
         ].spacing(ESPACO_PEQUENO).align(pelicano::Align::Center));
     }
     let (icone, descricao) = m.icone_e_descricao();
-    let largura = if matches!(m.tipo, "agrupar" | "condicional" | "personalizada") { 600.0 } else { 520.0 };
+    let largura = if matches!(m.tipo, "agrupar" | "condicional" | "personalizada" | "filtrar") { 600.0 } else { 520.0 };
     feather_ui::dialogo::Dialogo::new(m.titulo(), corpo)
         .icone(icone)
         .subtitulo(descricao)
@@ -613,6 +827,58 @@ pub(super) fn painel<'a>(m: &'a Modal, erro: &'a str) -> Element<'a, Msg> {
         .secundario(tr!("Cancelar"), Some(ev(Evento::Fechar)))
         .primario(if m.editar.is_some() { tr!("Salvar etapa") } else { tr!("OK") }, Some(ev(Evento::Aplicar)))
         .painel()
+}
+
+/// Filtrar: condições (coluna, operador, valor; todas ou qualquer uma) ou a lista de valores.
+fn painel_filtro<'a>(m: &'a Modal) -> Element<'a, Msg> {
+    let mut modo = row![].spacing(ESPACO_GRANDE);
+    for (rotulo, lista) in [(tr!("Por condições"), false), (tr!("Por lista de valores"), true)] {
+        modo = modo.push(pelicano::radio(rotulo, lista, Some(m.filtro_lista), |v| ev(Evento::FiltroLista(v))).size(TAM_TEXTO));
+    }
+    let mut corpo = column![modo].spacing(ESPACO_MEDIO);
+    if m.filtro_lista {
+        let busca = m.busca.trim().to_lowercase();
+        let mut caixas = column![].spacing(2);
+        let mut visiveis = 0;
+        for (i, (v, marcado)) in m.valores.iter().zip(&m.marcados).enumerate() {
+            let texto = feathersheet_core::celulas::values::to_text(v);
+            if !busca.is_empty() && !texto.to_lowercase().contains(&busca) { continue; }
+            visiveis += 1;
+            let rotulo = if texto.is_empty() { tr!("(vazias)").to_owned() } else { texto };
+            caixas = caixas.push(pelicano::checkbox(rotulo, *marcado).on_toggle(move |_| ev(Evento::Marcar(i))).size(14));
+        }
+        corpo = corpo.push(entrada(&m.busca, tr!("Pesquisar"), Evento::Busca))
+            .push(row![
+                button(text(tr!("Marcar todos")).size(TAM_TEXTO)).on_press(ev(Evento::MarcarTodos(true))).style(estilo_botao_secundario).padding([4.0, 9.0]),
+                button(text(tr!("Desmarcar todos")).size(TAM_TEXTO)).on_press(ev(Evento::MarcarTodos(false))).style(estilo_botao_secundario).padding([4.0, 9.0]),
+            ].spacing(ESPACO_PEQUENO))
+            .push(container(pelicano::scrollable(caixas)).height(Length::Fixed((visiveis as f32 * 22.0 + 4.0).clamp(30.0, 200.0))));
+        if m.valores_cortados {
+            corpo = corpo.push(legenda_oq(&trf!("Mostrando os primeiros {} valores distintos.", MAX_VALORES_FILTRO)));
+        }
+        return corpo.into();
+    }
+    let rotulos: Vec<String> = OPS_FILTRO.iter().map(|(_, r)| tr!(*r).to_string()).collect();
+    for (i, c) in m.condicoes.iter().enumerate() {
+        let op = OPS_FILTRO.iter().position(|(v, _)| *v == c.op).unwrap_or(0);
+        let mut linha = row![
+            container(escolha_coluna(&m.colunas, c.col, move |col| Evento::CondColuna(i, col))).width(Length::Fill(3)),
+            container(lista(rotulos.clone(), op, move |o| ev(Evento::CondOperador(i, o)))).width(Length::Fill(3)),
+        ].spacing(ESPACO_PEQUENO).align(pelicano::Align::Center);
+        linha = if matches!(c.op, "vazio" | "nao_vazio") { linha.push(Space::new(Length::Fill(3), 0.0)) }
+            else { linha.push(container(entrada(&c.valor, tr!("valor"), move |v| Evento::CondValor(i, v))).width(Length::Fill(3))) };
+        linha = linha.push(button(text("−").size(TAM_TEXTO)).padding([4.0, 9.0]).style(estilo_botao_secundario)
+            .on_press_maybe((m.condicoes.len() > 1).then(|| ev(Evento::MenosCondicao(i)))));
+        corpo = corpo.push(linha);
+    }
+    let mut juntar = row![].spacing(ESPACO_GRANDE);
+    for (rotulo, ou) in [(tr!("Todas (E)"), false), (tr!("Qualquer uma (OU)"), true)] {
+        juntar = juntar.push(pelicano::radio(rotulo, ou, Some(m.ou), |v| ev(Evento::Ou(v))).size(TAM_TEXTO));
+    }
+    corpo = corpo.push(button(text(tr!("+ Adicionar condição")).size(TAM_TEXTO)).on_press(ev(Evento::MaisCondicao))
+        .style(estilo_botao_secundario).padding([5.0, 10.0]));
+    if m.condicoes.len() > 1 { corpo = corpo.push(campo(tr!("Manter as linhas que passam em"), juntar.into())); }
+    corpo.push(legenda_oq(tr!("Número com vírgula vira número; * vale qualquer texto (SP* começa com SP)."))).into()
 }
 
 /// A tabela pequena com a etapa aplicada nas primeiras linhas; a coluna que a etapa
@@ -678,10 +944,32 @@ mod testes {
             m.atualizar(Evento::Texto(";".into()));
             if matches!(tipo, "limite" | "remover_linhas") { m.atualizar(Evento::Texto("5".into())); }
             if matches!(tipo, "condicional" | "personalizada") { m.atualizar(Evento::Texto("Nova".into())); }
+            if tipo == "filtrar" { m.atualizar(Evento::CondValor(0, ">5".into())); }
             let passo = m.passo().unwrap_or_else(|e| panic!("{tipo}: {e}"));
             let volta = Modal::de_passo(&passo, 3, colunas.clone()).unwrap_or_else(|| panic!("{tipo} sem volta"));
-            assert_eq!((volta.tipo, volta.editar), (tipo, Some(3)), "{tipo}");
+            assert_eq!((volta.tipo, volta.editar), (m.tipo, Some(3)), "{tipo}");
             assert_eq!(format!("{:?}", volta.passo().unwrap()), format!("{passo:?}"), "{tipo}");
+        }
+    }
+
+    #[test]
+    fn filtro_com_varias_condicoes_vai_e_volta() {
+        let colunas: Vec<String> = ["UF", "Valor"].map(String::from).to_vec();
+        let mut m = Modal::novo("filtrar", colunas.clone(), 0, &[]);
+        m.atualizar(Evento::CondOperador(0, OPS_FILTRO.iter().position(|(o, _)| *o == "comeca").unwrap()));
+        m.atualizar(Evento::CondValor(0, "S".into()));
+        m.atualizar(Evento::MaisCondicao);
+        m.atualizar(Evento::CondColuna(1, 1));
+        m.atualizar(Evento::CondOperador(1, OPS_FILTRO.iter().position(|(o, _)| *o == ">=").unwrap()));
+        m.atualizar(Evento::CondValor(1, "100".into()));
+        m.atualizar(Evento::Ou(true));
+        let passo = m.passo().unwrap();
+        assert!(matches!(&passo, Passo::FiltrarVarias { condicoes, ou: true }
+            if condicoes == &vec![(0, Value::Text("S*".into())), (1, Value::Text(">=100".into()))]), "{passo:?}");
+        let volta = Modal::de_passo(&passo, 0, colunas).unwrap();
+        assert_eq!(format!("{:?}", volta.passo().unwrap()), format!("{passo:?}"));
+        for (criterio, op) in [("*x*", "contem"), ("=", "vazio"), ("<>", "nao_vazio"), ("<>a", "<>"), ("x*", "comeca"), ("abc", "=")] {
+            assert_eq!(condicao_de(0, criterio).op, op, "{criterio}");
         }
     }
 

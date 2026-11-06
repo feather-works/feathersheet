@@ -33,6 +33,17 @@ fn valor_para_ts(valor: &Json) -> Option<Json> {
     None
 }
 
+/// Valores dentro de listas: `valores` do filtrarValores e o 2º item de cada condição do filtrarVarias.
+fn valores_em_listas(objeto: &mut serde_json::Map<String, Json>, tipo: &str, f: &dyn Fn(&mut Json)) {
+    let (campo, posicao) = match tipo { "filtrarValores" => ("valores", None), "filtrarVarias" => ("condicoes", Some(1)), _ => return };
+    for item in objeto.get_mut(campo).and_then(Json::as_array_mut).into_iter().flatten() {
+        match posicao {
+            None => f(item),
+            Some(i) => if let Some(v) = item.as_array_mut().and_then(|l| l.get_mut(i)) { f(v) },
+        }
+    }
+}
+
 /// Lê JSON TypeScript e também a representação tipada anterior do Rust.
 pub(super) fn ler(texto: &str) -> Result<Vec<Passo>, String> {
     let mut json: Json = serde_json::from_str(texto)
@@ -42,12 +53,13 @@ pub(super) fn ler(texto: &str) -> Result<Vec<Passo>, String> {
         let Some(objeto) = passo.as_object_mut() else { continue };
         let tipo = objeto.get("tipo").and_then(Json::as_str)
             .unwrap_or("").to_owned();
+        let para_rust = |valor: &mut Json| if !(valor.is_object() || valor.as_str() == Some("Empty")) {
+            *valor = valor_para_rust(std::mem::take(valor));
+        };
         for campo in campos_com_valor(&tipo) {
-            if let Some(valor) = objeto.get_mut(*campo) {
-                if valor.is_object() || valor.as_str() == Some("Empty") { continue; }
-                *valor = valor_para_rust(std::mem::take(valor));
-            }
+            if let Some(valor) = objeto.get_mut(*campo) { para_rust(valor); }
         }
+        valores_em_listas(objeto, &tipo, &para_rust);
     }
     serde_json::from_value(json)
         .map_err(|erro| trf!("Passo de consulta inválido: {erro}"))
@@ -62,13 +74,11 @@ pub(super) fn escrever(passos: &[Passo]) -> Result<String, String> {
             let Some(objeto) = passo.as_object_mut() else { continue };
             let tipo = objeto.get("tipo").and_then(Json::as_str)
                 .unwrap_or("").to_owned();
+            let para_ts = |valor: &mut Json| if let Some(ts) = valor_para_ts(valor) { *valor = ts; };
             for campo in campos_com_valor(&tipo) {
-                if let Some(valor) = objeto.get_mut(*campo) {
-                    if let Some(ts) = valor_para_ts(valor) {
-                        *valor = ts;
-                    }
-                }
+                if let Some(valor) = objeto.get_mut(*campo) { para_ts(valor); }
             }
+            valores_em_listas(objeto, &tipo, &para_ts);
         }
     }
     serde_json::to_string_pretty(&json).map_err(|erro| erro.to_string())
