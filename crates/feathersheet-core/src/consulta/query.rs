@@ -11,6 +11,8 @@ use crate::funcoes::fn_helpers::make_predicate;
 
 mod limites;
 mod fluxo;
+mod extras;
+pub use extras::traduzir_formula;
 pub use fluxo::executar_query_em_fluxo;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -126,6 +128,10 @@ pub enum Passo {
         esquerda: IndiceColuna,
         direita: IndiceColuna,
         modo: Option<String>,
+        /// Mesclagem aproximada: de 0 a 1, quanto as chaves precisam se parecer
+        /// (sem acento, pontuação nem caixa). Ausente = chave igual.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        semelhanca: Option<f64>,
     },
     Acrescentar { fonte: String },
     Despivotar {
@@ -156,6 +162,18 @@ pub enum Passo {
     /// `quantas` é número qualquer, como no `query.ts` (ver `linhas_do_limite`):
     /// com `usize`, "-5" ou "2.5" em "Manter linhas" derrubava a consulta.
     Limite { quantas: f64 },
+    /// Texto da coluna: aparar, limpar, maiusculas, minusculas, titulo, prefixo, sufixo (`texto`).
+    Formatar { col: usize, como: String, #[serde(default)] texto: Option<String> },
+    /// Vazias recebem o valor de cima (ou de baixo).
+    Preencher { col: usize, #[serde(rename = "paraCima", default)] para_cima: bool },
+    /// primeiras, ultimas, manter_ultimas (com `quantas`) ou vazias.
+    RemoverLinhas { modo: String, #[serde(default)] quantas: f64 },
+    Transpor,
+    Inverter,
+    /// Divide em colunas nas posições (caracteres) ou a cada `cada` caracteres.
+    DividirPosicoes { col: usize, #[serde(default)] posicoes: Vec<usize>, #[serde(default)] cada: Option<usize> },
+    /// Coluna calculada por fórmula da planilha: `=[Preço]*[Qtd]`.
+    Personalizada { nome: String, formula: String },
 }
 
 /// Quantas linhas o passo `limite` deixa passar, como o `primeiras` do
@@ -492,7 +510,15 @@ fn aplicar_passo(t: Tabela, passo: &Passo, fontes: &HashMap<String, Tabela>) -> 
             let linhas = t.linhas.into_iter().filter(|l| vistas.insert(chave_das(l, &cols))).collect();
             Tabela { cabecalho: t.cabecalho, linhas }
         }
-        Passo::Juntar { fonte, esquerda, direita, modo } => juntar(t, fontes.get(fonte), esquerda, direita, modo.as_deref()),
+        Passo::Juntar { fonte, esquerda, direita, modo, semelhanca } =>
+            juntar(t, fontes.get(fonte), esquerda, direita, modo.as_deref(), *semelhanca),
+        Passo::Formatar { col, como, texto } => extras::formatar(t, *col, como, texto.as_deref()),
+        Passo::Preencher { col, para_cima } => extras::preencher(t, *col, *para_cima),
+        Passo::RemoverLinhas { modo, quantas } => extras::remover_linhas(t, modo, *quantas),
+        Passo::Transpor => extras::transpor(t),
+        Passo::Inverter => { let mut t = t; t.linhas.reverse(); t }
+        Passo::DividirPosicoes { col, posicoes, cada } => extras::dividir_posicoes(t, *col, posicoes, *cada),
+        Passo::Personalizada { nome, formula } => extras::personalizada(t, nome, formula),
         Passo::Agrupar { por, agregar } => agrupar(t, por, agregar),
         Passo::Pivotar { linhas, colunas, valores } => pivotar(t, linhas, colunas, valores),
         Passo::Acrescentar { fonte } => {
@@ -603,23 +629,43 @@ fn aplicar_passo(t: Tabela, passo: &Passo, fontes: &HashMap<String, Tabela>) -> 
     }
 }
 
-fn juntar(t: Tabela, outra: Option<&Tabela>, esquerda: &IndiceColuna, direita: &IndiceColuna, modo: Option<&str>) -> Tabela {
+fn juntar(t: Tabela, outra: Option<&Tabela>, esquerda: &IndiceColuna, direita: &IndiceColuna, modo: Option<&str>, semelhanca: Option<f64>) -> Tabela {
     let mut cabecalho = t.cabecalho.clone();
     let Some(outra) = outra else { return Tabela { cabecalho, linhas: t.linhas } };
     cabecalho.extend(outra.cabecalho.iter().cloned());
 
     let (esq, dir) = (esquerda.to_vec(), direita.to_vec());
+    // Aproximada: a chave vira o texto normalizado, e a da esquerda é trocada pela
+    // chave da direita mais parecida (se passar do mínimo).
+    let aproximada = semelhanca.filter(|s| *s < 1.0);
+    let chave_dir = |l: &[Value]| {
+        let k = chave_das(l, &dir);
+        if aproximada.is_some() { extras::normalizar(&k) } else { k }
+    };
     let mut indice: HashMap<String, Vec<usize>> = HashMap::new();
     for (i, l) in outra.linhas.iter().enumerate() {
-        indice.entry(chave_das(l, &dir)).or_default().push(i);
+        indice.entry(chave_dir(l)).or_default().push(i);
     }
+    let chaves_dir: Vec<&String> = if aproximada.is_some() { indice.keys().collect() } else { Vec::new() };
+    let mut parecidas: HashMap<String, Option<String>> = HashMap::new();
+    let chave_esq = |l: &[Value], parecidas: &mut HashMap<String, Option<String>>| -> Option<String> {
+        let k = chave_das(l, &esq);
+        let Some(minimo) = aproximada else { return Some(k) };
+        let k = extras::normalizar(&k);
+        if indice.contains_key(&k) { return Some(k); }
+        parecidas.entry(k.clone()).or_insert_with(|| chaves_dir.iter()
+            .map(|c| (extras::semelhanca(&k, c), *c))
+            .filter(|(s, _)| *s >= minimo)
+            .max_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(_, c)| c.clone())).clone()
+    };
     let vazia = vec![Value::Empty; outra.cabecalho.len()];
     let modo = modo.unwrap_or("esquerda");
     let mut usados = vec![false; outra.linhas.len()];
     let mut linhas = Vec::new();
 
     for l in &t.linhas {
-        match indice.get(&chave_das(l, &esq)) {
+        match chave_esq(l, &mut parecidas).and_then(|k| indice.get(&k)) {
             None => {
                 if matches!(modo, "esquerda" | "total" | "anti_esquerda") {
                     let mut nova = l.clone();

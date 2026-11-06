@@ -135,6 +135,8 @@ pub enum Evento {
     PainelInferior(u8),
     /// Modal de parâmetros de uma etapa (nova ou pela engrenagem).
     Etapa(etapa::Evento),
+    /// O "senão" da coluna condicional no modal.
+    EtapaSenao(String),
     /// Engrenagem: reabre a etapa no modal.
     EditarPasso(usize),
     /// ▾ do cabeçalho: menu da coluna (`None` fecha).
@@ -416,7 +418,7 @@ impl Estado {
         let total = self.resultado.cabecalho.len();
         let sel: Vec<usize> = self.selecionadas.iter().copied().filter(|c| *c < total).collect();
         if col >= total && !matches!(tipo, "indice" | "limite" | "distintas" |
-            "promover" | "rebaixar" | "acrescentar") {
+            "promover" | "rebaixar" | "acrescentar" | "transpor" | "inverter") {
             self.erro = tr!("Selecione uma coluna na prévia").into();
             return;
         }
@@ -454,6 +456,8 @@ impl Estado {
             }
             "indice" => Passo::Indice { inicio: Some(1.0), incremento: Some(1.0), nome: None },
             "promover" => Passo::PromoverCabecalho,
+            "transpor" => Passo::Transpor,
+            "inverter" => Passo::Inverter,
             "rebaixar" => Passo::RebaixarCabecalho,
             "remover_erros" => Passo::RemoverErros { col },
             "dividir" => {
@@ -500,7 +504,7 @@ impl Estado {
                         fonte: nome.clone(),
                         esquerda: IndiceColuna::Single(col),
                         direita: IndiceColuna::Single(col),
-                        modo: Some("esquerda".into()),
+                        modo: Some("esquerda".into()), semelhanca: None,
                     }
                 } else {
                     Passo::Acrescentar { fonte: nome.clone() }
@@ -846,6 +850,9 @@ impl App {
                     Err(erro) => e.erro = erro,
                 }
             },
+            Evento::EtapaSenao(t) => if let Some(m) = self.openquery.as_mut().and_then(|e| e.modal.as_mut()) {
+                m.definir_senao(t);
+            },
             Evento::Etapa(ev) => if let Some(e) = &mut self.openquery {
                 match ev {
                     etapa::Evento::Fechar => e.modal = None,
@@ -881,7 +888,7 @@ impl App {
             Evento::Separador(v) => if let Some(e) = &mut self.openquery { e.separador = v; },
             Evento::Adicionar(tipo) => if let Some(e) = &mut self.openquery {
                 e.menu_coluna = None;
-                if matches!(tipo, "filtrar" | "renomear" | "limite" | "dividir" | "agrupar") {
+                if etapa::COM_MODAL.contains(&tipo) && !matches!(tipo, "ordenar" | "tipar") {
                     let colunas = e.resultado.cabecalho.clone();
                     if colunas.is_empty() {
                         e.erro = tr!("Selecione uma fonte de dados para iniciar.").into();
@@ -1254,6 +1261,11 @@ fn estilo_janela_oq(_tema: &pelicano::Theme) -> pelicano::Style {
     }
 }
 
+/// O nome `'static` de uma etapa da faixa (para a captura de tela).
+pub(super) fn tipo_de_etapa(nome: &str) -> Option<&'static str> {
+    etapa::COM_MODAL.iter().chain(["transpor", "inverter", "indice"].iter()).find(|t| **t == nome).copied()
+}
+
 fn passo_rotulo(p: &Passo) -> &'static str {
     match p {
         Passo::Filtrar { .. } => tr!("Filtrar"),
@@ -1279,6 +1291,13 @@ fn passo_rotulo(p: &Passo) -> &'static str {
         Passo::Indice { .. } => tr!("Adicionar índice"),
         Passo::Condicional { .. } => tr!("Coluna condicional"),
         Passo::Limite { .. } => tr!("Manter linhas"),
+        Passo::Formatar { .. } => tr!("Formatar texto"),
+        Passo::Preencher { .. } => tr!("Preencher"),
+        Passo::RemoverLinhas { .. } => tr!("Remover linhas"),
+        Passo::Transpor => tr!("Transpor"),
+        Passo::Inverter => tr!("Inverter linhas"),
+        Passo::DividirPosicoes { .. } => tr!("Dividir por posição"),
+        Passo::Personalizada { .. } => tr!("Coluna personalizada"),
     }
 }
 

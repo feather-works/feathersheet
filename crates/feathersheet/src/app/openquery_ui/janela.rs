@@ -710,8 +710,12 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                 botao_ribbon(tr!("Filtrar"), "filter", ROXO, Evento::Adicionar("filtrar"), false),
                 pilha(vec![
                     p(tr!("Manter primeiras linhas…"), "list-numbers", VERDE, Evento::Adicionar("limite")),
+                    p(tr!("Remover linhas…"), "trash", VERMELHO, Evento::Adicionar("remover_linhas")),
                     p(tr!("Remover duplicatas"), "list-select", AZUL, Evento::Adicionar("distintas")),
+                ]),
+                pilha(vec![
                     p(tr!("Remover erros"), "eraser", VERMELHO, Evento::Adicionar("remover_erros")),
+                    p(tr!("Inverter linhas"), "arrows-vertical", AZUL, Evento::Adicionar("inverter")),
                 ]),
             ], escuro),
             grupo_ribbon("COMBINAR", vec![pilha(vec![
@@ -731,17 +735,27 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("Pivotar…"), "pivot-table", ROXO,
                         Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Pivotar))),
                 ]),
+                pilha(vec![
+                    p(tr!("Substituir valores…"), "pencil", LARANJA, Evento::Adicionar("substituir")),
+                    p(tr!("Substituir erros…"), "eraser", VERMELHO, Evento::Adicionar("substituir_erros")),
+                    p(tr!("Preencher…"), "arrow-down", VERDE, Evento::Adicionar("preencher")),
+                ]),
             ], escuro),
             grupo_ribbon(tr!("TABELA"), vec![
                 botao_ribbon(tr!("Agrupar\npor"), "chart-bar", LARANJA, Evento::Adicionar("agrupar"), false),
                 pilha(vec![
                     p(tr!("Usar 1ª linha como cabeçalho"), "table", VERDE, Evento::Adicionar("promover")),
                     p(tr!("Usar cabeçalho como 1ª linha"), "list", LARANJA, Evento::Adicionar("rebaixar")),
+                    p(tr!("Transpor"), "arrows-maximize", ROXO, Evento::Adicionar("transpor")),
                 ]),
             ], escuro),
             grupo_ribbon(tr!("COLUNA DE TEXTO"), vec![pilha(vec![
                 p(tr!("Dividir coluna…"), "columns", AZUL, Evento::Adicionar("dividir")),
                 p(tr!("Mesclar colunas"), "link", VERDE, Evento::Adicionar("mesclar")),
+                p(tr!("Formatar…"), "text-size", ROXO, Evento::Adicionar("formatar")),
+            ])], escuro),
+            grupo_ribbon(tr!("DATA"), vec![pilha(vec![
+                p(tr!("Extrair da data…"), "clock", LARANJA, Evento::Adicionar("derivar")),
             ])], escuro),
             grupo_ribbon("LINHAS", vec![pilha(vec![
                 p(tr!("Filtrar…"), "filter", ROXO, Evento::Adicionar("filtrar")),
@@ -754,8 +768,13 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
         ],
         AbaFaixa::Adicionar => vec![
             grupo_ribbon(tr!("NOVA COLUNA"), vec![
+                botao_ribbon(tr!("Coluna\npersonalizada"), "math-function", ROXO, Evento::Adicionar("personalizada"), false),
                 botao_ribbon(tr!("Índice"), "list-numbers", AZUL, Evento::Adicionar("indice"), false),
-                pilha(vec![p(tr!("Mesclar colunas"), "link", VERDE, Evento::Adicionar("mesclar"))]),
+                pilha(vec![
+                    p(tr!("Coluna condicional…"), "bolt", LARANJA, Evento::Adicionar("condicional")),
+                    p(tr!("Mesclar colunas"), "link", VERDE, Evento::Adicionar("mesclar")),
+                    p(tr!("Extrair da data…"), "clock", LARANJA, Evento::Adicionar("derivar")),
+                ]),
             ], escuro),
             grupo_ribbon("CONSULTAS", vec![pilha(vec![
                 p(tr!("Juntar"), "arrow-step", ROXO, Evento::Adicionar("juntar")),

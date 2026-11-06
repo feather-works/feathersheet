@@ -1234,6 +1234,22 @@ impl App {
                             let _ = self.update(Msg::CondicionalAdicionar);
                             return self.update(Msg::CondicionalNovaRegra);
                         }
+                        // FEATHERSHEET_CAPTURAR_JANELA=openquery[:etapa]: dados de exemplo no OpenQuery,
+                        // com o modal da etapa aberto (agrupar, personalizada, condicional, dividir…).
+                        if let Some(resto) = std::env::var("FEATHERSHEET_CAPTURAR_JANELA").ok().and_then(|j| j.strip_prefix("openquery").map(str::to_owned)) {
+                            for (r, l) in [["Cliente", "UF", "Preço", "Qtd"], ["  ana silva ", "SP", "10", "3"], ["Bruno", "", "2,5", "4"],
+                                ["CIA BRASILEIRA", "RJ", "7", "1"], ["Total", "", "", ""]].iter().enumerate() {
+                                for (c, v) in l.iter().enumerate() { self.workbook.escrever_celula(self.folha, r as u32, c as u32, (*v).into()); }
+                            }
+                            let _ = self.update(Msg::IrPara("A1:D5".into()));
+                            let tarefa = self.evento_openquery_janela(openquery_ui::Evento::AbrirCom(Box::new(openquery_ui::Evento::CarregarSelecao)));
+                            if let Some(tipo) = resto.strip_prefix(':') {
+                                if let Some(t) = openquery_ui::tipo_de_etapa(tipo) {
+                                    let _ = self.evento_openquery(openquery_ui::Evento::Adicionar(t));
+                                }
+                            }
+                            return tarefa;
+                        }
                         // FEATHERSHEET_CAPTURAR_JANELA=historico_macros: roda macros de exemplo
                         // e fotografa o editor (Alt+F11) com o Histórico aberto.
                         if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("historico_macros") {
@@ -1357,6 +1373,7 @@ impl App {
                                 Ok(j) if j.starts_with("config") => self.janelas.id(Auxiliar::Configuracoes),
                                 Ok("pastas_macros") => self.janelas.id(Auxiliar::Macros),
                                 Ok(j) if j.starts_with("formatar") => self.janelas.id(Auxiliar::FormatarCelulas),
+                                Ok(j) if j.starts_with("openquery") => self.janelas.id(Auxiliar::OpenQuery),
                                 _ => None,
                             }
                         };

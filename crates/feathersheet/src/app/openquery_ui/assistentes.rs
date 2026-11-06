@@ -12,6 +12,8 @@ pub enum Evento {
     ChaveEsquerda(usize), ChaveDireita(usize),
     PivotLinha(usize), PivotColuna(usize), PivotValor(usize),
     Agregacao(&'static str), Confirmar,
+    /// Mesclagem aproximada ligada/desligada e a semelhança mínima digitada (%).
+    Aproximada(bool), Semelhanca(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,6 +37,8 @@ pub(super) struct Estado {
     coluna: usize,
     valor: usize,
     agregacao: &'static str,
+    aproximada: bool,
+    semelhanca: String,
 }
 
 impl Estado {
@@ -47,6 +51,8 @@ impl Estado {
             modo: "esquerda",
             linha: 0, coluna: 1, valor: 2,
             agregacao: "soma",
+            aproximada: false,
+            semelhanca: "80".into(),
         }
     }
 }
@@ -88,8 +94,14 @@ fn passo(editor: &super::Estado, e: &Estado) -> Result<Passo, String> {
             } else {
                 IndiceColuna::Multiple(e.direita.clone())
             };
+            let semelhanca = if e.aproximada {
+                let p = e.semelhanca.trim().trim_end_matches('%').replace(',', ".").parse::<f64>().ok()
+                    .filter(|p| (1.0..=100.0).contains(p))
+                    .ok_or(tr!("Semelhança mínima: um número de 1 a 100 (%)"))?;
+                Some(p / 100.0)
+            } else { None };
             Ok(Passo::Juntar {
-                fonte, esquerda, direita, modo: Some(e.modo.into()),
+                fonte, esquerda, direita, modo: Some(e.modo.into()), semelhanca,
             })
         }
         Tipo::Pivotar => {
@@ -158,6 +170,8 @@ impl App {
             Evento::PivotColuna(i) => e.coluna = i,
             Evento::PivotValor(i) => e.valor = i,
             Evento::Agregacao(a) => e.agregacao = a,
+            Evento::Aproximada(v) => e.aproximada = v,
+            Evento::Semelhanca(t) => e.semelhanca = t,
             Evento::Abrir(_) | Evento::Fechar | Evento::Confirmar => {}
         }
     }
@@ -245,6 +259,20 @@ impl App {
                 ].width(Length::Fill(1)).spacing(ESPACO_PEQUENO),
             ].spacing(ESPACO_GRANDE);
             corpo = corpo.push(colunas);
+            let mut aproximada = pelicano::row![
+                pelicano::checkbox(tr!("Correspondência aproximada"), w.aproximada)
+                    .on_toggle(|v| Msg::OpenQuery(super::Evento::Assistente(Evento::Aproximada(v)))).size(14),
+            ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center);
+            if w.aproximada {
+                aproximada = aproximada.push(texto_oq(tr!("Semelhança mínima (%)"))).push(
+                    text_input("80", &w.semelhanca)
+                        .on_input(|v| Msg::OpenQuery(super::Evento::Assistente(Evento::Semelhanca(v))))
+                        .size(TAM_TEXTO).padding([4.0, 6.0]).width(Length::Fixed(60.0)));
+            }
+            corpo = corpo.push(aproximada);
+            if w.aproximada {
+                corpo = corpo.push(legenda_oq(tr!("Junta chaves parecidas: sem acento, pontuação nem diferença de maiúsculas (\"Cia. São Paulo\" acha \"CIA SAO PAULO\").")));
+            }
         }
         if w.tipo == Tipo::Pivotar {
             for (rotulo, escolha, evento) in [

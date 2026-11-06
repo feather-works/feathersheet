@@ -53,6 +53,13 @@ const METODOS: &[(&str, &str, &[(&str, Arg)])] = &[
     ("indice", "adicionarIndice", &[("inicio", Valor), ("incremento", Valor), ("nome", Valor)]),
     ("condicional", "colunaCondicional", &[("nome", Valor), ("col", Col), ("operador", Valor), ("valor", Valor), ("entao", Valor), ("senao", Valor)]),
     ("limite", "manterPrimeiras", &[("quantas", Valor)]),
+    ("formatar", "formatarTexto", &[("col", Col), ("como", Valor), ("texto", Valor)]),
+    ("preencher", "preencher", &[("col", Col), ("paraCima", Valor)]),
+    ("removerLinhas", "removerLinhas", &[("modo", Valor), ("quantas", Valor)]),
+    ("transpor", "transpor", &[]),
+    ("inverter", "inverterLinhas", &[]),
+    ("dividirPosicoes", "dividirPorPosicao", &[("col", Col), ("posicoes", Valor), ("cada", Valor)]),
+    ("personalizada", "colunaPersonalizada", &[("nome", Valor), ("formula", Valor)]),
 ];
 
 /// Etapa sem método próprio: o objeto JSON inteiro, com as colunas em número.
@@ -292,6 +299,25 @@ mod testes {
         assert!(texto.contains("fonte.ordenar([[\"MWh\",\"desc\"]]);"), "{texto}");
         assert!(texto.contains("fonte.agruparPor([\"Ano\"], [[\"MWh\",\"soma\",\"Total\"]]);"), "{texto}");
         assert_eq!(resultado.cabecalho, vec!["Ano".to_string(), "Total".into()]);
+        let lidos = ler(&texto, &fonte(), &HashMap::new()).unwrap();
+        assert_eq!(json_passos::escrever(&lidos).unwrap(), json_passos::escrever(&passos).unwrap());
+    }
+
+    #[test]
+    fn etapas_novas_vao_e_voltam_pelo_script() {
+        let passos = vec![
+            Passo::Formatar { col: 0, como: "prefixo".into(), texto: Some("UF-".into()) },
+            Passo::Preencher { col: 0, para_cima: true },
+            Passo::RemoverLinhas { modo: "ultimas".into(), quantas: 1.0 },
+            Passo::Personalizada { nome: "Dobro".into(), formula: "=[MWh]*2".into() },
+            Passo::DividirPosicoes { col: 0, posicoes: vec![0, 2], cada: None },
+            Passo::Inverter,
+            Passo::Transpor,
+        ];
+        let (texto, _) = gerar("Planilha1", &fonte(), &passos, &HashMap::new()).unwrap();
+        for metodo in ["formatarTexto(", "preencher(", "removerLinhas(", "colunaPersonalizada(", "dividirPorPosicao(", "inverterLinhas(", "transpor("] {
+            assert!(texto.contains(metodo), "{metodo}: {texto}");
+        }
         let lidos = ler(&texto, &fonte(), &HashMap::new()).unwrap();
         assert_eq!(json_passos::escrever(&lidos).unwrap(), json_passos::escrever(&passos).unwrap());
     }

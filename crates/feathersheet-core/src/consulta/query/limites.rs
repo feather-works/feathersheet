@@ -12,7 +12,7 @@ pub(super) fn verificar(
     // O executor TS tradicional tolera fonte ausente, mas um editor
     // interativo não deve salvar silenciosamente JOIN/APPEND incompleto.
     match passo {
-        Passo::Juntar { fonte, esquerda, direita, modo } => {
+        Passo::Juntar { fonte, esquerda, direita, modo, semelhanca } => {
             let outra = fontes.get(fonte).ok_or_else(|| format!(
                 "A fonte '{fonte}' não está carregada. Selecione a tabela secundária."
             ))?;
@@ -30,6 +30,18 @@ pub(super) fn verificar(
                     return Err(format!("Modo de junção '{modo}' desconhecido"));
                 }
             }
+            if let Some(s) = semelhanca {
+                if !(0.0..=1.0).contains(s) {
+                    return Err("A semelhança da mesclagem aproximada vai de 0 a 1 (ex.: 0,8)".into());
+                }
+                let distintas = outra.linhas.iter().map(|l| chave_das(l, &dir)).collect::<HashSet<_>>().len() as u64;
+                if (tabela.linhas.len() as u64).saturating_mul(distintas) > super::extras::MAX_COMPARACOES_APROXIMADAS {
+                    return Err("Mesclagem aproximada grande demais (linhas × chaves): filtre antes ou use a chave igual".into());
+                }
+            }
+        }
+        Passo::Personalizada { formula, .. } => {
+            super::extras::traduzir_formula(formula, &tabela.cabecalho)?;
         }
         Passo::Acrescentar { fonte } => {
             if !fontes.contains_key(fonte) {
@@ -51,7 +63,21 @@ pub(super) fn verificar(
     match passo {
         Passo::Colunas { manter } => colunas = manter.len() as u64,
         Passo::Mesclar { .. } | Passo::Derivar { .. } |
-        Passo::Indice { .. } | Passo::Condicional { .. } => colunas += 1,
+        Passo::Indice { .. } | Passo::Condicional { .. } | Passo::Personalizada { .. } => colunas += 1,
+        Passo::Transpor => {
+            colunas = linhas;
+            linhas = tabela.cabecalho.len() as u64;
+        }
+        Passo::DividirPosicoes { col, posicoes, cada } => {
+            let maximo = match cada {
+                Some(n) if *n > 0 => tabela.linhas.iter().map(|l| match l.get(*col) {
+                    Some(Value::Text(s)) => s.chars().count().div_ceil(*n) as u64,
+                    _ => 1,
+                }).max().unwrap_or(1),
+                _ => posicoes.len() as u64 + 1,
+            };
+            colunas = colunas.saturating_add(maximo.saturating_sub(1));
+        }
         Passo::Limite { quantas } => {
             linhas = linhas.min(linhas_do_limite(*quantas) as u64);
         }
@@ -87,7 +113,7 @@ pub(super) fn verificar(
                 linhas = linhas.saturating_add(outra.linhas.len() as u64);
             }
         }
-        Passo::Juntar { fonte, esquerda, direita, modo } => {
+        Passo::Juntar { fonte, esquerda, direita, modo, .. } => {
             if let Some(outra) = fontes.get(fonte) {
                 colunas = colunas.saturating_add(outra.cabecalho.len() as u64);
                 let (esq, dir) = (esquerda.to_vec(), direita.to_vec());
@@ -177,14 +203,14 @@ mod testes {
         let passo = Passo::Juntar {
             fonte: "nao_existe".into(),
             esquerda: IndiceColuna::Single(0),
-            direita: IndiceColuna::Single(0), modo: None,
+            direita: IndiceColuna::Single(0), modo: None, semelhanca: None,
         };
         assert!(verificar(&t,&passo,&fontes,10_000).is_err());
         let mut fontes = HashMap::new();
         fontes.insert("ok".into(),t.clone());
         let passo = Passo::Juntar {
             fonte:"ok".into(),esquerda:IndiceColuna::Multiple(vec![0,0]),
-            direita:IndiceColuna::Single(0),modo:None,
+            direita:IndiceColuna::Single(0),modo:None, semelhanca: None,
         };
         assert!(verificar(&t,&passo,&fontes,10_000).is_err());
     }
@@ -198,7 +224,7 @@ mod testes {
             fonte: "outra".into(),
             esquerda: IndiceColuna::Single(0),
             direita: IndiceColuna::Single(0),
-            modo: Some("interna".into()),
+            modo: Some("interna".into()), semelhanca: None,
         };
         let erro = executar_query_limitado(fonte, &[passo], &extras, 100_000)
             .expect_err("join 1M x 4 colunas não pode ser materializado");
@@ -214,7 +240,7 @@ mod testes {
             fonte: "outra".into(),
             esquerda: IndiceColuna::Single(0),
             direita: IndiceColuna::Single(0),
-            modo: Some("interna".into()),
+            modo: Some("interna".into()), semelhanca: None,
         };
         let resultado = executar_query_limitado(fonte, &[passo], &extras, 8_000).unwrap();
         assert_eq!(resultado.linhas.len(), 1_000);
