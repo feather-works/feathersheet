@@ -162,11 +162,39 @@ pub(super) fn montar(
     }))
 }
 
+/// A consulta é recalculada sempre que o arquivo abre (o "Atualizar ao abrir o arquivo" do Excel).
+pub(super) fn atualiza_ao_abrir(reg: &Json) -> bool {
+    reg["_feather"]["atualizarAoAbrir"].as_bool() == Some(true)
+}
+
+/// Liga ou desliga o [`atualiza_ao_abrir`] da consulta `id`, em toda aba que a guarda.
+pub(super) fn marcar_ao_abrir(w: &mut Workbook, id: &str, ligado: bool) -> Result<(), String> {
+    let mut mudancas = Vec::new();
+    for i in 0..w.len() {
+        let mut lista = registros(w, i)?;
+        let mut achou = false;
+        for r in lista.iter_mut().filter(|v| v["id"].as_str() == Some(id)) {
+            r["_feather"]["atualizarAoAbrir"] = json!(ligado);
+            achou = true;
+        }
+        if achou { mudancas.push((i, serde_json::to_string(&lista).map_err(|e| e.to_string())?)); }
+    }
+    if mudancas.is_empty() { return Err(tr!("Consulta não encontrada").into()); }
+    aplicar_gravacao(w, mudancas);
+    Ok(())
+}
+
 /// Valida os metadados *antes* de alterar as células.
 pub(super) fn preparar_gravacao(
     w: &Workbook, aba_destino: usize, registro: &Json
 ) -> Result<Vec<(usize, String)>, String> {
     let id = registro["id"].as_str().ok_or(tr!("Consulta sem id"))?;
+    // Editar ou atualizar a consulta mantém a opção de atualizar ao abrir.
+    let mut registro = registro.clone();
+    if listar(w)?.iter().any(|s| s.dados["id"].as_str() == Some(id) && atualiza_ao_abrir(&s.dados)) {
+        registro["_feather"]["atualizarAoAbrir"] = json!(true);
+    }
+    let registro = &registro;
     let mut mudancas = Vec::new();
     for i in 0..w.len() {
         let mut itens = registros(w, i)?;

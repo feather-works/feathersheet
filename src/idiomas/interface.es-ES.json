@@ -4387,5 +4387,11 @@
  "não consegui desenhar a imagem": "no se pudo dibujar la imagen",
  "Imagem da macro: aba inexistente": "Imagen de la macro: la hoja no existe",
  "Imagem da macro: {e}": "Imagen de la macro: {e}",
- "A aba já tem objetos demais": "La hoja ya tiene demasiados objetos"
+ "A aba já tem objetos demais": "La hoja ya tiene demasiados objetos",
+ "OpenQuery: a consulta será atualizada ao abrir o arquivo": "OpenQuery: la consulta se actualizará al abrir el archivo",
+ "OpenQuery: a consulta não será mais atualizada ao abrir o arquivo": "OpenQuery: la consulta ya no se actualizará al abrir el archivo",
+ "Atualiza ao abrir o arquivo (clique para desligar)": "Se actualiza al abrir el archivo (clic para desactivar)",
+ "Atualizar ao abrir o arquivo": "Actualizar al abrir el archivo",
+ "OpenQuery: {} consulta(s) atualizada(s) ao abrir": "OpenQuery: {} consulta(s) actualizada(s) al abrir",
+ "OpenQuery: falhou ao atualizar ao abrir: {}": "OpenQuery: falló la actualización al abrir: {}"
 }

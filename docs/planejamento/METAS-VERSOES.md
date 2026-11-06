@@ -333,13 +333,13 @@
 ### Melhorias
 - [x] Editor de passos visual: lista de passos, prévia que atualiza ao clicar num passo,
       editar (engrenagem)/remover/reordenar passos (`openquery_ui/janela.rs`, `etapa.rs`).
-- [ ] Consultas guardadas dentro do `.fshz`, com botão Atualizar e "atualizar
-      ao abrir" (opção). *Parcial: guardadas (`oq` da aba) e Atualizar feitos; falta "atualizar ao abrir".*
+- [x] Consultas guardadas dentro do `.fshz`, com botão Atualizar e "atualizar
+      ao abrir" (opção; relógio na lista de consultas, `_feather.atualizarAoAbrir`, 06/11/2026).
 - [ ] Fontes: aba, tabela, outro arquivo (`.fshz`, `.xlsx`, `.csv`, `.parquet`),
       pasta inteira (junta os arquivos). Web/API só por pedido explícito.
       *Parcial: tabela/intervalo, Web, CSV/TSV/TXT/JSON/XLSX feitos; faltam `.fshz`, `.parquet` e pasta.*
 - [ ] Juntar (todos os tipos de join) e acrescentar entre fontes diferentes.
-      *Parcial: acrescentar feito; o motor tem os 6 joins, o assistente oferece 3 (esquerda, interna, direita).*
+      *Parcial: acrescentar feito; os 6 joins no motor e no assistente; falta juntar fontes de arquivos diferentes.*
 - [ ] Tipos detectados por coluna, com aviso das linhas que não converteram.
 - [ ] Desfazer por passo.
 

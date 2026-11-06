@@ -199,10 +199,18 @@ impl App {
         if e.edicao.is_none() {
             arvore = arvore.push(ide::item_arvore(&e.nome, "table", 12.0, None, true));
         }
+        let ao_abrir: Vec<String> = registro::listar(&self.workbook).unwrap_or_default().into_iter()
+            .filter(|s| registro::atualiza_ao_abrir(&s.dados))
+            .filter_map(|s| s.dados["id"].as_str().map(str::to_owned)).collect();
         for (id, nome) in e.salvas.iter() {
             let atual = e.edicao.as_deref() == Some(id.as_str());
+            let ligado = ao_abrir.contains(id);
             arvore = arvore.push(row![
                 ide::item_arvore(nome, "table", 12.0, Some(om(Evento::EditarSalva(id.clone()))), atual),
+                dica(button(feather_ui::icones::icone("clock", 15.0)).padding([5, 7])
+                    .on_press(om(Evento::AoAbrir(id.clone()))).style(ide::estilo_botao_ide(ligado)),
+                    if ligado { tr!("Atualiza ao abrir o arquivo (clique para desligar)") }
+                    else { tr!("Atualizar ao abrir o arquivo") }),
                 botao_so_icone("refresh", tr!("Atualizar o resultado desta consulta"),
                     Evento::AtualizarSalva(id.clone())),
                 botao_so_icone("x", tr!("Desvincular consulta (os valores da aba permanecem)"),

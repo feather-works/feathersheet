@@ -335,6 +335,28 @@ impl App {
         self.status = trf!("OpenQuery '{id}': {linhas_geradas} linhas em {nome_aba}; consulta salva no FSHZ");
     }
 
+    /// Ao abrir o arquivo: recalcula as consultas com "Atualizar ao abrir". As fontes são
+    /// abas da pasta ou a cópia guardada (arquivo e Web nunca são relidos sem a pessoa pedir).
+    /// A aba e a seleção à vista não mudam.
+    // shortcut: roda na thread da janela, como o botão Atualizar; mover para o fundo se uma consulta grande travar a abertura.
+    pub(in crate::app) fn atualizar_consultas_ao_abrir(&mut self) {
+        let ids: Vec<String> = registro::listar(&self.workbook).unwrap_or_default().into_iter()
+            .filter(|s| registro::atualiza_ao_abrir(&s.dados))
+            .filter_map(|s| s.dados["id"].as_str().map(str::to_owned)).collect();
+        if ids.is_empty() { return; }
+        let vista = (self.folha, self.linha, self.coluna, self.fim_selecao, self.nome_aba.clone(), self.endereco.clone());
+        let mut falhas = Vec::new();
+        for id in &ids {
+            if !self.abrir_consulta_salva(id) { falhas.push(self.status.clone()); continue; }
+            self.concluir_openquery();
+            // Só sobra editor aberto quando a gravação falhou.
+            if let Some(e) = self.openquery.take() { falhas.push(if e.erro.is_empty() { id.clone() } else { e.erro }); }
+        }
+        (self.folha, self.linha, self.coluna, self.fim_selecao, self.nome_aba, self.endereco) = vista;
+        self.status = if falhas.is_empty() { trf!("OpenQuery: {} consulta(s) atualizada(s) ao abrir", ids.len()) }
+            else { trf!("OpenQuery: falhou ao atualizar ao abrir: {}", falhas.join("; ")) };
+    }
+
     pub(super) fn atualizar_consulta_salva(&mut self, id: &str) {
         if self.abrir_consulta_salva(id) {
             self.concluir_openquery();
@@ -363,6 +385,32 @@ mod testes {
         let id = salva[0].dados["id"].as_str().unwrap().to_string();
         assert!(app.abrir_consulta_salva(&id));
         assert_eq!(app.openquery.as_ref().unwrap().destino_modo,DestinoModo::ApenasConexao);
+    }
+
+    #[test]
+    fn consulta_marcada_atualiza_ao_abrir_o_arquivo_sem_trocar_de_aba() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "Valor".into());
+        app.workbook.escrever_celula(0, 1, 0, "1".into());
+        abrir_aba_para_teste(&mut app);
+        app.concluir_openquery();
+        let destino = app.folha;
+        assert_ne!(destino, 0);
+        assert_eq!(app.workbook.valor(destino, 1, 0), Value::Number(1.));
+        let id = registro::listar(&app.workbook).unwrap()[0].dados["id"].as_str().unwrap().to_owned();
+        app.evento_openquery(Evento::AoAbrir(id.clone()));
+        // A fonte muda depois da consulta: o resultado gravado fica velho.
+        app.workbook.escrever_celula(0, 1, 0, "7".into());
+        let bytes = feathersheet_io::da_workbook::pasta_gravar_bytes(&app.workbook, 0).unwrap();
+        let mut aberto = App::default();
+        aberto.carregar(std::path::PathBuf::from("consulta.fshz"), bytes).unwrap();
+        assert_eq!(aberto.folha, 0, "a aba à vista não muda");
+        assert_eq!(aberto.workbook.valor(destino, 1, 0), Value::Number(7.));
+        assert!(aberto.openquery.is_none());
+        // Atualizar de novo (grava o registro outra vez) não perde a opção.
+        assert!(registro::atualiza_ao_abrir(&registro::buscar(&aberto.workbook, &id).unwrap().dados));
+        aberto.evento_openquery(Evento::AoAbrir(id.clone()));
+        assert!(!registro::atualiza_ao_abrir(&registro::buscar(&aberto.workbook, &id).unwrap().dados));
     }
 
     #[test]

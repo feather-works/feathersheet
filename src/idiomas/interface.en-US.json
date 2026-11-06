@@ -4391,5 +4391,11 @@
  "não consegui desenhar a imagem": "could not draw the picture",
  "Imagem da macro: aba inexistente": "Macro picture: sheet does not exist",
  "Imagem da macro: {e}": "Macro picture: {e}",
- "A aba já tem objetos demais": "The sheet already has too many objects"
+ "A aba já tem objetos demais": "The sheet already has too many objects",
+ "OpenQuery: a consulta será atualizada ao abrir o arquivo": "OpenQuery: the query will be refreshed when the file opens",
+ "OpenQuery: a consulta não será mais atualizada ao abrir o arquivo": "OpenQuery: the query will no longer be refreshed when the file opens",
+ "Atualiza ao abrir o arquivo (clique para desligar)": "Refreshes when the file opens (click to turn off)",
+ "Atualizar ao abrir o arquivo": "Refresh when opening the file",
+ "OpenQuery: {} consulta(s) atualizada(s) ao abrir": "OpenQuery: {} query(ies) refreshed on open",
+ "OpenQuery: falhou ao atualizar ao abrir: {}": "OpenQuery: refresh on open failed: {}"
 }

@@ -571,6 +571,7 @@ impl App {
             self.status = trf!("Aberto: {}", path.display());
             self.registrar_arquivo_recente(&path);
         }
+        if !recuperacao { self.atualizar_consultas_ao_abrir(); }
         if ext == "xlsm" { self.ler_vba_do_xlsm(&path); } else { self.vba_pendente = None; }
         self.bloquear_macros_do_arquivo();
         super::objetos::esquecer_rasteres();

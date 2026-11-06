@@ -116,6 +116,8 @@ pub enum Evento {
     ArquivoLido(u64, Result<(Tabela, String), String>),
     EditarSalva(String),
     AtualizarSalva(String),
+    /// Liga/desliga "Atualizar ao abrir o arquivo" da consulta gravada.
+    AoAbrir(String),
     PedirExclusao(String),
     ConfirmarExclusao,
     CancelarExclusao,
@@ -1107,6 +1109,17 @@ impl App {
             },
             Evento::EditarSalva(id) => { self.abrir_consulta_salva(&id); },
             Evento::AtualizarSalva(id) => self.atualizar_consulta_salva(&id),
+            Evento::AoAbrir(id) => {
+                let ligado = !registro::buscar(&self.workbook, &id).is_ok_and(|s| registro::atualiza_ao_abrir(&s.dados));
+                match registro::marcar_ao_abrir(&mut self.workbook, &id, ligado) {
+                    Ok(()) => {
+                        self.alterado = true;
+                        self.status = if ligado { tr!("OpenQuery: a consulta será atualizada ao abrir o arquivo").into() }
+                            else { tr!("OpenQuery: a consulta não será mais atualizada ao abrir o arquivo").into() };
+                    }
+                    Err(e) => self.status = e,
+                }
+            }
             Evento::PedirExclusao(id) => if let Some(e) = &mut self.openquery {
                 e.exclusao_pendente = Some(id);
             },
