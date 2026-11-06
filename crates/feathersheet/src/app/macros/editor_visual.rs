@@ -100,16 +100,10 @@ fn arvore<'a>(app: &'a App, altura: Length) -> Element<'a, Msg> {
         .map(|m| m.name.as_str())
         .filter(|n| !n.starts_with(super::organizacao::PASTA_EVENTOS)).collect();
     itens = modulos_da_pasta(app, itens, &nomes, "", 21.0);
-    let formularios = feathersheet_macros::formularios::ler(app.workbook.formularios.as_deref()).unwrap_or_default();
-    itens = itens.push(grupo_arvore(tr!("Formulários"), "forms", escuro));
-    for f in formularios {
-        let aberto = app.macro_visual.documento == "componente:previsao"
-            && app.macro_visual.designer.original.as_deref() == Some(f.nome.as_str());
-        itens = itens.push(item_arvore(&f.nome, "forms", 21.0,
-            event(EventoVisual::Designer(super::designer_formulario::EventoDesigner::Abrir(f.nome.clone()))), aberto));
-    }
+    // Módulo ainda não guardado, só depois de ter código: o editor vazio do começo não é rascunho.
     let rascunho = !app.macro_nome.starts_with(super::organizacao::PASTA_EVENTOS)
-        && app.macro_catalogo.obter(&app.macro_nome).is_none();
+        && app.macro_catalogo.obter(&app.macro_nome).is_none()
+        && !app.macro_codigo.text().trim().is_empty();
     if rascunho {
         let modulo_atual = format!("modulo:{}", app.macro_nome);
         itens = itens.push(item_arvore(
@@ -117,6 +111,14 @@ fn arvore<'a>(app: &'a App, altura: Length) -> Element<'a, Msg> {
             event(EventoVisual::Documento(modulo_atual.clone())),
             app.macro_visual.documento == modulo_atual,
         ));
+    }
+    let formularios = feathersheet_macros::formularios::ler(app.workbook.formularios.as_deref()).unwrap_or_default();
+    itens = itens.push(grupo_arvore(tr!("Formulários"), "forms", escuro));
+    for f in formularios {
+        let aberto = app.macro_visual.documento == "componente:previsao"
+            && app.macro_visual.designer.original.as_deref() == Some(f.nome.as_str());
+        itens = itens.push(item_arvore(&f.nome, "forms", 21.0,
+            event(EventoVisual::Designer(super::designer_formulario::EventoDesigner::Abrir(f.nome.clone()))), aberto));
     }
     let cabecalho = row![
         text(tr!("Explorador de projeto")).size(13),
