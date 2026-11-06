@@ -90,6 +90,11 @@ pub(super) fn linha_do_erro(erro: &str) -> Option<usize> {
 /// `let fonte = …;` conforme a origem da consulta.
 fn linha_da_fonte(origem: &str) -> String {
     let s = |t: &str| serde_json::to_string(t).unwrap_or_default();
+    // "Arquivo: x.xlsx ▸ Planilha Dados": o arquivo no `let`, a planilha na linha seguinte.
+    let (origem, navegacao) = match origem.split_once(" ▸ ") {
+        Some((base, item)) => (base, Some(item)),
+        None => (origem, None),
+    };
     let chamada = if let Some(arquivo) = origem.strip_prefix("Arquivo: ") {
         let csv = [".csv", ".tsv", ".txt"].iter().any(|ext| arquivo.to_lowercase().ends_with(ext));
         format!("{}({})", if csv { "lerCsv" } else { "lerArquivo" }, s(arquivo))
@@ -106,7 +111,34 @@ fn linha_da_fonte(origem: &str) -> String {
     } else {
         format!("lerAba({})", s(origem))
     };
-    format!("let fonte = {chamada};")
+    let mut texto = format!("let fonte = {chamada};");
+    if let Some(linha) = navegacao.and_then(linha_da_navegacao) { texto.push('\n'); texto.push_str(&linha); }
+    texto
+}
+
+/// "Planilha Dados" → `fonte.planilha("Dados");` (o Navegador, como no Power Query).
+fn linha_da_navegacao(item: &str) -> Option<String> {
+    let s = |t: &str| serde_json::to_string(t).unwrap_or_default();
+    Some(if let Some(n) = item.strip_prefix("Planilha ") { format!("fonte.planilha({});", s(n)) }
+        else if let Some(n) = item.strip_prefix("Tabela ") { format!("fonte.tabela({});", s(n)) }
+        else { format!("fonte.navegar({});", s(item)) })
+}
+
+/// O item escolhido no script (`fonte.planilha("Dados")` → "Planilha Dados"), se houver.
+pub(super) fn navegacao(texto: &str) -> Option<String> {
+    let mut lista = comandos(texto).into_iter();
+    let (_, primeiro) = lista.next()?;
+    let declaracao = ["let ", "const ", "var "].iter().find_map(|p| primeiro.strip_prefix(p))?
+        .split_once('=')?.0.trim().to_owned();
+    lista.find_map(|(_, c)| navegacao_do_comando(&c, &declaracao))
+}
+
+fn navegacao_do_comando(comando: &str, declaracao: &str) -> Option<String> {
+    let chamada = comando.strip_prefix(declaracao)?.strip_prefix('.')?;
+    let (metodo, resto) = chamada.split_once('(')?;
+    let prefixo = match metodo.trim() { "planilha" => "Planilha ", "tabela" => "Tabela ", "navegar" => "", _ => return None };
+    let nome: String = serde_json::from_str(resto.trim_end().strip_suffix(')')?.trim()).ok()?;
+    Some(format!("{prefixo}{nome}"))
 }
 
 /// Pelo nome quando ele é único naquele ponto; senão, pelo número.
@@ -265,6 +297,8 @@ pub(super) fn ler(
     for (linha, comando) in lista {
         let erro = |msg: &str| trf!("Linha {linha}: {msg}");
         if comando == "executar()" || comando == format!("{declaracao}.executar()") { continue; }
+        // A planilha escolhida é da fonte, não etapa (ver `navegacao`).
+        if navegacao_do_comando(&comando, &declaracao).is_some() { continue; }
         let chamada = comando.strip_prefix(&format!("{declaracao}."))
             .ok_or_else(|| erro(&trf!("cada etapa é {declaracao}.metodo(…);")))?;
         let (metodo, args) = chamada.split_once('(')
@@ -368,6 +402,18 @@ mod testes {
         assert!(ler("fonte.voar();", &fonte(), &HashMap::new()).unwrap_err().starts_with("Linha 1:"));
         assert_eq!(linha_do_erro(&erro), Some(3));
         assert_eq!(linha_do_erro("sem linha"), None);
+    }
+
+    #[test]
+    fn planilha_do_arquivo_vai_numa_linha_propria() {
+        let passos = vec![Passo::RemoverErros { col: 0 }];
+        let (texto, _) = gerar("Arquivo: teste.fshz ▸ Planilha Dados", &fonte(), &passos, &HashMap::new()).unwrap();
+        assert!(texto.starts_with("let fonte = lerArquivo(\"teste.fshz\");\nfonte.planilha(\"Dados\");\n"), "{texto}");
+        assert_eq!(navegacao(&texto).as_deref(), Some("Planilha Dados"));
+        assert_eq!(ler(&texto, &fonte(), &HashMap::new()).unwrap().len(), 1);
+        let outra = texto.replace("planilha(\"Dados\")", "tabela(\"Vendas\")");
+        assert_eq!(navegacao(&outra).as_deref(), Some("Tabela Vendas"));
+        assert_eq!(navegacao("let fonte = lerAba(\"x\");"), None);
     }
 
     #[test]

@@ -188,6 +188,13 @@ fn sem_titulo(wb: &Workbook, aba: usize, area: Rect) -> Rect {
         .map_or(area.clone(), |r| Rect::new(r, area.c0, area.r1, area.c1))
 }
 
+/// O nome do item no idioma da tela (o guardado na origem fica em português, como o prefixo).
+pub(super) fn nome_visivel(nome: &str) -> String {
+    if let Some(n) = nome.strip_prefix("Planilha ") { trf!("Planilha {}", n) }
+    else if let Some(n) = nome.strip_prefix("Tabela ") { trf!("Tabela {}", n) }
+    else { nome.to_owned() }
+}
+
 /// As planilhas (a ativa primeiro) e as tabelas (Ctrl+T) da pasta, cada uma uma opção.
 fn itens_da_pasta(wb: &Workbook, ativa: usize) -> Vec<Item> {
     let mut ordem: Vec<usize> = vec![ativa];
@@ -199,12 +206,12 @@ fn itens_da_pasta(wb: &Workbook, ativa: usize) -> Vec<Item> {
         let Ok(t) = ler_tabela(wb, i, area.clone()) else { continue };
         if t.cabecalho.is_empty() || (t.linhas.is_empty() && t.cabecalho.len() < 2) { continue; }
         let f = super::formatos_da_fonte(wb, i, &area, &t.cabecalho);
-        itens.push((trf!("Planilha {}", aba.sheet.name), t, f));
+        itens.push((format!("Planilha {}", aba.sheet.name), t, f));
     }
     for (i, nome, area) in tabelas_existentes(wb) {
         let Ok(t) = ler_tabela(wb, i, area.clone()) else { continue };
         let f = super::formatos_da_fonte(wb, i, &area, &t.cabecalho);
-        itens.push((trf!("Tabela {}", nome), t, f));
+        itens.push((format!("Tabela {}", nome), t, f));
     }
     itens
 }

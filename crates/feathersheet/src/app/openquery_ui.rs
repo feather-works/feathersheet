@@ -194,6 +194,8 @@ pub(super) struct Estado {
     /// Navegador de arquivo: o nome e os formatos de cada opção de `tabelas_web`
     /// (vazios na Web, que mostra "Tabela 1, 2…").
     nomes_web: Vec<String>,
+    /// Planilha que o script pediu (`fonte.planilha("x")`), usada na próxima releitura.
+    item_pedido: Option<String>,
     formatos_web: Vec<Formatos>,
     origem_web_pendente: String,
     indice_tabela_web: usize,
@@ -320,7 +322,7 @@ impl Estado {
             filtro: String::new(),
             renomear: String::new(), quantidade: "100".into(),
             separador: ";".into(),
-            url_web: String::new(), tabelas_web: Vec::new(), nomes_web: Vec::new(), formatos_web: Vec::new(),
+            url_web: String::new(), tabelas_web: Vec::new(), nomes_web: Vec::new(), item_pedido: None, formatos_web: Vec::new(),
             origem_web_pendente: String::new(), indice_tabela_web: 0,
             mostrar_web: false, mostrar_tabelas: false,
             passos: Vec::new(), resultado,
@@ -379,9 +381,19 @@ impl Estado {
 
     /// Só publica a edição avançada quando parser E motor aceitam tudo.
     /// Assim, Cancelar/erro não destroem a consulta anterior.
-    fn aplicar_editor_avancado(&mut self) -> Result<(), String> {
+    /// `Ok(true)`: o script escolheu outra planilha do arquivo, e a fonte precisa ser relida.
+    fn aplicar_editor_avancado(&mut self) -> Result<bool, String> {
         let texto = self.editor_avancado.as_ref()
             .ok_or(tr!("Editor avançado não está aberto"))?.text();
+        let (base, atual) = match self.origem_aba.split_once(" ▸ ") {
+            Some((b, i)) => (b.to_owned(), Some(i.to_owned())),
+            None => (self.origem_aba.clone(), None),
+        };
+        let pedida = script::navegacao(&texto);
+        let trocar = pedida.is_some() && pedida != atual;
+        if trocar && !base.starts_with("Arquivo: ") {
+            return Err(tr!("Só uma fonte de arquivo (.xlsx, .fshz…) tem planilhas para escolher.").into());
+        }
         let passos = script::ler(&texto, &self.fonte, &self.fontes)?;
         let (gerado, tabela) = script::gerar(&self.origem_aba, &self.fonte, &passos, &self.fontes)?;
         self.codigo = Content::with_text(&gerado);
@@ -397,7 +409,8 @@ impl Estado {
         self.editor_avancado = None;
         self.erro_avancado.clear();
         self.erro.clear();
-        Ok(())
+        if trocar { self.item_pedido = pedida; }
+        Ok(trocar)
     }
 
     fn recalcular(&mut self) {
@@ -1109,9 +1122,11 @@ impl App {
                 }
             },
             Evento::AplicarEditorAvancado => if let Some(e) = &mut self.openquery {
-                if let Err(erro) = e.aplicar_editor_avancado() {
-                    e.erro_avancado = erro;
-                    }
+                match e.aplicar_editor_avancado() {
+                    Err(erro) => e.erro_avancado = erro,
+                    Ok(true) => return self.evento_openquery(Evento::ReimportarArquivo),
+                    Ok(false) => {}
+                }
             },
             Evento::InserirNoEditor(linha) => if let Some(e) = &mut self.openquery {
                 if let Some(ed) = &e.editor_avancado {
@@ -1276,9 +1291,21 @@ impl App {
                 let Some(e) = &mut self.openquery else { return Task::none() };
                 if e.importacao_pendente != Some(ticket) { return Task::none(); }
                 // Reimportar: a mesma planilha/tabela de antes, sem perguntar.
-                let anterior = e.origem_aba.split_once(" ▸ ").map(|(_, n)| n.to_owned());
+                let anterior = e.item_pedido.take()
+                    .or_else(|| e.origem_aba.split_once(" ▸ ").map(|(_, n)| n.to_owned()));
                 let escolhida = if e.importacao_preservar {
-                    Some(anterior.and_then(|n| itens.iter().position(|(nome, ..)| *nome == n)).unwrap_or(0))
+                    match anterior {
+                        None => Some(0),
+                        Some(n) => match itens.iter().position(|(nome, ..)| *nome == n) {
+                            Some(i) => Some(i),
+                            None => {
+                                e.importacao_pendente = None;
+                                e.importacao_preservar = false;
+                                e.erro = trf!("O arquivo não tem {}.", importador::nome_visivel(&n));
+                                return Task::none();
+                            }
+                        },
+                    }
                 } else if itens.len() == 1 { Some(0) } else { None };
                 if let Some(i) = escolhida {
                     let (nome, tabela, formatos) = itens.swap_remove(i);

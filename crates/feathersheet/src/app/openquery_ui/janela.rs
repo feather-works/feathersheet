@@ -304,7 +304,7 @@ impl App {
             ].spacing(8);
             let mut opcoes = column(Vec::<Element<Msg>>::new()).spacing(3);
             for (indice, tabela) in e.tabelas_web.iter().enumerate() {
-                let nome = e.nomes_web.get(indice).cloned().unwrap_or_else(|| trf!("Tabela {}", indice + 1));
+                let nome = e.nomes_web.get(indice).map(|n| importador::nome_visivel(n)).unwrap_or_else(|| trf!("Tabela {}", indice + 1));
                 opcoes = opcoes.push(ide::item_arvore(
                     &trf!("{}  •  {} linhas  •  {} colunas",
                         nome, tabela.linhas.len(), tabela.cabecalho.len()),
@@ -317,7 +317,7 @@ impl App {
             if let Some(tabela) = e.tabelas_web.get(e.indice_tabela_web) {
                 escolher = escolher.push(text(trf!(
                     "Pré-visualização de {} (primeiras 8 linhas e 6 colunas)",
-                    e.nomes_web.get(e.indice_tabela_web).cloned().unwrap_or_else(|| trf!("Tabela {}", e.indice_tabela_web + 1)),
+                    e.nomes_web.get(e.indice_tabela_web).map(|n| importador::nome_visivel(n)).unwrap_or_else(|| trf!("Tabela {}", e.indice_tabela_web + 1)),
                 )).size(12).font(negrito()));
                 let mut cabecalho = row(Vec::<Element<Msg>>::new()).spacing(0);
                 for titulo in tabela.cabecalho.iter().take(6) {

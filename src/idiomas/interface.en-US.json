@@ -4529,5 +4529,7 @@
  "Tabela {}": "Table {}",
  "{}  •  {} linhas  •  {} colunas": "{}  •  {} rows  •  {} columns",
  "Pré-visualização de {} (primeiras 8 linhas e 6 colunas)": "Preview of {} (first 8 rows and 6 columns)",
- "Planilha {}": "Sheet {}"
+ "Planilha {}": "Sheet {}",
+ "Só uma fonte de arquivo (.xlsx, .fshz…) tem planilhas para escolher.": "Only a file source (.xlsx, .fshz…) has sheets to choose from.",
+ "O arquivo não tem {}.": "The file has no {}."
 }
