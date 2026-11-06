@@ -125,12 +125,60 @@ fn validar_xlsx(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// O que o "De arquivo" e o "Da pasta" leem.
+pub(super) const EXTENSOES: [&str; 8] = ["csv", "tsv", "txt", "json", "xlsx", "xlsm", "fshz", "parquet"];
+/// Teto do "Da pasta": arquivos e células somadas.
+const MAX_ARQUIVOS_PASTA: usize = 500;
+const MAX_CELULAS_PASTA: usize = 50_000_000;
+
+/// Junta os arquivos da pasta (sem subpastas, em ordem de nome) numa tabela só: a
+/// primeira coluna diz de que arquivo veio a linha, e as colunas casam pelo nome
+/// (a que falta num arquivo fica vazia). Executar via spawn_blocking.
+pub(super) fn ler_pasta(dir: &Path) -> Result<(Tabela, String, super::Formatos), String> {
+    let mut arquivos: Vec<std::path::PathBuf> = std::fs::read_dir(dir)
+        .map_err(|e| trf!("Falha ao ler a pasta: {e}"))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.is_file() && p.extension().and_then(|e| e.to_str())
+            .is_some_and(|e| EXTENSOES.contains(&e.to_ascii_lowercase().as_str())))
+        // Arquivo temporário do Excel aberto (~$Vendas.xlsx) não é dado.
+        .filter(|p| !p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("~$")))
+        .collect();
+    arquivos.sort();
+    if arquivos.is_empty() { return Err(tr!("A pasta não tem CSV, Excel, JSON, FSHZ nem Parquet").into()); }
+    if arquivos.len() > MAX_ARQUIVOS_PASTA {
+        return Err(trf!("A pasta tem {} arquivos; o limite é {MAX_ARQUIVOS_PASTA}", arquivos.len()));
+    }
+    let mut cabecalho = vec![tr!("Arquivo").to_string()];
+    let mut linhas: Vec<Vec<Value>> = Vec::new();
+    let mut formatos = super::Formatos::new();
+    let mut celulas = 0usize;
+    for caminho in &arquivos {
+        let nome = caminho.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_owned();
+        let (t, _, f) = ler(caminho).map_err(|e| trf!("{nome}: {e}"))?;
+        for (k, v) in f { formatos.entry(k).or_insert(v); }
+        let destino: Vec<usize> = t.cabecalho.iter().map(|h| match cabecalho.iter().position(|c| c == h) {
+            Some(i) => i,
+            None => { cabecalho.push(h.clone()); cabecalho.len() - 1 }
+        }).collect();
+        celulas = celulas.saturating_add(t.linhas.len().saturating_mul(cabecalho.len()));
+        if celulas > MAX_CELULAS_PASTA { return Err(tr!("Os arquivos da pasta passam de 50 milhões de células juntos").into()); }
+        for l in t.linhas {
+            let mut nova = vec![Value::Empty; cabecalho.len()];
+            nova[0] = Value::Text(nome.clone());
+            for (v, &d) in l.into_iter().zip(&destino) { nova[d] = v; }
+            linhas.push(nova);
+        }
+    }
+    for l in &mut linhas { l.resize(cabecalho.len(), Value::Empty); }
+    Ok((Tabela { cabecalho, linhas }, format!("Pasta: {}", dir.display()), formatos))
+}
+
 /// Não modifica o Workbook aberto. Executar via spawn_blocking.
 pub(super) fn ler(path: &Path) -> Result<(Tabela, String, super::Formatos), String> {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("")
         .to_ascii_lowercase();
-    if !["csv","tsv","json","xlsx","txt"].contains(&ext.as_str()) {
-        return Err(tr!("Use CSV, TSV, TXT, JSON ou XLSX neste importador").into());
+    if !EXTENSOES.contains(&ext.as_str()) {
+        return Err(tr!("Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ ou PARQUET neste importador").into());
     }
     let mut formatos = super::Formatos::new();
     let tabela = match ext.as_str() {
@@ -145,6 +193,14 @@ pub(super) fn ler(path: &Path) -> Result<(Tabela, String, super::Formatos), Stri
             formatos = super::formatos_da_fonte(&workbook, 0, &area, &t.cabecalho);
             t
         }
+        // A aba que o arquivo abre (a ativa do .fshz/.xlsm), lida como o app abre o arquivo.
+        "fshz" | "xlsm" | "parquet" => {
+            let (workbook, folha) = crate::app::App::decodificar_caminho(path, None)?;
+            let area = workbook.aba(folha).ok_or(tr!("Arquivo sem planilha"))?.sheet.used_rect();
+            let t = ler_tabela(&workbook, folha, area.clone())?;
+            formatos = super::formatos_da_fonte(&workbook, folha, &area, &t.cabecalho);
+            t
+        }
         "xlsx" => {
             validar_xlsx(path)?;
             let (workbook, _) = feathersheet_io::xlsx_read::ler_xlsx_arquivo(path)?;
@@ -157,7 +213,8 @@ pub(super) fn ler(path: &Path) -> Result<(Tabela, String, super::Formatos), Stri
     };
     if tabela.cabecalho.is_empty() { return Err(tr!("Arquivo sem colunas").into()); }
     let nome = path.file_name().and_then(|n| n.to_str()).unwrap_or(tr!("Arquivo"));
-    Ok((tabela, trf!("Arquivo: {nome}"), formatos))
+    // A origem é dado (o prefixo diz como atualizar): não se traduz.
+    Ok((tabela, format!("Arquivo: {nome}"), formatos))
 }
 
 
@@ -282,12 +339,47 @@ pub(super) fn ler_web(url: &str) -> Result<(Vec<Tabela>, String), String> {
     if tabelas.is_empty() || tabelas.iter().any(|t| t.cabecalho.is_empty()) {
         return Err(tr!("A resposta Web não contém colunas").into());
     }
-    Ok((tabelas, trf!("Web: {}", url.trim())))
+    Ok((tabelas, format!("Web: {}", url.trim())))
 }
 
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn da_pasta_junta_os_arquivos_pelo_nome_das_colunas() {
+        let dir = std::env::temp_dir().join(format!("oq_pasta_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("vendas_01.csv"), "Cliente;Valor\nAna;10\nBia;20\n").unwrap();
+        std::fs::write(dir.join("vendas_02.csv"), "Valor;Cliente;UF\n5;Caio;SP\n").unwrap();
+        std::fs::write(dir.join("~$vendas_03.xlsx"), "lixo").unwrap();
+        std::fs::write(dir.join("leia-me.md"), "não é dado").unwrap();
+        let (t, origem, _) = ler_pasta(&dir).unwrap();
+        assert!(origem.starts_with("Pasta: "));
+        assert_eq!(t.cabecalho, ["Arquivo", "Cliente", "Valor", "UF"]);
+        assert_eq!(t.linhas.len(), 3);
+        assert_eq!(t.linhas[2], [Value::Text("vendas_02.csv".into()), Value::Text("Caio".into()), Value::Number(5.0), Value::Text("SP".into())]);
+        assert_eq!(t.linhas[0][3], Value::Empty, "coluna que falta no arquivo fica vazia");
+        std::fs::remove_dir_all(&dir).unwrap();
+        let vazia = std::env::temp_dir().join(format!("oq_vazia_{}", std::process::id()));
+        std::fs::create_dir_all(&vazia).unwrap();
+        assert!(ler_pasta(&vazia).is_err());
+        std::fs::remove_dir_all(&vazia).unwrap();
+    }
+
+    #[test]
+    fn de_arquivo_le_fshz_pela_aba_ativa() {
+        let mut wb = Workbook::new();
+        wb.escrever_celula(0, 0, 0, "Item".into());
+        wb.escrever_celula(0, 1, 0, "Caneta".into());
+        let caminho = std::env::temp_dir().join(format!("oq_fonte_{}.fshz", std::process::id()));
+        std::fs::write(&caminho, feathersheet_io::da_workbook::pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
+        let (t, origem, _) = ler(&caminho).unwrap();
+        std::fs::remove_file(&caminho).unwrap();
+        assert_eq!((t.cabecalho.as_slice(), origem.starts_with("Arquivo: ")), (&["Item".to_string()][..], true));
+        assert_eq!(t.linhas[0][0], Value::Text("Caneta".into()));
+    }
 
     #[test]
     fn extrai_html_estatico_sem_executar_script() {

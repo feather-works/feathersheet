@@ -14,7 +14,7 @@ impl App {
             let area = Rect::new(0, 0, fonte.linhas.len() as u32, fonte.cabecalho.len().saturating_sub(1) as u32);
             return Ok((tr!("Consulta salva").into(), area, fonte));
         };
-        if nome.starts_with("Arquivo: ") || nome.starts_with("Web: ") || nome == "Entrada manual" {
+        if nome.starts_with("Arquivo: ") || nome.starts_with("Pasta: ") || nome.starts_with("Web: ") || nome == "Entrada manual" {
             // Arquivo importado: reabre o snapshot salvo. Atualizar
             // arquivo externo exige reimportação explícita, nunca
             // leitura silenciosa de caminho arbitrário no disco.

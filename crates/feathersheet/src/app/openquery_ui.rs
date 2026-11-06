@@ -113,6 +113,9 @@ pub enum Evento {
     EditarManual,
     AplicarManual,
     ArquivoEscolhido(u64, Option<std::path::PathBuf>),
+    /// Da pasta: junta os arquivos da pasta escolhida.
+    ImportarPasta,
+    PastaEscolhida(u64, Option<std::path::PathBuf>),
     ArquivoLido(u64, Result<(Tabela, String), String>),
     EditarSalva(String),
     AtualizarSalva(String),
@@ -139,6 +142,8 @@ pub enum Evento {
     Desfazer(bool),
     /// Aviso de tipo: 0 remover as linhas, 1 trocar por 0, 2 fechar o aviso.
     FalhasDeTipo(u8),
+    /// Exibir ▸ Dependências (abre/fecha o mapa das consultas).
+    Dependencias(bool),
     /// A consulta gravada aberta: copiar como conexão ou usar o resultado como fonte.
     Duplicar,
     Referenciar,
@@ -235,6 +240,8 @@ pub(super) struct Estado {
     etapas_atuais: String,
     /// A última etapa mudou o tipo e alguns valores não converteram.
     aviso_tipo: Option<AvisoTipo>,
+    /// Exibir ▸ Dependências aberto: (nome, fontes, destino) de cada consulta gravada.
+    dependencias: Option<Vec<(String, Vec<String>, String)>>,
 }
 
 /// "N linhas de Coluna não converteram para número (ex.: …)".
@@ -340,6 +347,7 @@ impl Estado {
             formatos: Formatos::new(),
             historico: Vec::new(), refazer: Vec::new(), etapas_atuais: "[]".into(),
             aviso_tipo: None,
+            dependencias: None,
         }
     }
 
@@ -948,6 +956,10 @@ impl App {
                     Err(erro) => e.erro = erro,
                 }
             },
+            Evento::Dependencias(abrir) => {
+                let mapa = abrir.then(|| registro::dependencias(&self.workbook));
+                if let Some(e) = &mut self.openquery { e.dependencias = mapa; }
+            }
             Evento::FalhasDeTipo(acao) => if let Some(e) = &mut self.openquery {
                 match acao {
                     0 | 1 => e.tratar_falhas_de_tipo(acao == 0),
@@ -1149,7 +1161,7 @@ impl App {
                         let colunas = fonte.cabecalho.len();
                         e.fonte = fonte;
                         e.rolagem = (0.0, 0.0, e.rolagem.2, e.rolagem.3);
-                        e.origem_aba = tr!("Entrada manual").into();
+                        e.origem_aba = "Entrada manual".into();
                         e.origem = Rect::new(0, 0, linhas as u32, colunas.saturating_sub(1) as u32);
                         e.edicao = None;
                         e.assistente = None;
@@ -1163,15 +1175,51 @@ impl App {
                     Err(erro) => e.erro = erro,
                 }
             },
+            Evento::ImportarPasta => {
+                let Some(editor) = &mut self.openquery else { return Task::none() };
+                editor.limpar_previa_web();
+                editor.importacao_preservar = false;
+                let ticket = IMPORTACAO_SEQ.fetch_add(1, Ordering::Relaxed);
+                editor.importacao_pendente = Some(ticket);
+                return Task::perform(async {
+                    rfd::AsyncFileDialog::new().pick_folder().await.map(|p| p.path().to_path_buf())
+                }, move |pasta| Msg::OpenQuery(Evento::PastaEscolhida(ticket, pasta)));
+            }
+            Evento::PastaEscolhida(ticket, pasta) => {
+                if self.openquery.as_ref().and_then(|e| e.importacao_pendente) != Some(ticket) {
+                    return Task::none();
+                }
+                let Some(pasta) = pasta else {
+                    if let Some(e) = &mut self.openquery { e.importacao_pendente = None; }
+                    return Task::none();
+                };
+                self.status = tr!("OpenQuery: lendo os arquivos da pasta em tarefa separada").into();
+                return Task::perform(async move {
+                    tokio::task::spawn_blocking(move || importador::ler_pasta(&pasta))
+                        .await.unwrap_or_else(|e| Err(trf!("Falha no importador: {e}")))
+                }, move |resultado| match resultado {
+                    Ok((tabela, origem, formatos)) => Msg::Lote(vec![
+                        Msg::OpenQuery(Evento::Formatos(ticket, formatos)),
+                        Msg::OpenQuery(Evento::ArquivoLido(ticket, Ok((tabela, origem)))),
+                    ]),
+                    Err(erro) => Msg::OpenQuery(Evento::ArquivoLido(ticket, Err(erro))),
+                });
+            }
             Evento::ImportarArquivo | Evento::ReimportarArquivo => {
                 let Some(editor) = &mut self.openquery else { return Task::none() };
                 editor.limpar_previa_web();
                 editor.importacao_preservar = matches!(evento, Evento::ReimportarArquivo);
                 let ticket = IMPORTACAO_SEQ.fetch_add(1, Ordering::Relaxed);
                 editor.importacao_pendente = Some(ticket);
+                // Reler a pasta: o caminho já é conhecido e a pessoa pediu (o botão).
+                if editor.importacao_preservar {
+                    if let Some(pasta) = editor.origem_aba.strip_prefix("Pasta: ").map(std::path::PathBuf::from) {
+                        return Task::done(Msg::OpenQuery(Evento::PastaEscolhida(ticket, Some(pasta))));
+                    }
+                }
                 return Task::perform(async {
                     rfd::AsyncFileDialog::new()
-                        .add_filter(tr!("Fontes OpenQuery"), &["csv","tsv","txt","json","xlsx"])
+                        .add_filter(tr!("Fontes OpenQuery"), &importador::EXTENSOES)
                         .pick_file().await.map(|arquivo| arquivo.path().to_path_buf())
                 }, move |arquivo| Msg::OpenQuery(Evento::ArquivoEscolhido(ticket, arquivo)));
             }
@@ -1209,6 +1257,7 @@ impl App {
                         let preservar = editor.importacao_preservar;
                         editor.importacao_preservar = false;
                         if preservar && !(editor.origem_aba.starts_with("Arquivo: ")
+                            || editor.origem_aba.starts_with("Pasta: ")
                             || editor.origem_aba.starts_with("Web: ")) {
                             editor.erro = tr!("Atualização da fonte exige um arquivo ou uma URL previamente importada").into();
                             return Task::none();

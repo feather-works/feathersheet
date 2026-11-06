@@ -71,6 +71,10 @@ fn linha_da_fonte(origem: &str) -> String {
     let chamada = if let Some(arquivo) = origem.strip_prefix("Arquivo: ") {
         let csv = [".csv", ".tsv", ".txt"].iter().any(|ext| arquivo.to_lowercase().ends_with(ext));
         format!("{}({})", if csv { "lerCsv" } else { "lerArquivo" }, s(arquivo))
+    } else if let Some(pasta) = origem.strip_prefix("Pasta: ") {
+        format!("lerPasta({})", s(pasta))
+    } else if let Some(consulta) = origem.strip_prefix("Consulta: ") {
+        format!("lerConsulta({})", s(consulta))
     } else if let Some(url) = origem.strip_prefix("Web: ") {
         format!("lerWeb({})", s(url))
     } else if let Some(tabela) = origem.strip_prefix("Tabela: ") {

@@ -114,7 +114,19 @@ fn ler_area(obj: &Json) -> Option<Rect> {
 }
 pub(super) fn origem(reg: &Json) -> Option<(String, Rect)> {
     let f = &reg["_feather"];
-    Some((f["origemAba"].as_str()?.into(), ler_area(&f["origemArea"])?))
+    Some((origem_interna(f["origemAba"].as_str()?), ler_area(&f["origemArea"])?))
+}
+
+/// Até 06/11/2026 a origem era gravada traduzida ("File: x.csv", "Manual entry"):
+/// volta ao nome interno, que é o que diz como atualizar.
+fn origem_interna(o: &str) -> String {
+    for (traduzido, interno) in [("File: ", "Arquivo: "), ("Archivo: ", "Arquivo: ")] {
+        if let Some(resto) = o.strip_prefix(traduzido) { return format!("{interno}{resto}"); }
+    }
+    match o {
+        "Manual entry" | "Entrada manual" => "Entrada manual".into(),
+        outro => outro.into(),
+    }
 }
 pub(super) fn area_saida(reg: &Json) -> Option<Rect> {
     ler_area(&reg["_feather"]["areaSaida"])
@@ -131,7 +143,7 @@ pub(super) fn destino(reg: &Json) -> Option<&str> {
 /// guardar a cópia só dobraria o arquivo. Arquivo, Web e entrada manual não
 /// têm de onde reler, e vão inteiros.
 fn fonte_guardada<'a>(fonte: &'a Tabela, origem_aba: &str) -> std::borrow::Cow<'a, Tabela> {
-    if origem_aba.starts_with("Arquivo: ") || origem_aba.starts_with("Web: ") || origem_aba == "Entrada manual" {
+    if origem_aba.starts_with("Arquivo: ") || origem_aba.starts_with("Pasta: ") || origem_aba.starts_with("Web: ") || origem_aba == "Entrada manual" {
         std::borrow::Cow::Borrowed(fonte)
     } else {
         std::borrow::Cow::Owned(Tabela { cabecalho: fonte.cabecalho.clone(), linhas: Vec::new() })
@@ -160,6 +172,30 @@ pub(super) fn montar(
             "fontesAdicionais":fontes_adicionais,
         }
     }))
+}
+
+/// O mapa das consultas gravadas: (nome, fontes, destino), as que leem outra
+/// consulta depois dela.
+pub(super) fn dependencias(w: &Workbook) -> Vec<(String, Vec<String>, String)> {
+    let mut itens: Vec<(String, Vec<String>, String)> = listar(w).unwrap_or_default().into_iter().map(|s| {
+        let r = &s.dados;
+        let mut fontes: Vec<String> = origem(r).map(|(o, _)| o).into_iter().collect();
+        fontes.extend(fontes_extra(r));
+        let destino = match r["destino"]["modo"].as_str() {
+            Some("apenas_conexao") => tr!("só conexão").to_string(),
+            _ => destino(r).map(|d| trf!("aba {}", d)).unwrap_or_else(|| tr!("só conexão").to_string()),
+        };
+        (r["nome"].as_str().unwrap_or("").to_owned(), fontes, destino)
+    }).collect();
+    // Quem lê "Consulta: X" vai depois de X (ordem estável, no máximo uma passada por item).
+    let n = itens.len();
+    for _ in 0..n {
+        let Some(i) = (0..itens.len()).find(|&i| itens[i].1.iter().any(|f| f.strip_prefix("Consulta: ")
+            .is_some_and(|x| itens[i + 1..].iter().any(|o| o.0 == x)))) else { break };
+        let item = itens.remove(i);
+        itens.push(item);
+    }
+    itens
 }
 
 /// A consulta é recalculada sempre que o arquivo abre (o "Atualizar ao abrir o arquivo" do Excel).

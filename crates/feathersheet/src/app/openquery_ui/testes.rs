@@ -505,3 +505,29 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         assert_eq!(e.resultado.linhas[1][0], Value::Number(0.0));
         assert_eq!(e.resultado.linhas[2][0], Value::Empty);
     }
+
+    #[test]
+    fn dependencias_poem_a_referencia_depois_da_consulta_que_ela_le_e_esc_fecha() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "Valor".into());
+        app.workbook.escrever_celula(0, 1, 0, "1".into());
+        abrir_aba_para_teste(&mut app);
+        app.evento_openquery(Evento::Nome("Base".into()));
+        app.concluir_openquery();
+        let id = registro::listar(&app.workbook).unwrap()[0].dados["id"].as_str().unwrap().to_owned();
+        assert!(app.abrir_consulta_salva(&id));
+        app.evento_openquery(Evento::Referenciar);
+        app.concluir_openquery();
+        let mapa = registro::dependencias(&app.workbook);
+        assert_eq!(mapa.len(), 2);
+        assert_eq!(mapa[0].0, "Base");
+        assert_eq!(mapa[1].1, ["Consulta: Base"]);
+        assert!(mapa[1].2.starts_with("aba "));
+        abrir_aba_para_teste(&mut app);
+        app.evento_openquery(Evento::Dependencias(true));
+        assert_eq!(app.openquery.as_ref().unwrap().dependencias.as_ref().map(Vec::len), Some(2));
+        assert!(app.fechar_assistente_openquery(), "Esc fecha o mapa, não a janela");
+        app.evento_openquery(Evento::Adicionar("filtrar"));
+        assert!(app.fechar_assistente_openquery(), "Esc fecha o modal da etapa");
+        assert!(app.openquery.as_ref().unwrap().modal.is_none());
+    }

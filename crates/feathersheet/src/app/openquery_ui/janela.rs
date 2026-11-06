@@ -65,6 +65,8 @@ impl App {
             e.erro_avancado.clear();
             return true;
         }
+        if e.modal.take().is_some() || e.dependencias.take().is_some() { return true; }
+        if e.parametros_abertos { e.parametros_abertos = false; e.acao_parametros = None; return true; }
         e.assistente.take().is_some()
     }
 
@@ -98,6 +100,8 @@ impl App {
         // Modais da janela: etapa (nova ou pela engrenagem) e "Carregar em…".
         let cartao: Option<Element<'_, Msg>> = if let Some(m) = &e.modal {
             Some(etapa::painel(m, &e.erro_modal))
+        } else if let Some(mapa) = &e.dependencias {
+            Some(painel_dependencias(mapa))
         } else if e.parametros_abertos {
             Some(painel_destino(e))
         } else {
@@ -416,6 +420,13 @@ impl App {
                     Some(om(Evento::ReimportarArquivo)), false),
             ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center));
         }
+        if (ativa == 0 || ativa == 1) && e.origem_aba.starts_with("Pasta: ") {
+            centro = centro.push(row![
+                legenda_oq(tr!("Origem externa • A pasta só é lida de novo quando você pede.")),
+                ide::botao_icone(tr!("Reler a pasta e manter etapas"), "refresh",
+                    Some(om(Evento::ReimportarArquivo)), false),
+            ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center));
+        }
         centro.push(conteudo).into()
     }
 
@@ -713,17 +724,18 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("De tabela"), "table", VERDE, Evento::MostrarTabelas),
                     p(tr!("Digitar dados"), "edit", ROXO, Evento::AbaCentro(2)),
                 ]),
+                pilha(vec![p(tr!("Da pasta…"), "folder", LARANJA, Evento::ImportarPasta)]),
             ], escuro),
             grupo_ribbon("CONSULTA", vec![
                 botao_ribbon("Atualizar\nfonte", "refresh", VERDE, Evento::AtualizarFonte, false),
                 pilha(vec![
                     p(tr!("Editor avançado"), "code", ROXO, Evento::AbrirEditorAvancado),
-                    p(tr!("Desfazer etapa (Ctrl+Z)"), "arrow-back-up", AZUL, Evento::Desfazer(true)),
-                    p(tr!("Refazer (Ctrl+Y)"), "arrow-forward-up", AZUL, Evento::Desfazer(false)),
+                    p(tr!("Desfazer"), "arrow-back-up", AZUL, Evento::Desfazer(true)),
+                    p(tr!("Refazer"), "arrow-forward-up", AZUL, Evento::Desfazer(false)),
                 ]),
                 pilha(vec![
-                    p(tr!("Duplicar consulta"), "copy", VERDE, Evento::Duplicar),
-                    p(tr!("Referenciar consulta"), "link", ROXO, Evento::Referenciar),
+                    p(tr!("Duplicar"), "copy", VERDE, Evento::Duplicar),
+                    p(tr!("Referenciar"), "link", ROXO, Evento::Referenciar),
                 ]),
             ], escuro),
             grupo_ribbon("COLUNAS", vec![pilha(vec![
@@ -737,10 +749,6 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("Manter primeiras linhas…"), "list-numbers", VERDE, Evento::Adicionar("limite")),
                     p(tr!("Remover linhas…"), "trash", VERMELHO, Evento::Adicionar("remover_linhas")),
                     p(tr!("Remover duplicatas"), "list-select", AZUL, Evento::Adicionar("distintas")),
-                ]),
-                pilha(vec![
-                    p(tr!("Remover erros"), "eraser", VERMELHO, Evento::Adicionar("remover_erros")),
-                    p(tr!("Inverter linhas"), "arrows-vertical", AZUL, Evento::Adicionar("inverter")),
                 ]),
             ], escuro),
             grupo_ribbon("COMBINAR", vec![pilha(vec![
@@ -785,6 +793,7 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
             grupo_ribbon("LINHAS", vec![pilha(vec![
                 p(tr!("Filtrar…"), "filter", ROXO, Evento::Adicionar("filtrar")),
                 p(tr!("Remover erros"), "eraser", VERMELHO, Evento::Adicionar("remover_erros")),
+                p(tr!("Inverter linhas"), "arrows-vertical", AZUL, Evento::Adicionar("inverter")),
             ])], escuro),
             grupo_ribbon("ORDENAR", vec![pilha(vec![
                 p(tr!("Classificar crescente"), "sort-ascending", AZUL, Evento::Adicionar("ordenar")),
@@ -815,6 +824,8 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     Evento::AlternarEtapas, !e.etapas_recolhidas),
                 botao_ribbon(tr!("Erros e\nlog"), "terminal", ROXO,
                     Evento::AlternarPainelInferior, e.painel_inferior_aberto),
+                botao_ribbon(tr!("Dependências"), "sitemap", LARANJA,
+                    Evento::Dependencias(true), e.dependencias.is_some()),
             ], escuro),
             grupo_ribbon(tr!("PRÉVIA"), vec![
                 botao_ribbon("Fonte\ninicial", "table", VERDE,
@@ -916,6 +927,45 @@ fn menu_da_coluna(e: &Estado, c: usize) -> Vec<crate::app::menu_contexto::ItemMe
 }
 
 /// "Carregar em…": modal com o destino do resultado.
+/// Exibir ▸ Dependências: de onde cada consulta lê e para onde escreve.
+fn painel_dependencias<'a>(mapa: &'a [(String, Vec<String>, String)]) -> Element<'a, Msg> {
+    let chip = |t: String, icone: &'static str| -> Element<'a, Msg> {
+        container(row![feather_ui::icones::icone(icone, 14.0), text(t).size(TAM_TEXTO)]
+            .spacing(ESPACO_PEQUENO).align(pelicano::Align::Center))
+            .padding([4, 8]).style(|_| pelicano::Style {
+                background: Some(Background::Color(pelicano::Color::rgba(0.5, 0.5, 0.5, 0.14))),
+                border: Border { color: pelicano::Color::rgba(0.5, 0.5, 0.5, 0.35), width: 1.0, radius: [4.0; 4] },
+                ..Default::default()
+            }).into()
+    };
+    let mut corpo = column![].spacing(ESPACO_MEDIO);
+    if mapa.is_empty() {
+        corpo = corpo.push(legenda_oq(tr!("Nenhuma consulta gravada nesta pasta ainda.")));
+    }
+    for (nome, fontes, destino) in mapa {
+        let mut origem = column![].spacing(2);
+        for f in fontes {
+            let icone = if f.starts_with("Consulta: ") { "sitemap" } else if f.starts_with("Web: ") { "link" }
+                else if f.starts_with("Arquivo: ") || f.starts_with("Pasta: ") { "folder" } else { "table" };
+            origem = origem.push(chip(f.clone(), icone));
+        }
+        corpo = corpo.push(row![
+            container(origem).width(Length::Fill(3)),
+            text("→").size(16),
+            container(chip(nome.clone(), "sitemap")).width(Length::Fill(2)),
+            text("→").size(16),
+            container(chip(destino.clone(), "file-export")).width(Length::Fill(2)),
+        ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center));
+    }
+    feather_ui::dialogo::Dialogo::new(tr!("Dependências das consultas"), corpo)
+        .icone("sitemap")
+        .subtitulo(tr!("De onde cada consulta lê e para onde escreve. Quem referencia outra consulta vem depois dela."))
+        .largura(720.0)
+        .ao_fechar(om(Evento::Dependencias(false)))
+        .primario(tr!("Fechar"), Some(om(Evento::Dependencias(false))))
+        .painel()
+}
+
 fn painel_destino<'a>(e: &'a Estado) -> Element<'a, Msg> {
     let mut opcoes = column![].spacing(ESPACO_MEDIO);
     for (rotulo, legenda, modo) in [

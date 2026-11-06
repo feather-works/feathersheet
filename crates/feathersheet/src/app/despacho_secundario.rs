@@ -1243,7 +1243,13 @@ impl App {
                             }
                             let _ = self.update(Msg::IrPara("A1:D5".into()));
                             let tarefa = self.evento_openquery_janela(openquery_ui::Evento::AbrirCom(Box::new(openquery_ui::Evento::CarregarSelecao)));
-                            if let Some(tipo) = resto.strip_prefix(':') {
+                            if let Some(aba) = match resto.as_str() { ":transformar" => Some(openquery_ui::AbaFaixa::Transformar), ":adicionar" => Some(openquery_ui::AbaFaixa::Adicionar), _ => None } {
+                                let _ = self.evento_openquery(openquery_ui::Evento::Aba(aba));
+                            } else if resto == ":dependencias" {
+                                let _ = self.evento_openquery(openquery_ui::Evento::Carregar);
+                                let _ = self.evento_openquery_janela(openquery_ui::Evento::AbrirCom(Box::new(openquery_ui::Evento::CarregarSelecao)));
+                                let _ = self.evento_openquery(openquery_ui::Evento::Dependencias(true));
+                            } else if let Some(tipo) = resto.strip_prefix(':') {
                                 if let Some(t) = openquery_ui::tipo_de_etapa(tipo) {
                                     let _ = self.evento_openquery(openquery_ui::Evento::Adicionar(t));
                                 }
