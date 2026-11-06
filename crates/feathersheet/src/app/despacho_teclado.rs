@@ -215,6 +215,16 @@ impl App {
                         && key == keyboard::Key::Named(keyboard::key::Named::F2) {
                         return self.evento_openquery_janela(openquery_ui::Evento::Adicionar("renomear"));
                     }
+                    // Ctrl+Z / Ctrl+Y (ou Ctrl+Shift+Z) desfazem e refazem as etapas da consulta.
+                    if aux == Auxiliar::OpenQuery && mods.control() {
+                        if let keyboard::Key::Character(c) = &key {
+                            match (c.as_str(), mods.shift()) {
+                                ("z", false) => return self.evento_openquery_janela(openquery_ui::Evento::Desfazer(true)),
+                                ("y", _) | ("z", true) | ("Z", true) => return self.evento_openquery_janela(openquery_ui::Evento::Desfazer(false)),
+                                _ => {}
+                            }
+                        }
+                    }
                     // Esc fecha primeiro o assistente modal; só depois a janela.
                     if aux == Auxiliar::OpenQuery
                         && key == keyboard::Key::Named(keyboard::key::Named::Escape) {

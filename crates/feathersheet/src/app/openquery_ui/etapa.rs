@@ -78,6 +78,8 @@ pub(super) struct Modal {
     opcao: &'static str,
     grupo: Vec<usize>,
     contas: Vec<Conta>,
+    /// O `erros` da etapa de tipo (mantido ao editar pela engrenagem).
+    erros_tipo: bool,
     /// As primeiras linhas que chegam à etapa, para a prévia do modal.
     amostra: Tabela,
     fontes: HashMap<String, Tabela>,
@@ -128,6 +130,7 @@ impl Modal {
         Self {
             tipo, editar: None, colunas, col, texto, texto2, texto3, em_linhas: false, desc: false, para: "texto",
             opcao, grupo, contas: vec![Conta { operacao: 0, col, nome: tr!("Quantidade").into() }],
+            erros_tipo: false,
             amostra: Tabela { cabecalho: Vec::new(), linhas: Vec::new() }, fontes: HashMap::new(),
         }
     }
@@ -208,9 +211,10 @@ impl Modal {
                 m.col = chave.col;
                 m.desc = chave.desc == Some(true);
             }
-            Passo::Tipar { col, para } => {
+            Passo::Tipar { col, para, erros } => {
                 m.tipo = "tipar";
                 m.col = *col;
+                m.erros_tipo = *erros;
                 m.para = if para == "numero" { "numero" } else { "texto" };
             }
             Passo::Agrupar { por, agregar } => {
@@ -362,7 +366,7 @@ impl Modal {
                 }
             },
             "ordenar" => Passo::Ordenar { por: vec![ChaveOrdenacao { col, desc: Some(self.desc) }] },
-            "tipar" => Passo::Tipar { col, para: self.para.into() },
+            "tipar" => Passo::Tipar { col, para: self.para.into(), erros: self.erros_tipo },
             "agrupar" => {
                 if self.grupo.is_empty() {
                     return Err(tr!("Escolha ao menos uma coluna em Agrupar por").into());

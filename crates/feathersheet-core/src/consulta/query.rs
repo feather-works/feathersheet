@@ -110,7 +110,8 @@ pub enum Passo {
     Ordenar { por: Vec<ChaveOrdenacao> },
     Colunas { manter: Vec<usize> },
     Renomear { col: usize, nome: String },
-    Tipar { col: usize, para: String },
+    /// `erros`: o valor que não converte vira `#VALOR!` (sem ele, fica vazio, como no `query.ts`).
+    Tipar { col: usize, para: String, #[serde(default, skip_serializing_if = "std::ops::Not::not", deserialize_with = "bool_ou_nulo")] erros: bool },
     Substituir { col: usize, de: Value, para: Value },
     SubstituirErros { col: usize, para: Value },
     RemoverErros { col: usize },
@@ -165,7 +166,7 @@ pub enum Passo {
     /// Texto da coluna: aparar, limpar, maiusculas, minusculas, titulo, prefixo, sufixo (`texto`).
     Formatar { col: usize, como: String, #[serde(default)] texto: Option<String> },
     /// Vazias recebem o valor de cima (ou de baixo).
-    Preencher { col: usize, #[serde(rename = "paraCima", default)] para_cima: bool },
+    Preencher { col: usize, #[serde(rename = "paraCima", default, deserialize_with = "bool_ou_nulo")] para_cima: bool },
     /// primeiras, ultimas, manter_ultimas (com `quantas`) ou vazias.
     RemoverLinhas { modo: String, #[serde(default)] quantas: f64 },
     Transpor,
@@ -174,6 +175,12 @@ pub enum Passo {
     DividirPosicoes { col: usize, #[serde(default)] posicoes: Vec<usize>, #[serde(default)] cada: Option<usize> },
     /// Coluna calculada por fórmula da planilha: `=[Preço]*[Qtd]`.
     Personalizada { nome: String, formula: String },
+}
+
+/// Lógico que aceita `null` como falso: o script da consulta escreve o argumento
+/// que falta como `null`.
+fn bool_ou_nulo<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
+    Ok(<Option<bool> as serde::Deserialize>::deserialize(d)?.unwrap_or(false))
 }
 
 /// Quantas linhas o passo `limite` deixa passar, como o `primeiras` do
@@ -375,12 +382,18 @@ fn aplicar_passo(t: Tabela, passo: &Passo, fontes: &HashMap<String, Tabela>) -> 
             cabecalho: manter.iter().map(|&c| nome_da_coluna(&t, c)).collect(),
             linhas: t.linhas.iter().map(|l| manter.iter().map(|&c| celula(l, c)).collect()).collect(),
         },
-        Passo::Tipar { col, para } => {
+        Passo::Tipar { col, para, erros } => {
             let linhas = t
                 .linhas
                 .into_iter()
                 .map(|mut l| {
-                    let v = converter(celula(&l, *col), para);
+                    let antes = celula(&l, *col);
+                    let tinha = !matches!(&antes, Value::Empty) && !matches!(&antes, Value::Text(s) if s.trim().is_empty());
+                    let mut v = converter(antes, para);
+                    if *erros && tinha && matches!(v, Value::Empty) {
+                        v = Value::Error(crate::celulas::values::CellError::com_motivo(
+                            crate::celulas::values::ErrorCode::Value, format!("não converteu para {para}")));
+                    }
                     gravar_em(&mut l, *col, v);
                     l
                 })

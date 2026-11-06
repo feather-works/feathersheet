@@ -392,6 +392,23 @@ impl App {
             _ => self.previa_openquery(e, escuro),
         };
         let mut centro = column![abas].spacing(5).width(Length::FILL).height(Length::FILL);
+        if let Some(a) = &e.aviso_tipo {
+            let tipo = match a.para.as_str() { "data" | "dataHora" | "hora" => tr!("data"), "logico" => tr!("lógico"), _ => tr!("número") };
+            let exemplos = a.exemplos.iter().map(|x| format!("\"{x}\"")).collect::<Vec<_>>().join(", ");
+            centro = centro.push(container(row![
+                feather_ui::icones::icone("alert-triangle", 16.0),
+                texto_oq(trf!("{} linha(s) de {} não converteram para {} e ficaram vazias (ex.: {}).", a.falhas, a.nome, tipo, exemplos)),
+                Space::new(Length::FILL, 0.0),
+                ide::botao(tr!("Remover essas linhas"), Some(om(Evento::FalhasDeTipo(0))), false),
+                ide::botao(tr!("Substituir por 0"), Some(om(Evento::FalhasDeTipo(1))), false),
+                ide::botao_icone_simples("x", Some(om(Evento::FalhasDeTipo(2)))),
+            ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center)).padding([5, 8]).width(Length::FILL)
+                .style(|_| pelicano::Style {
+                    background: Some(Background::Color(pelicano::Color::rgba(0.84, 0.51, 0.15, 0.16))),
+                    border: Border { color: pelicano::Color::rgba(0.84, 0.51, 0.15, 0.55), width: 1.0, radius: [4.0; 4] },
+                    ..Default::default()
+                }));
+        }
         if (ativa == 0 || ativa == 1) && e.origem_aba.starts_with("Arquivo: ") {
             centro = centro.push(row![
                 legenda_oq(tr!("Origem externa • A atualização sempre exige escolher o arquivo novamente.")),
@@ -699,7 +716,15 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
             ], escuro),
             grupo_ribbon("CONSULTA", vec![
                 botao_ribbon("Atualizar\nfonte", "refresh", VERDE, Evento::AtualizarFonte, false),
-                pilha(vec![p(tr!("Editor avançado"), "code", ROXO, Evento::AbrirEditorAvancado)]),
+                pilha(vec![
+                    p(tr!("Editor avançado"), "code", ROXO, Evento::AbrirEditorAvancado),
+                    p(tr!("Desfazer etapa (Ctrl+Z)"), "arrow-back-up", AZUL, Evento::Desfazer(true)),
+                    p(tr!("Refazer (Ctrl+Y)"), "arrow-forward-up", AZUL, Evento::Desfazer(false)),
+                ]),
+                pilha(vec![
+                    p(tr!("Duplicar consulta"), "copy", VERDE, Evento::Duplicar),
+                    p(tr!("Referenciar consulta"), "link", ROXO, Evento::Referenciar),
+                ]),
             ], escuro),
             grupo_ribbon("COLUNAS", vec![pilha(vec![
                 p(tr!("Renomear…"), "edit", AZUL, Evento::Adicionar("renomear")),
@@ -851,7 +876,7 @@ fn formatos_efetivos(e: &Estado, visual: &Tabela) -> Formatos {
     let mut f = e.formatos.clone();
     let ate = e.passo_previa.map_or(e.passos.len(), |i| (i + 1).min(e.passos.len()));
     for p in &e.passos[..ate] {
-        let Passo::Tipar { col, para } = p else { continue };
+        let Passo::Tipar { col, para, .. } = p else { continue };
         let Some(nome) = visual.cabecalho.get(*col) else { continue };
         let formato = match para.as_str() {
             "data" => F::Date,

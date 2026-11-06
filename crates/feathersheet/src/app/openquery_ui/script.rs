@@ -34,7 +34,7 @@ const METODOS: &[(&str, &str, &[(&str, Arg)])] = &[
     ("ordenar", "ordenar", &[("por", Ordem)]),
     ("colunas", "selecionarColunas", &[("manter", Cols)]),
     ("renomear", "renomearColuna", &[("col", Col), ("nome", Valor)]),
-    ("tipar", "mudarTipo", &[("col", Col), ("para", Valor)]),
+    ("tipar", "mudarTipo", &[("col", Col), ("para", Valor), ("erros", Valor)]),
     ("substituir", "substituirValores", &[("col", Col), ("de", Valor), ("para", Valor)]),
     ("substituirErros", "substituirErros", &[("col", Col), ("para", Valor)]),
     ("removerErros", "removerErros", &[("col", Col)]),
@@ -308,6 +308,9 @@ mod testes {
         let passos = vec![
             Passo::Formatar { col: 0, como: "prefixo".into(), texto: Some("UF-".into()) },
             Passo::Preencher { col: 0, para_cima: true },
+            Passo::Preencher { col: 0, para_cima: false },
+            Passo::Tipar { col: 0, para: "numero".into(), erros: true },
+            Passo::Tipar { col: 0, para: "texto".into(), erros: false },
             Passo::RemoverLinhas { modo: "ultimas".into(), quantas: 1.0 },
             Passo::Personalizada { nome: "Dobro".into(), formula: "=[MWh]*2".into() },
             Passo::DividirPosicoes { col: 0, posicoes: vec![0, 2], cada: None },
@@ -327,7 +330,7 @@ mod testes {
         let texto = "// minha consulta\nconst dados = lerCsv(\"x.csv\")\ndados.renomearColuna(\"Ano\", \"Exercício\") // renomeia\ndados.mudarTipo(\"Exercício\", \"texto\");\ndados.executar();";
         let passos = ler(texto, &fonte(), &HashMap::new()).unwrap();
         assert!(matches!(&passos[0], Passo::Renomear { col: 1, nome } if nome == "Exercício"));
-        assert!(matches!(&passos[1], Passo::Tipar { col: 1, para } if para == "texto"));
+        assert!(matches!(&passos[1], Passo::Tipar { col: 1, para, .. } if para == "texto"));
     }
 
     #[test]

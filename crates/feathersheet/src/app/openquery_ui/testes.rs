@@ -421,3 +421,87 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         assert_eq!(app.config.fontes_recentes, ["/tmp/a.csv", "https://x.org/t"]);
     }
 
+
+    #[test]
+    fn ctrl_z_desfaz_e_refaz_as_etapas() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "Valor".into());
+        for (r, v) in ["3", "1", "2"].iter().enumerate() { app.workbook.escrever_celula(0, r as u32 + 1, 0, (*v).into()); }
+        abrir_aba_para_teste(&mut app);
+        app.evento_openquery(Evento::Adicionar("ordenar"));
+        app.evento_openquery(Evento::Adicionar("indice"));
+        assert_eq!(app.openquery.as_ref().unwrap().passos.len(), 2);
+        app.evento_openquery(Evento::Desfazer(true));
+        let e = app.openquery.as_ref().unwrap();
+        assert_eq!(e.passos.len(), 1);
+        assert_eq!(e.resultado.cabecalho, ["Valor"], "o resultado volta junto");
+        app.evento_openquery(Evento::Desfazer(true));
+        assert!(app.openquery.as_ref().unwrap().passos.is_empty());
+        app.evento_openquery(Evento::Desfazer(true));
+        assert_eq!(app.status, "OpenQuery: nada a desfazer");
+        app.evento_openquery(Evento::Desfazer(false));
+        app.evento_openquery(Evento::Desfazer(false));
+        assert_eq!(app.openquery.as_ref().unwrap().passos.len(), 2, "Ctrl+Y refaz as duas");
+        // Etapa nova depois de desfazer apaga o refazer.
+        app.evento_openquery(Evento::Desfazer(true));
+        app.evento_openquery(Evento::Adicionar("inverter"));
+        app.evento_openquery(Evento::Desfazer(false));
+        assert_eq!(app.status, "OpenQuery: nada a refazer");
+    }
+
+    #[test]
+    fn duplicar_e_referenciar_consulta_gravada() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "Valor".into());
+        for (r, v) in ["3", "1"].iter().enumerate() { app.workbook.escrever_celula(0, r as u32 + 1, 0, (*v).into()); }
+        abrir_aba_para_teste(&mut app);
+        app.evento_openquery(Evento::Nome("Base".into()));
+        app.evento_openquery(Evento::Adicionar("ordenar"));
+        app.concluir_openquery();
+        let id = registro::listar(&app.workbook).unwrap()[0].dados["id"].as_str().unwrap().to_owned();
+        assert!(app.abrir_consulta_salva(&id));
+        app.evento_openquery(Evento::Duplicar);
+        let salvas = registro::listar(&app.workbook).unwrap();
+        assert_eq!(salvas.len(), 2);
+        assert_eq!(salvas[1].dados["nome"], "Base (2)");
+        assert_eq!(salvas[1].dados["destino"]["modo"], "apenas_conexao");
+        // Referenciar: a fonte é o resultado da "Base" (já ordenado).
+        app.evento_openquery(Evento::Referenciar);
+        let e = app.openquery.as_ref().unwrap();
+        assert_eq!(e.origem_aba, "Consulta: Base");
+        assert_eq!(e.fonte.linhas[0][0], Value::Number(1.0));
+        app.evento_openquery(Evento::Adicionar("inverter"));
+        app.concluir_openquery();
+        let destino = app.folha;
+        assert_eq!(app.workbook.valor(destino, 1, 0), Value::Number(3.0));
+        // A origem muda: atualizar a referência recalcula a "Base" antes.
+        app.workbook.escrever_celula(0, 1, 0, "9".into());
+        let ref_id = registro::listar(&app.workbook).unwrap().into_iter()
+            .find(|s| s.dados["nome"] == "Base (referência)").unwrap().dados["id"].as_str().unwrap().to_owned();
+        app.atualizar_consulta_salva(&ref_id);
+        assert_eq!(app.workbook.valor(destino, 1, 0), Value::Number(9.0));
+    }
+
+    #[test]
+    fn aviso_de_tipo_conta_o_que_nao_converteu_e_remove_so_essas_linhas() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "Valor".into());
+        app.workbook.escrever_celula(0, 0, 1, "Nome".into());
+        for (r, v) in ["10", "N/D", "", "2"].iter().enumerate() {
+            app.workbook.escrever_celula(0, r as u32 + 1, 0, (*v).into());
+            app.workbook.escrever_celula(0, r as u32 + 1, 1, "x".into());
+        }
+        abrir_aba_para_teste(&mut app);
+        app.evento_openquery(Evento::Tipar(0, "numero"));
+        let aviso = app.openquery.as_ref().unwrap().aviso_tipo.clone().expect("aviso");
+        assert_eq!((aviso.falhas, aviso.exemplos.as_slice()), (1, &["N/D".to_string()][..]), "a vazia não conta");
+        app.evento_openquery(Evento::FalhasDeTipo(0));
+        let e = app.openquery.as_ref().unwrap();
+        assert!(e.aviso_tipo.is_none());
+        assert_eq!(e.resultado.linhas.len(), 3, "sai só a linha do N/D; a vazia fica");
+        app.evento_openquery(Evento::Desfazer(true));
+        app.evento_openquery(Evento::FalhasDeTipo(1));
+        let e = app.openquery.as_ref().unwrap();
+        assert_eq!(e.resultado.linhas[1][0], Value::Number(0.0));
+        assert_eq!(e.resultado.linhas[2][0], Value::Empty);
+    }

@@ -3,34 +3,74 @@
 use super::*;
 
 impl App {
+    /// A fonte de uma consulta gravada (origem, área, tabela), relida da pasta.
+    /// `Consulta: nome` (Referenciar) é o resultado de outra consulta gravada.
+    fn fonte_da_salva(&self, dados: &serde_json::Value, profundidade: u8) -> Result<(String, Rect, Tabela), String> {
+        let Some((nome, area)) = registro::origem(dados) else {
+            // Consultas legadas TS podem não possuir a referência da
+            // origem. É possível editá-las a partir do snapshot,
+            // mas não sobrescrever o resultado sem a área gerada.
+            let fonte = registro::fonte_snapshot(dados)?;
+            let area = Rect::new(0, 0, fonte.linhas.len() as u32, fonte.cabecalho.len().saturating_sub(1) as u32);
+            return Ok((tr!("Consulta salva").into(), area, fonte));
+        };
+        if nome.starts_with("Arquivo: ") || nome.starts_with("Web: ") || nome == "Entrada manual" {
+            // Arquivo importado: reabre o snapshot salvo. Atualizar
+            // arquivo externo exige reimportação explícita, nunca
+            // leitura silenciosa de caminho arbitrário no disco.
+            return Ok((nome, area, registro::fonte_snapshot(dados)?));
+        }
+        if let Some(outra) = nome.strip_prefix("Consulta: ") {
+            let tabela = self.resultado_da_salva(outra, profundidade + 1)?;
+            return Ok((nome.clone(), area, tabela));
+        }
+        let indice = self.workbook.indice_por_nome(&nome).ok_or_else(|| {
+            trf!("A origem '{nome}' foi removida; a consulta não pode ser atualizada")
+        })?;
+        let tabela = ler_tabela(&self.workbook, indice, area.clone())?;
+        Ok((nome, area, tabela))
+    }
+
+    /// As fontes adicionais (juntar, acrescentar) de uma consulta gravada.
+    fn fontes_extra_da_salva(&self, dados: &serde_json::Value) -> Result<HashMap<String, Tabela>, String> {
+        let mut fontes = HashMap::new();
+        for nome in registro::fontes_extra(dados) {
+            let (indice, area) = if let Some(tabela) = nome.strip_prefix("Tabela: ") {
+                tabelas_existentes(&self.workbook).into_iter()
+                    .find(|(_, n, _)| n == tabela)
+                    .map(|(i, _, a)| (i, a))
+                    .ok_or_else(|| trf!("A tabela adicional '{tabela}' não existe mais"))?
+            } else {
+                // Compatibilidade com consultas antigas que mesclavam abas.
+                let indice = self.workbook.indice_por_nome(&nome).ok_or_else(|| {
+                    trf!("A fonte adicional '{nome}' não existe mais")
+                })?;
+                let area = self.workbook.aba(indice).ok_or(tr!("Aba indisponível"))?.sheet.used_rect();
+                (indice, area)
+            };
+            fontes.insert(nome, ler_tabela(&self.workbook, indice, area)?);
+        }
+        Ok(fontes)
+    }
+
+    /// O resultado de uma consulta gravada pelo nome, sem abrir o editor (a fonte
+    /// de quem a referencia).
+    pub(super) fn resultado_da_salva(&self, nome: &str, profundidade: u8) -> Result<Tabela, String> {
+        if profundidade > 8 {
+            return Err(trf!("A consulta '{nome}' referencia a si mesma (ou uma cadeia longa demais)"));
+        }
+        let salva = registro::listar(&self.workbook)?.into_iter()
+            .find(|s| s.dados["nome"].as_str() == Some(nome))
+            .ok_or_else(|| trf!("A consulta referenciada '{nome}' não existe mais"))?;
+        let (_, _, fonte) = self.fonte_da_salva(&salva.dados, profundidade)?;
+        let passos = json_passos::ler(&serde_json::to_string(&salva.dados["passos"]).map_err(|e| e.to_string())?)?;
+        executar_query_limitado(fonte, &passos, &self.fontes_extra_da_salva(&salva.dados)?, u64::MAX)
+    }
+
     pub(super) fn abrir_consulta_salva(&mut self, id: &str) -> bool {
         let resultado = (|| -> Result<Estado, String> {
             let salva = registro::buscar(&self.workbook, id)?;
-            let (origem_aba, origem, fonte) =
-                if let Some((nome, area)) = registro::origem(&salva.dados) {
-                    if nome.starts_with("Arquivo: ") || nome.starts_with("Web: ") || nome == "Entrada manual" {
-                        // Arquivo importado: reabre o snapshot salvo. Atualizar
-                        // arquivo externo exige reimportação explícita, nunca
-                        // leitura silenciosa de caminho arbitrário no disco.
-                        (nome, area, registro::fonte_snapshot(&salva.dados)?)
-                    } else {
-                        let indice = self.workbook.indice_por_nome(&nome).ok_or_else(|| {
-                            trf!("A origem '{nome}' foi removida; a consulta não pode ser atualizada")
-                        })?;
-                        let tabela = ler_tabela(&self.workbook, indice, area.clone())?;
-                        (nome, area, tabela)
-                    }
-                } else {
-                    // Consultas legadas TS podem não possuir a referência da
-                    // origem. É possível editá-las a partir do snapshot,
-                    // mas não sobrescrever o resultado sem a área gerada.
-                    let fonte = registro::fonte_snapshot(&salva.dados)?;
-                    let area = Rect::new(
-                        0, 0, fonte.linhas.len() as u32,
-                        fonte.cabecalho.len().saturating_sub(1) as u32,
-                    );
-                    (tr!("Consulta salva").into(), area, fonte)
-                };
+            let (origem_aba, origem, fonte) = self.fonte_da_salva(&salva.dados, 0)?;
             let mut estado = Estado::novo(fonte, origem_aba, origem);
             estado.nome = salva.dados["nome"].as_str().unwrap_or(tr!("Consulta")).into();
             estado.edicao = Some(id.to_owned());
@@ -42,23 +82,10 @@ impl App {
             let texto = serde_json::to_string(&salva.dados["passos"])
                 .map_err(|e| e.to_string())?;
             estado.passos = json_passos::ler(&texto)?;
-            for nome in registro::fontes_extra(&salva.dados) {
-                let (indice, area) = if let Some(tabela) = nome.strip_prefix("Tabela: ") {
-                    tabelas_existentes(&self.workbook).into_iter()
-                        .find(|(_, n, _)| n == tabela)
-                        .map(|(i, _, a)| (i, a))
-                        .ok_or_else(|| trf!("A tabela adicional '{tabela}' não existe mais"))?
-                } else {
-                    // Compatibilidade com consultas antigas que mesclavam abas.
-                    let indice = self.workbook.indice_por_nome(&nome).ok_or_else(|| {
-                        trf!("A fonte adicional '{nome}' não existe mais")
-                    })?;
-                    let area = self.workbook.aba(indice).ok_or(tr!("Aba indisponível"))?.sheet.used_rect();
-                    (indice, area)
-                };
-                estado.fontes.insert(nome, ler_tabela(&self.workbook, indice, area)?);
-            }
+            estado.fontes = self.fontes_extra_da_salva(&salva.dados)?;
             estado.registrar_passos();
+            // A consulta gravada abre sem Ctrl+Z para "nenhuma etapa".
+            estado.esquecer_historico();
             if let Some(url) = estado.origem_aba.strip_prefix("Web: ") {
                 estado.url_web = url.to_owned();
             }
@@ -89,6 +116,44 @@ impl App {
     /// Apenas conexão: guarda receita e snapshot sem criar/modificar
     /// células da grade. O registro mora numa aba existente para que a
     /// serialização FSHZ continue no contrato Sheet.oq do TypeScript.
+    /// Duplicar: a consulta gravada `id` copiada como conexão (sem escrever células);
+    /// "Carregar em…" escolhe depois onde ela vai.
+    pub(super) fn duplicar_consulta(&mut self, id: &str) -> Result<String, String> {
+        let original = registro::buscar(&self.workbook, id)?;
+        let novo_id = registro::proximo_id(&self.workbook)?;
+        let nomes: Vec<String> = registro::listar(&self.workbook)?.iter()
+            .filter_map(|s| s.dados["nome"].as_str().map(str::to_owned)).collect();
+        let base = original.dados["nome"].as_str().unwrap_or(tr!("Consulta")).to_owned();
+        let nome = (2..).map(|n| format!("{base} ({n})")).find(|n| !nomes.contains(n)).unwrap_or(base);
+        let mut reg = original.dados.clone();
+        reg["id"] = serde_json::json!(novo_id);
+        reg["nome"] = serde_json::json!(nome);
+        reg["destino"]["modo"] = serde_json::json!("apenas_conexao");
+        reg["_feather"]["areaSaida"] = serde_json::Value::Null;
+        let aba = registro::destino(&original.dados).and_then(|n| self.workbook.indice_por_nome(n)).unwrap_or(self.folha);
+        let plano = registro::preparar_gravacao(&self.workbook, aba, &reg)?;
+        registro::aplicar_gravacao(&mut self.workbook, plano);
+        self.alterado = true;
+        Ok(nome)
+    }
+
+    /// Referenciar: uma consulta nova cuja fonte é o resultado da consulta `id` (como o
+    /// Referência do Power Query); ao atualizar, ela recalcula a outra antes.
+    pub(super) fn referenciar_consulta(&mut self, id: &str) -> Result<(), String> {
+        let original = registro::buscar(&self.workbook, id)?;
+        let nome = original.dados["nome"].as_str().ok_or(tr!("Consulta sem nome"))?.to_owned();
+        let fonte = self.resultado_da_salva(&nome, 0)?;
+        let area = Rect::new(0, 0, fonte.linhas.len() as u32, fonte.cabecalho.len().saturating_sub(1) as u32);
+        let salvas = self.openquery.as_ref().map(|e| e.salvas.clone()).unwrap_or_default();
+        let mut estado = Estado::novo(fonte, format!("Consulta: {nome}"), area);
+        estado.nome = trf!("{} (referência)", nome);
+        estado.salvas = salvas;
+        estado.registrar_passos();
+        estado.esquecer_historico();
+        self.openquery = Some(estado);
+        Ok(())
+    }
+
     pub(super) fn salvar_conexao_openquery(&mut self) {
         let preparado = (|| -> Result<(usize, serde_json::Value, String), String> {
             let editor = self.openquery.as_mut().ok_or(tr!("Editor de consulta não está aberto"))?;

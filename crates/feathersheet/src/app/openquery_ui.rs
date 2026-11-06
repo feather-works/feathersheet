@@ -135,6 +135,13 @@ pub enum Evento {
     PainelInferior(u8),
     /// Modal de parâmetros de uma etapa (nova ou pela engrenagem).
     Etapa(etapa::Evento),
+    /// Ctrl+Z (true) / Ctrl+Y (false) nas etapas.
+    Desfazer(bool),
+    /// Aviso de tipo: 0 remover as linhas, 1 trocar por 0, 2 fechar o aviso.
+    FalhasDeTipo(u8),
+    /// A consulta gravada aberta: copiar como conexão ou usar o resultado como fonte.
+    Duplicar,
+    Referenciar,
     /// O "senão" da coluna condicional no modal.
     EtapaSenao(String),
     /// Engrenagem: reabre a etapa no modal.
@@ -222,7 +229,26 @@ pub(super) struct Estado {
     /// Deslocamento e tamanho visível da prévia (x, y, largura, altura).
     rolagem: (f32, f32, f32, f32),
     formatos: Formatos,
+    /// Ctrl+Z / Ctrl+Y das etapas: as listas de etapas anteriores (JSON) e a atual.
+    historico: Vec<String>,
+    refazer: Vec<String>,
+    etapas_atuais: String,
+    /// A última etapa mudou o tipo e alguns valores não converteram.
+    aviso_tipo: Option<AvisoTipo>,
 }
+
+/// "N linhas de Coluna não converteram para número (ex.: …)".
+#[derive(Debug, Clone)]
+pub(super) struct AvisoTipo {
+    pub col: usize,
+    pub nome: String,
+    pub para: String,
+    pub falhas: usize,
+    pub exemplos: Vec<String>,
+}
+
+/// Quantas mudanças de etapas o Ctrl+Z da consulta guarda.
+const MAX_DESFAZER: usize = 100;
 
 /// Apenas tabelas estruturadas já criadas (Ctrl+T) na pasta aberta.
 /// Não confundir tabelas com a área usada de uma aba nem com o intervalo selecionado.
@@ -312,6 +338,8 @@ impl Estado {
             recolhidos: [false; 3],
             rolagem: (0.0, 0.0, 1600.0, 1000.0),
             formatos: Formatos::new(),
+            historico: Vec::new(), refazer: Vec::new(), etapas_atuais: "[]".into(),
+            aviso_tipo: None,
         }
     }
 
@@ -373,6 +401,43 @@ impl Estado {
         self.passo_previa = None;
         self.tabela_previa = None;
         self.erro.clear();
+        self.aviso_tipo = self.aviso_de_tipo();
+    }
+
+    /// Conta o que a última etapa de tipo não conseguiu converter (o valor sumiu).
+    // shortcut: roda a consulta até a etapa anterior de novo; só quando a última é de tipo.
+    fn aviso_de_tipo(&self) -> Option<AvisoTipo> {
+        let i = self.passos.len().checked_sub(1)?;
+        let Passo::Tipar { col, para, erros: false } = &self.passos[i] else { return None };
+        if para == "texto" { return None; }
+        let antes = executar_query_limitado(self.fonte.clone(), &self.passos[..i], &self.fontes, u64::MAX).ok()?;
+        let vazio = |v: Option<&Value>| match v {
+            None | Some(Value::Empty) => true,
+            Some(Value::Text(s)) => s.trim().is_empty(),
+            _ => false,
+        };
+        let mut falhas = 0;
+        let mut exemplos: Vec<String> = Vec::new();
+        for (a, d) in antes.linhas.iter().zip(&self.resultado.linhas) {
+            if !vazio(a.get(*col)) && vazio(d.get(*col)) {
+                falhas += 1;
+                let t = a.get(*col).map(feathersheet_core::celulas::values::to_text).unwrap_or_default();
+                if exemplos.len() < 3 && !exemplos.contains(&t) { exemplos.push(t); }
+            }
+        }
+        (falhas > 0).then(|| AvisoTipo {
+            col: *col, nome: self.resultado.cabecalho.get(*col).cloned().unwrap_or_default(),
+            para: para.clone(), falhas, exemplos,
+        })
+    }
+
+    /// Do aviso de tipo: os que não converteram viram `#VALOR!` e saem (`remover`) ou viram 0.
+    fn tratar_falhas_de_tipo(&mut self, remover: bool) {
+        let Some(aviso) = self.aviso_tipo.take() else { return };
+        if let Some(Passo::Tipar { erros, .. }) = self.passos.last_mut() { *erros = true; }
+        self.passos.push(if remover { Passo::RemoverErros { col: aviso.col } }
+            else { Passo::SubstituirErros { col: aviso.col, para: Value::Number(0.0) } });
+        self.registrar_passos();
     }
 
     fn tabela_visual(&self) -> &Tabela {
@@ -404,8 +469,39 @@ impl Estado {
     }
 
     /// As etapas mudaram por fora do script: recalcula, e o script é gerado de novo.
+    /// A lista anterior vai para o Ctrl+Z.
     fn registrar_passos(&mut self) {
         self.recalcular();
+        let atual = json_passos::escrever(&self.passos).unwrap_or_default();
+        if atual != self.etapas_atuais {
+            let anterior = std::mem::replace(&mut self.etapas_atuais, atual);
+            self.historico.push(anterior);
+            if self.historico.len() > MAX_DESFAZER { self.historico.remove(0); }
+            self.refazer.clear();
+        }
+    }
+
+    /// Fonte nova: as etapas da fonte anterior não voltam pelo Ctrl+Z.
+    fn esquecer_historico(&mut self) {
+        self.historico.clear();
+        self.refazer.clear();
+        self.etapas_atuais = json_passos::escrever(&self.passos).unwrap_or_default();
+    }
+
+    /// Ctrl+Z (`para_tras`) ou Ctrl+Y nas etapas da consulta.
+    fn desfazer_etapas(&mut self, para_tras: bool) -> bool {
+        let (de, para) = if para_tras { (&mut self.historico, &mut self.refazer) } else { (&mut self.refazer, &mut self.historico) };
+        let Some(lista) = de.pop() else { return false };
+        match json_passos::ler(&lista) {
+            Ok(passos) => {
+                para.push(std::mem::replace(&mut self.etapas_atuais, lista));
+                self.passos = passos;
+                self.modal = None;
+                self.recalcular();
+                true
+            }
+            Err(e) => { self.erro = e; false }
+        }
     }
 
     fn adicionar(&mut self, tipo: &str) {
@@ -426,8 +522,8 @@ impl Estado {
             "filtrar" => Passo::Filtrar { col, criterio: Value::Text(self.filtro.clone()) },
             "ordenar" => Passo::Ordenar { por: vec![ChaveOrdenacao { col, desc: Some(false) }] },
             "decrescente" => Passo::Ordenar { por: vec![ChaveOrdenacao { col, desc: Some(true) }] },
-            "texto" => Passo::Tipar { col, para: "texto".into() },
-            "numero" => Passo::Tipar { col, para: "numero".into() },
+            "texto" => Passo::Tipar { col, para: "texto".into(), erros: false },
+            "numero" => Passo::Tipar { col, para: "numero".into(), erros: false },
             "renomear" => {
                 if self.renomear.trim().is_empty() {
                     self.erro = tr!("Informe o novo nome da coluna").into();
@@ -531,6 +627,7 @@ impl App {
                 e.origem_aba = origem_aba;
                 e.origem = area;
                 e.passos.clear();
+                e.esquecer_historico();
                 e.fontes.clear();
                 e.edicao = None;
                 e.nome = format!("Consulta_{nome}");
@@ -820,8 +917,8 @@ impl App {
                     Ok(()) => {
                         // Como o "Tipo Alterado" do Power Query: trocar de novo não empilha etapa.
                         match e.passos.last_mut() {
-                            Some(Passo::Tipar { col: c, para: p }) if *c == col => *p = para.into(),
-                            _ => e.passos.push(Passo::Tipar { col, para: para.into() }),
+                            Some(Passo::Tipar { col: c, para: p, .. }) if *c == col => *p = para.into(),
+                            _ => e.passos.push(Passo::Tipar { col, para: para.into(), erros: false }),
                         }
                         e.registrar_passos();
                     }
@@ -849,6 +946,37 @@ impl App {
                         e.erro_modal.clear();
                     },
                     Err(erro) => e.erro = erro,
+                }
+            },
+            Evento::FalhasDeTipo(acao) => if let Some(e) = &mut self.openquery {
+                match acao {
+                    0 | 1 => e.tratar_falhas_de_tipo(acao == 0),
+                    _ => e.aviso_tipo = None,
+                }
+            },
+            Evento::Duplicar | Evento::Referenciar => {
+                let Some(id) = self.openquery.as_ref().and_then(|e| e.edicao.clone()) else {
+                    if let Some(e) = &mut self.openquery { e.erro = tr!("Salve a consulta primeiro (Salvar e carregar ou Carregar em…)").into(); }
+                    return Task::none();
+                };
+                let feito = if matches!(evento, Evento::Duplicar) {
+                    self.duplicar_consulta(&id).map(|nome| trf!("OpenQuery: '{nome}' criada como conexão; use Carregar em… para escolher o destino"))
+                } else {
+                    self.referenciar_consulta(&id).map(|()| tr!("OpenQuery: consulta nova sobre o resultado da outra; acrescente as etapas e salve").to_string())
+                };
+                match feito {
+                    Ok(msg) => {
+                        self.status = msg;
+                        let salvas = self.conexoes_existentes();
+                        if let Some(e) = &mut self.openquery { e.salvas = salvas; e.erro.clear(); }
+                    }
+                    Err(erro) => if let Some(e) = &mut self.openquery { e.erro = erro },
+                }
+            }
+            Evento::Desfazer(para_tras) => if let Some(e) = &mut self.openquery {
+                if let Err(erro) = e.sincronizar() { e.erro = erro; return Task::none(); }
+                if !e.desfazer_etapas(para_tras) {
+                    self.status = if para_tras { tr!("OpenQuery: nada a desfazer").into() } else { tr!("OpenQuery: nada a refazer").into() };
                 }
             },
             Evento::EtapaSenao(t) => if let Some(m) = self.openquery.as_mut().and_then(|e| e.modal.as_mut()) {
@@ -1028,6 +1156,7 @@ impl App {
                         e.passos.clear();
                         e.fontes.clear();
                         e.registrar_passos();
+                        e.esquecer_historico();
                         e.mostrar_manual = false;
                         self.status = trf!("OpenQuery: tabela manual importada ({linhas} linhas)");
                     }
