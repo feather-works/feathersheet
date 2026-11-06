@@ -147,6 +147,7 @@ fn formulario_da_conversao(f: &feathersheet_vba::gerar::FormularioConvertido, mo
             max: c.max, multilinha: c.multilinha,
             dica: c.dica.clone(),
             imagem,
+            ordem: Some(u32::from(c.ordem)),
             ..Default::default()
         });
     }

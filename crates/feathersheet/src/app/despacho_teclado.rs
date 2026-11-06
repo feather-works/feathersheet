@@ -173,6 +173,11 @@ impl App {
                     if aux == Auxiliar::Macros {
                         return self.atalho_macro(&key, mods).unwrap_or_else(Task::none);
                     }
+                    // Formulário da macro: Tab e Shift+Tab andam pelos campos na ordem do TabIndex.
+                    if aux == Auxiliar::Formulario && matches!(&key, keyboard::Key::Named(keyboard::key::Named::Tab))
+                        && (mods.is_empty() || mods == keyboard::Modifiers::SHIFT) {
+                        return self.update(Msg::FormularioMacro(formulario_macro::Evento::Tab { voltar: mods == keyboard::Modifiers::SHIFT }));
+                    }
                     // Formulário da macro: Enter aciona o botão padrão; Esc, o de cancelar.
                     if aux == Auxiliar::Formulario && mods.is_empty() {
                         match &key {

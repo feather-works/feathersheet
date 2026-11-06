@@ -17,11 +17,21 @@ pub(super) struct FormularioAberto {
     pub valores: Map<String, Json>,
     /// O texto dos campos de várias linhas (o `text_editor` edita um `Content`); `valores` segue igual.
     pub editores: std::collections::HashMap<String, pelicano::Content>,
+    /// O campo com o foco, até onde se sabe (o do Tab, ou o último em que se digitou).
+    pub foco: Option<usize>,
+    /// O primeiro campo na ordem do Tab: pega a digitação quando o formulário abre, como no Excel.
+    pub primeiro: Option<usize>,
+}
+
+/// O nome do campo `i` do formulário para o `Task::focus`.
+fn id_campo(i: usize) -> (&'static str, usize) {
+    ("formulario-campo", i)
 }
 
 impl FormularioAberto {
     fn novo(form: Formulario, valores: Map<String, Json>) -> Self {
-        let mut f = Self { form, valores, editores: Default::default() };
+        let primeiro = form.ordem_do_tab().first().copied();
+        let mut f = Self { form, valores, editores: Default::default(), foco: primeiro, primeiro };
         f.sincronizar_editores();
         f
     }
@@ -110,6 +120,8 @@ pub enum Evento {
     Editor(String),
     /// Enter ou Esc na janela do formulário.
     Tecla { enter: bool },
+    /// Tab (ou Shift+Tab, `voltar`): o próximo campo na ordem do `TabIndex`.
+    Tab { voltar: bool },
     Fechar,
 }
 
@@ -211,6 +223,8 @@ impl App {
                 let t = if max > 0 { t.chars().take(max).collect() } else { t };
                 // A lista fechada roda a macro ao escolher; a que aceita digitar, só no Enter.
                 let lista = aberto.form.controles.iter().position(|c| c.nome == nome && c.tipo == TipoControle::Lista && !c.livre);
+                // Quem digita está com o foco: o Tab seguinte parte daqui.
+                aberto.foco = aberto.form.controles.iter().position(|c| c.nome == nome).or(aberto.foco);
                 aberto.valores.insert(nome, Json::String(t));
                 lista
             }
@@ -250,6 +264,20 @@ impl App {
                 let Some(c) = aberto.form.controles.get(i) else { return Task::none() };
                 aberto.valores.insert(c.nome.clone(), Json::String(selecao.unwrap_or_default()));
                 Some(i)
+            }
+            Evento::Tab { voltar } => {
+                let ordem = aberto.form.ordem_do_tab();
+                let n = ordem.len();
+                if n == 0 { return Task::none() }
+                let atual = aberto.foco.and_then(|f| ordem.iter().position(|&x| x == f));
+                let p = match (atual, voltar) {
+                    (None, false) => 0,
+                    (None, true) => n - 1,
+                    (Some(p), false) => (p + 1) % n,
+                    (Some(p), true) => (p + n - 1) % n,
+                };
+                aberto.foco = Some(ordem[p]);
+                return Task::focus(id_campo(ordem[p]));
             }
             Evento::Tecla { enter } => {
                 // Enter aciona o botão padrão; Esc, o de cancelar (sem ele, fecha).
@@ -429,7 +457,8 @@ impl App {
             },
             TipoControle::Intervalo => {
                 let dica = if c.texto.is_empty() { tr!("Selecione na planilha") } else { &c.texto };
-                let mut campo = text_input(dica, valor).size(tam).font(fonte).style(campo_estilo).width(Length::FILL);
+                let mut campo = text_input(dica, valor).size(tam).font(fonte).style(campo_estilo).width(Length::FILL).id(id_campo(i));
+                if aberto.primeiro == Some(i) { campo = campo.autofocus(1); }
                 let mut pegar = button(feather_ui::icones::icone("table", 14.0)).padding([4, 6]).style(estilo_botao_secundario);
                 if ligado {
                     campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
@@ -442,7 +471,7 @@ impl App {
             TipoControle::Texto if c.multilinha => match aberto.editores.get(&c.nome) {
                 Some(conteudo) => {
                     let mut ed = pelicano::text_editor(conteudo).size(tam).font(fonte).padding([6, 8]).style(campo_estilo).idle_focus(false)
-                        .placeholder(&c.texto);
+                        .placeholder(&c.texto).id(id_campo(i));
                     if ligado { ed = ed.on_change(ev(Evento::Editor(nome))); }
                     container(ed).width(Length::FILL).height(Length::FILL).into()
                 }
@@ -451,7 +480,8 @@ impl App {
             TipoControle::Texto | TipoControle::Numero | TipoControle::Senha => {
                 let dica = if c.texto.is_empty() { &c.nome } else { &c.texto };
                 let mut campo = text_input(dica, valor).secure(c.tipo == TipoControle::Senha).size(tam).font(fonte)
-                    .style(campo_estilo).width(Length::FILL);
+                    .style(campo_estilo).width(Length::FILL).id(id_campo(i));
+                if aberto.primeiro == Some(i) { campo = campo.autofocus(1); }
                 if ligado {
                     campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
                     if c.macro_nome.is_some() { campo = campo.on_submit(ev(Evento::Confirmar(i))); }
@@ -508,7 +538,8 @@ impl App {
             }
             TipoControle::Lista if c.livre => {
                 // Aceita digitar: o campo, com a setinha da lista ao lado.
-                let mut campo = text_input(&c.texto, valor).size(tam).font(fonte).style(campo_estilo).width(Length::FILL);
+                let mut campo = text_input(&c.texto, valor).size(tam).font(fonte).style(campo_estilo).width(Length::FILL).id(id_campo(i));
+                if aberto.primeiro == Some(i) { campo = campo.autofocus(1); }
                 let mut row = pelicano::row![].spacing(2).align(pelicano::Align::Center);
                 if ligado {
                     campo = campo.on_input(move |t| ev(Evento::Texto(nome.clone(), t)));
@@ -576,6 +607,34 @@ mod testes {
         assert_eq!(app.workbook.valor(0, 0, 2), feathersheet_core::Value::Text("sim".into()));
         assert_eq!(texto_campo(&app, "nome"), "", "limpar zera os campos");
         assert!(app.formulario_macro.is_some(), "sem fechar, continua aberto");
+        let _ = app.view_formulario_macro();
+    }
+
+    /// Tab anda pelos campos na ordem do TabIndex, pula botão e campo desativado, e volta com Shift.
+    #[test]
+    fn tab_segue_o_tabindex() {
+        let mut app = App::default();
+        let mut form = Formulario::novo("f");
+        let mut campos: Vec<Controle> = ["a", "b", "c"].iter().map(|n| controle(TipoControle::Texto, n, "")).collect();
+        (campos[0].ordem, campos[1].ordem, campos[2].ordem) = (Some(2), Some(0), Some(1));
+        let mut fora = controle(TipoControle::Texto, "d", "");
+        fora.desativado = true;
+        form.controles = vec![campos[0].clone(), controle(TipoControle::Botao, "", "OK"), campos[1].clone(), campos[2].clone(), fora];
+        app.workbook.formularios = formularios::gravar(&[form]).unwrap();
+        app.abrir_formulario_macro("f", &Json::Null);
+        let foco = |app: &App| app.formulario_macro.as_ref().unwrap().foco;
+        assert_eq!((app.formulario_macro.as_ref().unwrap().primeiro, foco(&app)), (Some(2), Some(2)), "abre no TabIndex 0 (b)");
+        let _ = app.evento_formulario_macro(Evento::Tab { voltar: false });
+        assert_eq!(foco(&app), Some(3), "c");
+        let _ = app.evento_formulario_macro(Evento::Tab { voltar: false });
+        assert_eq!(foco(&app), Some(0), "a");
+        let _ = app.evento_formulario_macro(Evento::Tab { voltar: false });
+        assert_eq!(foco(&app), Some(2), "volta ao b, sem o desativado");
+        let _ = app.evento_formulario_macro(Evento::Tab { voltar: true });
+        assert_eq!(foco(&app), Some(0), "Shift+Tab");
+        let _ = app.evento_formulario_macro(Evento::Texto("c".into(), "x".into()));
+        let _ = app.evento_formulario_macro(Evento::Tab { voltar: false });
+        assert_eq!(foco(&app), Some(0), "digitar em c move o ponto de partida");
         let _ = app.view_formulario_macro();
     }
 

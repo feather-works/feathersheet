@@ -136,6 +136,26 @@ pub struct Controle {
     /// Imagem em base64 (PNG ou JPEG) do controle Imagem.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub imagem: String,
+    /// A ordem do Tab (`TabIndex` do VBA); sem ela, a ordem da lista.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ordem: Option<u32>,
+}
+
+impl Formulario {
+    /// Os campos que o Tab visita (os de digitar, à vista e ativos), na ordem do Tab.
+    // shortcut: botões, caixas e opções não recebem foco no pelicano, então o Tab só passa pelos campos; o TabIndex das molduras (que recomeça dentro de cada uma) se mistura com o de fora.
+    pub fn ordem_do_tab(&self) -> Vec<usize> {
+        let mut v: Vec<usize> = (0..self.controles.len()).filter(|&i| {
+            let c = &self.controles[i];
+            !c.desativado && !c.oculto && match c.tipo {
+                TipoControle::Texto | TipoControle::Numero | TipoControle::Senha | TipoControle::Intervalo => true,
+                TipoControle::Lista => c.livre,
+                _ => false,
+            }
+        }).collect();
+        v.sort_by_key(|&i| (self.controles[i].ordem.unwrap_or(i as u32), i));
+        v
+    }
 }
 
 fn is_zero(v: &u32) -> bool { *v == 0 }
