@@ -471,3 +471,15 @@ fn numero_vira_texto_como_o_cstr() {
     assert_eq!(wb.valor(0, 3, 0), t("x-1E-07"));
     assert_eq!(wb.valor(0, 4, 0), Value::Number(3.0));
 }
+
+#[test]
+fn advancedfilter_copia_e_filtra_no_lugar() {
+    let vba = "Sub T()\n  Range(\"A1:B1\").Value = Array(\"UF\", \"Valor\")\n  Range(\"A2\").Value = \"SP\"\n  Range(\"A4:B4\").Value = Array(\"UF\", \"Valor\")\n  Range(\"A5:B5\").Value = Array(\"SP\", 50)\n  Range(\"A6:B6\").Value = Array(\"RJ\", 150)\n  Range(\"A7:B7\").Value = Array(\"SP\", 50)\n  Range(\"A4\").CurrentRegion.AdvancedFilter xlFilterCopy, Range(\"A1\").CurrentRegion, Range(\"F4\"), True\n  Range(\"A4\").CurrentRegion.AdvancedFilter Action:=xlFilterInPlace, CriteriaRange:=Range(\"A1:B2\")\n  Range(\"H1\").Value = Range(\"A5:A7\").SpecialCells(xlCellTypeVisible).Count\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let wb = roda(vba, "T");
+    let t = |x: &str| Value::Text(x.into());
+    assert_eq!((4..7).map(|l| wb.valor(0, l, 5)).collect::<Vec<_>>(), vec![t("SP"), Value::Empty, Value::Empty], "Unique: a repetida não vem");
+    assert_eq!(wb.valor(0, 3, 6), t("Valor"), "o cabeçalho vai junto");
+    assert_eq!(wb.valor(0, 0, 7), Value::Number(2.0), "no lugar: as duas de SP visíveis");
+}

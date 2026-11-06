@@ -30,7 +30,7 @@ const CONSTANTES: &[(&str, &str, T)] = &[
     ("xlpastevalues", "-4163", T::Num), ("xlpasteformats", "-4122", T::Num), ("xlpasteall", "-4104", T::Num), ("xlpasteformulas", "-4123", T::Num), ("xlpastevaluesandnumberformats", "12", T::Num), ("xlcellvalue", "1", T::Num), ("xlexpression", "2", T::Num),
     ("xlyes", "1", T::Num), ("xlno", "2", T::Num), ("xlguess", "0", T::Num), ("xlascending", "1", T::Num), ("xldescending", "2", T::Num),
     ("xlsheetvisible", "-1", T::Num), ("xlsheethidden", "0", T::Num), ("xlsheetveryhidden", "2", T::Num), ("xlcalculationautomatic", "-4105", T::Num), ("xlcalculationmanual", "-4135", T::Num),
-    ("xlcelltypelastcell", "11", T::Num), ("xlcelltypeblanks", "4", T::Num), ("xlcelltypeconstants", "2", T::Num), ("xlcelltypeformulas", "-4123", T::Num), ("xlcelltypevisible", "12", T::Num),
+    ("xlfilterinplace", "1", T::Num), ("xlfiltercopy", "2", T::Num), ("xlcelltypelastcell", "11", T::Num), ("xlcelltypeblanks", "4", T::Num), ("xlcelltypeconstants", "2", T::Num), ("xlcelltypeformulas", "-4123", T::Num), ("xlcelltypevisible", "12", T::Num),
     ("xlshiftup", "-4162", T::Num), ("xlshifttoleft", "-4159", T::Num), ("xlshiftdown", "-4121", T::Num), ("xlshifttoright", "-4161", T::Num),
     ("xlvalidateinputonly", "0", T::Num), ("xlvalidatewholenumber", "1", T::Num), ("xlvalidatedecimal", "2", T::Num), ("xlvalidatelist", "3", T::Num), ("xlvalidatedate", "4", T::Num), ("xlvalidatetime", "5", T::Num), ("xlvalidatetextlength", "6", T::Num), ("xlvalidatecustom", "7", T::Num),
     ("xlvalidalertstop", "1", T::Num), ("xlvalidalertwarning", "2", T::Num), ("xlvalidalertinformation", "3", T::Num),

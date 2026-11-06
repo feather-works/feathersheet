@@ -1,6 +1,6 @@
 //! `cargo run --release --example rodar_xlsm -- arquivo.xlsm [filtro]`: converte as macros do
 //! arquivo e RODA cada uma (e cada evento) numa cópia nova da pasta lida do próprio arquivo,
-//! respondendo Sim às perguntas. Mostra o que deu erro: é o teste que a contagem de pendências
+//! respondendo Sim às perguntas (e o texto padrão ao InputBox). Mostra o que deu erro: é o teste que a contagem de pendências
 //! não faz (código convertido que não roda).
 use feathersheet_core::planilha::workbook::Workbook;
 use std::path::Path;
@@ -24,16 +24,19 @@ fn main() {
         let ativa = aba.and_then(|a| wb.nomes().iter().position(|n| *n == a)).unwrap_or(0);
         let mut respostas = Vec::new();
         let mut escolhas: Vec<u32> = Vec::new();
+        let mut textos: Vec<Option<String>> = Vec::new();
         let t = Instant::now();
         let r = loop {
             let contexto = feathersheet_macros::Contexto {
-                arquivo: Some(caminho.clone()), respostas: respostas.clone(), escolhas: escolhas.clone(),
+                arquivo: Some(caminho.clone()), respostas: respostas.clone(), escolhas: escolhas.clone(), textos: textos.clone(),
                 limites: feathersheet_macros::Limites { prazo: Duration::from_secs(20), parar: None },
                 ..Default::default()
             };
             let r = feathersheet_macros::executar_com(&mut wb, ativa, &codigo, contexto);
             // Pergunta de vários botões (MsgBox com Sim/Não/Cancelar…): o botão padrão; Sim/Não: Sim.
             if let (Some(e), true) = (&r.escolha, escolhas.len() < 20) { escolhas.push(e.padrao as u32); continue; }
+            // InputBox: o valor que já vem escrito.
+            if let (Some(t), true) = (&r.entrada, textos.len() < 20) { textos.push(Some(t.clone())); continue; }
             if r.pergunta.is_some() && respostas.len() < 20 { respostas.push(true); continue; }
             break r;
         };

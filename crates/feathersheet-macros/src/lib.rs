@@ -15,6 +15,7 @@ mod condicionais;
 mod navegacao;
 mod visiveis;
 mod varias_areas;
+mod filtro_avancado;
 mod navegacao_intervalos;
 mod estrutura;
 mod mesclagem;
@@ -237,7 +238,8 @@ impl HospedeiroMacros for HospedeiroSheet {
             // API wb.sheet de api-pasta.ts: nomes sem distinção
             // de maiúsculas/minúsculas, usando Workbook::indice_por_nome.
             let nome = dados[0].as_str().ok_or("O nome da aba precisa ser texto")?;
-            json!(e.pasta.indice_por_nome(nome.trim()))
+            // O nome exato primeiro: o Excel aceita aba com espaço no fim ("ESTUDO ").
+            json!(e.pasta.indice_por_nome(nome).or_else(|| e.pasta.nomes().iter().position(|n| n.trim().to_lowercase() == nome.trim().to_lowercase())))
         } else if matches!(op, "worksheetCountIf" | "worksheetSumIf"
             | "worksheetAverageIf" | "worksheetAverage" | "worksheetMedian"
             | "worksheetSum" | "worksheetCount" | "worksheetCountA"
@@ -425,6 +427,9 @@ impl HospedeiroMacros for HospedeiroSheet {
             // getRegion do api-navegacao.ts: o algoritmo já é nativo
             // em feathersheet-core::operacoes::ops::regiao_atual. Não
             // duplicar a expansão de vizinhança no host das macros.
+            if op == "filtroAvancado" || op == "mostrarListaAvancada" {
+                return filtro_avancado_no_host(&mut e, aba, op, dados);
+            }
             if op == "getRegion" {
                 let endereco=dados[1].as_str()
                     .ok_or("getRegion: informe o endereço A1 da seleção")?;
@@ -1202,7 +1207,10 @@ function __sheet(indice) {
         // AutoFiltro: anotado; o aplicativo filtra se a macro terminar bem (as linhas somem no fim).
         autoFilter:(address,field=null,criteria=null)=>{__ft('filtro',[i,'aplicar',String(address),
             field==null?null:Number(field),criteria===undefined?null:criteria]);return sheet;},
-        showAllData:()=>{__ft('filtro',[i,'tudo',null,null,null]);return sheet;},
+        showAllData:()=>{__ft('filtro',[i,'tudo',null,null,null]);__ft('mostrarListaAvancada',[i]);return sheet;},
+        // Filtro Avançado do Excel: { copyTo, sheet, unique }. Sem copyTo, esconde no lugar as linhas que não passam.
+        advancedFilter:(list,criteria=null,opts={})=>{const r=__ft('filtroAvancado',[i,String(list),criteria==null?null:String(criteria),opts.copyTo==null?null:String(opts.copyTo),!!opts.unique]);
+            if(r)sheet.copy(r,String(opts.copyTo),opts.sheet?{sheet:String(opts.sheet)}:{});return sheet;},
         autoFilterOff:()=>{__ft('filtro',[i,'remover',null,null,null]);return sheet;},
         unprotect:(password=null)=>{__ft('protecao',[i,false,password==null?null:String(password),[]]);return sheet;},
         defineFunction:(nome)=>{log('Função '+nome+' definida só nesta macro: as fórmulas da planilha ainda não a usam.');},
@@ -1236,7 +1244,7 @@ const wb = {
     const names=__ft('nomes',[]);
     const i=typeof name==='number'
         ? (Number.isInteger(name)?name-1:-1)
-        : __ft('indiceAba',[String(name).trim()]);
+        : __ft('indiceAba',[String(name)]);
     if(i===null||i<0||i>=names.length)throw new Error('Aba inexistente: '+name);
     return __sheet(i);
 },sheetNames:()=>__ft('nomes',[]),get sheetCount(){return __ft('nomes',[]).length;},
@@ -1320,3 +1328,60 @@ mod testes_pasta;
 mod testes;
 // O app roda a macro do botão noutra thread, levando a pasta junto.
 const _: fn() = || { fn envia<T: Send>() {} envia::<Workbook>(); envia::<Contexto>(); envia::<Resultado>(); };
+
+/// `sheet.advancedFilter` (`filtroAvancado`) e a volta do `showAllData` (`mostrarListaAvancada`).
+/// No lugar: esconde as linhas da lista que não passam (dentro da transação da macro) e guarda a
+/// lista no nome `_xlnm._FilterDatabase`, como o Excel. Copiando: devolve as áreas (cabeçalho e
+/// linhas que passam) para o JS copiar juntas no destino.
+fn filtro_avancado_no_host(e: &mut Estado, aba: usize, op: &str, dados: &Json) -> Result<Json, String> {
+    use feathersheet_core::celulas::refs::Rect;
+    let area = |v: &Json| -> Result<Option<Rect>, String> {
+        let Some(t) = v.as_str() else { return Ok(None) };
+        let r = parse_range_ref(t).ok_or_else(|| format!("AdvancedFilter: intervalo inválido: {t}"))?.normalized();
+        if r.sheet.is_some() { return Err("AdvancedFilter: a lista e os critérios ficam na mesma aba".into()); }
+        Ok(Some(r))
+    };
+    let sheet = &e.pasta.aba(aba).ok_or("Aba inexistente")?.sheet;
+    let nome_aba = sheet.name.clone();
+    let ocultar = |e: &mut Estado, a: u32, b: u32, esconder: bool| -> Result<(), String> {
+        if e.alteradas.insert(aba) { e.pasta.aba_mut(aba).unwrap().sheet.abrir_transacao(); }
+        let mut r = Ok(0);
+        e.pasta.editar(aba, |s| { r = s.alterar_visibilidade_dimensoes(false, esconder, a, b); });
+        r.map(|_| ())
+    };
+    if op == "mostrarListaAvancada" {
+        // Só a lista que o Filtro Avançado escondeu (a do nome), e só se nenhuma tabela da aba a cobre:
+        // o AutoFiltro das tabelas o app desfaz pelo pedido do filtro.
+        let lista = e.pasta.nomeados().into_iter().map(|n| (n.nome, n.area)).chain(e.extra.nomes.iter().cloned())
+            .filter(|(n, a)| n.eq_ignore_ascii_case(filtro_avancado::NOME_DA_LISTA) && a.sheet.as_deref().is_some_and(|s| s.eq_ignore_ascii_case(&nome_aba)))
+            .last().map(|(_, a)| a);
+        let Some(l) = lista else { return Ok(Json::Null) };
+        if visiveis::areas_das_tabelas(sheet).iter().any(|t| t.r0 <= l.r1 && l.r0 <= t.r1 && t.c0 <= l.c1 && l.c0 <= t.c1) { return Ok(Json::Null); }
+        let fim = l.r1.min(sheet.max_row);
+        if l.r0 < fim && (l.r0 + 1..=fim).any(|r| sheet.linha_oculta(r)) { ocultar(e, l.r0 + 1, fim, false)?; }
+        return Ok(Json::Null);
+    }
+    let mut lista = area(&dados[1])?.ok_or("AdvancedFilter: informe a lista")?;
+    if lista.r0 == lista.r1 && lista.c0 == lista.c1 { lista = feathersheet_core::operacoes::ops::regiao_atual(sheet, lista); }
+    if lista.area() > 5_000_000 { return Err("AdvancedFilter: lista grande demais (mais de 5 milhões de células)".into()); }
+    let criterios = area(&dados[2])?;
+    let passam = filtro_avancado::linhas_que_passam(&e.pasta, aba, &lista, criterios.as_ref(), dados[4].as_bool().unwrap_or(false))?;
+    if dados[3].is_null() {
+        let fim = lista.r1.min(sheet.max_row);
+        if lista.r0 < fim {
+            ocultar(e, lista.r0 + 1, fim, false)?;
+            let mut r = lista.r0 + 1;
+            for &p in passam.iter().chain(std::iter::once(&(fim + 1))) {
+                if p > r { ocultar(e, r, p - 1, true)?; }
+                r = p + 1;
+            }
+        }
+        let mut guardada = Rect::new(lista.r0, lista.c0, fim.max(lista.r0), lista.c1);
+        guardada.sheet = Some(nome_aba);
+        e.extra.nomes.retain(|(n, _)| !n.eq_ignore_ascii_case(filtro_avancado::NOME_DA_LISTA));
+        e.extra.nomes.push((filtro_avancado::NOME_DA_LISTA.into(), guardada));
+        return Ok(Json::Null);
+    }
+    let linhas: Vec<(u32, u32)> = std::iter::once(lista.r0).chain(passam).flat_map(|r| (lista.c0..=lista.c1).map(move |c| (r, c))).collect();
+    Ok(json!(varias_areas::endereco(&linhas)))
+}

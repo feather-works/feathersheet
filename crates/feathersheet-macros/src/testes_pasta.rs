@@ -377,6 +377,33 @@ fn prompt_pergunta_o_texto_e_roda_de_novo_com_ele() {
 }
 
 #[test]
+fn aba_com_espaco_no_fim_do_nome() {
+    let mut wb = Workbook::new();
+    wb.inserir_aba("ESTUDO ", 1);
+    let r = executar(&mut wb, 0, r#"wb.sheet("ESTUDO ").set("A1", 1); wb.sheet("estudo").set("A2", 2);"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!((wb.valor(1, 0, 0), wb.valor(1, 1, 0)), (Value::Number(1.), Value::Number(2.)));
+}
+
+#[test]
+fn filtro_avancado_copia_esconde_e_showalldata_reexibe() {
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, r#"sheet.set("A1:B2", [["UF","Valor"],["SP",""]]);
+        sheet.set("A4:B8", [["UF","Valor"],["SP",50],["RJ",150],["SPX",250],["MG",120]]);
+        sheet.advancedFilter("A4", "A1:B2", { copyTo: "D1" });
+        sheet.advancedFilter("A4:B8", "A1:B2");
+        log(sheet.specialAreas("A5:A8", "visible"));"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.saida, vec!["A5,A7".to_string()], "no lugar: só as que começam com SP");
+    let t = |x: &str| Value::Text(x.into());
+    assert_eq!((0..4).map(|l| wb.valor(0, l, 3)).collect::<Vec<_>>(), vec![t("UF"), t("SP"), t("SPX"), Value::Empty], "copiadas para D1");
+    assert!(wb.nomeados().iter().any(|n| n.nome == "_xlnm._FilterDatabase"), "a lista fica guardada, como no Excel");
+    let r = executar(&mut wb, 0, r#"sheet.showAllData(); log(sheet.specialAreas("A5:A8", "visible"));"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.saida, vec!["A5:A8".to_string()], "outra macro, o ShowAllData reexibe");
+}
+
+#[test]
 fn shape_esconde_troca_a_macro_e_pede_posicao() {
     let mut wb = Workbook::new();
     wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"Botão 2","macro":"Velha"}]}"##.into())); });

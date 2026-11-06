@@ -1705,7 +1705,14 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
                     col_name(a.c1),
                     a.r1 + 1
                 );
-                format!("<definedName name=\"{}\">{}</definedName>", escape_xml(&nm.nome), escape_xml(&area))
+                // Os nomes internos do Excel (`_xlnm._FilterDatabase`, `_xlnm.Print_Area`) são da aba:
+                // sem o `localSheetId`, o Excel acusa o arquivo.
+                let local = if nm.nome.to_lowercase().starts_with("_xlnm.") {
+                    let i = nomes_das_abas.iter().position(|n| n == aba).unwrap_or(0);
+                    let oculto = if nm.nome.eq_ignore_ascii_case("_xlnm._FilterDatabase") { " hidden=\"1\"" } else { "" };
+                    format!(" localSheetId=\"{i}\"{oculto}")
+                } else { String::new() };
+                format!("<definedName name=\"{}\"{local}>{}</definedName>", escape_xml(&nm.nome), escape_xml(&area))
             })
             .collect();
         format!("<definedNames>{itens}</definedNames>")
@@ -2054,13 +2061,15 @@ mod testes {
         pasta.escrever_celula(b, 1, 0, "7".into());
         let mut area = Rect::new(0, 0, 1, 0);
         area.sheet = Some("Meu Plano".into());
-        pasta.definir_nome("Vendas", area);
+        pasta.definir_nome("Vendas", area.clone());
+        pasta.definir_nome("_xlnm._FilterDatabase", area);
         pasta.escrever_celula(0, 0, 0, "=SEQUÊNCIA(3)".into());
         pasta.escrever_celula(0, 0, 2, "=PROCX(1;A1:A3;A1:A3)".into());
         let partes = montar_partes(&pasta);
         let texto = |n: &str| String::from_utf8(partes.iter().find(|(k, _)| k == n).unwrap().1.clone()).unwrap();
         assert!(texto("xl/workbook.xml").contains("<definedName name=\"Vendas\">&apos;Meu Plano&apos;!$A$1:$A$2</definedName>")
             || texto("xl/workbook.xml").contains("<definedName name=\"Vendas\">'Meu Plano'!$A$1:$A$2</definedName>"));
+        assert!(texto("xl/workbook.xml").contains("<definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"1\" hidden=\"1\">"), "nome interno é da aba");
         let aba = texto("xl/worksheets/sheet1.xml");
         assert!(aba.contains("cm=\"1\"><f t=\"array\" ref=\"A1:A3\">_xlfn.SEQUENCE(3)</f><v>1</v>"), "{aba}");
         assert!(aba.contains("<c r=\"A2\"><v>2</v></c>") && aba.contains("<v>3</v>"), "{aba}");

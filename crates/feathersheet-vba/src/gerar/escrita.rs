@@ -550,6 +550,24 @@ impl Gerador<'_> {
                 let ajuda = self.ajuda("filtroCrit");
                 format!("vba.{}({aba}).filtro = {end}; {aba}.autoFilter({end}, {campo}, vba.{ajuda}({c1}, {op}, {c2}));", self.ajuda("ordem"))
             }
+            // `AdvancedFilter Action, CriteriaRange, CopyToRange, Unique`: o Filtro Avançado da API.
+            "advancedfilter" => {
+                let copiar = match Self::arg_de(args, &["action"], 0).as_ref().and_then(constante) {
+                    Some(1) => false,
+                    Some(2) => true,
+                    _ => return Err(Motivo::novo("AdvancedFilter sem Action fixa (xlFilterInPlace ou xlFilterCopy)")),
+                };
+                let criterios = self.arg_faixa(args, &["criteriarange"], 1)?.unwrap_or_else(|| "null".into());
+                let unico = match Self::arg_de(args, &["unique"], 3) { Some(e) => { let v = self.valor(&e)?; self.como_bool(&v) } None => "false".into() };
+                let mut opcoes = vec![format!("unique: {unico}")];
+                if copiar {
+                    let e = Self::arg_de(args, &["copytorange"], 2).ok_or_else(|| Motivo::novo("AdvancedFilter xlFilterCopy sem CopyToRange"))?;
+                    let Obj::Faixa(d) = self.objeto(&e)? else { return Err(Motivo::novo("CopyToRange que não é intervalo")) };
+                    opcoes.push(format!("copyTo: {}", d.end));
+                    if d.aba != f.aba { opcoes.push(format!("sheet: {}.name", d.aba)); }
+                }
+                format!("{}.advancedFilter({}, {criterios}, {{ {} }});", f.aba, f.end, opcoes.join(", "))
+            }
             "copy" => self.copiar(f, args, false)?,
             "cut" => self.copiar(f, args, true)?,
             "pastespecial" => {

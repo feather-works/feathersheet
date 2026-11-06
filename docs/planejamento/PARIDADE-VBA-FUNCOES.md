@@ -230,6 +230,16 @@ Número vira texto pelo CStr do VBA (`vba.str`, no `&`, `CStr`, `MsgBox`, `Len`�
 `Contexto::separador_decimal`); `&` de inteiro declarado segue `${i}`. Ainda não: `CStr(True)` localizado
 ("Verdadeiro"), o limite de notação científica para número pequeno conferido no Excel.
 
+`AdvancedFilter` (06/11/2026, pedido pelo arquivo `(01-23 -Filtro Avançado.xlsm`): `xlFilterCopy` e
+`xlFilterInPlace` com `CriteriaRange` e `Unique` → `sheet.advancedFilter` (`feathersheet-macros/src/filtro_avancado.rs`):
+OU entre linhas de critério, E dentro da linha, critério do CONT.SE com o "começa com" do Filtro Avançado
+para texto sem operador. No lugar, as linhas somem na hora (transação da macro) e a lista fica no nome
+`_xlnm._FilterDatabase`, como no Excel; o `ShowAllData` (também de outra macro) reexibe essa lista quando
+nenhuma tabela a cobre. Conferido no arquivo contra o resultado que o Excel gravou. Ainda não: critério
+por fórmula (`=B5>MÉDIA(…)`), CopyToRange com cabeçalhos escolhidos (copia todas as colunas). O `.xlsx`
+agora grava os nomes `_xlnm.*` com `localSheetId` (o `_FilterDatabase` também oculto), como o Excel exige.
+Também: `wb.sheet("ESTUDO ")` acha a aba com espaço no fim do nome (arquivo LOFA).
+
 ### Rodando de verdade (01/11/2026)
 
 `cargo run --release --example rodar_xlsm -- arquivo.xlsm [filtro]` roda cada macro e evento

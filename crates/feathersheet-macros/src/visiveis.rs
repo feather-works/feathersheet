@@ -36,6 +36,12 @@ fn da_tabela(t: &Json) -> Option<Filtro> {
         criterios, ocultas: faixas(&t["_featherOcultas"]), mexido: false })
 }
 
+/// As áreas das tabelas e AutoFiltros da aba.
+pub(crate) fn areas_das_tabelas(sheet: &feathersheet_core::planilha::sheet::Sheet) -> Vec<Rect> {
+    sheet.tb.as_deref().and_then(|b| serde_json::from_str::<Vec<Json>>(b).ok()).unwrap_or_default()
+        .iter().filter_map(da_tabela).map(|t| t.area).collect()
+}
+
 fn dentro(faixas: &[(u32, u32)], r: u32) -> bool {
     faixas.iter().any(|&(a, b)| a <= r && r <= b)
 }
