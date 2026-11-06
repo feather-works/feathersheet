@@ -4531,5 +4531,6 @@
  "Planilha {}": "Sheet {}",
  "Só uma fonte de arquivo (.xlsx, .fshz…) tem planilhas para escolher.": "Only a file source (.xlsx, .fshz…) has sheets to choose from.",
  "O arquivo não tem {}.": "The file has no {}.",
- "{} linha(s) de {} não converteram para {} e ficaram com erro (ex.: {}).": "{} row(s) of {} did not convert to {} and became errors (e.g. {})."
+ "{} linha(s) de {} não converteram para {} e ficaram com erro (ex.: {}).": "{} row(s) of {} did not convert to {} and became errors (e.g. {}).",
+ "Arquivo indisponível": "File unavailable"
 }

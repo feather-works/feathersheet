@@ -135,7 +135,8 @@ pub fn traduzir_formula(formula: &str, cabecalho: &[String]) -> Result<String, S
         if ch == '[' && !aspas {
             let fim = f[i + 1..].find(']').ok_or_else(|| format!("Falta o ] depois de \"{}\"", &f[i..]))?;
             let nome = &f[i + 1..i + 1 + fim];
-            let c = cabecalho.iter().position(|h| h.eq_ignore_ascii_case(nome.trim()))
+            let alvo = nome.trim().to_lowercase();
+            let c = cabecalho.iter().position(|h| h.to_lowercase() == alvo)
                 .ok_or_else(|| format!("A coluna [{nome}] não existe neste ponto da consulta"))?;
             saida.push_str(&format!("{}1", col_name(c as u32)));
             while resto.peek().is_some_and(|(j, _)| *j <= i + 1 + fim) { resto.next(); }
@@ -203,22 +204,28 @@ pub(super) fn normalizar(s: &str) -> String {
     saida.trim_end().to_owned()
 }
 
-/// Semelhança de 0 a 1 entre dois textos já normalizados: 1 − distância de
-/// edição / tamanho do maior (Levenshtein).
-pub(super) fn semelhanca(a: &str, b: &str) -> f64 {
-    if a == b { return 1.0; }
-    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
-    let maior = a.len().max(b.len());
-    if maior == 0 { return 1.0; }
-    let mut anterior: Vec<usize> = (0..=b.len()).collect();
-    for (i, ca) in a.iter().enumerate() {
-        let mut atual = vec![i + 1; b.len() + 1];
+/// Semelhança de 0 a 1 entre dois textos já normalizados (1 − distância de
+/// edição / tamanho do maior, Levenshtein), ou `None` sem calcular quando a diferença de tamanho já a põe
+/// abaixo de `minimo` (a distância de edição é pelo menos essa diferença): a
+/// mesclagem aproximada compara milhões de pares na thread da janela.
+pub(super) fn semelhanca_minima(a: &str, b: &str, minimo: f64) -> Option<f64> {
+    if a == b { return Some(1.0); }
+    let (la, lb) = (a.chars().count(), b.chars().count());
+    let maior = la.max(lb);
+    if maior == 0 { return Some(1.0); }
+    if 1.0 - (la.abs_diff(lb) as f64) / (maior as f64) < minimo { return None; }
+    let b: Vec<char> = b.chars().collect();
+    let mut anterior: Vec<usize> = (0..=lb).collect();
+    let mut atual = vec![0; lb + 1];
+    for (i, ca) in a.chars().enumerate() {
+        atual[0] = i + 1;
         for (j, cb) in b.iter().enumerate() {
-            atual[j + 1] = (anterior[j] + usize::from(ca != cb)).min(anterior[j + 1] + 1).min(atual[j] + 1);
+            atual[j + 1] = (anterior[j] + usize::from(ca != *cb)).min(anterior[j + 1] + 1).min(atual[j] + 1);
         }
-        anterior = atual;
+        std::mem::swap(&mut anterior, &mut atual);
     }
-    1.0 - anterior[b.len()] as f64 / maior as f64
+    let s = 1.0 - anterior[lb] as f64 / maior as f64;
+    (s >= minimo).then_some(s)
 }
 
 /// Comparações que a mesclagem aproximada aceita fazer (linhas × chaves distintas).
@@ -232,6 +239,8 @@ mod testes {
         Tabela { cabecalho: cab.iter().map(|s| s.to_string()).collect(), linhas: linhas.iter().map(|l| l.to_vec()).collect() }
     }
     fn tx(s: &str) -> Value { Value::Text(s.into()) }
+
+    fn semelhanca(a: &str, b: &str) -> f64 { semelhanca_minima(a, b, 0.0).unwrap() }
 
     #[test]
     fn formatar_texto_e_preencher() {
@@ -276,7 +285,9 @@ mod testes {
         let s = personalizada(base.clone(), "Faixa", "SE([Preço]>5;\"[alto]\";\"baixo\")");
         assert_eq!(s.linhas[0][2], tx("[alto]"), "colchete dentro de aspas é texto");
         assert_eq!(s.linhas[1][2], tx("baixo"));
-        assert!(matches!(personalizada(base, "X", "=[Nada]+1").linhas[0][2], Value::Error(_)));
+        assert!(matches!(personalizada(base.clone(), "X", "=[Nada]+1").linhas[0][2], Value::Error(_)));
+        let maiusculo = t(&["PREÇO"], &[&[Value::Number(2.0)]]);
+        assert_eq!(personalizada(maiusculo, "D", "=[preço]*2").linhas[0][1], Value::Number(4.0), "caixa de letra acentuada");
     }
 
     #[test]
@@ -300,5 +311,7 @@ mod testes {
         assert_eq!(normalizar("São Paulo"), "sao paulo");
         assert!(semelhanca(&normalizar("CIA BRASILEIRA ALIMENTOS"), &normalizar("Cia. Brasileira de Alimentos")) > 0.8);
         assert!(semelhanca("abc", "xyz") < 0.1);
+        assert_eq!(semelhanca_minima("ana", "ana maria souza", 0.8), None, "tamanho muito diferente nem calcula");
+        assert_eq!(semelhanca_minima("padaria sol", "padaria sul", 0.8), Some(semelhanca("padaria sol", "padaria sul")));
     }
 }

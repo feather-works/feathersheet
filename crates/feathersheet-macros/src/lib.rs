@@ -487,6 +487,8 @@ impl HospedeiroMacros for HospedeiroSheet {
             if area.sheet.is_some() { return Err("Use wb.sheet(nome).range(endereço) para outra aba".to_string()); }
             // `Cells.Copy` / `Columns("A:C").Copy` / `Columns("A").TextToColumns` / `.SpecialCells`:
             // como o Excel, só o que tem dado (a área usada da aba).
+            // `areasEspeciais` devolve poucas áreas (as linhas visíveis do filtro de uma tabela
+            // grande), não uma lista célula a célula: o teto dela é maior, logo abaixo.
             let area = if matches!(op, "copy" | "textToColumns" | "specialCells" | "areasEspeciais") && area.area() > 500_000 {
                 let usada = e.pasta.aba(aba).map(|a| a.sheet.used_rect()).ok_or("Aba inexistente")?;
                 let (r0, c0, r1, c1) = (area.r0.max(usada.r0), area.c0.max(usada.c0), area.r1.min(usada.r1), area.c1.min(usada.c1));
@@ -499,7 +501,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                 | "addConditionalFormat" | "addColorScale" | "addDataBar" | "clearConditionalFormats"
                 // Ordenar e tirar repetidas rodam inteiros no motor (nada volta célula a célula).
                 | "sort" | "removeDuplicates")
-                && u64::from(area.r1-area.r0+1) * u64::from(area.c1-area.c0+1) > 500_000 {
+                && u64::from(area.r1-area.r0+1) * u64::from(area.c1-area.c0+1) > if op == "areasEspeciais" { 20_000_000 } else { 500_000 } {
                 return Err("Restrinja o intervalo a 500.000 células".to_string());
             }
             match op {

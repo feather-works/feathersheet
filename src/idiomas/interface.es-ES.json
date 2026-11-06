@@ -4527,5 +4527,6 @@
  "Planilha {}": "Hoja {}",
  "Só uma fonte de arquivo (.xlsx, .fshz…) tem planilhas para escolher.": "Solo una fuente de archivo (.xlsx, .fshz…) tiene hojas para elegir.",
  "O arquivo não tem {}.": "El archivo no tiene {}.",
- "{} linha(s) de {} não converteram para {} e ficaram com erro (ex.: {}).": "{} fila(s) de {} no se convirtieron a {} y quedaron con error (ej.: {})."
+ "{} linha(s) de {} não converteram para {} e ficaram com erro (ex.: {}).": "{} fila(s) de {} no se convirtieron a {} y quedaron con error (ej.: {}).",
+ "Arquivo indisponível": "Archivo no disponible"
 }

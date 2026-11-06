@@ -667,8 +667,7 @@ fn juntar(t: Tabela, outra: Option<&Tabela>, esquerda: &IndiceColuna, direita: &
         let k = extras::normalizar(&k);
         if indice.contains_key(&k) { return Some(k); }
         parecidas.entry(k.clone()).or_insert_with(|| chaves_dir.iter()
-            .map(|c| (extras::semelhanca(&k, c), *c))
-            .filter(|(s, _)| *s >= minimo)
+            .filter_map(|c| extras::semelhanca_minima(&k, c, minimo).map(|s| (s, *c)))
             .max_by(|a, b| a.0.total_cmp(&b.0))
             .map(|(_, c)| c.clone())).clone()
     };

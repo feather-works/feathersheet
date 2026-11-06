@@ -801,6 +801,7 @@ impl App {
                                 .unwrap_or_default();
                             self.status = trf!("{} · carregado em {:.1} s{memoria}",
                                 self.status, pasta.ms as f64 / 1000.0);
+                            if let Some(aviso) = pasta.aviso { self.status = format!("{} · {aviso}", self.status); }
                         } else {
                             self.status = tr!("Não foi possível receber a planilha carregada").into();
                         }

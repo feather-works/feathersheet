@@ -308,6 +308,8 @@ pub enum AlvoCor { Texto, Fundo }
 #[derive(Clone)]
 pub struct PastaLida {
     caminho: PathBuf,
+    /// O resultado do "Atualizar ao abrir" das consultas, para a barra de status.
+    aviso: Option<String>,
     dados: Arc<Mutex<Option<(Workbook, usize)>>>,
     /// Tempo de leitura e decodificação, em ms (vai para o console).
     ms: u64,
@@ -1322,8 +1324,11 @@ impl App {
                 let inicio = Instant::now();
                 feathersheet_io::progresso::comecar(&path);
                 let (workbook, folha) = Self::decodificar_caminho(&path, separador)?;
+                let (workbook, aviso) = if path.starts_with(Self::pasta_temporarios()) { (workbook, None) }
+                    else { Self::atualizar_consultas_na_pasta(workbook, folha) };
                 Ok::<PastaLida, String>(PastaLida {
                     caminho: path,
+                    aviso,
                     dados: Arc::new(Mutex::new(Some((workbook, folha)))),
                     ms: inicio.elapsed().as_millis().min(u128::from(u64::MAX)) as u64,
                 })

@@ -81,8 +81,6 @@ pub enum Evento {
     Remover(usize),
     Mover(usize, i8),
     Prever(Option<usize>),
-    Codigo,
-    ExibirCodigo,
     AbrirEditorAvancado,
     EditarEditorAvancado,
     AplicarEditorAvancado,
@@ -100,6 +98,8 @@ pub enum Evento {
     TabelasWebLidas(u64, Result<(Vec<Tabela>, String), String>),
     /// Navegador: as planilhas e tabelas do arquivo escolhido.
     ItensLidos(u64, Vec<importador::Item>, String),
+    /// A opção escolhida, lida inteira em segundo plano (origem já com " ▸ nome").
+    ItemLido(u64, Result<(Tabela, Formatos), String>, String),
     SelecionarTabelaWeb(usize),
     ConfirmarTabelaWeb,
     CancelarSelecaoWeb,
@@ -191,25 +191,24 @@ pub(super) struct Estado {
     url_web: String,
     /// Fontes extraídas de uma única requisição, aguardando seleção explícita.
     tabelas_web: Vec<Tabela>,
-    /// Navegador de arquivo: o nome e os formatos de cada opção de `tabelas_web`
-    /// (vazios na Web, que mostra "Tabela 1, 2…").
-    nomes_web: Vec<String>,
+    /// Navegador de arquivo: as opções (a prévia de cada uma vai em `tabelas_web`);
+    /// vazio na Web, que mostra "Tabela 1, 2…".
+    itens_arquivo: Vec<importador::Item>,
     /// Planilha que o script pediu (`fonte.planilha("x")`), usada na próxima releitura.
     item_pedido: Option<String>,
-    formatos_web: Vec<Formatos>,
+    /// O arquivo lido nesta sessão: trocar de planilha pelo script relê sem perguntar.
+    caminho_arquivo: Option<std::path::PathBuf>,
     origem_web_pendente: String,
     indice_tabela_web: usize,
     mostrar_web: bool,
     mostrar_tabelas: bool,
     passos: Vec<Passo>,
     resultado: Tabela,
-    codigo: Content,
-    /// O último script gerado: igual ao do editor = nada a ler de volta.
-    codigo_gerado: String,
+    /// O script gerado das etapas (o Editor avançado copia ao abrir).
+    codigo: String,
     /// Rascunho isolado: cancelar não altera as etapas nem a prévia.
     editor_avancado: Option<Content>,
     erro_avancado: String,
-    exibir_codigo: bool,
     erro: String,
     edicao: Option<String>,
     salvas: Vec<(String, String)>,
@@ -289,6 +288,14 @@ fn tabelas_existentes(workbook: &Workbook) -> Vec<(usize, String, Rect)> {
     tabelas
 }
 
+/// Monta a tabela inteira da opção escolhida no Navegador fora da thread da janela.
+fn ler_item(ticket: u64, item: importador::Item, origem: String) -> Task<Msg> {
+    Task::perform(async move {
+        tokio::task::spawn_blocking(move || item.ler())
+            .await.unwrap_or_else(|e| Err(trf!("Falha no importador: {e}")))
+    }, move |resultado| Msg::OpenQuery(Evento::ItemLido(ticket, resultado, origem)))
+}
+
 /// O recorte pela área usada, a leitura de valores calculados e o descarte
 /// de linhas vazias pertencem ao motor Rust (reutilizável via WASM).
 fn ler_tabela(wb: &Workbook, aba: usize, area: Rect) -> Result<Tabela, String> {
@@ -322,13 +329,13 @@ impl Estado {
             filtro: String::new(),
             renomear: String::new(), quantidade: "100".into(),
             separador: ";".into(),
-            url_web: String::new(), tabelas_web: Vec::new(), nomes_web: Vec::new(), item_pedido: None, formatos_web: Vec::new(),
+            url_web: String::new(), tabelas_web: Vec::new(), itens_arquivo: Vec::new(), item_pedido: None, caminho_arquivo: None,
             origem_web_pendente: String::new(), indice_tabela_web: 0,
             mostrar_web: false, mostrar_tabelas: false,
             passos: Vec::new(), resultado,
-            codigo: Content::with_text(""), codigo_gerado: String::new(),
+            codigo: String::new(),
             editor_avancado: None, erro_avancado: String::new(),
-            exibir_codigo: false, erro: String::new(),
+            erro: String::new(),
             edicao: None, salvas: Vec::new(), exclusao_pendente: None,
             assistente: None,
             passo_previa: None, tabela_previa: None,
@@ -365,19 +372,11 @@ impl Estado {
     /// Concentra a liberação de memória quando a origem é alterada.
     fn limpar_previa_web(&mut self) {
         self.tabelas_web.clear();
-        self.nomes_web.clear();
-        self.formatos_web.clear();
+        self.itens_arquivo.clear();
         self.origem_web_pendente.clear();
         self.indice_tabela_web = 0;
     }
 
-    fn sincronizar(&mut self) -> Result<(), String> {
-        let texto = self.codigo.text();
-        // Sem edição no script, as etapas já são as dele (ler roda a consulta inteira).
-        if texto == self.codigo_gerado { return Ok(()); }
-        self.passos = script::ler(&texto, &self.fonte, &self.fontes)?;
-        Ok(())
-    }
 
     /// Só publica a edição avançada quando parser E motor aceitam tudo.
     /// Assim, Cancelar/erro não destroem a consulta anterior.
@@ -396,15 +395,13 @@ impl Estado {
         }
         let passos = script::ler(&texto, &self.fonte, &self.fontes)?;
         let (gerado, tabela) = script::gerar(&self.origem_aba, &self.fonte, &passos, &self.fontes)?;
-        self.codigo = Content::with_text(&gerado);
-        self.codigo_gerado = gerado;
+        self.codigo = gerado;
         self.passos = passos;
         self.coluna = self.coluna.min(tabela.cabecalho.len().saturating_sub(1));
         self.coluna_numero = (self.coluna + 1).to_string();
         self.resultado = tabela;
         self.passo_previa = None;
         self.tabela_previa = None;
-        self.exibir_codigo = true;
         self.mostrar_manual = false;
         self.editor_avancado = None;
         self.erro_avancado.clear();
@@ -417,8 +414,7 @@ impl Estado {
         // Recusa explosões de cardinalidade ANTES de alocar o resultado.
         let tabela = match script::gerar(&self.origem_aba, &self.fonte, &self.passos, &self.fontes) {
             Ok((texto, tabela)) => {
-                self.codigo = Content::with_text(&texto);
-                self.codigo_gerado = texto;
+                self.codigo = texto;
                 tabela
             }
             Err(erro) => { self.erro = erro; return; }
@@ -478,10 +474,6 @@ impl Estado {
     }
 
     fn prever(&mut self, etapa: Option<usize>) {
-        if let Err(e) = self.sincronizar() {
-            self.erro = e;
-            return;
-        }
         if let Some(i) = etapa {
             if i >= self.passos.len() { return; }
             match executar_query_limitado(
@@ -538,11 +530,6 @@ impl Estado {
     }
 
     fn adicionar(&mut self, tipo: &str) {
-        if let Err(e) = self.sincronizar() {
-            self.erro = e;
-            self.exibir_codigo = true;
-            return;
-        }
         let col = self.coluna;
         let total = self.resultado.cabecalho.len();
         let sel: Vec<usize> = self.selecionadas.iter().copied().filter(|c| *c < total).collect();
@@ -664,7 +651,6 @@ impl App {
                 e.fontes.clear();
                 e.edicao = None;
                 e.nome = format!("Consulta_{nome}");
-                e.exibir_codigo = false;
                 e.mostrar_tabelas = false;
                 e.mostrar_web = false;
                 e.mostrar_manual = false;
@@ -725,7 +711,6 @@ impl App {
                 // A pessoa escolhe explicitamente Arquivo, Web ou Tabela existente.
                 let vazio = Tabela { cabecalho: Vec::new(), linhas: Vec::new() };
                 let mut editor = Estado::novo(vazio, String::new(), Rect::new(0, 0, 0, 0));
-                editor.exibir_codigo = false;
                 editor.salvas = consultas.into_iter().filter_map(|item| Some((
                     item.dados["id"].as_str()?.to_string(),
                     item.dados["nome"].as_str()?.to_string(),
@@ -891,16 +876,18 @@ impl App {
                     return Task::none();
                 }
                 let indice = e.indice_tabela_web;
+                if indice < e.itens_arquivo.len() {
+                    let item = e.itens_arquivo.swap_remove(indice);
+                    let origem = format!("{} ▸ {}", std::mem::take(&mut e.origem_web_pendente), item.nome);
+                    e.limpar_previa_web();
+                    e.importacao_pendente = Some(ticket);
+                    return ler_item(ticket, item, origem);
+                }
                 // Move sem clonar a tabela (até 160 mil células).
                 let fonte = e.tabelas_web.swap_remove(indice);
-                let mut origem = std::mem::take(&mut e.origem_web_pendente);
-                let nome = (indice < e.nomes_web.len()).then(|| e.nomes_web.swap_remove(indice));
-                let formatos = (indice < e.formatos_web.len()).then(|| e.formatos_web.swap_remove(indice));
-                if let Some(nome) = &nome { origem = format!("{origem} ▸ {nome}"); }
+                let origem = std::mem::take(&mut e.origem_web_pendente);
                 e.limpar_previa_web();
-                let tarefa = self.evento_openquery(Evento::ArquivoLido(ticket, Ok((fonte, origem))));
-                if let (Some(f), Some(e)) = (formatos, &mut self.openquery) { e.formatos = f; }
-                return tarefa;
+                return self.evento_openquery(Evento::ArquivoLido(ticket, Ok((fonte, origem))));
             },
             Evento::CancelarSelecaoWeb => if let Some(e) = &mut self.openquery {
                 e.limpar_previa_web();
@@ -951,8 +938,7 @@ impl App {
             },
             Evento::Tipar(col, para) => if let Some(e) = &mut self.openquery {
                 e.menu_tipo = None;
-                match e.sincronizar() {
-                    Ok(()) => {
+                {
                         // Como o "Tipo Alterado" do Power Query: trocar de novo não empilha etapa.
                         match e.passos.last_mut() {
                             Some(Passo::Tipar { col: c, para: p, .. }) if *c == col => *p = para.into(),
@@ -961,8 +947,6 @@ impl App {
                         }
                         e.registrar_passos();
                     }
-                    Err(erro) => e.erro = erro,
-                }
             },
             Evento::Modificadores(m) => if let Some(e) = &mut self.openquery { e.modificadores = m; },
             Evento::JanelaRedimensionada(t) => if let Some(e) = &mut self.openquery { e.janela = t; },
@@ -976,16 +960,13 @@ impl App {
                 if let Some(r) = e.recolhidos.get_mut(i as usize) { *r = !*r; }
             },
             Evento::EditarPasso(i) => if let Some(e) = &mut self.openquery {
-                match e.sincronizar() {
-                    Ok(()) => if let Some(passo) = e.passos.get(i) {
+                if let Some(passo) = e.passos.get(i) {
                         let entrada = executar_query_limitado(e.fonte.clone(), &e.passos[..i], &e.fontes, u64::MAX)
                             .unwrap_or(Tabela { cabecalho: Vec::new(), linhas: Vec::new() });
                         e.modal = etapa::Modal::de_passo(passo, i, entrada.cabecalho.clone())
                             .map(|m| m.com_amostra(&entrada, e.fontes.clone()));
                         e.erro_modal.clear();
-                    },
-                    Err(erro) => e.erro = erro,
-                }
+                    }
             },
             Evento::Dependencias(abrir) => {
                 let mapa = abrir.then(|| registro::dependencias(&self.workbook));
@@ -1017,7 +998,6 @@ impl App {
                 }
             }
             Evento::Desfazer(para_tras) => if let Some(e) = &mut self.openquery {
-                if let Err(erro) = e.sincronizar() { e.erro = erro; return Task::none(); }
                 if !e.desfazer_etapas(para_tras) {
                     self.status = if para_tras { tr!("OpenQuery: nada a desfazer").into() } else { tr!("OpenQuery: nada a refazer").into() };
                 }
@@ -1035,7 +1015,6 @@ impl App {
                             Err(erro) => { e.erro_modal = erro; return Task::none(); }
                         };
                         let editar = m.editar;
-                        if let Err(erro) = e.sincronizar() { e.erro_modal = erro; return Task::none(); }
                         match editar {
                             Some(i) if i < e.passos.len() => e.passos[i] = passo,
                             _ => e.passos.push(passo),
@@ -1086,17 +1065,13 @@ impl App {
                 e.parametros_abertos = false;
             },
             Evento::Remover(idx) => if let Some(e) = &mut self.openquery {
-                match e.sincronizar() {
-                    Ok(()) => if idx < e.passos.len() {
+                if idx < e.passos.len() {
                         e.passos.remove(idx);
                         e.registrar_passos();
-                    },
-                    Err(erro) => { e.erro = erro; e.exibir_codigo = true; }
-                }
+                    }
             },
             Evento::Mover(idx, delta) => if let Some(e) = &mut self.openquery {
-                match e.sincronizar() {
-                    Ok(()) => {
+                {
                         let novo = (idx as isize).saturating_add(delta as isize);
                         if idx < e.passos.len() && novo >= 0 &&
                             (novo as usize) < e.passos.len() {
@@ -1104,19 +1079,12 @@ impl App {
                             e.registrar_passos();
                         }
                     }
-                    Err(erro) => { e.erro = erro; e.exibir_codigo = true; }
-                }
             },
             Evento::Prever(etapa) => if let Some(e) = &mut self.openquery {
                 e.prever(etapa);
             },
-            // O próprio editor já mudou o conteúdo.
-            Evento::Codigo => {},
-            Evento::ExibirCodigo => if let Some(e) = &mut self.openquery {
-                e.exibir_codigo = !e.exibir_codigo;
-            },
             Evento::AbrirEditorAvancado => if let Some(e) = &mut self.openquery {
-                e.editor_avancado = Some(Content::with_text(&e.codigo.text()));
+                e.editor_avancado = Some(Content::with_text(&e.codigo));
                 e.erro_avancado.clear();
             },
             Evento::EditarEditorAvancado => if let Some(e) = &mut self.openquery {
@@ -1152,10 +1120,7 @@ impl App {
                 e.erro_avancado.clear();
             },
             Evento::Atualizar => if let Some(e) = &mut self.openquery {
-                match e.sincronizar() {
-                    Ok(()) => e.recalcular(),
-                    Err(erro) => e.erro = erro,
-                }
+                e.recalcular();
             },
             Evento::AtualizarFonte => {
                 let origem = self.openquery.as_ref()
@@ -1189,10 +1154,7 @@ impl App {
                     match resultado {
                         Ok(tabela) => {
                             e.fonte = tabela;
-                            match e.sincronizar() {
-                                Ok(()) => e.recalcular(),
-                                Err(erro) => e.erro = erro,
-                            }
+                            e.recalcular();
                         },
                         Err(erro) => e.erro = erro,
                     }
@@ -1260,6 +1222,12 @@ impl App {
                 editor.importacao_preservar = matches!(evento, Evento::ReimportarArquivo);
                 let ticket = IMPORTACAO_SEQ.fetch_add(1, Ordering::Relaxed);
                 editor.importacao_pendente = Some(ticket);
+                // Trocar de planilha pelo script: o arquivo lido nesta sessão, sem perguntar.
+                if editor.importacao_preservar && editor.item_pedido.is_some() {
+                    if let Some(caminho) = editor.caminho_arquivo.clone() {
+                        return Task::done(Msg::OpenQuery(Evento::ArquivoEscolhido(ticket, Some(caminho))));
+                    }
+                }
                 // Reler a pasta: o caminho já é conhecido e a pessoa pediu (o botão).
                 if editor.importacao_preservar {
                     if let Some(pasta) = editor.origem_aba.strip_prefix("Pasta: ").map(std::path::PathBuf::from) {
@@ -1277,10 +1245,11 @@ impl App {
                     return Task::none();
                 }
                 let Some(caminho) = arquivo else {
-                    if let Some(e) = &mut self.openquery { e.importacao_pendente = None; }
+                    if let Some(e) = &mut self.openquery { e.importacao_pendente = None; e.item_pedido = None; }
                     return Task::none();
                 };
                 self.lembrar_fonte(caminho.display().to_string());
+                if let Some(e) = &mut self.openquery { e.caminho_arquivo = Some(caminho.clone()); }
                 self.status = tr!("OpenQuery: importando fonte em tarefa separada").into();
                 return Task::perform(async move {
                     tokio::task::spawn_blocking(move || importador::ler_itens(&caminho))
@@ -1299,7 +1268,7 @@ impl App {
                 let escolhida = if e.importacao_preservar {
                     match anterior {
                         None => Some(0),
-                        Some(n) => match itens.iter().position(|(nome, ..)| *nome == n) {
+                        Some(n) => match itens.iter().position(|i| i.nome == n) {
                             Some(i) => Some(i),
                             None => {
                                 e.importacao_pendente = None;
@@ -1311,20 +1280,26 @@ impl App {
                     }
                 } else if itens.len() == 1 { Some(0) } else { None };
                 if let Some(i) = escolhida {
-                    let (nome, tabela, formatos) = itens.swap_remove(i);
-                    let origem = if itens.is_empty() && !e.importacao_preservar { origem } else { format!("{origem} ▸ {nome}") };
-                    let tarefa = self.evento_openquery(Evento::ArquivoLido(ticket, Ok((tabela, origem))));
-                    if let Some(e) = &mut self.openquery { e.formatos = formatos; }
-                    return tarefa;
+                    let item = itens.swap_remove(i);
+                    let origem = if itens.is_empty() && !e.importacao_preservar { origem } else { format!("{origem} ▸ {}", item.nome) };
+                    return ler_item(ticket, item, origem);
                 }
-                e.nomes_web = itens.iter().map(|(n, ..)| n.clone()).collect();
-                e.formatos_web = itens.iter().map(|(_, _, f)| f.clone()).collect();
-                e.tabelas_web = itens.into_iter().map(|(_, t, _)| t).collect();
+                e.tabelas_web = itens.iter().map(|i| i.previa.clone()).collect();
+                e.itens_arquivo = itens;
                 e.origem_web_pendente = origem;
                 e.indice_tabela_web = 0;
                 e.mostrar_web = true;
                 e.erro.clear();
                 self.status = trf!("OpenQuery: {} planilhas e tabelas no arquivo; escolha qual importar", e.tabelas_web.len());
+            }
+            Evento::ItemLido(ticket, resultado, origem) => {
+                let (resultado, formatos) = match resultado {
+                    Ok((t, f)) => (Ok((t, origem)), Some(f)),
+                    Err(erro) => (Err(erro), None),
+                };
+                let tarefa = self.evento_openquery(Evento::ArquivoLido(ticket, resultado));
+                if let (Some(f), Some(e)) = (formatos, &mut self.openquery) { e.formatos = f; }
+                return tarefa;
             }
             Evento::ArquivoLido(ticket, resultado) => {
                 let Some(editor) = &mut self.openquery else { return Task::none() };
@@ -1362,8 +1337,7 @@ impl App {
                         editor.mostrar_manual = false;
                         editor.origem = Rect::new(0, 0, linhas as u32, colunas.saturating_sub(1) as u32);
                         editor.assistente = None;
-                        if !preservar { editor.exibir_codigo = false;
-                            editor.edicao = None;
+                        if !preservar {                            editor.edicao = None;
                             editor.passos.clear();
                             editor.fontes.clear();
                         }
@@ -1434,7 +1408,6 @@ impl App {
                 e.rolagem.0 = 0.0;
                 e.rolagem.1 = 0.0;
                 e.mostrar_manual = aba == 2;
-                e.exibir_codigo = aba == 1;
                 e.mostrar_web = false;
                 e.mostrar_tabelas = false;
                 e.limpar_previa_web();

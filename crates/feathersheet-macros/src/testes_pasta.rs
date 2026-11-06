@@ -404,6 +404,17 @@ fn filtro_avancado_copia_esconde_e_showalldata_reexibe() {
 }
 
 #[test]
+fn areas_visiveis_de_tabela_grande_passam_do_teto_de_celulas() {
+    // 200 mil linhas × 5 colunas = 1 milhão de células, acima do teto de 500 mil.
+    let mut wb = Workbook::new();
+    wb.escrever_celula(0, 0, 0, "x".into());
+    wb.escrever_celula(0, 199_999, 4, "y".into());
+    let r = executar(&mut wb, 0, r#"log(sheet.specialAreas("A1:E200000", "visible"));"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.saida, vec!["A1:E200000".to_string()]);
+}
+
+#[test]
 fn colar_imagem_de_intervalo_so_anota_o_pedido() {
     let mut wb = pasta_com_dados();
     let r = executar(&mut wb, 0, r#"const f = sheet.pastePicture("A1:G40", "A104", { sheet: "Dados" }); f.width = 500;"#);

@@ -173,8 +173,53 @@ pub(super) fn ler_pasta(dir: &Path) -> Result<(Tabela, String, super::Formatos),
     Ok((Tabela { cabecalho, linhas }, format!("Pasta: {}", dir.display()), formatos))
 }
 
-/// Uma opção do Navegador: nome (planilha ou tabela), dados e formatos de número.
-pub(super) type Item = (String, Tabela, super::Formatos);
+/// Linhas de cada opção que o Navegador mostra antes da escolha.
+const LINHAS_PREVIA: u32 = 8;
+
+/// Uma opção do Navegador: o nome (planilha ou tabela), a prévia e de onde ler o resto.
+/// A tabela inteira só é montada para a escolhida ([`Item::ler`]): montar todas antes
+/// custava vários GB num `.fshz` de 1 milhão de linhas.
+#[derive(Clone)]
+pub struct Item {
+    pub nome: String,
+    pub previa: Tabela,
+    /// Linhas de dados (pela área usada; linhas vazias no meio contam).
+    pub linhas: usize,
+    fonte: FonteItem,
+}
+
+#[derive(Clone)]
+enum FonteItem {
+    Pronta(Tabela, super::Formatos),
+    /// A pasta lida fica guardada até a escolha (o `Workbook` não atravessa thread sem trava).
+    Pasta(std::sync::Arc<std::sync::Mutex<Workbook>>, usize, Rect),
+}
+
+impl std::fmt::Debug for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Item({}, {} linhas)", self.nome, self.linhas)
+    }
+}
+
+impl Item {
+    pub(super) fn pronto(nome: String, t: Tabela, f: super::Formatos) -> Self {
+        let previa = Tabela { cabecalho: t.cabecalho.clone(), linhas: t.linhas.iter().take(LINHAS_PREVIA as usize).cloned().collect() };
+        Item { nome, linhas: t.linhas.len(), previa, fonte: FonteItem::Pronta(t, f) }
+    }
+
+    /// A tabela inteira e os formatos de número. Pesado: executar via spawn_blocking.
+    pub(super) fn ler(self) -> Result<(Tabela, super::Formatos), String> {
+        match self.fonte {
+            FonteItem::Pronta(t, f) => Ok((t, f)),
+            FonteItem::Pasta(wb, aba, area) => {
+                let wb = wb.lock().map_err(|_| tr!("Arquivo indisponível").to_string())?;
+                let t = ler_tabela(&wb, aba, area.clone())?;
+                let f = super::formatos_da_fonte(&wb, aba, &area, &t.cabecalho);
+                Ok((t, f))
+            }
+        }
+    }
+}
 
 /// A primeira linha "de verdade" da área: pula o título acima da tabela ("Painel de
 /// Vendas 2026" sozinho na linha 1) até a linha que preenche metade das colunas.
@@ -196,22 +241,28 @@ pub(super) fn nome_visivel(nome: &str) -> String {
 }
 
 /// As planilhas (a ativa primeiro) e as tabelas (Ctrl+T) da pasta, cada uma uma opção.
-fn itens_da_pasta(wb: &Workbook, ativa: usize) -> Vec<Item> {
+fn itens_da_pasta(wb: Workbook, ativa: usize) -> Vec<Item> {
     let mut ordem: Vec<usize> = vec![ativa];
     ordem.extend((0..wb.len()).filter(|i| *i != ativa));
-    let mut itens = Vec::new();
+    let mut opcoes: Vec<(String, usize, Rect)> = Vec::new();
     for i in ordem {
         let Some(aba) = wb.aba(i) else { continue };
-        let area = sem_titulo(wb, i, aba.sheet.used_rect());
-        let Ok(t) = ler_tabela(wb, i, area.clone()) else { continue };
-        if t.cabecalho.is_empty() || (t.linhas.is_empty() && t.cabecalho.len() < 2) { continue; }
-        let f = super::formatos_da_fonte(wb, i, &area, &t.cabecalho);
-        itens.push((format!("Planilha {}", aba.sheet.name), t, f));
+        opcoes.push((format!("Planilha {}", aba.sheet.name), i, sem_titulo(&wb, i, aba.sheet.used_rect())));
     }
-    for (i, nome, area) in tabelas_existentes(wb) {
-        let Ok(t) = ler_tabela(wb, i, area.clone()) else { continue };
-        let f = super::formatos_da_fonte(wb, i, &area, &t.cabecalho);
-        itens.push((format!("Tabela {}", nome), t, f));
+    opcoes.extend(tabelas_existentes(&wb).into_iter().map(|(i, nome, area)| (format!("Tabela {nome}"), i, area)));
+    let mut itens = Vec::new();
+    let mut previas = Vec::new();
+    for (nome, i, area) in opcoes {
+        let a = area.normalized();
+        let corte = Rect::new(a.r0, a.c0, a.r1.min(a.r0 + LINHAS_PREVIA), a.c1);
+        let Ok(previa) = ler_tabela(&wb, i, corte) else { continue };
+        let planilha = nome.starts_with("Planilha ");
+        if previa.cabecalho.is_empty() || (planilha && previa.linhas.is_empty() && previa.cabecalho.len() < 2) { continue; }
+        previas.push((nome, previa, (a.r1 - a.r0) as usize, i, area));
+    }
+    let wb = std::sync::Arc::new(std::sync::Mutex::new(wb));
+    for (nome, previa, linhas, i, area) in previas {
+        itens.push(Item { nome, previa, linhas, fonte: FonteItem::Pasta(wb.clone(), i, area) });
     }
     itens
 }
@@ -225,7 +276,7 @@ pub(super) fn ler_itens(path: &Path) -> Result<(Vec<Item>, String), String> {
         return Err(tr!("Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ ou PARQUET neste importador").into());
     }
     let nome = path.file_name().and_then(|n| n.to_str()).unwrap_or(tr!("Arquivo"));
-    let unico = |t: Tabela, f| vec![(nome.to_owned(), t, f)];
+    let unico = |t: Tabela, f| vec![Item::pronto(nome.to_owned(), t, f)];
     let itens = match ext.as_str() {
         "json" => unico(json_tabela(&std::fs::read(path)
             .map_err(|e| trf!("Falha de leitura: {e}"))?)?, super::Formatos::new()),
@@ -241,12 +292,12 @@ pub(super) fn ler_itens(path: &Path) -> Result<(Vec<Item>, String), String> {
         "xlsx" => {
             validar_xlsx(path)?;
             let (workbook, folha) = feathersheet_io::xlsx_read::ler_xlsx_arquivo(path)?;
-            itens_da_pasta(&workbook, folha.min(workbook.len().saturating_sub(1)))
+            { let ativa = folha.min(workbook.len().saturating_sub(1)); itens_da_pasta(workbook, ativa) }
         }
         // Lido como o app abre o arquivo (fórmulas calculadas).
         _ => {
             let (workbook, folha) = crate::app::App::decodificar_caminho(path, None)?;
-            itens_da_pasta(&workbook, folha)
+            itens_da_pasta(workbook, folha)
         }
     };
     if itens.is_empty() { return Err(tr!("Arquivo sem colunas").into()); }
@@ -257,7 +308,7 @@ pub(super) fn ler_itens(path: &Path) -> Result<(Vec<Item>, String), String> {
 /// A primeira opção do arquivo (a planilha ativa), para o "Da pasta" e o reimportar.
 pub(super) fn ler(path: &Path) -> Result<(Tabela, String, super::Formatos), String> {
     let (mut itens, origem) = ler_itens(path)?;
-    let (_, t, f) = itens.remove(0);
+    let (t, f) = itens.swap_remove(0).ler()?;
     Ok((t, origem, f))
 }
 
@@ -427,9 +478,11 @@ mod testes {
         std::fs::remove_file(&caminho).unwrap();
         assert!(origem.starts_with("Arquivo: "));
         assert_eq!(itens.len(), 2);
-        assert_eq!(itens[0].1.cabecalho, ["Produto", "Valor", "UF"], "o título acima da tabela sai");
-        assert_eq!(itens[0].1.linhas.len(), 1);
-        assert!(itens[1].0.ends_with("Clientes"));
+        assert_eq!(itens[0].previa.cabecalho, ["Produto", "Valor", "UF"], "o título acima da tabela sai");
+        assert_eq!((itens[0].previa.linhas.len(), itens[0].linhas), (1, 1));
+        assert!(itens[1].nome.ends_with("Clientes"));
+        let (t, _) = itens.into_iter().next().unwrap().ler().unwrap();
+        assert_eq!(t.cabecalho, ["Produto", "Valor", "UF"]);
     }
 
     #[test]

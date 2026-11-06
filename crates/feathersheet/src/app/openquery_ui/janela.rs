@@ -277,7 +277,7 @@ impl App {
     fn selecionar_fonte_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
         // Sem fonte, o centro fica em branco: as fontes estão na faixa (OBTER DADOS).
         let mut conteudo = column(Vec::<Element<Msg>>::new()).spacing(16).padding(24).width(Length::FILL);
-        let navegador = !e.nomes_web.is_empty();
+        let navegador = !e.itens_arquivo.is_empty();
         if e.mostrar_web && !navegador {
             conteudo = conteudo.push(container(column![
                 text(tr!("Endereço Web / API")).size(13).font(negrito()),
@@ -304,10 +304,10 @@ impl App {
             ].spacing(8);
             let mut opcoes = column(Vec::<Element<Msg>>::new()).spacing(3);
             for (indice, tabela) in e.tabelas_web.iter().enumerate() {
-                let nome = e.nomes_web.get(indice).map(|n| importador::nome_visivel(n)).unwrap_or_else(|| trf!("Tabela {}", indice + 1));
+                let nome = e.itens_arquivo.get(indice).map(|i| importador::nome_visivel(&i.nome)).unwrap_or_else(|| trf!("Tabela {}", indice + 1));
                 opcoes = opcoes.push(ide::item_arvore(
                     &trf!("{}  •  {} linhas  •  {} colunas",
-                        nome, tabela.linhas.len(), tabela.cabecalho.len()),
+                        nome, e.itens_arquivo.get(indice).map_or(tabela.linhas.len(), |i| i.linhas), tabela.cabecalho.len()),
                     "table", 0.0,
                     Some(om(Evento::SelecionarTabelaWeb(indice))),
                     indice == e.indice_tabela_web,
@@ -317,7 +317,7 @@ impl App {
             if let Some(tabela) = e.tabelas_web.get(e.indice_tabela_web) {
                 escolher = escolher.push(text(trf!(
                     "Pré-visualização de {} (primeiras 8 linhas e 6 colunas)",
-                    e.nomes_web.get(e.indice_tabela_web).map(|n| importador::nome_visivel(n)).unwrap_or_else(|| trf!("Tabela {}", e.indice_tabela_web + 1)),
+                    e.itens_arquivo.get(e.indice_tabela_web).map(|i| importador::nome_visivel(&i.nome)).unwrap_or_else(|| trf!("Tabela {}", e.indice_tabela_web + 1)),
                 )).size(12).font(negrito()));
                 let mut cabecalho = row(Vec::<Element<Msg>>::new()).spacing(0);
                 for titulo in tabela.cabecalho.iter().take(6) {

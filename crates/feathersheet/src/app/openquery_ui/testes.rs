@@ -41,7 +41,6 @@ use super::*;
         estado.renomear = "Novo".into();
         estado.adicionar("renomear");
         assert_eq!(estado.resultado.cabecalho[0], "Novo");
-        assert!(estado.sincronizar().is_ok());
     }
 
     #[test]
@@ -357,7 +356,7 @@ fn editor_avancado_aplica_script_escrito_a_mao() {
     assert!(editor.editor_avancado.is_none());
     assert_eq!(editor.passos.len(), 1);
     assert_eq!(editor.resultado.linhas.len(), 1);
-    assert!(editor.codigo.text().contains("fonte.manterPrimeiras(1);"), "{}", editor.codigo.text());
+    assert!(editor.codigo.clone().contains("fonte.manterPrimeiras(1);"), "{}", editor.codigo.clone());
 }
 
 #[test]
@@ -372,7 +371,7 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         };
         editor.registrar_passos();
     }
-    let original = app.openquery.as_ref().unwrap().codigo.text();
+    let original = app.openquery.as_ref().unwrap().codigo.clone();
     app.evento_openquery(Evento::AbrirEditorAvancado);
     app.openquery.as_mut().unwrap().editor_avancado =
         Some(pelicano::Content::with_text("console.log('não executa');"));
@@ -380,11 +379,11 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
     let editor = app.openquery.as_ref().unwrap();
     assert!(editor.editor_avancado.is_some());
     assert!(!editor.erro_avancado.is_empty());
-    assert_eq!(editor.codigo.text(), original);
+    assert_eq!(editor.codigo.clone(), original);
     assert_eq!(editor.resultado.linhas.len(), 2);
     assert!(app.fechar_assistente_openquery()); // Esc descarta o rascunho
     assert!(app.openquery.as_ref().unwrap().editor_avancado.is_none());
-    assert_eq!(app.openquery.as_ref().unwrap().codigo.text(), original);
+    assert_eq!(app.openquery.as_ref().unwrap().codigo.clone(), original);
 }
 
     #[test]
@@ -535,3 +534,39 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         assert!(app.fechar_assistente_openquery(), "Esc fecha o modal da etapa");
         assert!(app.openquery.as_ref().unwrap().modal.is_none());
     }
+
+#[test]
+fn trocar_planilha_pelo_script_rele_o_arquivo_e_recusa_a_que_nao_existe() {
+    let tabela = |cab: &str, v: f64| Tabela { cabecalho: vec![cab.into()], linhas: vec![vec![Value::Number(v)]] };
+    let mut app = App::default();
+    app.evento_openquery(Evento::Abrir);
+    {
+        let e = app.openquery.as_mut().unwrap();
+        e.fonte = tabela("Valor", 1.);
+        e.origem_aba = "Arquivo: vendas.fshz ▸ Planilha Jan".into();
+        e.registrar_passos();
+        assert!(e.codigo.contains("fonte.planilha(\"Jan\");"), "{}", e.codigo);
+        e.editor_avancado = Some(pelicano::Content::with_text(&e.codigo.replace("Jan", "Fev")));
+    }
+    app.evento_openquery(Evento::AplicarEditorAvancado);
+    let e = app.openquery.as_mut().unwrap();
+    assert_eq!(e.item_pedido.as_deref(), Some("Planilha Fev"));
+    let ticket = e.importacao_pendente.expect("relendo o arquivo");
+    let itens = || vec![importador::Item::pronto("Planilha Jan".into(), tabela("Valor", 1.), Formatos::new()),
+        importador::Item::pronto("Planilha Fev".into(), tabela("Valor", 2.), Formatos::new())];
+    app.evento_openquery(Evento::ItensLidos(ticket, itens(), "Arquivo: vendas.fshz".into()));
+    let e = app.openquery.as_ref().unwrap();
+    assert!(e.erro.is_empty() && e.item_pedido.is_none(), "{}", e.erro);
+    // A leitura em segundo plano devolve a Fev.
+    app.evento_openquery(Evento::ItemLido(ticket, Ok((tabela("Valor", 2.), Formatos::new())), "Arquivo: vendas.fshz ▸ Planilha Fev".into()));
+    let e = app.openquery.as_mut().unwrap();
+    assert_eq!((e.origem_aba.as_str(), &e.fonte.linhas[0][0]), ("Arquivo: vendas.fshz ▸ Planilha Fev", &Value::Number(2.)));
+    // Uma planilha que o arquivo não tem: erro, e a fonte fica.
+    e.item_pedido = Some("Planilha Mar".into());
+    e.importacao_preservar = true;
+    e.importacao_pendente = Some(ticket + 1);
+    app.evento_openquery(Evento::ItensLidos(ticket + 1, itens(), "Arquivo: vendas.fshz".into()));
+    let e = app.openquery.as_ref().unwrap();
+    assert!(e.erro.contains("Mar"), "{}", e.erro);
+    assert_eq!(e.origem_aba, "Arquivo: vendas.fshz ▸ Planilha Fev");
+}

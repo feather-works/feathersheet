@@ -157,7 +157,6 @@ impl App {
     pub(super) fn salvar_conexao_openquery(&mut self) {
         let preparado = (|| -> Result<(usize, serde_json::Value, String), String> {
             let editor = self.openquery.as_mut().ok_or(tr!("Editor de consulta não está aberto"))?;
-            editor.sincronizar()?;
             editor.recalcular();
             if !editor.erro.is_empty() { return Err(editor.erro.clone()); }
             let id = if let Some(id) = &editor.edicao {
@@ -222,7 +221,6 @@ impl App {
             (String, String, usize, Option<Rect>, DestinoModo, serde_json::Value, vinculo::Plano), String
         > {
             let editor = self.openquery.as_mut().ok_or(tr!("Editor não está aberto"))?;
-            editor.sincronizar()?;
             editor.recalcular();
             if !editor.erro.is_empty() { return Err(editor.erro.clone()); }
             let tabela = &editor.resultado;
@@ -403,7 +401,16 @@ impl App {
     /// Ao abrir o arquivo: recalcula as consultas com "Atualizar ao abrir". As fontes são
     /// abas da pasta ou a cópia guardada (arquivo e Web nunca são relidos sem a pessoa pedir).
     /// A aba e a seleção à vista não mudam.
-    // shortcut: roda na thread da janela, como o botão Atualizar; mover para o fundo se uma consulta grande travar a abertura.
+    /// O mesmo, na thread que abre o arquivo (antes de a pasta chegar à janela): uma
+    /// consulta sobre 1 milhão de linhas não trava a tela. Devolve a pasta e o aviso.
+    pub(in crate::app) fn atualizar_consultas_na_pasta(workbook: Workbook, folha: usize) -> (Workbook, Option<String>) {
+        let tem = registro::listar(&workbook).unwrap_or_default().iter().any(|s| registro::atualiza_ao_abrir(&s.dados));
+        if !tem { return (workbook, None); }
+        let mut app = App { workbook, folha, ..App::default() };
+        app.atualizar_consultas_ao_abrir();
+        (std::mem::take(&mut app.workbook), Some(std::mem::take(&mut app.status)))
+    }
+
     pub(in crate::app) fn atualizar_consultas_ao_abrir(&mut self) {
         let ids: Vec<String> = registro::listar(&self.workbook).unwrap_or_default().into_iter()
             .filter(|s| registro::atualiza_ao_abrir(&s.dados))

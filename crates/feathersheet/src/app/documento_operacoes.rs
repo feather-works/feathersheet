@@ -571,7 +571,6 @@ impl App {
             self.status = trf!("Aberto: {}", path.display());
             self.registrar_arquivo_recente(&path);
         }
-        if !recuperacao { self.atualizar_consultas_ao_abrir(); }
         if ext == "xlsm" { self.ler_vba_do_xlsm(&path); } else { self.vba_pendente = None; }
         self.bloquear_macros_do_arquivo();
         super::objetos::esquecer_rasteres();
@@ -610,7 +609,9 @@ impl App {
     #[cfg(test)]
     pub(super) fn carregar(&mut self, path: PathBuf, bytes: Vec<u8>) -> Result<(), String> {
         let (workbook, folha) = Self::decodificar(&path, bytes)?;
+        let recuperacao = path.starts_with(Self::pasta_temporarios());
         self.instalar(path, workbook, folha);
+        if !recuperacao { self.atualizar_consultas_ao_abrir(); }
         Ok(())
     }
     /// Salva o .fshz sem travar a janela: a fotografia da pasta (`da_workbook`,
@@ -916,9 +917,13 @@ impl App {
                 feathersheet_io::progresso::comecar(&path);
                 limite_memoria::verificar(limite_gb)?;
                 let (workbook, folha) = Self::decodificar_caminho(&path, separador)?;
+                // "Atualizar ao abrir" das consultas ainda aqui, fora da thread da janela.
+                let (workbook, aviso) = if path.starts_with(Self::pasta_temporarios()) { (workbook, None) }
+                    else { Self::atualizar_consultas_na_pasta(workbook, folha) };
                 limite_memoria::verificar(limite_gb)?;
                 Ok::<PastaLida, String>(PastaLida {
                     caminho: path,
+                    aviso,
                     dados: Arc::new(Mutex::new(Some((workbook, folha)))),
                     ms: inicio.elapsed().as_millis().min(u128::from(u64::MAX)) as u64,
                 })

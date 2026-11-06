@@ -130,10 +130,6 @@ impl App {
         let Some(editor) = self.openquery.as_mut() else { return };
         match evento {
             Evento::Abrir(tipo) => {
-                if let Err(erro) = editor.sincronizar() {
-                    editor.erro = erro;
-                    return;
-                }
                 editor.assistente = Some(Estado::novo(tipo, editor));
                 editor.erro.clear();
                 return;
