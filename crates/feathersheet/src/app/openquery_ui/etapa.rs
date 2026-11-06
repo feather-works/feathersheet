@@ -130,7 +130,7 @@ impl Modal {
         Self {
             tipo, editar: None, colunas, col, texto, texto2, texto3, em_linhas: false, desc: false, para: "texto",
             opcao, grupo, contas: vec![Conta { operacao: 0, col, nome: tr!("Quantidade").into() }],
-            erros_tipo: false,
+            erros_tipo: true,
             amostra: Tabela { cabecalho: Vec::new(), linhas: Vec::new() }, fontes: HashMap::new(),
         }
     }

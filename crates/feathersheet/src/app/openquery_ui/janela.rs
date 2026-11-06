@@ -423,7 +423,7 @@ impl App {
             let exemplos = a.exemplos.iter().map(|x| format!("\"{x}\"")).collect::<Vec<_>>().join(", ");
             centro = centro.push(container(row![
                 feather_ui::icones::icone("alert-triangle", 16.0),
-                texto_oq(trf!("{} linha(s) de {} não converteram para {} e ficaram vazias (ex.: {}).", a.falhas, a.nome, tipo, exemplos)),
+                texto_oq(trf!("{} linha(s) de {} não converteram para {} e ficaram com erro (ex.: {}).", a.falhas, a.nome, tipo, exemplos)),
                 Space::new(Length::FILL, 0.0),
                 ide::botao(tr!("Remover essas linhas"), Some(om(Evento::FalhasDeTipo(0))), false),
                 ide::botao(tr!("Substituir por 0"), Some(om(Evento::FalhasDeTipo(1))), false),

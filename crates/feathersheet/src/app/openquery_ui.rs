@@ -439,7 +439,7 @@ impl Estado {
     // shortcut: roda a consulta até a etapa anterior de novo; só quando a última é de tipo.
     fn aviso_de_tipo(&self) -> Option<AvisoTipo> {
         let i = self.passos.len().checked_sub(1)?;
-        let Passo::Tipar { col, para, erros: false } = &self.passos[i] else { return None };
+        let Passo::Tipar { col, para, .. } = &self.passos[i] else { return None };
         if para == "texto" { return None; }
         let antes = executar_query_limitado(self.fonte.clone(), &self.passos[..i], &self.fontes, u64::MAX).ok()?;
         let vazio = |v: Option<&Value>| match v {
@@ -450,7 +450,8 @@ impl Estado {
         let mut falhas = 0;
         let mut exemplos: Vec<String> = Vec::new();
         for (a, d) in antes.linhas.iter().zip(&self.resultado.linhas) {
-            if !vazio(a.get(*col)) && vazio(d.get(*col)) {
+            let erro = |v: Option<&Value>| matches!(v, Some(Value::Error(_)));
+            if !vazio(a.get(*col)) && !erro(a.get(*col)) && (vazio(d.get(*col)) || erro(d.get(*col))) {
                 falhas += 1;
                 let t = a.get(*col).map(feathersheet_core::celulas::values::to_text).unwrap_or_default();
                 if exemplos.len() < 3 && !exemplos.contains(&t) { exemplos.push(t); }
@@ -465,6 +466,7 @@ impl Estado {
     /// Do aviso de tipo: os que não converteram viram `#VALOR!` e saem (`remover`) ou viram 0.
     fn tratar_falhas_de_tipo(&mut self, remover: bool) {
         let Some(aviso) = self.aviso_tipo.take() else { return };
+        // Consulta antiga (falha vira vazio): só aí a etapa de tipo passa a marcar o erro.
         if let Some(Passo::Tipar { erros, .. }) = self.passos.last_mut() { *erros = true; }
         self.passos.push(if remover { Passo::RemoverErros { col: aviso.col } }
             else { Passo::SubstituirErros { col: aviso.col, para: Value::Number(0.0) } });
@@ -954,7 +956,8 @@ impl App {
                         // Como o "Tipo Alterado" do Power Query: trocar de novo não empilha etapa.
                         match e.passos.last_mut() {
                             Some(Passo::Tipar { col: c, para: p, .. }) if *c == col => *p = para.into(),
-                            _ => e.passos.push(Passo::Tipar { col, para: para.into(), erros: false }),
+                            // O que não converte vira #VALOR!, como no Power Query: tratar é outra etapa.
+                            _ => e.passos.push(Passo::Tipar { col, para: para.into(), erros: true }),
                         }
                         e.registrar_passos();
                     }

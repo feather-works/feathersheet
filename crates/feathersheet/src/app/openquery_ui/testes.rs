@@ -495,9 +495,13 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         app.evento_openquery(Evento::Tipar(0, "numero"));
         let aviso = app.openquery.as_ref().unwrap().aviso_tipo.clone().expect("aviso");
         assert_eq!((aviso.falhas, aviso.exemplos.as_slice()), (1, &["N/D".to_string()][..]), "a vazia não conta");
+        assert!(matches!(app.openquery.as_ref().unwrap().passos[..], [Passo::Tipar { erros: true, .. }]),
+            "o que não converte vira erro já na etapa de tipo");
         app.evento_openquery(Evento::FalhasDeTipo(0));
         let e = app.openquery.as_ref().unwrap();
         assert!(e.aviso_tipo.is_none());
+        assert!(matches!(e.passos[..], [Passo::Tipar { erros: true, .. }, Passo::RemoverErros { .. }]),
+            "um botão, uma etapa: a de tipo não muda");
         assert_eq!(e.resultado.linhas.len(), 3, "sai só a linha do N/D; a vazia fica");
         app.evento_openquery(Evento::Desfazer(true));
         app.evento_openquery(Evento::FalhasDeTipo(1));

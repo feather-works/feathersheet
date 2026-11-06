@@ -4485,7 +4485,6 @@
  "data": "fecha",
  "Desfazer etapa (Ctrl+Z)": "Deshacer paso (Ctrl+Z)",
  "Duplicar consulta": "Duplicar consulta",
- "{} linha(s) de {} não converteram para {} e ficaram vazias (ex.: {}).": "{} fila(s) de {} no se convirtieron a {} y quedaron vacías (ej.: {}).",
  "lógico": "lógico",
  "número": "número",
  "OpenQuery: consulta nova sobre o resultado da outra; acrescente as etapas e salve": "OpenQuery: consulta nueva sobre el resultado de la otra; agregue los pasos y guarde",
@@ -4527,5 +4526,6 @@
  "Pré-visualização de {} (primeiras 8 linhas e 6 colunas)": "Vista previa de {} (primeras 8 filas y 6 columnas)",
  "Planilha {}": "Hoja {}",
  "Só uma fonte de arquivo (.xlsx, .fshz…) tem planilhas para escolher.": "Solo una fuente de archivo (.xlsx, .fshz…) tiene hojas para elegir.",
- "O arquivo não tem {}.": "El archivo no tiene {}."
+ "O arquivo não tem {}.": "El archivo no tiene {}.",
+ "{} linha(s) de {} não converteram para {} e ficaram com erro (ex.: {}).": "{} fila(s) de {} no se convirtieron a {} y quedaron con error (ej.: {})."
 }

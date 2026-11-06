@@ -4489,7 +4489,6 @@
  "data": "date",
  "Desfazer etapa (Ctrl+Z)": "Undo step (Ctrl+Z)",
  "Duplicar consulta": "Duplicate query",
- "{} linha(s) de {} não converteram para {} e ficaram vazias (ex.: {}).": "{} row(s) of {} did not convert to {} and became empty (e.g. {}).",
  "lógico": "logical",
  "número": "number",
  "OpenQuery: consulta nova sobre o resultado da outra; acrescente as etapas e salve": "OpenQuery: new query on the other one's result; add the steps and save",
@@ -4531,5 +4530,6 @@
  "Pré-visualização de {} (primeiras 8 linhas e 6 colunas)": "Preview of {} (first 8 rows and 6 columns)",
  "Planilha {}": "Sheet {}",
  "Só uma fonte de arquivo (.xlsx, .fshz…) tem planilhas para escolher.": "Only a file source (.xlsx, .fshz…) has sheets to choose from.",
- "O arquivo não tem {}.": "The file has no {}."
+ "O arquivo não tem {}.": "The file has no {}.",
+ "{} linha(s) de {} não converteram para {} e ficaram com erro (ex.: {}).": "{} row(s) of {} did not convert to {} and became errors (e.g. {})."
 }
