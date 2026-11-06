@@ -321,6 +321,48 @@ fn autofilter_so_anota_o_pedido_e_confere_a_coluna() {
 }
 
 #[test]
+fn visiveis_seguem_o_filtro_pedido_na_mesma_macro() {
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, r#"sheet.set("A1:B6", [["Nome","Valor"],["Bia",50],["Ana",150],["Caio",250],["Davi",90],["Eva",120]]);
+        sheet.autoFilter("A1:B6", 2, {op: "e", val: [">100", "<200"]});
+        log(sheet.specialCells("A2:A6", "visible").join(","));
+        sheet.showAllData();
+        log(sheet.specialCells("A2:A6", "visible").length);
+        sheet.autoFilter("A1", 1, "Bia");
+        log(sheet.specialCells("A1:B6", "visible").join(","));"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.saida, vec!["A3,A6".to_string(), "5".into(), "A1,B1,A2,B2".into()]);
+    // Linha e coluna ocultas à mão também ficam de fora, sem filtro nenhum.
+    wb.editar(0, |s| { s.row_heights.insert(2, 0); s.col_widths.insert(1, 0); });
+    let r = executar(&mut wb, 0, r#"log(sheet.specialCells("A2:B4", "visible").join(","));"#);
+    assert_eq!(r.saida, vec!["A2,A4".to_string()]);
+}
+
+#[test]
+fn varias_areas_copiam_juntas_e_escrevem_em_cada_uma() {
+    let mut wb = Workbook::new();
+    let r = executar(&mut wb, 0, r#"sheet.set("A1:B6", [["Nome","UF"],["Bia","SP"],["Ana","RJ"],["Caio","SP"],["Davi","MG"],["Eva","SP"]]);
+        sheet.autoFilter("A1:B6", 2, "SP");
+        const vis = sheet.specialAreas("A1:B6", "visible");
+        log(vis);
+        sheet.copy(vis, "D1");
+        log(sheet.range(vis).address, sheet.range(vis).value, sheet.range(vis).rows);
+        let n = 0; sheet.range(vis).forEach(() => n++); log(n);
+        sheet.range("A2:A2,A4:A4").set("x");
+        try { sheet.range("A1,B2").sort([]); } catch (e) { log("sort recusado"); }
+        log(sheet.specialAreas("A1:B6", "formulas") === "");"#);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.saida[0], "A1:B2,A4:B4,A6:B6");
+    assert_eq!(r.saida[1], "A1:B2,A4:B4,A6:B6 Nome 2");
+    assert_eq!(r.saida[2..], ["8".to_string(), "sort recusado".into(), "true".into()]);
+    let col = |c: u32| (0..5).map(|l| wb.valor(0, l, c)).collect::<Vec<_>>();
+    let t = |x: &str| Value::Text(x.into());
+    assert_eq!(col(3), vec![t("Nome"), t("Bia"), t("Caio"), t("Eva"), Value::Empty], "as visíveis coladas juntas");
+    assert_eq!(col(4)[..4], [t("UF"), t("SP"), t("SP"), t("SP")]);
+    assert_eq!((wb.valor(0, 1, 0), wb.valor(0, 2, 0), wb.valor(0, 3, 0)), (t("x"), t("Ana"), t("x")));
+}
+
+#[test]
 fn shape_esconde_troca_a_macro_e_pede_posicao() {
     let mut wb = Workbook::new();
     wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"Botão 2","macro":"Velha"}]}"##.into())); });

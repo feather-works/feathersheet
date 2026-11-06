@@ -8,6 +8,7 @@
 //! - `{"op": "contains", "val": "x"}` (e as outras regras de texto/número);
 //! - `{"op": "cor_fundo", "cor": "#ff0000"}` / `{"op": "cor_fonte", "cor": null}`
 //!   — por cor (`null` = sem preenchimento / automático);
+//! - `{"op": "e", "val": [">=10", "<=20"]}` (ou `"ou"`) — duas condições do `CONT.SE`;
 //! - `{"op": "top10", "topo": true, "n": 10, "percentual": false}`;
 //! - `{"op": "dinamico", "tipo": "thisMonth"}` — nome do `dynamicFilter` do
 //!   `.xlsx` (`today`, `lastWeek`, `Q3`, `M12`, `aboveAverage`…);
@@ -63,6 +64,10 @@ pub fn criterio_de_json(v: &Json) -> Criterio {
             // Tipo desconhecido: não esconder nada por engano.
             None => Criterio::Regra { op: "is_not_blank".into(), val: Value::Empty },
         },
+        Some(op @ ("e" | "ou")) => {
+            let par = |i: usize| de_json(&v["val"][i]);
+            Criterio::Duas { e: op == "e", a: par(0), b: par(1) }
+        }
         Some(op) => Criterio::Regra { op: op.to_owned(), val: de_json(&v["val"]) },
         None => Criterio::Classico(de_json(v)),
     }
@@ -75,6 +80,7 @@ pub fn criterio_para_json(c: &Criterio) -> Json {
         Criterio::ForaDaLista(l) => json!({"op": "not_in", "val": l.iter().map(para_json).collect::<Vec<_>>()}),
         Criterio::Regra { op, val } => json!({"op": op, "val": para_json(val)}),
         Criterio::Classico(v) => para_json(v),
+        Criterio::Duas { e, a, b } => json!({"op": if *e { "e" } else { "ou" }, "val": [para_json(a), para_json(b)]}),
         Criterio::Cor { alvo, cor } => {
             json!({"op": if *alvo == AlvoCor::Fundo { "cor_fundo" } else { "cor_fonte" }, "cor": cor})
         }
@@ -150,6 +156,7 @@ mod testes {
             Criterio::Top10 { topo: false, n: 5, percentual: true },
             Criterio::Dinamico(Dinamico::Trimestre(3)),
             Criterio::Dinamico(Dinamico::AnoAteHoje),
+            Criterio::Duas { e: false, a: Value::Text(">10".into()), b: Value::Number(3.0) },
         ];
         for c in todos {
             assert_eq!(criterio_de_json(&criterio_para_json(&c)), c);

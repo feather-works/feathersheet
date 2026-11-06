@@ -111,6 +111,7 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("unmerge", "sheet.unmerge(addr)", "sheet.unmerge(\"A1:C1\");"),
         ("isMerged", "sheet.isMerged(addr)", "if (sheet.isMerged(\"A1\")) sheet.log(\"mesclada\");"),
         ("specialCells", "sheet.specialCells(addr, kind)", "const vazias = sheet.specialCells(\"A1:D20\", \"blanks\");"),
+        ("specialAreas", "sheet.specialAreas(addr, kind)", "sheet.copy(sheet.specialAreas(\"A1:D50\", \"visible\"), \"F1\");"),
         ("activeCell", "sheet.activeCell()", "sheet.activeCell().address;"),
         ("intersect", "sheet.intersect(a, b)", "sheet.intersect(\"A1:C3\", \"B2:D5\");  // B2:C3"),
         ("union", "sheet.union(a, b)", "sheet.union(\"A1\", \"C3\");  // A1:C3"),
@@ -204,7 +205,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),147);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),148);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {

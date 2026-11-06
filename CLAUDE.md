@@ -10,6 +10,13 @@ célula ganhou "Formatar células…" (aba Número) acima de "Limpar formataçã
 versão** (pôr em `VERSOES`): também "Ctrl ao arrastar a alça conta 7, 8, 9; sem Ctrl o número é
 copiado, como no Excel." e "Formatar células… no botão direito da célula.".
 
+Macros (06/11/2026): `SpecialCells` do VBA converte (visíveis, vazias, constantes, fórmulas, erros, última
+célula) pela API nova `specialAreas` e pelo intervalo de várias áreas (`feathersheet-macros/src/varias_areas.rs`);
+as visíveis já enxergam o AutoFiltro pedido na mesma macro (`visiveis.rs`); `AutoFilter` com `xlAnd`/`xlOr` de
+comparação (`Criterio::Duas`, JSON `{op:"e"|"ou"}`). `feathersheet-macros` passou a depender do
+`feathersheet-io` (só o `filtro_json`). Novidade: "Macros do Excel com SpecialCells (copiar só as linhas
+visíveis do filtro, excluir as filtradas) e AutoFilter com duas condições agora convertem."
+
 ## v0.2.9 — 04/11/2026: minigráficos, desfazer exato, auditoria
 
 Inserir ▸ Minigráficos (Linha, Coluna, Ganhos/Perdas): modelo e contas em

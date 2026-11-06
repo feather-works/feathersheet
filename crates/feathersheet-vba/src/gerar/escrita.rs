@@ -626,7 +626,10 @@ impl Gerador<'_> {
             Inteira::Colunas => ("Column", "coluna", "qtdColunas"),
             Inteira::Nao => return self.deslocar(f, excluir, args),
         };
-        let verbo = if excluir { "delete" } else { "insert" };
+        if excluir {
+            return Ok(format!("vba.{}({}, {}, {});", self.ajuda("excluir"), f.aba, f.end, f.inteira == Inteira::Linhas));
+        }
+        let verbo = "insert";
         let (p, q) = (self.ajuda(ajuda_pos), self.ajuda(ajuda_qtd));
         Ok(format!("{}.{verbo}{eixo}(vba.{p}({}), vba.{q}({}));", f.aba, f.end, f.end))
     }

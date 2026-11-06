@@ -207,6 +207,20 @@ posição ainda não converte.
 Próximos: automação do Word (fica para quando o FeatherDocs tiver API), `CallByName`, MsgBox com
 Abortar/Repetir/Ignorar e ícones.
 
+`SpecialCells` e AutoFilter (06/11/2026): `SpecialCells(xlCellTypeVisible | Blanks | Constants | Formulas)`
+(com `Value` 23 ou, em fórmulas, `xlErrors`) vira `vba.especiais` → `aba.specialAreas`, um endereço de várias
+áreas (`"A1:C2,A4:C4"`); sem célula, o erro 1004, pego pelo `On Error Resume Next` como no Excel.
+`xlCellTypeLastCell` é a célula de `lastRow`/`lastColumn`. As visíveis respeitam o AutoFiltro pedido antes na
+mesma macro (`feathersheet-macros/src/visiveis.rs` repete os pedidos sobre as tabelas da aba sem mexer nela; o
+app filtra de verdade no fim). A API aceita intervalo de várias áreas (`varias_areas.rs`): escrever, limpar e
+formatar em cada área, `copy` juntando as áreas no destino (Copy das visíveis), leitura pela primeira área;
+`.Count`, `.Address`, `.EntireRow`/`.EntireColumn`, `For Each` e `.EntireRow.Delete` (de baixo para cima)
+contam todas as áreas. `AutoFilter` com dois critérios de comparação (`xlAnd`, o padrão, e `xlOr`) vira o
+critério `{op: "e"|"ou"}` (`Criterio::Duas` no motor). Corrigido junto: `rng Is Nothing` com `rng As Range`
+lia o valor da célula. Ainda não: SpecialCells de comentários/validação/formatação condicional, constantes só
+de números/textos, filtro por cor/dinâmico pela macro, `Areas(i)`; o `.xlsx` não grava o critério de duas
+condições (as linhas escondidas ficam).
+
 ### Rodando de verdade (01/11/2026)
 
 `cargo run --release --example rodar_xlsm -- arquivo.xlsm [filtro]` roda cada macro e evento

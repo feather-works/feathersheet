@@ -13,6 +13,8 @@ mod operacoes_dados;
 mod validacoes;
 mod condicionais;
 mod navegacao;
+mod visiveis;
+mod varias_areas;
 mod navegacao_intervalos;
 mod estrutura;
 mod mesclagem;
@@ -209,6 +211,7 @@ fn bruto(v: &Json) -> String {
 
 impl HospedeiroMacros for HospedeiroSheet {
     fn chamar(&self, op: &str, dados: &Json) -> Result<Json, String> {
+        if let Some(r) = varias_areas::executar(op, dados, &|o, d| self.chamar(o, d)) { return r; }
         let mut e = self.estado.borrow_mut();
         if pasta::OPERACOES.contains(&op) {
             let nomes = e.pasta.nomes();
@@ -472,9 +475,9 @@ impl HospedeiroMacros for HospedeiroSheet {
             let endereco = dados[1].as_str().ok_or_else(|| "Endereço precisa ser texto A1".to_string())?;
             let area = parse_range_ref(endereco).ok_or_else(|| format!("Endereço inválido: {endereco}"))?.normalized();
             if area.sheet.is_some() { return Err("Use wb.sheet(nome).range(endereço) para outra aba".to_string()); }
-            // `Cells.Copy` / `Columns("A:C").Copy` / `Columns("A").TextToColumns`:
+            // `Cells.Copy` / `Columns("A:C").Copy` / `Columns("A").TextToColumns` / `.SpecialCells`:
             // como o Excel, só o que tem dado (a área usada da aba).
-            let area = if matches!(op, "copy" | "textToColumns") && area.area() > 500_000 {
+            let area = if matches!(op, "copy" | "textToColumns" | "specialCells" | "areasEspeciais") && area.area() > 500_000 {
                 let usada = e.pasta.aba(aba).map(|a| a.sheet.used_rect()).ok_or("Aba inexistente")?;
                 let (r0, c0, r1, c1) = (area.r0.max(usada.r0), area.c0.max(usada.c0), area.r1.min(usada.r1), area.c1.min(usada.c1));
                 if r0 > r1 || c0 > c1 { return Ok(Json::Null); }
@@ -536,10 +539,12 @@ impl HospedeiroMacros for HospedeiroSheet {
                     }
                     Json::Null
                 }
-                "specialCells" => {
+                "specialCells" | "areasEspeciais" => {
                     let tipo = dados[2].as_str()
-                        .ok_or("specialCells exige o tipo: blanks, formulas, constants ou errors")?;
-                    json!(navegacao::celulas_especiais(&e.pasta, aba, &area, tipo)?)
+                        .ok_or("specialCells exige o tipo: blanks, formulas, constants, errors ou visible")?;
+                    let celulas = navegacao::celulas_especiais(&e.pasta, aba, &area, tipo, &e.extra.filtros)?;
+                    if op == "areasEspeciais" { json!(varias_areas::endereco(&celulas)) }
+                    else { json!(celulas.iter().map(|&(r, c)| feathersheet_core::celulas::refs::cell_name(r, c)).collect::<Vec<_>>()) }
                 }
                 "intersect" | "union" => {
                     // Reaproveita as operações de retângulo já portadas
@@ -1023,7 +1028,8 @@ function __sheet(indice) {
     const range = address => {
         const a = __ft('area',[i,address]);
         const x = {
-            address:__nome(a[0],a[1])+(a[0]===a[2]&&a[1]===a[3]?'':':'+__nome(a[2],a[3])),
+            // Várias áreas ("A2:E2,A4:E9", o specialAreas): o endereço inteiro; o resto olha a primeira, como o Excel.
+            address:String(address).includes(',')?String(address):__nome(a[0],a[1])+(a[0]===a[2]&&a[1]===a[3]?'':':'+__nome(a[2],a[3])),
             rows:a[2]-a[0]+1, columns:a[3]-a[1]+1,
             get value(){return __ftRevive(__ft('get',[i,address]));},
             set value(v){__ft('set',[i,address,v]);},
@@ -1073,10 +1079,11 @@ function __sheet(indice) {
             replace(oldText,newText,opts={}){return __ft('replace',[i,address,oldText,newText,opts]);},
             find(text,opts={}){return __ft('find',[i,text,{...opts,range:address}]);},
             specialCells(tipo){return __ft('specialCells',[i,address,tipo]);},
+            specialAreas(tipo){return __ft('areasEspeciais',[i,address,tipo]);},
             clear(){__ft('clear',[i,address]);return x;},
             select(){__sel[i]=x.address;__ft('ativar',[i]);return x;},
             activate(){return x.select();},
-            forEach(fn){const values=x.values();values.forEach((row,r)=>row.forEach((v,c)=>fn(v,r,c,__nome(a[0]+r,a[1]+c))));return x;},
+            forEach(fn){if(String(address).includes(',')){for(const p of String(address).split(','))range(p).forEach(fn);return x;}const values=x.values();values.forEach((row,r)=>row.forEach((v,c)=>fn(v,r,c,__nome(a[0]+r,a[1]+c))));return x;},
             map(fn){x.forEach((v,r,c,addr)=>{const next=fn(v,r,c);if(next!==undefined)__ft('set',[i,addr,next]);});return x;}
         }; return x;
     };
@@ -1162,6 +1169,7 @@ function __sheet(indice) {
         replace:(a,oldText,newText,opts={})=>range(a).replace(oldText,newText,opts),
         find:(text,opts={})=>__ft('find',[i,text,opts]),
         specialCells:(a,tipo)=>range(a).specialCells(tipo),
+        specialAreas:(a,tipo)=>range(a).specialAreas(tipo),
         intersect:(a,b)=>{const addr=__ft('intersect',[i,a,b]);return addr===null?null:range(addr);},
         union:(a,b)=>range(__ft('union',[i,a,b])),
         clear:a=>{range(a).clear();return sheet;},

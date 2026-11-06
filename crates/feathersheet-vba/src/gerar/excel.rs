@@ -504,9 +504,40 @@ impl Gerador<'_> {
             "sort" => return Err(Motivo::novo("Range.Sort usado como objeto")),
             "autofilter" => return Err(Motivo::novo("filtro do Excel (AutoFilter — converter à mão)")),
             "formatconditions" => Obj::Condicoes(f),
-            "specialcells" => return Err(Motivo::novo("SpecialCells (converter à mão)")),
+            "specialcells" => self.celulas_especiais(f, args)?,
             _ => return Err(Motivo::novo(format!("Range.{n}"))),
         })
+    }
+
+    /// `SpecialCells(Type, [Value])`: as células visíveis, vazias, de constante, de fórmula ou
+    /// de erro viram um intervalo de várias áreas (`aba.specialAreas`); a última célula usada
+    /// (`xlCellTypeLastCell`), uma célula só. Sem nenhuma, o erro 1004, como no Excel.
+    fn celulas_especiais(&mut self, f: Faixa, args: &[Arg]) -> R<Obj> {
+        let fixo = |e: Option<&Expr>| match e {
+            Some(Expr::Nome(n)) => valor_da_constante(n),
+            Some(Expr::Num(x)) => Some(*x as i64),
+            Some(Expr::Neg(x)) => match &**x { Expr::Num(y) => Some(-(*y as i64)), Expr::Nome(n) => valor_da_constante(n).map(|v| -v), _ => None },
+            _ => None,
+        };
+        let p: Vec<&Expr> = args.iter().filter_map(|a| a.valor.as_ref()).collect();
+        let valor = match p.get(1) { None => None, e => Some(fixo(e.copied()).ok_or_else(|| Motivo::novo("SpecialCells com Value calculado"))?) };
+        let tipo = match (fixo(p.first().copied()), valor) {
+            (Some(11), _) => {
+                let l = self.ajuda("letra");
+                return Ok(Obj::Faixa(Faixa { unica: true, ..Faixa::dinamica(&f.aba, format!("`${{vba.{l}({0}.lastColumn || 1)}}${{{0}.lastRow || 1}}`", f.aba)) }));
+            }
+            (Some(12), _) => "visible",
+            (Some(4), _) => "blanks",
+            // `Value`: xlNumbers 1, xlTextValues 2, xlLogical 4, xlErrors 16; 23 = todos.
+            (Some(2), None | Some(23)) => "constants",
+            (Some(-4123), None | Some(23)) => "formulas",
+            (Some(-4123), Some(16)) => "errors",
+            (Some(2 | -4123), Some(_)) => return Err(Motivo::novo("SpecialCells só de números, textos ou lógicos")),
+            (Some(_), _) => return Err(Motivo::novo("SpecialCells de comentários, validação ou formatação condicional")),
+            (None, _) => return Err(Motivo::novo("SpecialCells com tipo calculado")),
+        };
+        let h = self.ajuda("especiais");
+        Ok(Obj::Faixa(Faixa::dinamica(&f.aba, format!("vba.{h}({}, {}, '{tipo}')", f.aba, f.end))))
     }
 
     /// `.Offset(dl, dc)`: no próprio código quando o endereço e os números são fixos.

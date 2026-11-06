@@ -341,7 +341,15 @@ impl Gerador<'_> {
             return self.concatenar(a, b);
         }
         if op == Op::Is {
-            let (va, vb) = (self.valor(a)?, self.valor(b)?);
+            // `rng Is Nothing`: a variável de intervalo/aba em si, não o valor da célula.
+            let mut lado = |e: &Expr| match e {
+                Expr::Nome(n) => match self.var(n).or_else(|| self.global(n)) {
+                    Some(v) if matches!(v.tipo, Tipo::Faixa(_) | Tipo::Aba) => Ok(V::novo(v.js, T::Obj)),
+                    _ => self.valor(e),
+                },
+                _ => self.valor(e),
+            };
+            let (va, vb) = (lado(a)?, lado(b)?);
             return Ok(V::op(format!("{} === {}", va.em(9, false), vb.em(9, true)), T::Bool, 9));
         }
         let (va, vb) = (self.valor(a)?, self.valor(b)?);

@@ -317,7 +317,38 @@ fn autofilter_convertido_pede_o_filtro_certo() {
         (Some(2), t(r#"{"op":"top10","topo":true,"n":5,"percentual":false}"#))]);
     let c = converter_texto(&[("Módulo1", "Sub T()\n  Range(\"A1:B5\").AutoFilter 2, \">1\", xlAnd, \"<9\"\nEnd Sub\n")], &[]);
     let r = feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo);
-    assert!(r.erro.as_deref().is_some_and(|e| e.contains("dois critérios")), "xlAnd de comparação avisa em vez de filtrar errado: {:?}", r.erro);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    let feathersheet_macros::AcaoFiltro::Aplicar { criterio, .. } = &r.filtros[0].acao else { panic!() };
+    assert_eq!(criterio.as_ref().map(|c| c.to_string()), t(r#"{"op":"e","val":[">1","<9"]}"#), "xlAnd de comparação");
+}
+
+/// Os dados de exemplo: Nome / UF / Valor, cinco linhas.
+const DADOS: &str = "  Range(\"A1:C1\").Value = Array(\"Nome\", \"UF\", \"Valor\")\n  Range(\"A2:C2\").Value = Array(\"Bia\", \"SP\", 50)\n  Range(\"A3:C3\").Value = Array(\"Ana\", \"RJ\", 150)\n  Range(\"A4:C4\").Value = Array(\"Caio\", \"SP\", 250)\n  Range(\"A5:C5\").Value = Array(\"Davi\", \"MG\", 90)\n  Range(\"A6:C6\").Value = Array(\"Eva\", \"SP\", 120)\n";
+
+#[test]
+fn specialcells_visivel_depois_do_autofilter() {
+    let vba = format!("Sub T()\n{DADOS}  Dim rng As Range, c As Range, n As Long, s As Double\n  Range(\"A1:C6\").AutoFilter Field:=2, Criteria1:=\"SP\"\n  Set rng = Range(\"A1:C6\").SpecialCells(xlCellTypeVisible)\n  Range(\"E1\").Value = rng.Count\n  Range(\"E2\").Value = rng.Address\n  For Each c In Range(\"C2:C6\").SpecialCells(xlCellTypeVisible)\n    s = s + c.Value\n  Next c\n  Range(\"E3\").Value = s\n  rng.Copy Destination:=Range(\"G1\")\n  Range(\"A1:C6\").AutoFilter Field:=3, Criteria1:=\">1000\"\n  On Error Resume Next\n  Set rng = Nothing\n  Set rng = Range(\"A2:C6\").SpecialCells(xlCellTypeVisible)\n  On Error GoTo 0\n  If rng Is Nothing Then Range(\"E4\").Value = \"nenhuma\"\n  Range(\"E5\").Value = Cells.SpecialCells(xlCellTypeLastCell).Address\nEnd Sub\n");
+    let c = converter_texto(&[("Módulo1", &vba)], &[]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let wb = roda(&vba, "T");
+    let t = |x: &str| Value::Text(x.into());
+    assert_eq!(wb.valor(0, 0, 4), Value::Number(12.0), "4 linhas visíveis × 3 colunas");
+    assert_eq!(wb.valor(0, 1, 4), t("$A$1:$C$2,$A$4:$C$4,$A$6:$C$6"));
+    assert_eq!(wb.valor(0, 2, 4), Value::Number(420.0), "50 + 250 + 120");
+    assert_eq!((0..5).map(|l| wb.valor(0, l, 6)).collect::<Vec<_>>(), vec![t("Nome"), t("Bia"), t("Caio"), t("Eva"), Value::Empty], "Copy cola só as visíveis");
+    assert_eq!(wb.valor(0, 3, 4), t("nenhuma"), "sem visível: erro 1004, pego pelo On Error");
+    assert_eq!(wb.valor(0, 4, 4), t("$I$6"), "a última célula usada");
+}
+
+#[test]
+fn specialcells_excluir_as_linhas_filtradas_e_limpar_vazias() {
+    let vba = format!("Sub T()\n{DADOS}  Range(\"B3\").ClearContents\n  Range(\"B2:B6\").SpecialCells(xlCellTypeBlanks).Value = \"?\"\n  Range(\"A1:C6\").AutoFilter 2, \"SP\"\n  Range(\"A2:C6\").SpecialCells(xlCellTypeVisible).EntireRow.Delete\n  ActiveSheet.AutoFilterMode = False\nEnd Sub\n");
+    let c = converter_texto(&[("Módulo1", &vba)], &[]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let wb = roda(&vba, "T");
+    let t = |x: &str| Value::Text(x.into());
+    assert_eq!((0..4).map(|l| wb.valor(0, l, 0)).collect::<Vec<_>>(), vec![t("Nome"), t("Ana"), t("Davi"), Value::Empty], "as de SP saíram");
+    assert_eq!(wb.valor(0, 1, 1), t("?"));
 }
 
 #[test]

@@ -51,6 +51,9 @@ pub enum Criterio {
     /// baixo, no mínimo 1). Empates no corte ficam todos, como no Excel.
     Top10 { topo: bool, n: u32, percentual: bool },
     Dinamico(Dinamico),
+    /// Duas condições do `CONT.SE` (`">=10"`, `"<=20"`), com E (`e`) ou OU: o
+    /// "Filtro personalizado" do Excel e o `xlAnd`/`xlOr` do `AutoFilter`.
+    Duas { e: bool, a: Value, b: Value },
 }
 
 /// Cor em forma comparável: minúscula, sem `#`, `rgb` expandido, sem alfa.
@@ -208,6 +211,10 @@ pub fn linhas_escondidas_com(r0: u32, r1: u32, filtros: &[(u32, Criterio)], ctx:
                     let p = make_predicate(&v);
                     Box::new(move |_, x| p(x))
                 }
+                Criterio::Duas { e, a, b } => {
+                    let (pa, pb) = (make_predicate(&a), make_predicate(&b));
+                    Box::new(move |_, x| if e { pa(x) && pb(x) } else { pa(x) || pb(x) })
+                }
                 Criterio::Cor { alvo, cor } => {
                     let cores = ctx.cores;
                     Box::new(move |r, _| {
@@ -319,6 +326,14 @@ mod testes {
         assert_eq!(escondidas(Criterio::Lista(lista.clone())), vec![(1, 1), (3, 6)]);
         assert_eq!(escondidas(Criterio::ForaDaLista(lista)), vec![(0, 0), (2, 2)]);
         assert_eq!(escondidas(Criterio::Lista(vec![Value::Empty])), vec![(0, 2), (4, 6)], "(Vazias)");
+    }
+
+    #[test]
+    fn duas_condicoes_com_e_e_com_ou() {
+        let n = |x: &str| Value::Text(x.into());
+        // Fica 2,5 (entre 2 e 5); com OU, fica o 10 e o 2,5.
+        assert_eq!(escondidas(Criterio::Duas { e: true, a: n(">=2"), b: n("<=5") }), vec![(0, 4), (6, 6)]);
+        assert_eq!(escondidas(Criterio::Duas { e: false, a: n(">5"), b: n("<3") }), vec![(0, 1), (3, 4), (6, 6)]);
     }
 
     #[test]

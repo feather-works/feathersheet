@@ -9,6 +9,8 @@ feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 feathersheet-core = { path = "../feathersheet-core" }
+# Só o critério do filtro em JSON (`filtro_json`), o mesmo que o app grava.
+feathersheet-io = { path = "../feathersheet-io" }
 
 [features]
 default = ["falcao"]
