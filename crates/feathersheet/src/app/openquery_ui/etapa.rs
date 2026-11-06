@@ -78,7 +78,13 @@ pub(super) struct Modal {
     opcao: &'static str,
     grupo: Vec<usize>,
     contas: Vec<Conta>,
+    /// As primeiras linhas que chegam à etapa, para a prévia do modal.
+    amostra: Tabela,
+    fontes: HashMap<String, Tabela>,
 }
+
+/// Linhas da prévia no modal.
+const LINHAS_PREVIA: usize = 6;
 
 /// Valor digitado num campo: vazio é vazio, número em pt-BR vira número, o resto é texto.
 fn valor_digitado(s: &str) -> Value {
@@ -122,6 +128,44 @@ impl Modal {
         Self {
             tipo, editar: None, colunas, col, texto, texto2, texto3, em_linhas: false, desc: false, para: "texto",
             opcao, grupo, contas: vec![Conta { operacao: 0, col, nome: tr!("Quantidade").into() }],
+            amostra: Tabela { cabecalho: Vec::new(), linhas: Vec::new() }, fontes: HashMap::new(),
+        }
+    }
+
+    /// Guarda as primeiras linhas de `entrada` (e as fontes, para o juntar) para a prévia.
+    // shortcut: as etapas que olham a tabela inteira (agrupar, remover as últimas) mostram a prévia só dessas linhas.
+    pub fn com_amostra(mut self, entrada: &Tabela, fontes: HashMap<String, Tabela>) -> Self {
+        self.amostra = Tabela { cabecalho: entrada.cabecalho.clone(),
+            linhas: entrada.linhas.iter().take(200).cloned().collect() };
+        self.fontes = fontes;
+        self
+    }
+
+    /// O resultado da etapa sobre a amostra, ou o motivo de não dar.
+    fn previa(&self) -> Result<Tabela, String> {
+        if self.amostra.cabecalho.is_empty() { return Err(String::new()); }
+        let passo = self.passo()?;
+        executar_query_limitado(self.amostra.clone(), std::slice::from_ref(&passo), &self.fontes, 2_000_000)
+    }
+
+    /// Ícone (o mesmo da faixa) e o que a etapa faz, numa linha.
+    fn icone_e_descricao(&self) -> (&'static str, &'static str) {
+        match self.tipo {
+            "filtrar" => ("filter", tr!("Mantém só as linhas em que a coluna passa no critério.")),
+            "renomear" => ("edit", tr!("Troca o nome da coluna; os dados não mudam.")),
+            "limite" => ("list-numbers", tr!("Mantém só as primeiras linhas da tabela.")),
+            "remover_linhas" => ("trash", tr!("Tira linhas do começo, do fim ou as que estão em branco.")),
+            "dividir" => ("columns", tr!("Separa o texto da coluna em várias colunas (ou linhas).")),
+            "ordenar" => ("sort-ascending", tr!("Ordena as linhas pela coluna.")),
+            "tipar" => ("math-function", tr!("Converte os valores da coluna para outro tipo.")),
+            "formatar" => ("text-size", tr!("Limpa ou muda o texto da coluna: espaços, maiúsculas, prefixo.")),
+            "preencher" => ("arrow-down", tr!("Repete o último valor nas células vazias, como num relatório agrupado.")),
+            "substituir" => ("pencil", tr!("Troca um valor por outro em toda a coluna.")),
+            "substituir_erros" => ("eraser", tr!("Troca os erros da coluna por um valor.")),
+            "condicional" => ("bolt", tr!("Cria uma coluna com um valor quando a condição vale e outro quando não.")),
+            "derivar" => ("clock", tr!("Cria uma coluna com uma parte da data: ano, mês, dia…")),
+            "personalizada" => ("math-function", tr!("Cria uma coluna calculada por fórmula, linha a linha.")),
+            _ => ("chart-bar", tr!("Resume as linhas por grupo, com uma ou mais contas.")),
         }
     }
 
@@ -424,7 +468,7 @@ fn radios<'a>(opcoes: &[(&'static str, &'static str)], atual: &'static str) -> E
 
 /// O cartão do modal (o fundo escurecido é do `view_openquery`).
 pub(super) fn painel<'a>(m: &'a Modal, erro: &'a str) -> Element<'a, Msg> {
-    let mut corpo = column![titulo_oq(m.titulo())].spacing(ESPACO_GRANDE);
+    let mut corpo = column![].spacing(ESPACO_GRANDE);
     if !matches!(m.tipo, "limite" | "agrupar" | "remover_linhas" | "personalizada") {
         corpo = corpo.push(campo(tr!("Coluna"), escolha_coluna(&m.colunas, m.col, Evento::Coluna)));
     }
@@ -481,7 +525,8 @@ pub(super) fn painel<'a>(m: &'a Modal, erro: &'a str) -> Element<'a, Msg> {
                 grupo = grupo.push(pelicano::checkbox(format!("{} · {nome}", i + 1), m.grupo.contains(&i))
                     .on_toggle(move |_| ev(Evento::Grupo(i))).size(14));
             }
-            corpo = corpo.push(campo(tr!("Agrupar por"), container(pelicano::scrollable(grupo)).height(Length::Fixed(130.0)).into()));
+            let altura = (m.colunas.len() as f32 * 22.0 + 4.0).min(150.0);
+            corpo = corpo.push(campo(tr!("Colunas para agrupar"), container(pelicano::scrollable(grupo)).height(Length::Fixed(altura)).into()));
             let nomes: Vec<String> = AGREGACOES.iter().map(|(n, _)| tr!(*n).to_string()).collect();
             let mut contas = column![row![
                 container(texto_oq(tr!("Nome da nova coluna"))).width(Length::Fill(1)),
@@ -547,21 +592,69 @@ pub(super) fn painel<'a>(m: &'a Modal, erro: &'a str) -> Element<'a, Msg> {
         }
         _ => {}
     }
+    corpo = corpo.push(previa(m));
     if !erro.is_empty() {
-        corpo = corpo.push(text(erro.to_owned()).size(TAM_TEXTO).color(pelicano::Color::rgb8(202, 85, 85)));
+        corpo = corpo.push(row![
+            feather_ui::icones::icone("alert-triangle", 15.0),
+            text(erro.to_owned()).size(TAM_TEXTO).color(pelicano::Color::rgb8(202, 85, 85)),
+        ].spacing(ESPACO_PEQUENO).align(pelicano::Align::Center));
     }
-    corpo = corpo.push(row![
-        Space::new(Length::FILL, 0.0),
-        button(text(tr!("Cancelar")).size(TAM_TEXTO))
-            .on_press(ev(Evento::Fechar))
-            .style(estilo_botao_secundario).padding([6.0, 12.0]),
-        button(text(if m.editar.is_some() { tr!("Salvar etapa") } else { tr!("OK") }).size(TAM_TEXTO))
-            .on_press(ev(Evento::Aplicar))
-            .style(estilo_botao_primario).padding([6.0, 12.0]),
-    ].spacing(ESPACO_MEDIO));
-    let largura = if m.tipo == "agrupar" { 560.0 } else { 440.0 };
-    container(corpo.padding(PADDING_PAINEL + 4.0)).width(Length::Fixed(largura))
-        .style(estilo_janela_oq).into()
+    let (icone, descricao) = m.icone_e_descricao();
+    let largura = if matches!(m.tipo, "agrupar" | "condicional" | "personalizada") { 600.0 } else { 520.0 };
+    feather_ui::dialogo::Dialogo::new(m.titulo(), corpo)
+        .icone(icone)
+        .subtitulo(descricao)
+        .largura(largura)
+        .ao_fechar(ev(Evento::Fechar))
+        .secundario(tr!("Cancelar"), Some(ev(Evento::Fechar)))
+        .primario(if m.editar.is_some() { tr!("Salvar etapa") } else { tr!("OK") }, Some(ev(Evento::Aplicar)))
+        .painel()
+}
+
+/// A tabela pequena com a etapa aplicada nas primeiras linhas; a coluna que a etapa
+/// cria ou muda fica em destaque.
+fn previa<'a>(m: &Modal) -> Element<'a, Msg> {
+    let titulo = row![feather_ui::icones::icone("eye", 14.0), texto_oq(tr!("Prévia"))]
+        .spacing(ESPACO_PEQUENO).align(pelicano::Align::Center);
+    let t = match m.previa() {
+        Ok(t) => t,
+        Err(motivo) if motivo.is_empty() => return Space::new(0.0, 0.0).into(),
+        Err(motivo) => return column![titulo, legenda_oq(trf!("Complete os campos para ver a prévia ({motivo})."))]
+            .spacing(ESPACO_PEQUENO).into(),
+    };
+    let entrada = &m.amostra;
+    let mudou = |c: usize| match entrada.cabecalho.iter().position(|h| Some(h) == t.cabecalho.get(c)) {
+        None => true,
+        Some(o) => t.linhas.iter().zip(&entrada.linhas).take(LINHAS_PREVIA)
+            .any(|(a, b)| a.get(c) != b.get(o)),
+    };
+    let destaque = feather_ui::tema::COR_AZUL_ACENTO();
+    let colunas: Vec<usize> = (0..t.cabecalho.len()).take(8).collect();
+    let celula = |s: String, cab: bool, marcada: bool| -> Element<'a, Msg> {
+        container(text(s).size(11.5))
+            .width(Length::Fixed(96.0)).padding([3.0, 6.0]).clip(true)
+            .style(move |_| pelicano::Style {
+                background: Some(Background::Color(if marcada {
+                    pelicano::Color { a: if cab { 0.30 } else { 0.14 }, ..destaque }
+                } else if cab { pelicano::Color::rgba(0.5, 0.5, 0.5, 0.18) } else { pelicano::Color::TRANSPARENT })),
+                ..Default::default()
+            }).into()
+    };
+    let marcadas: Vec<bool> = colunas.iter().map(|&c| mudou(c)).collect();
+    let mut tabela = column![row(colunas.iter().zip(&marcadas)
+        .map(|(&c, &mk)| celula(t.cabecalho[c].clone(), true, mk)).collect::<Vec<_>>())].spacing(1);
+    for l in t.linhas.iter().take(LINHAS_PREVIA) {
+        tabela = tabela.push(row(colunas.iter().zip(&marcadas).map(|(&c, &mk)| celula(
+            l.get(c).map(valor_para_campo).unwrap_or_default(), false, mk)).collect::<Vec<_>>()));
+    }
+    let rodape = if t.cabecalho.len() > colunas.len() { trf!("{} linhas · mostrando 8 de {} colunas", t.linhas.len(), t.cabecalho.len()) }
+        else { trf!("{} linhas na amostra", t.linhas.len()) };
+    column![
+        titulo,
+        container(pelicano::scrollable(tabela).direction(pelicano::Direction::Horizontal)).padding(1)
+            .style(|_| pelicano::Style { border: Border { color: pelicano::Color::rgba(0.5, 0.5, 0.5, 0.35), width: 1.0, radius: [4.0; 4] }, ..Default::default() }),
+        legenda_oq(rodape),
+    ].spacing(ESPACO_PEQUENO).into()
 }
 
 impl Modal {

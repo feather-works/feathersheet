@@ -842,9 +842,10 @@ impl App {
             Evento::EditarPasso(i) => if let Some(e) = &mut self.openquery {
                 match e.sincronizar() {
                     Ok(()) => if let Some(passo) = e.passos.get(i) {
-                        let colunas = executar_query_limitado(e.fonte.clone(), &e.passos[..i], &e.fontes, u64::MAX)
-                            .map(|t| t.cabecalho).unwrap_or_default();
-                        e.modal = etapa::Modal::de_passo(passo, i, colunas);
+                        let entrada = executar_query_limitado(e.fonte.clone(), &e.passos[..i], &e.fontes, u64::MAX)
+                            .unwrap_or(Tabela { cabecalho: Vec::new(), linhas: Vec::new() });
+                        e.modal = etapa::Modal::de_passo(passo, i, entrada.cabecalho.clone())
+                            .map(|m| m.com_amostra(&entrada, e.fontes.clone()));
                         e.erro_modal.clear();
                     },
                     Err(erro) => e.erro = erro,
@@ -893,7 +894,8 @@ impl App {
                     if colunas.is_empty() {
                         e.erro = tr!("Selecione uma fonte de dados para iniciar.").into();
                     } else {
-                        e.modal = Some(etapa::Modal::novo(tipo, colunas, e.coluna, &e.selecionadas));
+                        e.modal = Some(etapa::Modal::novo(tipo, colunas, e.coluna, &e.selecionadas)
+                            .com_amostra(&e.resultado, e.fontes.clone()));
                         e.erro_modal.clear();
                     }
                 } else {
