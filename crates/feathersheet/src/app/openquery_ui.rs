@@ -87,6 +87,8 @@ pub enum Evento {
     EditarEditorAvancado,
     AplicarEditorAvancado,
     FecharEditorAvancado,
+    /// Lista de métodos do Editor avançado: escreve a linha no cursor.
+    InserirNoEditor(String),
     Atualizar,
     AtualizarFonte,
     Assistente(assistentes::Evento),
@@ -96,6 +98,8 @@ pub enum Evento {
     ImportarWeb,
     /// Uma resposta HTML pode conter diversas tabelas.
     TabelasWebLidas(u64, Result<(Vec<Tabela>, String), String>),
+    /// Navegador: as planilhas e tabelas do arquivo escolhido.
+    ItensLidos(u64, Vec<importador::Item>, String),
     SelecionarTabelaWeb(usize),
     ConfirmarTabelaWeb,
     CancelarSelecaoWeb,
@@ -187,6 +191,10 @@ pub(super) struct Estado {
     url_web: String,
     /// Fontes extraídas de uma única requisição, aguardando seleção explícita.
     tabelas_web: Vec<Tabela>,
+    /// Navegador de arquivo: o nome e os formatos de cada opção de `tabelas_web`
+    /// (vazios na Web, que mostra "Tabela 1, 2…").
+    nomes_web: Vec<String>,
+    formatos_web: Vec<Formatos>,
     origem_web_pendente: String,
     indice_tabela_web: usize,
     mostrar_web: bool,
@@ -312,7 +320,7 @@ impl Estado {
             filtro: String::new(),
             renomear: String::new(), quantidade: "100".into(),
             separador: ";".into(),
-            url_web: String::new(), tabelas_web: Vec::new(),
+            url_web: String::new(), tabelas_web: Vec::new(), nomes_web: Vec::new(), formatos_web: Vec::new(),
             origem_web_pendente: String::new(), indice_tabela_web: 0,
             mostrar_web: false, mostrar_tabelas: false,
             passos: Vec::new(), resultado,
@@ -355,6 +363,8 @@ impl Estado {
     /// Concentra a liberação de memória quando a origem é alterada.
     fn limpar_previa_web(&mut self) {
         self.tabelas_web.clear();
+        self.nomes_web.clear();
+        self.formatos_web.clear();
         self.origem_web_pendente.clear();
         self.indice_tabela_web = 0;
     }
@@ -868,9 +878,14 @@ impl App {
                 let indice = e.indice_tabela_web;
                 // Move sem clonar a tabela (até 160 mil células).
                 let fonte = e.tabelas_web.swap_remove(indice);
-                let origem = std::mem::take(&mut e.origem_web_pendente);
+                let mut origem = std::mem::take(&mut e.origem_web_pendente);
+                let nome = (indice < e.nomes_web.len()).then(|| e.nomes_web.swap_remove(indice));
+                let formatos = (indice < e.formatos_web.len()).then(|| e.formatos_web.swap_remove(indice));
+                if let Some(nome) = &nome { origem = format!("{origem} ▸ {nome}"); }
                 e.limpar_previa_web();
-                return self.evento_openquery(Evento::ArquivoLido(ticket, Ok((fonte, origem))));
+                let tarefa = self.evento_openquery(Evento::ArquivoLido(ticket, Ok((fonte, origem))));
+                if let (Some(f), Some(e)) = (formatos, &mut self.openquery) { e.formatos = f; }
+                return tarefa;
             },
             Evento::CancelarSelecaoWeb => if let Some(e) = &mut self.openquery {
                 e.limpar_previa_web();
@@ -1098,6 +1113,22 @@ impl App {
                     e.erro_avancado = erro;
                     }
             },
+            Evento::InserirNoEditor(linha) => if let Some(e) = &mut self.openquery {
+                if let Some(ed) = &e.editor_avancado {
+                    // No meio de uma linha, a etapa nova começa na seguinte.
+                    // Cursor na linha 1 (o `let fonte` ou editor ainda sem clique): vai para o fim.
+                    let (l, c) = ed.cursor();
+                    if l == 1 {
+                        let mut texto = ed.text();
+                        if !texto.is_empty() && !texto.ends_with('\n') { texto.push('\n'); }
+                        ed.set_text(&format!("{texto}{linha}\n"));
+                    } else {
+                        let meio = c > 1 && ed.line(l).is_some_and(|t| !t.trim().is_empty());
+                        ed.insert(&if meio { format!("\n{linha}") } else { format!("{linha}\n") });
+                    }
+                    e.erro_avancado.clear();
+                }
+            },
             Evento::FecharEditorAvancado => if let Some(e) = &mut self.openquery {
                 e.editor_avancado = None;
                 e.erro_avancado.clear();
@@ -1234,15 +1265,36 @@ impl App {
                 self.lembrar_fonte(caminho.display().to_string());
                 self.status = tr!("OpenQuery: importando fonte em tarefa separada").into();
                 return Task::perform(async move {
-                    tokio::task::spawn_blocking(move || importador::ler(&caminho))
+                    tokio::task::spawn_blocking(move || importador::ler_itens(&caminho))
                         .await.unwrap_or_else(|e| Err(trf!("Falha no importador: {e}")))
                 }, move |resultado| match resultado {
-                    Ok((tabela, origem, formatos)) => Msg::Lote(vec![
-                        Msg::OpenQuery(Evento::Formatos(ticket, formatos)),
-                        Msg::OpenQuery(Evento::ArquivoLido(ticket, Ok((tabela, origem)))),
-                    ]),
+                    Ok((itens, origem)) => Msg::OpenQuery(Evento::ItensLidos(ticket, itens, origem)),
                     Err(erro) => Msg::OpenQuery(Evento::ArquivoLido(ticket, Err(erro))),
                 });
+            }
+            Evento::ItensLidos(ticket, mut itens, origem) => {
+                let Some(e) = &mut self.openquery else { return Task::none() };
+                if e.importacao_pendente != Some(ticket) { return Task::none(); }
+                // Reimportar: a mesma planilha/tabela de antes, sem perguntar.
+                let anterior = e.origem_aba.split_once(" ▸ ").map(|(_, n)| n.to_owned());
+                let escolhida = if e.importacao_preservar {
+                    Some(anterior.and_then(|n| itens.iter().position(|(nome, ..)| *nome == n)).unwrap_or(0))
+                } else if itens.len() == 1 { Some(0) } else { None };
+                if let Some(i) = escolhida {
+                    let (nome, tabela, formatos) = itens.swap_remove(i);
+                    let origem = if itens.is_empty() && !e.importacao_preservar { origem } else { format!("{origem} ▸ {nome}") };
+                    let tarefa = self.evento_openquery(Evento::ArquivoLido(ticket, Ok((tabela, origem))));
+                    if let Some(e) = &mut self.openquery { e.formatos = formatos; }
+                    return tarefa;
+                }
+                e.nomes_web = itens.iter().map(|(n, ..)| n.clone()).collect();
+                e.formatos_web = itens.iter().map(|(_, _, f)| f.clone()).collect();
+                e.tabelas_web = itens.into_iter().map(|(_, t, _)| t).collect();
+                e.origem_web_pendente = origem;
+                e.indice_tabela_web = 0;
+                e.mostrar_web = true;
+                e.erro.clear();
+                self.status = trf!("OpenQuery: {} planilhas e tabelas no arquivo; escolha qual importar", e.tabelas_web.len());
             }
             Evento::ArquivoLido(ticket, resultado) => {
                 let Some(editor) = &mut self.openquery else { return Task::none() };

@@ -173,48 +173,85 @@ pub(super) fn ler_pasta(dir: &Path) -> Result<(Tabela, String, super::Formatos),
     Ok((Tabela { cabecalho, linhas }, format!("Pasta: {}", dir.display()), formatos))
 }
 
-/// Não modifica o Workbook aberto. Executar via spawn_blocking.
-pub(super) fn ler(path: &Path) -> Result<(Tabela, String, super::Formatos), String> {
+/// Uma opção do Navegador: nome (planilha ou tabela), dados e formatos de número.
+pub(super) type Item = (String, Tabela, super::Formatos);
+
+/// A primeira linha "de verdade" da área: pula o título acima da tabela ("Painel de
+/// Vendas 2026" sozinho na linha 1) até a linha que preenche metade das colunas.
+fn sem_titulo(wb: &Workbook, aba: usize, area: Rect) -> Rect {
+    let largura = (area.c1 - area.c0 + 1) as usize;
+    let cheias = |r: u32| (area.c0..=area.c1).filter(|&c| {
+        !feathersheet_core::celulas::values::to_text(&wb.valor(aba, r, c)).trim().is_empty()
+    }).count();
+    if largura < 2 || cheias(area.r0) * 2 >= largura { return area; }
+    (area.r0 + 1..=area.r1.min(area.r0 + 10)).find(|&r| cheias(r) * 2 >= largura)
+        .map_or(area.clone(), |r| Rect::new(r, area.c0, area.r1, area.c1))
+}
+
+/// As planilhas (a ativa primeiro) e as tabelas (Ctrl+T) da pasta, cada uma uma opção.
+fn itens_da_pasta(wb: &Workbook, ativa: usize) -> Vec<Item> {
+    let mut ordem: Vec<usize> = vec![ativa];
+    ordem.extend((0..wb.len()).filter(|i| *i != ativa));
+    let mut itens = Vec::new();
+    for i in ordem {
+        let Some(aba) = wb.aba(i) else { continue };
+        let area = sem_titulo(wb, i, aba.sheet.used_rect());
+        let Ok(t) = ler_tabela(wb, i, area.clone()) else { continue };
+        if t.cabecalho.is_empty() || (t.linhas.is_empty() && t.cabecalho.len() < 2) { continue; }
+        let f = super::formatos_da_fonte(wb, i, &area, &t.cabecalho);
+        itens.push((trf!("Planilha {}", aba.sheet.name), t, f));
+    }
+    for (i, nome, area) in tabelas_existentes(wb) {
+        let Ok(t) = ler_tabela(wb, i, area.clone()) else { continue };
+        let f = super::formatos_da_fonte(wb, i, &area, &t.cabecalho);
+        itens.push((trf!("Tabela {}", nome), t, f));
+    }
+    itens
+}
+
+/// O arquivo como opções do Navegador: CSV/JSON dão uma; Excel e FSHZ, uma por planilha
+/// e por tabela. Não modifica o Workbook aberto. Executar via spawn_blocking.
+pub(super) fn ler_itens(path: &Path) -> Result<(Vec<Item>, String), String> {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("")
         .to_ascii_lowercase();
     if !EXTENSOES.contains(&ext.as_str()) {
         return Err(tr!("Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ ou PARQUET neste importador").into());
     }
-    let mut formatos = super::Formatos::new();
-    let tabela = match ext.as_str() {
-        "json" => json_tabela(&std::fs::read(path)
-            .map_err(|e| trf!("Falha de leitura: {e}"))?)?,
+    let nome = path.file_name().and_then(|n| n.to_str()).unwrap_or(tr!("Arquivo"));
+    let unico = |t: Tabela, f| vec![(nome.to_owned(), t, f)];
+    let itens = match ext.as_str() {
+        "json" => unico(json_tabela(&std::fs::read(path)
+            .map_err(|e| trf!("Falha de leitura: {e}"))?)?, super::Formatos::new()),
         "csv" | "tsv" | "txt" => {
             let workbook = feathersheet_io::csv_workbook::importar_csv_tsv_arquivo(
                 path, ext == "tsv", None,
             )?;
             let area = workbook.aba(0).ok_or(tr!("CSV sem aba"))?.sheet.used_rect();
             let t = ler_tabela(&workbook, 0, area.clone())?;
-            formatos = super::formatos_da_fonte(&workbook, 0, &area, &t.cabecalho);
-            t
-        }
-        // A aba que o arquivo abre (a ativa do .fshz/.xlsm), lida como o app abre o arquivo.
-        "fshz" | "xlsm" | "parquet" => {
-            let (workbook, folha) = crate::app::App::decodificar_caminho(path, None)?;
-            let area = workbook.aba(folha).ok_or(tr!("Arquivo sem planilha"))?.sheet.used_rect();
-            let t = ler_tabela(&workbook, folha, area.clone())?;
-            formatos = super::formatos_da_fonte(&workbook, folha, &area, &t.cabecalho);
-            t
+            let f = super::formatos_da_fonte(&workbook, 0, &area, &t.cabecalho);
+            unico(t, f)
         }
         "xlsx" => {
             validar_xlsx(path)?;
-            let (workbook, _) = feathersheet_io::xlsx_read::ler_xlsx_arquivo(path)?;
-            let area = workbook.aba(0).ok_or(tr!("Excel sem planilha"))?.sheet.used_rect();
-            let t = ler_tabela(&workbook, 0, area.clone())?;
-            formatos = super::formatos_da_fonte(&workbook, 0, &area, &t.cabecalho);
-            t
+            let (workbook, folha) = feathersheet_io::xlsx_read::ler_xlsx_arquivo(path)?;
+            itens_da_pasta(&workbook, folha.min(workbook.len().saturating_sub(1)))
         }
-        _ => unreachable!(),
+        // Lido como o app abre o arquivo (fórmulas calculadas).
+        _ => {
+            let (workbook, folha) = crate::app::App::decodificar_caminho(path, None)?;
+            itens_da_pasta(&workbook, folha)
+        }
     };
-    if tabela.cabecalho.is_empty() { return Err(tr!("Arquivo sem colunas").into()); }
-    let nome = path.file_name().and_then(|n| n.to_str()).unwrap_or(tr!("Arquivo"));
+    if itens.is_empty() { return Err(tr!("Arquivo sem colunas").into()); }
     // A origem é dado (o prefixo diz como atualizar): não se traduz.
-    Ok((tabela, format!("Arquivo: {nome}"), formatos))
+    Ok((itens, format!("Arquivo: {nome}")))
+}
+
+/// A primeira opção do arquivo (a planilha ativa), para o "Da pasta" e o reimportar.
+pub(super) fn ler(path: &Path) -> Result<(Tabela, String, super::Formatos), String> {
+    let (mut itens, origem) = ler_itens(path)?;
+    let (_, t, f) = itens.remove(0);
+    Ok((t, origem, f))
 }
 
 
@@ -366,6 +403,26 @@ mod testes {
         std::fs::create_dir_all(&vazia).unwrap();
         assert!(ler_pasta(&vazia).is_err());
         std::fs::remove_dir_all(&vazia).unwrap();
+    }
+
+    #[test]
+    fn navegador_lista_as_planilhas_e_pula_o_titulo() {
+        let mut wb = Workbook::new();
+        wb.escrever_celula(0, 0, 0, "Painel de Vendas 2026".into());
+        for (c, v) in ["Produto", "Valor", "UF"].iter().enumerate() { wb.escrever_celula(0, 2, c as u32, (*v).into()); }
+        for (c, v) in ["Caneta", "3", "SP"].iter().enumerate() { wb.escrever_celula(0, 3, c as u32, (*v).into()); }
+        let outra = wb.criar_aba("Clientes");
+        wb.escrever_celula(outra, 0, 0, "Nome".into());
+        wb.escrever_celula(outra, 1, 0, "Ana".into());
+        let caminho = std::env::temp_dir().join(format!("oq_nav_{}.fshz", std::process::id()));
+        std::fs::write(&caminho, feathersheet_io::da_workbook::pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
+        let (itens, origem) = ler_itens(&caminho).unwrap();
+        std::fs::remove_file(&caminho).unwrap();
+        assert!(origem.starts_with("Arquivo: "));
+        assert_eq!(itens.len(), 2);
+        assert_eq!(itens[0].1.cabecalho, ["Produto", "Valor", "UF"], "o título acima da tabela sai");
+        assert_eq!(itens[0].1.linhas.len(), 1);
+        assert!(itens[1].0.ends_with("Clientes"));
     }
 
     #[test]

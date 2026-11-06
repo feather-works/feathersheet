@@ -4518,5 +4518,16 @@
  "Reler a pasta e manter etapas": "Re-read the folder and keep the steps",
  "só conexão": "connection only",
  "Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ ou PARQUET neste importador": "Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ or PARQUET in this importer",
- "Referenciar": "Reference"
+ "Referenciar": "Reference",
+ "OpenQuery: {} planilhas e tabelas no arquivo; escolha qual importar": "OpenQuery: {} sheets and tables in the file; choose which to import",
+ "sem argumentos": "no arguments",
+ "MÉTODOS": "METHODS",
+ "Clique para escrever a etapa no cursor": "Click to write the step at the cursor",
+ "let fonte = …; e uma linha por etapa: fonte.metodo(…);. As colunas vão pelo nome.": "let fonte = …; and one line per step: fonte.method(…);. Columns go by name.",
+ "{} etapas atuais · Aplicar confere o script inteiro antes de mudar a consulta": "{} current steps · Apply checks the whole script before changing the query",
+ "Navegador: {} planilhas e tabelas em {}": "Navigator: {} sheets and tables in {}",
+ "Tabela {}": "Table {}",
+ "{}  •  {} linhas  •  {} colunas": "{}  •  {} rows  •  {} columns",
+ "Pré-visualização de {} (primeiras 8 linhas e 6 colunas)": "Preview of {} (first 8 rows and 6 columns)",
+ "Planilha {}": "Sheet {}"
 }

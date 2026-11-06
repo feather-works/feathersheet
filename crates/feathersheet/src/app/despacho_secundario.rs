@@ -1234,7 +1234,7 @@ impl App {
                             let _ = self.update(Msg::CondicionalAdicionar);
                             return self.update(Msg::CondicionalNovaRegra);
                         }
-                        // FEATHERSHEET_CAPTURAR_JANELA=openquery[:etapa]: dados de exemplo no OpenQuery,
+                        // FEATHERSHEET_CAPTURAR_JANELA=openquery[:etapa|avancado]: dados de exemplo no OpenQuery,
                         // com o modal da etapa aberto (agrupar, personalizada, condicional, dividir…).
                         if let Some(resto) = std::env::var("FEATHERSHEET_CAPTURAR_JANELA").ok().and_then(|j| j.strip_prefix("openquery").map(str::to_owned)) {
                             for (r, l) in [["Cliente", "UF", "Preço", "Qtd"], ["  ana silva ", "SP", "10", "3"], ["Bruno", "", "2,5", "4"],
@@ -1249,6 +1249,12 @@ impl App {
                                 let _ = self.evento_openquery(openquery_ui::Evento::Carregar);
                                 let _ = self.evento_openquery_janela(openquery_ui::Evento::AbrirCom(Box::new(openquery_ui::Evento::CarregarSelecao)));
                                 let _ = self.evento_openquery(openquery_ui::Evento::Dependencias(true));
+                            } else if resto == ":avancado" {
+                                let _ = self.evento_openquery(openquery_ui::Evento::AbrirEditorAvancado);
+                                let _ = self.evento_openquery(openquery_ui::Evento::AplicarEditorAvancado);
+                                let _ = self.evento_openquery(openquery_ui::Evento::AbrirEditorAvancado);
+                                let _ = self.evento_openquery(openquery_ui::Evento::InserirNoEditor("fonte.voar();".into()));
+                                let _ = self.evento_openquery(openquery_ui::Evento::AplicarEditorAvancado);
                             } else if let Some(tipo) = resto.strip_prefix(':') {
                                 if let Some(t) = openquery_ui::tipo_de_etapa(tipo) {
                                     let _ = self.evento_openquery(openquery_ui::Evento::Adicionar(t));

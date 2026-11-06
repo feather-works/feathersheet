@@ -65,6 +65,28 @@ const METODOS: &[(&str, &str, &[(&str, Arg)])] = &[
 /// Etapa sem método próprio: o objeto JSON inteiro, com as colunas em número.
 const METODO_GENERICO: &str = "etapa";
 
+/// Para a lista do Editor avançado: (método, nomes dos argumentos, linha pronta com `coluna`).
+pub(super) fn modelos(coluna: &str) -> Vec<(&'static str, String, String)> {
+    let c = serde_json::to_string(coluna).unwrap_or_default();
+    METODOS.iter().map(|(_, metodo, campos)| {
+        let nomes = campos.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ");
+        let args = campos.iter().map(|(_, a)| match a {
+            Valor => "\"\"".to_owned(),
+            Col | ColOuCols => c.clone(),
+            Cols => format!("[{c}]"),
+            Ordem => format!("[[{c}, \"asc\"]]"),
+            Agregados => format!("[[{c}, \"soma\", \"Total\"]]"),
+        }).collect::<Vec<_>>().join(", ");
+        (*metodo, nomes, format!("fonte.{metodo}({args});"))
+    }).collect()
+}
+
+/// O número da linha no começo do erro do [`ler`] ("Linha 3: …"), contando de 1.
+pub(super) fn linha_do_erro(erro: &str) -> Option<usize> {
+    let (antes, _) = erro.split_once(':')?;
+    antes.split_whitespace().last()?.parse().ok()
+}
+
 /// `let fonte = …;` conforme a origem da consulta.
 fn linha_da_fonte(origem: &str) -> String {
     let s = |t: &str| serde_json::to_string(t).unwrap_or_default();
@@ -344,6 +366,19 @@ mod testes {
         let erro = ler("let fonte = lerCsv(\"x\");\n\nfonte.voar();", &fonte(), &HashMap::new()).unwrap_err();
         assert!(erro.starts_with("Linha 3:") && erro.contains("voar"), "{erro}");
         assert!(ler("fonte.voar();", &fonte(), &HashMap::new()).unwrap_err().starts_with("Linha 1:"));
+        assert_eq!(linha_do_erro(&erro), Some(3));
+        assert_eq!(linha_do_erro("sem linha"), None);
+    }
+
+    #[test]
+    fn modelo_do_editor_avancado_e_lido_de_volta() {
+        let f = fonte();
+        let col = f.cabecalho[0].clone();
+        let modelos = modelos(&col);
+        assert_eq!(modelos.len(), METODOS.len());
+        let (_, _, linha) = modelos.iter().find(|(m, _, _)| *m == "removerErros").unwrap();
+        let passos = ler(&format!("let fonte = lerCsv(\"x\");\n{linha}"), &f, &HashMap::new()).unwrap();
+        assert_eq!(passos.len(), 1);
     }
 
     #[test]

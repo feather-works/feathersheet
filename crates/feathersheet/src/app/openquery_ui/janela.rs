@@ -154,34 +154,68 @@ impl App {
         stack![base, assistente].height(Length::FILL).into()
     }
 
-    /// Janela ampla, com rascunho editável e o script derivado somente leitura.
+    /// Janela ampla: código com números de linha e cores, lista de métodos que escreve a
+    /// etapa no cursor, e o erro sublinhado na linha onde está.
     fn painel_editor_avancado_openquery<'a>(
         &'a self, e: &'a Estado, escuro: bool,
     ) -> Element<'a, Msg> {
         let editor = e.editor_avancado.as_ref().expect("editor avançado aberto");
-        let titulo = tr!("Editor avançado");
-        let nota = tr!("let fonte = …; e uma linha por etapa: fonte.metodo(…);. Aplicar confere o script inteiro antes de mudar a consulta.");
+        let linha_erro = script::linha_do_erro(&e.erro_avancado).filter(|_| !e.erro_avancado.is_empty());
+        let avisos = linha_erro.and_then(|n| {
+            let texto = editor.line(n)?;
+            Some(vec![pelicano::Warning { line: n - 1, range: 0..texto.len().max(1), tip: e.erro_avancado.clone() }])
+        }).unwrap_or_default();
         // Como no Iced, só escreve depois de clicado (há outro editor por baixo).
         let codigo: Element<'a, Msg> = text_editor(editor).idle_focus(false)
             .on_change(om(Evento::EditarEditorAvancado))
+            .highlight("js", if escuro { pelicano::Highlight::Base16Ocean } else { pelicano::Highlight::InspiredGitHub })
+            .line_numbers(true).wrap(false).warnings(avisos)
+            .current_line(pelicano::Color::rgba(0.5, 0.5, 0.5, 0.08))
             .font(pelicano::Font::MONO).size(13.0).into();
+        let coluna = e.resultado.cabecalho.first().map(String::as_str).unwrap_or("Coluna");
+        let mut metodos = column![].spacing(1);
+        for (metodo, args, linha) in script::modelos(coluna) {
+            metodos = metodos.push(
+                button(column![
+                    text(metodo).size(12).font(pelicano::Font::MONO),
+                    text(if args.is_empty() { tr!("sem argumentos").to_owned() } else { args })
+                        .size(10).color(ide::cor_secundaria(escuro)),
+                ].spacing(1)).width(Length::FILL).padding([4, 8])
+                    .on_press(om(Evento::InserirNoEditor(linha)))
+                    .style(ide::estilo_botao_ide(false)));
+        }
+        let lista = container(column![
+            text(tr!("MÉTODOS")).size(10).color(ide::cor_secundaria(escuro)),
+            text(tr!("Clique para escrever a etapa no cursor")).size(11).color(ide::cor_secundaria(escuro)),
+            scrollable(metodos).height(Length::FILL),
+        ].spacing(6)).width(Length::Fixed(230.0)).height(Length::FILL).padding(9)
+            .style(ide::estilo_area(escuro));
         let mut corpo = column![
             row![
                 feather_ui::icones::icone_colorido("code", 20.0, "#7d5cc6"),
-                text(titulo).size(17).font(negrito()),
+                column![
+                    text(tr!("Editor avançado")).size(17).font(negrito()),
+                    text(tr!("let fonte = …; e uma linha por etapa: fonte.metodo(…);. As colunas vão pelo nome."))
+                        .size(12).color(ide::cor_secundaria(escuro)),
+                ].spacing(2),
                 Space::new(Length::FILL, 0.0),
                 ide::botao_icone(tr!("Fechar editor avançado sem aplicar"), "x",
                     Some(om(Evento::FecharEditorAvancado)), false),
             ].spacing(9).align(pelicano::Align::Center),
-            text(nota).size(12).color(ide::cor_secundaria(escuro)),
-            container(codigo).height(Length::FILL).width(Length::FILL)
-                .padding(9).style(ide::estilo_area(escuro)),
+            row![
+                container(codigo).height(Length::FILL).width(Length::FILL)
+                    .padding(4).style(ide::estilo_area(escuro)),
+                lista,
+            ].spacing(10).height(Length::FILL),
         ].spacing(10).padding(16).width(Length::FILL).height(Length::FILL);
         if !e.erro_avancado.is_empty() {
-            corpo = corpo.push(text(e.erro_avancado.clone()).size(12).color(cor_erro()));
+            corpo = corpo.push(row![
+                feather_ui::icones::icone("alert-triangle", 15.0),
+                text(e.erro_avancado.clone()).size(12).color(cor_erro()),
+            ].spacing(6).align(pelicano::Align::Center));
         }
         corpo = corpo.push(row![
-            text(trf!("{} etapas atuais · execução em Rust", e.passos.len()))
+            text(trf!("{} etapas atuais · Aplicar confere o script inteiro antes de mudar a consulta", e.passos.len()))
                 .size(11).color(ide::cor_secundaria(escuro)),
             Space::new(Length::FILL, 0.0),
             ide::botao(tr!("Cancelar"), Some(om(Evento::FecharEditorAvancado)), false),
@@ -243,7 +277,8 @@ impl App {
     fn selecionar_fonte_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
         // Sem fonte, o centro fica em branco: as fontes estão na faixa (OBTER DADOS).
         let mut conteudo = column(Vec::<Element<Msg>>::new()).spacing(16).padding(24).width(Length::FILL);
-        if e.mostrar_web {
+        let navegador = !e.nomes_web.is_empty();
+        if e.mostrar_web && !navegador {
             conteudo = conteudo.push(container(column![
                 text(tr!("Endereço Web / API")).size(13).font(negrito()),
                 entrada(&e.url_web, "https://exemplo.com/api/dados.json", Evento::UrlWeb),
@@ -260,16 +295,19 @@ impl App {
             let mut escolher = column![
                 row![
                     feather_ui::icones::icone_colorido("table", 20.0, "#21865c"),
-                    text(trf!("{} tabelas encontradas na página", e.tabelas_web.len()))
+                    text(if navegador { trf!("Navegador: {} planilhas e tabelas em {}", e.tabelas_web.len(),
+                        e.origem_web_pendente.trim_start_matches("Arquivo: ")) }
+                        else { trf!("{} tabelas encontradas na página", e.tabelas_web.len()) })
                         .size(14).font(negrito()),
                 ].spacing(8).align(pelicano::Align::Center),
                 legenda_oq(tr!("Selecione a tabela antes de importar; a fonte atual não será alterada.")),
             ].spacing(8);
             let mut opcoes = column(Vec::<Element<Msg>>::new()).spacing(3);
             for (indice, tabela) in e.tabelas_web.iter().enumerate() {
+                let nome = e.nomes_web.get(indice).cloned().unwrap_or_else(|| trf!("Tabela {}", indice + 1));
                 opcoes = opcoes.push(ide::item_arvore(
-                    &trf!("Tabela {}  •  {} linhas  •  {} colunas",
-                        indice + 1, tabela.linhas.len(), tabela.cabecalho.len()),
+                    &trf!("{}  •  {} linhas  •  {} colunas",
+                        nome, tabela.linhas.len(), tabela.cabecalho.len()),
                     "table", 0.0,
                     Some(om(Evento::SelecionarTabelaWeb(indice))),
                     indice == e.indice_tabela_web,
@@ -278,8 +316,8 @@ impl App {
             escolher = escolher.push(scrollable(opcoes).height(Length::Fixed(120.0)));
             if let Some(tabela) = e.tabelas_web.get(e.indice_tabela_web) {
                 escolher = escolher.push(text(trf!(
-                    "Pré-visualização da tabela {} (primeiras 8 linhas e 6 colunas)",
-                    e.indice_tabela_web + 1,
+                    "Pré-visualização de {} (primeiras 8 linhas e 6 colunas)",
+                    e.nomes_web.get(e.indice_tabela_web).cloned().unwrap_or_else(|| trf!("Tabela {}", e.indice_tabela_web + 1)),
                 )).size(12).font(negrito()));
                 let mut cabecalho = row(Vec::<Element<Msg>>::new()).spacing(0);
                 for titulo in tabela.cabecalho.iter().take(6) {
@@ -357,11 +395,11 @@ impl App {
         if (e.fonte.cabecalho.is_empty() && !e.mostrar_manual) || e.mostrar_web || e.mostrar_tabelas {
             return self.selecionar_fonte_openquery(e, escuro);
         }
-        let ativa = if e.mostrar_manual { 2 } else if e.exibir_codigo { 1 } else { 0 };
+        // O script mora no Editor avançado (Início ▸ Consulta e Exibir), não numa aba.
+        let ativa = if e.mostrar_manual { 2 } else { 0 };
         let abas = container(row![
             ide::botao_aba(tr!("Prévia de dados"), "table", Some(om(Evento::AbaCentro(0))), ativa == 0),
-            ide::botao_aba("Script", "code", Some(om(Evento::AbaCentro(1))), ativa == 1),
-            ide::botao_aba(tr!("Tabela manual"), "forms", Some(om(Evento::AbaCentro(2))), ativa == 2),
+            // Digitar dados é fonte (Obter dados ▸ Digitar dados), não aba fixa da prévia.
         ].spacing(3)).width(Length::FILL).padding([4, 6])
             .style(ide::estilo_cabecalho(escuro));
         let conteudo: Element<'_, Msg> = match ativa {
@@ -377,22 +415,6 @@ impl App {
             ].spacing(ESPACO_MEDIO).padding(8))
                 .width(Length::FILL).height(Length::FILL)
                 .style(ide::estilo_area(escuro)).into(),
-            1 => column![
-                container(column![
-                    row![
-                        feather_ui::icones::icone_colorido("code", 16.0, "#d68126"),
-                        texto_oq(tr!("Uma linha por etapa: fonte.metodo(…); as colunas vão pelo nome")),
-                        Space::new(Length::FILL, 0.0),
-                        ide::botao(tr!("Editor avançado"), Some(om(Evento::AbrirEditorAvancado)), false),
-                        ide::botao_primario(tr!("Aplicar"), "checks", Some(om(Evento::Atualizar))),
-                    ].spacing(8).align(pelicano::Align::Center),
-                    container(text_editor(&e.codigo).idle_focus(false).on_change(om(Evento::Codigo))
-                        .font(pelicano::Font::MONO).size(TAM_TEXTO))
-                        .height(Length::Fixed(180.0)),
-                ].spacing(5).padding(8)).width(Length::FILL)
-                    .style(ide::estilo_area(escuro)),
-                self.previa_openquery(e, escuro),
-            ].spacing(6).width(Length::FILL).height(Length::FILL).into(),
             _ => self.previa_openquery(e, escuro),
         };
         let mut centro = column![abas].spacing(5).width(Length::FILL).height(Length::FILL);
@@ -413,14 +435,14 @@ impl App {
                     ..Default::default()
                 }));
         }
-        if (ativa == 0 || ativa == 1) && e.origem_aba.starts_with("Arquivo: ") {
+        if ativa == 0 && e.origem_aba.starts_with("Arquivo: ") {
             centro = centro.push(row![
                 legenda_oq(tr!("Origem externa • A atualização sempre exige escolher o arquivo novamente.")),
                 ide::botao_icone(tr!("Reimportar arquivo e manter etapas"), "refresh",
                     Some(om(Evento::ReimportarArquivo)), false),
             ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center));
         }
-        if (ativa == 0 || ativa == 1) && e.origem_aba.starts_with("Pasta: ") {
+        if ativa == 0 && e.origem_aba.starts_with("Pasta: ") {
             centro = centro.push(row![
                 legenda_oq(tr!("Origem externa • A pasta só é lida de novo quando você pede.")),
                 ide::botao_icone(tr!("Reler a pasta e manter etapas"), "refresh",
@@ -830,8 +852,8 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
             grupo_ribbon(tr!("PRÉVIA"), vec![
                 botao_ribbon("Fonte\ninicial", "table", VERDE,
                     Evento::Prever(None), e.passo_previa.is_none()),
-                botao_ribbon(tr!("Ver dados"), "table", AZUL, Evento::AbaCentro(0), !e.exibir_codigo && !e.mostrar_manual),
-                botao_ribbon("Script", "code", ROXO, Evento::AbaCentro(1), e.exibir_codigo),
+                botao_ribbon(tr!("Ver dados"), "table", AZUL, Evento::AbaCentro(0), !e.mostrar_manual),
+                botao_ribbon(tr!("Editor\navançado"), "code", ROXO, Evento::AbrirEditorAvancado, e.editor_avancado.is_some()),
             ], escuro),
         ],
     };
