@@ -6,7 +6,6 @@ use std::path::Path;
 use serde_json::Value as Json;
 mod caminho_json;
 
-const MAX_XML_XLSX: u64 = 32 * 1024 * 1024;
 
 /// Valores primitivos preservam o tipo; objetos e listas aninhados viram
 /// texto JSON, como o JSON.stringify do web-extractor.ts legado.
@@ -104,25 +103,6 @@ fn json_tabela_caminho(bytes: &[u8], caminho: &str) -> Result<Tabela, String> {
         matriz.push(linha);
     }
     Ok(Tabela { cabecalho, linhas: matriz })
-}
-
-fn validar_xlsx(path: &Path) -> Result<(), String> {
-    let arquivo = std::fs::File::open(path)
-        .map_err(|e| trf!("Não consegui abrir Excel: {e}"))?;
-    let mut zip = zip::ZipArchive::new(arquivo)
-        .map_err(|e| trf!("Arquivo Excel não é um ZIP válido: {e}"))?;
-    if zip.len() > 512 {
-        return Err(tr!("XLSX possui entradas demais para a importação interativa").into());
-    }
-    let mut total = 0u64;
-    for i in 0..zip.len() {
-        let entry = zip.by_index(i).map_err(|e| trf!("Entrada XLSX inválida: {e}"))?;
-        total = total.saturating_add(entry.size());
-        if total > MAX_XML_XLSX {
-            return Err(tr!("XLSX descomprime mais de 32 MiB; importe-o pela planilha e selecione um intervalo").into());
-        }
-    }
-    Ok(())
 }
 
 /// O que o "De arquivo" e o "Da pasta" leem.
@@ -297,12 +277,8 @@ pub(super) fn ler_itens(path: &Path) -> Result<(Vec<Item>, String), String> {
             let f = super::formatos_da_fonte(&workbook, 0, &area, &t.cabecalho);
             unico(t, f)
         }
-        "xlsx" => {
-            validar_xlsx(path)?;
-            let (workbook, folha) = feathersheet_io::xlsx_read::ler_xlsx_arquivo(path)?;
-            { let ativa = folha.min(workbook.len().saturating_sub(1)); itens_da_pasta(workbook, ativa) }
-        }
-        // Lido como o app abre o arquivo (fórmulas calculadas).
+        // Lido como o app abre o arquivo (fórmulas calculadas, sem teto próprio de tamanho:
+        // o que o app abre, o OpenQuery importa).
         _ => {
             let (workbook, folha) = crate::app::App::decodificar_caminho(path, None)?;
             itens_da_pasta(workbook, folha)
