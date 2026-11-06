@@ -25,6 +25,7 @@ impl App {
             Msg::VbaImportar => self.importar_vba(),
             Msg::MacroResponder(sim) => { self.responder_macro(sim); Task::none() }
             Msg::MacroEscolher(i) => { self.escolher_na_macro(i); Task::none() }
+            Msg::MacroDigitar(t) => { self.digitar_na_macro(t); Task::none() }
             Msg::MacroPulso => { self.conferir_macro_em_fundo(false); Task::none() }
             Msg::CalculoPulso => { self.conferir_calculo_em_fundo(false); Task::none() }
             Msg::CalcularEmFundo => { self.calcular_em_fundo(); Task::none() }

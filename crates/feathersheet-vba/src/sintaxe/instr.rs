@@ -2,7 +2,7 @@
 //! cursor vai até o fim dela e ela vira `Desconhecida` com o texto original.
 
 use super::expr::{Leitor, Res};
-use super::{Caso, Decl, Expr, Instr, Modulo, Op, Param, Proc, TipoInstr, TipoProc};
+use super::{Arg, Caso, Decl, Expr, Instr, Modulo, Op, Param, Proc, TipoInstr, TipoProc};
 use crate::lexico::{self, Ficha};
 
 /// Instruções de arquivo e de E/S antigas: não têm como entrar no JavaScript da planilha.
@@ -211,6 +211,13 @@ impl Analisador {
             return Ok(TipoInstr::Atribuir { alvo, valor: self.l.expr()?, set: false });
         }
         if self.l.fim_da_instrucao() {
+            // `Foo (x)` sem `Call`: o parêntese é do argumento e o passa por valor (ByRef não volta).
+            if let Expr::Chamada(f, mut args) = alvo {
+                if let [Arg { nome: None, valor: Some(v @ Expr::Nome(_)) }] = args.as_mut_slice() {
+                    *v = Expr::Paren(Box::new(v.clone()));
+                }
+                return Ok(TipoInstr::Chamar(Expr::Chamada(f, args)));
+            }
             return Ok(TipoInstr::Chamar(alvo));
         }
         // `MsgBox ("a"), vbYesNo`: o parêntese era do primeiro argumento, não da chamada.

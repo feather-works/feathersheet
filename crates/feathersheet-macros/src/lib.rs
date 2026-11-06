@@ -49,6 +49,9 @@ pub struct Resultado {
     /// A [`Self::pergunta`] é de vários botões (`app.choose`); `None` é Sim/Não. A resposta
     /// (índice do botão) volta em [`Contexto::escolhas`].
     pub escolha: Option<Escolha>,
+    /// A [`Self::pergunta`] pede um texto (`prompt`, o `InputBox`): o valor que vem escrito. A
+    /// resposta (`None` = Cancelar) volta em [`Contexto::textos`].
+    pub entrada: Option<String>,
     /// Mensagens de `alert`/`MsgBox`, na ordem, para o aplicativo mostrar.
     pub mensagens: Vec<String>,
     /// Aba que a macro deixou ativa (`wb.activate`, `sheet.activate()`).
@@ -930,6 +933,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         filtros: if vale { extra.filtros } else { Vec::new() },
         formas: if vale { extra.formas } else { Vec::new() },
         escolha: if extra.pergunta.is_some() { extra.escolha } else { None },
+        entrada: if extra.pergunta.is_some() { extra.entrada } else { None },
         pergunta: extra.pergunta,
     }
 }
@@ -999,8 +1003,11 @@ const __ftRevive = v => {
     return v;
 };
 // `sheet.shape(nome)`: forma ou caixa de texto pelo nome do Excel ("TextBox 39").
+// Posição pedida pela macro e ainda não aplicada (o app move a forma no fim), por aba e nome.
+const __posFormas = {};
 const __forma = (i, nome) => {
     const ler = () => { const r = __ft('formaLer',[i,nome]); if (!r.exists) throw new Error('A aba não tem a forma "'+nome+'"'); return r; };
+    const pos = (__posFormas[i + '|' + String(nome).toLowerCase()] ??= {});
     const f = {
         name: nome,
         get exists(){ return __ft('formaLer',[i,nome]).exists; },
@@ -1015,7 +1022,10 @@ const __forma = (i, nome) => {
         get onAction(){ return ler().onAction; },
         set onAction(v){ ler(); __ft('formaMacro',[i,nome,v==null?'':String(v)]); },
         // Posição e tamanho em pontos, como no VBA; o aplicativo move a forma quando a macro termina.
-        move(o){ ler(); __ft('formaPosicao',[i,nome,o||{}]); return f; },
+        move(o){ ler(); __ft('formaPosicao',[i,nome,o||{}]); Object.assign(pos, o||{}); return f; },
+        // Lida a posição: o que a macro já mudou vale (o app só move a forma no fim).
+        get left(){ return pos.left ?? ler().left; }, get top(){ return pos.top ?? ler().top; },
+        get width(){ return pos.width ?? ler().width; }, get height(){ return pos.height ?? ler().height; },
         set left(v){ f.move({ left: Number(v) }); },
         set top(v){ f.move({ top: Number(v) }); },
         set width(v){ f.move({ width: Number(v) }); },
@@ -1210,6 +1220,8 @@ function __sheet(indice) {
 const __sel = {};
 const alert = t => { __ft('alerta',[t===undefined?'':String(t)]); };
 const confirm = t => __ft('confirmar',[t===undefined?'':String(t)]);
+// O texto digitado, ou null (Cancelar), como o prompt do navegador.
+const prompt = (t, padrao) => __ft('perguntarTexto',[t===undefined?'':String(t), padrao==null?'':String(padrao)]);
 const wb = {
     activate:name=>wb.sheet(name).activate(),
     get activeSheet(){return __sheet(__ft('abaAtiva',[]));},

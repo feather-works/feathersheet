@@ -244,6 +244,22 @@ impl Gerador<'_> {
         }
     }
 
+    /// O `Type:=` do `Application.InputBox` (o 8º argumento), como texto JS.
+    fn tipo_do_input_box(&mut self, args: &[Arg]) -> R<Option<String>> {
+        match Self::arg_de(args, &["type"], 7) {
+            None => Ok(None),
+            Some(e) => Ok(Some(self.valor(&e)?.js)),
+        }
+    }
+
+    fn input_box(&mut self, args: &[Arg]) -> R<String> {
+        let texto = self.arg_js(args, &["prompt"], 0)?;
+        let titulo = self.arg_js(args, &["title"], 1)?;
+        let padrao = self.arg_js(args, &["default"], 2)?;
+        let tipo = self.tipo_do_input_box(args)?.unwrap_or_else(|| "undefined".into());
+        Ok(format!("vba.{}({texto}, {titulo}, {padrao}, {tipo})", self.ajuda("inputBoxApp")))
+    }
+
     /// `Shapes("TextBox 39")` ou `Shapes.Range(Array("TextBox 39"))` (só o primeiro nome).
     fn forma_do_argumento(&mut self, aba: &str, a: &Arg) -> R<Obj> {
         let e = a.valor.as_ref().ok_or_else(|| Motivo::novo("Shapes sem nome"))?;
@@ -290,6 +306,11 @@ impl Gerador<'_> {
             "names" => Obj::Nomes,
             "activewindow" | "windows" => Obj::Janela,
             "range" | "cells" => return self.membro_da_aba(&atual, self.atual_nome.clone(), n, args),
+            // `Set r = Application.InputBox(…, Type:=8)`: o intervalo que a pessoa digitou.
+            "inputbox" if self.tipo_do_input_box(args)?.as_deref() == Some("8") => {
+                let js = self.input_box(args)?;
+                Obj::Faixa(Faixa::dinamica(&atual, js))
+            }
             "workbooks" if args.is_empty() => Obj::Pastas,
             "workbooks" => return Err(Motivo::novo("outra pasta de trabalho aberta (Workbooks(…))")),
             _ => return Err(Motivo::novo(format!("Application/Workbook.{n}"))),
@@ -592,6 +613,7 @@ impl Gerador<'_> {
             Obj::Faixa(f) => self.propriedade_da_faixa(f, &n, args),
             Obj::Forma(js) if n == "visible" => Ok(V::novo(format!("{js}.visible"), T::Bool)),
             Obj::Forma(js) if n == "onaction" => Ok(V::novo(format!("{js}.onAction"), T::Texto)),
+            Obj::Forma(js) if matches!(n.as_str(), "left" | "top" | "width" | "height") => Ok(V::novo(format!("{js}.{n}"), T::Num)),
             Obj::Shell if n == "run" => Ok(V::novo(format!("app.shell(String({}))", self.arg_js(args, &["command"], 0)?), T::Num)),
             Obj::Controle(c) => propriedade_do_controle(&c, &n),
             Obj::Formulario(f) => match self.p.controle(&f, nome) {
@@ -629,6 +651,9 @@ impl Gerador<'_> {
             Obj::Abas if n == "count" => Ok(V::novo("wb.sheetCount", T::Num)),
             Obj::AbasNovas(p) if n == "count" => Ok(V::novo(format!("{p}.abas.length"), T::Num)),
             Obj::Pasta | Obj::App => match n.as_str() {
+                "inputbox" if self.tipo_do_input_box(args)?.as_deref() != Some("8") => {
+                    Ok(V::novo(self.input_box(args)?, T::Var))
+                }
                 "name" => Ok(V::novo("wb.name", T::Texto)),
                 // A pasta e o caminho do arquivo aberto (vazios numa pasta nunca salva).
                 "path" => Ok(V::novo("wb.path", T::Texto)),

@@ -363,6 +363,20 @@ fn varias_areas_copiam_juntas_e_escrevem_em_cada_uma() {
 }
 
 #[test]
+fn prompt_pergunta_o_texto_e_roda_de_novo_com_ele() {
+    let mut wb = Workbook::new();
+    let codigo = r#"const n = prompt("Quantos?", "3"); sheet.set("A1", n === null ? "cancelou" : Number(n) * 2);"#;
+    let r = executar(&mut wb, 0, codigo);
+    assert_eq!((r.pergunta.as_deref(), r.entrada.as_deref()), (Some("Quantos?"), Some("3")));
+    assert!(!r.alterou && wb.valor(0, 0, 0) == Value::Empty, "nada fica enquanto espera");
+    let r = executar_com(&mut wb, 0, codigo, Contexto { textos: vec![Some("21".into())], ..Default::default() });
+    assert!(r.pergunta.is_none() && r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(42.));
+    executar_com(&mut wb, 0, codigo, Contexto { textos: vec![None], ..Default::default() });
+    assert_eq!(wb.valor(0, 0, 0), Value::Text("cancelou".into()));
+}
+
+#[test]
 fn shape_esconde_troca_a_macro_e_pede_posicao() {
     let mut wb = Workbook::new();
     wb.editar(0, |s| { s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{},"ate":{},"nome":"Botão 2","macro":"Velha"}]}"##.into())); });

@@ -15,7 +15,13 @@ célula) pela API nova `specialAreas` e pelo intervalo de várias áreas (`feath
 as visíveis já enxergam o AutoFiltro pedido na mesma macro (`visiveis.rs`); `AutoFilter` com `xlAnd`/`xlOr` de
 comparação (`Criterio::Duas`, JSON `{op:"e"|"ou"}`). `feathersheet-macros` passou a depender do
 `feathersheet-io` (só o `filtro_json`). Novidade: "Macros do Excel com SpecialCells (copiar só as linhas
-visíveis do filtro, excluir as filtradas) e AutoFilter com duas condições agora convertem."
+visíveis do filtro, excluir as filtradas) e AutoFilter com duas condições agora convertem." Na mesma leva: `prompt` não existia
+no motor (o `InputBox` convertido quebrava ao rodar); agora a pergunta de texto segue o esquema do
+`confirm` (`Contexto::textos`, `Resultado::entrada`, campo na caixa da pergunta, `Msg::MacroDigitar`).
+`Application.InputBox` com `Type:=`, instrução `Mid(...) = x`, `Foo (x)` por valor, `As New Collection` no
+módulo, `CompareMode`/`Key` do Dictionary e ler `.Left/.Top` da forma (`objetos_aba::ReguaSimples`; as
+medidas padrão da grade moram no `objetos_aba`). Novidade: "InputBox das macros do Excel volta a
+funcionar, com caixa para digitar."
 
 ## v0.2.9 — 04/11/2026: minigráficos, desfazer exato, auditoria
 

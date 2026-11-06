@@ -69,7 +69,7 @@ impl App {
         let m = self.macro_rodando.take().expect("macro rodando");
         self.workbook = pasta;
         self.cache_grade.desenho.clear();
-        let Some(r) = self.concluir_macro(m.gatilho, &m.nome, &m.codigo, Vec::new(), Vec::new(), None, m.inicio, r) else {
+        let Some(r) = self.concluir_macro(m.gatilho, &m.nome, &m.codigo, Vec::new(), Vec::new(), Vec::new(), None, m.inicio, r) else {
             self.macro_saida = tr!("A macro fez uma pergunta: responda na janela.").into();
             return;
         };

@@ -252,9 +252,37 @@ impl Gerador<'_> {
             if let Some(js) = self.var_colecao(base) {
                 return self.atribuir_colecao(&js, idx, valor);
             }
+            // `d.Key(antiga) = nova`.
+            if let Expr::Membro(b, m) = &**f {
+                if let Some(js) = self.var_colecao(b).filter(|_| m.eq_ignore_ascii_case("key")) {
+                    let (k, v) = (self.valores(idx)?, self.valor(valor)?);
+                    let k = k.into_iter().next().ok_or_else(|| Motivo::novo("Key sem chave"))?;
+                    return Ok(format!("{js}.key({}, {});", k.js, v.js));
+                }
+            }
+        }
+        // `d.CompareMode = vbTextCompare`.
+        if let Expr::Membro(b, m) = alvo {
+            if let Some(js) = self.var_colecao(b).filter(|_| m.eq_ignore_ascii_case("comparemode")) {
+                let v = self.valor(valor)?;
+                return Ok(format!("{js}.compareMode = {};", v.js));
+            }
         }
         match alvo {
             Expr::Nome(n) => self.atribuir_nome(i, n, valor, set),
+            // `Mid(s, início, [quantos]) = x`: troca os caracteres no lugar, sem mudar o tamanho de `s`.
+            Expr::Chamada(f, idx) if matches!(&**f, Expr::Nome(m) if m.eq_ignore_ascii_case("mid") || m.eq_ignore_ascii_case("mid$")) => {
+                let alvo_var = match idx.first().and_then(|a| a.valor.as_ref()) {
+                    Some(Expr::Nome(n)) => self.var(n).or_else(|| self.global(n)).filter(|v| matches!(v.tipo, Tipo::Valor(_))).map(|v| v.js),
+                    _ => None,
+                };
+                let js = alvo_var.ok_or_else(|| Motivo::novo("Mid(...) = sobre algo que não é variável de texto"))?;
+                let args = self.valores(&idx[1..])?;
+                let v = self.valor(valor)?;
+                let quantos = args.get(1).map_or_else(|| "undefined".to_string(), |a| a.js.clone());
+                let inicio = args.first().ok_or_else(|| Motivo::novo("Mid(...) = sem início"))?.js.clone();
+                Ok(format!("{js} = vba.{}({js}, {inicio}, {quantos}, {});", self.ajuda("midTroca"), v.js))
+            }
             Expr::Chamada(f, idx) if matches!(&**f, Expr::Nome(n) if self.var(n).is_some_and(|v| v.matriz || matches!(v.tipo, Tipo::Valor(T::Var | T::Matriz)))) => {
                 let Expr::Nome(n) = &**f else { unreachable!() };
                 let js = self.var(n).map(|v| v.js).unwrap_or_default();
@@ -471,7 +499,7 @@ impl Gerador<'_> {
             Expr::Chamada(f, args) => match &**f {
                 // `Unload Me` / `Unload UserForm1` fecha o formulário; `Load` não tem o que fazer.
                 Expr::Nome(n) if n.eq_ignore_ascii_case("unload") || n.eq_ignore_ascii_case("load") => {
-                    let alvo = args.first().and_then(|a| a.valor.as_ref());
+                    let alvo = args.first().and_then(|a| a.valor.as_ref()).map(|e| match e { Expr::Paren(x) => &**x, x => x });
                     match alvo {
                         Some(Expr::Nome(f)) if self.formulario_por_nome(f).is_some() => {
                             Ok(if n.eq_ignore_ascii_case("unload") { "sheet.hideComponent();".into() } else { String::new() })

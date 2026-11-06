@@ -39,14 +39,14 @@ use desenho_auxiliar::{cor_contraste, cor_hex, desenhar_funil, divisoria_visivel
 /// Cabe "100000000" (nove dígitos, o limite de linhas) com folga.
 pub const CABECALHO_LINHA: f32 = 100.0;
 pub const CABECALHO_COLUNA: f32 = 30.0;
-pub const LARGURA_PADRAO: f32 = 122.0;
+pub const LARGURA_PADRAO: f32 = feathersheet_io::objetos_aba::LARGURA_PADRAO;
 
 /// A largura das colunas sem largura própria nesta aba: a Largura padrão
 /// escolhida em Formatar ▾, ou a da grade.
 pub fn largura_padrao_da(sheet: &feathersheet_core::planilha::sheet::Sheet) -> f32 {
     sheet.largura_padrao.map(|v| v as f32).unwrap_or(LARGURA_PADRAO)
 }
-pub const ALTURA_PADRAO: f32 = 28.0;
+pub const ALTURA_PADRAO: f32 = feathersheet_io::objetos_aba::ALTURA_PADRAO;
 
 /// Estado do mouse no Canvas: arrasto de células, arrasto em cabeçalho,
 /// modificadores e último clique numa divisória (para o duplo clique).

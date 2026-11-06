@@ -317,6 +317,40 @@ impl Retangulo {
 
 /// A régua da aba: onde começa cada coluna/linha e qual célula fica num
 /// ponto. Quem desenha (a GUI) conhece larguras padrão, ocultas etc.
+/// Largura das colunas e altura das linhas sem medida própria, em px lógicos (as da grade).
+pub const LARGURA_PADRAO: f32 = 122.0;
+pub const ALTURA_PADRAO: f32 = 28.0;
+
+/// A régua lida direto da aba, sem cache: para quem pede pouco (a macro lendo `shape.left`).
+/// A grade tem a sua, com a soma das alturas guardada por quadro.
+pub struct ReguaSimples<'a>(pub &'a Sheet);
+
+impl Regua for ReguaSimples<'_> {
+    fn inicio_coluna(&self, c: u32) -> f32 {
+        let s = self.0;
+        let padrao = s.largura_padrao.map_or(LARGURA_PADRAO, |v| v as f32);
+        let fim = s.colunas_ocultas_desde.map_or(c, |n| c.min(n)).min(feathersheet_core::MAX_COLS);
+        (0..fim).map(|x| s.col_widths.get(&x).map_or(padrao, |&v| v as f32)).sum()
+    }
+    fn inicio_linha(&self, r: u32) -> f32 {
+        let s = self.0;
+        let r = s.linhas_ocultas_desde.map_or(r, |n| r.min(n));
+        r as f32 * ALTURA_PADRAO + s.row_heights.iter().filter(|(x, _)| **x < r).map(|(_, h)| *h as f32 - ALTURA_PADRAO).sum::<f32>()
+    }
+    fn coluna_em(&self, x: f32) -> u32 {
+        (1..feathersheet_core::MAX_COLS).find(|&c| self.inicio_coluna(c) > x).map_or(feathersheet_core::MAX_COLS - 1, |c| c - 1)
+    }
+    fn linha_em(&self, y: f32) -> u32 {
+        // Busca binária: o início das linhas só cresce.
+        let (mut a, mut b) = (0u32, feathersheet_core::MAX_ROWS - 1);
+        while a < b {
+            let m = a + (b - a + 1) / 2;
+            if self.inicio_linha(m) <= y { a = m } else { b = m - 1 }
+        }
+        a
+    }
+}
+
 pub trait Regua {
     /// Início da coluna `c` em px lógicos desde A1.
     fn inicio_coluna(&self, c: u32) -> f32;

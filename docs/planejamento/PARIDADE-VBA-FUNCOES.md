@@ -92,7 +92,7 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | IIf | outras | COBERTA | funcoes.rs:180-182 (só com 3 argumentos; as duas ramificações são avaliadas, como no VBA) |
 | IMEStatus | outras | NÃO SE APLICA | teclado japonês do Windows |
 | Input | outras | NÃO SE APLICA | instr.rs:44 recusa (acesso a arquivo) |
-| InputBox | outras | COBERTA | ajuda.rs:98 (`prompt`), funcoes.rs:178. Sem tipo nem validação do VBA |
+| InputBox | outras | COBERTA | `vba.inputBox` → `prompt`, que até 06/11/2026 não existia no motor (o InputBox quebrava ao rodar): agora o app pergunta numa caixa com campo e roda a macro de novo com o texto (`Contexto::textos`). `Application.InputBox` com `Type:=` 1/2/4/8 em `vba.inputBoxApp` (Cancelar dá False; no 8, erro 424) |
 | InStr | outras | COBERTA | funcoes.rs:121, ajuda.rs:22 (início e texto), comparação binária |
 | InStrRev | outras | COBERTA | `vba.instrRev`: início e vbTextCompare |
 | IPmt | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
@@ -117,7 +117,7 @@ Legenda: COBERTA = convertida e usada no código gerado. PARCIAL = convertida co
 | Trim | outras | COBERTA | funcoes.rs:124, ajuda.rs:25 |
 | MacID | outras | NÃO SE APLICA | específica do Mac |
 | MacScript | outras | NÃO SE APLICA | específica do Mac |
-| Mid | outras | COBERTA | funcoes.rs:118, ajuda.rs:19 (começa do 1). A forma de instrução `Mid(...) = x` não foi conferida |
+| Mid | outras | COBERTA | funcoes.rs:118, ajuda.rs:19 (começa do 1). A instrução `Mid(s, i, n) = x` em `vba.midTroca` (06/11/2026) |
 | Minute | outras | COBERTA | `vba.minuto` |
 | MIRR | outras | COBERTA | bloco `fin` (ajuda.rs): mesma conta do Excel; IRR/Rate por Newton (erro se não convergir); teste `financeiras_batem_com_o_excel` |
 | Month | outras | COBERTA | funcoes.rs:167 (`vba.mes`), ajuda.rs:124 |
@@ -220,6 +220,12 @@ critério `{op: "e"|"ou"}` (`Criterio::Duas` no motor). Corrigido junto: `rng Is
 lia o valor da célula. Ainda não: SpecialCells de comentários/validação/formatação condicional, constantes só
 de números/textos, filtro por cor/dinâmico pela macro, `Areas(i)`; o `.xlsx` não grava o critério de duas
 condições (as linhas escondidas ficam).
+
+Lacunas da linguagem (06/11/2026): `Foo (x)` sem `Call` passa `x` por valor (o parser guarda o
+`Expr::Paren`); `Dim c As New Collection`/`Dictionary` no módulo nasce pronta (`Macro::novas`);
+`d.CompareMode = vbTextCompare` (só com o dicionário vazio, erro 5 como no VBA) e `d.Key(k) = nova`;
+ler `.Left/.Top/.Width/.Height` da forma (`ReguaSimples` do `objetos_aba`, a mesma medida da grade).
+Ainda não: `&` de número escreve com ponto (`91.5`), o Excel em pt-BR com vírgula.
 
 ### Rodando de verdade (01/11/2026)
 

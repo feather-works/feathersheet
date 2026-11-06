@@ -22,6 +22,10 @@ pub(super) struct PerguntaMacro {
     escolhas: Vec<u32>,
     /// A pergunta pendente é de vários botões; `None` é Sim/Não.
     escolha: Option<feathersheet_macros::Escolha>,
+    /// Textos já digitados nas perguntas de texto (`prompt`, o `InputBox`); `None` = Cancelar.
+    textos: Vec<Option<String>>,
+    /// A pergunta pendente pede um texto: o que está escrito no campo.
+    entrada: Option<String>,
     texto: String,
     /// O que disparou a macro e a linha dela no histórico: a reexecução
     /// depois da resposta continua na mesma linha.
@@ -38,18 +42,18 @@ impl App {
     pub(super) fn rodar_macro(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str, respostas: Vec<bool>)
         -> Option<feathersheet_macros::Resultado>
     {
-        self.rodar_macro_registrando(gatilho, nome, codigo, respostas, Vec::new(), None)
+        self.rodar_macro_registrando(gatilho, nome, codigo, respostas, Vec::new(), Vec::new(), None)
     }
 
     /// `continua`: a linha do histórico e o tempo já gasto, quando é a
     /// reexecução depois de uma resposta Sim/Não.
     fn rodar_macro_registrando(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str,
-        respostas: Vec<bool>, escolhas: Vec<u32>, continua: Option<(u64, u128)>) -> Option<feathersheet_macros::Resultado>
+        respostas: Vec<bool>, escolhas: Vec<u32>, textos: Vec<Option<String>>, continua: Option<(u64, u128)>) -> Option<feathersheet_macros::Resultado>
     {
         let inicio_execucao = std::time::Instant::now();
-        let contexto = self.contexto_da_macro(respostas.clone(), escolhas.clone());
+        let contexto = feathersheet_macros::Contexto { textos: textos.clone(), ..self.contexto_da_macro(respostas.clone(), escolhas.clone()) };
         let r = feathersheet_macros::executar_com(&mut self.workbook, self.folha, codigo, contexto);
-        self.concluir_macro(gatilho, nome, codigo, respostas, escolhas, continua, inicio_execucao, r)
+        self.concluir_macro(gatilho, nome, codigo, respostas, escolhas, textos, continua, inicio_execucao, r)
     }
 
     /// O arquivo, a seleção, as respostas Sim/Não e os campos do formulário para a macro.
@@ -66,7 +70,7 @@ impl App {
     /// Sim/Não, formulário, arquivos pedidos e mensagens.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn concluir_macro(&mut self, gatilho: GatilhoMacro, nome: &str, codigo: &str,
-        respostas: Vec<bool>, escolhas: Vec<u32>, continua: Option<(u64, u128)>, inicio_execucao: std::time::Instant,
+        respostas: Vec<bool>, escolhas: Vec<u32>, textos: Vec<Option<String>>, continua: Option<(u64, u128)>, inicio_execucao: std::time::Instant,
         mut r: feathersheet_macros::Resultado) -> Option<feathersheet_macros::Resultado>
     {
         use historico_macros::{Execucao, ResultadoExecucao};
@@ -93,7 +97,8 @@ impl App {
         if let Some(texto) = r.pergunta.take() {
             let (historico, ms) = anotar(self, ResultadoExecucao::Esperando(texto.clone()), false, Vec::new());
             self.macro_pergunta = Some(PerguntaMacro {
-                nome: nome.to_owned(), codigo: codigo.to_owned(), respostas, escolhas, escolha: r.escolha.take(), texto,
+                nome: nome.to_owned(), codigo: codigo.to_owned(), respostas, escolhas, escolha: r.escolha.take(),
+                textos, entrada: r.entrada.take(), texto,
                 gatilho, historico, ms,
             });
             return None;
@@ -157,6 +162,13 @@ impl App {
     }
 
     pub(super) fn responder_macro(&mut self, sim: bool) {
+        // Pergunta de texto (`InputBox`): OK manda o que está no campo; Cancelar, nada.
+        if self.macro_pergunta.as_ref().is_some_and(|p| p.entrada.is_some()) {
+            let Some(mut p) = self.macro_pergunta.take() else { return };
+            let escrito = p.entrada.take();
+            p.textos.push(escrito.filter(|_| sim));
+            return self.continuar_macro(p);
+        }
         // Pergunta de vários botões respondida por Sim/Não (Enter/Esc, histórico): o padrão ou o último (Cancelar/Não).
         if let Some(e) = self.macro_pergunta.as_ref().and_then(|p| p.escolha.as_ref()) {
             let i = if sim { e.padrao } else { e.botoes.len() - 1 };
@@ -175,8 +187,13 @@ impl App {
         self.continuar_macro(p);
     }
 
+    /// O campo da pergunta de texto mudou.
+    pub(super) fn digitar_na_macro(&mut self, t: String) {
+        if let Some(e) = self.macro_pergunta.as_mut().and_then(|p| p.entrada.as_mut()) { *e = t; }
+    }
+
     fn continuar_macro(&mut self, p: PerguntaMacro) {
-        let Some(r) = self.rodar_macro_registrando(p.gatilho, &p.nome, &p.codigo, p.respostas, p.escolhas,
+        let Some(r) = self.rodar_macro_registrando(p.gatilho, &p.nome, &p.codigo, p.respostas, p.escolhas, p.textos,
             Some((p.historico, p.ms))) else { return };
         self.macro_saida = r.saida.join("\n");
         self.status = match r.erro {
@@ -206,7 +223,15 @@ impl App {
         } else {
             return base;
         };
-        let d = self.dialogo(titulo, text(corpo).size(13).line_height(1.45))
+        let entrada = self.macro_pergunta.as_ref().and_then(|p| p.entrada.as_deref());
+        let conteudo: Element<'a, Msg> = match entrada {
+            Some(valor) => pelicano::column![
+                text(corpo).size(13).line_height(1.45),
+                text_input("", valor).on_input(Msg::MacroDigitar).on_submit(Msg::MacroResponder(true)).size(13).padding([6, 8]),
+            ].spacing(10).into(),
+            None => text(corpo).size(13).line_height(1.45).into(),
+        };
+        let d = self.dialogo(titulo, conteudo)
             .icone(icone)
             .largura(460.0)
             .clique_fora_fecha(false);
@@ -222,6 +247,9 @@ impl App {
             } else {
                 d.botao(dlg::botao_secundario(rotulo(b), Some(Msg::MacroEscolher(i))))
             })
+        } else if entrada.is_some() {
+            d.botao(dlg::botao_secundario(tr!("Cancelar"), Some(Msg::MacroResponder(false))))
+                .primario("OK", Some(Msg::MacroResponder(true)))
         } else if self.macro_pergunta.is_some() {
             d.botao(dlg::botao_secundario(tr!("Não"), Some(Msg::MacroResponder(false))))
                 .primario(tr!("Sim"), Some(Msg::MacroResponder(true)))
@@ -265,6 +293,20 @@ mod testes {
         assert!(app.rodar_macro(GatilhoMacro::manual("teste"), "M", codigo, vec![]).is_none());
         app.update(Msg::MacroResponder(true));
         assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Number(1.));
+    }
+
+    #[test]
+    fn pergunta_de_texto_manda_o_que_foi_digitado() {
+        let mut app = App::default();
+        let codigo = "const n = prompt('Quantos?', '3'); sheet.set('A1', n === null ? 'cancelou' : Number(n) * 2);";
+        assert!(app.rodar_macro(GatilhoMacro::manual("teste"), "M", codigo, vec![]).is_none());
+        app.update(Msg::MacroDigitar("21".into()));
+        app.update(Msg::MacroResponder(true));
+        assert!(app.macro_pergunta.is_none());
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Number(42.));
+        assert!(app.rodar_macro(GatilhoMacro::manual("teste"), "M", codigo, vec![]).is_none());
+        app.update(Msg::MacroResponder(false));
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Text("cancelou".into()));
     }
 
     #[test]

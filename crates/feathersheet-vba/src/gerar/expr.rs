@@ -289,7 +289,7 @@ impl Gerador<'_> {
             };
             if let Some(e) = &a.valor {
                 saida[i] = if caixas.get(i) == Some(&true) {
-                    // shortcut: `Foo (x)` (parênteses = por valor no VBA) passa por referência: o parser não guarda os parênteses.
+                    // `Foo (x)`: o parser deixa o `Expr::Paren`, e a caixa leva só o valor.
                     let variavel = match e { Expr::Nome(n) => self.variavel_de_valor(n), _ => None };
                     let valor = self.valor(e)?.js;
                     super::por_ref::caixa(variavel.as_deref(), &valor)

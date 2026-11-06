@@ -43,12 +43,13 @@ impl Gerador<'_> {
         let lista = vs.iter().map(|v| v.js.as_str()).collect::<Vec<_>>().join(", ");
         let n = nome.to_lowercase();
         let t = match n.as_str() {
-            "count" => T::Num,
+            "count" | "comparemode" => T::Num,
             "exists" => T::Bool,
             "item" | "keys" | "items" => T::Var,
             "add" | "remove" | "removeall" => T::Var,
             _ => return Err(Motivo::novo(format!("Collection/Dictionary.{nome}"))),
         };
+        if n == "comparemode" { return Ok(V::novo(format!("{js}.compareMode"), t)); }
         Ok(V::novo(format!("{js}.{n}({lista})"), t))
     }
 

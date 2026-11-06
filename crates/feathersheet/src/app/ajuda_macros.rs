@@ -159,6 +159,7 @@ const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("app.status", "app.status(text)", "app.status(\"Processando...\");"),
         ("app.shell", "app.shell(command)", "app.shell(\"notepad relatorio.txt\");"),
         ("app.choose", "app.choose(text, buttons, icon?, default?)", "const i = app.choose(\"Arquivo em uso\", [3, 4, 5], 16);"),
+        ("prompt", "prompt(text, default?)", "const n = prompt(\"Quantas linhas?\", \"10\"); if (n === null) return;"),
         ("app.openUrl", "app.openUrl(url)", "app.openUrl(\"https://www.google.com/maps/search/?api=1&query=\" + sheet.get(\"B2\"));"),
         ("app.setEventsEnabled", "app.setEventsEnabled(on)", "app.setEventsEnabled(false);"),
         ("app.rgb", "app.rgb(r, g, b)", "sheet.setBackground(\"A1\", app.rgb(37, 99, 235));"),
@@ -205,7 +206,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),148);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),149);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {

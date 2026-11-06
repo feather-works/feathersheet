@@ -414,3 +414,49 @@ fn cverr_xlerrnull_da_null() {
     assert_eq!(wb.valor(0, 1, 0), Value::Text("#NULL!".into()));
     assert_eq!(wb.valor(0, 2, 0), Value::Text("#N/A".into()));
 }
+
+#[test]
+fn parenteses_passam_por_valor_e_colecao_do_modulo_nasce_pronta() {
+    let wb = roda("Dim gc As New Collection\nSub T()\n  Dim a As Long, b As Long\n  a = 1: b = 1\n  Dobrar (a)\n  Call Dobrar(b)\n  Range(\"A1\").Value = a\n  Range(\"A2\").Value = b\n  gc.Add 5\n  gc.Add 7\n  Range(\"A3\").Value = gc.Count\nEnd Sub\nSub Dobrar(n As Long)\n  n = n * 2\nEnd Sub\n", "T");
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(1.0), "Dobrar (a): por valor");
+    assert_eq!(wb.valor(0, 1, 0), Value::Number(2.0), "Call Dobrar(b): por referência");
+    assert_eq!(wb.valor(0, 2, 0), Value::Number(2.0));
+}
+
+#[test]
+fn instrucao_mid_troca_no_lugar() {
+    let wb = roda("Sub T()\n  Dim s As String\n  s = \"abcdef\"\n  Mid(s, 2, 2) = \"XYZ\"\n  Range(\"A1\").Value = s\n  Mid(s, 5) = \"123456\"\n  Range(\"A2\").Value = s\nEnd Sub\n", "T");
+    assert_eq!(wb.valor(0, 0, 0), Value::Text("aXYdef".into()));
+    assert_eq!(wb.valor(0, 1, 0), Value::Text("aXYd12".into()), "não passa do fim");
+}
+
+#[test]
+fn dicionario_sem_maiusculas_e_troca_de_chave() {
+    let wb = roda("Sub T()\n  Dim d As Object, k As Variant, s As String\n  Set d = CreateObject(\"Scripting.Dictionary\")\n  d.CompareMode = vbTextCompare\n  d.Add \"Ana\", 1\n  d(\"ANA\") = d(\"ana\") + 1\n  d.Add \"Bia\", 5\n  d.Key(\"bia\") = \"Beatriz\"\n  For Each k In d.Keys\n    s = s & k & \"=\" & d(k) & \";\"\n  Next k\n  Range(\"A1\").Value = s\n  Range(\"A2\").Value = d.Count\nEnd Sub\n", "T");
+    assert_eq!(wb.valor(0, 0, 0), Value::Text("Ana=2;Beatriz=5;".into()));
+    assert_eq!(wb.valor(0, 1, 0), Value::Number(2.0));
+}
+
+#[test]
+fn posicao_da_forma_em_pontos() {
+    let c = converter_texto(&[("Módulo1", "Sub T()\n  With ActiveSheet.Shapes(\"Botão 1\")\n    Range(\"A1\").Value = .Left: Range(\"B1\").Value = .Top: Range(\"C1\").Value = .Width: Range(\"D1\").Value = .Height\n    .Left = 10\n    Range(\"A2\").Value = .Left\n  End With\nEnd Sub\n")], &[]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let mut wb = Workbook::new();
+    // Coluna A com 96 px (72 pt); a forma vai de B2 a C4.
+    wb.editar(0, |s| { s.col_widths.insert(0, 96); s.alterar_objetos(Some(r##"{"v":1,"objetos":[{"id":1,"forma":"rect","de":{"linha":1,"coluna":1},"ate":{"linha":3,"coluna":2},"nome":"Botão 1"}]}"##.into())); });
+    let r = feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo);
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    let lidos: Vec<_> = (0..4).map(|c| wb.valor(0, 0, c)).collect();
+    assert_eq!(lidos, [72.0, 21.0, 91.5, 42.0].map(Value::Number), "pontos: 122 px = 91,5 pt; 28 px = 21 pt");
+    assert_eq!(wb.valor(0, 1, 0), Value::Number(10.0), "o que a macro mudou vale na leitura seguinte");
+}
+
+#[test]
+fn application_inputbox_converte() {
+    let vba = "Sub T()\n  Dim n As Variant, r As Range\n  n = Application.InputBox(\"Quantos?\", \"Contagem\", 5, Type:=1)\n  If n = False Then Exit Sub\n  Range(\"A1\").Value = n * 2\n  Set r = Application.InputBox(\"Onde?\", Default:=\"$B$2:$B$3\", Type:=8)\n  r.Value = \"aqui\"\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    assert!(c.pendencias.is_empty(), "{:#?}", c.pendencias);
+    let js = &c.macros[0].codigo;
+    assert!(js.contains("vba.inputBoxApp(\"Quantos?\", \"Contagem\", 5, 1)") && js.contains("vba.inputBoxApp(\"Onde?\", undefined, \"$B$2:$B$3\", 8)"), "{js}");
+}
+

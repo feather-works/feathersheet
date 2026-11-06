@@ -62,12 +62,17 @@ fn cor(v: &Json) -> Result<String, String> {
     }
 }
 
-/// O que a macro lê: existe, texto e letra.
-fn ler(ob: &Json, nome: &str) -> Json {
+/// O que a macro lê: existe, texto, letra e a posição em pontos (como o VBA).
+fn ler(sheet: &Sheet, ob: &Json, nome: &str) -> Json {
+    use feathersheet_io::objetos_aba::{ler_da_aba, ReguaSimples};
     let Some(i) = achar(ob, nome) else { return json!({ "exists": false }) };
     let o = &ob["objetos"][i];
     let f = &o["fonte"];
+    const PONTO_POR_PX: f64 = 72.0 / 96.0;
+    let r = ler_da_aba(sheet).objetos.get(i).map(|x| x.retangulo(&ReguaSimples(sheet)));
+    let pt = |v: Option<f32>| v.map(|x| (f64::from(x) * PONTO_POR_PX * 100.0).round() / 100.0);
     json!({ "exists": true, "text": o["texto"].as_str().unwrap_or(""),
+        "left": pt(r.map(|r| r.x)), "top": pt(r.map(|r| r.y)), "width": pt(r.map(|r| r.largura)), "height": pt(r.map(|r| r.altura)),
         "bold": f["negrito"].as_bool().unwrap_or(false), "italic": f["italico"].as_bool().unwrap_or(false),
         "size": f["tamanho"], "color": f["cor"],
         "visible": o["oculto"] != json!(true), "onAction": o["macro"].as_str().unwrap_or("") })
@@ -106,7 +111,7 @@ fn fonte(o: &mut Map<String, Json>, pedido: &Json) -> Result<(), String> {
 pub(crate) fn executar(op: &str, sheet: &mut Sheet, dados: &Json) -> Result<(Json, bool), String> {
     let nome = dados[1].as_str().ok_or("shape: informe o nome da forma")?;
     match op {
-        "formaLer" => Ok((ler(&objetos(sheet)?, nome), false)),
+        "formaLer" => Ok((ler(sheet, &objetos(sheet)?, nome), false)),
         "formaFonte" => alterar(sheet, nome, |o| fonte(o, &dados[2])).map(|m| (Json::Null, m)),
         "formaTexto" => {
             let t: String = match &dados[2] { Json::String(s) => s.clone(), Json::Null => String::new(), v => v.to_string() };

@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use super::tipos::{Faixa, Motivo, Obj, Tipo, T};
 use crate::ovba::TipoDeModulo;
-use crate::sintaxe::{Instr, Modulo, Proc};
+use crate::sintaxe::{Expr, Instr, Modulo, Proc};
 
 /// Um módulo analisado, com o que a conversão precisa dele.
 pub struct InfoModulo {
@@ -100,6 +100,8 @@ pub struct Macro {
     pub fila: Vec<RefProc>,
     /// Variáveis de módulo: (módulo, nome em minúsculas) → nome JS.
     pub globais: HashMap<(usize, String), String>,
+    /// Valor inicial das variáveis de módulo `As New Collection`/`Dictionary` (nome JS → código).
+    pub novas: HashMap<String, String>,
     /// Nomes já usados no topo da macro (funções e variáveis de módulo).
     pub topo: BTreeSet<String>,
     pub pendencias: Vec<Pendencia>,
@@ -296,6 +298,11 @@ impl Gerador<'_> {
                 let j = if self.m.topo.contains(&base) { js_nome(&format!("{}_{}", self.p.modulos[self.modulo].nome, d.nome)) } else { base };
                 self.m.topo.insert(j.clone());
                 self.m.globais.insert((self.modulo, chave), j.clone());
+                if d.novo {
+                    if let Some(nova) = d.tipo.as_deref().and_then(|t| self.criar_colecao(&Expr::Novo(t.to_string()))) {
+                        self.m.novas.insert(j.clone(), nova);
+                    }
+                }
                 j
             }
         };

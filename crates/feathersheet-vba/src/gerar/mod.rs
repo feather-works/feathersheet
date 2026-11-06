@@ -258,6 +258,7 @@ fn declarar_globais(p: &Programa, m: &Macro) -> String {
             Some(Expr::Bool(b)) => b.to_string(),
             Some(_) => "undefined /* valor da constante não convertido */".into(),
             None if d.dims.is_some() => "[]".into(),
+            None if m.novas.contains_key(js) => m.novas[js].clone(),
             None => valor_inicial(&tipo_declarado(d.tipo.as_deref())).into(),
         };
         let kw = if d.valor.is_some() { "const" } else { "let" };

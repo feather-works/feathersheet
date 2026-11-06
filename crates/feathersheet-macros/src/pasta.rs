@@ -87,6 +87,8 @@ pub struct Contexto {
     /// Botões já escolhidos nas perguntas de vários botões (`app.choose`, o `MsgBox` com
     /// Abortar/Repetir/Ignorar…), pelo índice, na ordem em que a macro as faz.
     pub escolhas: Vec<u32>,
+    /// Textos já digitados nas perguntas de `prompt` (o `InputBox`), na ordem; `None` = Cancelar.
+    pub textos: Vec<Option<String>>,
     /// O que foi preenchido no formulário cujo botão rodou a macro (`valores`).
     pub valores: Option<serde_json::Map<String, serde_json::Value>>,
     /// Prazo e sinal de parar (o app roda a macro do botão noutra thread, com mais tempo).
@@ -102,6 +104,9 @@ pub(crate) struct Acumulado {
     pub escolhas_feitas: usize,
     /// A pergunta pendente é de vários botões: os botões, o ícone e o botão padrão.
     pub escolha: Option<Escolha>,
+    pub textos_feitos: usize,
+    /// A pergunta pendente pede um texto: o valor que vem escrito.
+    pub entrada: Option<String>,
     pub mensagens: Vec<String>,
     /// Aplicados só se a macro terminar bem (o desfazer das abas não os cobre).
     pub nomes: Vec<(String, Rect)>,
@@ -134,7 +139,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher", "perguntarTexto"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -250,6 +255,21 @@ pub(crate) fn executar(
                     // é descartado e a pessoa responde de verdade.
                     a.pergunta.get_or_insert_with(|| texto(dados, 0));
                     Ok(json!(false))
+                }
+            }
+        }
+        "perguntarTexto" => {
+            let n = a.textos_feitos;
+            a.textos_feitos += 1;
+            match a.contexto.textos.get(n) {
+                Some(t) => Ok(json!(t)),
+                None => {
+                    // Como no confirm: a macro segue como se fosse Cancelar e roda de novo com o texto.
+                    if a.pergunta.is_none() {
+                        a.pergunta = Some(texto(dados, 0));
+                        a.entrada = Some(texto(dados, 1));
+                    }
+                    Ok(Json::Null)
                 }
             }
         }
