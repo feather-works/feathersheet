@@ -226,15 +226,13 @@ impl App {
             Tipo::Coluna => (tr!("Coluna"), "sparkline-columns"),
             Tipo::GanhosPerdas => (tr!("Ganhos/Perdas"), "sparkline-winloss"),
         };
-        // Não modal, à direita: a seleção na planilha preenche os campos.
+        // Não modal e centralizado, como no Excel: a seleção na planilha preenche os campos.
         self.dialogo(tr!("Criar Minigráficos"), corpo)
             .icone(icone)
             .subtitulo(titulo_tipo)
-            .topo(14.0)
             .altura_maxima((self.tamanho_principal.height - self.topo_dialogo() - 28.0).max(300.0))
             .largura(470.0)
             .nao_modal()
-            .a_direita()
             .ao_fechar(ev(Evento::Fechar))
             .secundario(tr!("Cancelar"), Some(ev(Evento::Fechar)))
             .primario("OK", Some(ev(Evento::Confirmar)))
