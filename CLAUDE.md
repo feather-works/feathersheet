@@ -23,6 +23,25 @@ módulo, `CompareMode`/`Key` do Dictionary e ler `.Left/.Top` da forma (`objetos
 medidas padrão da grade moram no `objetos_aba`). Novidade: "InputBox das macros do Excel volta a
 funcionar, com caixa para digitar." Número vira texto pelo CStr (vírgula decimal, 15 algarismos: `"Total: " & 0,1+0,2` dá `Total: 0,3`; `app.decimalSeparator`). Novidade: "Macros do Excel escrevem número com vírgula ao juntar texto, como no Excel em português." `AdvancedFilter` (copiar e no lugar, `filtro_avancado.rs`, marca `_xlnm._FilterDatabase`; o `.xlsx` grava `_xlnm.*` com `localSheetId`). Novidade: "Filtro Avançado das macros do Excel (copiar para outro lugar e filtrar no lugar)." Formulário da macro: Tab/Shift+Tab na ordem do `TabIndex` (`Controle::ordem`, `Formulario::ordem_do_tab`, `Evento::Tab`) e foco no primeiro campo ao abrir. Novidade: "Tab passa pelos campos dos formulários das macros na ordem do Excel." `CopyPicture` → `sheet.pastePicture` (`impressao_pdf::svg_da_area` com o `trait Pincel` comum ao PDF; `PedidoImagem` aplicado no `concluir_macro` por `objetos::aplicar_imagens_da_macro`) e botão direito ▸ "Copiar como imagem" (`imagens_importadas::gravar_png_na_area_de_transferencia`, fora da thread da janela). Novidade: "Copiar como imagem no botão direito e CopyPicture das macros do Excel."
 
+## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
+
+Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,
+`Transpor`, `Inverter`, `DividirPosicoes`, `Personalizada` (os dados vão para uma `Sheet` de rascunho e a
+fórmula é preenchida para baixo com `preencher_formula_faixa_vazia`; `[Coluna]` vira `B1` em
+`traduzir_formula`), `Juntar.semelhanca` (chave normalizada + Levenshtein, teto de 20 mi de comparações),
+`Tipar.erros` (o que não converte vira `#VALOR!`). Campos lógicos aceitam `null` (`bool_ou_nulo`: o script
+corta argumento nulo no fim). Tela: modais no `feather_ui::dialogo` com prévia (`etapa::previa`, 200
+linhas de amostra), Ctrl+Z das etapas (`historico`/`refazer` em JSON), Duplicar/Referenciar
+(`Consulta: nome` como origem; `fonte_da_salva`/`resultado_da_salva`, ciclo até 8), aviso de tipo
+(`aviso_tipo`), Da pasta (`importador::ler_pasta`, relida só pelo botão), `.fshz/.xlsm/.parquet` pelo
+`App::decodificar_caminho`, Exibir ▸ Dependências (`registro::dependencias`), "Atualizar ao abrir"
+(`_feather.atualizarAoAbrir`). A origem gravada não é mais traduzida (#151; `origem_interna` lê as antigas).
+Foto: `FEATHERSHEET_CAPTURAR_JANELA=openquery[:etapa|transformar|adicionar|dependencias]`.
+Novidades: "OpenQuery com os passos do Power Query que faltavam: substituir, preencher, formatar texto,
+remover linhas, transpor, dividir por posição, coluna personalizada com fórmula, agrupar com várias contas."
+e "Consultas: Ctrl+Z nas etapas, duplicar e referenciar, juntar arquivos de uma pasta e nomes parecidos,
+atualizar ao abrir o arquivo."
+
 ## v0.2.9 — 04/11/2026: minigráficos, desfazer exato, auditoria
 
 Inserir ▸ Minigráficos (Linha, Coluna, Ganhos/Perdas): modelo e contas em

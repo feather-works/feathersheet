@@ -335,13 +335,19 @@
       editar (engrenagem)/remover/reordenar passos (`openquery_ui/janela.rs`, `etapa.rs`).
 - [x] Consultas guardadas dentro do `.fshz`, com botão Atualizar e "atualizar
       ao abrir" (opção; relógio na lista de consultas, `_feather.atualizarAoAbrir`, 06/11/2026).
-- [ ] Fontes: aba, tabela, outro arquivo (`.fshz`, `.xlsx`, `.csv`, `.parquet`),
-      pasta inteira (junta os arquivos). Web/API só por pedido explícito.
-      *Parcial: tabela/intervalo, Web, CSV/TSV/TXT/JSON/XLSX feitos; faltam `.fshz`, `.parquet` e pasta.*
+- [x] Fontes: aba, tabela, outro arquivo (`.fshz`, `.xlsx`, `.xlsm`, `.csv`, `.parquet`),
+      pasta inteira (junta os arquivos, `importador::ler_pasta`), outra consulta (Referenciar).
+      Web/API só por pedido explícito. (06/11/2026)
 - [ ] Juntar (todos os tipos de join) e acrescentar entre fontes diferentes.
       *Parcial: acrescentar feito; os 6 joins no motor e no assistente; falta juntar fontes de arquivos diferentes.*
-- [ ] Tipos detectados por coluna, com aviso das linhas que não converteram.
-- [ ] Desfazer por passo.
+- [x] Tipos detectados por coluna, com aviso das linhas que não converteram (faixa amarela,
+      remover ou trocar por 0; `Tipar.erros`). (06/11/2026)
+- [x] Desfazer por passo (Ctrl+Z/Ctrl+Y na janela da consulta). (06/11/2026)
+- [x] Passos do Power Query que faltavam (06/11/2026): substituir valores/erros, coluna
+      condicional, extrair da data, formatar texto, preencher, remover linhas, transpor,
+      inverter, dividir por posição, coluna personalizada (fórmula da planilha com `[Coluna]`),
+      agrupar com várias contas, mesclagem aproximada, duplicar/referenciar consulta,
+      mapa de dependências. Modais com prévia ao vivo.
 
 ### Metas de número
 - [ ] Prévia de 1 milhão de linhas com 5 passos: **≤ 500 ms**.
