@@ -8,7 +8,6 @@ use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const MAX_BOTOES: usize = 128;
-const CABECALHO_X: f64 = 90.;
 const CABECALHO_Y: f64 = 30.;
 static SEQUENCIA_BOTAO: AtomicU64 = AtomicU64::new(1);
 
@@ -360,11 +359,11 @@ impl App {
             }
             let w = pos.width * z;
             let h = pos.height * z;
-            let x = ((if pos.x < xf { pos.x } else { pos.x - dx + xf }) + CABECALHO_X) * z;
+            let x = ((if pos.x < xf { pos.x } else { pos.x - dx + xf }) + f64::from(crate::grade::cabecalho_linha())) * z;
             let y = ((if pos.y < yf { pos.y } else { pos.y - dy + yf }) + CABECALHO_Y) * z;
             // Botão que subiu (ou foi para a esquerda) além das células não
             // é desenhado por cima dos cabeçalhos de linha e coluna.
-            if !x.is_finite() || !y.is_finite() || x < CABECALHO_X * z || y < CABECALHO_Y * z
+            if !x.is_finite() || !y.is_finite() || x < f64::from(crate::grade::cabecalho_linha()) * z || y < CABECALHO_Y * z
                 || x > 10_000. || y > 10_000. { continue; }
             // O corpo inteiro captura o press e aguarda mouse-up global antes
             // de decidir entre clique/executar e mover. Não executa no drag.

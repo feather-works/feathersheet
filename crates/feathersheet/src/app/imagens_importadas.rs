@@ -22,7 +22,7 @@ pub(super) const RECUO_X: f64 = 30.;
 pub(super) const RECUO_Y: f64 = 24.;
 /// A régua das imagens começa em `CABECALHO_X/Y`; a da grade, nos
 /// cabeçalhos dela. Somar isto leva um ponto da imagem para a régua da grade.
-pub(super) const DESLOC_X: f64 = CABECALHO_X - crate::grade::CABECALHO_LINHA as f64;
+pub(super) fn desloc_x() -> f64 { CABECALHO_X - crate::grade::cabecalho_linha() as f64 }
 pub(super) const DESLOC_Y: f64 = CABECALHO_Y - crate::grade::CABECALHO_COLUNA as f64;
 
 /// "Propriedades" do Formatar imagem: como a imagem acompanha as células
@@ -135,7 +135,7 @@ impl Posicao {
         let ancora = |k: &str| serde_json::from_value::<Ancora>(item[k].clone()).ok();
         let ponto = |a: Ancora| {
             let (x, y) = a.ponto(&regua);
-            (f64::from(x) - DESLOC_X, f64::from(y) - DESLOC_Y)
+            (f64::from(x) - desloc_x(), f64::from(y) - DESLOC_Y)
         };
         Some(match (Posicionamento::de(item), ancora("de"), ancora("ate")) {
             (Posicionamento::Fixa, ..) | (_, None, _) => pos,
@@ -158,7 +158,7 @@ impl Posicao {
         }
         let regua = super::objetos::ReguaAba(sheet);
         let ancora = |x: f64, y: f64| serde_json::to_value(
-            Ancora::em((x + DESLOC_X) as f32, (y + DESLOC_Y) as f32, &regua)).unwrap_or(Value::Null);
+            Ancora::em((x + desloc_x()) as f32, (y + DESLOC_Y) as f32, &regua)).unwrap_or(Value::Null);
         item["de"] = ancora(self.x, self.y);
         item["ate"] = ancora(self.x + self.width, self.y + self.height);
     }

@@ -34,7 +34,7 @@ fn botoes(linhas: u8, colunas: u8) -> Vec<(bool, u8, Rectangle)> {
         if maior == 0 { continue; }
         for n in 1..=maior + 1 {
             let x = 3.0 + (n - 1) as f32 * (BOTAO + 1.0);
-            if x + BOTAO > CABECALHO_LINHA - 2.0 { break; }
+            if x + BOTAO > cabecalho_linha() - 2.0 { break; }
             v.push((coluna, n, Rectangle::new(Point::new(x, y), Size::new(BOTAO, BOTAO))));
         }
     }
@@ -48,6 +48,15 @@ fn dentro(r: &Rectangle, p: Point) -> bool {
 impl Grade<'_> {
     fn topicos(&self) -> Option<&feathersheet_core::planilha::sheet::topicos::Topicos> {
         self.workbook.aba(self.aba).map(|a| &a.sheet.topicos).filter(|t| !t.vazio())
+    }
+
+    /// O que a estrutura de tópicos ocupa à esquerda dos números das linhas: os colchetes
+    /// de cada nível e os botões de nível do canto (0 sem tópicos).
+    pub(super) fn largura_topicos(&self) -> f32 {
+        let Some(t) = self.topicos() else { return 0.0 };
+        let (ml, mc) = (t.linhas.nivel_maior(), t.colunas.nivel_maior());
+        let botoes = 3.0 + f32::from(ml.max(mc) + 1) * (BOTAO + 1.0) + 2.0;
+        botoes.max(3.0 + f32::from(ml) * PASSO_LINHA)
     }
 
     pub(super) fn desenhar_topicos(&self, f: &mut Frame, colunas: &[Faixa], linhas: &[Faixa], cor: Color, fundo: Color) {
@@ -109,12 +118,12 @@ impl Grade<'_> {
     pub(super) fn clique_topicos(&self, p: Point, colunas: &[Faixa], linhas: &[Faixa]) -> Option<Msg> {
         let t = self.topicos()?;
         let (ml, mc) = (t.linhas.nivel_maior(), t.colunas.nivel_maior());
-        if p.x < CABECALHO_LINHA && p.y < CABECALHO_COLUNA {
+        if p.x < cabecalho_linha() && p.y < CABECALHO_COLUNA {
             return botoes(ml, mc).into_iter().find(|(_, _, r)| dentro(r, p))
                 .map(|(coluna, n, _)| Msg::Topicos(Evento::Nivel(coluna, n)));
         }
         let perto = |a: f32, b: f32| (a - b).abs() <= CAIXA / 2.0 + 1.5;
-        if p.x < CABECALHO_LINHA && ml > 0 {
+        if p.x < cabecalho_linha() && ml > 0 {
             let &(r, y, h) = linhas.iter().find(|&&(_, y, h)| p.y >= y && p.y < y + h)?;
             return (1..=ml).find(|&n| resumo(&t.linhas, r, n) && perto(p.x, x_nivel(n)) && perto(p.y, y + h / 2.0))
                 .map(|n| Msg::Topicos(Evento::Alternar(false, n, r)));
@@ -134,10 +143,11 @@ mod testes {
 
     #[test]
     fn botoes_cabem_no_canto_e_acertam_o_clique() {
+        definir_cabecalho_linha(largura_cabecalho_linha(2) + 3.0 + 3.0 * (BOTAO + 1.0) + 2.0);
         let b = botoes(2, 1);
         assert_eq!(b.iter().filter(|(c, ..)| !c).count(), 3, "níveis 1, 2 e 3 das linhas");
         assert_eq!(b.iter().filter(|(c, ..)| *c).count(), 2);
-        assert!(b.iter().all(|(_, _, r)| r.x + r.width <= CABECALHO_LINHA && r.y + r.height <= CABECALHO_COLUNA));
+        assert!(b.iter().all(|(_, _, r)| r.x + r.width <= cabecalho_linha() && r.y + r.height <= CABECALHO_COLUNA));
         let mut e = EixoTopicos::default();
         for i in 2..=4 { e.niveis.insert(i, 1); }
         assert!(resumo(&e, 5, 1) && !resumo(&e, 4, 1) && !resumo(&e, 1, 1));

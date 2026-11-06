@@ -226,7 +226,7 @@ impl App {
                     .find_map(|d| retangulo_json(&d["areaFiltros"]));
                 if let Some(af) = achado {
                     let z = self.config.zoom as f32 / 100.0;
-                    let x = crate::grade::CABECALHO_LINHA + crate::grade::modelo::inicio_x(&self.workbook, self.folha, af.c0 + 2) - 24.0;
+                    let x = crate::grade::cabecalho_linha() + crate::grade::modelo::inicio_x(&self.workbook, self.folha, af.c0 + 2) - 24.0;
                     let y = crate::grade::CABECALHO_COLUNA + crate::grade::modelo::inicio_y(&self.workbook, self.folha, af.r0 + 1);
                     let _ = self.evento_dinamica(Evento::FiltroNaGrade(af.r0, af.c0 + 1, x * z, y * z));
                 }

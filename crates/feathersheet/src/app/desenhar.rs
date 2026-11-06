@@ -29,7 +29,7 @@ use feathersheet_io::tinta_aba::{TintaAba, MAX_TRACOS};
 /// Simplificação do traço, em pixels de tela (dividida pelo zoom).
 const TOLERANCIA_TELA: f32 = 0.6;
 /// Cabeçalhos da grade em px lógicos (escalam com o zoom), iguais aos da grade.
-const CABECALHO_X: f32 = crate::grade::CABECALHO_LINHA;
+fn cabecalho_x() -> f32 { crate::grade::cabecalho_linha() }
 const CABECALHO_Y: f32 = crate::grade::CABECALHO_COLUNA;
 /// Barras de rolagem desenhadas no próprio Canvas (não escalam com o zoom).
 const BARRA: f32 = 13.0;
@@ -171,7 +171,7 @@ impl Vista {
         Ponto::novo(p.x + dx, p.y + dy)
     }
     fn transformacao(self) -> Transformacao {
-        Transformacao { escala: self.zoom, dx: CABECALHO_X * self.zoom, dy: CABECALHO_Y * self.zoom }
+        Transformacao { escala: self.zoom, dx: cabecalho_x() * self.zoom, dy: CABECALHO_Y * self.zoom }
     }
 }
 
@@ -285,7 +285,7 @@ impl App {
         let (tracos, transformacao) = self.tracos_tela();
         let zoom = transformacao.escala;
         let mut camada = Camada::nova(tracos, transformacao, Msg::Tinta);
-        camada.margens = pelicano::Padding { top: CABECALHO_Y * zoom, right: BARRA, bottom: BARRA, left: CABECALHO_X * zoom };
+        camada.margens = pelicano::Padding { top: CABECALHO_Y * zoom, right: BARRA, bottom: BARRA, left: cabecalho_x() * zoom };
         camada.ferramenta = estado.ferramenta_ativa();
         camada.pena = estado.pena().map(|p| {
             let opacidade = if estado.ferramenta == Ferramenta::MarcaTexto {
@@ -917,6 +917,7 @@ mod testes {
 
     #[test]
     fn tinta_acompanha_rolagem_zoom_e_largura_de_coluna() {
+        crate::grade::definir_cabecalho_linha(100.0); // as posições do teste contam com 100 px
         let mut app = app();
         rabisco(&mut app, Ferramenta::Caneta(0), &[(300.0, 100.0), (340.0, 120.0)]);
         let aba = TintaAba::ler(tn(&app).as_deref()).unwrap();
@@ -1084,7 +1085,7 @@ mod testes {
         let z = 1.0;
         let origem = pelicano::Point::new(0.0, 100.0);
         let area = crate::compat::Rectangle::new(
-            pelicano::Point::new(origem.x + CABECALHO_X * z, origem.y + CABECALHO_Y * z),
+            pelicano::Point::new(origem.x + cabecalho_x() * z, origem.y + CABECALHO_Y * z),
             pelicano::Size::new(800.0, 500.0),
         );
         fonte.definir_zona_tinta(Some(ZonaTinta { area, origem }));
@@ -1135,7 +1136,7 @@ mod testes {
         fonte.definir_janela_x11(0x40_0001);
         app.tinta.fonte_pressao = Some(fonte.clone());
         let origem = pelicano::Point::new(0.0, 100.0);
-        let area = crate::compat::Rectangle::new(pelicano::Point::new(CABECALHO_X, 100.0 + CABECALHO_Y), pelicano::Size::new(800.0, 500.0));
+        let area = crate::compat::Rectangle::new(pelicano::Point::new(cabecalho_x(), 100.0 + CABECALHO_Y), pelicano::Size::new(800.0, 500.0));
         fonte.definir_zona_tinta(Some(ZonaTinta { area, origem }));
         fonte
     }

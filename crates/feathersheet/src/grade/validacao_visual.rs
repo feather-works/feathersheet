@@ -54,7 +54,7 @@ impl Grade<'_> {
         // À direita da célula, na altura do meio dela (não cobre a coluna,
         // onde ficam os círculos); sem espaço, vai para a esquerda.
         let mut bx = x + w + 10.0;
-        if bx + LARGURA_BALAO > area.width - 4.0 { bx = (x - LARGURA_BALAO - 10.0).max(super::CABECALHO_LINHA + 2.0); }
+        if bx + LARGURA_BALAO > area.width - 4.0 { bx = (x - LARGURA_BALAO - 10.0).max(super::cabecalho_linha() + 2.0); }
         let by = (y + h / 2.0 - 8.0).min(area.height - altura - 4.0).max(super::CABECALHO_COLUNA + 2.0);
         let caixa = canvas::Path::rounded_rectangle(Point::new(bx, by), Size::new(LARGURA_BALAO, altura), 6.0);
         f.fill(&caixa, COR_PAINEL());

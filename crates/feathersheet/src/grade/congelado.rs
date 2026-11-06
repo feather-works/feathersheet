@@ -68,8 +68,8 @@ impl Grade<'_> {
         let Some((_, colunas)) = cache.para(
             self.workbook, self.aba, MAX_ROWS, MAX_COLS,
             ALTURA_PADRAO, LARGURA_PADRAO,
-        ) else { return (Vec::new(), CABECALHO_LINHA); };
-        faixas(self.area_util(largura_total), CABECALHO_LINHA, self.congelar_colunas,
+        ) else { return (Vec::new(), cabecalho_linha()); };
+        faixas(self.area_util(largura_total), cabecalho_linha(), self.congelar_colunas,
             origem, MAX_COLS, colunas, corte)
     }
 

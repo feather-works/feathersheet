@@ -1074,6 +1074,7 @@ fn boletim_configurar_series_copiar_e_pizza_por_situacao() {
 
     #[test]
     fn duplo_clique_abre_o_editor_e_o_painel_responde() {
+        crate::grade::definir_cabecalho_linha(100.0); // as posições do teste contam com 100 px
         use pelicano::{Event, MouseButton, Point, Size};
         let mut a = App::default();
         let _ = a.update(Msg::Colar("Mês\tTotal\nmar\t1\nabr\t2".into()));

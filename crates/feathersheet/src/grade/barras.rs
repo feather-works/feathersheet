@@ -68,7 +68,7 @@ impl Grade<'_> {
             .saturating_sub(self.congelar_colunas).max(1);
         let origem_linha = self.primeira_linha_visivel(bounds.height);
         let topo = CABECALHO_COLUNA * self.zoom;
-        let esquerda = CABECALHO_LINHA * self.zoom;
+        let esquerda = cabecalho_linha() * self.zoom;
         // Dados + uma página de folga; se a pessoa já foi além, o curso a acompanha.
         let ultimo_linha = (fim_linhas.max(origem_linha) + vis_linhas / 2)
             .max(self.congelar_linhas).min(MAX_ROWS - 1);
@@ -127,7 +127,7 @@ impl Grade<'_> {
     pub(super) fn barra_no_ponto(&self, p: Point, bounds: Size) -> Option<bool> {
         if p.x >= bounds.width - ESPESSURA && p.y >= CABECALHO_COLUNA * self.zoom
             && p.y < bounds.height - ESPESSURA { return Some(true); }
-        if p.y >= bounds.height - ESPESSURA && p.x >= CABECALHO_LINHA * self.zoom
+        if p.y >= bounds.height - ESPESSURA && p.x >= cabecalho_linha() * self.zoom
             && p.x < bounds.width - ESPESSURA { return Some(false); }
         None
     }

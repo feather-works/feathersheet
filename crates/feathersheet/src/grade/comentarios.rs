@@ -97,7 +97,7 @@ impl Grade<'_> {
             let altura = 12.0 + ALTURA_LINHA * (linhas_texto.len() + usize::from(com_autor)) as f32;
             // À direita da célula; sem espaço, vai para a esquerda dela.
             let mut x = canto_x + 12.0;
-            if x + LARGURA_BALAO > area.width - 4.0 { x = (canto_x - LARGURA_BALAO - 24.0).max(super::CABECALHO_LINHA + 2.0); }
+            if x + LARGURA_BALAO > area.width - 4.0 { x = (canto_x - LARGURA_BALAO - 24.0).max(super::cabecalho_linha() + 2.0); }
             let y = (canto_y - 2.0).min(area.height - altura - 4.0).max(super::CABECALHO_COLUNA + 2.0);
             // Traço do canto da célula até o balão, como no Excel.
             let ligacao = canvas::Path::line(Point::new(canto_x, canto_y), Point::new(x, y + 8.0));

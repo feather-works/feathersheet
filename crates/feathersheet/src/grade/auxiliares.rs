@@ -94,7 +94,7 @@ impl Grade<'_> {
     /// linhas, as colunas congeladas e a barra de rolagem vertical.
     fn largura_rolavel(&self, largura_canvas: f32) -> f32 {
         let zoom = self.zoom.max(0.01);
-        let disponivel = (largura_canvas / zoom - CABECALHO_LINHA).max(0.0);
+        let disponivel = (largura_canvas / zoom - cabecalho_linha()).max(0.0);
         let largura_fixa = (0..self.congelar_colunas.min(30))
             .map(|c| largura(self.workbook, self.aba, c).max(0.0))
             .sum::<f32>().min(disponivel * 0.70);
@@ -203,7 +203,7 @@ impl Grade<'_> {
             Some(e.proximo_visivel(i).unwrap_or(i).max(congeladas))
         };
         (eixo(linhas, CABECALHO_COLUNA, self.congelar_linhas, origem.0, p.y),
-         eixo(colunas, CABECALHO_LINHA, self.congelar_colunas, origem.1, p.x))
+         eixo(colunas, cabecalho_linha(), self.congelar_colunas, origem.1, p.x))
     }
 
     /// Mapeia ponto do viewport para célula absoluta, respeitando alturas
@@ -222,7 +222,7 @@ impl Grade<'_> {
         let p = Point::new(local.x, local.y);
         let tamanho = Size::new(tamanho.width / viewport.escala(),
                                 tamanho.height / viewport.escala());
-        if p.x < CABECALHO_LINHA || p.y < CABECALHO_COLUNA ||
+        if p.x < cabecalho_linha() || p.y < CABECALHO_COLUNA ||
             p.x >= tamanho.width || p.y >= tamanho.height { return None; }
         self.ponto_para_celula(p,tamanho)
     }

@@ -37,7 +37,23 @@ use desenho_auxiliar::{cor_contraste, cor_hex, desenhar_funil, divisoria_visivel
 
 /// Como o Canvas escala a grade inteira, a largura acompanha o zoom.
 /// Cabe "100000000" (nove dígitos, o limite de linhas) com folga.
-pub const CABECALHO_LINHA: f32 = 100.0;
+/// Largura da coluna dos números de linha para `digitos` algarismos (como o Excel, cresce
+/// quando a última linha à vista ganha um algarismo).
+pub const fn largura_cabecalho_linha(digitos: u32) -> f32 {
+    let d = if digitos < 2 { 2 } else { digitos };
+    18.0 + 7.0 * d as f32
+}
+
+thread_local! {
+    static CABECALHO_LINHA_ATUAL: std::cell::Cell<f32> = const { std::cell::Cell::new(largura_cabecalho_linha(2)) };
+}
+
+/// A largura dos números de linha do último desenho da grade (pixels lógicos). Quem
+/// posiciona algo sobre a grade (objetos, gráficos, tinta, cliques) lê daqui.
+// shortcut: valor da thread da janela (só há uma grade principal); vira campo da Grade se um dia houver duas.
+pub fn cabecalho_linha() -> f32 { CABECALHO_LINHA_ATUAL.with(std::cell::Cell::get) }
+
+pub(crate) fn definir_cabecalho_linha(largura: f32) { CABECALHO_LINHA_ATUAL.with(|c| c.set(largura)); }
 pub const CABECALHO_COLUNA: f32 = 30.0;
 pub const LARGURA_PADRAO: f32 = feathersheet_io::objetos_aba::LARGURA_PADRAO;
 
@@ -132,6 +148,9 @@ impl canvas::Program<Msg> for Grade<'_> {
         // Guarda o tamanho real do Canvas: manter a célula à vista e o Page
         // Down contam com ele (zoom e alturas reais), não com 28 × 12 fixos.
         self.eixos.borrow_mut().tamanho_canvas = Some(tela.size());
+        // Números de linha com a largura dos algarismos da última linha à vista.
+        let ultima = self.linhas_visiveis(tela.height / self.zoom).0.last().map_or(1, |f| f.0 + 1);
+        definir_cabecalho_linha(largura_cabecalho_linha(ultima.checked_ilog10().unwrap_or(0) + 1) + self.largura_topicos());
         // Sem cache de desenho: o pelicano já só repinta quando algo mudou.
         {
         let mut f = Frame::new(renderer, bounds);
@@ -189,7 +208,7 @@ impl canvas::Program<Msg> for Grade<'_> {
             (header, fraco, ativo, selecao)
         };
         f.fill_rectangle(Point::ORIGIN, Size::new(bounds.width,CABECALHO_COLUNA),header);
-        f.fill_rectangle(Point::ORIGIN, Size::new(CABECALHO_LINHA,bounds.height),header);
+        f.fill_rectangle(Point::ORIGIN, Size::new(cabecalho_linha(),bounds.height),header);
         let coluna_atual = self.selecionada.1;
         let linha_atual = self.selecionada.0;
         // Matriz dinâmica: com a âncora ou uma vizinha selecionada, a área
@@ -735,7 +754,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                         _ => (x - 0.5 - meio, y - 0.5 - meio, esp, desenhar_h + esp),
                     };
                     // Sem invadir os cabeçalhos de linha e de coluna.
-                    let (sx, largura) = (sx.max(CABECALHO_LINHA), largura - (CABECALHO_LINHA - sx).max(0.0));
+                    let (sx, largura) = (sx.max(cabecalho_linha()), largura - (cabecalho_linha() - sx).max(0.0));
                     let (sy, altura) = (sy.max(CABECALHO_COLUNA), altura - (CABECALHO_COLUNA - sy).max(0.0));
                     if largura <= 0.0 || altura <= 0.0 { continue; }
                     if tipo_traco.as_deref() == Some("Tracejada") {
@@ -774,28 +793,28 @@ impl canvas::Program<Msg> for Grade<'_> {
         for (il, &(r, y, desenhar_h)) in linhas_visiveis.iter().enumerate() {
             let h = alturas_inteiras[il];
             if r == linha_atual {
-                f.fill_rectangle(Point::new(0.0, y), Size::new(CABECALHO_LINHA, desenhar_h), selecao_cab);
+                f.fill_rectangle(Point::new(0.0, y), Size::new(cabecalho_linha(), desenhar_h), selecao_cab);
             }
             // Limite entre números de linhas consecutivas (1/2, 2/3...).
             if let Some(divisor_y) = divisoria_visivel(y, desenhar_h, bounds.height, espessura) {
                 f.fill_rectangle(
                     Point::new(0.0, divisor_y),
-                    Size::new(CABECALHO_LINHA.min(bounds.width), espessura),
+                    Size::new(cabecalho_linha().min(bounds.width), espessura),
                     divisoria,
                 );
             }
             if r > 0 && folha_oculta.is_some_and(|s| s.linha_oculta(r - 1)) {
                 marca_oculta(&mut f, Point::new(0.0, y - espessura),
-                    Size::new(CABECALHO_LINHA, 3.0 * espessura), Size::new(CABECALHO_LINHA, espessura));
+                    Size::new(cabecalho_linha(), 3.0 * espessura), Size::new(cabecalho_linha(), espessura));
             }
             // Centrado na altura INTEIRA e recortado no pedaço visível: a última
             // linha, cortada, mostra o número no tamanho normal (só cortado),
             // sem cair sobre o número da linha de cima nem sobre a barra.
             recortar_celula(&mut f, self.zoom,
-                Rectangle::new(Point::new(0.0, y), Size::new(CABECALHO_LINHA, desenhar_h)),
+                Rectangle::new(Point::new(0.0, y), Size::new(cabecalho_linha(), desenhar_h)),
                 |frame| frame.fill_text(Text {
                     content: (r+1).to_string(),
-                    position: Point::new(CABECALHO_LINHA-9.0, h/2.0),
+                    position: Point::new(cabecalho_linha()-9.0, h/2.0),
                     color: if r == linha_atual { ativo_cab } else { fraco_cab },
                     size: crate::compat::Pixels(12.0),
                     horizontal_alignment: pelicano::Align::End,
@@ -804,13 +823,13 @@ impl canvas::Program<Msg> for Grade<'_> {
                 }));
         }
         // Separadores reais dos painéis fixos, sem cobrir textos ou células.
-        if self.congelar_colunas > 0 && divisor_x > CABECALHO_LINHA {
+        if self.congelar_colunas > 0 && divisor_x > cabecalho_linha() {
             f.fill_rectangle(Point::new(divisor_x-1.5,CABECALHO_COLUNA),
                 Size::new(2.5,(bounds.height-CABECALHO_COLUNA).max(0.0)),divisoria_fixa);
         }
         if self.congelar_linhas > 0 && divisor_y > CABECALHO_COLUNA {
-            f.fill_rectangle(Point::new(CABECALHO_LINHA,divisor_y-1.5),
-                Size::new((bounds.width-CABECALHO_LINHA).max(0.0),2.5),divisoria_fixa);
+            f.fill_rectangle(Point::new(cabecalho_linha(),divisor_y-1.5),
+                Size::new((bounds.width-cabecalho_linha()).max(0.0),2.5),divisoria_fixa);
         }
         // Mesclagem visual do TS: elimina divisórias e textos internos no
         // retângulo visível, depois desenha SOMENTE o texto da célula âncora.
@@ -1001,9 +1020,9 @@ impl canvas::Program<Msg> for Grade<'_> {
         // 2) entre as letras das colunas e as células.
         // Devem sobreviver ao destaque de cabeçalhos e ao modo sem grade.
         let borda_fixa = 1.5 * espessura;
-        if bounds.width >= CABECALHO_LINHA {
+        if bounds.width >= cabecalho_linha() {
             f.fill_rectangle(
-                Point::new(CABECALHO_LINHA - borda_fixa, 0.0),
+                Point::new(cabecalho_linha() - borda_fixa, 0.0),
                 Size::new(borda_fixa, bounds.height),
                 divisoria_fixa,
             );
@@ -1118,11 +1137,11 @@ impl Grade<'_> {
         if let Some(p) = local(cursor, bounds) {
             let p = Point::new(p.x / self.zoom, p.y / self.zoom);
             let perto = |inicio: f32, tamanho: f32, ponto: f32| (ponto - (inicio + tamanho)).abs() <= FOLGA_DIVISORIA;
-            if p.y < CABECALHO_COLUNA && p.x >= CABECALHO_LINHA
+            if p.y < CABECALHO_COLUNA && p.x >= cabecalho_linha()
                 && self.colunas_visiveis(bounds.width / self.zoom).0.iter().any(|&(_, x, w)| perto(x, w, p.x)) {
                 return mouse::Interaction::EwResize;
             }
-            if p.x < CABECALHO_LINHA && p.y >= CABECALHO_COLUNA
+            if p.x < cabecalho_linha() && p.y >= CABECALHO_COLUNA
                 && self.linhas_visiveis(bounds.height / self.zoom).0.iter().any(|&(_, y, h)| perto(y, h, p.y)) {
                 return mouse::Interaction::NsResize;
             }
@@ -1152,7 +1171,7 @@ impl Grade<'_> {
                         return (Captured::No, None);
                     };
 
-                    if p.y < CABECALHO_COLUNA && p.x >= CABECALHO_LINHA {
+                    if p.y < CABECALHO_COLUNA && p.x >= cabecalho_linha() {
                         for &(col, cx, w) in &self.colunas_visiveis(bounds.width/self.zoom).0 {
                             if p.x >= cx && p.x < cx+w {
                                 return (Captured::Yes,
@@ -1160,7 +1179,7 @@ impl Grade<'_> {
                             }
                         }
                     }
-                    if p.x < CABECALHO_LINHA && p.y >= CABECALHO_COLUNA {
+                    if p.x < cabecalho_linha() && p.y >= CABECALHO_COLUNA {
                         for &(lin, cy, h) in &self.linhas_visiveis(bounds.height/self.zoom).0 {
                             if p.y >= cy && p.y < cy+h {
                                 return (Captured::Yes,
@@ -1270,7 +1289,7 @@ impl Grade<'_> {
                         }
                     }
                     // [+]/[−] e botões de nível da estrutura de tópicos.
-                    if p.x < CABECALHO_LINHA || p.y < CABECALHO_COLUNA {
+                    if p.x < cabecalho_linha() || p.y < CABECALHO_COLUNA {
                         let colunas = self.colunas_visiveis(bounds.width/self.zoom).0;
                         let linhas = self.linhas_visiveis(bounds.height/self.zoom).0;
                         if let Some(msg) = self.clique_topicos(p, &colunas, &linhas) {
@@ -1278,10 +1297,10 @@ impl Grade<'_> {
                         }
                     }
                     // Canto superior esquerdo: planilha inteira.
-                    if p.y < CABECALHO_COLUNA && p.x < CABECALHO_LINHA {
+                    if p.y < CABECALHO_COLUNA && p.x < cabecalho_linha() {
                         return (Captured::Yes, Some(Msg::SelecionarTudo));
                     }
-                    if p.y < CABECALHO_COLUNA && p.x >= CABECALHO_LINHA {
+                    if p.y < CABECALHO_COLUNA && p.x >= cabecalho_linha() {
                         let colunas = self.colunas_visiveis(bounds.width/self.zoom).0;
                         // Divisória: duplo clique ajusta ao conteúdo (lote se selecionada).
                         if let Some(&(col, x, w)) = colunas.iter().find(|&&(_, x, w)|
@@ -1298,7 +1317,7 @@ impl Grade<'_> {
                             }
                         }
                     }
-                    if p.x < CABECALHO_LINHA && p.y >= CABECALHO_COLUNA {
+                    if p.x < cabecalho_linha() && p.y >= CABECALHO_COLUNA {
                         let linhas = self.linhas_visiveis(bounds.height/self.zoom).0;
                         if let Some(&(row, y, h)) = linhas.iter().find(|&&(_, y, h)|
                             (p.y - (y + h)).abs() <= FOLGA_DIVISORIA) {
@@ -1340,7 +1359,7 @@ impl Grade<'_> {
                         if let Some(a) = self.workbook.aba(self.aba) {
                             let mapa = crate::dinamica_visual::com_cache(&a.sheet,a.versao);
                             if let Some((caminho,_)) = crate::dinamica_visual::marca(&mapa,r,c) {
-                                let mut esquerda = CABECALHO_LINHA;
+                                let mut esquerda = cabecalho_linha();
                                 for indice in self.primeira_coluna_visivel(bounds.width)..c {
                                     esquerda += largura(self.workbook,self.aba,indice);
                                 }
@@ -1598,7 +1617,7 @@ fn desenhar_guia_dimensao(f: &mut Frame, bounds: Rectangle, a: ArrastoDimensao, 
     let (caixa, guia) = if a.coluna {
         (Point::new(a.atual + 6.0, 2.0), (Point::new(a.atual - e / 2.0, 0.0), Size::new(e, bounds.height)))
     } else {
-        (Point::new(CABECALHO_LINHA + 4.0, a.atual + 4.0), (Point::new(0.0, a.atual - e / 2.0), Size::new(bounds.width, e)))
+        (Point::new(cabecalho_linha() + 4.0, a.atual + 4.0), (Point::new(0.0, a.atual - e / 2.0), Size::new(bounds.width, e)))
     };
     f.fill_rectangle(guia.0, guia.1, cor);
     let largura = rotulo.chars().count() as f32 * 6.6 + 14.0;

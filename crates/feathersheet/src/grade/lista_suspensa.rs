@@ -88,9 +88,9 @@ impl Grade<'_> {
         let altura = linhas as f32 * ITEM + 2.0;
         // Perto da borda direita, a lista vira para a esquerda em vez de cortar.
         let largura = w.max(160.0).min(320.0)
-            .min((viewport.width - CABECALHO_LINHA - 4.0).max(0.0));
+            .min((viewport.width - cabecalho_linha() - 4.0).max(0.0));
         if largura < 80.0 { return None; }
-        let esquerda = x.min((viewport.width - largura - 3.0).max(CABECALHO_LINHA));
+        let esquerda = x.min((viewport.width - largura - 3.0).max(cabecalho_linha()));
         let topo = if y + h + altura <= viewport.height { y + h }
             else { (y - altura).max(CABECALHO_COLUNA) };
         Some((esquerda, topo, largura, altura, linhas))

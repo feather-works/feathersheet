@@ -61,6 +61,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
 
     #[test]
     fn ctrl_roda_no_centro_da_celula_produz_zoom_sem_rolagem() {
+        crate::grade::definir_cabecalho_linha(100.0); // as posições do teste contam com 100 px
         let wb = Workbook::new();
         let condicional = RefCell::new(EstadoCondicional::default());
         let mut grade = Grade { cache: cache_teste(), impressao: None, copiada: None, setas: &[], comentarios: Default::default(), circulos_validacao: &[], opcoes_coluna: None, areas_extras: &[],
@@ -100,6 +101,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
 
     #[test]
     fn arrastar_divisoria_do_cabecalho_muda_a_largura_com_zoom() {
+        crate::grade::definir_cabecalho_linha(100.0); // as posições do teste contam com 100 px
         let wb = Workbook::new();
         let condicional = RefCell::new(EstadoCondicional::default());
         let grade = Grade { cache: cache_teste(), impressao: None, copiada: None, setas: &[], comentarios: Default::default(), circulos_validacao: &[], opcoes_coluna: None, areas_extras: &[],
@@ -149,6 +151,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
 
     #[test]
     fn divisorias_sao_independentes_do_estado_linhas_grade() {
+        crate::grade::definir_cabecalho_linha(100.0); // as posições do teste contam com 100 px
         // Mesmo desabilitando linhas internas, a geometria do cabeçalho
         // continua sendo produzida. A pintura acontece fora do if linhas_grade.
         let wb = Workbook::new();
@@ -163,7 +166,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
             };
             let largura = largura(grade.workbook, grade.aba, 0);
             let altura = altura(grade.workbook, grade.aba, 0);
-            assert_eq!(divisoria_visivel(CABECALHO_LINHA, largura, 800.0, 1.0), Some(221.0));
+            assert_eq!(divisoria_visivel(cabecalho_linha(), largura, 800.0, 1.0), Some(221.0));
             assert_eq!(divisoria_visivel(CABECALHO_COLUNA, altura, 580.0, 1.0), Some(57.0));
             assert_eq!(grade.selecionada, (11, 0));
         }
@@ -198,6 +201,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
     }
     #[test]
     fn zoom_e_eixos_ocultos_mantem_clique_na_celula_visivel() {
+        crate::grade::definir_cabecalho_linha(100.0); // as posições do teste contam com 100 px
         let mut wb = Workbook::new();
         let condicional = RefCell::new(EstadoCondicional::default());
         wb.aba_mut(0).unwrap().sheet.row_heights.insert(0,0);
@@ -237,7 +241,8 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
 
     #[test]
     fn cabecalho_reserva_largura_para_nove_digitos() {
-        assert!(CABECALHO_LINHA >= 96.0);
+        assert!(largura_cabecalho_linha(MAX_ROWS.ilog10() + 1) >= 9.0 * 7.0 + 18.0);
+        assert!(largura_cabecalho_linha(1) < 40.0, "1 a 10: fina");
         assert_eq!(MAX_ROWS, 100_000_000);
     }
 
@@ -294,7 +299,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
                 centro_ultima >= util - ALTURA_PADRAO * zoom * 1.5,
                 "não pode deixar um espaço vazio grande no rodapé com zoom {zoom}",
             );
-            let x = (CABECALHO_LINHA + 10.0) * zoom;
+            let x = (cabecalho_linha() + 10.0) * zoom;
             assert_eq!(
                 g.celula_no_ponto(Point::new(x, centro_ultima), Size::new(800.0, altura_tela)),
                 Some((MAX_ROWS - 1, 0)),
@@ -332,7 +337,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
             assert!(centro_ultima < tela.height);
             assert_eq!(
                 g.celula_no_ponto(
-                    Point::new((CABECALHO_LINHA + 8.0) * zoom, centro_ultima), tela,
+                    Point::new((cabecalho_linha() + 8.0) * zoom, centro_ultima), tela,
                 ),
                 Some((MAX_ROWS - 1, 0)),
             );

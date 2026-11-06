@@ -66,7 +66,7 @@ fn para_png_ou_jpeg(bytes: Vec<u8>) -> Result<Vec<u8>, String> {
 /// A célula debaixo do canto `(x, y)` da imagem solta (régua das imagens).
 fn celula_em(sheet: &feathersheet_core::planilha::sheet::Sheet, x: f64, y: f64) -> (u32, u32) {
     let (r, c, _, _) = super::desenhar::celula_em(sheet,
-        (x + imagens_importadas::DESLOC_X) as f32, (y + imagens_importadas::DESLOC_Y) as f32);
+        (x + imagens_importadas::desloc_x()) as f32, (y + imagens_importadas::DESLOC_Y) as f32);
     (r, c)
 }
 

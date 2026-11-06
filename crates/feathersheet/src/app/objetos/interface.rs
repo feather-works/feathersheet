@@ -6,7 +6,7 @@
 //! Tudo aqui só MONTA widgets e manda [`Evento`]; a lógica fica em
 //! `objetos.rs` (`evento_objetos`). A barra, a aba e o menu de contexto
 //! mandam as mesmas mensagens.
-use super::camada::{caminhos_centrados, cor_hex, cor_texto, desenhar_icone, posicao_texto, tamanho_texto, Camada, CAB_X, CAB_Y};
+use super::camada::{caminhos_centrados, cor_hex, cor_texto, desenhar_icone, posicao_texto, tamanho_texto, Camada, cab_x, CAB_Y};
 use super::*;
 use crate::app::menu_contexto::{self, ItemMenu};
 use crate::compat::canvas as cv; use crate::compat::canvas::Frame; use crate::compat::canvas::Program; use crate::compat::canvas::Stroke;
@@ -167,7 +167,7 @@ impl App {
                 .width(Length::FILL).height(Length::FILL).into()];
         if let (Some(r), Some(o)) = (tela, selecionado.and_then(|id| lidos.obter(id))) {
             let z = vista.zoom;
-            let (min_x, min_y) = (CAB_X * z + 4.0, CAB_Y * z + 4.0);
+            let (min_x, min_y) = (cab_x() * z + 4.0, CAB_Y * z + 4.0);
             match (&self.objetos.texto, editando) {
                 (Some((_, t)), Some(_)) => {
                     // Edita no lugar: sem caixa branca, na letra, cor e

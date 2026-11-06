@@ -724,7 +724,7 @@ impl App {
             )),
             pelicano::row![
                 Space::new(Length::Fixed(
-                    crate::grade::CABECALHO_LINHA * zoom as f32
+                    crate::grade::cabecalho_linha() * zoom as f32
                 ), 0.0),
                 celulas
             ].width(Length::FILL).height(Length::FILL)

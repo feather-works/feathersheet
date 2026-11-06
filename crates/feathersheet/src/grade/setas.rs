@@ -26,7 +26,7 @@ impl Grade<'_> {
     ) {
         if self.setas.is_empty() { return; }
         let ponto = |r: u32, c: u32| Point::new(
-            centro(c, colunas, CABECALHO_LINHA, tamanho.width),
+            centro(c, colunas, cabecalho_linha(), tamanho.width),
             centro(r, linhas, CABECALHO_COLUNA, tamanho.height),
         );
         for seta in self.setas {
@@ -35,7 +35,7 @@ impl Grade<'_> {
             let traco = canvas::Stroke::default().with_color(cor).with_width(1.5);
             let origem = if seta.externa {
                 // Ícone de planilha acima e à esquerda da fórmula.
-                let canto = Point::new((destino.x - 46.0).max(CABECALHO_LINHA + 2.0),
+                let canto = Point::new((destino.x - 46.0).max(cabecalho_linha() + 2.0),
                     (destino.y - 30.0).max(CABECALHO_COLUNA + 2.0));
                 let icone = Size::new(14.0, 11.0);
                 f.fill_rectangle(canto, icone, if self.escuro {

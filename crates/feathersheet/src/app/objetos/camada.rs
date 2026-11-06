@@ -22,7 +22,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
-pub(super) const CAB_X: f32 = crate::grade::CABECALHO_LINHA;
+pub(super) fn cab_x() -> f32 { crate::grade::cabecalho_linha() }
 pub(super) const CAB_Y: f32 = crate::grade::CABECALHO_COLUNA;
 /// Barras de rolagem desenhadas pela grade (não escalam com o zoom).
 const BARRA: f32 = 13.0;
@@ -589,11 +589,11 @@ impl Camada {
     pub(super) fn ret_tela(&self, r: Retangulo) -> Rectangle {
         let (dx, dy) = self.vista.deslocamento(Ponto::novo(r.x, r.y));
         let z = self.z();
-        Rectangle { x: (r.x - dx + CAB_X) * z, y: (r.y - dy + CAB_Y) * z, width: r.largura * z, height: r.altura * z }
+        Rectangle { x: (r.x - dx + cab_x()) * z, y: (r.y - dy + CAB_Y) * z, width: r.largura * z, height: r.altura * z }
     }
 
     fn corpo(&self, tamanho: pelicano::Size) -> Rectangle {
-        let (x, y) = (CAB_X * self.z(), CAB_Y * self.z());
+        let (x, y) = (cab_x() * self.z(), CAB_Y * self.z());
         Rectangle { x, y, width: (tamanho.width - BARRA - x).max(0.0), height: (tamanho.height - BARRA - y).max(0.0) }
     }
 
@@ -602,7 +602,7 @@ impl Camada {
     fn recorte(&self, r: Retangulo, tamanho: pelicano::Size) -> Rectangle {
         let corpo = self.corpo(tamanho);
         let z = self.z();
-        let x0 = if r.x < self.vista.fixa_x { corpo.x } else { (CAB_X + self.vista.fixa_x) * z };
+        let x0 = if r.x < self.vista.fixa_x { corpo.x } else { (cab_x() + self.vista.fixa_x) * z };
         let y0 = if r.y < self.vista.fixa_y { corpo.y } else { (CAB_Y + self.vista.fixa_y) * z };
         let (x1, y1) = (corpo.x + corpo.width, corpo.y + corpo.height);
         Rectangle { x: x0, y: y0, width: (x1 - x0).max(0.0), height: (y1 - y0).max(0.0) }
@@ -611,7 +611,7 @@ impl Camada {
     /// Ponto da tela → px lógicos absolutos (como a tinta).
     pub(super) fn absoluto(&self, p: Point) -> Ponto {
         let z = self.z().max(0.01);
-        self.vista.absoluto(Ponto::novo(p.x / z - CAB_X, p.y / z - CAB_Y))
+        self.vista.absoluto(Ponto::novo(p.x / z - cab_x(), p.y / z - CAB_Y))
     }
 
     /// Ponto da tela no sistema sem giro do objeto.

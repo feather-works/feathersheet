@@ -37,7 +37,7 @@ impl Grade<'_> {
         let Some(imp) = self.impressao.as_ref() else { return };
         if colunas.is_empty() || linhas.is_empty() { return; }
         let topo = CABECALHO_COLUNA;
-        let esquerda = CABECALHO_LINHA;
+        let esquerda = cabecalho_linha();
         let base = bounds.height;
         let direita = bounds.width;
         for a in imp.area.iter().chain(imp.outras.iter()) {
