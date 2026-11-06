@@ -412,7 +412,7 @@ pub enum Msg {
     CursorJanela(window::Id, pelicano::Point),
     /// Procurar e instalar atualização (Configurações → Sobre).
     Atualizacao(atualizacao::Evento),
-    Rolar(i32,i32), RolarNaGrade(u32,u32,i32,bool), Roda(i32), ControleZoom(bool),
+    Rolar(i32,i32), RolarNaGrade(u32,u32,i32,bool), Roda(i32), ZoomNaGrade(i32, pelicano::Point, Size), ControleZoom(bool),
     TeclaLiberada(keyboard::Key), Copiar, CopiarComoImagem, CopiarImagemPronta(Result<(), String>), Recortar, ColarSolicitar, ColarTextoLido(String), ColarImagemLida(Option<Vec<u8>>), Colar(String),
     ColarValoresSolicitar, ColarValores(String), ColarFormatoSolicitar, ColarFormato(String),
     ColarEspecialSolicitar(ModoColagem), ColarEspecial(String, ModoColagem),

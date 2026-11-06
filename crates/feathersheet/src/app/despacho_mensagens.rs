@@ -1264,6 +1264,19 @@ impl App {
                 }
                 Task::none()
             }
+            Msg::ZoomNaGrade(delta, ponto, tela) => {
+                if self.edicao_inline.is_some() && !self.confirmar() { return Task::none(); }
+                let Some(proximo) = zoom::proximo(self.config.zoom, delta, self.config.zoom_minimo, self.config.zoom_maximo)
+                    else { return Task::none() };
+                // O ponto sob o mouse fica sob o mouse (#147).
+                let (linha, coluna) = self.grade().origem_para_zoom(ponto, tela, proximo as f32 / 100.0);
+                self.config.zoom = proximo;
+                if let Some(l) = linha { self.linha_inicio = l; self.ancorar_rodape = false; }
+                else if self.ancorar_rodape { self.linha_inicio = MAX_ROWS - 1; }
+                if let Some(c) = coluna { self.coluna_inicio = c; }
+                self.config.gravar();
+                Task::none()
+            }
             Msg::TeclaLiberada(key) => {
                 if matches!(key, keyboard::Key::Named(keyboard::key::Named::Control)) {
                     self.ctrl_pressionado = false;

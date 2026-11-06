@@ -1506,7 +1506,7 @@ impl Grade<'_> {
                     }
                     // O Canvas captura a roda sobre a célula: enviar zoom antes do scroll.
                     if self.ctrl_pressionado && y.abs() >= 0.1 {
-                        return (Captured::Yes, Some(Msg::Roda(y.signum() as i32)));
+                        return (Captured::Yes, Some(Msg::ZoomNaGrade(y.signum() as i32, ponto, bounds.size())));
                     }
                     // Shift+roda rola na horizontal, como no Excel.
                     let (x, y) = if state.shift && x.abs() < 0.01 { (y, 0.0) } else { (x, y) };

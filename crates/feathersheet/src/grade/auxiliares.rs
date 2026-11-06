@@ -181,6 +181,31 @@ impl Grade<'_> {
         }
     }
 
+    /// Origem (linha, coluna) que deixa sob `p` (pixels da tela) o mesmo ponto da planilha
+    /// depois de passar ao `novo_zoom`. `None` no eixo em que `p` está no cabeçalho ou na
+    /// faixa congelada: ali o zoom não mexe na rolagem.
+    pub fn origem_para_zoom(&self, p: Point, tela: Size, novo_zoom: f32) -> (Option<u32>, Option<u32>) {
+        let origem = (self.primeira_linha_visivel(tela.height), self.primeira_coluna_visivel(tela.width));
+        let mut cache = self.eixos.borrow_mut();
+        let Some((linhas, colunas)) = cache.para(self.workbook, self.aba, MAX_ROWS, MAX_COLS, ALTURA_PADRAO, LARGURA_PADRAO)
+            else { return (None, None) };
+        let eixo = |e: &crate::grade::eixos::Eixo, cabecalho: f32, congeladas: u32, origem: u32, cursor: f32| {
+            // A região que rola começa depois do cabeçalho e das faixas congeladas (pixels lógicos).
+            let topo = f64::from(cabecalho) + e.inicio(congeladas);
+            let antes = f64::from(cursor / self.zoom) - topo;
+            if antes < 0.0 { return None; }
+            let ponto = e.inicio(origem) + antes;
+            let depois = f64::from(cursor / novo_zoom) - topo;
+            // Linha inteira mais perto do lugar exato (a origem não tem fração).
+            let alvo = (ponto - depois).max(e.inicio(congeladas));
+            let i = e.indice_em(alvo)?;
+            let i = if alvo - e.inicio(i) > f64::from(e.tamanho(i)) / 2.0 { i + 1 } else { i };
+            Some(e.proximo_visivel(i).unwrap_or(i).max(congeladas))
+        };
+        (eixo(linhas, CABECALHO_COLUNA, self.congelar_linhas, origem.0, p.y),
+         eixo(colunas, CABECALHO_LINHA, self.congelar_colunas, origem.1, p.x))
+    }
+
     /// Mapeia ponto do viewport para célula absoluta, respeitando alturas
     /// e larguras configuradas em Rust, inclusive rolagem horizontal.
     pub fn celula_no_ponto(&self, p: Point, tamanho: Size) -> Option<(u32, u32)> {

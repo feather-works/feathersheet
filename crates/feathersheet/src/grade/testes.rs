@@ -77,9 +77,22 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
         let mut estado = super::EstadoMouse::default();
         let (status, evento) = grade.atualizar(&mut estado, &roda(1.0), area, cursor);
         assert_eq!(status, Captured::Yes);
-        assert!(matches!(evento, Some(Msg::Roda(1))));
+        assert!(matches!(evento, Some(Msg::ZoomNaGrade(1, _, _))));
         let (_, evento) = grade.atualizar(&mut estado, &roda(-1.0), area, cursor);
-        assert!(matches!(evento, Some(Msg::Roda(-1))));
+        assert!(matches!(evento, Some(Msg::ZoomNaGrade(-1, _, _))));
+        // #147: a célula sob o mouse continua sob o mouse depois do zoom, nos dois sentidos.
+        let tela = area.size();
+        for (de, para, origem) in [(1.0, 2.0, (0, 0)), (2.0, 1.0, (40, 12)), (1.0, 0.5, (40, 12))] {
+            let p = Point::new(523.0, 377.0);
+            (grade.zoom, grade.linha_inicio, grade.coluna_inicio) = (de, origem.0, origem.1);
+            let antes = grade.celula_no_ponto(p, tela).unwrap();
+            let (l, c) = grade.origem_para_zoom(p, tela, para);
+            (grade.zoom, grade.linha_inicio, grade.coluna_inicio) = (para, l.unwrap(), c.unwrap());
+            assert_eq!(grade.celula_no_ponto(p, tela), Some(antes), "zoom {de} → {para}");
+        }
+        // No cabeçalho o zoom não mexe na rolagem.
+        assert_eq!(grade.origem_para_zoom(Point::new(10.0, 10.0), tela, 1.0), (None, None));
+        grade.zoom = 1.0;
         grade.ctrl_pressionado = false;
         let (_, evento) = grade.atualizar(&mut estado, &roda(-1.0), area, cursor);
         assert!(matches!(evento, Some(Msg::RolarNaGrade(_, _, _, _))));
