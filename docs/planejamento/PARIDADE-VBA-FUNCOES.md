@@ -242,8 +242,8 @@ Também: `wb.sheet("ESTUDO ")` acha a aba com espaço no fim do nome (arquivo LO
 
 UserForm (06/11/2026): Tab e Shift+Tab na janela do formulário seguem o `TabIndex` lido do `.xlsm`
 (`Controle::ordem`, `Formulario::ordem_do_tab`); a janela abre com o primeiro campo pronto para digitar.
-Só os campos de digitar recebem foco (botões e caixas não têm foco no pelicano), e o designer ainda não
-edita a ordem. Importar `.frm` solto continua de fora: o desenho está no `.frx` binário, falta um par real.
+Só os campos de digitar recebem foco (botões e caixas não têm foco no pelicano); o designer edita a ordem
+("Ordem do Tab" nas propriedades). Importar `.frm` solto continua de fora: o desenho está no `.frx` binário, falta um par real.
 
 ### Rodando de verdade (01/11/2026)
 

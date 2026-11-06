@@ -39,7 +39,7 @@ const GRADE: f32 = 4.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Campo { FormNome, FormTitulo, FormLargura, FormAltura, FormFundo, Nome, Texto, X, Y, Largura, Altura, Opcoes, Fonte, Valor, Macro,
-    Fundo, Cor, Borda, Raio, Letra, Familia, Alinhar, Max, Dica }
+    Fundo, Cor, Borda, Raio, Letra, Familia, Alinhar, Max, Dica, OrdemTab }
 
 /// As propriedades liga/desliga do controle escolhido.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -199,6 +199,8 @@ impl App {
                             Campo::Familia => c.familia = if t == tr!("Serifa") { "serifa".into() } else if t == tr!("Monoespaçada") { "mono".into() } else { String::new() },
                             Campo::Alinhar => c.alinhar = t,
                             Campo::Max => c.max = t.trim().parse().unwrap_or(0),
+                            // Vazio: a ordem do desenho.
+                            Campo::OrdemTab => c.ordem = t.trim().parse().ok(),
                             Campo::Dica => c.dica = t,
                             _ => {}
                         }
@@ -504,6 +506,11 @@ pub(super) fn designer<'a>(app: &'a App) -> Element<'a, Msg> {
             };
             props = props.push(campo(dica, c.valor.clone(), Campo::Valor));
         }
+        // TabIndex: a ordem em que o Tab passa pelos campos de digitar.
+        if matches!(c.tipo, TipoControle::Texto | TipoControle::Numero | TipoControle::Senha | TipoControle::Intervalo)
+            || (c.tipo == TipoControle::Lista && c.livre) {
+            props = props.push(campo(tr!("Ordem do Tab"), c.ordem.map_or_else(String::new, |o| o.to_string()), Campo::OrdemTab));
+        }
         if c.tipo == TipoControle::Texto {
             props = props.push(campo(tr!("Máx. letras"), if c.max == 0 { String::new() } else { c.max.to_string() }, Campo::Max));
             props = props.push(marca(tr!("Várias linhas"), c.multilinha, Marca::Multilinha));
@@ -585,6 +592,19 @@ pub(super) fn designer<'a>(app: &'a App) -> Element<'a, Msg> {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn ordem_do_tab_no_campo() {
+        let mut app = App::default();
+        app.evento_designer(EventoDesigner::Novo);
+        app.evento_designer(EventoDesigner::Adicionar(TipoControle::Texto));
+        let _ = designer(&app);
+        app.evento_designer(EventoDesigner::Campo(Campo::OrdemTab, "3".into()));
+        let ordem = |app: &App| app.macro_visual.designer.form.as_ref().unwrap().controles[0].ordem;
+        assert_eq!(ordem(&app), Some(3));
+        app.evento_designer(EventoDesigner::Campo(Campo::OrdemTab, " ".into()));
+        assert_eq!(ordem(&app), None, "vazio volta à ordem do desenho");
+    }
 
     #[test]
     fn desenhar_guardar_e_testar() {
