@@ -62,6 +62,7 @@ impl App {
         let selecao = endereco_area(&Rect::new(self.linha, self.coluna, r1, c1));
         feathersheet_macros::Contexto {
             arquivo: self.caminho.clone(), selecao: Some(selecao), respostas, escolhas,
+            separador_decimal: Some(self.regionalizacao().decimal_separator),
             valores: self.macro_valores.clone(), ..Default::default()
         }
     }

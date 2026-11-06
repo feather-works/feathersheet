@@ -21,7 +21,7 @@ no motor (o `InputBox` convertido quebrava ao rodar); agora a pergunta de texto 
 `Application.InputBox` com `Type:=`, instrução `Mid(...) = x`, `Foo (x)` por valor, `As New Collection` no
 módulo, `CompareMode`/`Key` do Dictionary e ler `.Left/.Top` da forma (`objetos_aba::ReguaSimples`; as
 medidas padrão da grade moram no `objetos_aba`). Novidade: "InputBox das macros do Excel volta a
-funcionar, com caixa para digitar."
+funcionar, com caixa para digitar." Número vira texto pelo CStr (vírgula decimal, 15 algarismos: `"Total: " & 0,1+0,2` dá `Total: 0,3`; `app.decimalSeparator`). Novidade: "Macros do Excel escrevem número com vírgula ao juntar texto, como no Excel em português."
 
 ## v0.2.9 — 04/11/2026: minigráficos, desfazer exato, auditoria
 

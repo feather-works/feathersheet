@@ -460,3 +460,14 @@ fn application_inputbox_converte() {
     assert!(js.contains("vba.inputBoxApp(\"Quantos?\", \"Contagem\", 5, 1)") && js.contains("vba.inputBoxApp(\"Onde?\", undefined, \"$B$2:$B$3\", 8)"), "{js}");
 }
 
+
+#[test]
+fn numero_vira_texto_como_o_cstr() {
+    let wb = roda("Sub T()\n  Dim x As Double, i As Long\n  x = 0.1 + 0.2\n  i = 7\n  Range(\"A1\").Value = \"Total: \" & x\n  Range(\"A2\").Value = \"x\" & CStr(1 / 3)\n  Range(\"A3\").Value = \"L\" & i & \"/\" & 1E+15\n  Range(\"A4\").Value = \"x\" & CStr(-0.0000001)\n  Range(\"A5\").Value = Len(2.5)\nEnd Sub\n", "T");
+    let t = |s: &str| Value::Text(s.into());
+    assert_eq!(wb.valor(0, 0, 0), t("Total: 0,3"));
+    assert_eq!(wb.valor(0, 1, 0), t("x0,333333333333333"));
+    assert_eq!(wb.valor(0, 2, 0), t("L7/1E+15"));
+    assert_eq!(wb.valor(0, 3, 0), t("x-1E-07"));
+    assert_eq!(wb.valor(0, 4, 0), Value::Number(3.0));
+}

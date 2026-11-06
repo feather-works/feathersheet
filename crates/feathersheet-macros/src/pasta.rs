@@ -89,6 +89,8 @@ pub struct Contexto {
     pub escolhas: Vec<u32>,
     /// Textos já digitados nas perguntas de `prompt` (o `InputBox`), na ordem; `None` = Cancelar.
     pub textos: Vec<Option<String>>,
+    /// Separador decimal da língua do app; `None` é a vírgula (pt-BR, o padrão do app).
+    pub separador_decimal: Option<char>,
     /// O que foi preenchido no formulário cujo botão rodou a macro (`valores`).
     pub valores: Option<serde_json::Map<String, serde_json::Value>>,
     /// Prazo e sinal de parar (o app roda a macro do botão noutra thread, com mais tempo).
@@ -139,7 +141,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher", "perguntarTexto"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher", "perguntarTexto", "separadorDecimal"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -258,6 +260,7 @@ pub(crate) fn executar(
                 }
             }
         }
+        "separadorDecimal" => Ok(json!(a.contexto.separador_decimal.unwrap_or(',').to_string())),
         "perguntarTexto" => {
             let n = a.textos_feitos;
             a.textos_feitos += 1;

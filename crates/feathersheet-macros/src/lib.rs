@@ -1246,6 +1246,8 @@ const wb = {
     deleteSheet:s=>{__ft('apagarAba',[(typeof s==='object'?s:wb.sheet(s)).__id]);},
     renameSheet:(s,name)=>{__ft('renomearAba',[(typeof s==='object'?s:wb.sheet(s)).__id,String(name)]);}};
 const app = {
+    // O separador decimal da língua do app ("," em pt-BR): o CStr e o & do VBA convertido escrevem número com ele.
+    get decimalSeparator(){return __ft('separadorDecimal',[]);},
     batch: fn => fn(),
     // Eventos e redesenho da tela do Excel: sem efeito aqui.
     setEventsEnabled: () => {},

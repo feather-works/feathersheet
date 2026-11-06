@@ -225,7 +225,10 @@ Lacunas da linguagem (06/11/2026): `Foo (x)` sem `Call` passa `x` por valor (o p
 `Expr::Paren`); `Dim c As New Collection`/`Dictionary` no módulo nasce pronta (`Macro::novas`);
 `d.CompareMode = vbTextCompare` (só com o dicionário vazio, erro 5 como no VBA) e `d.Key(k) = nova`;
 ler `.Left/.Top/.Width/.Height` da forma (`ReguaSimples` do `objetos_aba`, a mesma medida da grade).
-Ainda não: `&` de número escreve com ponto (`91.5`), o Excel em pt-BR com vírgula.
+Número vira texto pelo CStr do VBA (`vba.str`, no `&`, `CStr`, `MsgBox`, `Len`…): até 15 algarismos
+(`0,1 + 0,2` = `"0,3"`), `1E+15`/`1E-07` e o separador decimal da língua do app (`app.decimalSeparator`,
+`Contexto::separador_decimal`); `&` de inteiro declarado segue `${i}`. Ainda não: `CStr(True)` localizado
+("Verdadeiro"), o limite de notação científica para número pequeno conferido no Excel.
 
 ### Rodando de verdade (01/11/2026)
 

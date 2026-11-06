@@ -380,11 +380,19 @@ impl Gerador<'_> {
         achatar(a, &mut partes);
         achatar(b, &mut partes);
         let vs: Vec<(V, Option<&String>)> = partes.iter().map(|e| Ok((self.valor(e)?, if let Expr::Texto(s) = e { Some(s) } else { None }))).collect::<R<_>>()?;
+        // Inteiro (variável `As Long`, literal sem fração): o `String` do JavaScript já escreve igual ao CStr.
+        let inteiro: Vec<bool> = partes.iter().zip(&vs).map(|(e, (v, _))| match e {
+            Expr::Num(x) => x.fract() == 0.0 && x.abs() < 1e15,
+            Expr::Nome(_) => self.escopo.inteiros.contains(&v.js),
+            _ => false,
+        }).collect();
         if vs.iter().all(|(v, _)| matches!(v.t, T::Texto | T::Num)) {
             let mut s = String::from("`");
-            for (v, lit) in &vs {
+            for ((v, lit), &inteiro) in vs.iter().zip(&inteiro) {
                 match lit {
                     Some(t) => s.push_str(&t.replace('\\', "\\\\").replace('`', "\\`").replace("${", "\\${").replace('\n', "\\n").replace('\r', "\\r")),
+                    // Número pelo CStr do VBA (vírgula decimal, 15 algarismos), não pelo `String` do JavaScript.
+                    None if v.t == T::Num && !inteiro => s.push_str(&format!("${{{}}}", self.como_texto(v))),
                     None => s.push_str(&format!("${{{}}}", v.js)),
                 }
             }
