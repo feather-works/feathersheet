@@ -66,6 +66,8 @@ impl App {
             return true;
         }
         if e.modal.take().is_some() || e.dependencias.take().is_some() { return true; }
+        if e.mostrar_manual { e.mostrar_manual = false; return true; }
+        if e.menu_obter { e.menu_obter = false; return true; }
         if e.parametros_abertos { e.parametros_abertos = false; e.acao_parametros = None; return true; }
         e.assistente.take().is_some()
     }
@@ -104,6 +106,8 @@ impl App {
             Some(painel_dependencias(mapa))
         } else if e.parametros_abertos {
             Some(painel_destino(e))
+        } else if e.mostrar_manual {
+            Some(painel_manual(e))
         } else {
             None
         };
@@ -115,6 +119,12 @@ impl App {
                     ..pelicano::Style::default()
                 }));
             return stack![base, fundo].height(Length::FILL).into();
+        }
+        if e.menu_obter {
+            return crate::app::menu_contexto::sobrepor(
+                base, &self.menu_obter_dados(e), e.submenu, |i| om(Evento::Submenu(i)),
+                om(Evento::MenuObter(false)), (170.0, 132.0), e.janela,
+            );
         }
         if let Some(c) = e.menu_tipo {
             return crate::app::menu_contexto::sobrepor(
@@ -358,7 +368,24 @@ impl App {
         }
         if e.mostrar_tabelas {
             let tabelas = tabelas_existentes(&self.workbook);
-            conteudo = conteudo.push(text(tr!("Tabelas existentes na pasta"))
+            conteudo = conteudo.push(text(tr!("Planilhas desta pasta"))
+                .size(14).font(negrito()));
+            let mut alguma = false;
+            for i in 0..self.workbook.len() {
+                let Some(aba) = self.workbook.aba(i) else { continue };
+                let area = aba.sheet.used_rect();
+                if aba.sheet.is_empty() { continue; }
+                alguma = true;
+                conteudo = conteudo.push(ide::item_arvore(
+                    &trf!("{}  •  {} linhas  •  {} colunas", aba.sheet.name, area.r1 - area.r0, area.c1 - area.c0 + 1),
+                    "layout-grid", 0.0, Some(om(Evento::CarregarAba(i))), false,
+                ));
+            }
+            if !alguma {
+                conteudo = conteudo.push(legenda_oq(tr!("As planilhas desta pasta estão vazias.")));
+            }
+            conteudo = conteudo.push(Space::new(0.0, Length::Fixed(8.0)));
+            conteudo = conteudo.push(text(tr!("Tabelas (Ctrl+T)"))
                 .size(14).font(negrito()));
             if tabelas.is_empty() {
                 conteudo = conteudo.push(legenda_oq(
@@ -392,32 +419,12 @@ impl App {
 
     /// Centro: JavaScript editável acima da prévia, sem ocultar a tabela.
     fn centro_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
-        if (e.fonte.cabecalho.is_empty() && !e.mostrar_manual) || e.mostrar_web || e.mostrar_tabelas {
+        if e.fonte.cabecalho.is_empty() || e.mostrar_web || e.mostrar_tabelas {
             return self.selecionar_fonte_openquery(e, escuro);
         }
-        // O script mora no Editor avançado (Início ▸ Consulta e Exibir), não numa aba.
-        let ativa = if e.mostrar_manual { 2 } else { 0 };
-        let abas = container(row![
-            ide::botao_aba(tr!("Prévia de dados"), "table", Some(om(Evento::AbaCentro(0))), ativa == 0),
-            // Digitar dados é fonte (Obter dados ▸ Digitar dados), não aba fixa da prévia.
-        ].spacing(3)).width(Length::FILL).padding([4, 6])
-            .style(ide::estilo_cabecalho(escuro));
-        let conteudo: Element<'_, Msg> = match ativa {
-            2 => container(column![
-                texto_oq(tr!("Cole CSV ou TSV: cabeçalho na primeira linha; textos são dados, não fórmulas")),
-                text_editor(&e.entrada_manual).idle_focus(false)
-                    .on_change(om(Evento::EditarManual))
-                    .font(pelicano::Font::MONO).size(TAM_TEXTO),
-                row![
-                    ide::botao(tr!("Cancelar entrada"), Some(om(Evento::AbaCentro(0))), false),
-                    ide::botao_primario(tr!("Usar tabela manual"), "checks", Some(om(Evento::AplicarManual))),
-                ].spacing(ESPACO_MEDIO),
-            ].spacing(ESPACO_MEDIO).padding(8))
-                .width(Length::FILL).height(Length::FILL)
-                .style(ide::estilo_area(escuro)).into(),
-            _ => self.previa_openquery(e, escuro),
-        };
-        let mut centro = column![abas].spacing(5).width(Length::FILL).height(Length::FILL);
+        // O script mora no Editor avançado e Digitar dados é um modal: o centro é só a prévia.
+        let conteudo = self.previa_openquery(e, escuro);
+        let mut centro = column![].spacing(5).width(Length::FILL).height(Length::FILL);
         if let Some(a) = &e.aviso_tipo {
             let tipo = match a.para.as_str() { "data" | "dataHora" | "hora" => tr!("data"), "logico" => tr!("lógico"), _ => tr!("número") };
             let exemplos = a.exemplos.iter().map(|x| format!("\"{x}\"")).collect::<Vec<_>>().join(", ");
@@ -435,14 +442,14 @@ impl App {
                     ..Default::default()
                 }));
         }
-        if ativa == 0 && e.origem_aba.starts_with("Arquivo: ") {
+        if e.origem_aba.starts_with("Arquivo: ") {
             centro = centro.push(row![
                 legenda_oq(tr!("Origem externa • A atualização sempre exige escolher o arquivo novamente.")),
                 ide::botao_icone(tr!("Reimportar arquivo e manter etapas"), "refresh",
                     Some(om(Evento::ReimportarArquivo)), false),
             ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center));
         }
-        if ativa == 0 && e.origem_aba.starts_with("Pasta: ") {
+        if e.origem_aba.starts_with("Pasta: ") {
             centro = centro.push(row![
                 legenda_oq(tr!("Origem externa • A pasta só é lida de novo quando você pede.")),
                 ide::botao_icone(tr!("Reler a pasta e manter etapas"), "refresh",
@@ -740,13 +747,16 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                 ]),
             ], escuro),
             grupo_ribbon(tr!("OBTER DADOS"), vec![
-                botao_ribbon(tr!("De arquivo"), "folder-open", LARANJA, Evento::ImportarArquivo, false),
+                botao_ribbon(tr!("Obter\ndados ▾"), "database", LARANJA, Evento::MenuObter(!e.menu_obter), e.menu_obter),
                 pilha(vec![
+                    p(tr!("De arquivo"), "folder-open", LARANJA, Evento::ImportarArquivo),
                     p(tr!("Da Web"), "link", AZUL, Evento::MostrarWeb),
                     p(tr!("De tabela"), "table", VERDE, Evento::MostrarTabelas),
+                ]),
+                pilha(vec![
+                    p(tr!("Da pasta…"), "folder", LARANJA, Evento::ImportarPasta),
                     p(tr!("Digitar dados"), "edit", ROXO, Evento::AbaCentro(2)),
                 ]),
-                pilha(vec![p(tr!("Da pasta…"), "folder", LARANJA, Evento::ImportarPasta)]),
             ], escuro),
             grupo_ribbon("CONSULTA", vec![
                 botao_ribbon("Atualizar\nfonte", "refresh", VERDE, Evento::AtualizarFonte, false),
@@ -946,6 +956,61 @@ fn menu_da_coluna(e: &Estado, c: usize) -> Vec<crate::app::menu_contexto::ItemMe
         acao(tr!("Remover duplicatas"), "list-select", "distintas"),
         acao(tr!("Remover erros"), "eraser", "remover_erros"),
     ]
+}
+
+impl App {
+    /// Obter dados ▾: todas as conexões do OpenQuery num lugar, como o "Obter Dados" do Excel.
+    fn menu_obter_dados(&self, e: &Estado) -> Vec<crate::app::menu_contexto::ItemMenu> {
+        use crate::app::menu_contexto::ItemMenu;
+        let item = |rotulo: &str, icone: &'static str, ev: Evento| ItemMenu::acao(rotulo, icone, om(Evento::DoMenuObter(Box::new(ev))));
+        let mut arquivo: Vec<ItemMenu> = importador::TIPOS.iter().enumerate().map(|(i, (nome, ext))| {
+            item(&format!("{} (.{})", crate::idioma::tr(nome), ext.join(", .")), "file", Evento::ImportarTipo(i))
+        }).collect();
+        arquivo.push(ItemMenu::Separador);
+        arquivo.push(item(tr!("Pasta (junta todos os arquivos)…"), "folder", Evento::ImportarPasta));
+        let mut itens = vec![
+            ItemMenu::sub(tr!("Arquivo"), "folder-open", arquivo),
+            item(tr!("Da Web…"), "link", Evento::MostrarWeb),
+            item(tr!("Tabela ou planilha desta pasta"), "table", Evento::MostrarTabelas),
+            item(tr!("Da seleção"), "layout-grid", Evento::CarregarSelecao),
+            item(tr!("Digitar dados"), "edit", Evento::AbaCentro(2)),
+        ];
+        if !e.salvas.is_empty() {
+            itens.push(ItemMenu::sub(tr!("Outra consulta (referência)"), "link",
+                e.salvas.iter().map(|(id, nome)| item(nome, "table", Evento::ReferenciarSalva(id.clone()))).collect()));
+        }
+        if !self.config.fontes_recentes.is_empty() {
+            itens.push(ItemMenu::Separador);
+            itens.push(ItemMenu::sub(tr!("Fontes recentes"), "clock",
+                self.config.fontes_recentes.iter().map(|f| item(f, if f.starts_with("http") { "link" } else { "file" },
+                    Evento::AbrirRecente(f.clone()))).collect()));
+        }
+        itens
+    }
+}
+
+/// Obter dados ▸ Digitar dados: o texto colado (CSV/TSV) vira a fonte, com a contagem ao vivo.
+fn painel_manual<'a>(e: &'a Estado) -> Element<'a, Msg> {
+    let lido = match manual::ler(&e.entrada_manual.text()) {
+        Ok(t) => legenda_oq(&trf!("{} linhas × {} colunas", t.linhas.len(), t.cabecalho.len())),
+        Err(erro) => text(erro).size(TAM_TEXTO).color(cor_erro()).into(),
+    };
+    let corpo = column![
+        container(text_editor(&e.entrada_manual).idle_focus(false)
+            .on_change(om(Evento::EditarManual)).line_numbers(true).wrap(false)
+            .current_line(pelicano::Color::rgba(0.5, 0.5, 0.5, 0.08))
+            .font(pelicano::Font::MONO).size(TAM_TEXTO))
+            .height(Length::Fixed(260.0)).width(Length::FILL),
+        lido,
+    ].spacing(ESPACO_MEDIO);
+    feather_ui::dialogo::Dialogo::new(tr!("Digitar dados"), corpo)
+        .icone("edit")
+        .subtitulo(tr!("Cole ou digite CSV/TSV: cabeçalho na primeira linha; textos são dados, não fórmulas."))
+        .largura(620.0)
+        .ao_fechar(om(Evento::AbaCentro(0)))
+        .secundario(tr!("Cancelar"), Some(om(Evento::AbaCentro(0))))
+        .primario(tr!("OK"), Some(om(Evento::AplicarManual)))
+        .painel()
 }
 
 /// "Carregar em…": modal com o destino do resultado.

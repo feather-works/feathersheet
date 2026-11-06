@@ -127,6 +127,14 @@ fn validar_xlsx(path: &Path) -> Result<(), String> {
 
 /// O que o "De arquivo" e o "Da pasta" leem.
 pub(super) const EXTENSOES: [&str; 8] = ["csv", "tsv", "txt", "json", "xlsx", "xlsm", "fshz", "parquet"];
+/// Os tipos do menu Obter dados ▸ Arquivo: (nome, extensões).
+pub(super) const TIPOS: [(&str, &[&str]); 5] = [
+    ("Pasta de trabalho do Excel", &["xlsx", "xlsm"]),
+    ("Pasta de trabalho do FeatherSheet", &["fshz"]),
+    ("Texto/CSV", &["csv", "tsv", "txt"]),
+    ("JSON", &["json"]),
+    ("Parquet", &["parquet"]),
+];
 /// Teto do "Da pasta": arquivos e células somadas.
 const MAX_ARQUIVOS_PASTA: usize = 500;
 const MAX_CELULAS_PASTA: usize = 50_000_000;
@@ -223,7 +231,7 @@ impl Item {
 
 /// A primeira linha "de verdade" da área: pula o título acima da tabela ("Painel de
 /// Vendas 2026" sozinho na linha 1) até a linha que preenche metade das colunas.
-fn sem_titulo(wb: &Workbook, aba: usize, area: Rect) -> Rect {
+pub(super) fn sem_titulo(wb: &Workbook, aba: usize, area: Rect) -> Rect {
     let largura = (area.c1 - area.c0 + 1) as usize;
     let cheias = |r: u32| (area.c0..=area.c1).filter(|&c| {
         !feathersheet_core::celulas::values::to_text(&wb.valor(aba, r, c)).trim().is_empty()

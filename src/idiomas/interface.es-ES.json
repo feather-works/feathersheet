@@ -4528,5 +4528,18 @@
  "Só uma fonte de arquivo (.xlsx, .fshz…) tem planilhas para escolher.": "Solo una fuente de archivo (.xlsx, .fshz…) tiene hojas para elegir.",
  "O arquivo não tem {}.": "El archivo no tiene {}.",
  "{} linha(s) de {} não converteram para {} e ficaram com erro (ex.: {}).": "{} fila(s) de {} no se convirtieron a {} y quedaron con error (ej.: {}).",
- "Arquivo indisponível": "Archivo no disponible"
+ "Arquivo indisponível": "Archivo no disponible",
+ "Planilhas desta pasta": "Hojas de este libro",
+ "As planilhas desta pasta estão vazias.": "Las hojas de este libro están vacías.",
+ "Tabelas (Ctrl+T)": "Tablas (Ctrl+T)",
+ "Obter\ndados ▾": "Obtener\ndatos ▾",
+ "Pasta (junta todos os arquivos)…": "Carpeta (une todos los archivos)…",
+ "Tabela ou planilha desta pasta": "Tabla u hoja de este libro",
+ "Outra consulta (referência)": "Otra consulta (referencia)",
+ "Fontes recentes": "Fuentes recientes",
+ "Cole ou digite CSV/TSV: cabeçalho na primeira linha; textos são dados, não fórmulas.": "Pegue o escriba CSV/TSV: encabezado en la primera fila; los textos son datos, no fórmulas.",
+ "{} linhas × {} colunas": "{} filas × {} columnas",
+ "Pasta de trabalho do Excel": "Libro de Excel",
+ "Pasta de trabalho do FeatherSheet": "Libro de FeatherSheet",
+ "Texto/CSV": "Texto/CSV"
 }

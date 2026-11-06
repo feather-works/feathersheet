@@ -111,6 +111,16 @@ pub enum Evento {
     /// Fontes recentes: reabre um arquivo ou uma URL já usados.
     AbrirRecente(String),
     CarregarTabela(usize, String),
+    /// De tabela ▸ Planilhas desta pasta: a aba inteira (sem o título acima da tabela).
+    CarregarAba(usize),
+    /// Obter dados ▾: abre/fecha o menu das conexões.
+    MenuObter(bool),
+    /// Item do menu Obter dados: fecha o menu e faz o pedido.
+    DoMenuObter(Box<Evento>),
+    /// De arquivo só de um tipo (índice em `importador::TIPOS`).
+    ImportarTipo(usize),
+    /// Obter dados ▸ Outra consulta: referencia a consulta gravada `id`.
+    ReferenciarSalva(String),
     FonteTabela(usize, String),
     ReimportarArquivo,
     MostrarManual,
@@ -235,6 +245,9 @@ pub(super) struct Estado {
     menu_coluna: Option<usize>,
     menu_tipo: Option<usize>,
     submenu: Option<usize>,
+    menu_obter: bool,
+    /// O próximo "De arquivo" abre a caixa com esse tipo primeiro (`importador::TIPOS`).
+    filtro_arquivo: Option<usize>,
     ponteiro: (f32, f32),
     /// Onde o menu ▾ abriu: fica parado enquanto o mouse anda até ele.
     posicao_menu: (f32, f32),
@@ -356,6 +369,8 @@ impl Estado {
             menu_coluna: None,
             menu_tipo: None,
             submenu: None,
+            menu_obter: false,
+            filtro_arquivo: None,
             ponteiro: (0.0, 0.0),
             posicao_menu: (0.0, 0.0),
             janela: pelicano::Size::new(1280.0, 800.0),
@@ -753,6 +768,12 @@ impl App {
                     e.erro = trf!("A tabela '{nome}' não existe mais nesta pasta");
                 }
             }
+            Evento::CarregarAba(i) => {
+                let Some(aba) = self.workbook.aba(i) else { return Task::none() };
+                let nome = aba.sheet.name.clone();
+                let area = importador::sem_titulo(&self.workbook, i, aba.sheet.used_rect());
+                self.carregar_fonte_openquery(i, area, &nome);
+            }
             // Normalmente tratado no `evento_openquery_janela`, que também abre a janela.
             Evento::AbrirCom(dentro) => {
                 if self.openquery.is_none() { let _ = self.evento_openquery(Evento::Abrir); }
@@ -978,8 +999,21 @@ impl App {
                     _ => e.aviso_tipo = None,
                 }
             },
-            Evento::Duplicar | Evento::Referenciar => {
-                let Some(id) = self.openquery.as_ref().and_then(|e| e.edicao.clone()) else {
+            Evento::MenuObter(abrir) => if let Some(e) = &mut self.openquery {
+                e.menu_obter = abrir;
+                e.submenu = None;
+            },
+            Evento::DoMenuObter(pedido) => {
+                if let Some(e) = &mut self.openquery { e.menu_obter = false; e.submenu = None; }
+                return self.evento_openquery(*pedido);
+            }
+            Evento::ImportarTipo(i) => {
+                if let Some(e) = &mut self.openquery { e.filtro_arquivo = Some(i); }
+                return self.evento_openquery(Evento::ImportarArquivo);
+            }
+            Evento::Duplicar | Evento::Referenciar | Evento::ReferenciarSalva(_) => {
+                let id = match &evento { Evento::ReferenciarSalva(id) => Some(id.clone()), _ => self.openquery.as_ref().and_then(|e| e.edicao.clone()) };
+                let Some(id) = id else {
                     if let Some(e) = &mut self.openquery { e.erro = tr!("Salve a consulta primeiro (Salvar e carregar ou Carregar em…)").into(); }
                     return Task::none();
                 };
@@ -1234,9 +1268,12 @@ impl App {
                         return Task::done(Msg::OpenQuery(Evento::PastaEscolhida(ticket, Some(pasta))));
                     }
                 }
-                return Task::perform(async {
-                    rfd::AsyncFileDialog::new()
-                        .add_filter(tr!("Fontes OpenQuery"), &importador::EXTENSOES)
+                let tipo = editor.filtro_arquivo.take().and_then(|i| importador::TIPOS.get(i));
+                return Task::perform(async move {
+                    let mut caixa = rfd::AsyncFileDialog::new();
+                    // O tipo pedido no menu vem primeiro; "Fontes OpenQuery" segue como opção.
+                    if let Some((nome, extensoes)) = tipo { caixa = caixa.add_filter(crate::idioma::tr(nome), extensoes); }
+                    caixa.add_filter(tr!("Fontes OpenQuery"), &importador::EXTENSOES)
                         .pick_file().await.map(|arquivo| arquivo.path().to_path_buf())
                 }, move |arquivo| Msg::OpenQuery(Evento::ArquivoEscolhido(ticket, arquivo)));
             }
