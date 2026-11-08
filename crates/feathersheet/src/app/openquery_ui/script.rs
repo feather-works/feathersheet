@@ -264,7 +264,7 @@ pub(super) fn gerar(
 
 /// Comandos de nível de cima, com a linha onde começam. `;` e quebra de linha
 /// fora de string e de parênteses encerram o comando; `//` é comentário.
-fn comandos(texto: &str) -> Vec<(usize, String)> {
+pub(super) fn comandos(texto: &str) -> Vec<(usize, String)> {
     let mut saida = Vec::new();
     let (mut atual, mut linha, mut inicio) = (String::new(), 1, 1);
     let (mut aspas, mut escape, mut fundo, mut comentario) = (false, false, 0i32, false);
@@ -326,7 +326,28 @@ pub(super) fn ler(
             .ok_or_else(|| erro(tr!("faltam os parênteses da chamada.")))?;
         let args: Vec<Json> = serde_json::from_str(&format!("[{args}]"))
             .map_err(|e| erro(&trf!("argumentos inválidos ({e}).")))?;
-        let objeto = if metodo == METODO_GENERICO {
+        // Atalhos do Power Query que dependem das colunas daquele ponto: "as outras".
+        let indices = |v: Option<&Json>| -> Result<Vec<usize>, String> {
+            let lista = match v { Some(Json::Array(a)) => a.clone(), Some(outro) => vec![outro.clone()], None => Vec::new() };
+            lista.iter().map(|c| col_do_script(&atual.cabecalho, c).map(|j| j.as_u64().unwrap_or(0) as usize)).collect()
+        };
+        let resto = |tirar: &[usize]| -> Vec<Json> {
+            (0..atual.cabecalho.len()).filter(|i| !tirar.contains(i)).map(|i| json!(i)).collect()
+        };
+        let mut objeto = if metodo == "removerColunas" {
+            json!({ "tipo": "colunas", "manter": resto(&indices(args.first()).map_err(|e| erro(&e))?) })
+        } else if metodo == "despivotarSelecionadas" {
+            json!({ "tipo": "despivotar", "manter": resto(&indices(args.first()).map_err(|e| erro(&e))?),
+                "nomeAtributo": args.get(1), "nomeValor": args.get(2) })
+        } else if metodo == "pivotarColuna" {
+            let col = indices(args.first()).map_err(|e| erro(&e))?;
+            let valor = indices(args.get(1)).map_err(|e| erro(&e))?;
+            let (Some(&c), Some(&v)) = (col.first(), valor.first()) else {
+                return Err(erro(tr!("pivotarColuna(coluna, valores, \"soma\") precisa das duas colunas.")));
+            };
+            json!({ "tipo": "pivotar", "linhas": resto(&[c, v]), "colunas": [c],
+                "valores": [{ "col": v, "como": args.get(2).cloned().unwrap_or(json!("soma")), "nome": null }] })
+        } else if metodo == METODO_GENERICO {
             args.into_iter().next().ok_or_else(|| erro(tr!("etapa({ … }) precisa do objeto.")))?
         } else {
             let (tipo, _, campos) = METODOS.iter().find(|(_, m, _)| *m == metodo)
@@ -343,6 +364,20 @@ pub(super) fn ler(
             }
             Json::Object(objeto)
         };
+        // A coluna da outra consulta também vale pelo nome (vem assim do Power Query).
+        if objeto["tipo"] == "juntar" {
+            if let Some(cab) = objeto["fonte"].as_str().and_then(|f| fontes.get(f)).map(|t| t.cabecalho.clone()) {
+                let indice = |v: &Json| match v {
+                    Json::String(n) => cab.iter().position(|c| c == n).map(|i| json!(i))
+                        .ok_or_else(|| erro(&trf!("A coluna \"{n}\" não existe na outra consulta."))),
+                    outro => Ok(outro.clone()),
+                };
+                objeto["direita"] = match objeto["direita"].clone() {
+                    Json::Array(a) => Json::Array(a.iter().map(indice).collect::<Result<_, _>>()?),
+                    outro => indice(&outro)?,
+                };
+            }
+        }
         let passo = json_passos::ler(&Json::Array(vec![objeto]).to_string())
             .map_err(|e| erro(&e))?
             .pop().ok_or_else(|| erro(tr!("etapa vazia.")))?;

@@ -38,6 +38,7 @@ mod vinculo;
 mod manual;
 mod janela;
 mod script;
+mod power_query;
 mod qualidade;
 pub(in crate::app) mod etapa;
 #[cfg(test)]
@@ -85,6 +86,8 @@ pub enum Evento {
     EditarEditorAvancado,
     AplicarEditorAvancado,
     FecharEditorAvancado,
+    /// O M das etapas na área de transferência, para o Editor Avançado do Excel.
+    CopiarPowerQuery,
     /// Lista de métodos do Editor avançado: escreve a linha no cursor.
     InserirNoEditor(String),
     Atualizar,
@@ -219,6 +222,8 @@ pub(super) struct Estado {
     /// Rascunho isolado: cancelar não altera as etapas nem a prévia.
     editor_avancado: Option<Content>,
     erro_avancado: String,
+    /// Recado neutro do Editor avançado (M convertido, copiado como Power Query).
+    aviso_avancado: String,
     erro: String,
     edicao: Option<String>,
     salvas: Vec<(String, String)>,
@@ -375,7 +380,7 @@ impl Estado {
             mostrar_web: false, mostrar_tabelas: false,
             passos: Vec::new(), resultado,
             codigo: String::new(),
-            editor_avancado: None, erro_avancado: String::new(),
+            editor_avancado: None, erro_avancado: String::new(), aviso_avancado: String::new(),
             erro: String::new(),
             edicao: None, salvas: Vec::new(), exclusao_pendente: None,
             assistente: None,
@@ -425,8 +430,20 @@ impl Estado {
     /// Assim, Cancelar/erro não destroem a consulta anterior.
     /// `Ok(true)`: o script escolheu outra planilha do arquivo, e a fonte precisa ser relida.
     fn aplicar_editor_avancado(&mut self) -> Result<bool, String> {
-        let texto = self.editor_avancado.as_ref()
+        let mut texto = self.editor_avancado.as_ref()
             .ok_or(tr!("Editor avançado não está aberto"))?.text();
+        // M do Power Query colado: vira o script. Com etapa sem equivalente, para e mostra.
+        if power_query::parece_m(&texto) {
+            let d = power_query::de_m(&texto).map_err(|e| trf!("Não consegui ler o Power Query: {e}"))?;
+            let primeira = script::comandos(&self.codigo).into_iter().next()
+                .map(|(_, l)| format!("{l};")).unwrap_or_default();
+            texto = d.script(&primeira, self.origem_aba.starts_with("Arquivo: "));
+            if d.nao_convertidas > 0 {
+                if let Some(ed) = &self.editor_avancado { ed.set_text(&texto); }
+                self.aviso_avancado = trf!("Convertido do Power Query. {} etapa(s) sem equivalente ficaram comentadas: confira e clique Aplicar.", d.nao_convertidas);
+                return Ok(false);
+            }
+        }
         let (base, atual) = match self.origem_aba.split_once(" ▸ ") {
             Some((b, i)) => (b.to_owned(), Some(i.to_owned())),
             None => (self.origem_aba.clone(), None),
@@ -1180,6 +1197,22 @@ impl App {
             Evento::AbrirEditorAvancado => if let Some(e) = &mut self.openquery {
                 e.editor_avancado = Some(Content::with_text(&e.codigo));
                 e.erro_avancado.clear();
+                e.aviso_avancado.clear();
+            },
+            Evento::CopiarPowerQuery => if let Some(e) = &mut self.openquery {
+                let manual = (e.origem_aba == "Entrada manual").then_some(&e.fonte);
+                match power_query::para_m(&e.codigo, manual, &e.fontes) {
+                    Ok((texto, sem)) => {
+                        e.erro_avancado.clear();
+                        e.aviso_avancado = if sem == 0 {
+                            tr!("Copiado como Power Query: cole no Editor Avançado do Excel.").into()
+                        } else {
+                            trf!("Copiado como Power Query. {sem} etapa(s) sem equivalente foram como comentário.")
+                        };
+                        return Task::write_clipboard(texto);
+                    }
+                    Err(erro) => e.erro_avancado = erro,
+                }
             },
             Evento::EditarEditorAvancado => if let Some(e) = &mut self.openquery {
                 if e.editor_avancado.is_some() {
@@ -1212,6 +1245,7 @@ impl App {
             Evento::FecharEditorAvancado => if let Some(e) = &mut self.openquery {
                 e.editor_avancado = None;
                 e.erro_avancado.clear();
+                e.aviso_avancado.clear();
             },
             Evento::Atualizar => if let Some(e) = &mut self.openquery {
                 e.recalcular();

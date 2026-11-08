@@ -42,6 +42,23 @@ remover linhas, transpor, dividir por posição, coluna personalizada com fórmu
 e "Consultas: Ctrl+Z nas etapas, duplicar e referenciar, juntar arquivos de uma pasta e nomes parecidos,
 atualizar ao abrir o arquivo."
 
+**Power Query ↔ FeatherQuery (08/11/2026).** `openquery_ui/power_query.rs`: léxico e leitor do M
+(`let … in`, `each`, `if`, `is`, registros, `#"nomes"`, `#(lf)`), cada etapa do `let` lida sozinha
+(`ligacoes`: a que não entende vira `// M não convertido:` e não estraga as outras). `de_m` → linhas do
+script (colunas pelo nome) que o `script::ler` de sempre confere; `para_m` → M com os nomes de etapa do
+Power Query na língua do app. Cobre 39 `Table.*` (as que os botões do Excel geram), as fontes (Excel/CSV/
+Parquet/pasta/Web/tabela da pasta/#table) e ~45 funções internas; coluna personalizada vai e volta pela
+fórmula (`formula`/`de_formula`, só funções de `FUNCOES`). Atalhos novos no script, resolvidos pelo
+cabeçalho daquele ponto: `removerColunas`, `pivotarColuna`, `despivotarSelecionadas`; `mesclarConsultas`
+aceita a coluna da outra consulta pelo nome. Tela: colar M no Editor avançado e Aplicar converte (com
+etapa sem equivalente, para e mostra o script comentado); "Copiar como Power Query" no rodapé. Limites:
+a fonte do M vira comentário (a da consulta continua a de Obter dados); `contagem` (só números) vai como
+`List.Count(List.Select(…, each _ is number))` e `Table.RowCount(_)` volta como contar valores da chave.
+`consultas_da_secao` já lê o `section Section1; shared …;` — **falta** tirar esse texto do DataMashup do
+`.xlsx` (customXml, base64 → zip → `Formulas/Section1.m`) para abrir as consultas do arquivo sozinho.
+Novidade: "Power Query do Excel no OpenQuery: cole o M e as etapas aparecem; Copiar como Power Query
+leva de volta para o Excel."
+
 ## v0.2.9 — 04/11/2026: minigráficos, desfazer exato, auditoria
 
 Inserir ▸ Minigráficos (Linha, Coluna, Ganhos/Perdas): modelo e contas em

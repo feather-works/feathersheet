@@ -207,6 +207,8 @@ impl App {
                     text(tr!("Editor avançado")).size(17).font(negrito()),
                     text(tr!("let fonte = …; e uma linha por etapa: fonte.metodo(…);. As colunas vão pelo nome."))
                         .size(12).color(ide::cor_secundaria(escuro)),
+                    text(tr!("Também aceita o M do Power Query: cole e clique Aplicar."))
+                        .size(12).color(ide::cor_secundaria(escuro)),
                 ].spacing(2),
                 Space::new(Length::FILL, 0.0),
                 ide::botao_icone(tr!("Fechar editor avançado sem aplicar"), "x",
@@ -223,11 +225,17 @@ impl App {
                 feather_ui::icones::icone("alert-triangle", 15.0),
                 text(e.erro_avancado.clone()).size(12).color(cor_erro()),
             ].spacing(6).align(pelicano::Align::Center));
+        } else if !e.aviso_avancado.is_empty() {
+            corpo = corpo.push(row![
+                feather_ui::icones::icone("info-circle", 15.0),
+                text(e.aviso_avancado.clone()).size(12).color(ide::cor_secundaria(escuro)),
+            ].spacing(6).align(pelicano::Align::Center));
         }
         corpo = corpo.push(row![
             text(trf!("{} etapas atuais · Aplicar confere o script inteiro antes de mudar a consulta", e.passos.len()))
                 .size(11).color(ide::cor_secundaria(escuro)),
             Space::new(Length::FILL, 0.0),
+            ide::botao(tr!("Copiar como Power Query"), Some(om(Evento::CopiarPowerQuery)), false),
             ide::botao(tr!("Cancelar"), Some(om(Evento::FecharEditorAvancado)), false),
             ide::botao_primario(tr!("Aplicar"), "checks",
                 Some(om(Evento::AplicarEditorAvancado))),

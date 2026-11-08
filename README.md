@@ -90,6 +90,7 @@ Help menu, under *What's new*).
 - **New macro API:** `sheet.autoFilter`, `sheet.showAllData`, `sheet.autoFilterOff`, `shape.visible`/`onAction`/`move`, `range.getFormat()` and `app.choose` (a question with up to three buttons).
 - **OpenQuery with no size limit**, with a ▾ menu on each column, multi-column selection (Ctrl/Shift), steps editable through the ⚙ gear and *Split column* into columns, like Power Query.
 - **OpenQuery script:** each query is a short editable script: `let fonte = lerCsv("sales.csv");` and then one line per step, such as `fonte.renomearColuna("DT", "date");`, with columns referenced by name.
+- **Power Query in both directions:** paste the M from Excel's Advanced Editor into the OpenQuery Advanced editor and its steps become OpenQuery steps (what has no equivalent stays as a comment); *Copy as Power Query* writes the M back for Excel.
 - **Data › Get & Transform Data:** from Text/CSV, from the Web, from Table/Range, recent sources and existing connections.
 - **CSV in any encoding:** UTF-8, UTF-16 (Excel's "Unicode Text") and Windows-1252 ("ANSI", common in government data); dates and times come in already formatted; saving writes UTF-8 with a BOM, which Excel reads without mangling accents.
 - **Page Layout:** *Scale to Fit* (width and height in pages) and cell size.
