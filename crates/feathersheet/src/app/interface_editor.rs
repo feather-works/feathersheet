@@ -227,6 +227,11 @@ impl App {
             let fonte = (basico.tamanho.unwrap_or(self.config.tamanho_fonte_grade as f32)
                 * self.config.zoom as f32 / 100.0).max(11.0);
             let letra = crate::estilos_comuns::fonte_da_celula(&visual, &self.config.fonte_grade);
+            let alinhar = match visual.comum.layout.horizontal {
+                feather_tables::AlinhamentoHorizontal::Centro => pelicano::Align::Center,
+                feather_tables::AlinhamentoHorizontal::Fim => pelicano::Align::End,
+                _ => pelicano::Align::Start,
+            };
             let entrada: Element<'_, Msg> = if let Some(conteudo) = multiline {
                 editor_multilinha(conteudo, fonte, altura - 4.0)
             } else {
@@ -234,11 +239,9 @@ impl App {
                     text_input("", &self.edicao)
                         .id("feathersheet.celula")
                         .on_input(Msg::Editar).on_submit(Msg::EnviarEditor)
-                        .size(fonte).font(letra).padding([3, 5]).width(Length::FILL)
+                        .size(fonte).font(letra).padding([3, 5]).width(Length::FILL).align_x(alinhar)
                         // Sem a borda arredondada e o fundo do campo: a moldura é a
                         // do container, do tamanho da célula (o campo parecia menor).
-                        // shortcut: o text_input do pelicano não tem align_x; célula
-                        // centralizada edita à esquerda até o pelicano ganhar isso.
                         .style(move |t, _| pelicano::Style::default().text_color(cor_texto.unwrap_or(t.text))),
                     &self.edicao,
                 ).into()

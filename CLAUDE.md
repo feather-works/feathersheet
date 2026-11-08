@@ -23,6 +23,14 @@ módulo, `CompareMode`/`Key` do Dictionary e ler `.Left/.Top` da forma (`objetos
 medidas padrão da grade moram no `objetos_aba`). Novidade: "InputBox das macros do Excel volta a
 funcionar, com caixa para digitar." Número vira texto pelo CStr (vírgula decimal, 15 algarismos: `"Total: " & 0,1+0,2` dá `Total: 0,3`; `app.decimalSeparator`). Novidade: "Macros do Excel escrevem número com vírgula ao juntar texto, como no Excel em português." `AdvancedFilter` (copiar e no lugar, `filtro_avancado.rs`, marca `_xlnm._FilterDatabase`; o `.xlsx` grava `_xlnm.*` com `localSheetId`). Novidade: "Filtro Avançado das macros do Excel (copiar para outro lugar e filtrar no lugar)." Formulário da macro: Tab/Shift+Tab na ordem do `TabIndex` (`Controle::ordem`, `Formulario::ordem_do_tab`, `Evento::Tab`) e foco no primeiro campo ao abrir. Novidade: "Tab passa pelos campos dos formulários das macros na ordem do Excel." `CopyPicture` → `sheet.pastePicture` (`impressao_pdf::svg_da_area` com o `trait Pincel` comum ao PDF; `PedidoImagem` aplicado no `concluir_macro` por `objetos::aplicar_imagens_da_macro`) e botão direito ▸ "Copiar como imagem" (`imagens_importadas::gravar_png_na_area_de_transferencia`, fora da thread da janela). Novidade: "Copiar como imagem no botão direito e CopyPicture das macros do Excel."
 
+## Depois da v0.2.9 (08/11/2026): pelicano 0.1.30 do crates.io, feather-ui v0.3.15
+
+O pelicano deixou de vir por git/tag: `pelicano = "0.1.30"` (crates.io, travado na 0.1.30 no Cargo.lock;
+a 0.1.31 muda o Tab entre campos, conferir na grade antes de subir). feather-ui v0.3.15 é a v0.3.14 com
+esse pelicano. Com isso o editor da célula usa o alinhamento horizontal dela (`TextInput::align_x`, #90):
+centralizada edita no centro, à direita edita à direita. Novidade: "Editar uma célula centralizada mantém o
+texto no centro, como no Excel."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,
