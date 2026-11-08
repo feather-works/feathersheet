@@ -4672,5 +4672,6 @@
  "Consultas do Power Query deste arquivo…": "Power Query queries in this file…",
  "~{etapas} etapas": "~{etapas} steps",
  "Consultas do Power Query deste arquivo": "Power Query queries in this file",
- "O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do OpenQuery.": "Excel saved these queries in the file. The one you pick opens in the Advanced editor, converted into OpenQuery steps."
+ "O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do OpenQuery.": "Excel saved these queries in the file. The one you pick opens in the Advanced editor, converted into OpenQuery steps.",
+ "Enter completa": "Enter completes"
 }

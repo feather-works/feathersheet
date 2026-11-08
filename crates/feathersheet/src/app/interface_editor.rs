@@ -185,6 +185,17 @@ impl App {
                 assistente = Some(container(opcoes)
                     .padding(5).width(Length::Fixed(420.0))
                     .style(estilo_painel_faixa).into());
+            } else if let Some(completo) = self.sugestao_valor.as_ref()
+                .filter(|(base, _)| *base == self.edicao && self.edicao_inline.is_none()).map(|(_, c)| c)
+            {
+                // Digitando direto na célula (sem duplo clique) a edição é pela fx: a sugestão fica aqui.
+                assistente = Some(container(row![
+                    text(completo.clone()).size(13),
+                    Space::new(Length::FILL, 0.0),
+                    text(tr!("Enter completa")).size(11).color(COR_TEXTO_MUTED()),
+                ].spacing(8).align(pelicano::Align::Center))
+                    .padding([6, 9]).width(Length::Fixed(420.0))
+                    .style(estilo_painel_faixa).into());
             } else if let Some((assinatura, indice, argumento, descricao)) =
                 self.dica_funcao_ativa()
             {
@@ -246,6 +257,20 @@ impl App {
                     &self.edicao,
                 ).into()
             };
+            // AutoConclusão: o valor da coluna logo abaixo da célula; Enter aceita.
+            // shortcut: etiqueta embaixo em vez do resto selecionado na célula (Excel); trocar quando o
+            // pelicano 0.1.31 (Task::select_range) entrar.
+            let sugestao: Element<'_, Msg> = match &self.sugestao_valor {
+                Some((base, completo)) if *base == self.edicao => row![
+                    Space::new(Length::Fixed(edi.x.max(0.0)), 0.0),
+                    container(row![
+                        text(completo.clone()).size(13),
+                        text(tr!("Enter completa")).size(11).color(COR_TEXTO_MUTED()),
+                    ].spacing(10).align(pelicano::Align::Center))
+                        .padding([4, 8]).style(estilo_painel_faixa),
+                ].into(),
+                _ => Space::new(0.0, 0.0).into(),
+            };
             let camada = column![
                 Space::new(0.0, Length::Fixed(edi.y.max(0.0))),
                 row![
@@ -264,6 +289,7 @@ impl App {
                             ..Default::default()
                         }),
                 ],
+                sugestao,
             ];
             stack![grid, camada].height(Length::FILL).width(Length::FILL).into()
         } else { grid };

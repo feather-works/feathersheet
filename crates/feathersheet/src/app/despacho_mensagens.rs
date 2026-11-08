@@ -911,6 +911,7 @@ impl App {
                 // detalhes (as linhas da origem), como no Excel.
                 if self.detalhar_dinamica(r, c) { return Task::none(); }
                 self.trocar_selecao_por_clique(r, c);
+                self.sugestao_valor = None;
                 self.editor_formula.ativo = true;
                 self.editor_formula.origem = Some((self.folha, self.linha, self.coluna));
                 self.editor_formula.modo_texto = true;
@@ -1146,6 +1147,9 @@ impl App {
                 }
                 self.editor_formula.ativo=true;
                 self.editor_formula.alterado(&self.edicao,&t);
+                // Só sugere digitando: apagar (texto mais curto) tira a sugestão, como no Excel.
+                let cresceu = t.chars().count() > self.edicao.chars().count();
+                self.sugestao_valor = if cresceu { self.completar_valor(&t).map(|c| (t.clone(), c)) } else { None };
                 self.edicao=t;
                 Task::none()
             }
@@ -1156,6 +1160,7 @@ impl App {
                 }
                 self.editor_formula.ativo=true;
                 self.editor_formula.alterado(&self.edicao,&t);
+                self.sugestao_valor = self.completar_valor(&t).map(|c| (t.clone(), c));
                 self.edicao=t;
                 // O campo recém-focado já põe o cursor no fim do valor.
                 Task::focus("feathersheet.fx")

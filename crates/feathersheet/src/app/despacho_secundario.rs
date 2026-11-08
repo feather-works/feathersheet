@@ -1715,6 +1715,7 @@ impl App {
                 Task::none()
             }
             Msg::Cancelar => {
+                self.sugestao_valor = None;
                 // Esc na edição dentro da célula deve cancelar o rascunho
                 // imediatamente, inclusive em tabelas com aba contextual ativa.
                 if self.edicao_inline.is_some() && self.editor_formula.ativo {

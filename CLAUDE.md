@@ -31,6 +31,14 @@ esse pelicano. Com isso o editor da célula usa o alinhamento horizontal dela (`
 centralizada edita no centro, à direita edita à direita. Novidade: "Editar uma célula centralizada mantém o
 texto no centro, como no Excel."
 
+AutoConclusão (como no Excel/Sheets): `App::completar_valor` (`entrada_rapida.rs`) acha o único texto do bloco
+contínuo da coluna (até 10 mil linhas para cada lado, `valores_do_bloco`, o mesmo do Alt+↓) que começa com o
+digitado; `sugestao_valor` (digitado, completo) é refeito no `Msg::Editar`/`Digitar` só quando o texto cresce,
+mostrado embaixo da célula (editor na célula) ou da fx (digitando direto), e aceito no `confirmar` (Enter, Tab,
+clique fora). Esc e o duplo clique limpam. shortcut: etiqueta embaixo, não o resto selecionado dentro da célula
+como no Excel — o pelicano 0.1.30 não seleciona trecho por tarefa (a 0.1.31 tem `Task::select_range`).
+Novidade: "AutoConclusão: ao digitar, o valor que já existe na coluna aparece e o Enter completa."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,

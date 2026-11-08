@@ -9,6 +9,8 @@ use feathersheet_core::{celulas::values::Value, operacoes::fill::shift_formula};
 const TETO_CTRL_ENTER: u64 = 1_000_000;
 /// Alt+↓ lê no máximo isto de linhas acima e abaixo da célula ativa.
 const TETO_LISTA_COLUNA: u32 = 100_000;
+/// A AutoConclusão roda a cada tecla: olha menos linhas que o Alt+↓.
+const TETO_AUTOCONCLUSAO: u32 = 10_000;
 
 impl App {
     /// Escreve o conteúdo do editor em todas as células da seleção, num
@@ -63,24 +65,7 @@ impl App {
     /// Com validação de lista na célula, a lista dela tem preferência.
     pub(super) fn abrir_lista_da_coluna(&mut self) {
         if !self.confirmar() { return; }
-        let (aba, linha, coluna) = (self.folha, self.linha, self.coluna);
-        let texto = |r: u32| -> Option<String> {
-            let v = self.workbook.valor(aba, r, coluna);
-            (!matches!(v, Value::Empty)).then(|| feathersheet_core::celulas::values::to_text(&v))
-        };
-        let mut vistos = std::collections::BTreeSet::new();
-        let mut r = linha;
-        while r > 0 && linha - r < TETO_LISTA_COLUNA {
-            let Some(t) = texto(r - 1) else { break };
-            vistos.insert(t);
-            r -= 1;
-        }
-        let mut r = linha;
-        while r + 1 < MAX_ROWS && r - linha < TETO_LISTA_COLUNA {
-            let Some(t) = texto(r + 1) else { break };
-            vistos.insert(t);
-            r += 1;
-        }
+        let mut vistos = self.valores_do_bloco(TETO_LISTA_COLUNA, false);
         vistos.retain(|t| !t.trim().is_empty());
         if vistos.is_empty() {
             self.status = tr!("Não há valores acima ou abaixo nesta coluna para escolher.").into();
@@ -94,6 +79,50 @@ impl App {
         self.lista_coluna = Some(itens);
         self.lista_aberta = true;
         self.marcar_valor_atual_na_lista();
+    }
+
+    /// Valores do bloco contínuo da coluna da célula ativa (acima e abaixo, até a primeira
+    /// vazia), sem ela. `so_texto`: deixa de fora número, data e lógico.
+    fn valores_do_bloco(&self, teto: u32, so_texto: bool) -> std::collections::BTreeSet<String> {
+        let (aba, linha, coluna) = (self.folha, self.linha, self.coluna);
+        // `None` para no vazio; `Some(None)` é célula que não entra (número, quando só texto).
+        let texto = |r: u32| -> Option<Option<String>> {
+            match self.workbook.valor(aba, r, coluna) {
+                Value::Empty => None,
+                Value::Text(t) => Some(Some(t)),
+                _ if so_texto => Some(None),
+                v => Some(Some(feathersheet_core::celulas::values::to_text(&v))),
+            }
+        };
+        let mut vistos = std::collections::BTreeSet::new();
+        let mut r = linha;
+        while r > 0 && linha - r < teto {
+            let Some(t) = texto(r - 1) else { break };
+            vistos.extend(t);
+            r -= 1;
+        }
+        let mut r = linha;
+        while r + 1 < MAX_ROWS && r - linha < teto {
+            let Some(t) = texto(r + 1) else { break };
+            vistos.extend(t);
+            r += 1;
+        }
+        vistos
+    }
+
+    /// AutoConclusão do Excel: o texto da mesma coluna que começa com o que foi digitado,
+    /// quando só um começa assim (sem diferenciar maiúsculas). Número e fórmula não completam.
+    pub(super) fn completar_valor(&self, digitado: &str) -> Option<String> {
+        let d = digitado.trim_start();
+        if d.is_empty() || d.starts_with(['=', '+', '-', '@']) || d.replace(',', ".").parse::<f64>().is_ok() {
+            return None;
+        }
+        let d = d.to_lowercase();
+        let mut achados = self.valores_do_bloco(TETO_AUTOCONCLUSAO, true).into_iter()
+            .filter(|t| t.chars().count() > d.chars().count() && t.to_lowercase().starts_with(&d));
+        let primeiro = achados.next()?;
+        let unico = achados.all(|t| t.to_lowercase() == primeiro.to_lowercase());
+        unico.then_some(primeiro)
     }
 
     /// Itens da lista suspensa da célula ativa: a validação manda; sem ela,
@@ -208,5 +237,38 @@ mod testes {
         assert_eq!(app.lista_coluna, Some(vec![
             "Fora".to_string(), "Rio".to_string(), "são paulo".to_string()]));
         assert!(app.lista_aberta);
+    }
+
+    #[test]
+    fn autoconclusao_completa_pelo_texto_unico_da_coluna() {
+        let mut app = App::default();
+        for (r, t) in ["Supermercado", "Padaria", "Salário", "Saldo", "123"].iter().enumerate() {
+            app.workbook.escrever_celula(0, r as u32, 0, (*t).into());
+        }
+        app.trocar_selecao(5, 0);
+        assert_eq!(app.completar_valor("sup").as_deref(), Some("Supermercado"));
+        assert_eq!(app.completar_valor("Sal"), None, "duas começam assim");
+        assert_eq!(app.completar_valor("Salá").as_deref(), Some("Salário"));
+        assert_eq!(app.completar_valor("12"), None, "número não completa");
+        assert_eq!(app.completar_valor("=Sup"), None);
+        assert_eq!(app.completar_valor("Supermercado"), None, "já está inteiro");
+        // Digitar direto e Enter: grava o valor completo.
+        let _ = app.update(Msg::Digitar("S".into()));
+        let _ = app.update(Msg::Editar("Su".into()));
+        assert_eq!(app.sugestao_valor.as_ref().map(|(_, c)| c.as_str()), Some("Supermercado"));
+        let _ = app.update(Msg::EnviarEditor);
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(5, 0), "Supermercado");
+        // Apagar tira a sugestão: Enter grava o que foi digitado.
+        let _ = app.update(Msg::Digitar("P".into()));
+        let _ = app.update(Msg::Editar("Pa".into()));
+        let _ = app.update(Msg::Editar("P".into()));
+        assert!(app.sugestao_valor.is_none());
+        let _ = app.update(Msg::EnviarEditor);
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(6, 0), "P");
+        // Esc descarta a sugestão: não volta numa edição seguinte.
+        let _ = app.update(Msg::Digitar("Pad".into()));
+        assert!(app.sugestao_valor.is_some());
+        let _ = app.update(Msg::Cancelar);
+        assert!(app.sugestao_valor.is_none());
     }
 }

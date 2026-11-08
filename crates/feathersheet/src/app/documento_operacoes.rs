@@ -376,6 +376,10 @@ impl App {
         }
         // Alerta de validação aberto: espera a resposta (Repetir, Sim, OK…).
         if self.validacao_alerta.is_some() { return false; }
+        // AutoConclusão: gravar (Enter, Tab, clicar fora) aceita o valor sugerido, como no Excel.
+        if let Some((base, completo)) = self.sugestao_valor.take() {
+            if base == self.edicao { self.edicao = completo; }
+        }
         let (folha, linha, coluna) = self.editor_formula.origem
             .unwrap_or((self.folha, self.linha, self.coluna));
         let antes = self.workbook.aba(folha)

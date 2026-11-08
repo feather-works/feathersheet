@@ -40,6 +40,7 @@
     "corpo": [
      "Haga clic en una celda y escriba. Enter confirma y baja; Tab confirma y va a la derecha; Esc cancela.",
      "• F2 o doble clic edita la celda sin borrar su contenido.",
+     "• Al escribir un texto con el que solo empieza una celda de la misma columna (\"Sup\" → \"Supermercado\"), el valor completo aparece debajo: Enter, Tab o hacer clic fuera lo acepta; borrar una letra quita la sugerencia.",
      "• Ctrl + flecha salta hasta el final de los datos; con Mayús, selecciona hasta allí.",
      "• Ctrl+Z deshace y Ctrl+Y rehace — incluidas las macros completas.",
      "Los comandos están en la cinta superior. Ctrl+F1 cambia la cinta por menús desplegables y una barra compacta (y viceversa)."
