@@ -469,7 +469,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** #107.  **Tamanho:** P/M.
 
 ### DIN-5. Dinâmicas recomendadas: fazer ou retirar (menu morto)
-**Situação (08/11):** ❌ falta. `recomendacoes` (`dinamica_ui.rs:187`, `:491`, `:532`) continua escrita e nunca lida, e a Ajuda F1 em pt-BR ainda promete "Dinâmicas recomendadas". É um menu morto (regra 3).
+**Situação (08/11):** ✅ feito em 08/11 (opção A): `dinamica::campos::sugestoes` (soma de número por categoria, por duas, outro número, contagem; até 5) e os botões no primeiro passo; o clique cria a dinâmica.
 - **Onde:** `app/dinamica_ui.rs:187`, `:491`, `:530–532` (`Evento::Recomendadas`); `faixa_nativa_grupos.rs`
   (o botão); `app/ajuda.rs` (o tópico que promete o recurso).
 - **Pronto (opção A, D5):** sugere 3 a 5 resumos a partir dos dados (campo de texto + número, campo de
@@ -751,7 +751,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar (pendência da revisão de 29/10).  **Tamanho:** M.
 
 ### SEG-2. Pânicos nos eventos de macro não derrubam o app
-**Situação (08/11):** ❌ falta. `eventos_vba.rs` e `formulario_macro.rs` continuam sem `catch_unwind`.
+**Situação (08/11):** ✅ feito em 08/11: `macro_dialogo::sem_derrubar` envolve toda execução de macro (eventos, formulário, Executar, em fundo); pânico vira "a macro travou o interpretador".
 - **Onde:** `crates/feathersheet/src/app/eventos_vba.rs`, `app/formulario_macro.rs` (sem `catch_unwind`);
   padrão já usado em `app/calculo_em_fundo.rs` e `app/macro_dialogo/em_fundo.rs`.
 - **Pronto:** entrada ruim no evento (macro que lança erro, formulário com valor estranho) vira mensagem na
@@ -759,7 +759,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar (crash: correção avulsa permitida pela regra 23).  **Tamanho:** P/M.
 
 ### SEG-3. Teto do corpo HTTP do OpenQuery (conferir)
-**Situação (08/11):** ❌ falta. Achado: `openquery_ui/importador.rs::ler_web` (reqwest, 25 s, 3 redirecionamentos) faz `read_to_end` sem teto de tamanho.
+**Situação (08/11):** ✅ feito em 08/11: `importador::ler_com_teto` (512 MB) na fonte Web; acima disso, erro pedindo para baixar o arquivo.
 - **Onde:** (a conferir) onde está o cliente HTTP do OpenQuery (`app/openquery_ui*` e o crate de dados).
 - **Pronto:** corpo acima do teto é recusado com erro claro; teste.
 - **Depende:** nada.  **Issue:** criar se não existir.  **Tamanho:** P.

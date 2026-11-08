@@ -77,6 +77,12 @@ tem `#REF!` montava o atalho errado e a conferência desligava o atalho para a c
 (`esperando_celula_valida`); `padroes` virou `Vec` pelo id (o `HashMap` custava 13%). Novidade: "Salvar em .xlsx
 até 3 vezes mais rápido em planilhas grandes."
 
+Itens do plano da 0.3.0 (08/11/2026): SEG-2 pânico de macro não derruba o app (`macro_dialogo::sem_derrubar`,
+também no `em_fundo`); SEG-3 teto de 512 MB na fonte Web do OpenQuery (`importador::ler_com_teto`); DIN-5
+Dinâmicas recomendadas de verdade (`feathersheet_core::dinamica::campos::sugestoes`, `Estado::sugestoes`,
+`Evento::Sugestao`). Novidade: "Dinâmicas recomendadas: sugestões prontas (soma por região, contagem…) com um
+clique." e "Uma macro com defeito não fecha mais o FeatherSheet."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,

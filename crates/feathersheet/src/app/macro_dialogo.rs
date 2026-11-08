@@ -34,6 +34,15 @@ pub(super) struct PerguntaMacro {
     ms: u128,
 }
 
+/// Roda a macro sem deixar um pânico do interpretador derrubar o app (evento do VBA, botão de
+/// formulário, Executar): vira erro da macro na barra de status. A pasta pode ficar com o que a
+/// macro já escreveu, como num erro comum que não reverte.
+pub(super) fn sem_derrubar(f: impl FnOnce() -> feathersheet_macros::Resultado) -> feathersheet_macros::Resultado {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or_else(|_| feathersheet_macros::Resultado {
+        erro: Some(tr!("a macro travou o interpretador").into()), ..Default::default()
+    })
+}
+
 impl App {
     /// Roda a macro e aplica o que ela pediu ao app. `None` quando ficou
     /// esperando uma resposta Sim/Não. Todo caminho que roda macro passa por
@@ -52,7 +61,8 @@ impl App {
     {
         let inicio_execucao = std::time::Instant::now();
         let contexto = feathersheet_macros::Contexto { textos: textos.clone(), ..self.contexto_da_macro(respostas.clone(), escolhas.clone()) };
-        let r = feathersheet_macros::executar_com(&mut self.workbook, self.folha, codigo, contexto);
+        let (folha, pasta) = (self.folha, &mut self.workbook);
+        let r = sem_derrubar(|| feathersheet_macros::executar_com(pasta, folha, codigo, contexto));
         self.concluir_macro(gatilho, nome, codigo, respostas, escolhas, textos, continua, inicio_execucao, r)
     }
 
@@ -269,6 +279,13 @@ impl App {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn panico_do_interpretador_vira_erro_e_nao_derruba() {
+        let r = sem_derrubar(|| panic!("teste"));
+        assert_eq!(r.erro.as_deref(), Some("a macro travou o interpretador"));
+        assert!(sem_derrubar(feathersheet_macros::Resultado::default).erro.is_none());
+    }
 
     #[test]
     fn pergunta_espera_a_resposta_e_roda_de_novo() {

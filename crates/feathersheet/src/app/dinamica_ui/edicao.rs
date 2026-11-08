@@ -90,7 +90,7 @@ pub(super) fn ler_estado(app: &App, destino: usize, meta: &Json) -> Result<Estad
     Ok(Estado {
         origem: origem.clone(),
         origem_texto: endereco_area(&origem),
-        recomendacoes: false,
+        sugestoes: None,
         folha_origem, nomes, linhas, colunas, valores, agrupar_data,
         nova_aba: false, editando: Some(id), calculados,
         novo_nome: String::new(), nova_formula: String::new(),

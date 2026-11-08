@@ -61,6 +61,15 @@ impl App {
             e.filtro_cortado = false;
         }
         self.status = tr!("Intervalo aplicado. Campos e filtros anteriores foram redefinidos.").into();
+        if self.dinamica.as_ref().is_some_and(|e| e.sugestoes.is_some()) { self.calcular_sugestoes_dinamica(); }
+    }
+
+    /// As dinâmicas recomendadas da origem do painel aberto.
+    pub(super) fn calcular_sugestoes_dinamica(&mut self) {
+        let Some(e) = self.dinamica.as_ref() else { return };
+        let (origem, folha) = (e.origem.clone(), e.folha_origem);
+        let lista = campos::sugestoes(origem, |r, c| self.workbook.valor(folha, r, c));
+        if let Some(e) = self.dinamica.as_mut() { e.sugestoes = Some(lista); }
     }
 
     pub(super) fn preset_dinamica(&mut self, id: u8) {

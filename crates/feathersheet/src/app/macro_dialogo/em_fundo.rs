@@ -39,11 +39,7 @@ impl App {
         let (envio, recebe) = mpsc::channel();
         std::thread::spawn(move || {
             // Pânico na thread não pode levar a pasta embora: ela volta sempre.
-            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                feathersheet_macros::executar_com(&mut pasta, folha, &codigo_thread, contexto)))
-                .unwrap_or_else(|_| feathersheet_macros::Resultado {
-                    erro: Some(tr!("a macro travou o interpretador").into()), ..Default::default()
-                });
+            let r = super::sem_derrubar(|| feathersheet_macros::executar_com(&mut pasta, folha, &codigo_thread, contexto));
             let _ = envio.send((pasta, r));
         });
         self.status = trf!("Executando a macro {nome}…");

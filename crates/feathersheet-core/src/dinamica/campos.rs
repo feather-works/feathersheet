@@ -87,9 +87,92 @@ pub fn previa_sequencia(
     }).collect())
 }
 
+/// Linhas lidas para achar as colunas de categoria (poucos valores repetidos).
+const AMOSTRA_SUGESTOES: u32 = 2_000;
+/// Mais valores distintos que isto na amostra não é categoria para agrupar.
+const MAX_CATEGORIAS: usize = 60;
+
+/// Uma dinâmica recomendada (Inserir ▸ Dinâmicas recomendadas): colunas pela posição na origem.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Sugestao {
+    pub linhas: Vec<usize>,
+    pub colunas: Vec<usize>,
+    pub valor: usize,
+    /// `true`: contagem; `false`: soma.
+    pub contagem: bool,
+}
+
+/// Até 5 resumos que fazem sentido para os dados, como as recomendadas do Excel: soma de um
+/// número por uma categoria (texto com poucos valores), por duas, outro número, e contagem.
+pub fn sugestoes(origem: Rect, valor: impl Fn(u32, u32) -> Value) -> Vec<Sugestao> {
+    let o = origem.normalized();
+    let lista = campos(o.clone(), &valor);
+    let fim = o.r1.min(o.r0.saturating_add(AMOSTRA_SUGESTOES));
+    let mut categorias = Vec::new();
+    let mut numeros = Vec::new();
+    for (i, campo) in lista.iter().enumerate() {
+        let c = o.c0 + i as u32;
+        let nome = campo.nome.to_lowercase();
+        if campo.numerico {
+            // Código e identificador não se somam.
+            let codigo = ["id", "código", "codigo", "cód", "cod", "nº", "numero", "número", "cep", "ano"]
+                .iter().any(|p| nome == *p || nome.starts_with(&format!("{p} ")) || nome.ends_with(&format!(" {p}")));
+            if !codigo { numeros.push(i); }
+            continue;
+        }
+        let mut distintos = std::collections::HashSet::new();
+        let mut preenchidas = 0u32;
+        for r in o.r0 + 1..=fim {
+            let t = to_text(&valor(r, c)).trim().to_lowercase();
+            if t.is_empty() { continue; }
+            preenchidas += 1;
+            distintos.insert(t);
+            if distintos.len() > MAX_CATEGORIAS { break; }
+        }
+        // Categoria: repete (menos distintos que metade das linhas) e cabe numa tabela.
+        if distintos.len() >= 2 && distintos.len() <= MAX_CATEGORIAS && (distintos.len() as u32) * 2 <= preenchidas {
+            categorias.push(i);
+        }
+    }
+    let mut saida: Vec<Sugestao> = Vec::new();
+    let mut por = |linhas: Vec<usize>, colunas: Vec<usize>, valor: usize, contagem: bool| {
+        let s = Sugestao { linhas, colunas, valor, contagem };
+        if saida.len() < 5 && !saida.contains(&s) { saida.push(s); }
+    };
+    if let Some(&n) = numeros.first() {
+        for &cat in categorias.iter().take(2) { por(vec![cat], vec![], n, false); }
+        if let [a, b, ..] = categorias[..] { por(vec![a], vec![b], n, false); }
+        if let (Some(&n2), Some(&cat)) = (numeros.get(1), categorias.first()) { por(vec![cat], vec![], n2, false); }
+    }
+    if let Some(&cat) = categorias.first() { por(vec![cat], vec![], cat, true); }
+    saida
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn sugestoes_somam_numero_por_categoria_e_contam() {
+        // ID | Região | Produto | Valor | Qtd ; 40 linhas, 4 regiões, produtos todos diferentes.
+        let regioes = ["Norte", "Sul", "Leste", "Oeste"];
+        let valor = |r: u32, c: u32| -> Value {
+            if r == 0 { return Value::Text(["ID", "Região", "Produto", "Valor", "Qtd"][c as usize].into()); }
+            match c {
+                0 => Value::Number(r as f64),
+                1 => Value::Text(regioes[(r % 4) as usize].into()),
+                2 => Value::Text(format!("P{r}")),
+                3 => Value::Number(r as f64 * 1.5),
+                _ => Value::Number(2.0),
+            }
+        };
+        let s = sugestoes(Rect::new(0, 0, 40, 4), valor);
+        assert_eq!(s[0], Sugestao { linhas: vec![1], colunas: vec![], valor: 3, contagem: false }, "soma de Valor por Região");
+        assert!(s.contains(&Sugestao { linhas: vec![1], colunas: vec![], valor: 4, contagem: false }), "Qtd por Região");
+        assert!(s.contains(&Sugestao { linhas: vec![1], colunas: vec![], valor: 1, contagem: true }), "contagem por Região");
+        assert!(s.iter().all(|x| x.valor != 0 && !x.linhas.contains(&2)), "ID não soma; Produto único não agrupa");
+        assert!(sugestoes(Rect::new(0, 0, 3, 0), |_, _| Value::Number(1.0)).is_empty());
+    }
 
     fn tabela() -> Vec<Vec<Value>> {
         let t = |s: &str| Value::Text(s.into());

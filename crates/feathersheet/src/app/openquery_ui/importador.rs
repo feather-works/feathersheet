@@ -359,8 +359,21 @@ fn html_tabelas(bytes: &[u8]) -> Result<Vec<Tabela>, String> {
 /// Consulta HTTP(S) em tarefa bloqueante separada da UI. Aceita JSON,
 /// CSV/TSV e páginas HTML estáticas. Não interpreta scripts da página.
 /// Corpo e redirecionamentos têm limite para não consumir memória ilimitada.
-pub(super) fn ler_web(url: &str) -> Result<(Vec<Tabela>, String), String> {
+/// O que a fonte Web aceita baixar (o servidor pode mandar qualquer coisa).
+const TETO_WEB: u64 = 512 * 1024 * 1024;
+
+/// Lê até `teto` bytes; passou disso, erro em vez de encher a memória.
+fn ler_com_teto(leitor: &mut impl std::io::Read, teto: u64) -> Result<Vec<u8>, String> {
     use std::io::Read;
+    let mut bytes = Vec::new();
+    leitor.take(teto + 1).read_to_end(&mut bytes).map_err(|e| trf!("Falha ao baixar os dados: {e}"))?;
+    if bytes.len() as u64 > teto {
+        return Err(trf!("A resposta da Web passa de {} MB; baixe o arquivo e use Obter dados ▸ De arquivo.", teto >> 20));
+    }
+    Ok(bytes)
+}
+
+pub(super) fn ler_web(url: &str) -> Result<(Vec<Tabela>, String), String> {
     let mut endereco = reqwest::Url::parse(url.trim())
         .map_err(|e| trf!("URL inválida: {e}"))?;
     let caminho_json = caminho_json::extrair_fragmento(&mut endereco)?;
@@ -380,9 +393,7 @@ pub(super) fn ler_web(url: &str) -> Result<(Vec<Tabela>, String), String> {
     let tipo = resposta.headers()
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok()).unwrap_or("").to_ascii_lowercase();
-    let mut bytes = Vec::new();
-    resposta.read_to_end(&mut bytes)
-        .map_err(|e| trf!("Falha ao baixar os dados: {e}"))?;
+    let bytes = ler_com_teto(&mut resposta, TETO_WEB)?;
     let caminho = endereco.path().to_ascii_lowercase();
     let tsv = caminho.ends_with(".tsv") || tipo.contains("tab-separated");
     // APIs frequentemente respondem application/octet-stream ou text/plain.
@@ -424,6 +435,12 @@ pub(super) fn ler_web(url: &str) -> Result<(Vec<Tabela>, String), String> {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn resposta_da_web_acima_do_teto_vira_erro() {
+        assert_eq!(ler_com_teto(&mut &b"abcd"[..], 4).unwrap(), b"abcd");
+        assert!(ler_com_teto(&mut &b"abcde"[..], 4).unwrap_err().contains("passa de"));
+    }
 
     #[test]
     fn da_pasta_junta_os_arquivos_pelo_nome_das_colunas() {

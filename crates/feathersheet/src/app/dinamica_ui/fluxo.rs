@@ -89,6 +89,7 @@ impl App {
                 .on_submit(Msg::Dinamica(Evento::Criar))
                 .padding(7),
             erro,
+            self.view_sugestoes(e),
             text(tr!("Destino")).size(12),
             row![
                 destino(tr!("Nova Aba"), e.nova_aba, true),
@@ -102,6 +103,27 @@ impl App {
             ].spacing(8).align(pelicano::Align::Center),
         ].spacing(11);
         container(painel).padding(20).width(Length::Fixed(480.0)).style(estilo_painel_faixa).into()
+    }
+
+    /// Inserir ▸ Dinâmicas recomendadas: um botão por resumo sugerido; o clique cria a dinâmica.
+    fn view_sugestoes<'a>(&'a self, e: &'a Estado) -> Element<'a, Msg> {
+        let Some(lista) = &e.sugestoes else { return Space::new(0.0, 0.0).into() };
+        let nome = |i: usize| e.nomes.get(i).cloned().unwrap_or_else(|| trf!("Coluna {}", i + 1));
+        let mut col = column![text(tr!("Dinâmicas recomendadas")).size(12)].spacing(5);
+        if lista.is_empty() {
+            col = col.push(text(tr!("Sem sugestão para estes dados: é preciso uma coluna de texto que se repete (como Região) e, de preferência, uma de números.")).size(11).color(COR_TEXTO_MUTED()));
+        }
+        for (i, s) in lista.iter().enumerate() {
+            let linhas = s.linhas.iter().map(|&c| nome(c)).collect::<Vec<_>>().join(", ");
+            let rotulo = match (s.contagem, s.colunas.first()) {
+                (true, _) => trf!("Contagem por {linhas}"),
+                (false, Some(&c)) => trf!("Soma de {} por {linhas} e {}", nome(s.valor), nome(c)),
+                (false, None) => trf!("Soma de {} por {linhas}", nome(s.valor)),
+            };
+            col = col.push(button(item("pivot-table", rotulo, 12.0)).width(Length::FILL)
+                .style(estilo_botao_pequeno(false)).on_press(Msg::Dinamica(Evento::Sugestao(i))));
+        }
+        col.into()
     }
 
     /// Painel "Campos da Tabela Dinâmica".

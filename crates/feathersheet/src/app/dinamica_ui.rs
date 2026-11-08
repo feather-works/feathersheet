@@ -39,6 +39,8 @@ pub enum Evento {
     FundoPronto(u64, fundo::Pronto),
     Abrir,
     Recomendadas,
+    /// Clique numa das dinâmicas recomendadas: aplica e cria.
+    Sugestao(usize),
     Preset(u8),
     Mover(EixoDinamica,usize,i32),
     DuplicarValor(usize),
@@ -184,7 +186,8 @@ struct Arrasto {
 pub(super) struct Estado {
     origem: Rect,
     origem_texto: String,
-    recomendacoes: bool,
+    /// Inserir ▸ Dinâmicas recomendadas: os resumos sugeridos para a origem (`None` = abriu normal).
+    sugestoes: Option<Vec<feathersheet_core::dinamica::campos::Sugestao>>,
     folha_origem: usize,
     nomes: Vec<String>,
     linhas: Vec<usize>,
@@ -488,7 +491,7 @@ impl App {
                 self.dinamica = Some(Estado {
                     origem: origem.clone(),
                     origem_texto: endereco_area(&origem),
-                    recomendacoes: false,
+                    sugestoes: None,
                     folha_origem: self.folha,
                     nomes: campos.into_iter().map(|c| c.nome).collect(),
                     // Vazia, como no Excel: a origem só é lida quando o
@@ -529,8 +532,17 @@ impl App {
             }
             Evento::Recomendadas => {
                 let tarefa = self.evento_dinamica_base(Evento::Abrir);
-                if let Some(e) = &mut self.dinamica { e.recomendacoes = true; }
+                self.calcular_sugestoes_dinamica();
                 return tarefa;
+            }
+            Evento::Sugestao(i) => {
+                let Some(e) = self.dinamica.as_mut() else { return Task::none() };
+                let Some(s) = e.sugestoes.as_ref().and_then(|l| l.get(i)).cloned() else { return Task::none() };
+                let c0 = e.origem.c0 as usize;
+                e.linhas = s.linhas.iter().map(|c| c0 + c).collect();
+                e.colunas = s.colunas.iter().map(|c| c0 + c).collect();
+                e.valores = vec![MedidaDinamica { coluna: c0 + s.valor, op: if s.contagem { AgregacaoOp::Contagem } else { AgregacaoOp::Soma } }];
+                return self.evento_dinamica_base(Evento::Criar);
             }
             Evento::Preset(id) => self.preset_dinamica(id),
             Evento::Mover(eixo, indice, delta) => {
@@ -1093,6 +1105,27 @@ impl App {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn recomendadas_sugerem_e_o_clique_cria_a_dinamica_com_os_campos() {
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0, 0, "Região"); s.set_cell(0, 1, "Vendas");
+            for r in 1..=8 { s.set_cell(r, 0, ["Sul", "Norte"][(r % 2) as usize]); s.set_cell(r, 1, &(r * 10).to_string()); }
+        });
+        app.linha = 0; app.coluna = 0; app.fim_selecao = (8, 1);
+        app.evento_dinamica(Evento::Recomendadas);
+        let e = app.dinamica.as_ref().unwrap();
+        let lista = e.sugestoes.clone().unwrap();
+        assert!(!lista.is_empty());
+        let _: Element<'_, Msg> = app.view_dinamica_origem(e);
+        app.evento_dinamica(Evento::Sugestao(0));
+        let e = app.dinamica.as_ref().expect("painel de campos aberto");
+        assert_eq!((e.linhas.clone(), e.valores.first().map(|v| (v.coluna, v.op))), (vec![0], Some((1, AgregacaoOp::Soma))));
+        let aba = app.workbook.aba(app.folha).unwrap();
+        let texto: Vec<String> = (0..4).map(|r| aba.sheet.get_raw(r, 1)).collect();
+        assert!(texto.iter().any(|t| t == "200") && texto.iter().any(|t| t == "160"), "{texto:?}");
+    }
 
     #[test]
     fn criar_nasce_vazia_com_o_aviso_como_no_excel() {
