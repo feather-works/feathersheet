@@ -85,6 +85,17 @@ pub struct Propriedades {
     pub autor: String,
     pub modificado_por: String,
     pub organizacao: String,
+    /// Menu ▸ Informações, como Arquivo ▸ Informações ▸ Propriedades do Excel (`docProps/core.xml`
+    /// e `app.xml` no `.xlsx`).
+    pub titulo: String,
+    pub assunto: String,
+    pub palavras_chave: String,
+    pub categoria: String,
+    pub comentarios: String,
+    pub gerente: String,
+    /// Data e hora em W3CDTF UTC (`2026-11-08T19:30:00Z`), como o `.xlsx` guarda.
+    pub criado: String,
+    pub modificado: String,
     /// Revisão › Proteger Pasta de Trabalho (`<workbookProtection lockStructure>` do Excel):
     /// com `Some`, a interface não cria, exclui, renomeia, move, oculta nem colore abas.
     pub protecao_estrutura: Option<ProtecaoPasta>,
@@ -99,6 +110,9 @@ pub struct ProtecaoPasta {
 impl Propriedades {
     pub fn vazia(&self) -> bool {
         self.autor.is_empty() && self.modificado_por.is_empty() && self.organizacao.is_empty()
+            && self.titulo.is_empty() && self.assunto.is_empty() && self.palavras_chave.is_empty()
+            && self.categoria.is_empty() && self.comentarios.is_empty() && self.gerente.is_empty()
+            && self.criado.is_empty() && self.modificado.is_empty()
             && self.protecao_estrutura.is_none()
     }
 }

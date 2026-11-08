@@ -1516,6 +1516,14 @@ fn aba_xml(
 /// É a parte que precisa da pasta; comprimir fica com o [`zipar`].
 fn n_abas(pasta: &Workbook) -> usize { pasta.len() }
 
+/// Agora em W3CDTF UTC (`2026-11-08T19:30:00Z`), o formato das datas do `docProps/core.xml`.
+pub fn data_w3c_agora() -> String {
+    let s = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
+    let (a, m, d) = crate::xlsx_read::dias_para_data(s.div_euclid(86_400));
+    let r = s.rem_euclid(86_400);
+    format!("{a:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", r / 3600, r / 60 % 60, r % 60)
+}
+
 /// `xl/metadata.xml` do Excel 365 para matrizes dinâmicas (`cm="1"`).
 const METADATA_MATRIZ_DINAMICA: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <metadata xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:xda="http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray"><metadataTypes count="1"><metadataType name="XLDAPR" minSupportedVersion="120000" copy="1" pasteAll="1" pasteValues="1" merge="1" splitFirst="1" rowColShift="1" clearFormats="1" clearComments="1" assign="1" coerce="1" cellMeta="1"/></metadataTypes><futureMetadata name="XLDAPR" count="1"><bk><extLst><ext uri="{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"><xda:dynamicArrayProperties fDynamic="1" fCollapsed="0"/></ext></extLst></bk></futureMetadata><cellMetadata count="1"><bk><rc t="1" v="0"/></bk></cellMetadata></metadata>"#;
@@ -1832,12 +1840,22 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         partes.push(("xl/metadata.xml".into(), METADATA_MATRIZ_DINAMICA.as_bytes().to_vec()));
     }
     if !props.vazia() {
+        // Ordem livre no core.xml; vazio não vai (o Excel mostra o campo em branco igual).
+        let mut core = String::new();
+        for (tag, valor) in [("dc:title", &props.titulo), ("dc:subject", &props.assunto), ("dc:creator", &props.autor),
+            ("cp:keywords", &props.palavras_chave), ("dc:description", &props.comentarios),
+            ("cp:lastModifiedBy", &props.modificado_por), ("cp:category", &props.categoria)] {
+            if !valor.is_empty() { let _ = write!(core, "<{tag}>{}</{tag}>", escape_xml(valor)); }
+        }
+        for (tag, valor) in [("dcterms:created", &props.criado), ("dcterms:modified", &props.modificado)] {
+            if !valor.is_empty() { let _ = write!(core, "<{tag} xsi:type=\"dcterms:W3CDTF\">{}</{tag}>", escape_xml(valor)); }
+        }
         partes.push(("docProps/core.xml".into(), format!(
-            "{XML_DECL}<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:creator>{}</dc:creator><cp:lastModifiedBy>{}</cp:lastModifiedBy></cp:coreProperties>",
-            escape_xml(&props.autor), escape_xml(&props.modificado_por),
+            "{XML_DECL}<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">{core}</cp:coreProperties>",
         ).into_bytes()));
+        let gerente = if props.gerente.is_empty() { String::new() } else { format!("<Manager>{}</Manager>", escape_xml(&props.gerente)) };
         partes.push(("docProps/app.xml".into(), format!(
-            "{XML_DECL}<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>FeatherSheet</Application><Company>{}</Company></Properties>",
+            "{XML_DECL}<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>FeatherSheet</Application>{gerente}<Company>{}</Company></Properties>",
             escape_xml(&props.organizacao),
         ).into_bytes()));
     }

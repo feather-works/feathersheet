@@ -210,7 +210,7 @@
      "Esta ayuda también se puede guardar: en la ventana de Ayuda (F1), Exportar como Markdown guarda todo en un .md, en el idioma de la app.",
      "El guardado automático funciona SOLO para archivos .fshz que ya se guardaron: sobrescribe en el intervalo elegido en Configuración. Un archivo .xlsx, .csv o .parquet abierto, o una hoja nueva, nunca se escribe automáticamente — para usar el guardado automático, elija Guardar como… y seleccione .fshz.",
      "La recuperación automática cubre todo lo demás: guarda una copia de cualquier hoja modificada (incluidos .xlsx, .parquet y las que nunca se guardaron) en Documents/FeatherSheet/Temporarios/Recuperacao. Si el equipo se apaga, aparece en la pantalla de inicio para recuperarla. No reemplaza guardar: la copia se elimina al guardar o descartar. Los libros muy grandes (más de 100 millones de celdas) no reciben copia automática, porque cada copia congelaría la ventana y duplicaría la memoria: guárdelos con Ctrl+S.",
-     "Todo funciona en su equipo: sin cuenta, sin inicio de sesión, y ningún contenido sale de él.", "Configuración ▸ Guardar libros nuevos como .xlsx: Guardar como… sugiere el formato de Excel."
+     "Todo funciona en su equipo: sin cuenta, sin inicio de sesión, y ningún contenido sale de él.", "Configuración ▸ Guardar libros nuevos como .xlsx: Guardar como… sugiere el formato de Excel.", "☰ Menú ▸ Información ▸ Propiedades: título, asunto, autor, administrador, compañía, categoría, palabras clave y comentarios del libro, como en Excel. Van en el .fshz y el .xlsx al guardar; creado, modificado y modificado por se completan solos."
     ]
    },
    "config": {

@@ -1336,6 +1336,16 @@ impl App {
                                     return self.alternar(Auxiliar::Macros);
                                 }
                                 "monitor" => return self.alternar(Auxiliar::Monitor),
+                                // informacoes: ☰ Menu ▸ Informações com propriedades de exemplo.
+                                "informacoes" => {
+                                    let p = &mut self.workbook.propriedades;
+                                    p.titulo = "Orçamento da reforma".into();
+                                    p.autor = "Bentido Silva".into();
+                                    p.organizacao = "Construtora Exemplo".into();
+                                    p.palavras_chave = "obra; custos".into();
+                                    self.carimbar_propriedades();
+                                    return self.update(Msg::MenuPagina(super::menu_principal::Pagina::Informacoes));
+                                }
                                 // config:<seção 1–10> (2 = Seus dados, 9 = IA (MCP), 10 = Sobre).
                                 "config" => {
                                     self.config_secao = (numero.max(1) - 1).min(configuracoes_ui::SECAO_SOBRE);
@@ -1686,6 +1696,16 @@ impl App {
                 self.config.limite_memoria_gb = limite_memoria::normalizar_limite(gb as f64);
                 feathersheet_io::memoria::definir_limite_gb(self.config.limite_memoria_gb);
                 self.config.gravar();
+                Task::none()
+            }
+            Msg::Propriedade(campo, texto) => {
+                let p = &mut self.workbook.propriedades;
+                let alvo = match campo {
+                    0 => &mut p.titulo, 1 => &mut p.assunto, 2 => &mut p.autor, 3 => &mut p.gerente,
+                    4 => &mut p.organizacao, 5 => &mut p.categoria, 6 => &mut p.palavras_chave, _ => &mut p.comentarios,
+                };
+                let texto: String = texto.chars().take(2000).collect();
+                if *alvo != texto { *alvo = texto; self.alterado = true; }
                 Task::none()
             }
             Msg::SalvarXlsx(ativo) => {

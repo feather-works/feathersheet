@@ -49,7 +49,7 @@ fn format_date_serial(n: f64, incluir_hora: bool, so_hora: bool) -> String {
 }
 
 /// Dias desde 1970-01-01 (proléptico gregoriano) -> (ano, mês 1-12, dia).
-pub(super) fn dias_para_data(dias_desde_epoca: i64) -> (i64, i64, i64) {
+pub(crate) fn dias_para_data(dias_desde_epoca: i64) -> (i64, i64, i64) {
     // Algoritmo de Howard Hinnant (civil_from_days), domínio público.
     let z = dias_desde_epoca + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;

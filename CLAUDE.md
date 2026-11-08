@@ -62,6 +62,14 @@ Configurações ▸ "Seus dados" (seção 2; `SECAO_MCP`/`SECAO_SOBRE` andaram p
 os mesmos de Primeiros passos (`Msg::PrimeirosPassos(Evento::Nome…)`). Novidade: "Nome e empresa que vão nos
 arquivos agora também em Configurações ▸ Seus dados."
 
+Propriedades da planilha (☰ Menu ▸ Informações, como Arquivo ▸ Informações do Excel): `Workbook::propriedades`
+ganhou título, assunto, palavras-chave, categoria, comentários, gerente, criado e modificado (W3CDTF UTC);
+`.fshz` no `pr` (chaves só quando preenchidas), `.xlsx` no `docProps/core.xml`/`app.xml` (leitura e escrita).
+`Msg::Propriedade(i, texto)` edita (marca alterado, sem desfazer, como no Excel); `carimbar_propriedades` põe
+criado (se vazio) e modificado ao salvar. Foto: `FEATHERSHEET_CAPTURAR_JANELA=informacoes`. Novidade:
+"Propriedades da planilha (título, assunto, autor, empresa, palavras-chave, comentários) em Menu ▸ Informações,
+lidas e gravadas no .xlsx."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,

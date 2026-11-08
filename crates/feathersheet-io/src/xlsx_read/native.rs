@@ -633,10 +633,12 @@ fn propriedades(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> feath
         let no = entry_text(arquivo, parte).ok().and_then(|t| xml::parse_xml(&t).ok());
         campos.iter().map(|c| no.as_ref().and_then(|n| n.child(c)).map(|n| n.text.trim().to_owned()).unwrap_or_default()).collect()
     };
-    let core = ler("docProps/core.xml", &["creator", "lastModifiedBy"]);
-    let app = ler("docProps/app.xml", &["Company"]);
+    let [autor, modificado_por, titulo, assunto, palavras_chave, categoria, comentarios, criado, modificado]: [String; 9] =
+        ler("docProps/core.xml", &["creator", "lastModifiedBy", "title", "subject", "keywords", "category", "description", "created", "modified"])
+            .try_into().unwrap_or_default();
+    let [organizacao, gerente]: [String; 2] = ler("docProps/app.xml", &["Company", "Manager"]).try_into().unwrap_or_default();
     feathersheet_core::planilha::workbook::Propriedades {
-        autor: core[0].clone(), modificado_por: core[1].clone(), organizacao: app[0].clone(),
+        autor, modificado_por, organizacao, titulo, assunto, palavras_chave, categoria, comentarios, gerente, criado, modificado,
         protecao_estrutura: None,
     }
 }

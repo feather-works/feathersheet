@@ -512,7 +512,7 @@ pub enum Msg {
     TecladoNoCampo(window::Id, keyboard::Key, keyboard::Modifiers),
     Tema(bool), TemaAuto, Acento(usize), BarraPropria(bool), Faixa, SecaoConfig(usize),
     Idioma(&'static str), CsvDetectarSeparador(bool),
-    AutoSalvar(bool), SalvarXlsx(bool), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), Fuso(Option<i32>), CalcularPulso, CalculoPulso, CalcularEmFundo, CalculoParar, FonteGrade(&'static str), CorpoGrade(u16),
+    AutoSalvar(bool), SalvarXlsx(bool), Propriedade(usize, String), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), Fuso(Option<i32>), CalcularPulso, CalculoPulso, CalcularEmFundo, CalculoParar, FonteGrade(&'static str), CorpoGrade(u16),
     CapturarAtalho(&'static str), RestaurarAtalhos,
     FecharMenu, Cancelar, Descartar, SalvarAntes, GuardarTemporariamente,
     /// Resposta à pergunta Sim/Não da macro; fecha a mensagem da macro.

@@ -210,7 +210,7 @@
           "Esta ajuda também vira arquivo: na janela da Ajuda (F1), Exportar como Markdown grava tudo num .md, no idioma do app.",
           "O salvamento automático vale SÓ para arquivos .fshz já salvos: grava por cima deles no intervalo escolhido em Configurações. Um .xlsx, .csv ou .parquet aberto, ou uma planilha nova, nunca é gravado sozinho — para entrar no salvamento automático, use Salvar como… e escolha .fshz.",
           "A recuperação automática cobre todo o resto: guarda uma cópia de qualquer planilha alterada (inclusive .xlsx, .parquet e as nunca salvas) em Documentos/FeatherSheet/Temporarios/Recuperacao. Se o computador desligar, ela aparece na tela inicial para recuperar. Ela não substitui salvar: a cópia some quando você salva ou descarta. Pastas muito grandes (mais de 100 milhões de células) não recebem cópia automática, porque cada cópia travaria a janela e dobraria a memória: nelas, salve com Ctrl+S.",
-          "Tudo roda na sua máquina: sem conta, sem login, nada do seu conteúdo sai dela.", "Configurações ▸ Salvar planilha nova como .xlsx: o Salvar como… já sugere o formato do Excel."
+          "Tudo roda na sua máquina: sem conta, sem login, nada do seu conteúdo sai dela.", "Configurações ▸ Salvar planilha nova como .xlsx: o Salvar como… já sugere o formato do Excel.", "☰ Menu ▸ Informações ▸ Propriedades: título, assunto, autor, gerente, empresa, categoria, palavras-chave e comentários da planilha, como no Excel. Vão no .fshz e no .xlsx ao salvar; criado em, modificado em e modificado por são preenchidos sozinhos."
         ]
       },
       "config": {

@@ -240,6 +240,7 @@ impl App {
                 text(trf!("Abas: {}", self.workbook.len())).size(13),
                 text(if self.alterado { tr!("Há alterações não salvas") }
                     else { tr!("Sem alterações pendentes") }).size(13),
+                self.menu_propriedades(),
                 pelicano::row![
                     button(tr!("Salvar")).on_press(Msg::Salvar).style(estilo_botao_primario),
                     button(tr!("Salvar como...")).on_press(Msg::SalvarComo)
@@ -247,6 +248,33 @@ impl App {
                 ].spacing(8),
             ].spacing(13).into(),
         }
+    }
+
+    /// As propriedades do arquivo, como Arquivo ▸ Informações ▸ Propriedades do Excel: as editáveis vão
+    /// no `.fshz` e no `docProps` do `.xlsx` ao salvar; criado/modificado/modificado por são carimbados.
+    fn menu_propriedades(&self) -> Element<'_, Msg> {
+        let p = &self.workbook.propriedades;
+        let negrito = pelicano::Font { weight: 600, ..pelicano::Font::DEFAULT };
+        let rotulo = |t: &str| text(t.to_owned()).size(12.5).color(COR_TEXTO_MUTED()).width(Length::Fixed(130.0));
+        let mut lista = pelicano::column![text(tr!("Propriedades")).size(15).font(negrito)].spacing(8);
+        let campos = [(tr!("Título"), &p.titulo), (tr!("Assunto"), &p.assunto), (tr!("Autor"), &p.autor),
+            (tr!("Gerente"), &p.gerente), (tr!("Empresa"), &p.organizacao), (tr!("Categoria"), &p.categoria),
+            (tr!("Palavras-chave"), &p.palavras_chave), (tr!("Comentários"), &p.comentarios)];
+        for (i, (nome, valor)) in campos.into_iter().enumerate() {
+            lista = lista.push(pelicano::row![
+                rotulo(nome),
+                text_input(tr!("Adicionar"), valor).on_input(move |t| Msg::Propriedade(i, t))
+                    .size(13).padding([5, 8]).width(Length::Fixed(380.0)),
+            ].spacing(8).align(pelicano::Align::Center));
+        }
+        let fuso = self.config.fuso_minutos.unwrap_or_else(super::fuso::do_sistema);
+        for (nome, valor) in [(tr!("Criado em"), data_local(&p.criado, fuso)), (tr!("Modificado em"), data_local(&p.modificado, fuso)),
+            (tr!("Modificado por"), p.modificado_por.clone())] {
+            lista = lista.push(pelicano::row![rotulo(nome), text(if valor.is_empty() { "—".into() } else { valor }).size(13)]
+                .spacing(8).align(pelicano::Align::Center));
+        }
+        lista.push(text(tr!("Vão no arquivo ao salvar (.fshz e .xlsx). Seu nome e empresa padrão ficam em Configurações ▸ Seus dados."))
+            .size(11.5).color(COR_TEXTO_MUTED())).into()
     }
 
     /// Página Exportar: um cartão por formato; o cartão abre o diálogo de salvar
@@ -933,5 +961,56 @@ mod testes {
         assert!(app.ver_todos_modelos);
         let _: Element<'_, Msg> = app.inicio_conteudo(true);
         let _: Element<'_, Msg> = app.inicio_conteudo(false);
+    }
+}
+
+/// `2026-11-08T19:30:00Z` no fuso (minutos a leste de UTC) → `08/11/2026 16:30`; vazio se não for data.
+fn data_local(w3c: &str, fuso_minutos: i32) -> String {
+    let n = |a: usize, b: usize| w3c.get(a..b).and_then(|t| t.parse::<i64>().ok());
+    let (Some(ano), Some(mes), Some(dia)) = (n(0, 4), n(5, 7), n(8, 10)) else { return String::new() };
+    let (h, min) = (n(11, 13).unwrap_or(0), n(14, 16).unwrap_or(0));
+    // Dias desde 1970 (Howard Hinnant, days_from_civil), para somar o fuso atravessando o dia.
+    let (y, m) = if mes <= 2 { (ano - 1, mes + 9) } else { (ano, mes - 3) };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let dias = era * 146_097 + yoe * 365 + yoe / 4 - yoe / 100 + (153 * m + 2) / 5 + dia - 1 - 719_468;
+    let total = dias * 1440 + h * 60 + min + if w3c.ends_with('Z') { i64::from(fuso_minutos) } else { 0 };
+    let (d, resto) = (total.div_euclid(1440), total.rem_euclid(1440));
+    let z = d + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let dd = doy - (153 * mp + 2) / 5 + 1;
+    let mm = if mp < 10 { mp + 3 } else { mp - 9 };
+    let aa = yoe + era * 400 + i64::from(mm <= 2);
+    format!("{dd:02}/{mm:02}/{aa} {:02}:{:02}", resto / 60, resto % 60)
+}
+
+#[cfg(test)]
+mod testes_propriedades {
+    use super::*;
+
+    #[test]
+    fn data_do_arquivo_no_fuso_local() {
+        assert_eq!(data_local("2026-11-08T19:30:00Z", -180), "08/11/2026 16:30");
+        assert_eq!(data_local("2026-01-01T01:00:00Z", -180), "31/12/2025 22:00");
+        assert_eq!(data_local("", 0), "");
+    }
+
+    #[test]
+    fn editar_propriedade_marca_alterado_e_salvar_carimba_datas() {
+        let mut app = App::default();
+        app.alterado = false;
+        let _ = app.update(Msg::Propriedade(0, "Orçamento".into()));
+        let _ = app.update(Msg::Propriedade(7, "para o banco".into()));
+        assert!(app.alterado);
+        assert_eq!((app.workbook.propriedades.titulo.as_str(), app.workbook.propriedades.comentarios.as_str()), ("Orçamento", "para o banco"));
+        app.carimbar_propriedades();
+        let p = &app.workbook.propriedades;
+        assert!(p.criado.ends_with('Z') && p.modificado == p.criado);
+        app.menu_pagina = Pagina::Informacoes;
+        let _: Element<'_, Msg> = app.menu_propriedades();
     }
 }

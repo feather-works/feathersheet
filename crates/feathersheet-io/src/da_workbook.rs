@@ -644,6 +644,9 @@ mod testes {
         assert!(!String::from_utf8_lossy(&xlsx).contains("docProps/core.xml"));
         wb.propriedades = Propriedades {
             autor: "Ana & Cia".into(), modificado_por: "João".into(), organizacao: "Feather <Ltda>".into(),
+            titulo: "Orçamento 2027".into(), assunto: "Obras".into(), palavras_chave: "custos; casa".into(),
+            categoria: "Finanças".into(), comentarios: "Versão para o banco".into(), gerente: "Bia".into(),
+            criado: "2026-11-01T10:00:00Z".into(), modificado: "2026-11-08T19:30:00Z".into(),
             protecao_estrutura: None,
         };
         let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();

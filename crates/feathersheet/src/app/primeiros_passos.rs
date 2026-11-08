@@ -74,6 +74,9 @@ impl App {
         if p.autor.is_empty() { p.autor = autor.clone(); }
         p.modificado_por = autor;
         if p.organizacao.is_empty() { p.organizacao = organizacao; }
+        let agora = feathersheet_io::xlsx_write::data_w3c_agora();
+        if p.criado.is_empty() { p.criado = agora.clone(); }
+        p.modificado = agora;
     }
 
     /// Salvamento automático ligado, mas o documento alterado não é um .fshz

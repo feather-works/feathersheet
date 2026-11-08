@@ -29,6 +29,7 @@ mod controles;
 pub mod nao_convertidos;
 mod refs;
 mod sheet;
+pub(crate) use sheet::dias_para_data;
 mod styles;
 mod validacoes;
 mod vba;

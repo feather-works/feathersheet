@@ -135,6 +135,11 @@ pub fn propriedades_para_json(p: &feathersheet_core::planilha::workbook::Proprie
         let mut v = serde_json::json!({
             "autor": p.autor, "modificadoPor": p.modificado_por, "organizacao": p.organizacao,
         });
+        for (chave, valor) in [("titulo", &p.titulo), ("assunto", &p.assunto), ("palavrasChave", &p.palavras_chave),
+            ("categoria", &p.categoria), ("comentarios", &p.comentarios), ("gerente", &p.gerente),
+            ("criado", &p.criado), ("modificado", &p.modificado)] {
+            if !valor.is_empty() { v[chave] = serde_json::json!(valor); }
+        }
         // A proteção da estrutura vai junto: no Excel ela também é da pasta (workbook.xml).
         if let Some(pp) = &p.protecao_estrutura {
             v["protecaoEstrutura"] = serde_json::json!({ "senha": pp.senha.as_ref().map(senha_para_json) });
@@ -162,6 +167,9 @@ pub fn propriedades_de_json(v: &serde_json::Value) -> feathersheet_core::planilh
     let campo = |nome: &str| v[nome].as_str().unwrap_or_default().to_owned();
     feathersheet_core::planilha::workbook::Propriedades {
         autor: campo("autor"), modificado_por: campo("modificadoPor"), organizacao: campo("organizacao"),
+        titulo: campo("titulo"), assunto: campo("assunto"), palavras_chave: campo("palavrasChave"),
+        categoria: campo("categoria"), comentarios: campo("comentarios"), gerente: campo("gerente"),
+        criado: campo("criado"), modificado: campo("modificado"),
         protecao_estrutura: v.get("protecaoEstrutura").filter(|x| x.is_object()).map(|x|
             feathersheet_core::planilha::workbook::ProtecaoPasta { senha: x.get("senha").and_then(senha_de_json) }),
     }
