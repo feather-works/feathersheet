@@ -71,6 +71,7 @@ impl App {
                 return;
             }
         };
+        let foto = self.foto_antes_da_estrutura();
         let feito = match (coluna, inserir) {
             (false, true) => self.workbook.inserir_linhas(self.folha, at, quantas),
             (false, false) => self.workbook.excluir_linhas(self.folha, at, quantas),
@@ -79,6 +80,7 @@ impl App {
         };
         if feito.is_none() {
             self.status = tr!("Não foi possível alterar a estrutura").into();
+            self.guardar_foto_da_estrutura(foto, false);
             return;
         }
         let tabela = tabelas::refluir(&mut self.workbook, self.folha, coluna, at, quantas, !inserir);
@@ -96,6 +98,7 @@ impl App {
                 if inserir { "inseridas" } else { tr!("excluídas") }),
             (Err(e), _) | (_, Err(e)) => trf!("Estrutura alterada; revise: {e}"),
         };
+        self.guardar_foto_da_estrutura(foto, true);
     }
 
     fn deslocar_celulas(&mut self, inserir: bool, sentido: Deslocamento, a: &Rect) -> Result<(), String> {

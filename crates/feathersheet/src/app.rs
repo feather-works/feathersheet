@@ -16,6 +16,7 @@ use feather_ui::seletor_cor::{self, Evento as EventoCor};
 mod dados;
 mod caixas_ui;
 mod entrada_rapida;
+mod desfazer_estrutura;
 mod colar_especial;
 mod selecao_multipla;
 mod ir_para;
@@ -977,6 +978,9 @@ pub struct App {
     /// AutoConclusão: (o que estava digitado, o valor completo da coluna). Vale só enquanto
     /// `edicao` for igual ao primeiro; Enter troca pelo segundo.
     sugestao_valor: Option<(String, String)>,
+    /// Fotos da pasta antes de inserir/excluir linhas ou colunas (#65).
+    desfazer_estrutura: Vec<desfazer_estrutura::FotoEstrutura>,
+    refazer_estrutura: Vec<desfazer_estrutura::FotoEstrutura>,
     lista_pagina: usize,
     /// Item da lista suspensa marcado por ↑/↓.
     lista_destaque: usize,
@@ -1182,7 +1186,7 @@ impl Default for App {
             faixa_ativa: AbaFaixa::Inicio,
             formulas_menu: None, formulas_menu_x: 8.0, formulas_menu_y: 140.0, rastreio: formulas_ui::Rastreio::default(), criar_nomes: None, avaliar: None, inspecoes: Vec::new(), inspecao_selecionada: None,
             faixa_extras_aberto: false, faixa_grupo_aberto: None,
-            config_secao: 0, atalho_captura: None, auto_salvar_desde: None, auto_salvar_ultimo_custo_ms: 0, pendente: None, salvando: false, maximizadas: Default::default(), apos_gravar: None, busca: dados::Busca::default(), validacao_formulario: None, erro_explicando: None, validacao_erro: None, validacao_editando: None, validacao_aba: Default::default(), validacao_alerta: None, validacao_aceita: false, validacao_circulos: None, serie: None, lista_aberta: false, lista_coluna: None, sugestao_valor: None, lista_pagina: 0, lista_destaque: 0, cabecalho_dados: false,
+            config_secao: 0, atalho_captura: None, auto_salvar_desde: None, auto_salvar_ultimo_custo_ms: 0, pendente: None, salvando: false, maximizadas: Default::default(), apos_gravar: None, busca: dados::Busca::default(), validacao_formulario: None, erro_explicando: None, validacao_erro: None, validacao_editando: None, validacao_aba: Default::default(), validacao_alerta: None, validacao_aceita: false, validacao_circulos: None, serie: None, lista_aberta: false, lista_coluna: None, sugestao_valor: None, desfazer_estrutura: Vec::new(), refazer_estrutura: Vec::new(), lista_pagina: 0, lista_destaque: 0, cabecalho_dados: false,
             assistente_divisao: None,
             divisao_personalizada: false, divisao_outro: String::new(),
             // Sem macro de exemplo: o editor abre vazio até a pessoa criar ou abrir um módulo (#139).

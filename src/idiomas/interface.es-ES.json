@@ -4669,5 +4669,7 @@
  "~{etapas} etapas": "~{etapas} pasos",
  "Consultas do Power Query deste arquivo": "Consultas de Power Query de este archivo",
  "O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do OpenQuery.": "Excel guardó estas consultas en el archivo. La elegida se abre en el Editor avanzado, convertida en pasos de OpenQuery.",
- "Enter completa": "Enter completa"
+ "Enter completa": "Enter completa",
+ "pasta grande: isto não se desfaz com Ctrl+Z": "libro grande: esto no se deshace con Ctrl+Z",
+ "Não deu para desfazer: {e}": "No se pudo deshacer: {e}"
 }

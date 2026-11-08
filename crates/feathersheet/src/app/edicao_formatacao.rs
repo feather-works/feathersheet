@@ -277,6 +277,7 @@ impl App {
             Estrutura::InserirColuna => (true, self.coluna.saturating_add(u32::from(depois))),
             _ => return,
         };
+        let foto = self.foto_antes_da_estrutura();
         let resultado = if coluna {
             self.workbook.inserir_colunas(self.folha, at, 1)
         } else {
@@ -300,10 +301,12 @@ impl App {
         } else {
             self.status = tr!("Não foi possível inserir nesse local").into();
         }
+        self.guardar_foto_da_estrutura(foto, resultado.is_some());
     }
 
     pub(super) fn estrutura(&mut self, acao: Estrutura) {
         self.confirmar();
+        let foto = self.foto_antes_da_estrutura();
         let resultado = match acao {
             Estrutura::InserirLinha => self.workbook.inserir_linhas(self.folha,self.linha,1),
             Estrutura::ExcluirLinha => self.workbook.excluir_linhas(self.folha,self.linha,1),
@@ -335,6 +338,7 @@ impl App {
         } else {
             self.status=tr!("Não foi possível alterar a estrutura").into();
         }
+        self.guardar_foto_da_estrutura(foto, resultado.is_some());
     }
 
     pub(super) fn limpar_celula(&mut self) {
@@ -742,6 +746,8 @@ impl App {
                 return;
             }
         }
+        // Inserir/excluir linhas ou colunas (#65): quando a aba não tem mais nada antes.
+        if self.historico_estrutura(refazer) { return; }
         // Só captura tb quando a próxima transação altera metadados de
         // tabela; Ctrl+Z de uma célula não deve clonar esse JSON.
         let tb_antes = self.workbook.aba(self.folha).and_then(|a|

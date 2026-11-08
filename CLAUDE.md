@@ -39,6 +39,9 @@ clique fora). Esc e o duplo clique limpam. shortcut: etiqueta embaixo, não o re
 como no Excel — o pelicano 0.1.30 não seleciona trecho por tarefa (a 0.1.31 tem `Task::select_range`).
 Novidade: "AutoConclusão: ao digitar, o valor que já existe na coluna aparece e o Enter completa."
 
+Ctrl+Z de inserir/excluir linhas e colunas (#65): ver "Cuidados ao mexer". Novidade: "Ctrl+Z desfaz
+inserir e excluir linhas e colunas, com as fórmulas que liam a área."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,
@@ -1031,9 +1034,17 @@ que veio de mim do que veio do Gemini ou do usuário.
 - **Inserir/excluir linhas ou colunas esquece o histórico** das abas mexidas
   (`Sheet::esquecer_historico`, auditoria de 26/10/2026, #46): o deslocamento
   não é um passo do desfazer, e um Ctrl+Z velho apagava a célula errada. Quem
-  reajusta tabelas/mesclas depois (`refluir`) esquece de novo, senão o "antes"
-  delas volta nas coordenadas velhas. Desfazer a estrutura de verdade pede um
-  `Passo::Estrutura` com a fatia removida.
+  reajusta tabelas/mesclas depois (`refluir`) esquece de novo. **O Ctrl+Z da
+  operação (#65, 08/11/2026)** é do app (`app/desfazer_estrutura.rs`): antes, a
+  pasta vira foto `.fshz` na memória e os históricos de todas as abas são
+  tirados (`Sheet::tirar_historico`); o Ctrl+Z, quando a aba não tem mais nada
+  no próprio histórico, devolve a foto (`Workbook::restaurar_foto`, mantém o
+  `id` das abas) e os históricos. Recusa se outra aba mudou depois; o Ctrl+Y
+  exige que nenhuma edição nova tenha entrado (`Sheet::edicoes_novas`). Novo
+  lugar que insere/exclui: chamar `foto_antes_da_estrutura` antes e
+  `guardar_foto_da_estrutura` depois. Pasta acima de 5 milhões de células na área
+  usada não ganha foto (avisa). Medido: 200 mil linhas × 3, inserir 68 ms,
+  desfazer 34 ms, foto 237 KB (`medir_foto_da_estrutura`, `--ignored`).
 - **Vínculo externo de pasta aberta do disco não lê nada sozinho** (#50): nem do
   disco nem de outra janela, até "Atualizar valores" (`aguardando_permissao`).
 - **Texto do `.xlsx` entra com a `MARCA_TEXTO`** (#48) e não passa pelo

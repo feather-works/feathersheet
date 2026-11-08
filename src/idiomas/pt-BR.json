@@ -42,7 +42,7 @@
           "• F2 ou duplo clique edita a célula sem apagar o que já tem.",
           "• Ao digitar um texto que só uma célula da mesma coluna começa assim (\"Sup\" → \"Supermercado\"), o valor completo aparece embaixo: Enter, Tab ou clicar fora aceita; apagar uma letra tira a sugestão.",
           "• Ctrl + seta vai até o fim dos dados; com Shift, seleciona até lá.",
-          "• Ctrl+Z desfaz e Ctrl+Y refaz — inclusive macros inteiras.",
+          "• Ctrl+Z desfaz e Ctrl+Y refaz — inclusive macros inteiras. Inserir ou excluir linhas e colunas também se desfaz.",
           "Os comandos ficam na faixa de opções, no alto. Ctrl+F1 troca a faixa pelos menus suspensos e uma barra compacta (e volta)."
         ]
       },

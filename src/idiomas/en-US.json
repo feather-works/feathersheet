@@ -42,7 +42,7 @@
           "• F2 or double-click edits the cell without erasing it.",
           "• When you type text that only one cell in the same column starts with (\"Sup\" → \"Supermarket\"), the full value shows below: Enter, Tab or clicking away accepts it; deleting a letter drops the suggestion.",
           "• Ctrl + arrow jumps to the end of the data; with Shift, it selects up to there.",
-          "• Ctrl+Z undoes and Ctrl+Y redoes — whole macros included.",
+          "• Ctrl+Z undoes and Ctrl+Y redoes — whole macros included. Inserting or deleting rows and columns can be undone too.",
           "Commands live in the ribbon at the top. Ctrl+F1 swaps the ribbon for drop-down menus and a compact toolbar (and back)."
         ]
       },

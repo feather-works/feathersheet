@@ -487,6 +487,9 @@ pub struct Historico {
     /// Transações que o teto tirou do fundo da pilha (o `historicoDescartado`
     /// do TypeScript).
     descartadas: usize,
+    /// Quantas transações novas (não desfazer/refazer) entraram: só sobe. O Ctrl+Y de
+    /// inserir/excluir (#65) só vale se nada novo foi feito desde o Ctrl+Z dele.
+    novas: u64,
 }
 
 /// O TypeScript guarda as últimas 200 transações.
@@ -1840,6 +1843,7 @@ impl Sheet {
                 self.hist.descartadas += 1;
             }
             self.hist.refazer.clear();
+            self.hist.novas += 1;
         }
         self.sujar_subtotais_se_mudou();
     }
@@ -2683,6 +2687,15 @@ impl Sheet {
         }
         area.map(|a| Rect::new(a[0], a[1], a[2], a[3]))
     }
+
+    /// Tira o histórico da aba (fica vazio): o Ctrl+Z de inserir/excluir (#65) guarda o de antes
+    /// junto da foto da pasta e o devolve com [`Sheet::por_historico`].
+    pub fn tirar_historico(&mut self) -> Historico { std::mem::take(&mut self.hist) }
+
+    pub fn por_historico(&mut self, h: Historico) { self.hist = h; }
+
+    /// Ver `Historico::novas`.
+    pub fn edicoes_novas(&self) -> u64 { self.hist.novas }
 
     pub fn undo(&mut self) -> bool {
         self.tocar();

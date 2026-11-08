@@ -410,6 +410,28 @@ impl Workbook {
         self.abas.iter().map(|a| (a.id, a.versao)).collect()
     }
 
+    /// Ctrl+Z de inserir/excluir linhas e colunas (#65): põe no lugar o conteúdo de `foto` (a
+    /// pasta lida da foto `.fshz` tirada antes da operação), com o `id` de cada aba (congelamento e
+    /// afins são por id) e a versão subindo. Os históricos ficam os de `foto` (vazios): quem chama
+    /// devolve os guardados. `false` (e nada muda) se a quantidade de abas não bate.
+    pub fn restaurar_foto(&mut self, mut foto: Workbook) -> bool {
+        if foto.abas.len() != self.abas.len() { return false; }
+        for (nova, velha) in foto.abas.iter_mut().zip(&self.abas) {
+            nova.id = velha.id;
+            nova.versao = proxima_versao(velha.versao);
+        }
+        foto.proximo_id = self.proximo_id;
+        foto.hist_abas = std::mem::take(&mut self.hist_abas);
+        // O que não vem do arquivo: funções das macros, valores de vínculo já lidos, modo de cálculo.
+        foto.funcoes_externas = std::mem::take(&mut self.funcoes_externas);
+        foto.externos = std::mem::take(&mut self.externos);
+        foto.manual = self.manual;
+        for a in &foto.abas { a.sheet.manual.set(foto.manual); }
+        *self = foto;
+        self.depois_de_mudar(usize::MAX);
+        true
+    }
+
     /// A última operação de abas ainda é a edição mais recente da pasta?
     pub fn pode_desfazer_aba(&self) -> bool {
         self.hist_abas.desfazer.last()
@@ -854,11 +876,10 @@ impl Workbook {
     /// 3. reescrever o texto das anotadas, já na posição nova. A referência
     ///    que caiu no que foi excluído vira `#REF!`.
     ///
-    /// O deslocamento não entra no desfazer (como no TypeScript); por isso o
-    /// histórico desta aba e das que tiveram fórmula consertada é esquecido
-    /// no fim: um Ctrl+Z velho cairia na célula errada. shortcut: inserir e
-    /// excluir não se desfazem; um `Passo::Estrutura` com a fatia removida
-    /// resolveria (#65).
+    /// O deslocamento não entra no histórico da aba; por isso o histórico desta
+    /// aba e das que tiveram fórmula consertada é esquecido no fim: um Ctrl+Z
+    /// velho cairia na célula errada. O Ctrl+Z da operação é do app: foto da
+    /// pasta antes e os históricos guardados ([`Workbook::restaurar_foto`], #65).
     pub fn mover_estrutura(
         &mut self,
         indice: usize,
