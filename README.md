@@ -33,7 +33,8 @@ for a new version on startup (at most once a day, by reading the public
 releases list on GitHub; nothing about you or your files is sent) and offers
 *Update and restart*. Turn it off in Settings → About.
 
-> v0.0.1 for Linux requires Ubuntu 26.04 or newer (glibc 2.43).
+> Linux: from the next release on, the `.deb` and `.tar.gz` run on Ubuntu 22.04 or newer,
+> Debian 12 and Mint 21 (glibc 2.35). Versions up to v0.2.9 need Ubuntu 26.04 or newer (glibc 2.43).
 
 ---
 

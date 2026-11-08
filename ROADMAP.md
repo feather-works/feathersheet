@@ -37,8 +37,9 @@ The linked surveys are in Portuguese.
 Shipped: Linux (`.deb` and portable `.tar.gz`), Windows (`.exe` installer),
 macOS Apple Silicon (`.dmg`) and an update notice inside the app.
 
-- [ ] Build Linux against an older glibc, to run on Ubuntu 22.04/24.04,
-      Debian 12 and Mint (today it needs glibc 2.43, Ubuntu 26.04 or newer).
+- [x] Build Linux against an older glibc, to run on Ubuntu 22.04/24.04,
+      Debian 12 and Mint: `pacote/gerar.sh` compiles in a Debian 12 container
+      (podman/docker), the binary needs glibc 2.35 (08/11/2026; ships with the next release).
 - [ ] Other formats: AppImage and `.rpm`.
 
 ## Phase 1 — Trust in daily use

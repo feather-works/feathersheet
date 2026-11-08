@@ -8,7 +8,8 @@
 # Uso: pacote/gerar.sh [linux|windows ...]   (sem argumentos = todos)
 # Pacote de teste rápido: PERFIL=medir VERSAO=0.1.3~teste1 pacote/gerar.sh linux
 # (sem LTO: ~1 min em vez de 6–10; VERSAO não sobrescreve a pasta de uma versão lançada).
-# Precisa de: cargo, dpkg-deb; para Windows, o alvo x86_64-pc-windows-gnu
+# Precisa de: cargo, dpkg-deb, objdump; podman ou docker para o Linux (sem eles compila aqui, e o
+# .deb só instala em distros com a glibc desta máquina); para Windows, o alvo x86_64-pc-windows-gnu
 # (rustup target add x86_64-pc-windows-gnu), mingw-w64 e makensis.
 set -euo pipefail
 
@@ -26,10 +27,37 @@ alvos=("$@")
 mkdir -p "$saida"
 echo "FeatherSheet $versao → $saida"
 
+# O binário pede a glibc de onde foi compilado: num Debian 12 (2.36) ele roda no Ubuntu 22.04+,
+# Debian 12+ e Mint 21+ (aqui seria a 2.43, só Ubuntu 26.04+). A imagem é a do FeatherNotes/FeatherDocs.
+compilar_linux() {
+  local motor; motor="$(command -v podman || command -v docker || true)"
+  if [[ -z $motor || -n ${SEM_CONTEINER:-} ]]; then
+    echo "Sem podman nem docker: compilando aqui (o .deb vai pedir a glibc desta máquina)." >&2
+    cargo build --profile "$perfil" --manifest-path "$gui/Cargo.toml"
+    bin="$alvo_dir/$perfil/$bin_nome"
+    return
+  fi
+  if ! "$motor" image inspect feathernotes-debian12 >/dev/null 2>&1; then
+    "$motor" build -t feathernotes-debian12 -f - "$pacote" <<'IMG'
+FROM docker.io/library/debian:12
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev curl ca-certificates git && rm -rf /var/lib/apt/lists/*
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+ENV PATH=/root/.cargo/bin:$PATH
+IMG
+  fi
+  # Metade do processador (o resto da máquina continua usável) e teto de memória.
+  "$motor" run --rm --memory 8g --cpus 8 -v "$raiz":/src:z -v feathernotes-registro:/root/.cargo/registry \
+    -e CARGO_TARGET_DIR=/src/crates/feathersheet/target/debian12 -e CARGO_BUILD_JOBS=8 -w /src \
+    feathernotes-debian12 cargo build --profile "$perfil" --manifest-path crates/feathersheet/Cargo.toml
+  bin="$gui/target/debian12/$perfil/$bin_nome"
+}
+
 linux() {
-  cargo build --profile "$perfil" --manifest-path "$gui/Cargo.toml"
-  local bin="$alvo_dir/$perfil/$bin_nome"
+  local bin; compilar_linux
   strip "$bin" 2>/dev/null || true
+  # A glibc mínima é a maior versão que o binário usa.
+  local glibc; glibc="$(objdump -T "$bin" | grep -o 'GLIBC_2\.[0-9]*' | sort -V | tail -1 | cut -d_ -f2)"
+  echo "glibc mínima: $glibc"
 
   # .deb
   local d; d="$(mktemp -d)"
@@ -51,7 +79,7 @@ Section: office
 Priority: optional
 Architecture: amd64
 Installed-Size: $tamanho
-Depends: libc6 (>= 2.43), libxkbcommon0, libwayland-client0 | libx11-6, libfontconfig1
+Depends: libc6 (>= $glibc), libxkbcommon0, libwayland-client0 | libx11-6, libfontconfig1
 Recommends: libvulkan1 | libgl1
 Maintainer: FeatherWorks <https://github.com/FeatherWorks>
 Homepage: https://github.com/feather-works/feathersheet
