@@ -57,6 +57,9 @@ pub(super) fn linha<'a>(titulo: &str, dica: &str, controle: impl Into<Element<'a
 /// Recuperação e salvamento automáticos (Configurações e Primeiros passos).
 pub(super) fn linhas_salvamento(app: &App) -> Element<'_, Msg> {
     pelicano::column![
+        linha(tr!("Salvar planilha nova como .xlsx"),
+            tr!("Salvar como… sugere o formato do Excel em vez do .fshz. O .fshz abre mais rápido e guarda tudo do FeatherSheet; o .xlsx abre no Excel."),
+            toggler("", app.config.salvar_xlsx).on_toggle(Msg::SalvarXlsx).color(COR_AZUL_ACENTO())),
         linha(tr!("Recuperação automática"),
             tr!("Vale para qualquer planilha alterada: .fshz, .xlsx, .csv, .parquet e as nunca salvas. Guarda uma cópia à parte (não mexe no seu arquivo); se o computador desligar ou o app fechar sem salvar, ela aparece na tela inicial para recuperar."),
             toggler("", app.config.recuperacao_automatica).on_toggle(Msg::RecuperacaoAutomatica).color(COR_AZUL_ACENTO())),

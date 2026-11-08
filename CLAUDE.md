@@ -54,6 +54,10 @@ Excel com códigos (`&C&P`) vira texto simples na tela e volta como veio se o te
 (`xlsx_cabecalho`). Campo novo na aba: lembrar do `enxugar.rs`. Novidade: "Margens, papel, área de
 impressão e cabeçalho ficam salvos no arquivo e vêm do .xlsx do Excel."
 
+Configurações ▸ "Salvar planilha nova como .xlsx" (`config.salvar_xlsx`, `Msg::SalvarXlsx`): o Salvar como…
+de planilha sem arquivo (ou vinda de .csv/.parquet) sugere `.xlsx` (`App::formato_sugerido`). Novidade:
+"Opção para o Salvar como… sugerir .xlsx, para quem troca arquivo com o Excel."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,

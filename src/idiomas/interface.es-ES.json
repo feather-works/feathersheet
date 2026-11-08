@@ -3076,6 +3076,8 @@
  "Sal de proteção não é Base64 válido.": "La sal de protección no es Base64 válido.",
  "Salva uma cópia em outro formato. O arquivo .fshz em que você trabalha não muda.": "Guarda una copia en otro formato. El archivo .fshz con el que trabaja no cambia.",
  "Salvamento": "Guardado",
+ "Salvar planilha nova como .xlsx": "Guardar libros nuevos como .xlsx",
+ "Salvar como… sugere o formato do Excel em vez do .fshz. O .fshz abre mais rápido e guarda tudo do FeatherSheet; o .xlsx abre no Excel.": "Guardar como… sugiere el formato de Excel en lugar de .fshz. El .fshz abre más rápido y guarda todo lo de FeatherSheet; el .xlsx abre en Excel.",
  "Salvamento automático": "Guardado automático",
  "Salvando…": "Guardando…",
  "Salvar": "Guardar",

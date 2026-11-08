@@ -957,11 +957,18 @@ impl App {
         self.gravar_em_segundo_plano(path, true)
     }
 
-    pub(super) fn dialogo_salvar(&self) -> Task<Msg> {
-        // Sugere o formato do arquivo aberto (um `.xlsm` continua `.xlsm`); o primeiro filtro vem marcado.
-        let ext = self.caminho.as_ref().or(self.origem.as_ref())
+    /// O formato que o Salvar como… sugere: o do arquivo aberto (um `.xlsm` continua `.xlsm`), senão o
+    /// das Configurações.
+    fn formato_sugerido(&self) -> String {
+        self.caminho.as_ref().or(self.origem.as_ref())
             .and_then(|p| p.extension()).and_then(|e| e.to_str()).map(str::to_ascii_lowercase)
-            .filter(|e| e == "xlsx" || e == "xlsm").unwrap_or_else(|| "fshz".into());
+            .filter(|e| e == "xlsx" || e == "xlsm" || e == "fshz")
+            .unwrap_or_else(|| if self.config.salvar_xlsx { "xlsx".into() } else { "fshz".into() })
+    }
+
+    pub(super) fn dialogo_salvar(&self) -> Task<Msg> {
+        // O primeiro filtro vem marcado.
+        let ext = self.formato_sugerido();
         let nome = format!("{}.{ext}", self.nome_base_documento());
         let mut filtros = vec![
             ("fshz", tr!("Pasta de trabalho do FeatherSheet (.fshz)")),
@@ -1260,5 +1267,24 @@ mod testes_exportar {
         let (lida, _) = feathersheet_io::xlsx_read::ler_xlsx_workbook(std::fs::read(&xlsx).unwrap()).unwrap();
         assert_eq!(lida.aba(0).unwrap().sheet.get_raw(1, 0), "=A1*2");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod testes_formato_sugerido {
+    use super::*;
+
+    #[test]
+    fn salvar_como_sugere_o_formato_das_configuracoes_so_sem_arquivo() {
+        let mut app = App::default();
+        assert_eq!(app.formato_sugerido(), "fshz");
+        let _ = app.update(Msg::SalvarXlsx(true));
+        assert_eq!(app.formato_sugerido(), "xlsx");
+        app.caminho = Some(PathBuf::from("/tmp/a.fshz"));
+        assert_eq!(app.formato_sugerido(), "fshz", "arquivo aberto manda");
+        app.caminho = None;
+        app.origem = Some(PathBuf::from("/tmp/b.csv"));
+        assert_eq!(app.formato_sugerido(), "xlsx");
+        app.config.salvar_xlsx = false;
     }
 }

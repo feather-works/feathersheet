@@ -63,6 +63,8 @@ pub struct Configuracao {
     /// Aba Desenhar: ler a pressão da mesa (XInput2 numa janela X11/XWayland,
     /// WM_POINTER no Windows). Vale na próxima abertura.
     pub caneta_pressao: bool,
+    /// Salvar como… de planilha nova sugere `.xlsx` em vez de `.fshz` (quem troca arquivo com o Excel).
+    pub salvar_xlsx: bool,
     /// Linux/Wayland: onde abrir a janela — `auto` (XWayland se houver mesa,
     /// para a caneta clicar), `x11` ou `wayland`. Vale na próxima abertura.
     pub janela_linux: String,
@@ -147,6 +149,7 @@ impl Default for Configuracao {
             nucleos: 0,
             atalhos: std::collections::BTreeMap::new(),
             caneta_pressao: true,
+            salvar_xlsx: false,
             janela_linux: "auto".into(),
             fuso_minutos: None,
             caneta_gama: CURVAS_CANETA[1].1,

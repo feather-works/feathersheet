@@ -210,7 +210,7 @@
           "This help can become a file too: in the Help window (F1), Export as Markdown saves everything to a .md, in the app's language.",
           "Autosave works ONLY for .fshz files that were already saved: it writes over them at the interval chosen in Settings. An opened .xlsx, .csv or .parquet file, or a new spreadsheet, is never written automatically — to use autosave, choose Save as… and pick .fshz.",
           "Automatic recovery covers everything else: it keeps a copy of any changed spreadsheet (including .xlsx, .parquet and never-saved ones) in Documents/FeatherSheet/Temporarios/Recuperacao. If the computer shuts down, it shows up on the start screen to recover. It does not replace saving: the copy is removed when you save or discard. Very large workbooks (over 100 million cells) get no automatic copy, because each copy would freeze the window and double the memory: save them with Ctrl+S.",
-          "Everything runs on your machine: no account, no login, none of your content leaves it."
+          "Everything runs on your machine: no account, no login, none of your content leaves it.", "Settings ▸ Save new workbooks as .xlsx: Save as… suggests the Excel format."
         ]
       },
       "config": {

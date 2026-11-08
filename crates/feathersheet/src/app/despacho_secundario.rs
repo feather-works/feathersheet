@@ -1688,6 +1688,11 @@ impl App {
                 self.config.gravar();
                 Task::none()
             }
+            Msg::SalvarXlsx(ativo) => {
+                self.config.salvar_xlsx = ativo;
+                self.config.gravar();
+                Task::none()
+            }
             Msg::AutoSalvar(ativo) => {
                 self.config.auto_salvar = ativo;
                 self.auto_salvar_desde = if ativo && self.alterado { Some(Instant::now()) } else { None };
