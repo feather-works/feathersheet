@@ -140,8 +140,8 @@ pub(super) fn amostras_acento(app: &App) -> Element<'_, Msg> {
 }
 
 /// Índices das seções no menu à esquerda (a ordem de `secoes` em `visualizar`).
-pub(super) const SECAO_MCP: usize = 7;
-pub(super) const SECAO_SOBRE: usize = 8;
+pub(super) const SECAO_MCP: usize = 8;
+pub(super) const SECAO_SOBRE: usize = 9;
 
 /// "Do sistema" e os fusos de UTC−12 a UTC+14, de hora em hora.
 const FUSOS: [&str; 28] = ["Do sistema", "UTC−12:00", "UTC−11:00", "UTC−10:00", "UTC−09:00", "UTC−08:00", "UTC−07:00", "UTC−06:00", "UTC−05:00", "UTC−04:00", "UTC−03:00", "UTC−02:00", "UTC−01:00", "UTC+00:00", "UTC+01:00", "UTC+02:00", "UTC+03:00", "UTC+04:00", "UTC+05:00", "UTC+06:00", "UTC+07:00", "UTC+08:00", "UTC+09:00", "UTC+10:00", "UTC+11:00", "UTC+12:00", "UTC+13:00", "UTC+14:00"];
@@ -154,7 +154,7 @@ fn minutos_do_rotulo(r: &str) -> i32 {
 }
 
 pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
-    let secoes = [tr!("Aparência"), tr!("Salvamento"), tr!("Planilha"), tr!("Sistema"), tr!("Mesa digitalizadora"), "OpenQuery", tr!("Atalhos"), tr!("IA (MCP)"), tr!("Sobre")];
+    let secoes = [tr!("Aparência"), tr!("Seus dados"), tr!("Salvamento"), tr!("Planilha"), tr!("Sistema"), tr!("Mesa digitalizadora"), "OpenQuery", tr!("Atalhos"), tr!("IA (MCP)"), tr!("Sobre")];
     let menu = feather_ui::configuracoes::menu(
         tr!("Configurações"),
         secoes.iter().enumerate().map(|(i, nome)|
@@ -222,6 +222,23 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
             ].spacing(0).into()
         }
         1 => {
+            use super::primeiros_passos::Evento;
+            fn campo<'a>(dica: String, valor: &'a str, ev: fn(String) -> Evento, largura: f32) -> Element<'a, Msg> {
+                pelicano::text_input(dica, valor).on_input(move |t| Msg::PrimeirosPassos(ev(t)))
+                    .padding([6, 9]).size(13).width(Length::Fixed(largura)).into()
+            }
+            pelicano::column![
+                linha(tr!("Nome"), tr!("Autor e \"modificado por\" dos arquivos que você salvar e autor dos comentários. Em branco, usa o do sistema."),
+                    campo(trf!("Ex.: {}", super::comentarios_ui::autor_do_sistema()), &app.config.autor_nome, Evento::Nome, 260.0)),
+                linha(tr!("Iniciais"), tr!("Aparecem nos comentários"),
+                    campo(trf!("Ex.: {}", super::primeiros_passos::iniciais_de(&app.autor())), &app.config.autor_iniciais, Evento::Iniciais, 120.0)),
+                linha(tr!("Organização"), tr!("Empresa ou equipe; vai no arquivo (o \"Empresa\" do Excel)."),
+                    campo(tr!("Empresa ou equipe").into(), &app.config.autor_organizacao, Evento::Organizacao, 260.0)),
+                text(tr!("Um arquivo que já tem autor ou empresa continua com os dele; \"modificado por\" é sempre atualizado ao salvar."))
+                    .size(11).color(COR_TEXTO_MUTED()),
+            ].spacing(0).into()
+        }
+        2 => {
             let nome = app.caminho.as_ref().and_then(|p| p.file_name())
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_else(|| tr!("Nenhum arquivo salvo ainda").to_owned());
@@ -242,7 +259,7 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                     .size(11).color(COR_TEXTO_MUTED()),
             ].spacing(0).into()
         }
-        2 => pelicano::column![
+        3 => pelicano::column![
             linha(tr!("Idioma"), tr!("Muda nomes das funções (SOMA ou SUM), separadores (; ou ,) e a Ajuda F1."),
                 lista_idioma(app)),
             linha(tr!("Separadores de fórmulas e texto/CSV"), tr!("Definidos pelo idioma; Padrão aplicado às fórmulas e ao texto/CSV."),
@@ -262,7 +279,7 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
             text(tr!("Largura e altura padrão e estilo inicial de tabelas: em breve."))
                 .size(11).color(COR_TEXTO_MUTED()),
         ].spacing(0).into(),
-        3 => pelicano::column![
+        4 => pelicano::column![
             linha(tr!("Fuso horário"), &trf!("Usado por AGORA() e HOJE(). O do sistema agora é {}.", super::fuso::rotulo(super::fuso::do_sistema())),
                 feather_ui::componentes::lista_suspensa(
                     tr!("Fuso"), crate::idioma::lista(&FUSOS),
@@ -296,7 +313,7 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                     165.0,
                 )),
         ].spacing(0).into(),
-        4 => pelicano::column![
+        5 => pelicano::column![
             linha(tr!("Janela no Linux (Wayland)"),
                 tr!("Com mesa digitalizadora a janela abre pelo XWayland: no Wayland nativo a ponta da caneta não clica. Vale na próxima abertura."),
                 feather_ui::componentes::lista_suspensa(
@@ -329,14 +346,14 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                 toggler("", app.config.caneta_auto_desenhar)
                     .on_toggle(|v| Msg::Caneta(super::desenhar::AjusteCaneta::AutoDesenhar(v))).color(COR_AZUL_ACENTO())),
         ].spacing(0).into(),
-        5 => pelicano::column![
+        6 => pelicano::column![
             text("OpenQuery").size(16).color(COR_TEXTO()),
             text(tr!("O editor de consultas ainda não foi integrado às Configurações."))
                 .size(12).color(COR_TEXTO_MUTED()),
             text(tr!("O limite padrão de pré-visualização será configurável quando o executor de consultas estiver disponível. Nenhuma consulta será modificada por esta tela."))
                 .size(12).color(COR_TEXTO_MUTED()),
         ].spacing(12).into(),
-        6 => {
+        7 => {
             let mut col = pelicano::column![
                 linha(tr!("Personalizar atalhos"),
                     tr!("Selecione uma combinação e pressione o novo atalho. Esc cancela."),

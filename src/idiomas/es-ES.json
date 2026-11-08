@@ -218,7 +218,7 @@
     "corpo": [
      "En Configuración: tema claro u oscuro, esquema de colores y acento, fuente y tamaño de la cuadrícula, zoom, guardado automático, idioma (que también define el separador de fórmulas) y atajos de teclado.",
      "Mostrar → Monitor (o F12) muestra memoria, procesador y la Consola con lo que la aplicación registró — útil para enviar junto con un informe de error.",
-     "Actualizaciones: al abrir, FeatherSheet busca una versión nueva en GitHub (como máximo una vez al día) y, si la hay, muestra una tarjeta en la esquina con Novedades, Después y Actualizar. Desactívelo en Configuración → Acerca de → Avisar de versiones nuevas; el botón Buscar actualizaciones consulta al momento."
+     "Actualizaciones: al abrir, FeatherSheet busca una versión nueva en GitHub (como máximo una vez al día) y, si la hay, muestra una tarjeta en la esquina con Novedades, Después y Actualizar. Desactívelo en Configuración → Acerca de → Avisar de versiones nuevas; el botón Buscar actualizaciones consulta al momento.", "Configuración ▸ Sus datos: nombre, iniciales y organización, que van como autor, \"modificado por\" y empresa de los archivos guardados y firman los comentarios (los mismos de Primeros pasos)."
     ]
    }
   },

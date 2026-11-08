@@ -1336,7 +1336,7 @@ impl App {
                                     return self.alternar(Auxiliar::Macros);
                                 }
                                 "monitor" => return self.alternar(Auxiliar::Monitor),
-                                // config:<seção 1–7> (6 = IA (MCP), 7 = Sobre).
+                                // config:<seção 1–10> (2 = Seus dados, 9 = IA (MCP), 10 = Sobre).
                                 "config" => {
                                     self.config_secao = (numero.max(1) - 1).min(configuracoes_ui::SECAO_SOBRE);
                                     return self.alternar(Auxiliar::Configuracoes);

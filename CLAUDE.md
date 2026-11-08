@@ -58,6 +58,10 @@ Configurações ▸ "Salvar planilha nova como .xlsx" (`config.salvar_xlsx`, `Ms
 de planilha sem arquivo (ou vinda de .csv/.parquet) sugere `.xlsx` (`App::formato_sugerido`). Novidade:
 "Opção para o Salvar como… sugerir .xlsx, para quem troca arquivo com o Excel."
 
+Configurações ▸ "Seus dados" (seção 2; `SECAO_MCP`/`SECAO_SOBRE` andaram para 8/9): nome, iniciais e organização,
+os mesmos de Primeiros passos (`Msg::PrimeirosPassos(Evento::Nome…)`). Novidade: "Nome e empresa que vão nos
+arquivos agora também em Configurações ▸ Seus dados."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,
