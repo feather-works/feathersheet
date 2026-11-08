@@ -107,11 +107,12 @@ fn alturas_proprias_e_paineis_congelados_entram_na_conta() {
     // Roláveis: 886 − 2 × 28 = 830 px; a linha 5 (100) vale 3,57 linhas
     // padrão e a 6 some: cabem 27 roláveis inteiras.
     assert_eq!(linhas, 27);
-    // 1599 − 122 da congelada = 1477 px; a coluna D (300) leva duas e meia.
-    assert_eq!(colunas, 10);
+    // A coluna dos números de linha só tem a largura dos algarismos (#148): sobra
+    // mais lugar, e a coluna D (300) leva duas e meia das padrão.
+    assert_eq!(colunas, 11);
     // Última inteira: congeladas (0,1) + roláveis 2..=29 menos a oculta 6.
     let ultima_linha = 2 + linhas; // conta a oculta no meio
-    let ultima_coluna = colunas; // 1 congelada + roláveis 1..=10
+    let ultima_coluna = colunas; // 1 congelada + roláveis 1..=11
     app.update(Msg::Selecionar(ultima_linha, ultima_coluna));
     assert_eq!((app.linha_inicio, app.coluna_inicio), (0, 0));
     assert!(inteira_a_vista(&app));
