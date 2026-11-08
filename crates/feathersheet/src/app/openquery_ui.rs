@@ -88,6 +88,11 @@ pub enum Evento {
     FecharEditorAvancado,
     /// O M das etapas na área de transferência, para o Editor Avançado do Excel.
     CopiarPowerQuery,
+    /// Obter dados ▸ Consultas do Power Query deste arquivo: lê e lista as do `.xlsx`.
+    ConsultasPowerQuery,
+    /// Abre a consulta `i` da lista no Editor avançado, já convertida.
+    AbrirConsultaPowerQuery(usize),
+    FecharConsultasPowerQuery,
     /// Lista de métodos do Editor avançado: escreve a linha no cursor.
     InserirNoEditor(String),
     Atualizar,
@@ -224,6 +229,8 @@ pub(super) struct Estado {
     erro_avancado: String,
     /// Recado neutro do Editor avançado (M convertido, copiado como Power Query).
     aviso_avancado: String,
+    /// Consultas do Power Query do `.xlsx` aberto (nome, M); `Some` = a lista está na tela.
+    consultas_pq: Option<Vec<(String, String)>>,
     erro: String,
     edicao: Option<String>,
     salvas: Vec<(String, String)>,
@@ -380,7 +387,7 @@ impl Estado {
             mostrar_web: false, mostrar_tabelas: false,
             passos: Vec::new(), resultado,
             codigo: String::new(),
-            editor_avancado: None, erro_avancado: String::new(), aviso_avancado: String::new(),
+            editor_avancado: None, erro_avancado: String::new(), aviso_avancado: String::new(), consultas_pq: None,
             erro: String::new(),
             edicao: None, salvas: Vec::new(), exclusao_pendente: None,
             assistente: None,
@@ -1198,6 +1205,44 @@ impl App {
                 e.editor_avancado = Some(Content::with_text(&e.codigo));
                 e.erro_avancado.clear();
                 e.aviso_avancado.clear();
+            },
+            Evento::ConsultasPowerQuery => {
+                let lidas = self.arquivo_xlsx_aberto()
+                    .ok_or_else(|| tr!("Salve a pasta como .xlsx para ler as consultas do Power Query.").to_owned())
+                    .and_then(|caminho| feathersheet_io::power_query::secao_do_arquivo(&caminho))
+                    .and_then(|secao| match secao {
+                        Some(texto) => power_query::consultas_da_secao(&texto),
+                        None => Ok(Vec::new()),
+                    });
+                if let Some(e) = &mut self.openquery {
+                    match lidas {
+                        Ok(lista) if lista.is_empty() => e.erro = tr!("Este arquivo não tem consultas do Power Query.").into(),
+                        Ok(lista) => { e.erro.clear(); e.consultas_pq = Some(lista); }
+                        Err(erro) => e.erro = trf!("Não consegui ler as consultas do Power Query: {erro}"),
+                    }
+                }
+            }
+            Evento::AbrirConsultaPowerQuery(i) => if let Some(e) = &mut self.openquery {
+                let Some((nome, m)) = e.consultas_pq.take().and_then(|l| l.into_iter().nth(i)) else { return Task::none() };
+                match power_query::de_m(&m) {
+                    Ok(d) => {
+                        let primeira = script::comandos(&e.codigo).into_iter().next()
+                            .map(|(_, l)| format!("{l};")).unwrap_or_default();
+                        let texto = d.script(&primeira, e.origem_aba.starts_with("Arquivo: "));
+                        if e.edicao.is_none() { e.nome = nome.clone(); }
+                        e.editor_avancado = Some(Content::with_text(&texto));
+                        e.erro_avancado.clear();
+                        e.aviso_avancado = if d.nao_convertidas == 0 {
+                            trf!("Consulta {nome} do Power Query: confira e clique Aplicar.")
+                        } else {
+                            trf!("Consulta {nome} do Power Query: {} etapa(s) sem equivalente ficaram comentadas. Confira e clique Aplicar.", d.nao_convertidas)
+                        };
+                    }
+                    Err(erro) => e.erro = trf!("Não consegui ler o Power Query: {erro}"),
+                }
+            },
+            Evento::FecharConsultasPowerQuery => if let Some(e) = &mut self.openquery {
+                e.consultas_pq = None;
             },
             Evento::CopiarPowerQuery => if let Some(e) = &mut self.openquery {
                 let manual = (e.origem_aba == "Entrada manual").then_some(&e.fonte);

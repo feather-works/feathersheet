@@ -1365,6 +1365,12 @@ impl App {
         self.caminho.as_ref().or(self.origem.as_ref()).and_then(|p| p.file_name()).map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| tr!("Sem título.fshz").into())
     }
+    /// O `.xlsx`/`.xlsm` de onde a pasta veio (onde o Excel guarda as consultas do Power Query).
+    pub(super) fn arquivo_xlsx_aberto(&self) -> Option<PathBuf> {
+        [self.caminho.as_ref(), self.origem.as_ref()].into_iter().flatten()
+            .find(|p| p.extension().is_some_and(|x| x.eq_ignore_ascii_case("xlsx") || x.eq_ignore_ascii_case("xlsm")))
+            .cloned()
+    }
     /// O nome sem extensão que os diálogos de salvar/exportar sugerem.
     pub(super) fn nome_base_documento(&self) -> String {
         self.caminho.as_ref().or(self.origem.as_ref()).and_then(|p| p.file_stem())

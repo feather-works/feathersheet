@@ -452,8 +452,6 @@ pub(super) fn parece_m(texto: &str) -> bool {
 
 /// As consultas de um documento `section Section1; shared Nome = let … in …;`
 /// (o que o Excel guarda dentro do `.xlsx`).
-// Ainda só nos testes: quem chama é a leitura do DataMashup do .xlsx (próxima etapa).
-#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn consultas_da_secao(texto: &str) -> R<Vec<(String, String)>> {
     let tk = lexico(texto)?;
     let mut saida = Vec::new();
@@ -616,6 +614,11 @@ const JUNCOES: &[(&str, &str)] = &[
     ("JoinKind.Inner", "interna"), ("JoinKind.LeftAnti", "anti_esquerda"), ("JoinKind.RightAnti", "anti_direita"),
 ];
 
+/// `List.Min({[A], [B]})` ↔ `MÍNIMO([A];[B])`.
+const LISTAS_FORMULA: &[(&str, &str)] = &[
+    ("List.Min", "MÍNIMO"), ("List.Max", "MÁXIMO"), ("List.Sum", "SOMA"), ("List.Average", "MÉDIA"),
+];
+
 /// A expressão como fórmula da planilha (`=[Preço]*[Qtd]`), quando dá.
 fn formula(e: &E) -> Option<String> {
     let par = |a: &E, b: &E| Some((formula(a)?, formula(b)?));
@@ -623,6 +626,8 @@ fn formula(e: &E) -> Option<String> {
         E::Num(n) => texto_do_numero(*n),
         E::Txt(s) => format!("\"{}\"", s.replace('"', "\"\"")),
         E::Logico(b) => if *b { "VERDADEIRO".into() } else { "FALSO".into() },
+        // null na coluna nova: a célula fica vazia.
+        E::Nulo => "\"\"".into(),
         E::Campo(c) => format!("[{c}]"),
         E::Neg(x) => format!("-{}", formula(x)?),
         E::Nao(x) => format!("NÃO({})", formula(x)?),
@@ -632,6 +637,11 @@ fn formula(e: &E) -> Option<String> {
         E::Se(c, a, b) => format!("SE({};{};{})", formula(c)?, formula(a)?, formula(b)?),
         E::Chamada(..) => {
             let (f, args) = funcao(e)?;
+            if let Some((_, pt)) = LISTAS_FORMULA.iter().find(|(m, _)| *m == f) {
+                let [E::Lista(itens)] = args else { return None };
+                let itens: Vec<String> = itens.iter().map(formula).collect::<Option<_>>()?;
+                return Some(format!("{pt}({})", itens.join(";")));
+            }
             let a: Vec<String> = args.iter().map(formula).collect::<Option<_>>()?;
             // O M conta do 0; o EXT.TEXTO, do 1.
             if let ("Text.Middle", [_, ini, _]) = (f, args) {
@@ -698,15 +708,40 @@ fn juntar_ops<'e>(e: &'e E, op: &str, saida: &mut Vec<&'e E>) {
 /// Converte o M em linhas do script.
 pub(super) fn de_m(texto: &str) -> R<DoM> {
     let mut c = Conversor::default();
+    let mut constantes: Vec<(String, E)> = Vec::new();
     for l in ligacoes(texto)? {
-        match &l.expr {
-            Ok(e) => c.etapa(e, &l.texto),
+        match l.expr.map(|e| trocar_constantes(e, &constantes)) {
+            // `coluna = "Status"` usada depois num filtro: é parâmetro, não etapa.
+            Ok(e) if literal(&e).is_some() && !c.anteriores.is_empty() => { constantes.push((l.nome, e)); continue; }
+            Ok(e) => c.etapa(&e, &l.texto),
             Err(_) => c.nao_convertida(&l.texto),
         }
         c.anteriores.push(l.nome);
     }
     if c.divisao_pendente.is_some() { c.dom.nao_convertidas += 1; }
     Ok(c.dom)
+}
+
+/// Troca o nome de uma constante (`col = "x"`) pelo valor dela, em toda a expressão.
+fn trocar_constantes(e: E, constantes: &[(String, E)]) -> E {
+    if constantes.is_empty() { return e; }
+    let t = |x: Box<E>| Box::new(trocar_constantes(*x, constantes));
+    let v = |x: Vec<E>| x.into_iter().map(|y| trocar_constantes(y, constantes)).collect();
+    match e {
+        E::Id(n) => constantes.iter().find(|(c, _)| *c == n).map(|(_, v)| v.clone()).unwrap_or(E::Id(n)),
+        E::Lista(x) => E::Lista(v(x)),
+        E::Registro(r) => E::Registro(r.into_iter().map(|(k, x)| (k, trocar_constantes(x, constantes))).collect()),
+        E::Chamada(f, a) => E::Chamada(f, v(a)),
+        E::Item(a, b) => E::Item(t(a), t(b)),
+        E::Acesso(a, c) => E::Acesso(t(a), c),
+        E::Cada(x) => E::Cada(t(x)),
+        E::Funcao(p, x) => E::Funcao(p, t(x)),
+        E::Bin(op, a, b) => E::Bin(op, t(a), t(b)),
+        E::Nao(x) => E::Nao(t(x)),
+        E::Neg(x) => E::Neg(t(x)),
+        E::Se(a, b, c) => E::Se(t(a), t(b), t(c)),
+        outro => outro,
+    }
 }
 
 #[derive(Default)]
@@ -717,8 +752,8 @@ struct Conversor {
     cabecalho_automatico: bool,
     /// `Table.TransformColumns` com `Splitter`: a lista vira linhas no `ExpandListColumn` seguinte.
     divisao_pendente: Option<(String, String)>,
-    /// O nome da coluna de tabela do último `Table.NestedJoin` (o `Expand` seguinte já vem feito).
-    ultima_juncao: Option<String>,
+    /// As colunas de tabela dos `Table.NestedJoin` já feitos (o `Expand` delas já vem feito).
+    juncoes: Vec<String>,
 }
 
 impl Conversor {
@@ -779,9 +814,10 @@ impl Conversor {
             .and_then(|(_, a)| a.first().and_then(txt));
         let fonte = match f {
             "Excel.Workbook" | "Parquet.Document" => caminho().map(|p| format!("lerArquivo({})", s(&p))),
-            "Csv.Document" => caminho().map(|p| {
+            "Csv.Document" | "Json.Document" => caminho().map(|p| {
                 let web = funcao(&args[0]).is_some_and(|(g, _)| g == "Web.Contents");
-                format!("{}({})", if web { "lerWeb" } else { "lerCsv" }, s(&p))
+                let leitor = if web { "lerWeb" } else if f == "Json.Document" { "lerArquivo" } else { "lerCsv" };
+                format!("{leitor}({})", s(&p))
             }),
             "Folder.Files" | "Folder.Contents" => args.first().and_then(txt).map(|p| format!("lerPasta({})", s(&p))),
             "Web.Page" => caminho().map(|p| format!("lerWeb({})", s(&p))),
@@ -795,8 +831,8 @@ impl Conversor {
     }
 
     fn etapa(&mut self, e: &E, texto: &str) {
-        if self.dom.fonte.is_none() && self.fonte(e) { return; }
-        if self.dom.fonte.is_some() && self.dom.navegacao.is_none() && self.fonte(e) { return; }
+        if self.anteriores.is_empty() && self.fonte(e) { return; }
+        if self.dom.navegacao.is_none() && matches!(e, E::Acesso(..)) && self.fonte(e) { return; }
         if let E::Id(n) = e {
             if self.anteriores.contains(n) { return; }
             if self.anteriores.is_empty() {
@@ -816,7 +852,6 @@ impl Conversor {
         let arg = |i: usize| a.get(i);
         let n_ou = |i: usize, padrao: f64| match arg(i) { None => Some(padrao), Some(x) => num(x) };
         let um = |l: String| Some(vec![l]);
-        if f != "Table.ExpandTableColumn" { self.ultima_juncao = None; }
         match f {
             "Table.PromoteHeaders" if self.cabecalho_automatico => Some(Vec::new()),
             "Table.PromoteHeaders" => um(linha("usarPrimeiraLinhaComoCabecalho", vec![])),
@@ -921,11 +956,13 @@ impl Conversor {
                 };
                 let um_ou_lista = |e: &E| { let v = nomes(e)?; Some(if v.len() == 1 { json!(v[0]) } else { json!(v) }) };
                 let l = linha("mesclarConsultas", vec![json!(fonte), um_ou_lista(arg(1)?)?, um_ou_lista(arg(3)?)?, json!(modo)]);
-                if f == "Table.NestedJoin" { self.ultima_juncao = Some(txt(arg(4)?)?); }
+                if f == "Table.NestedJoin" { self.juncoes.push(txt(arg(4)?)?); }
                 um(l)
             }
             "Table.ExpandTableColumn" => {
-                (self.ultima_juncao.take()? == txt(arg(1)?)?).then_some(())?;
+                let coluna = txt(arg(1)?)?;
+                let i = self.juncoes.iter().position(|j| *j == coluna)?;
+                self.juncoes.remove(i);
                 um(format!("// {}", tr!("(Expandir: a mesclagem do OpenQuery já traz as colunas da outra consulta.)")))
             }
             "Table.Combine" => {
@@ -1196,6 +1233,10 @@ impl LeitorFormula {
                         let (t, ini, q) = (prox()?, prox()?, prox()?);
                         let ini = match ini { E::Num(n) => E::Num(n - 1.0), outro => E::Bin("-", Box::new(outro), Box::new(E::Num(1.0))) };
                         chamar("Text.Middle", vec![t, ini, q])
+                    }
+                    _ if LISTAS_FORMULA.iter().any(|(_, pt)| *pt == n) => {
+                        let (m, _) = LISTAS_FORMULA.iter().find(|(_, pt)| *pt == n)?;
+                        chamar(m, vec![E::Lista(std::iter::from_fn(prox).collect())])
                     }
                     _ => {
                         let (m, _, _) = FUNCOES.iter().find(|(_, pt, en)| *pt == n || *en == n)?;
@@ -1858,7 +1899,8 @@ in
         let m = r#"let
     Fonte = Excel.CurrentWorkbook(){[Name="Vendas"]}[Content],
     #"Consultas Mescladas" = Table.NestedJoin(Fonte, {"UF"}, Estados, {"Sigla"}, "Estados", JoinKind.Inner),
-    #"Estados Expandido" = Table.ExpandTableColumn(#"Consultas Mescladas", "Estados", {"Nome"}, {"Estados.Nome"}),
+    #"Tipo Alterado" = Table.TransformColumnTypes(#"Consultas Mescladas", {{"UF", type text}}),
+    #"Estados Expandido" = Table.ExpandTableColumn(#"Tipo Alterado", "Estados", {"Nome"}, {"Estados.Nome"}),
     #"Consulta Acrescentada" = Table.Combine({#"Estados Expandido", Outras})
 in
     #"Consulta Acrescentada""#;
@@ -1889,6 +1931,12 @@ in
             r#"fonte.preencher("UF", false);"#.to_owned(),
         ]);
         assert!(de_m("let x = in y").is_ok_and(|d| d.nao_convertidas == 1));
+        // Constante usada no filtro, e uma etapa do meio que parece fonte não troca a fonte.
+        let d = de_m("let\n F = Excel.CurrentWorkbook(){[Name=\"T\"]}[Content],\n col = \"Status\",\n x = Table.SelectRows(F, each [Critério] <> col),\n y = Json.Document(Web.Contents(\"https://a\"))\nin y").unwrap();
+        assert_eq!(d.fonte.as_deref(), Some(r#"lerTabela("T")"#));
+        assert_eq!(d.linhas[0], r#"fonte.filtrar("Critério", "<>Status");"#);
+        assert_eq!(d.nao_convertidas, 1);
+        assert_eq!(de_m("let F = Json.Document(Web.Contents(\"https://a\")) in F").unwrap().fonte.as_deref(), Some(r#"lerWeb("https://a")"#));
         assert!(de_m("let x = \"sem fim").is_err());
     }
 
@@ -1901,6 +1949,22 @@ in
             assert_eq!(m(&e), m(&e2), "{f} → {volta}");
         }
         assert!(de_formula("=PROCV([A];X;2)").is_none(), "função sem equivalente não vira M errado");
+        let e = de_formula("=MÍNIMO([A];[B])").unwrap();
+        assert_eq!(m(&e), "List.Min({[A], [B]})");
+        assert_eq!(formula(&e).as_deref(), Some("MÍNIMO([A];[B])"));
+    }
+
+    /// `FEATHERSHEET_PQ_XLSX=arquivo.xlsx cargo test consultas_de_um_xlsx_real -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn consultas_de_um_xlsx_real() {
+        let caminho = std::env::var("FEATHERSHEET_PQ_XLSX").expect("FEATHERSHEET_PQ_XLSX");
+        let secao = feathersheet_io::power_query::secao_do_arquivo(std::path::Path::new(&caminho)).unwrap().expect("sem Power Query");
+        for (nome, m) in consultas_da_secao(&secao).unwrap() {
+            let d = de_m(&m).unwrap();
+            println!("== {nome}: {} linha(s), {} sem equivalente; fonte {:?} {:?}", d.linhas.len(), d.nao_convertidas, d.fonte, d.navegacao);
+            for l in &d.linhas { println!("   {l}"); }
+        }
     }
 
     #[test]

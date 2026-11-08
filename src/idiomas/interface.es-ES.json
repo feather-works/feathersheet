@@ -4658,5 +4658,15 @@
  "A coluna \"{n}\" não existe na outra consulta.": "La columna \"{n}\" no existe en la otra consulta.",
  "No Power Query a fonte era {f}; aqui vale a escolhida em Obter dados.": "En Power Query el origen era {f}; aquí vale el elegido en Obtener datos.",
  "M não convertido:": "M no convertido:",
- "(Expandir: a mesclagem do OpenQuery já traz as colunas da outra consulta.)": "(Expandir: la combinación de OpenQuery ya trae las columnas de la otra consulta.)"
+ "(Expandir: a mesclagem do OpenQuery já traz as colunas da outra consulta.)": "(Expandir: la combinación de OpenQuery ya trae las columnas de la otra consulta.)",
+ "Salve a pasta como .xlsx para ler as consultas do Power Query.": "Guarde el libro como .xlsx para leer sus consultas de Power Query.",
+ "Este arquivo não tem consultas do Power Query.": "Este archivo no tiene consultas de Power Query.",
+ "Não consegui ler as consultas do Power Query: {erro}": "No pude leer las consultas de Power Query: {erro}",
+ "Consulta {nome} do Power Query: confira e clique Aplicar.": "Consulta {nome} de Power Query: revise y haga clic en Aplicar.",
+ "Consulta {nome} do Power Query: {} etapa(s) sem equivalente ficaram comentadas. Confira e clique Aplicar.": "Consulta {nome} de Power Query: {} paso(s) sin equivalente quedaron comentados. Revise y haga clic en Aplicar.",
+ "Não consegui ler o Power Query: {erro}": "No pude leer el Power Query: {erro}",
+ "Consultas do Power Query deste arquivo…": "Consultas de Power Query de este archivo…",
+ "~{etapas} etapas": "~{etapas} pasos",
+ "Consultas do Power Query deste arquivo": "Consultas de Power Query de este archivo",
+ "O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do OpenQuery.": "Excel guardó estas consultas en el archivo. La elegida se abre en el Editor avanzado, convertida en pasos de OpenQuery."
 }

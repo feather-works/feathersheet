@@ -4662,5 +4662,15 @@
  "A coluna \"{n}\" não existe na outra consulta.": "Column \"{n}\" does not exist in the other query.",
  "No Power Query a fonte era {f}; aqui vale a escolhida em Obter dados.": "In Power Query the source was {f}; here the one chosen in Get data applies.",
  "M não convertido:": "M not converted:",
- "(Expandir: a mesclagem do OpenQuery já traz as colunas da outra consulta.)": "(Expand: the OpenQuery merge already brings the other query's columns.)"
+ "(Expandir: a mesclagem do OpenQuery já traz as colunas da outra consulta.)": "(Expand: the OpenQuery merge already brings the other query's columns.)",
+ "Salve a pasta como .xlsx para ler as consultas do Power Query.": "Save the workbook as .xlsx to read its Power Query queries.",
+ "Este arquivo não tem consultas do Power Query.": "This file has no Power Query queries.",
+ "Não consegui ler as consultas do Power Query: {erro}": "Could not read the Power Query queries: {erro}",
+ "Consulta {nome} do Power Query: confira e clique Aplicar.": "Power Query query {nome}: review and click Apply.",
+ "Consulta {nome} do Power Query: {} etapa(s) sem equivalente ficaram comentadas. Confira e clique Aplicar.": "Power Query query {nome}: {} step(s) with no equivalent were commented out. Review and click Apply.",
+ "Não consegui ler o Power Query: {erro}": "Could not read the Power Query: {erro}",
+ "Consultas do Power Query deste arquivo…": "Power Query queries in this file…",
+ "~{etapas} etapas": "~{etapas} steps",
+ "Consultas do Power Query deste arquivo": "Power Query queries in this file",
+ "O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do OpenQuery.": "Excel saved these queries in the file. The one you pick opens in the Advanced editor, converted into OpenQuery steps."
 }

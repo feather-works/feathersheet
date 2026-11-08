@@ -65,7 +65,7 @@ impl App {
             e.erro_avancado.clear();
             return true;
         }
-        if e.modal.take().is_some() || e.dependencias.take().is_some() { return true; }
+        if e.modal.take().is_some() || e.dependencias.take().is_some() || e.consultas_pq.take().is_some() { return true; }
         if e.mostrar_manual { e.mostrar_manual = false; return true; }
         if e.menu_obter { e.menu_obter = false; return true; }
         if e.parametros_abertos { e.parametros_abertos = false; e.acao_parametros = None; return true; }
@@ -108,6 +108,8 @@ impl App {
             Some(painel_destino(e))
         } else if e.mostrar_manual {
             Some(painel_manual(e))
+        } else if let Some(lista) = &e.consultas_pq {
+            Some(painel_consultas_pq(lista))
         } else {
             None
         };
@@ -1008,6 +1010,9 @@ impl App {
             item(tr!("Da seleção"), "layout-grid", Evento::CarregarSelecao),
             item(tr!("Digitar dados"), "edit", Evento::AbaCentro(2)),
         ];
+        if self.arquivo_xlsx_aberto().is_some() {
+            itens.push(item(tr!("Consultas do Power Query deste arquivo…"), "file-import", Evento::ConsultasPowerQuery));
+        }
         if !e.salvas.is_empty() {
             itens.push(ItemMenu::sub(tr!("Outra consulta (referência)"), "link",
                 e.salvas.iter().map(|(id, nome)| item(nome, "table", Evento::ReferenciarSalva(id.clone()))).collect()));
@@ -1043,6 +1048,29 @@ fn painel_manual<'a>(e: &'a Estado) -> Element<'a, Msg> {
         .ao_fechar(om(Evento::AbaCentro(0)))
         .secundario(tr!("Cancelar"), Some(om(Evento::AbaCentro(0))))
         .primario(tr!("OK"), Some(om(Evento::AplicarManual)))
+        .painel()
+}
+
+/// Obter dados ▸ Consultas do Power Query deste arquivo: escolher qual abrir no Editor avançado.
+fn painel_consultas_pq<'a>(lista: &'a [(String, String)]) -> Element<'a, Msg> {
+    let mut corpo = column![].spacing(ESPACO_PEQUENO);
+    for (i, (nome, m)) in lista.iter().enumerate() {
+        let etapas = m.matches(" = ").count().saturating_sub(1).max(1);
+        corpo = corpo.push(button(row![
+            feather_ui::icones::icone("table", 15.0),
+            text(nome.clone()).size(TAM_TEXTO).width(Length::FILL),
+            legenda_oq(&trf!("~{etapas} etapas")),
+        ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center))
+            .width(Length::FILL).padding([6, 10])
+            .on_press(om(Evento::AbrirConsultaPowerQuery(i)))
+            .style(ide::estilo_botao_ide(false)));
+    }
+    feather_ui::dialogo::Dialogo::new(tr!("Consultas do Power Query deste arquivo"), scrollable(corpo).height(Length::Fixed(320.0)))
+        .icone("file-import")
+        .subtitulo(tr!("O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do OpenQuery."))
+        .largura(560.0)
+        .ao_fechar(om(Evento::FecharConsultasPowerQuery))
+        .secundario(tr!("Cancelar"), Some(om(Evento::FecharConsultasPowerQuery)))
         .painel()
 }
 

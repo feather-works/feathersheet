@@ -11,6 +11,7 @@
 pub use feather_io::memoria;
 pub mod arquivo;
 pub mod base64;
+pub mod power_query;
 mod arrow_fluxo;
 pub mod backup_policy;
 pub mod backup_snapshot;

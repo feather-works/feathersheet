@@ -54,10 +54,16 @@ aceita a coluna da outra consulta pelo nome. Tela: colar M no Editor avançado e
 etapa sem equivalente, para e mostra o script comentado); "Copiar como Power Query" no rodapé. Limites:
 a fonte do M vira comentário (a da consulta continua a de Obter dados); `contagem` (só números) vai como
 `List.Count(List.Select(…, each _ is number))` e `Table.RowCount(_)` volta como contar valores da chave.
-`consultas_da_secao` já lê o `section Section1; shared …;` — **falta** tirar esse texto do DataMashup do
-`.xlsx` (customXml, base64 → zip → `Formulas/Section1.m`) para abrir as consultas do arquivo sozinho.
-Novidade: "Power Query do Excel no OpenQuery: cole o M e as etapas aparecem; Copiar como Power Query
-leva de volta para o Excel."
+Consultas guardadas no `.xlsx`: `feathersheet-io/src/power_query.rs` tira o `Section1.m` do DataMashup
+(`customXml/item*.xml`, UTF-16 ou UTF-8, base64 → u32 versão + u32 tamanho + zip OPC; teto de 32 MiB por
+parte) e `consultas_da_secao` separa cada `shared Nome = …;`. Obter dados ▾ ▸ "Consultas do Power Query
+deste arquivo…" (só com a pasta vinda de `.xlsx`/`.xlsm`, `App::arquivo_xlsx_aberto`) lista e abre a
+escolhida no Editor avançado. Etapa que é só um valor (`col = "x"`) vira constante nas seguintes. Conferir
+com arquivo real: `FEATHERSHEET_PQ_XLSX=x.xlsx cargo test consultas_de_um_xlsx_real -- --ignored --nocapture`
+(nos dois `.xlsx` com Power Query desta máquina, o que sobra é M avançado: tabela dentro de agrupamento,
+JSON em registros, `Table.TransformColumns` com função por subtabela).
+Novidades: "Power Query do Excel no OpenQuery: cole o M e as etapas aparecem; Copiar como Power Query
+leva de volta para o Excel." e "Abra as consultas do Power Query que o Excel guardou no .xlsx."
 
 ## v0.2.9 — 04/11/2026: minigráficos, desfazer exato, auditoria
 

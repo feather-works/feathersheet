@@ -611,3 +611,97 @@ fn renomear_e_mover_seguidos_viram_uma_etapa_e_filtro_por_lista() {
     app.evento_openquery(Evento::Adicionar("duplicar"));
     assert_eq!(app.openquery.as_ref().unwrap().resultado.cabecalho.last().map(String::as_str), Some("UF2 - Cópia"));
 }
+
+/// Um `.xlsx` só com o DataMashup (o que o Excel grava quando a pasta tem Power Query).
+fn xlsx_com_power_query(secao: &str) -> std::path::PathBuf {
+    use std::io::Write;
+    let zip_com = |partes: &[(&str, &[u8])]| {
+        let mut w = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        for (nome, bytes) in partes {
+            w.start_file(*nome, zip::write::SimpleFileOptions::default()).unwrap();
+            w.write_all(bytes).unwrap();
+        }
+        w.finish().unwrap().into_inner()
+    };
+    let pacote = zip_com(&[("Formulas/Section1.m", secao.as_bytes())]);
+    let mut bin = 0u32.to_le_bytes().to_vec();
+    bin.extend((pacote.len() as u32).to_le_bytes());
+    bin.extend(&pacote);
+    let xml = format!("<DataMashup xmlns=\"http://schemas.microsoft.com/DataMashup\">{}</DataMashup>",
+        feathersheet_io::base64::codificar(&bin));
+    let caminho = std::env::temp_dir().join(format!("fs-pq-{}-{}.xlsx", std::process::id(), secao.len()));
+    std::fs::write(&caminho, zip_com(&[("customXml/item1.xml", xml.as_bytes())])).unwrap();
+    caminho
+}
+
+fn app_com_valores() -> App {
+    let mut app = App::default();
+    app.evento_openquery(Evento::Abrir);
+    let editor = app.openquery.as_mut().unwrap();
+    editor.fonte = Tabela {
+        cabecalho: vec!["UF".into(), "Valor".into()],
+        linhas: vec![
+            vec![Value::Text("SP".into()), Value::Number(10.)],
+            vec![Value::Text("RJ".into()), Value::Number(20.)],
+            vec![Value::Text("SP".into()), Value::Number(30.)],
+        ],
+    };
+    editor.registrar_passos();
+    app
+}
+
+#[test]
+fn consultas_do_power_query_do_xlsx_abrem_no_editor_avancado() {
+    let secao = "section Section1;\r\n\r\nshared Vendas = let\r\n    Fonte = Excel.CurrentWorkbook(){[Name=\"Vendas\"]}[Content],\r\n    #\"Linhas Filtradas\" = Table.SelectRows(Fonte, each [UF] = \"SP\"),\r\n    #\"Linhas Agrupadas\" = Table.Group(#\"Linhas Filtradas\", {\"UF\"}, {{\"Total\", each List.Sum([Valor]), type number}})\r\nin\r\n    #\"Linhas Agrupadas\";\r\n\r\nshared Outra = 1;";
+    let caminho = xlsx_com_power_query(secao);
+    let mut app = app_com_valores();
+    // Sem .xlsx aberto, o item nem aparece.
+    assert!(app.arquivo_xlsx_aberto().is_none());
+    app.caminho = Some(caminho.clone());
+    app.evento_openquery(Evento::ConsultasPowerQuery);
+    let lista = app.openquery.as_ref().unwrap().consultas_pq.clone().expect("lista aberta");
+    assert_eq!(lista.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["Vendas", "Outra"]);
+    let _ = app.view_openquery();
+    app.evento_openquery(Evento::AbrirConsultaPowerQuery(0));
+    let editor = app.openquery.as_ref().unwrap();
+    assert!(editor.consultas_pq.is_none());
+    assert_eq!(editor.nome, "Vendas");
+    let texto = editor.editor_avancado.as_ref().expect("editor avançado aberto").text();
+    assert!(texto.contains("fonte.filtrar(\"UF\", \"SP\");"), "{texto}");
+    app.evento_openquery(Evento::AplicarEditorAvancado);
+    let editor = app.openquery.as_ref().unwrap();
+    assert!(editor.erro_avancado.is_empty(), "{}", editor.erro_avancado);
+    assert_eq!(editor.resultado.cabecalho, ["UF", "Total"]);
+    assert_eq!(editor.resultado.linhas, [vec![Value::Text("SP".into()), Value::Number(40.)]]);
+    let _ = std::fs::remove_file(caminho);
+
+    // Arquivo sem Power Query: avisa e não abre lista.
+    let vazio = xlsx_com_power_query("section Section1;");
+    app.caminho = Some(vazio.clone());
+    app.evento_openquery(Evento::ConsultasPowerQuery);
+    let editor = app.openquery.as_ref().unwrap();
+    assert!(editor.consultas_pq.is_none() && !editor.erro.is_empty());
+    let _ = std::fs::remove_file(vazio);
+}
+
+#[test]
+fn m_colado_no_editor_avancado_aplica_ou_para_no_que_nao_converte() {
+    let mut app = app_com_valores();
+    app.evento_openquery(Evento::AbrirEditorAvancado);
+    app.openquery.as_mut().unwrap().editor_avancado = Some(pelicano::Content::with_text(
+        "let\n    Fonte = Excel.CurrentWorkbook(){[Name=\"T\"]}[Content],\n    Filtradas = Table.SelectRows(Fonte, each [Valor] > 15)\nin\n    Filtradas"));
+    app.evento_openquery(Evento::AplicarEditorAvancado);
+    let editor = app.openquery.as_ref().unwrap();
+    assert!(editor.editor_avancado.is_none(), "{}", editor.erro_avancado);
+    assert_eq!(editor.resultado.linhas.len(), 2);
+
+    app.evento_openquery(Evento::AbrirEditorAvancado);
+    app.openquery.as_mut().unwrap().editor_avancado = Some(pelicano::Content::with_text(
+        "let\n    Fonte = Excel.CurrentWorkbook(){[Name=\"T\"]}[Content],\n    P = Table.Profile(Fonte)\nin\n    P"));
+    app.evento_openquery(Evento::AplicarEditorAvancado);
+    let editor = app.openquery.as_ref().unwrap();
+    let texto = editor.editor_avancado.as_ref().expect("fica aberto para conferir").text();
+    assert!(texto.contains("Table.Profile") && texto.starts_with("let fonte = "), "{texto}");
+    assert!(!editor.aviso_avancado.is_empty());
+    assert_eq!(editor.passos.len(), 1, "a consulta anterior não mudou");
+}
