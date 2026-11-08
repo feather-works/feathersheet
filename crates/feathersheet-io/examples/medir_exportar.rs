@@ -21,6 +21,14 @@ fn main() {
     drop(bytes);
     println!("remontar (fundo): {} ms", t.elapsed().as_millis());
     let t = Instant::now();
+    let partes = feathersheet_io::xlsx_write::montar_partes(&copia);
+    let cru: usize = partes.iter().map(|(_, b)| b.len()).sum();
+    println!("  montar o XML: {} ms, {} MB sem compactar", t.elapsed().as_millis(), cru >> 20);
+    let t2 = Instant::now();
+    let z = feathersheet_io::zip_write::zipar(partes).unwrap();
+    println!("  compactar: {} ms, {} MB", t2.elapsed().as_millis(), z.len() >> 20);
+    drop(z);
+    let t = Instant::now();
     let (xlsx, _) = feathersheet_io::xlsx_write::gerar_xlsx_com_funcoes(&copia).unwrap();
     feathersheet_io::arquivo::gravar_atomico(std::path::Path::new(&saida), &xlsx).unwrap();
     println!("gerar e gravar .xlsx (fundo): {} ms, {} MB", t.elapsed().as_millis(), xlsx.len() >> 20);

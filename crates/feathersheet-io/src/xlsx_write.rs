@@ -663,9 +663,15 @@ struct Padrao {
     /// célula. Duas bastam: uma referência que o `map_references` do texto
     /// em inglês não reconhecesse já apareceria na primeira.
     conferidas: u8,
-    /// O `xf`: fórmula empacotada não tem estilo direto, só o formato
-    /// implícito, que é o mesmo para o padrão inteiro (vem do nome da função).
+    /// O `xf` sem estilo direto: só o formato implícito, que é o mesmo para o
+    /// padrão inteiro (vem do nome da função).
     xf: usize,
+    /// Esse formato implícito, para a célula que tem estilo direto montar o `xf` dela.
+    implicito: Option<&'static str>,
+    /// A primeira célula do padrão tinha referência fora da planilha (`#REF!`): o atalho sai
+    /// da próxima célula válida. Montado do `#REF!` ele errava nas outras colunas do mesmo
+    /// padrão e a coluna inteira era traduzida célula a célula.
+    esperando_celula_valida: bool,
 }
 
 /// A fórmula de um `<c>`: nenhuma, um texto a escapar, ou um padrão em
@@ -744,7 +750,8 @@ struct Escritor<'a> {
     sheet: &'a Sheet,
     estilos: &'a mut TabelaDeEstilos,
     textos: &'a mut TextosCompartilhados,
-    padroes: HashMap<usize, Padrao>,
+    /// Pelo id do padrão (posição na lista de padrões da aba): um mapa com hash custava 13% do tempo.
+    padroes: Vec<Option<Padrao>>,
     /// (estilo direto, formato implícito) -> (`xf`, link).
     xfs: HashMap<ChaveXf, (usize, Option<String>)>,
     /// Por id do pool da aba; ver [`MemoTexto`].
@@ -819,13 +826,15 @@ impl Escritor<'_> {
                     }
                 }
                 Some(_) => {}
-                // A fórmula empacotada com estilo direto vai pelo caminho de
-                // sempre: o atalho escreve o `xf` do padrão e perdia o estilo
-                // (fórmula em negrito saía sem negrito no .xlsx).
-                None if !sheet.data.has_cell(row, col) && !sheet.styles.contains_key(&k) => {
+                // A fórmula empacotada com estilo direto também vai pelo atalho, com o `xf`
+                // montado do estilo dela (a coluna de fórmula com formato de moeda era
+                // traduzida célula a célula: 7 mi de células, 13 de 18 s, 08/11/2026).
+                None if !sheet.data.has_cell(row, col) => {
                     if let Some((id, padrao)) = sheet.formulas.padrao_em(row, col) {
-                        self.formula_empacotada(row, col, id, padrao, out);
-                        return Some(None);
+                        let estilo = sheet.styles.contains_key(&k).then(|| sheet.get_style_idx(row, col));
+                        if self.formula_empacotada(row, col, id, padrao, estilo, out) {
+                            return Some(None);
+                        }
                     }
                 }
                 None => {}
@@ -971,17 +980,32 @@ impl Escritor<'_> {
         }
     }
 
-    fn formula_empacotada(&mut self, row: u32, col: u32, id: usize, padrao: &str, out: &mut String) {
+    /// `estilo`: o índice do estilo direto da célula, quando tem. `false` quando a célula
+    /// precisa do caminho de sempre (estilo com link, que vai para `<hyperlinks>`).
+    fn formula_empacotada(&mut self, row: u32, col: u32, id: usize, padrao: &str, estilo: Option<Option<usize>>, out: &mut String) -> bool {
         let valor = self.pasta.valor(self.indice, row, col);
         let celula_a_celula = || formula_to_excel(&expand_pattern(padrao, row as i32, col as i32));
         let mut texto: Option<String> = None;
-        match self.padroes.get_mut(&id) {
+        if self.padroes.len() <= id { self.padroes.resize_with(id + 1, || None); }
+        match self.padroes[id].as_mut() {
             None => {
                 let raw = expand_pattern(padrao, row as i32, col as i32);
                 let ingles = formula_to_excel(&raw);
-                let xf = self.estilos.add(EstiloParcial::new(), implied_format(&raw));
-                let atalho = padrao_em_ingles(&ingles, row, col);
-                self.padroes.insert(id, Padrao { ingles: atalho, conferidas: 1, xf });
+                let implicito = implied_format(&raw);
+                let xf = self.estilos.add(EstiloParcial::new(), implicito);
+                let esperando = raw.contains("#REF!");
+                let atalho = if esperando { None } else { padrao_em_ingles(&ingles, row, col) };
+                self.padroes[id] = Some(Padrao { ingles: atalho, conferidas: 1, xf, implicito, esperando_celula_valida: esperando });
+                texto = Some(ingles);
+            }
+            Some(p) if p.esperando_celula_valida => {
+                let raw = expand_pattern(padrao, row as i32, col as i32);
+                let ingles = formula_to_excel(&raw);
+                if !raw.contains("#REF!") {
+                    p.ingles = padrao_em_ingles(&ingles, row, col);
+                    p.esperando_celula_valida = false;
+                    p.conferidas = 1;
+                }
                 texto = Some(ingles);
             }
             Some(p) => {
@@ -1001,7 +1025,18 @@ impl Escritor<'_> {
                 }
             }
         }
-        let p = &self.padroes[&id];
+        let (xf_padrao, implicito) = self.padroes[id].as_ref().map(|p| (p.xf, p.implicito)).expect("padrão anotado acima");
+        let xf = match estilo {
+            None => xf_padrao,
+            Some(idx) => {
+                let parcial = idx.and_then(|i| self.sheet.style_parts.get(i));
+                match self.xf(idx, implicito, parcial) {
+                    (_, Some(_)) => return false,
+                    (xf, None) => xf,
+                }
+            }
+        };
+        let p = self.padroes[id].as_ref().expect("padrão anotado acima");
         let f = match (&texto, &p.ingles) {
             (Some(t), _) => Formula::Texto(t),
             (None, Some(pedacos)) => Formula::Padrao(pedacos, row, col),
@@ -1011,8 +1046,10 @@ impl Escritor<'_> {
             let mut atalho = String::new();
             f.escrever(&mut atalho);
             debug_assert_eq!(atalho, escape_xml(&celula_a_celula()), "o atalho do padrão {id} divergiu");
+            debug_assert_eq!(implicito, implied_format(&expand_pattern(padrao, row as i32, col as i32)), "formato implícito do padrão {id}");
         }
-        escrever_c(out, row, col, p.xf, &f, &valor, self.textos);
+        escrever_c(out, row, col, xf, &f, &valor, self.textos);
+        true
     }
 }
 
@@ -1346,7 +1383,7 @@ fn aba_xml(
     }
     let mut links: Vec<(String, String)> = Vec::new();
     let mut escritor =
-        Escritor { pasta, indice, sheet, estilos, textos, padroes: HashMap::new(), xfs: HashMap::new(), memo_textos: Vec::new(), ha_derrame };
+        Escritor { pasta, indice, sheet, estilos, textos, padroes: Vec::new(), xfs: HashMap::new(), memo_textos: Vec::new(), ha_derrame };
 
     // Em ordem: o formato pede, e o Excel "repara" o arquivo que vem fora dela.
     let mut larguras: BTreeMap<u32, Option<u32>> = sheet.col_widths.iter().map(|(&c, &w)| (c, Some(w))).collect();
@@ -2188,6 +2225,33 @@ mod testes {
         assert!(aba.contains("<f>&apos;Meu Plano&apos;!A300+Dados!$B300</f>"));
         assert!(aba.contains("<f>IF(A300&gt;1,&quot;A1;x&quot;,FALSE)</f>"));
         assert!(aba.contains("<f>AVERAGE(A300:B300)  &amp;  &quot;t&quot;</f>"));
+    }
+
+    /// Fórmula empacotada com estilo direto (moeda, negrito) vai pelo atalho e leva o
+    /// estilo dela; com um `HOJE()` o formato implícito de data também fica.
+    #[test]
+    fn formula_empacotada_com_estilo_direto_leva_o_estilo_pelo_atalho() {
+        use feathersheet_core::celulas::refs::Rect;
+        let mut pasta = Workbook::new();
+        {
+            let s = &mut pasta.aba_mut(0).unwrap().sheet;
+            for r in 0..300u32 {
+                s.set_cell(r, 0, &(r + 1).to_string());
+                s.set_cell(r, 1, &format!("=A{}*2", r + 1));
+                s.set_cell(r, 2, &format!("=HOJE()+A{}", r + 1));
+            }
+            assert!(s.formulas.padrao_em(150, 1).is_some());
+        }
+        let mut negrito = EstiloParcial::new();
+        negrito.insert("bold".into(), Campo::Logico(true));
+        pasta.editar(0, |s| { s.set_style(&Rect::new(100, 1, 199, 1), &negrito); s.set_style(&Rect::new(100, 2, 100, 2), &negrito); });
+        assert!(pasta.aba(0).unwrap().sheet.formulas.padrao_em(150, 1).is_some(), "estilo não desempacota");
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(gerar_xlsx(&pasta).unwrap()).unwrap();
+        let s = &lida.aba(0).unwrap().sheet;
+        assert_eq!(s.get_raw(150, 1), "=A151*2");
+        assert!(s.estilo_resolvido(150, 1).is_some_and(|e| e.bold), "negrito ficou");
+        assert!(s.estilo_resolvido(50, 1).is_none_or(|e| !e.bold), "fora da faixa sem negrito");
+        assert!(s.estilo_resolvido(100, 2).is_some_and(|e| e.bold && e.code.is_some()), "negrito e data");
     }
 
     #[test]

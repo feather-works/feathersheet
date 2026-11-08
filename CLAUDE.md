@@ -70,6 +70,13 @@ criado (se vazio) e modificado ao salvar. Foto: `FEATHERSHEET_CAPTURAR_JANELA=in
 "Propriedades da planilha (título, assunto, autor, empresa, palavras-chave, comentários) em Menu ▸ Informações,
 lidas e gravadas no .xlsx."
 
+Salvar `.xlsx` mais rápido (08/11/2026, `medir_exportar` na Planilha Pesada, 13 mi de células): montar o XML
+18,5 → 6,4 s, arquivo idêntico byte a byte. Três causas no `xlsx_write.rs`: fórmula empacotada com estilo direto
+saía do atalho do padrão (agora o `xf` vem do estilo da célula, `Padrao::implicito`); padrão cuja primeira célula
+tem `#REF!` montava o atalho errado e a conferência desligava o atalho para a coluna inteira
+(`esperando_celula_valida`); `padroes` virou `Vec` pelo id (o `HashMap` custava 13%). Novidade: "Salvar em .xlsx
+até 3 vezes mais rápido em planilhas grandes."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,
