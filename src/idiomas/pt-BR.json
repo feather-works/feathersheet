@@ -171,7 +171,7 @@
         "titulo": "Página e impressão",
         "corpo": [
           "Layout da Página: Margens, Orientação, Tamanho do papel, Área de impressão, Quebras, Dimensionar para Ajustar (páginas de largura e altura, ou escala) e Imprimir linhas de grade.",
-          "Visualizar mostra as páginas antes de imprimir. Inserir → Cabeçalho e rodapé põe um texto no alto e no pé de cada página."
+          "Visualizar mostra as páginas antes de imprimir. Inserir → Cabeçalho e rodapé põe um texto no alto e no pé de cada página.", "Tudo isso fica guardado na aba e vai junto no arquivo (.fshz e .xlsx): ao abrir um .xlsx, as margens, o papel, a área de impressão e o cabeçalho que o Excel gravou já vêm prontos."
         ]
       },
       "dados": {

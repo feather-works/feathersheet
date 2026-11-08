@@ -283,6 +283,9 @@ pub struct Sheet {
     /// (modelo em [`crate::operacoes::minigraficos`]); `alterar_minigraficos`
     /// registra o desfazer.
     pub mg: Option<String>,
+    /// Configuração de página da aba (Layout da página: papel, margens, áreas de impressão,
+    /// cabeçalho/rodapé), JSON de `feathersheet_io::pagina_aba`. Sem desfazer, como no Excel.
+    pub pg: Option<String>,
     /// Uma linha passou a aparecer ou sumir: SUBTOTAL/AGREGAR precisam recalcular
     /// (esconder linha não toca célula nenhuma, então a cascata não chega neles).
     pub visibilidade_mudou: bool,
@@ -389,6 +392,7 @@ impl Sheet {
             tn: None,
             ob: None,
             mg: None,
+            pg: None,
             visibilidade_mudou: false,
             ce: None,
             col_styles: HashMap::new(),

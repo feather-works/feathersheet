@@ -1505,7 +1505,9 @@ fn aba_xml(
     // dataValidations, hyperlinks, printOptions, pageMargins ...
     let condicional = crate::xlsx_write_condicional::condicional_xml(sheet, &mut |e| estilos.dxf(e));
     let validacoes = validacoes_xml(sheet);
-    let _ = write!(xml, "</sheetData>{protecao}{auto_filtro}{mescladas}{condicional}{validacoes}{hiperlinks}</worksheet>");
+    // Sem `pg`, a página padrão do app (grade e títulos ligados), como ela imprime.
+    let pagina = crate::pagina_aba::xml_da_aba(&crate::pagina_aba::ler(sheet.pg.as_deref()), escape_xml);
+    let _ = write!(xml, "</sheetData>{protecao}{auto_filtro}{mescladas}{condicional}{validacoes}{hiperlinks}{pagina}</worksheet>");
     xml.shrink_to_fit();
     (xml, relacoes)
 }
@@ -1581,10 +1583,15 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     crate::xlsx_write_vinculos::usar_ordem(&livros_externos);
     for i in 0..pasta.len() {
         let (mut xml, mut rels) = aba_xml(pasta, i, &mut estilos, &mut textos);
-        // `.xlsm`: o `codeName` liga o módulo de documento do VBA a esta aba; `sheetPr` é o primeiro filho.
-        if let Some(nome) = pasta.codinome_da_aba(i).filter(|_| macros && pasta.vba.is_some()) {
+        // `.xlsm`: o `codeName` liga o módulo de documento do VBA a esta aba; `sheetPr` é o primeiro
+        // filho. Dimensionar para Ajustar mora nele também (`pageSetUpPr fitToPage`).
+        let codinome = pasta.codinome_da_aba(i).filter(|_| macros && pasta.vba.is_some())
+            .map(|nome| format!(" codeName=\"{}\"", escape_xml(nome))).unwrap_or_default();
+        let ajustar = pasta.aba(i).is_some_and(|a| crate::pagina_aba::ler(a.sheet.pg.as_deref()).ajustar.is_some());
+        if !codinome.is_empty() || ajustar {
             if let Some(fim) = xml.find("<worksheet ").and_then(|p| xml[p..].find('>').map(|j| p + j + 1)) {
-                xml.insert_str(fim, &format!("<sheetPr codeName=\"{}\"/>", escape_xml(nome)));
+                let filho = if ajustar { "<pageSetUpPr fitToPage=\"1\"/>" } else { "" };
+                xml.insert_str(fim, &format!("<sheetPr{codinome}>{filho}</sheetPr>"));
             }
         }
         let tn = pasta.aba(i).and_then(|a| a.sheet.tn.as_deref());
@@ -1686,7 +1693,18 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         })
         .collect();
     let nomeados = pasta.nomeados();
-    let nomes_definidos = if nomeados.is_empty() {
+    // Área de impressão e títulos de cada aba (`pg`); um nome antigo igual na mesma aba sai.
+    let mut de_pagina: Vec<(usize, &str, String)> = Vec::new();
+    for (i, nome) in nomes_das_abas.iter().enumerate() {
+        let p = crate::pagina_aba::ler(pasta.aba(i).and_then(|a| a.sheet.pg.as_deref()));
+        if let Some(t) = crate::pagina_aba::texto_area(&p, nome) { de_pagina.push((i, "_xlnm.Print_Area", t)); }
+        if let Some(t) = crate::pagina_aba::texto_titulos(&p, nome) { de_pagina.push((i, "_xlnm.Print_Titles", t)); }
+    }
+    let aba_do_nome = |nm: &feathersheet_core::planilha::workbook::Nomeado| nm.area.sheet.as_deref()
+        .and_then(|s| nomes_das_abas.iter().position(|n| n.eq_ignore_ascii_case(s))).unwrap_or(0);
+    let nomeados: Vec<_> = nomeados.into_iter().filter(|nm| !de_pagina.iter()
+        .any(|(i, nome, _)| nm.nome.eq_ignore_ascii_case(nome) && aba_do_nome(nm) == *i)).collect();
+    let nomes_definidos = if nomeados.is_empty() && de_pagina.is_empty() {
         String::new()
     } else {
         let primeira = nomes_das_abas.first().cloned().unwrap_or_else(|| "Planilha1".to_string());
@@ -1714,6 +1732,9 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
                 } else { String::new() };
                 format!("<definedName name=\"{}\"{local}>{}</definedName>", escape_xml(&nm.nome), escape_xml(&area))
             })
+            .chain(de_pagina.iter().map(|(i, nome, texto)| {
+                format!("<definedName name=\"{nome}\" localSheetId=\"{i}\">{}</definedName>", escape_xml(texto))
+            }))
             .collect();
         format!("<definedNames>{itens}</definedNames>")
     };
@@ -2050,6 +2071,29 @@ mod testes {
         assert_eq!(formula_to_excel("=MÉDIA(A1:A2)"), "AVERAGE(A1:A2)");
         // Nome que não é apelido fica como foi escrito.
         assert_eq!(formula_to_excel("=sum(A1)"), "sum(A1)");
+    }
+
+    #[test]
+    fn configuracao_de_pagina_vai_e_volta_pelo_xlsx() {
+        use crate::pagina_aba::{gravar, ler, PaginaAba};
+        let mut pasta = Workbook::new();
+        let b = pasta.criar_aba("Meu Plano");
+        pasta.escrever_celula(b, 0, 0, "5".into());
+        let p = PaginaAba { papel: 8, paisagem: true, ajustar: Some([1, 0]), grade: Some(false), cabecalhos: Some(true),
+            margens: Some([6.35, 6.35, 19.05, 19.05, 7.62, 7.62]), cabecalho: "Vendas & cia".into(),
+            areas: vec![[0, 0, 9, 2], [20, 0, 30, 1]], titulos_linhas: Some([0, 0]), ..PaginaAba::default() };
+        pasta.editar(b, |s| s.pg = gravar(&p));
+        // Nome antigo da mesma área (de antes do `pg`) não duplica.
+        let mut velha = feathersheet_core::celulas::refs::Rect::new(0, 0, 1, 1);
+        velha.sheet = Some("Meu Plano".into());
+        pasta.definir_nome("_xlnm.Print_Area", velha);
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(gerar_xlsx(&pasta).unwrap()).unwrap();
+        let mut volta = ler(lida.aba(1).unwrap().sheet.pg.as_deref());
+        assert_eq!(volta.xlsx_cabecalho.take().as_deref(), Some("&LVendas && cia"));
+        assert_eq!(volta, p);
+        assert!(lida.nomeados().iter().all(|n| !n.nome.starts_with("_xlnm.Print")), "não vira nome da pasta");
+        let primeira = ler(lida.aba(0).unwrap().sheet.pg.as_deref());
+        assert_eq!((primeira.grade, primeira.cabecalhos, primeira.areas.len()), (Some(true), Some(true), 0), "padrão do app");
     }
 
     #[test]

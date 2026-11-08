@@ -113,6 +113,9 @@ pub struct SheetJson {
     /// Validação de dados (`<dataValidations>` e `x14`), já no formato do motor.
     #[serde(skip)]
     pub validacoes: Vec<feathersheet_core::operacoes::validation::Validacao>,
+    /// Configuração de página (sem as áreas, que vêm dos nomes definidos).
+    #[serde(skip)]
+    pub pagina: Option<crate::pagina_aba::PaginaAba>,
 }
 
 /// Uma `<row>` com algo além das células: índice, `ht`, `hidden`,
@@ -203,6 +206,23 @@ fn aba_do_nome(prefixo: &str) -> Option<String> {
     (!p.is_empty()).then_some(p)
 }
 
+pub(crate) fn eh_nome_de_pagina(nome: &str) -> bool {
+    nome.eq_ignore_ascii_case("_xlnm.Print_Area") || nome.eq_ignore_ascii_case("_xlnm.Print_Titles")
+}
+
+/// `_xlnm.Print_Area`/`_xlnm.Print_Titles` da aba `indice` (pelo `localSheetId`).
+pub(super) fn pagina_dos_nomes(book: &XmlNode, indice: usize, p: &mut crate::pagina_aba::PaginaAba) {
+    let Some(defined) = book.child("definedNames") else { return };
+    for node in defined.children_named("definedName") {
+        if node.attr("localSheetId").and_then(|v| v.parse::<usize>().ok()) != Some(indice) { continue; }
+        match node.attr("name") {
+            Some(n) if n.eq_ignore_ascii_case("_xlnm.Print_Area") => crate::pagina_aba::ler_area(p, node.text.trim()),
+            Some(n) if n.eq_ignore_ascii_case("_xlnm.Print_Titles") => crate::pagina_aba::ler_titulos(p, node.text.trim()),
+            _ => {}
+        }
+    }
+}
+
 pub fn read_names(book: &XmlNode) -> Vec<DefinedName> {
     let mut out = Vec::new();
     let Some(defined) = book.child("definedNames") else { return out };
@@ -211,6 +231,8 @@ pub fn read_names(book: &XmlNode) -> Vec<DefinedName> {
             continue;
         }
         let Some(name) = node.attr("name") else { continue };
+        // Da configuração de página da aba (`pagina_da_aba`), não nomes da pasta.
+        if eh_nome_de_pagina(name) { continue; }
         let text = node.text.trim();
         let (sheet, area) = match text.rfind('!') {
             Some(i) => (aba_do_nome(&text[..i]), &text[i + 1..]),
@@ -588,6 +610,7 @@ fn aplicar_metadados(
     }
     sheet.rules = condicional.regras;
     sheet.minigraficos = super::minigraficos::ler(root, &sheet.name);
+    sheet.pagina = super::pagina::ler(root);
 
     sheet
 }

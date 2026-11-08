@@ -277,6 +277,7 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
     sheet.tn = aba.tn.as_ref().map(|v| v.to_string());
     sheet.ob = aba.ob.as_ref().map(|v| v.to_string());
     sheet.mg = aba.mg.as_ref().map(|v| v.to_string());
+    sheet.pg = aba.pg.as_ref().map(|v| v.to_string());
     sheet.ce = aba.ce.as_ref().map(|v| v.to_string());
     sheet.col_styles = aba.estilos_coluna.iter().filter_map(|(c, v)| estilo_parcial_de_json(v).map(|e| (*c, e))).collect();
     sheet.row_styles = aba.estilos_linha.iter().filter_map(|(r, v)| estilo_parcial_de_json(v).map(|e| (*r, e))).collect();
@@ -772,6 +773,7 @@ mod testes {
                 tn: None,
                 ob: None,
                 mg: None,
+                pg: None,
                 ce: None,
             }],
         }
@@ -870,6 +872,7 @@ mod testes {
                 tn: None,
                 ob: None,
                 mg: None,
+                pg: None,
                 ce: None,
             }],
         };

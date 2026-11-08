@@ -37,6 +37,7 @@ pub mod tinta_aba;
 /// Objetos soltos sobre a grade (formas, ícones, SmartArt) do campo `ob`.
 pub mod objetos_aba;
 pub mod minigraficos_aba;
+pub mod pagina_aba;
 pub mod impressao_pdf;
 pub mod parquet_read;
 pub mod recents;

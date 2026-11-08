@@ -42,6 +42,18 @@ Novidade: "AutoConclusão: ao digitar, o valor que já existe na coluna aparece 
 Ctrl+Z de inserir/excluir linhas e colunas (#65): ver "Cuidados ao mexer". Novidade: "Ctrl+Z desfaz
 inserir e excluir linhas e colunas, com as fórmulas que liam a área."
 
+Configuração de página no arquivo: campo `pg` da aba (JSON, `feathersheet-io/src/pagina_aba.rs`: papel pelo
+código `paperSize` do Excel, orientação, escala/Dimensionar para Ajustar, margens em mm com as de
+cabeçalho/rodapé, grade, títulos A/1, cabeçalho/rodapé, áreas de impressão, linhas/colunas que repetem).
+O app (`impressao_ui.rs`) lê e grava só o `pg` (`pagina_aba`/`mudar_pagina_aba`, sem desfazer, marca
+alterado); margem do arquivo que não bate com Normal/Estreita/Larga fica exata (`Pagina::margens`). `.xlsx`:
+`xlsx_read/pagina.rs` (`printOptions`, `pageMargins`, `pageSetup`, `headerFooter`, `sheetPr/pageSetUpPr`) e
+`_xlnm.Print_Area`/`Print_Titles` pelo `localSheetId` (`sheet::pagina_dos_nomes`; não viram nome da pasta);
+o gravador escreve os mesmos (`pagina_aba::xml_da_aba`) e tira nome antigo igual da mesma aba. O cabeçalho do
+Excel com códigos (`&C&P`) vira texto simples na tela e volta como veio se o texto não mudou
+(`xlsx_cabecalho`). Campo novo na aba: lembrar do `enxugar.rs`. Novidade: "Margens, papel, área de
+impressão e cabeçalho ficam salvos no arquivo e vêm do .xlsx do Excel."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,

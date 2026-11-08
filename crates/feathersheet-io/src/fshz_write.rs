@@ -183,6 +183,9 @@ pub struct AbaBruta {
     /// Minigráficos da aba (ver `minigraficos_aba`).
     #[serde(default)]
     pub mg: Option<Json>,
+    /// Configuração de página (ver `pagina_aba`).
+    #[serde(default)]
+    pub pg: Option<Json>,
     #[serde(default)]
     pub ce: Option<Json>,
     #[serde(default)]
@@ -335,6 +338,8 @@ struct AbaMeta<'a> {
     ob: Option<Json>,
     #[serde(skip_serializing_if = "Option::is_none")]
     mg: Option<Json>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pg: Option<Json>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ce: Option<Json>,
     c: Vec<CelulaAvulsaMeta<'a>>,
@@ -646,6 +651,7 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
         tn: aba.tn.clone(),
         ob: aba.ob.clone(),
         mg: aba.mg.clone(),
+        pg: aba.pg.clone(),
         ce: aba.ce.clone(),
         c: avulsas,
         st,
@@ -988,6 +994,7 @@ mod testes {
                 tn: None,
                 ob: None,
                 mg: None,
+                pg: None,
                 ce: None,
                 avulsas: vec![CelulaAvulsaBruta { k: 0, v: "10".into(), estilo: None }],
                 estilos_literais: vec![],
@@ -1056,6 +1063,7 @@ mod testes {
                 tn: None,
                 ob: None,
                 mg: None,
+                pg: None,
                 ce: None,
                 avulsas: vec![],
                 estilos_literais: vec![],
@@ -1133,6 +1141,7 @@ mod testes {
                 tn: None,
                 ob: None,
                 mg: None,
+                pg: None,
                 ce: None,
                 avulsas: vec![],
                 estilos_literais: vec![],
@@ -1195,6 +1204,7 @@ mod testes {
                 tn: None,
                 ob: None,
                 mg: None,
+                pg: None,
                 ce: None,
                 avulsas: vec![
                     CelulaAvulsaBruta { k: 0, v: "a".into(), estilo: Some(estilo.clone()) },
@@ -1268,6 +1278,7 @@ mod testes {
                 tn: None,
                 ob: None,
                 mg: None,
+                pg: None,
                 ce: None,
                 avulsas: vec![],
                 estilos_literais: vec![],
@@ -1346,6 +1357,7 @@ mod testes {
                 tn: None,
                 ob: None,
                 mg: None,
+                pg: None,
                 ce: None,
                 avulsas: vec![],
                 estilos_literais: vec![],

@@ -215,6 +215,7 @@ fn montar_aba_bruta(sheet: &Sheet) -> AbaBruta {
         tn: parse_json_opt(&sheet.tn),
         ob: parse_json_opt(&sheet.ob),
         mg: parse_json_opt(&sheet.mg),
+        pg: parse_json_opt(&sheet.pg),
         ce: parse_json_opt(&sheet.ce),
         avulsas,
         estilos_literais: Vec::new(),
@@ -539,8 +540,11 @@ mod testes {
         ganhos.eixo_igual = true;
         let esperado = vec![linha, ganhos];
         wb.editar(0, |s| s.mg = crate::minigraficos_aba::gravar(&esperado));
+        let pagina = crate::pagina_aba::PaginaAba { papel: 1, areas: vec![[0, 0, 4, 1]], ..Default::default() };
+        wb.editar(0, |s| s.pg = crate::pagina_aba::gravar(&pagina));
         let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
         let restaurada = crate::para_workbook::para_workbook(&lida);
+        assert_eq!(crate::pagina_aba::ler(restaurada.aba(0).unwrap().sheet.pg.as_deref()), pagina, "página no .fshz");
         assert_eq!(crate::minigraficos_aba::ler(restaurada.aba(0).unwrap().sheet.mg.as_deref()), esperado);
         let bytes = crate::xlsx_write::gerar_xlsx(&wb).unwrap();
         let (de_volta, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();

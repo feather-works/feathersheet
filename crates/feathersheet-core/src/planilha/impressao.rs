@@ -1,8 +1,8 @@
 //! Configuração de impressão da aba: papel, orientação, escala, margens,
 //! área de impressão e quebras de página.
 //!
-//! Só os tipos e as contas de área útil. Ainda não é lido nem gravado em
-//! arquivo, e nenhuma aba usa estes tipos ainda.
+//! Só os tipos e as contas de área útil. O que a aba guarda no arquivo é o
+//! `Sheet::pg` (JSON de `feathersheet_io::pagina_aba`), convertido pelo app.
 
 use std::collections::BTreeSet;
 

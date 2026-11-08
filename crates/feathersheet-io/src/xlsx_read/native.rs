@@ -801,6 +801,9 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
             .map(|(r, h)| (r as u32, h.max(0) as u32)));
         if !resumo.charts.is_empty() { folha.g = Some(serde_json::Value::Array(resumo.charts).to_string()); }
         folha.mg = crate::minigraficos_aba::gravar(&resumo.minigraficos);
+        let mut pagina = resumo.pagina.take().unwrap_or_default();
+        sheet::pagina_dos_nomes(&book, i, &mut pagina);
+        folha.pg = crate::pagina_aba::gravar(&pagina);
         if !resumo.rules.is_empty() { folha.r = Some(serde_json::Value::Array(resumo.rules).to_string()); }
         if !resumo.mesclas.is_empty() { folha.mc = Some(serde_json::Value::Array(resumo.mesclas).to_string()); }
         if !resumo.tabelas.is_empty() { folha.tb = Some(serde_json::Value::Array(resumo.tabelas).to_string()); }

@@ -171,7 +171,7 @@
     "titulo": "Página e impresión",
     "corpo": [
      "Diseño de página: Márgenes, Orientación, Tamaño del papel, Área de impresión, Saltos, Ajustar área de impresión (páginas de ancho y alto, o escala) e Imprimir líneas de cuadrícula.",
-     "Vista previa muestra las páginas antes de imprimir. Insertar → Encabezado y pie de página añade un texto arriba y abajo de cada página."
+     "Vista previa muestra las páginas antes de imprimir. Insertar → Encabezado y pie de página añade un texto arriba y abajo de cada página.", "Todo esto se guarda en la hoja y va con el archivo (.fshz y .xlsx): al abrir un .xlsx, los márgenes, el papel, el área de impresión y el encabezado que guardó Excel ya vienen listos."
     ]
    },
    "dados": {

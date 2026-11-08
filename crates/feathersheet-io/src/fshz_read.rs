@@ -114,6 +114,8 @@ struct AbaMetaLida {
     #[serde(default)]
     mg: Option<Json>,
     #[serde(default)]
+    pg: Option<Json>,
+    #[serde(default)]
     ce: Option<Json>,
     #[serde(default)]
     c: Vec<CelulaAvulsaMetaLida>,
@@ -273,6 +275,8 @@ pub struct AbaLida {
     pub ob: Option<Json>,
     /// Minigráficos da aba (ver `minigraficos_aba`), opacos para o leitor.
     pub mg: Option<Json>,
+    /// Configuração de página (ver `pagina_aba`).
+    pub pg: Option<Json>,
     pub ce: Option<Json>,
 }
 
@@ -485,6 +489,7 @@ fn montar_aba_lida_com_pool(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>
         tn: aba.tn,
         ob: aba.ob,
         mg: aba.mg,
+        pg: aba.pg,
         ce: aba.ce,
     })
 }
@@ -775,6 +780,7 @@ mod testes {
             tn: None,
             ob: None,
             mg: None,
+            pg: None,
             ce: None,
             avulsas: vec![],
             estilos_literais: vec![],

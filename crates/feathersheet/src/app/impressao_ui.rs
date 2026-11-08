@@ -1,8 +1,9 @@
 //! Impressão — paridade com ui/caixas/print-dialog.ts, as ações
 //! print/setPrintArea/clearPrintArea/toggleShowPrintArea de
 //! acoes-do-menu.ts e a moldura de ui/grade/impressao.ts.
-//! A área de impressão e as quebras ficam só em memória, por id de aba
-//! (como `sheet.printArea`/`showPrintArea` no TS): não vão para o arquivo.
+//! A configuração de página e as áreas de impressão moram na aba (`Sheet::pg`,
+//! `feathersheet_io::pagina_aba`): vão para o `.fshz` e o `.xlsx`. Mostrar as
+//! quebras fica só em memória, por id de aba.
 use super::*;
 use crate::grade::{impressao::calcular_quebras, ImpressaoVisual};
 use feathersheet_core::{
@@ -10,7 +11,8 @@ use feathersheet_core::{
     planilha::impressao::{AreaImpressao, ConfigPagina, Escala, Margens, Orientacao, Papel},
 };
 use crate::compat::canvas as cv; use pelicano::checkbox; use pelicano::pick_list; use pelicano::radio;
-use std::collections::{HashMap, HashSet};
+use feathersheet_io::pagina_aba::{self, PaginaAba};
+use std::collections::HashSet;
 use std::rc::Rc;
 
 /// Linhas por página da prévia (aproximação do TS: 35 retrato, 22 paisagem).
@@ -28,6 +30,14 @@ pub enum PapelUi { A4, Carta, Oficio, A3, A5, B4, B5, Executivo, Tabloide }
 impl PapelUi {
     pub(super) const TODOS: [PapelUi; 9] = [PapelUi::A4, PapelUi::Carta, PapelUi::Oficio, PapelUi::A3,
         PapelUi::A5, PapelUi::B4, PapelUi::B5, PapelUi::Executivo, PapelUi::Tabloide];
+    /// Código `paperSize` do Excel.
+    fn codigo(self) -> u16 {
+        match self {
+            Self::A4 => 9, Self::Carta => 1, Self::Oficio => 5, Self::A3 => 8, Self::A5 => 11,
+            Self::B4 => 12, Self::B5 => 13, Self::Executivo => 7, Self::Tabloide => 3,
+        }
+    }
+    fn do_codigo(c: u16) -> Self { Self::TODOS.into_iter().find(|p| p.codigo() == c).unwrap_or(Self::A4) }
     fn papel(self) -> Papel {
         match self {
             Self::A4 => Papel::A4, Self::Carta => Papel::Carta, Self::Oficio => Papel::Oficio,
@@ -134,17 +144,54 @@ pub(super) struct Pagina {
     pub papel: PapelUi,
     pub escala: EscalaUi,
     pub margem: MargemUi,
+    /// Margens exatas vindas do arquivo, quando não batem com nenhuma pronta.
+    pub margens: Option<Margens>,
     pub grade: bool,
     pub cabecalhos: bool,
 }
 impl Default for Pagina {
-    fn default() -> Self {
+    fn default() -> Self { Pagina::de(&PaginaAba::default()) }
+}
+impl Pagina {
+    fn de(p: &PaginaAba) -> Self {
+        let escala = match p.ajustar {
+            Some([l, a]) if (l, a) != (0, 0) => EscalaUi::Paginas(l, a),
+            _ => EscalaUi::Porcentagem(p.escala),
+        };
+        let exatas = p.margens.map(|m| Margens { esquerda_mm: m[0], direita_mm: m[1], topo_mm: m[2], base_mm: m[3] });
+        let perto = |a: Margens, b: Margens| [a.esquerda_mm - b.esquerda_mm, a.direita_mm - b.direita_mm,
+            a.topo_mm - b.topo_mm, a.base_mm - b.base_mm].iter().all(|d| d.abs() < 0.1);
+        let pronta = [MargemUi::Normal, MargemUi::Estreita, MargemUi::Larga].into_iter()
+            .find(|u| exatas.is_none_or(|e| perto(e, u.margens())));
         Pagina {
-            orientacao: Orientacao::Retrato, papel: PapelUi::A4, escala: EscalaUi::CEM,
-            margem: MargemUi::Normal, grade: true, cabecalhos: true,
+            orientacao: if p.paisagem { Orientacao::Paisagem } else { Orientacao::Retrato },
+            papel: PapelUi::do_codigo(p.papel), escala,
+            margem: pronta.unwrap_or(MargemUi::Normal),
+            margens: if pronta.is_some() { None } else { exatas },
+            grade: p.grade.unwrap_or(true), cabecalhos: p.cabecalhos.unwrap_or(true),
         }
     }
+    fn margens(&self) -> Margens { self.margens.unwrap_or(self.margem.margens()) }
+    /// Leva a página para o `pg`, sem perder o que o app não mostra (margens do cabeçalho…).
+    fn aplicar(&self, p: &mut PaginaAba) {
+        p.paisagem = self.orientacao == Orientacao::Paisagem;
+        p.papel = self.papel.codigo();
+        match self.escala {
+            EscalaUi::Porcentagem(n) => { p.escala = n; p.ajustar = None; }
+            EscalaUi::Paginas(l, a) => p.ajustar = Some([l, a]),
+        }
+        if p.margens.is_some() || self.margens.is_some() || self.margem != MargemUi::Normal {
+            let m = self.margens();
+            let [.., cab, rod] = p.margens.unwrap_or([0.0, 0.0, 0.0, 0.0, 7.62, 7.62]);
+            p.margens = Some([m.esquerda_mm, m.direita_mm, m.topo_mm, m.base_mm, cab, rod]);
+        }
+        p.grade = (p.grade.is_some() || !self.grade).then_some(self.grade);
+        p.cabecalhos = (p.cabecalhos.is_some() || !self.cabecalhos).then_some(self.cabecalhos);
+    }
 }
+
+fn rect_de(a: &[u32; 4]) -> Rect { Rect::new(a[0], a[1], a[2], a[3]) }
+fn de_rect(r: &Rect) -> [u32; 4] { [r.r0, r.c0, r.r1, r.c1] }
 
 #[derive(Debug, Clone)]
 pub enum Evento {
@@ -185,6 +232,7 @@ pub(super) struct Estado {
     grade: bool,
     cabecalhos: bool,
     margem: MargemUi,
+    margens: Option<Margens>,
     cabecalho: String,
     rodape: String,
     pagina: u32,
@@ -192,15 +240,10 @@ pub(super) struct Estado {
 
 type Quebras = (Rc<Vec<u32>>, Rc<Vec<u32>>);
 
-/// Estado de impressão da GUI: por id de aba, só em memória.
+/// Estado de impressão da GUI que não vai para o arquivo.
 #[derive(Default)]
 pub(super) struct Dados {
-    /// As áreas de impressão de cada aba, na ordem (o Excel aceita várias).
-    areas: HashMap<u32, Vec<Rect>>,
     quebras_visiveis: HashSet<u32>,
-    paginas: HashMap<u32, Pagina>,
-    /// Cabeçalho e rodapé de cada aba.
-    textos: HashMap<u32, (String, String)>,
     dialogo: Option<Estado>,
     cache: RefCell<Option<(u32, u32, Quebras)>>,
 }
@@ -260,7 +303,7 @@ impl Estado {
         ConfigPagina {
             papel: self.papel.papel(), orientacao: self.orientacao,
             escala: self.escala.escala(), linhas_de_grade: self.grade,
-            cabecalhos: self.cabecalhos, margens: self.margem.margens(),
+            cabecalhos: self.cabecalhos, margens: self.margens.unwrap_or(self.margem.margens()),
             cabecalho: self.cabecalho.clone(), rodape: self.rodape.clone(),
         }
     }
@@ -272,29 +315,48 @@ impl Estado {
 impl App {
     fn id_aba_atual(&self) -> Option<u32> { self.workbook.aba(self.folha).map(|a| a.id) }
 
+    /// O `pg` da aba `folha`.
+    fn pagina_aba(&self, folha: usize) -> PaginaAba {
+        pagina_aba::ler(self.workbook.aba(folha).and_then(|a| a.sheet.pg.as_deref()))
+    }
+
+    /// Muda o `pg` da aba (sem desfazer, como no Excel); só marca alterado se mudou.
+    fn mudar_pagina_aba(&mut self, folha: usize, f: impl FnOnce(&mut PaginaAba)) {
+        let mut p = self.pagina_aba(folha);
+        f(&mut p);
+        let novo = pagina_aba::gravar(&p);
+        if self.workbook.aba(folha).is_none_or(|a| a.sheet.pg == novo) { return; }
+        self.workbook.editar(folha, |s| s.pg = novo);
+        self.alterado = true;
+    }
+
+    fn areas_da_folha(&self, folha: usize) -> Vec<Rect> {
+        self.pagina_aba(folha).areas.iter().map(rect_de).collect()
+    }
+
     pub(super) fn area_impressao(&self) -> Option<Rect> {
-        self.impressao.areas.get(&self.id_aba_atual()?)?.first().cloned()
+        self.areas_impressao().into_iter().next()
     }
 
     /// Todas as áreas de impressão da aba ativa.
-    pub(super) fn areas_impressao(&self) -> Vec<Rect> {
-        self.id_aba_atual().and_then(|id| self.impressao.areas.get(&id).cloned()).unwrap_or_default()
-    }
+    pub(super) fn areas_impressao(&self) -> Vec<Rect> { self.areas_da_folha(self.folha) }
 
     /// A área de impressão definida na aba de `id` (o PDF pedido por macro).
     pub(super) fn area_impressao_da_aba(&self, id: u32) -> Option<Rect> {
-        self.impressao.areas.get(&id)?.first().cloned()
+        let folha = (0..self.workbook.len()).find(|&i| self.workbook.aba(i).is_some_and(|a| a.id == id))?;
+        self.areas_da_folha(folha).into_iter().next()
     }
 
     #[cfg(test)]
     pub(super) fn definir_area_impressao_da_aba(&mut self, id: u32, area: Rect) {
-        self.impressao.areas.insert(id, vec![area]);
+        let Some(folha) = (0..self.workbook.len()).find(|&i| self.workbook.aba(i).is_some_and(|a| a.id == id)) else { return };
+        self.mudar_pagina_aba(folha, |p| p.areas = vec![de_rect(&area)]);
     }
 
     /// As faixas que o diálogo imprime, na ordem: todas as áreas de
     /// impressão da aba dele, a seleção ou a planilha usada.
     fn faixas_impressao(&self, e: &Estado) -> Vec<Rect> {
-        let areas = self.workbook.aba(e.folha).and_then(|a| self.impressao.areas.get(&a.id)).cloned().unwrap_or_default();
+        let areas = self.areas_da_folha(e.folha);
         match e.escopo {
             Escopo::Selecao => vec![e.selecao.clone()],
             Escopo::Area if !areas.is_empty() => areas,
@@ -326,21 +388,20 @@ impl App {
 
     /// A configuração da página da aba ativa (aba Layout da Página).
     pub(super) fn pagina_atual(&self) -> Pagina {
-        self.id_aba_atual().and_then(|id| self.impressao.paginas.get(&id).copied()).unwrap_or_default()
+        Pagina::de(&self.pagina_aba(self.folha))
     }
 
     /// Muda a página da aba do diálogo aberto (ou da ativa) e leva a mudança
     /// ao diálogo, para a faixa e a prévia nunca discordarem.
     fn mudar_pagina(&mut self, f: impl FnOnce(&mut Pagina)) {
         let folha = self.impressao.dialogo.as_ref().map_or(self.folha, |e| e.folha);
-        let Some(id) = self.workbook.aba(folha).map(|a| a.id) else { return };
-        let mut p = self.impressao.paginas.get(&id).copied().unwrap_or_default();
+        let mut p = Pagina::de(&self.pagina_aba(folha));
         f(&mut p);
-        self.impressao.paginas.insert(id, p);
+        self.mudar_pagina_aba(folha, |pg| p.aplicar(pg));
         if let Some(e) = self.impressao.dialogo.as_mut() {
             if e.orientacao != p.orientacao { e.pagina = 1; }
             e.orientacao = p.orientacao; e.papel = p.papel; e.escala = p.escala;
-            e.margem = p.margem; e.grade = p.grade; e.cabecalhos = p.cabecalhos;
+            e.margem = p.margem; e.margens = p.margens; e.grade = p.grade; e.cabecalhos = p.cabecalhos;
         }
     }
 
@@ -348,8 +409,8 @@ impl App {
     fn mudar_textos(&mut self, f: impl FnOnce(&mut Estado)) {
         let Some(e) = self.impressao.dialogo.as_mut() else { return };
         f(e);
-        let par = (e.cabecalho.clone(), e.rodape.clone());
-        if let Some(id) = self.workbook.aba(e.folha).map(|a| a.id) { self.impressao.textos.insert(id, par); }
+        let (folha, cabecalho, rodape) = (e.folha, e.cabecalho.clone(), e.rodape.clone());
+        self.mudar_pagina_aba(folha, |p| { p.cabecalho = cabecalho; p.rodape = rodape; });
     }
 
     /// A aba Layout da Página da faixa, como no Excel: Configurar Página,
@@ -419,7 +480,7 @@ impl App {
     /// uma vez por (aba, versão) até a última célula usada, como o cache do TS.
     pub(super) fn impressao_visual(&self) -> Option<ImpressaoVisual> {
         let aba = self.workbook.aba(self.folha)?;
-        let mut areas = self.impressao.areas.get(&aba.id).cloned().unwrap_or_default();
+        let mut areas = self.areas_da_folha(self.folha);
         let area = (!areas.is_empty()).then(|| areas.remove(0));
         let mostrar = self.impressao.quebras_visiveis.contains(&aba.id);
         if area.is_none() && !mostrar { return None; }
@@ -455,12 +516,12 @@ impl App {
         if self.workbook.aba(self.folha).is_none() { return Task::none(); }
         let tem_area = self.area_impressao().is_some();
         let p = self.pagina_atual();
-        let (cabecalho, rodape) = self.id_aba_atual().and_then(|id| self.impressao.textos.get(&id).cloned()).unwrap_or_default();
+        let PaginaAba { cabecalho, rodape, .. } = self.pagina_aba(self.folha);
         self.impressao.dialogo = Some(Estado {
             folha: self.folha, selecao: self.area_selecionada().normalized(),
             escopo: if tem_area { Escopo::Area } else { Escopo::Planilha },
             orientacao: p.orientacao, papel: p.papel, escala: p.escala,
-            grade: p.grade, cabecalhos: p.cabecalhos, margem: p.margem, cabecalho, rodape, pagina: 1,
+            grade: p.grade, cabecalhos: p.cabecalhos, margem: p.margem, margens: p.margens, cabecalho, rodape, pagina: 1,
         });
         self.alternar(Auxiliar::Imprimir)
     }
@@ -469,8 +530,8 @@ impl App {
     /// uma vira uma área, como no Excel.
     fn definir_area(&mut self) {
         let Some(id) = self.id_aba_atual() else { return };
-        let areas: Vec<Rect> = self.areas_selecionadas().into_iter().map(|a| a.normalized()).collect();
-        self.impressao.areas.insert(id, areas);
+        let areas: Vec<[u32; 4]> = self.areas_selecionadas().into_iter().map(|a| de_rect(&a.normalized())).collect();
+        self.mudar_pagina_aba(self.folha, |p| p.areas = areas);
         // O TS (setPrintAreaFromSelection) também mostra as quebras ao definir.
         self.impressao.quebras_visiveis.insert(id);
         self.status = tr!("Área de impressão definida.").into();
@@ -479,17 +540,18 @@ impl App {
     /// "Adicionar à área de impressão": a seleção entra como mais uma área.
     fn adicionar_area(&mut self) {
         let Some(id) = self.id_aba_atual() else { return };
-        let novas: Vec<Rect> = self.areas_selecionadas().into_iter().map(|a| a.normalized()).collect();
-        let lista = self.impressao.areas.entry(id).or_default();
-        for a in novas {
-            if !lista.contains(&a) { lista.push(a); }
-        }
+        let novas: Vec<[u32; 4]> = self.areas_selecionadas().into_iter().map(|a| de_rect(&a.normalized())).collect();
+        let mut total = 0;
+        self.mudar_pagina_aba(self.folha, |p| {
+            for a in novas { if !p.areas.contains(&a) { p.areas.push(a); } }
+            total = p.areas.len();
+        });
         self.impressao.quebras_visiveis.insert(id);
-        self.status = trf!("Área de impressão com {} parte(s).", lista.len());
+        self.status = trf!("Área de impressão com {} parte(s).", total);
     }
 
     fn limpar_area(&mut self) {
-        if let Some(id) = self.id_aba_atual() { self.impressao.areas.remove(&id); }
+        self.mudar_pagina_aba(self.folha, |p| p.areas.clear());
         self.status = tr!("Área de impressão removida.").into();
     }
 
@@ -539,7 +601,7 @@ impl App {
             Evento::Cabecalhos(b) => self.mudar_pagina(|p| p.cabecalhos = b),
             Evento::TextoCabecalho(t) => self.mudar_textos(|e| e.cabecalho = t),
             Evento::TextoRodape(t) => self.mudar_textos(|e| e.rodape = t),
-            Evento::Margem(m) => self.mudar_pagina(|p| p.margem = m),
+            Evento::Margem(m) => self.mudar_pagina(|p| { p.margem = m; p.margens = None; }),
             Evento::Anterior => if let Some(e) = self.impressao.dialogo.as_mut() {
                 e.pagina = e.pagina.saturating_sub(1).max(1);
             },
@@ -904,7 +966,7 @@ mod testes {
         let a = app.area_impressao().unwrap();
         assert_eq!((a.r0, a.c0, a.r1, a.c1), (2, 0, 5, 1));
         assert!(app.quebras_mostradas());
-        assert_eq!(app.alterado, alterado, "não mexe no documento");
+        assert!(app.alterado && !alterado, "a área vai para o arquivo");
         let visual = app.impressao_visual().unwrap();
         assert!(visual.area.is_some());
         let _ = app.update(Msg::Impressao(Evento::AlternarQuebras));
@@ -981,6 +1043,30 @@ mod testes {
         // Outra aba começa no padrão.
         app.update(Msg::AdicionarAba);
         assert_eq!(app.pagina_atual(), Pagina::default());
+        // Fica na aba: vai para o arquivo e volta.
+        let pg = app.workbook.aba(0).unwrap().sheet.pg.clone();
+        let lido = Pagina::de(&pagina_aba::ler(pg.as_deref()));
+        assert_eq!((lido.orientacao, lido.papel, lido.margem, lido.grade, lido.escala),
+            (Orientacao::Paisagem, PapelUi::Oficio, MargemUi::Larga, false, EscalaUi::CEM));
+    }
+
+    #[test]
+    fn margens_e_titulos_do_arquivo_sobrevivem_a_faixa() {
+        let mut app = app_com_dados();
+        let original = PaginaAba { margens: Some([10.0, 10.0, 30.0, 30.0, 5.0, 5.0]),
+            titulos_linhas: Some([0, 0]), cabecalho: "Topo".into(), ..PaginaAba::default() };
+        app.mudar_pagina_aba(0, |p| *p = original.clone());
+        let p = app.pagina_atual();
+        assert_eq!(p.margens().topo_mm, 30.0, "margem exata, não a pronta");
+        let _ = app.update(Msg::Impressao(Evento::Grade(false)));
+        let depois = app.pagina_aba(0);
+        assert_eq!((depois.margens, depois.titulos_linhas, depois.grade), (original.margens, Some([0, 0]), Some(false)));
+        let _ = app.update(Msg::Impressao(Evento::Abrir));
+        let e = app.impressao.dialogo.as_ref().unwrap();
+        assert_eq!((e.config().margens.topo_mm, e.cabecalho.as_str()), (30.0, "Topo"));
+        let _ = app.update(Msg::Impressao(Evento::Margem(MargemUi::Estreita)));
+        assert_eq!(app.pagina_aba(0).margens.unwrap()[4], 5.0, "margem do cabeçalho fica");
+        assert_eq!(app.pagina_atual().margem, MargemUi::Estreita);
     }
 
     #[test]

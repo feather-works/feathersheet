@@ -22,6 +22,7 @@ mod pt_name;
 mod autofiltro;
 mod condicional;
 mod minigraficos;
+mod pagina;
 mod cores;
 mod comentarios;
 mod controles;

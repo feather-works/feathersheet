@@ -171,7 +171,7 @@
         "titulo": "Page and printing",
         "corpo": [
           "Page Layout: Margins, Orientation, paper Size, Print area, Breaks, Scale to Fit (pages wide and tall, or a scale) and Print gridlines.",
-          "Preview shows the pages before printing. Insert → Header & footer adds text at the top and bottom of each page."
+          "Preview shows the pages before printing. Insert → Header & footer adds text at the top and bottom of each page.", "All of this is kept in the sheet and saved with the file (.fshz and .xlsx): opening an .xlsx brings the margins, paper, print area and header Excel saved."
         ]
       },
       "dados": {

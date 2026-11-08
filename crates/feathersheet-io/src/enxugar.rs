@@ -194,6 +194,9 @@ struct Aba {
     /// Minigráficos da aba. Só atravessa.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     mg: Option<Value>,
+    /// Configuração de página. Só atravessa.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pg: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     ce: Option<Value>,
     /// As avulsas. Entram separadas em cheias/vazias e saem como `Vec<Avulsa>`
@@ -556,14 +559,14 @@ mod testes {
     /// Tudo que não é avulsa precisa atravessar sem perder nada.
     #[test]
     fn o_resto_dos_metadados_sobrevive() {
-        let meta = r##"{"v":2,"a":1,"names":[["x","A1"]],"t":[{"bold":true}],"s":[{"n":"Aba","tc":"#f00","w":[[0,120]],"h":[[1,30]],"g":[{"t":"bar"}],"r":[{"op":"gt"}],"tb":[1],"oq":[2],"dn":[3],"bt":[{"id":"b1"}],"tn":{"v":1,"a":{"1":[0,0]},"t":"FTINTA 1\\nT 1 c 000000FF 2 1 s 0,0 5,5\\n"},"ob":{"v":1,"objetos":[{"id":1,"forma":"rect","de":{"linha":0,"coluna":0},"ate":{"linha":2,"coluna":1}}]},"ce":[{"nome":"Alta"}],"mg":[{"itens":[]}],"pat":["=A1+1"],"len":9,"cols":[{"f":"c0","c":0,"k":"fx","d":["a"],"e":[],"fv":"v0"}],"ar":[0,4],"st":[[5,0]],"c":[]}]}"##;
+        let meta = r##"{"v":2,"a":1,"names":[["x","A1"]],"t":[{"bold":true}],"s":[{"n":"Aba","tc":"#f00","w":[[0,120]],"h":[[1,30]],"g":[{"t":"bar"}],"r":[{"op":"gt"}],"tb":[1],"oq":[2],"dn":[3],"bt":[{"id":"b1"}],"tn":{"v":1,"a":{"1":[0,0]},"t":"FTINTA 1\\nT 1 c 000000FF 2 1 s 0,0 5,5\\n"},"ob":{"v":1,"objetos":[{"id":1,"forma":"rect","de":{"linha":0,"coluna":0},"ate":{"linha":2,"coluna":1}}]},"ce":[{"nome":"Alta"}],"mg":[{"itens":[]}],"pg":{"papel":"A3"},"pat":["=A1+1"],"len":9,"cols":[{"f":"c0","c":0,"k":"fx","d":["a"],"e":[],"fv":"v0"}],"ar":[0,4],"st":[[5,0]],"c":[]}]}"##;
         let (saida, _) = enxugar_corpo(corpo(meta, b"ABCD")).unwrap();
         let m = meta_de(&saida);
         let esperado: Value = serde_json::from_str(meta).unwrap();
         for campo in ["v", "a", "names", "t"] {
             assert_eq!(m[campo], esperado[campo], "perdeu {campo}");
         }
-        for campo in ["n", "tc", "w", "h", "g", "r", "tb", "oq", "dn", "bt", "tn", "ob", "ce", "mg", "pat", "len", "cols", "ar", "st"] {
+        for campo in ["n", "tc", "w", "h", "g", "r", "tb", "oq", "dn", "bt", "tn", "ob", "ce", "mg", "pg", "pat", "len", "cols", "ar", "st"] {
             assert_eq!(m["s"][0][campo], esperado["s"][0][campo], "perdeu {campo}");
         }
     }
