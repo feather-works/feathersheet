@@ -97,6 +97,20 @@ pub struct ColunaTxtBruta {
     pub indices: Vec<i32>,
     pub bitmap: Vec<u8>,
     pub dict: Vec<String>,
+    /// Gravação da pasta viva (`da_workbook`, MEM-9): os blocos da coluna (ids do pool)
+    /// e a tabela id → índice em `dict`, sem copiar um índice por linha; `indices` fica vazio.
+    #[serde(skip)]
+    pub blocos: Option<(feathersheet_core::planilha::column_store::RetratoColuna<i32>, Vec<i32>)>,
+}
+
+impl ColunaTxtBruta {
+    /// O índice em `dict` da linha `r` (negativo: sem texto).
+    pub fn indice(&self, r: u32) -> i32 {
+        match &self.blocos {
+            Some((blocos, mapa)) => blocos.get(r).and_then(|id| mapa.get(usize::try_from(id).ok()?).copied()).unwrap_or(-1),
+            None => self.indices.get(r as usize).copied().unwrap_or(-1),
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -446,6 +460,8 @@ fn bit_ligado(bitmap: &[u8], r: u32) -> bool {
 enum Campo<'a> {
     Float { values: &'a [f64], bitmap: &'a [u8] },
     Num(&'a ColunaNumBruta),
+    /// Coluna de texto: o índice no dicionário dela ([`ColunaTxtBruta::indice`]), remapeado.
+    Txt { col: &'a ColunaTxtBruta, remapa: Option<Vec<i32>> },
     /// `remapa`: índice global → índice no dicionário local da coluna.
     Int { values: &'a [i32], bitmap: &'a [u8], remapa: Option<Vec<i32>> },
 }
@@ -454,7 +470,7 @@ impl Campo<'_> {
     fn tipo(&self) -> DataType {
         match self {
             Campo::Float { .. } | Campo::Num(_) => DataType::Float64,
-            Campo::Int { .. } => DataType::Int32,
+            Campo::Int { .. } | Campo::Txt { .. } => DataType::Int32,
         }
     }
 
@@ -465,6 +481,14 @@ impl Campo<'_> {
                 if presente(bitmap, r) { values.get(r as usize).copied() } else { None }
             }))),
             Campo::Num(col) => Arc::new(Float64Array::from_iter((r0..r1).map(|r| col.get(r)))),
+            Campo::Txt { col, remapa } => Arc::new(Int32Array::from_iter((r0..r1).map(|r| {
+                if !presente(&col.bitmap, r) { return None; }
+                let v = col.indice(r);
+                Some(match remapa {
+                    Some(m) => usize::try_from(v).ok().and_then(|i| m.get(i).copied()).unwrap_or(v),
+                    None => v,
+                })
+            }))),
             Campo::Int { values, bitmap, remapa } => Arc::new(Int32Array::from_iter((r0..r1).map(|r| {
                 if !presente(bitmap, r) { return None; }
                 let v = *values.get(r as usize)?;
@@ -511,12 +535,13 @@ fn escrever_em_fatias<W: Write>(destino: W, nomes: &[String], campos: &[Campo], 
 /// O dicionário local de [`dicionario_local`] sem copiar os índices: devolve
 /// o dicionário e a tabela global → local (`None` se já é a identidade, o
 /// caso comum — `da_workbook` já manda o dicionário local).
-fn remapa_local<'a>(indices: &[i32], bitmap: &[u8], texto: impl Fn(i32) -> &'a str) -> (Vec<&'a str>, Option<Vec<i32>>) {
+fn remapa_local<'a>(col: &ColunaTxtBruta, linhas: u32, texto: impl Fn(i32) -> &'a str) -> (Vec<&'a str>, Option<Vec<i32>>) {
     let mut tabela: Vec<i32> = Vec::new();
     let mut dict = Vec::new();
     let mut identidade = true;
-    for (linha, &indice) in indices.iter().enumerate() {
-        if bitmap.get(linha >> 3).copied().unwrap_or(0) & (1 << (linha & 7)) == 0 { continue; }
+    for r in 0..linhas {
+        if !bit_ligado(&col.bitmap, r) { continue; }
+        let indice = col.indice(r);
         let Ok(at) = usize::try_from(indice) else { continue };
         if at >= tabela.len() { tabela.resize(at + 1, -1); }
         if tabela[at] < 0 {
@@ -556,10 +581,10 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
             continue;
         }
         let f = format!("t{}", col.col);
-        let (dict, remapa) = remapa_local(&col.indices, &col.bitmap, |id| {
+        let (dict, remapa) = remapa_local(col, linhas, |id| {
             col.dict.get(id as usize).map(String::as_str).unwrap_or_default()
         });
-        campos.push((f.clone(), Campo::Int { values: &col.indices, bitmap: &col.bitmap, remapa }));
+        campos.push((f.clone(), Campo::Txt { col, remapa }));
         colunas_meta.push(ColunaMeta { f, c: col.col, k: "txt", d: Some(dict), e: None, fv: None });
     }
 
@@ -707,8 +732,8 @@ fn derramar_numerica(col: &ColunaNumBruta, linhas: u32, avulsas: &mut Vec<Celula
 /// Algum texto da coluna voltaria diferente se fosse lido como digitado?
 fn tem_texto_ambiguo(col: &ColunaTxtBruta, linhas: u32) -> bool {
     let mut vistos = vec![false; col.dict.len()];
-    (0..linhas.min(col.indices.len() as u32)).filter(|&r| bit_ligado(&col.bitmap, r)).any(|r| {
-        let Some(i) = usize::try_from(col.indices[r as usize]).ok().filter(|&i| i < vistos.len()) else { return false };
+    (0..linhas).filter(|&r| bit_ligado(&col.bitmap, r)).any(|r| {
+        let Some(i) = usize::try_from(col.indice(r)).ok().filter(|&i| i < vistos.len()) else { return false };
         if std::mem::replace(&mut vistos[i], true) {
             return false;
         }
@@ -725,7 +750,7 @@ fn derramar_texto<'a>(col: &'a ColunaTxtBruta, linhas: u32, avulsas: &mut Vec<Ce
             continue;
         }
         let k = r as u64 * 16384 + col.col as u64;
-        let idx = col.indices[r as usize];
+        let idx = col.indice(r);
         let texto = if idx >= 0 { col.dict.get(idx as usize).map(String::as_str).unwrap_or_default() } else { "" };
         avulsas.push(CelulaAvulsaMeta { k, v: Cow::Borrowed(texto), s: None });
     }
@@ -897,11 +922,12 @@ mod testes {
         let mut bitmap = vec![0xFFu8; 13];
         bitmap[2] = 0; // linhas 16–23 vazias
         let indices: Vec<i32> = (0..linhas as i32).map(|r| 7 - r % 3).collect();
-        let (dict, remapa) = remapa_local(&indices, &bitmap, |id| ["a", "b", "c", "d", "e", "f", "x", "y"][id as usize]);
+        let txt = ColunaTxtBruta { col: 1, indices: indices.clone(), bitmap: bitmap.clone(), dict: Vec::new(), blocos: None };
+        let (dict, remapa) = remapa_local(&txt, linhas, |id| ["a", "b", "c", "d", "e", "f", "x", "y"][id as usize]);
         assert_eq!(dict, ["y", "x", "f"]);
         let campos = [
             Campo::Float { values: &values, bitmap: &bitmap },
-            Campo::Int { values: &indices, bitmap: &bitmap, remapa },
+            Campo::Txt { col: &txt, remapa },
         ];
         let nomes = ["n0".to_string(), "t1".to_string()];
         let mut bytes = Vec::new();
@@ -927,8 +953,8 @@ mod testes {
 
     #[test]
     fn dicionario_ja_local_nao_remapeia() {
-        let indices = [0, 1, 0, 2];
-        let (dict, remapa) = remapa_local(&indices, &[0x0F], |id| ["a", "b", "c"][id as usize]);
+        let txt = ColunaTxtBruta { col: 0, indices: vec![0, 1, 0, 2], bitmap: vec![0x0F], dict: Vec::new(), blocos: None };
+        let (dict, remapa) = remapa_local(&txt, 4, |id| ["a", "b", "c"][id as usize]);
         assert_eq!(dict, ["a", "b", "c"]);
         assert!(remapa.is_none());
     }

@@ -46,6 +46,30 @@ pub fn estilo_parcial_para_json(e: &feathersheet_core::celulas::estilo_parcial::
 
 /// Monta a `PastaBruta` a partir da `Workbook` do Rust.
 /// `ativa` é a aba que estava na frente, para reabrir nela.
+/// A coluna de texto pelos blocos da coluna viva (MEM-9): só a máscara (1 bit por linha), o
+/// dicionário e a tabela id do pool → índice local; um `i32` por linha era ~55 MB por coluna
+/// em 13,7 milhões de linhas (+487 MB ao salvar o `2026_03.fshz`). `None`: id do pool grande
+/// demais para a tabela (pool muito maior que a coluna); aí vai pela cópia de sempre.
+fn coluna_txt_sem_copia(dados: &feathersheet_core::planilha::data_table::DataTable, pool: &feathersheet_core::StringPool,
+    col: u32, linhas: u32) -> Option<ColunaTxtBruta> {
+    let blocos = dados.retrato_txt(col)?;
+    let teto = (linhas as usize * 2 + 1024).min(1 << 24);
+    let mut bitmap = vec![0u8; (linhas as usize).div_ceil(8)];
+    let mut mapa: Vec<i32> = Vec::new();
+    let mut dict = Vec::new();
+    for r in 0..linhas {
+        let Some(id) = blocos.get(r) else { continue };
+        let at = usize::try_from(id).ok().filter(|&i| i < teto)?;
+        bitmap[(r >> 3) as usize] |= 1 << (r & 7);
+        if at >= mapa.len() { mapa.resize(at + 1, -1); }
+        if mapa[at] < 0 {
+            mapa[at] = dict.len() as i32;
+            dict.push(pool.get(id).to_owned());
+        }
+    }
+    Some(ColunaTxtBruta { col, indices: Vec::new(), bitmap, dict, blocos: Some((blocos, mapa)) })
+}
+
 pub fn da_workbook(workbook: &Workbook, ativa: u32) -> PastaBruta {
     let mut sheets = Vec::with_capacity(workbook.len());
     for i in 0..workbook.len() {
@@ -157,10 +181,11 @@ fn montar_aba_bruta(sheet: &Sheet) -> AbaBruta {
     // coluna por núcleo (1,7 s em 13,7 milhões de linhas, 18/10/2026).
     let (dados, pool) = (&sheet.data, &sheet.pool);
     let colunas_txt = feathersheet_core::paralelismo::por_coluna(&dados.colunas_txt(), |col| {
+            if let Some(c) = coluna_txt_sem_copia(dados, pool, col, linhas) { return c; }
             let (mut indices, bitmap) = dados.exportar_coluna_txt(col, linhas).unwrap_or_default();
             let dict = crate::fshz_write::dicionario_local(&mut indices, &bitmap, |id| pool.get(id))
                 .into_iter().map(str::to_owned).collect();
-            ColunaTxtBruta { col, indices, bitmap, dict }
+            ColunaTxtBruta { col, indices, bitmap, dict, blocos: None }
         });
 
     // 4) Colunas de fórmula empacotada (padrão + valor calculado). Elas não

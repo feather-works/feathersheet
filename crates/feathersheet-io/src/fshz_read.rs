@@ -893,7 +893,7 @@ mod testes {
         let mut aba = aba_vazia("Dados");
         aba.linhas = linhas;
         aba.colunas_num = vec![ColunaNumBruta { col: 0, values: (0..linhas).map(|r| (r % 500) as f64).collect(), bitmap: bitmap.clone(), blocos: None }];
-        aba.colunas_txt = vec![ColunaTxtBruta { col: 1, indices: (0..linhas as i32).map(|r| r % 4).collect(), bitmap,
+        aba.colunas_txt = vec![ColunaTxtBruta { col: 1, blocos: None, indices: (0..linhas as i32).map(|r| r % 4).collect(), bitmap,
             dict: vec!["a".into(), "".into(), "c".into(), "d".into()] }];
         aba.avulsas = vec![CelulaAvulsaBruta { k: 2, v: "x".into(), estilo: None }];
         let pasta = PastaBruta { a: 0, names: None, es: None, pr: None, mc: None, ex: None, fm: None, vb: None, sheets: vec![aba] };
@@ -922,7 +922,7 @@ mod testes {
 
         let mut aba = aba_vazia("Texto");
         aba.linhas = linhas;
-        aba.colunas_txt = vec![ColunaTxtBruta { col: 1, indices: indices.clone(), bitmap, dict: dict.clone() }];
+        aba.colunas_txt = vec![ColunaTxtBruta { col: 1, indices: indices.clone(), bitmap, dict: dict.clone(), blocos: None }];
         let pasta = PastaBruta { a: 0, names: None, es: None, pr: None, mc: None, ex: None, fm: None, vb: None, sheets: vec![aba] };
         let bytes = crate::fshz_write::gerar_fshz2(&pasta).unwrap();
 

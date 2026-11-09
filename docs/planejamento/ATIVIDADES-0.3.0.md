@@ -400,7 +400,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** MEM-1.  **Issue:** criar.  **Tamanho:** M.
 
 ### MEM-6. Medir o número atual no app (linha de partida da meta)
-**Situação (08/11):** ❌ falta (o usuário mede). Os números mudaram depois da v0.2.2: na v0.2.6 o pico de abrir a planilha-4M-EA caiu de 2,2 para 1,07 GB; depois da v0.2.5, o `.xlsx` do #136 caiu de 1,66 GB para 320 MB.
+**Situação (08/11):** ✅ medido em 08/11 no app em release (modo captura, memória lida do processo depois de abrir): app vazio 154 MB residente / 43 MB própria (o número do Monitor do sistema); Planilha Pesada.fshz 252 / 140 MB (pico 661 MB ao abrir); 2026_03.fshz (13,7 mi de linhas × 46 colunas) abre em 9,9 s com 2.174 / 2.064 MB (pico 2.187 MB). A Planilha Pesada do disco tem as fórmulas da aba Dados deslocadas uma coluna (`Mês` = `MÊS(C2)` lê a Região): é o sintoma do ROB-1 gravado no arquivo, e o Resumo sai zerado; não é do motor.
 - **Onde:** F12 (`app/monitor.rs`) no app; arquivo `Planilha Pesada` e `2026_03.fshz` do usuário.
 - **Pronto:** tabela com RAM do app vazio, do `2026_03.fshz` aberto e calculado, e da Planilha Pesada.
   Meta do plano: 400–500 MB (hoje a memória cita ~1.600 MB antes da v0.2.2; medir de novo).
@@ -422,7 +422,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D9.  **Issue:** nenhuma.  **Tamanho:** G.
 
 ### MEM-9. Gravar em fluxo (pico de +360 MB ao salvar)
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):** ✅ feito em 08/11: a cópia para gravar materializava um `i32` por linha de cada coluna de texto. Agora vai pelos blocos da coluna viva (`DataTable::retrato_txt`, `ColunaTxtBruta::blocos`/`indice`, `da_workbook::coluna_txt_sem_copia`), como os números. `medir_salvar_grande` no 2026_03.fshz (pelo leitor compacto, o do app): além da pasta aberta 605 → 134 MB; arquivo idêntico byte a byte ao de antes (`cmp`).
 - **Onde:** `feathersheet-io/src/fshz_write.rs`.
 - **Pronto:** pico ao salvar medido no `2026_03.fshz` sem o acréscimo; arquivo igual ao atual
   (`examples/conferir_fshz_iguais.rs`).

@@ -94,6 +94,11 @@ impl DataTable {
         self.colunas_com(|e| e.text_col.as_ref().is_some_and(|tc| tc.max_row >= 0))
     }
 
+    /// O retrato da coluna de texto (ids do `StringPool`), sem copiar (MEM-9: gravar).
+    pub fn retrato_txt(&self, col: u32) -> Option<RetratoColuna<i32>> {
+        Some(self.columns.get(&col)?.text_col.as_ref().filter(|tc| tc.max_row >= 0)?.retrato())
+    }
+
     /// Os índices de texto (no `StringPool`) e a máscara de uma coluna.
     pub fn exportar_coluna_txt(&self, col: u32, linhas: u32) -> Option<(Vec<i32>, Vec<u8>)> {
         let tc = self.columns.get(&col)?.text_col.as_ref().filter(|tc| tc.max_row >= 0)?;

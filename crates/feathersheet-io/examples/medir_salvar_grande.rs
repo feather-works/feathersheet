@@ -24,7 +24,7 @@ fn main() {
     let saida = args.next().expect("passe o caminho de saída");
 
     let t = Instant::now();
-    let lida = feathersheet_io::fshz_read::ler_fshz_arquivo(std::path::Path::new(&entrada)).expect("não abri o arquivo");
+    let lida = feathersheet_io::fshz_read::ler_fshz_arquivo_compacto(std::path::Path::new(&entrada)).expect("não abri o arquivo");
     let pasta = feathersheet_io::para_workbook::para_workbook_soltando(lida);
     println!("abrir: {:?} · RSS {:.0} MB · pico {:.0} MB", t.elapsed(), mb("VmRSS:"), mb("VmHWM:"));
 

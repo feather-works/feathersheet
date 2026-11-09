@@ -105,6 +105,10 @@ chaves sem tradução (`idioma::tirar_faltas`); o teste `com_ingles_as_telas_pri
 desenha as telas principais em inglês. Novidade: "Interface em inglês e espanhol sem sobras de português na faixa."
 MEM-10: F12 ▸ Métricas mostra "Memória própria" (`RssAnon`, o número do Monitor do GNOME) e a parte compartilhada
 (`VmRSS − RssAnon`). Novidade: "O F12 mostra a mesma memória do Monitor do sistema."
+MEM-9: salvar não copia mais as colunas de texto (`ColunaTxtBruta::blocos`, ids do pool pelos blocos da coluna viva
+e a tabela id → índice local; id fora de `2×linhas+1024` volta à cópia). 2026_03.fshz: +605 → +134 MB ao salvar,
+arquivo idêntico. MEM-6 medido (ver o plano): vazio 43 MB própria, 2026_03.fshz 2.064 MB. Novidade: "Salvar planilha
+grande gasta bem menos memória."
 
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
