@@ -1118,3 +1118,65 @@ fn aba_ativa_da_ribbon_e_persistida_sem_modificar_a_planilha() {
     assert_eq!(app.config.faixa_aba, "inserir");
     assert!(!app.alterado);
 }
+
+/// INT-7: com a interface em inglês, desenha as telas principais (cada aba da faixa,
+/// os diálogos internos, as Configurações) e junta o que o `tr` não achou no
+/// dicionário — as chaves dinâmicas que a varredura do código não vê.
+#[test]
+fn com_ingles_as_telas_principais_nao_pedem_texto_sem_traducao() {
+    crate::idioma::definir_na_thread("en-US");
+    let _ = crate::idioma::tirar_faltas();
+    let mut app = App::default();
+    let id = crate::compat::window::novo_id();
+    app.janelas.principal = Some(id);
+    for aba in [AbaFaixa::Inicio, AbaFaixa::Inserir, AbaFaixa::Desenhar, AbaFaixa::Layout, AbaFaixa::Formulas,
+        AbaFaixa::Dados, AbaFaixa::Revisao, AbaFaixa::Exibir, AbaFaixa::Macros, AbaFaixa::Ferramentas] {
+        app.selecionar_faixa(aba);
+        let _: Element<'_, Msg> = app.view(id);
+    }
+    for nome in ["nomes", "nomes_exemplo", "erro", "estatisticas", "perfil", "link", "cenarios", "ir_para",
+        "colar_especial", "classificar", "atingir_meta", "tabela_dados", "celulas", "dimensao", "protecao",
+        "subtotal", "novo_estilo", "serie", "validacao", "validacao_entrada", "validacao_alerta_aba"] {
+        let mut app = App::default();
+        app.janelas.principal = Some(id);
+        app.preparar_captura_dialogo(nome);
+        let _: Element<'_, Msg> = app.view(id);
+    }
+    // Barra de status com números selecionados, Configurações (cada seção), Formatar células e OpenQuery.
+    let mut app = App::default();
+    app.janelas.principal = Some(id);
+    for (r, v) in ["Mês\tValor", "Jan\t10", "Fev\t30"].iter().enumerate() {
+        for (c, t) in v.split('\t').enumerate() { app.workbook.escrever_celula(0, r as u32, c as u32, t.into()); }
+    }
+    let _ = app.update(Msg::IrPara("A1:B3".into()));
+    let _: Element<'_, Msg> = app.view(id);
+    let _ = app.update(Msg::Configuracoes);
+    if let Some(cfg) = app.janelas.id(Auxiliar::Configuracoes) {
+        for secao in 0..=configuracoes_ui::SECAO_SOBRE {
+            app.config_secao = secao;
+            let _: Element<'_, Msg> = app.view(cfg);
+        }
+    }
+    {
+        use super::formatar_celulas::Aba;
+        for aba in [Aba::Numero, Aba::Alinhamento, Aba::Fonte, Aba::Borda, Aba::Preenchimento, Aba::Protecao] {
+            let _ = app.abrir_formatar_celulas(aba);
+            let _: Element<'_, Msg> = app.view_formatar_celulas();
+        }
+    }
+    let _ = app.evento_openquery_janela(openquery_ui::Evento::AbrirCom(Box::new(openquery_ui::Evento::CarregarSelecao)));
+    if let Some(oq) = app.janelas.id(Auxiliar::OpenQuery) {
+        for aba in [openquery_ui::AbaFaixa::Inicio, openquery_ui::AbaFaixa::Transformar, openquery_ui::AbaFaixa::Adicionar, openquery_ui::AbaFaixa::Exibir] {
+            let _ = app.evento_openquery(openquery_ui::Evento::Aba(aba));
+            let _: Element<'_, Msg> = app.view(oq);
+        }
+    }
+    // Já traduzido (o `tr` chamado de novo sobre o texto em inglês), fontes e nomes iguais nas duas línguas.
+    let traduzidos: std::collections::HashSet<&String> = crate::idioma::dicionario().values().collect();
+    let iguais = ["Arial", "Courier New", "Georgia", "Times New Roman", "Verdana", "COUNT", "MAX", "MIN"];
+    let faltas: Vec<String> = crate::idioma::tirar_faltas().into_iter()
+        .filter(|t| t.chars().filter(|c| c.is_alphabetic()).count() > 2 && !traduzidos.contains(t) && !iguais.contains(&t.as_str()) && !t.starts_with("UTC"))
+        .collect();
+    crate::idioma::definir_na_thread("pt-BR");
+    assert!(faltas.is_empty(), "{} texto(s) sem tradução em inglês:\n{}", faltas.len(), faltas.join("\n"));
+}

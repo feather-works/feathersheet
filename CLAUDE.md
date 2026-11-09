@@ -99,6 +99,11 @@ hoje (`filtro_extra::serial_de_hoje`, passada no `PedidoAvancado::hoje`); painel
 publicar a tag e trocar o `rev` pela tag antes do lançamento; a feather-io v0.2.1 ainda puxa a feather-charts v0.3.4, e as duas entram no binário até a feather-io subir de versão). Novidade: "Gantt com a linha de hoje e as tarefas
 pintadas como concluídas, em andamento ou futuras."
 
+Corte da 0.3.0 (08/11/2026): 51 itens do `ATIVIDADES-0.3.0.md` marcados ⏭️ 0.4.0 (memória, dinâmica avançada,
+interface grande, Windows, Feather Sans…). INT-13: `feathersheet --version`/`-V`. INT-7: em teste o `tr` anota as
+chaves sem tradução (`idioma::tirar_faltas`); o teste `com_ingles_as_telas_principais_nao_pedem_texto_sem_traducao`
+desenha as telas principais em inglês. Novidade: "Interface em inglês e espanhol sem sobras de português na faixa."
+
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
 Motor (`feathersheet-core/src/consulta/query/extras.rs`): `Formatar`, `Preencher`, `RemoverLinhas`,

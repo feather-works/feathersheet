@@ -4703,5 +4703,7 @@
  "Cor da linha de hoje": "Today line color",
  "Pintar pela situação (concluída, em andamento, futura)": "Color by status (done, in progress, upcoming)",
  "Em andamento": "In progress",
- "Futura": "Upcoming"
+ "Futura": "Upcoming",
+ "SOMA": "SUM",
+ "MÉDIA": "AVERAGE"
 }

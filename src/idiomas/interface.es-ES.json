@@ -4699,5 +4699,8 @@
  "Cor da linha de hoje": "Color de la línea de hoy",
  "Pintar pela situação (concluída, em andamento, futura)": "Colorear por estado (terminada, en curso, futura)",
  "Em andamento": "En curso",
- "Futura": "Futura"
+ "Futura": "Futura",
+ "SOMA": "SUMA",
+ "MÉDIA": "PROMEDIO",
+ "COUNT": "CONTAR"
 }

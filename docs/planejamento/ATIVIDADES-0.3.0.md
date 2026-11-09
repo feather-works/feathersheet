@@ -860,7 +860,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D12.  **Issue:** #80, #82.  **Tamanho:** G (temas) / P (tirar).
 
 ### INT-7. Interface em inglês sem sobras em português
-**Situação (08/11):** ❌ falta. A varredura não foi feita.
+**Situação (08/11):** ✅ feito em 08/11: em teste o `tr` anota o que não acha (`idioma::tirar_faltas`), e `com_ingles_as_telas_principais_nao_pedem_texto_sem_traducao` desenha em inglês as 10 abas da faixa, 21 diálogos internos, a barra de status com seleção, as 10 seções das Configurações, as 6 abas do Formatar células e as 4 do OpenQuery: sobrou só a lista Função da faixa (`SOMA`/`MÉDIA`), já traduzida. As chaves literais seguem pelos testes de sempre do `idioma.rs`. Fica de fora: texto do motor (mensagens do Rust no F12, INT-8, 0.4.0); sem foto.
 - **Onde:** `crates/feathersheet/src/idioma.rs`; `trf!`/textos fixos em `app/` (grep de palavras em pt
   nas telas); itens do METAS: "salvo", "Colar", grupos da Página Inicial, abas Exibir/Macros/Ferramentas,
   espessura "Média" da borda, linhas do motor no F12.
@@ -902,7 +902,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** P.
 
 ### INT-13. `feathersheet --version` imprime a versão e sai
-**Situação (08/11):** ❌ falta. O `main.rs` só trata `--mcp`.
+**Situação (08/11):** ✅ feito em 08/11: `feathersheet --version` (ou `-V`) imprime `feathersheet <versão do Cargo.toml>` e sai sem janela; conferido no terminal.
 - **Onde:** `crates/feathersheet/src/main.rs` (antes de abrir a janela, junto do `--mcp` da linha ~80);
   `app/atualizacao.rs:21` (`CARGO_PKG_VERSION`).
 - **Pronto:** `feathersheet --version` imprime `feathersheet 0.3.0` e sai sem abrir janela; teste ou

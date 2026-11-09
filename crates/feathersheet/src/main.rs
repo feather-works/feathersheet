@@ -76,6 +76,11 @@ fn preparar_backend_da_caneta() {
 }
 
 fn main() -> Result<(), pelicano::Error> {
+    // `feathersheet --version`: só a versão, sem janela (INT-13).
+    if std::env::args().skip(1).any(|a| a == "--version" || a == "-V") {
+        println!("feathersheet {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     // `feathersheet --mcp`: servidor MCP por stdio, sem janela (quem instalou
     // só o aplicativo liga uma IA por aqui; ver Configurações → IA (MCP)).
     if std::env::args().skip(1).any(|a| a == "--mcp") {

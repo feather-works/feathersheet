@@ -107,8 +107,25 @@ pub fn tr(pt: &str) -> &str {
     if lingua() == Lingua::Pt { return pt; }
     match dicionario().get(pt) {
         Some(t) => t.as_str(),
-        None => pt,
+        None => {
+            #[cfg(test)]
+            FALTAS.with(|f| { f.borrow_mut().insert(pt.to_owned()); });
+            pt
+        }
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Textos pedidos ao `tr` sem tradução nesta thread (INT-7: as chaves
+    /// dinâmicas, `tr(rotulo)`, que a varredura do código não enxerga).
+    static FALTAS: std::cell::RefCell<std::collections::BTreeSet<String>> = Default::default();
+}
+
+/// Esvazia e devolve o que o `tr` não achou nesta thread.
+#[cfg(test)]
+pub fn tirar_faltas() -> std::collections::BTreeSet<String> {
+    FALTAS.with(|f| std::mem::take(&mut *f.borrow_mut()))
 }
 
 /// O texto em português de um texto já traduzido (o inverso de [`tr`]);
