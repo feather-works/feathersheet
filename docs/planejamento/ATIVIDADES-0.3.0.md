@@ -26,6 +26,13 @@
 
 ---
 
+## Corte de escopo (08/11/2026, pedido do usuário: "falta 64 ainda")
+
+51 itens marcados **⏭️ 0.4.0**: memória (MEM-1–11), dinâmica avançada (DIN-6–11, 14, 16–19), interface grande
+(INT-1, 2, 4–6, 8, 9, 11, 14), Windows que pede o notebook (WIN-2–4), paridade (GRI-1–3), gráficos (GRA-5, 9),
+MCP-6/7, DOC-3, ROB-6/7/10, Feather Sans (PUB-4–8) e MAC-2. Ficam na 0.3.0: 29 ✅, 15 🟡 (quase todos só
+conferir) e 20 ❌, dos quais 9 são o lançamento (LAN-1–9). Os ⏭️ não entram na contagem da 0.3.0.
+
 ## Resumo em 08/11/2026
 
 **Contagem (115 atividades):** ✅ feito 21 · 🟡 parcial 21 · ❌ falta 72 · ⛔ obsoleto 1.
@@ -210,7 +217,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Issue:** nenhuma.  **Tamanho:** P.
 
 ### PUB-4. Publicar pelicano `v0.1.21` (Feather Sans)
-**Situação (08/11):** ❌ falta. A Feather Sans não chegou ao pelicano publicado: nem a 0.1.30 nem a 0.1.31 do crates.io têm `set_default_family`/`Font::SYSTEM_SANS`. O número `v0.1.21` já passou: agora seria uma 0.1.3x no crates.io (ver D3).
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. A Feather Sans não chegou ao pelicano publicado: nem a 0.1.30 nem a 0.1.31 do crates.io têm `set_default_family`/`Font::SYSTEM_SANS`. O número `v0.1.21` já passou: agora seria uma 0.1.3x no crates.io (ver D3).
 - **Onde:** repositório do pelicano, ramo `fonte-padrao`, commit `60b80f6` (`set_default_family`,
   `Font::SYSTEM_SANS`). Cópia de trabalho: `/run/media/maragon/Arquivos/GitHub/pelicano`.
 - **Pronto:** tag `v0.1.21` no remoto; o teste `clique_na_caixinha_marca_e_o_cursor_fica` (quebrado pela
@@ -219,7 +226,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D3 (autorização de tag/push).  **Issue:** nenhuma.  **Tamanho:** M.
 
 ### PUB-5. Publicar feather-ui `v0.3.10` (módulo `fonte`)
-**Situação (08/11):** ❌ falta. O ramo `feather-sans` continua só local na feather-ui; a v0.3.15 (usada hoje) não tem o módulo `fonte`. A próxima seria a v0.3.16.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. O ramo `feather-sans` continua só local na feather-ui; a v0.3.15 (usada hoje) não tem o módulo `fonte`. A próxima seria a v0.3.16.
 - **Onde:** repositório da feather-ui, ramo `feather-sans`, commit `0fa32b0` (`fonte::usar_na_interface`).
   Cópias: `/run/media/maragon/Arquivos/GitHub/.wt/feather-ui-038`.
 - **Pronto:** tag `v0.3.10` no remoto. Conferir a base do ramo (a conferir: é descendente de `v0.3.9`,
@@ -228,7 +235,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** PUB-4 (se a feather-ui pedir o pelicano novo); D3.  **Issue:** nenhuma.  **Tamanho:** P/M.
 
 ### PUB-6. Trocar o `[patch]` pelas tags e atualizar o `Cargo.lock`
-**Situação (08/11):** ⛔ obsoleto. Não há mais `[patch]`: o pelicano vem do crates.io (0.1.30) e a feather-ui pela tag v0.3.15 (`d697473`). A tentativa com `[patch]` para `/tmp` está guardada no stash `e7a5c3e`. Quando a fonte for publicada, basta subir as versões.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ⛔ obsoleto. Não há mais `[patch]`: o pelicano vem do crates.io (0.1.30) e a feather-ui pela tag v0.3.15 (`d697473`). A tentativa com `[patch]` para `/tmp` está guardada no stash `e7a5c3e`. Quando a fonte for publicada, basta subir as versões.
 - **Onde:** `crates/feathersheet/Cargo.toml` (linhas 12 e 16: pelicano `v0.1.19` → `v0.1.21`; feather-ui
   `v0.3.8` → `v0.3.10`; apagar o bloco `[patch]` e o comentário "shortcut: provisório…" no fim);
   `crates/feathersheet/Cargo.lock`.
@@ -238,7 +245,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** PUB-4, PUB-5.  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### PUB-7. Conferir a fonte na tela e nas células
-**Situação (08/11):** ❌ falta. O `main.rs` não chama `usar_na_interface` e as células não usam `"sans-serif"` (essa mudança ficou no stash `e7a5c3e`).
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. O `main.rs` não chama `usar_na_interface` e as células não usam `"sans-serif"` (essa mudança ficou no stash `e7a5c3e`).
 - **Onde:** `crates/feathersheet/src/main.rs` (chamada de `usar_na_interface`); `src/grade.rs` e
   `src/estilos_comuns.rs` (`Some("sans-serif")` nas células, mudança não commitada).
 - **Pronto:** foto da janela principal e de uma célula com texto (`FEATHERSHEET_CAPTURAR`, antes e
@@ -247,7 +254,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** PUB-6.  **Issue:** nenhuma.  **Tamanho:** P/M.
 
 ### PUB-8. Commitar a Feather Sans no FeatherSheet
-**Situação (08/11):** ❌ falta. Depende de PUB-4 e PUB-5.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de PUB-4 e PUB-5.
 - **Onde:** os arquivos de PUB-6 e PUB-7; `CLAUDE.md` (nota na seção da 0.3.0).
 - **Pronto:** commit `claude: Feather Sans como fonte da interface (pelicano v0.1.21, feather-ui v0.3.10)`;
   `cargo` sem `[patch]`.
@@ -305,7 +312,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** criar (pendência de 28/10, sem issue).  **Tamanho:** M.
 
 ### ROB-6. Recálculo fora da thread da janela, com progresso e Esc
-**Situação (08/11):** 🟡 parcial. O `calculo_em_fundo.rs` não mudou desde a v0.2.1 (29/10). Falta o usuário medir o `MÍNIMOSES` em 13,7 milhões de linhas.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. O `calculo_em_fundo.rs` não mudou desde a v0.2.1 (29/10). Falta o usuário medir o `MÍNIMOSES` em 13,7 milhões de linhas.
 - **Onde:** `crates/feathersheet/src/app/calculo_em_fundo.rs` (existe desde a v0.2.1, com "Parar a cada
   256 linhas"); `app/macro_dialogo/em_fundo.rs` como referência. Cálculo no motor:
   `feathersheet-core/src/planilha/calculo_paralelo.rs`.
@@ -315,7 +322,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** nenhuma (METAS v0.1.1); criar se o caso ainda travar.  **Tamanho:** M.
 
 ### ROB-7. Cópia para gravar não bloqueia a janela
-**Situação (08/11):** 🟡 parcial. Falta só medir: a v0.2.1 já salva sem copiar as colunas de número, mas não há número registrado.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. Falta só medir: a v0.2.1 já salva sem copiar as colunas de número, mas não há número registrado.
 - **Onde:** `crates/feathersheet-io/src/da_workbook.rs`; `app.rs` (salvar); `feathersheet-io/src/fshz_write.rs`.
 - **Pronto:** F12 mostra que a parte na thread da janela fica ≤ 16 ms em `2026_03.fshz` (13,7 mi linhas).
   Se a v0.2.1 ("salvar sem copiar as colunas de número") já resolveu, só medir e fechar o `[ ]` do METAS.
@@ -337,7 +344,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D8.  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### ROB-10. Arrastar fórmula para a planilha inteira (padrão por faixa)
-**Situação (08/11):** ❌ falta. D11 continua aberta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. D11 continua aberta.
 - **Onde:** `planilha/sheet/edicao.rs` (`preencher_formula_faixa_vazia`), `planilha/modelo_padrao.rs`
   (`FaixaPadrao`), `crates/feathersheet/src/grade/alca.rs` (alça de preenchimento).
 - **Pronto:** arrastar a alça de uma fórmula até a linha 1.048.576 responde em ≤ 1 s (medido) e usa um
@@ -356,7 +363,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 ## Frente 3 — Memória (plano dos 400 MB e testes que pegam estouro)
 
 ### MEM-1. Alocador contador de teste que recusa pedido acima do teto
-**Situação (08/11):** ❌ falta. Não há `#[global_allocator]` em nenhum crate.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Não há `#[global_allocator]` em nenhum crate.
 - **Onde:** novo módulo de teste (ex.: `crates/feathersheet-core/src/teste_memoria.rs`, `#[cfg(test)]`,
   com `#[global_allocator]`); replicado em `feathersheet-io` (a decidir: copiar ou um crate de teste
   comum, D20). Hoje não existe nenhum `global_allocator` no repositório.
@@ -365,42 +372,42 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** criar (pedido do usuário, 29/10).  **Tamanho:** M.
 
 ### MEM-2. Tetos: arrastar/colar fórmula até o fim e tudo selecionado
-**Situação (08/11):** ❌ falta. Depende de MEM-1.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de MEM-1.
 - **Onde:** testes sobre `preencher_formula_faixa_vazia` e `Sheet::colar`; caso: 16.384 colunas ×
   1.048.576 linhas com a linha de fórmula (o caso que o usuário testou).
 - **Pronto:** teste reprova se o pico passar do teto (MEM-1); medido pico exato.
 - **Depende:** MEM-1, ROB-10.  **Issue:** criar.  **Tamanho:** M.
 
 ### MEM-3. Tetos: abrir `.xlsx` e `.fshz` gerados no teste (muitas colunas curtas)
-**Situação (08/11):** ❌ falta. Depende de MEM-1.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de MEM-1.
 - **Onde:** `crates/feathersheet-io/examples/` (os `medir_*` existem); testes novos em
   `feathersheet-io/src/` com geração sintética pequena e teto.
 - **Pronto:** reprova o pico acima do teto; compara com o número medido no `2026_03.fshz` pelo usuário.
 - **Depende:** MEM-1.  **Issue:** criar.  **Tamanho:** M.
 
 ### MEM-4. Tetos: dinâmica e gráfico em muitas linhas
-**Situação (08/11):** ❌ falta. Depende de MEM-1.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de MEM-1.
 - **Onde:** `feathersheet-core/src/dinamica/pivot.rs`, `dinamica_layout.rs`; `app/graficos/testes.rs`
   (bancada `medir_quadros_grafico_com_bloco`, ignorada).
 - **Pronto:** teste com teto; a bancada ignorada vira teste normal com teto.
 - **Depende:** MEM-1.  **Issue:** criar.  **Tamanho:** M.
 
 ### MEM-5. Tetos: compactar, salvar e reabrir
-**Situação (08/11):** ❌ falta. Depende de MEM-1.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de MEM-1.
 - **Onde:** `feathersheet-core/src/compactar` (a conferir: `ChunkedColumn::compactar`), `feathersheet-io/src/fshz_write.rs`,
   `fshz_read.rs`.
 - **Pronto:** ciclo compactar + salvar + reabrir dentro do teto, com resultado igual bit a bit.
 - **Depende:** MEM-1.  **Issue:** criar.  **Tamanho:** M.
 
 ### MEM-6. Medir o número atual no app (linha de partida da meta)
-**Situação (08/11):** ❌ falta (o usuário mede). Os números mudaram depois da v0.2.2: na v0.2.6 o pico de abrir a planilha-4M-EA caiu de 2,2 para 1,07 GB; depois da v0.2.5, o `.xlsx` do #136 caiu de 1,66 GB para 320 MB.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta (o usuário mede). Os números mudaram depois da v0.2.2: na v0.2.6 o pico de abrir a planilha-4M-EA caiu de 2,2 para 1,07 GB; depois da v0.2.5, o `.xlsx` do #136 caiu de 1,66 GB para 320 MB.
 - **Onde:** F12 (`app/monitor.rs`) no app; arquivo `Planilha Pesada` e `2026_03.fshz` do usuário.
 - **Pronto:** tabela com RAM do app vazio, do `2026_03.fshz` aberto e calculado, e da Planilha Pesada.
   Meta do plano: 400–500 MB (hoje a memória cita ~1.600 MB antes da v0.2.2; medir de novo).
 - **Depende:** nada (usuário roda).  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### MEM-7. Fase 5 do plano: resultado direto na coluna (sem `calc.cache`)
-**Situação (08/11):** ❌ falta. D9 continua aberta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. D9 continua aberta.
 - **Onde:** `feathersheet-core/src/planilha/column_store.rs`, `planilha/calculo_paralelo.rs`,
   `planilha/textos_crus.rs`; `planilha/faixa_lida.rs` (a conferir).
 - **Pronto:** pico de ~360 MB da Resumo recém-aberta do `.xlsx` e a consolidação de 1,5 s caem; teste
@@ -408,28 +415,28 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D9.  **Issue:** nenhuma.  **Tamanho:** G.
 
 ### MEM-8. Fase 3 do plano: XLSX com dados tipados (sem reserva de 2 milhões de textos)
-**Situação (08/11):** ❌ falta. A v0.2.6 compactou a abertura do `.fshz`, não a do `.xlsx`.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. A v0.2.6 compactou a abertura do `.fshz`, não a do `.xlsx`.
 - **Onde:** leitor de `.xlsx` em `feathersheet-io/src/` (a conferir o módulo: `arrow_fluxo.rs` ou
   `xlsx_read*`); a reserva de textos `"374.99"`, `"14/12/2026"`.
 - **Pronto:** ganho medido no `.xlsx` de 13 mi células; mesma leitura célula a célula.
 - **Depende:** D9.  **Issue:** nenhuma.  **Tamanho:** G.
 
 ### MEM-9. Gravar em fluxo (pico de +360 MB ao salvar)
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `feathersheet-io/src/fshz_write.rs`.
 - **Pronto:** pico ao salvar medido no `2026_03.fshz` sem o acréscimo; arquivo igual ao atual
   (`examples/conferir_fshz_iguais.rs`).
 - **Depende:** ROB-7, D9.  **Issue:** nenhuma.  **Tamanho:** G.
 
 ### MEM-10. F12 e Monitor do GNOME: mesmo critério de memória
-**Situação (08/11):** ❌ falta (a conferir; o `monitor.rs` só mudou com a v0.2.8).
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta (a conferir; o `monitor.rs` só mudou com a v0.2.8).
 - **Onde:** `crates/feathersheet/src/app/monitor.rs`; leitura de `VmRSS`/`VmHWM` (a conferir o que o F12 mostra).
 - **Pronto:** o F12 mostra o mesmo número que o Monitor do sistema (diferença explicada ou corrigida;
   hoje ~300 MB).
 - **Depende:** nada.  **Issue:** nenhuma.  **Tamanho:** P/M.
 
 ### MEM-11. Abrir sob demanda (`mmap`) e fórmula compilada (fase 6 e V5)
-**Situação (08/11):** ❌ falta. Já marcada como fora da 0.3.0.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Já marcada como fora da 0.3.0.
 - **Onde:** `feathersheet-io/src/fshz_read.rs`; `feathersheet-core` (bytecode).
 - **Pronto:** fora da 0.3.0 se D9 disser assim; ver "Fora do escopo".
 - **Depende:** D9, e o `.fshz` deixar de ser gzip único.  **Issue:** nenhuma.  **Tamanho:** G (fora).
@@ -478,7 +485,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D5.  **Issue:** criar (bug: menu morto).  **Tamanho:** M (A) / P (B).
 
 ### DIN-6. Itens agrupados à mão e itens calculados
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `dinamica/pivot.rs` (agrupar), `dinamica/exibicao.rs` (já tem agrupar em faixas numéricas e
   datas: reaproveitar), `app/dinamica_ui.rs` (seleção de itens → Agrupar).
 - **Pronto:** selecionar 2 itens → Agrupar cria um grupo; a soma do grupo confere com a soma manual;
@@ -486,7 +493,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D6.  **Issue:** criar (buraco listado no METAS v0.1.6/v0.2).  **Tamanho:** G.
 
 ### DIN-7. Campo calculado com editor de fórmula e autocompletar
-**Situação (08/11):** ❌ falta. O campo calculado existe no painel avançado, sem editor com autocompletar.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. O campo calculado existe no painel avançado, sem editor com autocompletar.
 - **Onde:** `feathersheet-core/src/dinamica/campo_calculado.rs` (hoje só soma, no painel avançado);
   `app/dinamica_ui/` (a conferir: onde mora o painel avançado).
 - **Pronto:** campo `=Preço*Quantidade` com autocompletar dos nomes dos campos; teste de resultado;
@@ -494,27 +501,27 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D6.  **Issue:** criar.  **Tamanho:** G.
 
 ### DIN-8. Subtotais em cima, embaixo ou sem
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `dinamica/dinamica_layout.rs`, `dinamica/exibicao.rs` (Extras); hoje só liga/desliga.
 - **Pronto:** três opções por campo; teste do layout compacto e tabular com cada uma.
 - **Depende:** D6.  **Issue:** criar.  **Tamanho:** M.
 
 ### DIN-9. Estrutura de tópicos e recolher/expandir por nível (conferir)
-**Situação (08/11):** 🟡 parcial. Já existem "Recolher tudo" e "Expandir tudo" (`dinamica_ui/faixa.rs:154`) e recolher por item; o "por nível" não encontrei.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. Já existem "Recolher tudo" e "Expandir tudo" (`dinamica_ui/faixa.rs:154`) e recolher por item; o "por nível" não encontrei.
 - **Onde:** `dinamica/dinamica_layout.rs`; `recolhidos` em `app/dinamica_ui.rs`.
 - **Pronto:** o layout de tópicos tem recolher por nível e teste; hoje a memória diz que
   "recolher/expandir" existe: confirmar só a parte "por nível" (a conferir).
 - **Depende:** DIN-8.  **Issue:** criar se faltar.  **Tamanho:** M.
 
 ### DIN-10. Mostrar páginas de filtro (uma aba por item)
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `app/dinamica_ui.rs` (ação), `feathersheet-core/src/planilha/workbook.rs` (criar abas).
 - **Pronto:** a ação cria uma aba por item do campo de filtro, com o recorte de cada um; teste de
   quantas abas e conteúdo.
 - **Depende:** DIN-3.  **Issue:** criar.  **Tamanho:** M.
 
 ### DIN-11. Origem: intervalo, tabela, outra aba e outro arquivo aberto (conferir)
-**Situação (08/11):** 🟡 parcial. Existe `dinamica_ui/origem.rs`; o quadro de conferência de cada origem não foi feito.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. Existe `dinamica_ui/origem.rs`; o quadro de conferência de cada origem não foi feito.
 - **Onde:** `app/dinamica_ui.rs` (criação); `planilha/vinculo.rs` (referência entre arquivos abertos,
   já existente desde a v0.1.0).
 - **Pronto:** quadro de confere: intervalo e outra aba (a conferir se já funcionam), tabela (`regiao_da_tabela`),
@@ -536,7 +543,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** M.
 
 ### DIN-14. Estilos da dinâmica que sobrevivem ao Atualizar
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `dinamica/` (configuração JSON na chave `extras`); `app/dinamica_visual.rs`.
 - **Pronto:** escolher um estilo, Atualizar, o estilo continua; ida e volta `.fshz` e `.xlsx`.
 - **Depende:** D6.  **Issue:** criar.  **Tamanho:** G.
@@ -550,7 +557,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D6, GRA-9 (o gráfico dinâmico usa a mesma segmentação).  **Issue:** criar.  **Tamanho:** G.
 
 ### DIN-16. Metas de número da dinâmica (medir, sem mudar código)
-**Situação (08/11):** ❌ falta (o usuário mede).
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta (o usuário mede).
 - **Onde:** bancada `medir_etapas_da_troca` (memória de 15/10): `FEATHERSHEET_PESADO=…_1M.fshz
   FEATHERSHEET_ABA=1 FEATHERSHEET_CAMPOS="2,3;6" cargo test --profile medir ...` (rodar pelo usuário,
   com limite de memória).
@@ -560,19 +567,19 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** DIN-19.  **Issue:** nenhuma.  **Tamanho:** M (medir).
 
 ### DIN-17. Atualizar só o grupo que mudou
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `dinamica/pivot.rs` (somas por grupo, METAS v0.1.4), `app/dinamica_ui.rs`.
 - **Pronto:** mudar uma célula da origem refaz só o grupo afetado; ≤ 50 ms (DIN-16).
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** G.
 
 ### DIN-18. Adiar atualização do painel
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `app/dinamica_ui.rs` (arrumar campos e calcular no fim).
 - **Pronto:** com a opção ligada, arrastar 3 campos recalcula uma vez; teste de contagem de cálculos.
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** M.
 
 ### DIN-19. Arrastar campo responde em ≤ 100 ms até 1 M linhas
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `app/dinamica_ui.rs` (evento de arrasto) + `dinamica_layout.rs`.
 - **Pronto:** medido pela bancada (DIN-16).
 - **Depende:** DIN-17 ou DIN-18.  **Issue:** criar se não bater.  **Tamanho:** M.
@@ -614,7 +621,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D10 (confirmar o desenho com o usuário).  **Issue:** #121.  **Tamanho:** G.
 
 ### GRA-5. Trocar a categoria sem travar; contas da série pelo tipo
-**Situação (08/11):** ❌ falta (a conferir; nenhum commit sobre isso).
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta (a conferir; nenhum commit sobre isso).
 - **Onde:** `app/graficos.rs`; `feather-charts` (a conferir).
 - **Pronto:** número: Soma, Média etc.; texto: só Contar e Contar distintos (regra do METAS v0.1.0); troca de
   categoria mede ≤ 16 ms na bancada `medir_graficos_ao_abrir_e_trocar`.
@@ -640,7 +647,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### GRA-9. Gráfico dinâmico completo: botões de campo, todos os tipos, `.xlsx`
-**Situação (08/11):** ❌ falta. Há um gráfico dinâmico básico (`dinamica_ui/grafico_dinamico.rs`); os botões de campo e o `.xlsx` não existem.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Há um gráfico dinâmico básico (`dinamica_ui/grafico_dinamico.rs`); os botões de campo e o `.xlsx` não existem.
 - **Onde:** `app/graficos.rs` e `app/dinamica_ui.rs`; `feathersheet-io` (gravar o gráfico dinâmico no `.xlsx`).
 - **Pronto:** botões de campo no próprio gráfico (filtrar pela dinâmica); os tipos de gráfico todos
   disponíveis; ida e volta `.xlsx`; foto.
@@ -717,7 +724,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** o usuário.  **Issue:** criar (se o problema persistir).  **Tamanho:** P.
 
 ### WIN-2. Testar a 0.3.0 no notebook (instalador)
-**Situação (08/11):** ❌ falta (depende da versão nova). Desde a v0.2.7 o instalador vai para Program Files.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta (depende da versão nova). Desde a v0.2.7 o instalador vai para Program Files.
 - **Onde:** `pacote/gerar.sh windows`, `pacote/feathersheet.nsi`; checklist: instalar, abrir uma
   planilha, Feather Sans, cantos da janela, tema automático (`system_dark`, a conferir no Windows), abrir
   `.xlsx`, Ctrl+S.
@@ -725,14 +732,14 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** LAN-5, PUB-8.  **Issue:** nenhuma.  **Tamanho:** M (do usuário).
 
 ### WIN-3. Job de Windows no CI (compilar o app)
-**Situação (08/11):** ❌ falta. `.github/workflows/` continua só com `macos.yml` e `testes.yml`.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. `.github/workflows/` continua só com `macos.yml` e `testes.yml`.
 - **Onde:** `.github/workflows/` (novo `windows.yml`, ou job em `macos.yml`); o `testes.yml` continua
   sem a GUI (regra da memória).
 - **Pronto:** push em `main` compila `feathersheet` no `windows-latest` (sem rodar a suíte da GUI); job verde.
 - **Depende:** PUB-6 (sem `[patch]`).  **Issue:** criar.  **Tamanho:** M.
 
 ### WIN-4. Pressão da caneta no Windows
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `feather_ui::caneta` (WM_POINTER); a janela de teste no notebook.
 - **Pronto:** traço com a mesa mostra pressão; "conferido por cargo check" (14/10) passa a "conferido na
   máquina". Se a mesa não estiver no notebook, o item fica fora da 0.3.0 (D14).
@@ -784,14 +791,14 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 ## Frente 9 — Paridade com outros programas (teste de 28/10)
 
 ### GRI-1. Roteiro comparativo com outro programa com dados pequenos
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** a planilha é montada uma vez (`.xlsx`) e aberta nos dois.
 - **Pronto:** tabela com abrir, recalcular e editar uma célula da base, nos dois, mais a conferência dos
   resultados (FILTRO, desvio padrão, INCLINAÇÃO) entre os dois e com o Excel. O usuário roda o pesado.
 - **Depende:** nada.  **Issue:** nenhuma.  **Tamanho:** M.
 
 ### GRI-2. Cálculo iterativo (referência circular com iterações)
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
 - **Onde:** `feathersheet-core/src/planilha/calculo_manual.rs` / detecção de circular (a conferir o
   módulo); opções nas Configurações.
 - **Pronto:** opção "Iterações" (máximo e diferença), com teste de convergência em fórmula circular
@@ -799,7 +806,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D17.  **Issue:** criar.  **Tamanho:** G.
 
 ### GRI-3. Abrir `.xlsx` protegido por senha
-**Situação (08/11):** ❌ falta. Não há `EncryptionInfo` no `feathersheet-io`.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Não há `EncryptionInfo` no `feathersheet-io`.
 - **Onde:** `feathersheet-io/src/` (leitor de `.xlsx`; a conferir se já há tratamento de `EncryptionInfo`).
 - **Pronto:** pede a senha e abre; sem crate com C; teste com arquivo de senha conhecida. Decisão D14
   (dependência pura Rust, custo medido).
@@ -810,7 +817,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 ## Frente 10 — Interface, faixa, menus e idioma
 
 ### INT-1. Faixa recolhendo grupo a grupo em todas as abas
-**Situação (08/11):** ❌ falta. Nada novo de recolher grupo a grupo nas outras abas.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Nada novo de recolher grupo a grupo nas outras abas.
 - **Onde:** `crates/feathersheet/src/app/faixa_responsiva.rs`, `faixa_nativa.rs`, `faixa_nativa_grupos.rs`
   (hoje só a Início; as outras usam o "Mais", pendência de 28/10).
 - **Pronto:** foto de Inserir, Fórmulas e Dados recolhidas: cada grupo recolhe sozinho; teste de
@@ -818,7 +825,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** nenhuma (pendência da memória).  **Tamanho:** M.
 
 ### INT-2. #68: faixa em três níveis (aberta, recolhida, micro com os menus na barra de título)
-**Situação (08/11):** ❌ falta. #68 aberta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. #68 aberta.
 - **Onde:** `app/faixa_nativa.rs`, `app/menu_principal.rs`, `app/configuracoes_ui.rs`.
 - **Pronto:** a escolha guarda nas Configurações; foto dos três níveis; Ajuda atualizada (DOC-1). Desenho
   já descrito na issue: aprovar antes (regra 21, D12).
@@ -833,20 +840,20 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D12.  **Issue:** #82 (e criar para o que mais aparecer).  **Tamanho:** M.
 
 ### INT-4. Exibir: Nova Janela, Organizar Tudo, Dividir, Alternar Janelas (#83)
-**Situação (08/11):** ❌ falta. #83 aberta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. #83 aberta.
 - **Onde:** `app/menu_principal.rs`, `app/mover_abas.rs`; janelas auxiliares do pelicano.
 - **Pronto:** ou implementado (duas abas visíveis) ou fora do menu. Decidido em D12.
 - **Depende:** D12.  **Issue:** #83.  **Tamanho:** G (implementar) / P (tirar).
 
 ### INT-5. Grupo Organizar para gráficos e imagens (#79)
-**Situação (08/11):** ❌ falta. #79 aberta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. #79 aberta.
 - **Onde:** `app/objetos.rs`, `app/objetos/interface.rs` (a conferir: o grupo hoje só existe para formas).
 - **Pronto:** Avançar, Recuar, Painel de Seleção, Alinhar, Agrupar, Girar para gráficos e imagens; teste
   de ordem Z; foto.
 - **Depende:** D12.  **Issue:** #79.  **Tamanho:** G.
 
 ### INT-6. Temas da página (#80) e grupo Revisão (#82)
-**Situação (08/11):** ❌ falta. #80 aberta. #82 aberta: Proteger Pasta já existe; faltam Ortografia, Mostrar Alterações e Permitir Edição de Intervalos.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. #80 aberta. #82 aberta: Proteger Pasta já existe; faltam Ortografia, Mostrar Alterações e Permitir Edição de Intervalos.
 - **Onde:** `app/menu_principal.rs`; `feathersheet-io/src/` (tema do `.xlsx`, `xl/theme`).
 - **Pronto:** D12 decide: temas da pasta do Excel (cores e fontes) ou sair do menu; a "Revisão" sem os
   itens que não existem sai do menu.
@@ -862,7 +869,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** M.
 
 ### INT-8. Migração do idioma: mensagens do Rust e descrições das funções
-**Situação (08/11):** 🟡 parcial. Descrições, argumentos e categorias das funções já existem em en e es (`src/idiomas/funcoes.*.json`, desde 16/10). Faltam as mensagens do Rust (`explicar_erro`), a conferir.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. Descrições, argumentos e categorias das funções já existem em en e es (`src/idiomas/funcoes.*.json`, desde 16/10). Faltam as mensagens do Rust (`explicar_erro`), a conferir.
 - **Onde:** `function_help.rs` (a conferir o caminho no `feathersheet-core`); `explicar_erro` (mensagens
   de erro).
 - **Pronto:** mensagens e a ajuda das funções em pt, en e es, pelo mesmo arquivo de idioma; teste de
@@ -870,7 +877,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D15.  **Issue:** criar.  **Tamanho:** G.
 
 ### INT-9. Nomes das funções por idioma
-**Situação (08/11):** 🟡 parcial (a conferir). O README diz que os nomes em português ou inglês seguem o idioma da interface. Faltam o espanhol e a D15.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial (a conferir). O README diz que os nomes em português ou inglês seguem o idioma da interface. Faltam o espanhol e a D15.
 - **Onde:** `feathersheet-core` (o motor reconhece os nomes); o de-para em JSON (pt, en, es, já existe).
 - **Pronto:** D15 decide. Se entrar: nomes localizados sem quebrar arquivos antigos (teste com `.fshz`
   antigo).
@@ -883,7 +890,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar se ainda acontecer.  **Tamanho:** P/M.
 
 ### INT-11. Menu Orientação do texto: ícones e posição
-**Situação (08/11):** ❌ falta. `menu_orientacao.rs` não muda desde 26/10.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. `menu_orientacao.rs` não muda desde 26/10.
 - **Onde:** `app/menu_orientacao.rs`.
 - **Pronto:** ícones de orientação legíveis e o menu abre junto ao botão; foto.
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** P.
@@ -903,7 +910,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar (pedido de 29/10).  **Tamanho:** P.
 
 ### INT-14. Cursor do Claude ao vivo (#9)
-**Situação (08/11):** ❌ falta. #9 aberta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. #9 aberta.
 - **Onde:** `app/mcp_vivo.rs` (cada pedido chega no `update`), `grade.rs` (borda colorida do intervalo),
   `app/` (balão e histórico no F12).
 - **Pronto:** borda e etiqueta "Claude" no intervalo; balão de uma linha que some; `sheet_comando` pisca o
@@ -958,7 +965,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar se ainda acontecer.  **Tamanho:** P.
 
 ### MCP-6. Cobertura do MCP para o que a 0.3.0 entrega
-**Situação (08/11):** ❌ falta. `MCP-PENDENTE.md` não muda desde 17/10; D23 continua aberta.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. `MCP-PENDENTE.md` não muda desde 17/10; D23 continua aberta.
 - **Onde:** `crates/feathersheet-mcp/src/esquemas.rs`, `permissoes.rs`; `docs/planejamento/MCP-PENDENTE.md`
   (124 linhas, lista do que falta).
 - **Pronto:** cada feature nova da 0.3.0 (dinâmica, gráfico, segmentação) tem ferramenta ou o motivo
@@ -966,7 +973,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D23; DIN, GRA.  **Issue:** nenhuma.  **Tamanho:** G.
 
 ### MCP-7. Ferramentas MCP do Gantt
-**Situação (08/11):** ❌ falta. Depende de GRA-1.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de GRA-1.
 - **Onde:** `crates/feathersheet-mcp/src/esquemas.rs` (`sheet_grafico`).
 - **Pronto:** aceita as opções de GRA-1 (linha de hoje, cor por barra).
 - **Depende:** GRA-1.  **Issue:** #133 (item 4 da issue).  **Tamanho:** P.
@@ -983,7 +990,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** #8.  **Tamanho:** M.
 
 ### MAC-2. UserForm de um `.xlsm` real do usuário
-**Situação (08/11):** ❌ falta. Esperando o arquivo do usuário.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Esperando o arquivo do usuário.
 - **Onde:** `feathersheet-vba/src/formulario.rs`; `importar_vba.rs::formulario_da_conversao`.
 - **Pronto:** um `.xlsm` real do usuário (pedido ao usuário) abre e o formulário aparece no designer.
   Hoje só testado com arquivos do LibreOffice (CLAUDE.md).
@@ -1009,7 +1016,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** DOC-1.  **Issue:** #71.  **Tamanho:** M.
 
 ### DOC-3. Comparação com o Excel publicada no README (mesmo arquivo, script para repetir)
-**Situação (08/11):** ❌ falta. O README compara versões do próprio app, sem a coluna do Excel.
+**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. O README compara versões do próprio app, sem a coluna do Excel.
 - **Onde:** `README.md` (em inglês, regra da memória); script em `scripts/` ou `crates/feathersheet/examples/` (a conferir).
 - **Pronto:** tabela no README com abrir, recalcular e salvar, do mesmo arquivo, e o script que repete a conta.
 - **Depende:** DIN-16, ROB-7 (números finais).  **Issue:** nenhuma (METAS v0.2.0).  **Tamanho:** M.
