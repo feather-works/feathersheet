@@ -15,19 +15,36 @@ static EXIBIDO: AtomicU32 = AtomicU32::new(0);
 /// leitura em bytes (a montagem lê o XML): a montagem vai de 0 a 80%.
 fn porcentagem() -> f64 {
     let (lidos, total, fase, _) = progresso::agora();
+    porcentagem_de(lidos, total, fase, progresso::etapa(), feathersheet_core::paralelismo::andamento::agora())
+}
+
+/// A conta de [`porcentagem`], sem estado global (INT-12: montar nunca passa de 80%;
+/// os últimos 20% são do cálculo).
+fn porcentagem_de(lidos: u64, total: u64, fase: Fase, etapa: (u64, u64), calculo: (u64, u64)) -> f64 {
     let fracao = |feito: u64, total: u64| if total > 0 { (feito as f64 / total as f64).min(1.0) } else { 0.0 };
     // Onde a montagem começa: sem leitura contada (xlsx), no zero.
     let inicio_montar = if lidos > 0 { 40.0 } else { 0.0 };
     match fase {
         Fase::Lendo => fracao(lidos, total) * 40.0,
-        Fase::Montando => {
-            let (feito, total) = progresso::etapa();
-            inicio_montar + fracao(feito, total) * (80.0 - inicio_montar)
-        }
-        Fase::Calculando => {
-            let (feito, total) = feathersheet_core::paralelismo::andamento::agora();
-            80.0 + fracao(feito, total) * 20.0
-        }
+        Fase::Montando => inicio_montar + fracao(etapa.0, etapa.1) * (80.0 - inicio_montar),
+        Fase::Calculando => 80.0 + fracao(calculo.0, calculo.1) * 20.0,
+    }
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    #[test]
+    fn montar_para_em_80_e_so_o_calculo_chega_a_100() {
+        assert_eq!(porcentagem_de(50, 100, Fase::Lendo, (0, 0), (0, 0)), 20.0);
+        assert_eq!(porcentagem_de(100, 100, Fase::Montando, (0, 10), (0, 0)), 40.0);
+        // "Montando… na memória" com a etapa toda feita (ou contada a mais): 80%, nunca 100%.
+        assert_eq!(porcentagem_de(100, 100, Fase::Montando, (10, 10), (0, 0)), 80.0);
+        assert_eq!(porcentagem_de(100, 100, Fase::Montando, (25, 10), (0, 0)), 80.0);
+        assert_eq!(porcentagem_de(0, 0, Fase::Montando, (5, 10), (0, 0)), 40.0, ".xlsx: a montagem vai de 0 a 80");
+        assert_eq!(porcentagem_de(100, 100, Fase::Calculando, (10, 10), (1, 2)), 90.0);
+        assert_eq!(porcentagem_de(100, 100, Fase::Calculando, (10, 10), (2, 2)), 100.0);
     }
 }
 

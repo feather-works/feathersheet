@@ -1,3 +1,6 @@
+> **Este arquivo é o antigo inventário dos menus (15/10/2026).** O roteiro do FeatherSheet é o
+> [`ROADMAP.md` da raiz](../../ROADMAP.md); o plano da próxima versão está em `ATIVIDADES-0.3.0.md`.
+
 # Inventário dos menus
 
 **Direção atual — 07/10/2026: motor e interface 100% Rust, com Iced.**

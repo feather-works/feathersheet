@@ -252,6 +252,36 @@ mod testes {
         assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(0, 0), "ativou");
     }
 
+    /// SEG-5: a macro gravada no `.fshz` volta bloqueada ao reabrir (o caminho de abrir do app,
+    /// `instalar`), e o mesmo vale para um `.xlsm`; sem macro, nada é perguntado.
+    #[test]
+    fn reabrir_fshz_e_xlsm_com_macro_pede_para_ativar() {
+        let pasta = std::env::temp_dir().join(format!("fs_seg5_{}", std::process::id()));
+        std::fs::create_dir_all(&pasta).unwrap();
+        let mut app = App::default();
+        let mut cat = feather_macros::Catalogo::default();
+        cat.macros.push(feather_macros::Macro { name: "Apagar".into(), auto: false, code: "sheet.clear('A1:Z100');".into() });
+        assert!(app.persistir_modulos(cat, "ok"));
+        let arquivo = pasta.join("com_macro.fshz");
+        feathersheet_io::da_workbook::pasta_gravar_arquivo(&app.workbook, 0, &arquivo).unwrap();
+        let abrir = |caminho: &std::path::Path| {
+            let lida = feathersheet_io::fshz_read::ler_fshz_arquivo_compacto(&arquivo).unwrap();
+            let mut novo = App::default();
+            novo.instalar(caminho.to_path_buf(), feathersheet_io::para_workbook::para_workbook_soltando(lida), 0);
+            novo
+        };
+        for caminho in [arquivo.clone(), pasta.join("com_macro.xlsm")] {
+            let mut novo = abrir(&caminho);
+            assert!(novo.macros_bloqueadas && novo.aviso_macros, "{}", caminho.display());
+            assert!(!novo.macros_liberadas(), "rodar antes de ativar é recusado");
+        }
+        // Sem macro nenhuma: abre sem perguntar.
+        let mut vazio = App::default();
+        vazio.instalar(pasta.join("sem.fshz"), feathersheet_core::planilha::workbook::Workbook::new(), 0);
+        assert!(!vazio.aviso_macros);
+        let _ = std::fs::remove_dir_all(&pasta);
+    }
+
     #[test]
     fn modulo_solto_tambem_pede_para_ativar_e_o_aviso_lista_os_riscos() {
         let mut app = App::default();

@@ -109,6 +109,10 @@ MEM-9: salvar não copia mais as colunas de texto (`ColunaTxtBruta::blocos`, ids
 e a tabela id → índice local; id fora de `2×linhas+1024` volta à cópia). 2026_03.fshz: +605 → +134 MB ao salvar,
 arquivo idêntico. MEM-6 medido (ver o plano): vazio 43 MB própria, 2026_03.fshz 2.064 MB. Novidade: "Salvar planilha
 grande gasta bem menos memória."
+Conferência da 0.3.0 (08/11/2026): o arquivo `porta token` do MCP nasce 0600 (`ao_vivo::gravar_so_do_dono`);
+testes novos travam o "Ativar macros?" ao reabrir .fshz/.xlsm, nenhum item de menu clássico sem ação
+(`nenhum_item_dos_menus_fica_sem_acao`, com as exceções do momento), a barra de abertura (montar ≤ 80%,
+`porcentagem_de`) e um Ctrl+Z por ação do painel da dinâmica. METAS com a numeração real no topo.
 
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 

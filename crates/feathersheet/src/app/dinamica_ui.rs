@@ -1165,6 +1165,39 @@ mod testes {
     }
 
     #[test]
+    fn cada_mudanca_do_painel_desfaz_com_um_ctrl_z() {
+        // DIN-13: campo, conta e filtro — cada ação volta com um Ctrl+Z, na ordem.
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0,0,"Região"); s.set_cell(0,1,"Vendas");
+            for (r, (reg, v)) in [("Sul","10"),("Norte","20"),("Sul","30")].iter().enumerate() {
+                s.set_cell(r as u32 + 1, 0, reg); s.set_cell(r as u32 + 1, 1, v);
+            }
+        });
+        app.linha=0; app.coluna=0; app.fim_selecao=(3,1);
+        app.evento_dinamica(Evento::Abrir);
+        app.evento_dinamica(Evento::Criar);
+        let foto = |app: &App| { let s = &app.workbook.aba(1).unwrap().sheet;
+            (0..4).flat_map(|r| (0..3).map(move |c| (r, c))).map(|(r, c)| s.get_raw(r, c)).collect::<Vec<_>>() };
+        let mut fotos = vec![foto(&app)];
+        app.evento_dinamica(Evento::Campo(0));
+        fotos.push(foto(&app));
+        app.evento_dinamica(Evento::Campo(1));
+        fotos.push(foto(&app));
+        app.evento_dinamica(Evento::OperacaoValor(0));
+        fotos.push(foto(&app));
+        app.evento_dinamica(Evento::FiltroCampo(0));
+        app.evento_dinamica(Evento::FiltroValor("Norte".into()));
+        fotos.push(foto(&app));
+        for w in fotos.windows(2) { assert_ne!(w[0], w[1], "cada ação muda a tabela"); }
+        assert_eq!(app.folha, 1);
+        for esperado in fotos.iter().rev().skip(1) {
+            app.historico(false);
+            assert_eq!(&foto(&app), esperado, "um Ctrl+Z volta uma ação");
+        }
+    }
+
+    #[test]
     fn distintos_e_mediana_na_dinamica_e_guardados_no_arquivo() {
         // DIN-12: as contas novas montam e voltam pelos metadados (`como`).
         let mut app = App::default();

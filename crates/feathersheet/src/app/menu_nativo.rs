@@ -247,6 +247,30 @@ mod testes {
     }
 
     #[test]
+    /// INT-3 (regra 3, nada de item de menu morto): numa pasta com dados, todo item dos
+    /// menus clássicos tem ação; só ficam desligados os que dependem do momento.
+    #[test]
+    fn nenhum_item_dos_menus_fica_sem_acao() {
+        let mut app = crate::app::App::default();
+        app.workbook.escrever_celula(0, 0, 0, "1".into());
+        app.workbook.escrever_celula(0, 1, 0, "2".into());
+        // Desmesclar sem mescla, as listas vazias de macros e Excluir com uma aba só.
+        let do_momento = ["desmesclar", "deleteSheet", "-"];
+        fn andar(app: &crate::app::App, itens: &[Item], caminho: &str, mortos: &mut Vec<String>, do_momento: &[&str]) {
+            for item in itens {
+                if item.separador { continue; }
+                let aqui = format!("{caminho} › {}", item.rotulo);
+                if !item.filhos.is_empty() { andar(app, &item.filhos, &aqui, mortos, do_momento); continue; }
+                let id = item.acao.as_ref().map_or("-", |a| a.id.as_str());
+                if !app.item_menu_disponivel(item) && !do_momento.contains(&id) { mortos.push(format!("{aqui} [{id}]")); }
+            }
+        }
+        let mut mortos = Vec::new();
+        for menu in &catalogo().menus { andar(&app, &menu.itens, &menu.titulo, &mut mortos, &do_momento); }
+        assert!(mortos.is_empty(), "itens de menu sem ação:\n{}", mortos.join("\n"));
+    }
+
+    #[test]
     fn todas_as_folhas_com_acao_tem_identificador() {
         fn validar(itens: &[Item]) {
             for item in itens {

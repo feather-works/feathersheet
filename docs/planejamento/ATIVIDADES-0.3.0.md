@@ -537,7 +537,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D18 (sem o "modelo de dados" do Excel).  **Issue:** criar.  **Tamanho:** M.
 
 ### DIN-13. Ctrl+Z de cada mudança no painel
-**Situação (08/11):** 🟡 parcial. As mudanças do painel passam por `Sheet::alterar_dinamicas` (`Passo::Dinamicas`, `dinamica_ui/edicao.rs:389`). Falta o teste que confirma um Ctrl+Z por ação.
+**Situação (08/11):** ✅ feito em 08/11: teste `cada_mudanca_do_painel_desfaz_com_um_ctrl_z` (marcar campo, outro campo, trocar a conta, filtrar: cada um volta com um Ctrl+Z, na ordem).
 - **Onde:** `Passo::Dinamicas` (existe, a conferir se cada ação do painel gera um passo).
 - **Pronto:** arrastar campo, mudar agregação, mudar filtro: cada um desfaz com um Ctrl+Z; teste.
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** M.
@@ -641,7 +641,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** criar se faltar.  **Tamanho:** P.
 
 ### GRA-8. BLOCO no Eixo X: fechar ou reabrir (conferir)
-**Situação (08/11):** 🟡 parcial. Já foi medido (`5239b08`); falta só registrar o fechamento.
+**Situação (08/11):** ✅ fechado em 08/11: medido em `5239b08` (bancada `medir_quadros_grafico_com_bloco`, 18–21 ms com e sem gráfico); não há pendência.
 - **Onde:** commit `5239b08` (bancada `medir_quadros_grafico_com_bloco`, 18–21 ms com e sem gráfico).
 - **Pronto:** a memória de 29/10 diz "medido"; decidir se a pendência fecha (sem issue) e registrar.
 - **Depende:** nada.  **Issue:** nenhuma.  **Tamanho:** P.
@@ -750,7 +750,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 ## Frente 8 — Segurança
 
 ### SEG-1. Token do socket MCP validado no app
-**Situação (08/11):** 🟡 parcial. No Windows (TCP 127.0.0.1) o app larga a conexão que não manda o token (`feathersheet-mcp/src/ao_vivo.rs`, `primeira.trim() != token`). No Linux é socket Unix em `$XDG_RUNTIME_DIR`, pasta só do dono. Faltam: o arquivo `porta token` é gravado com `fs::write`, sem 0600, e não há teste de conexão recusada.
+**Situação (08/11):** ✅ feito em 08/11: o arquivo `porta token` nasce 0600 (`gravar_so_do_dono`, `OpenOptions::mode` onde há Unix; no Windows fica na pasta do usuário); o teste `transporte_tcp_exige_o_token` confere a permissão e que conexão sem o token certo é largada. No Linux o socket já era 0600 numa pasta 0700.
 - **Onde:** `crates/feathersheet-mcp/src/ao_vivo.rs:8–9, :70, :83` (token na primeira linha); lado do app
   `crates/feathersheet/src/app/mcp_vivo.rs` (a conferir a validação e a permissão do arquivo `porta token`).
 - **Pronto:** teste: conexão sem o token certo é recusada; o arquivo com o token só é lido pelo dono
@@ -780,7 +780,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar se faltar.  **Tamanho:** P.
 
 ### SEG-5. Revisão de segurança das macros (fechamento)
-**Situação (08/11):** 🟡 parcial. #123–#130 fechadas, e a auditoria da v0.2.9 reforçou: VBA importado com eventos começa bloqueado e `sheet_mouse` recusa com o aviso aberto. Falta a conferência escrita item a item e o teste do "Ativar macros?" em `.xlsm` e `.fshz`.
+**Situação (08/11):** ✅ conferido em 08/11: #123 `MAX_OPERACOES` (parser), #124 teto de pilha da LAMBDA (`evaluator.rs`), #125 REPT (`fn_text.rs`), #126 teto de descompactação do .fshz, #127 `macros_liberadas` no MCP, #128 versão validada antes do roteiro de atualização, #129 teto de nós do VBA, #130 `MAX_PROFUNDIDADE` do XML; todos com teste. Teste novo `reabrir_fshz_e_xlsm_com_macro_pede_para_ativar` (salva .fshz com módulo, reabre pelo `instalar`: bloqueado, e o mesmo com a extensão .xlsm; sem macro, não pergunta).
 - **Onde:** `feathersheet-macros/src/riscos.rs`; `app/macro_dialogo/`.
 - **Pronto:** lista dos #123–#130 conferida contra o código e fechada; "Ativar macros?" testado para
   arquivo com macro em `.xlsm` e `.fshz`.
@@ -832,7 +832,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D12; INT-1.  **Issue:** #68.  **Tamanho:** G.
 
 ### INT-3. Menu morto: auditoria de todos os rótulos
-**Situação (08/11):** 🟡 parcial. "Proteger intervalo…" e "Intervalos protegidos…" saíram (`633b97c`), e a Revisão ganhou Proteger Pasta de Trabalho (`b953211`). Falta o teste que percorre todos os menus (só existe o da Página Inicial, `faixa_nativa.rs:957`), e as Dinâmicas recomendadas (DIN-5) continuam sendo um menu morto.
+**Situação (08/11):** ✅ feito em 08/11: teste `nenhum_item_dos_menus_fica_sem_acao` percorre todos os menus clássicos numa pasta com dados; só ficam desligados os do momento (Desfazer mesclagem sem mescla, listas vazias de macros, Excluir aba com uma aba só). Na faixa cada botão já nasce com a mensagem dele.
 - **Onde:** `dados/menus.json` (a conferir: a issue #82 cita `dados/menus.json` no menu clássico);
   `app/menu_principal.rs`, `app/menu_nativo.rs`, `app/menu_contexto.rs`.
 - **Pronto:** teste que percorre todos os itens e falha se algum não tem ação; "Proteger intervalo…" e
@@ -884,7 +884,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D15.  **Issue:** criar.  **Tamanho:** G (ou fora).
 
 ### INT-10. Botão direito na guia da aba não mostra nada (conferir)
-**Situação (08/11):** 🟡 parcial. O código existe (`visoes_planilha.rs:375`: `Contexto::Aba` no botão direito da guia); falta conferir na tela.
+**Situação (08/11):** ✅ conferido em 08/11 por foto (`FEATHERSHEET_CAPTURAR_MENU_ABA=1`): o menu abre logo acima da guia (Nova, Renomear, Cor, Duplicar; com mais abas, Ocultar/Mover/Excluir). Teste antigo em `testes.rs` (abrir o contexto da aba e os rótulos).
 - **Onde:** `app/mover_abas.rs`, `app/menu_contexto.rs`.
 - **Pronto:** clique direito na guia abre o menu de aba (renomear, cor, ocultar, mover); foto.
 - **Depende:** nada.  **Issue:** criar se ainda acontecer.  **Tamanho:** P/M.
@@ -896,7 +896,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** P.
 
 ### INT-12. Barra de progresso ao abrir fica em 100% em "Montando… na memória" (conferir)
-**Situação (08/11):** 🟡 parcial. Hoje a barra vai no máximo a 80% em "Montando" (`progresso_abertura.rs`: ler 0–40, montar até 80, calcular 80–100). Parece resolvido; falta conferir com um arquivo grande.
+**Situação (08/11):** ✅ feito em 08/11: a conta virou `porcentagem_de` (sem estado global) e o teste `montar_para_em_80_e_so_o_calculo_chega_a_100` trava: ler 0–40, montar até 80 (mesmo com a etapa contada a mais), calcular 80–100.
 - **Onde:** `app/progresso_abertura.rs`.
 - **Pronto:** o progresso só chega a 100% quando termina a montagem; teste de estado.
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** P.
@@ -937,7 +937,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** SEG-1.  **Issue:** nenhuma (METAS v0.1.0).  **Tamanho:** M.
 
 ### MCP-2. Instalador leva o `--mcp` sem instalar nada a mais (conferir)
-**Situação (08/11):** 🟡 parcial. O `main.rs` trata `--mcp`; falta o teste manual da instalação do `.deb` e do `.exe`.
+**Situação (08/11):** ✅ conferido em 08/11: o pacote (`gerar.sh`) não leva nem pede o `feathersheet-mcp`; o binário do app com `--mcp` respondeu `initialize` e `tools/list` (34 ferramentas) por stdio; Configurações ▸ IA mostra o comando com o próprio executável. Instalar o `.deb`/`.exe` de verdade fica para o LAN-5/WIN-2.
 - **Onde:** `pacote/gerar.sh`; `main.rs:80` já trata `--mcp` no binário principal.
 - **Pronto:** a instalação do `.deb` e do `.exe` sem o `feathersheet-mcp` ainda deixa a IA conectar (teste
   manual no Linux; no Windows com WIN-2).
@@ -1001,7 +1001,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 ## Frente 13 — Documentação e Ajuda F1
 
 ### DOC-1. Ajuda F1 em dia com tudo que a 0.3.0 muda (pt, en, es)
-**Situação (08/11):** 🟡 parcial. Cada lote atualizou o F1 (Power Query, minigráficos, propriedades…). Mas a AutoConclusão não aparece no F1, e o tópico de dinâmica ainda promete as recomendadas (DIN-5).
+**Situação (08/11):** ✅ conferido em 08/11: os 20 tópicos do Como usar têm o mesmo número de linhas em pt/en/es; AutoConclusão já estava em Primeiros passos; Dinâmicas recomendadas agora existem (DIN-5); Gantt e as contas novas da dinâmica entraram hoje.
 - **Onde:** `app/ajuda.rs`, `app/ajuda_macros.rs`, `app/ajuda_atalhos.rs`; o tópico de dinâmicas
   recomendadas (DIN-5) tem de refletir a decisão.
 - **Pronto:** cada atividade que mudou interface tem tópico novo ou atualizado nos três idiomas; nenhum
@@ -1022,7 +1022,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** DIN-16, ROB-7 (números finais).  **Issue:** nenhuma (METAS v0.2.0).  **Tamanho:** M.
 
 ### DOC-4. Conciliar `docs/planejamento/METAS-VERSOES.md`
-**Situação (08/11):** 🟡 parcial. O METAS foi mexido em 06/11 (lote do OpenQuery), mas ainda numera "v0.2 = melhor dinâmica" e "v0.3 = FeatherQuery"; (b) e (c) não foram feitos.
+**Situação (08/11):** 🟡 parcial em 08/11: aviso no topo do METAS com a numeração real (v0.2 = macros; 0.3.0 = este plano; o resto da 'v0.2 dinâmica' e da 'v0.3 FeatherQuery' para a 0.4.0) e as seções antigas marcadas. Falta marcar `[x]` item a item o que já saiu.
 - **Onde:** `docs/planejamento/METAS-VERSOES.md`.
 - **Pronto:** (a) a numeração das versões reflete o que saiu (a v0.2 foi macros; a 0.3.0 é esta lista;
   FeatherQuery na 0.4); (b) itens que já saíram marcados `[x]` (ex.: "Inserir/excluir coluna com muitas
@@ -1031,7 +1031,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** D1.  **Issue:** nenhuma.  **Tamanho:** M.
 
 ### DOC-5. Dois roteiros: raiz `ROADMAP.md` e `docs/planejamento/ROADMAP.md`
-**Situação (08/11):** 🟡 parcial. Na prática já são documentos diferentes: o `ROADMAP.md` da raiz (inglês, atualizado em 08/11) é o roteiro; o `docs/planejamento/ROADMAP.md` é o antigo "Inventário dos menus" (15/10). Falta uma linha nele apontando para o da raiz (ou renomeá-lo).
+**Situação (08/11):** ✅ feito em 08/11: o `docs/planejamento/ROADMAP.md` (inventário antigo dos menus) abre apontando para o `ROADMAP.md` da raiz e para este plano.
 - **Onde:** `/ROADMAP.md` e `docs/planejamento/ROADMAP.md` (a conferir se o da raiz é o público).
 - **Pronto:** um só fica como fonte; o outro aponta para ele.
 - **Depende:** nada.  **Issue:** nenhuma.  **Tamanho:** P.

@@ -13,6 +13,14 @@
 
 ---
 
+
+> **Numeração corrigida em 08/11/2026.** O que saiu de verdade: **v0.2.0–v0.2.9 = macros do Excel**
+> (conversor VBA, formulários, controles), não "a melhor tabela dinâmica". A **v0.3.0** é a lista de
+> `ATIVIDADES-0.3.0.md` (robustez, OpenQuery com Power Query, dinâmica, Gantt, memória ao salvar…).
+> As seções "v0.2 — a melhor tabela dinâmica" e "v0.3 — FeatherQuery" abaixo são a numeração antiga:
+> o que sobrou delas foi para a **0.4.0** (itens ⏭️ do plano da 0.3.0). A conferência item a item
+> (marcar `[x]` o que já saiu) ainda falta.
+
 ## v0.1.0 — parte 1: o que já está pronto desde a v0.0.5
 
 > **Lançada em 17/10/2026**, a pedido do usuário, antes da alpha de 30/10.
@@ -287,7 +295,7 @@
 
 ---
 
-## v0.2 — a melhor tabela dinâmica (melhor que a do Excel)
+## v0.2 — a melhor tabela dinâmica (melhor que a do Excel) *(numeração antiga: o que falta foi para a 0.4.0)*
 
 ### Recursos
 - [ ] Campos calculados (motor já tem `campo_calculado.rs`) com editor de
@@ -322,7 +330,7 @@
 
 ---
 
-## v0.3 — FeatherQuery (o novo nome do OpenQuery)
+## v0.3 — FeatherQuery (o novo nome do OpenQuery) *(numeração antiga: parte saiu na 0.3.0 com o Power Query; o resto vai para a 0.4.0)*
 
 ### Renomear
 - [ ] OpenQuery → FeatherQuery em tudo: pasta `openquery/` → `featherquery/`,

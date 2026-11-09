@@ -126,6 +126,20 @@ mod tcp {
         trocar(&mut escrita, &mut leitura, &mensagem_de_foco(arquivos)).is_ok_and(|r| serde_json::from_str::<Value>(&r).is_ok_and(|v| v["result"]["ok"] == true))
     }
 
+    /// O arquivo do token só o dono lê (SEG-1): nasce 0600 onde há permissão Unix; no Windows
+    /// fica na pasta de dados do próprio usuário.
+    fn gravar_so_do_dono(caminho: &std::path::Path, conteudo: &[u8]) -> std::io::Result<()> {
+        #[cfg(unix)]
+        {
+            use std::io::Write as _;
+            use std::os::unix::fs::OpenOptionsExt;
+            let _ = std::fs::remove_file(caminho);
+            std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(caminho)?.write_all(conteudo)
+        }
+        #[cfg(not(unix))]
+        { std::fs::write(caminho, conteudo) }
+    }
+
     pub fn servir(tratar: impl Fn(Value) -> Option<Value> + Send + Sync + 'static) -> std::io::Result<bool> {
         if conectar().is_some() {
             return Ok(false);
@@ -137,7 +151,7 @@ mod tcp {
         if let Some(pasta) = arquivo.parent() {
             std::fs::create_dir_all(pasta)?;
         }
-        std::fs::write(&arquivo, format!("{porta} {token}"))?;
+        gravar_so_do_dono(&arquivo, format!("{porta} {token}").as_bytes())?;
         let tratar = Arc::new(tratar);
         std::thread::spawn(move || {
             for conexao in ouvinte.incoming().flatten() {
@@ -321,6 +335,12 @@ mod testes {
         s.set_read_timeout(Some(Duration::from_millis(300))).unwrap();
         let (mut e, mut l) = (s.try_clone().unwrap(), std::io::BufReader::new(s));
         assert!(trocar(&mut e, &mut l, "{\"id\":1}").is_err(), "token errado: conexão largada");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let modo = std::fs::metadata(tcp::arquivo_da_porta()).unwrap().permissions().mode() & 0o777;
+            assert_eq!(modo, 0o600, "o token só o dono lê");
+        }
         tcp::encerrar();
         let _ = std::fs::remove_dir_all(&pasta);
     }
