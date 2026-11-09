@@ -1088,7 +1088,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** LAN-3, LAN-5; D4 (autorização).  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### LAN-7. Snap: beta e depois stable
-**Situação (08/11):** 🟡 `snapcraft.yaml` na 0.3.0 e `feathersheet_0.3.0_amd64.snap` gerado; falta o `snapcraft upload` (o usuário roda).
+**Situação (08/11):** ✅ snap 0.3.0 no stable (revisão 4).
 - **Onde:** `snap/snapcraft.yaml` (version e URL do .deb); `pacote/PUBLICAR.md` passo 4.
 - **Pronto:** `snapcraft pack` com o `.deb` da release; instalado com `--dangerous`; enviado ao beta e
   depois ao stable.
