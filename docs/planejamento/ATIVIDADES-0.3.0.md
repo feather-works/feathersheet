@@ -1068,27 +1068,27 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 - **Depende:** DOC-6, LAN-2.  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### LAN-4. Testes verdes no CI
-**Situação (08/11):** ❌ falta. O CI roda; o `c8a808f` tirou a informação de depuração para caber no disco do runner.
+**Situação (08/11):** ✅ Testes verdes no `3087115`; o macOS roda pela tag.
 - **Onde:** `.github/workflows/testes.yml` (core, io, macros, vba, mcp); `macos.yml`.
 - **Pronto:** todos os jobs verdes no commit de lançamento. A GUI fica só com os testes pelo nome que o
   usuário roda (regra da memória).
 - **Depende:** todas as atividades de código.  **Issue:** nenhuma.  **Tamanho:** P (verificação).
 
 ### LAN-5. Gerar os pacotes de uma cópia limpa da tag
-**Situação (08/11):** ❌ falta. O processo já rodou em cada 0.2.x.
+**Situação (08/11):** ✅ `.deb`, `.tar.gz` e `.exe` de um worktree da tag (binário Linux pede glibc ≤ 2.35).
 - **Onde:** `pacote/gerar.sh` (num `git worktree` da tag; pacote precisa de `pacote/PUBLICAR.md` passo 2).
 - **Pronto:** `.deb`, `.tar.gz`, `.exe` em `pacote/saida/0.3.0/`; o `.dmg` sai do CI do macOS (`macos.yml`).
   Build com `systemd-run … MemoryMax=6G MemorySwapMax=0 nice -n 19 taskset -c 0-3` (memória de builds).
 - **Depende:** LAN-4, WIN-3 (se entrar).  **Issue:** nenhuma.  **Tamanho:** M.
 
 ### LAN-6. Release no GitHub
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):** ✅ release v0.3.0 publicada com os 3 pacotes e o SHA256SUMS; o `.dmg` vem do CI. VirusTotal do `.exe` a conferir.
 - **Onde:** `gh release create v0.3.0` (nomes sem versão, como em PUBLICAR.md passo 3); `SHA256SUMS`.
 - **Pronto:** release com .deb, .tar.gz, .exe, SHA256SUMS e o .dmg do CI; notas em inglês.
 - **Depende:** LAN-3, LAN-5; D4 (autorização).  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### LAN-7. Snap: beta e depois stable
-**Situação (08/11):** ❌ falta para a 0.3.0. O snap já sai a cada versão (0.2.8, 0.2.9), e o `PUBLICAR.md` manda direto para stable.
+**Situação (08/11):** 🟡 `snapcraft.yaml` na 0.3.0 e `feathersheet_0.3.0_amd64.snap` gerado; falta o `snapcraft upload` (o usuário roda).
 - **Onde:** `snap/snapcraft.yaml` (version e URL do .deb); `pacote/PUBLICAR.md` passo 4.
 - **Pronto:** `snapcraft pack` com o `.deb` da release; instalado com `--dangerous`; enviado ao beta e
   depois ao stable.

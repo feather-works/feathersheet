@@ -34,7 +34,7 @@ releases list on GitHub; nothing about you or your files is sent) and offers
 *Update and restart*. Turn it off in Settings → About.
 
 > Linux: since v0.3.0 the `.deb` and `.tar.gz` run on Ubuntu 22.04 or newer, Debian 12 and
-> Mint 21 (glibc 2.36). Versions up to v0.2.9 need Ubuntu 26.04 or newer (glibc 2.43).
+> Mint 21 (glibc 2.35). Versions up to v0.2.9 need Ubuntu 26.04 or newer (glibc 2.43).
 
 ---
 

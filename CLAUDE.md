@@ -7,7 +7,7 @@
 Junta as seções "Depois da v0.2.9" abaixo (o que entrou desde 04/11). Destaques no `VERSOES`: Power Query no
 OpenQuery, dinâmica mais esperta (recomendadas, distintos/mediana/quartis, data como data), Gantt com o dia de
 hoje, página e propriedades no arquivo. Plano e o que ficou para a 0.4.0: `docs/planejamento/ATIVIDADES-0.3.0.md`
-(corte de 08/11). Pacote Linux compilado num Debian 12 (glibc 2.36). **feather-charts por `rev = "02bead2…"`**
+(corte de 08/11). Pacote Linux compilado num Debian 12 (o binário pede no máximo a glibc 2.35). **feather-charts por `rev = "02bead2…"`**
 (a v0.3.5 está no main dela; falta a tag). Sem resolver nesta versão: ROB-1 (fórmulas trocadas de coluna, visto
 gravado na Planilha Pesada), segmentação completa, número como texto, autocompletar das macros.
 
