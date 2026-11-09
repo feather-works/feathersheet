@@ -6,7 +6,8 @@
 //! Os esperados saíram do `formatValue` do `style.ts` com `setAppLocale('en-US')`.
 
 use feathersheet_core::celulas::locale::{set_locale_config, LocaleConfig};
-use feathersheet_core::celulas::style::{format_number, NumberFormat, Style};
+use feathersheet_core::celulas::style::{format_number, format_value, NumberFormat, Style};
+use feathersheet_core::celulas::values::Value;
 
 fn com(format: NumberFormat, decimals: Option<u8>) -> Style {
     Style { format, decimals, ..Style::default() }
@@ -15,6 +16,9 @@ fn com(format: NumberFormat, decimals: Option<u8>) -> Style {
 #[test]
 fn numeros_em_ingles_e_de_volta_ao_portugues() {
     set_locale_config(LocaleConfig::en_us());
+    assert_eq!(format_value(&Value::Bool(true), None), "TRUE");
+    assert_eq!(format_value(&Value::Bool(false), None), "FALSE");
+    assert_eq!(format_value(&Value::Text("VERDADEIRO".into()), None), "VERDADEIRO");
     let casos: [(f64, Option<Style>, &str); 10] = [
         (1234567.891, None, "1,234,567.891"),
         (-0.5, None, "-0.5"),
@@ -30,6 +34,9 @@ fn numeros_em_ingles_e_de_volta_ao_portugues() {
     for (n, estilo, esperado) in &casos {
         assert_eq!(format_number(*n, estilo.as_ref()), *esperado, "{n}");
     }
+    set_locale_config(LocaleConfig::es_es());
+    assert_eq!(format_value(&Value::Bool(true), None), "VERDADERO");
+    assert_eq!(format_value(&Value::Bool(false), None), "FALSO");
     // Uma língua que não vem embutida: chega inteira do arquivo de língua,
     // com a moeda depois do número. Tudo no mesmo teste, em sequência: o
     // idioma é global, e dois testes trocando-o ao mesmo tempo se atropelam.
@@ -47,5 +54,7 @@ fn numeros_em_ingles_e_de_volta_ao_portugues() {
     assert_eq!(format_number(1234567.891, None), "1.234.567,891");
     assert_eq!(format_number(-1250.5, Some(&com(NumberFormat::Currency, None))), "-1.250,50\u{a0}€");
     set_locale_config(LocaleConfig::pt_br());
+    assert_eq!(format_value(&Value::Bool(true), None), "VERDADEIRO");
+    assert_eq!(format_value(&Value::Bool(false), None), "FALSO");
     assert_eq!(format_number(-1250.5, Some(&com(NumberFormat::Currency, None))), "-R$\u{a0}1.250,50");
 }

@@ -415,6 +415,16 @@ pub fn format_number(n: f64, style: Option<&Style>) -> String {
     }
 }
 
+/// Texto de exibição de uma célula lógica. Não altera o valor nem sua
+/// representação canônica nos arquivos ou no motor de fórmulas.
+pub fn texto_booleano(valor: bool, idioma: &str) -> &'static str {
+    match idioma {
+        "en-US" | "en" | "en_US" => if valor { "TRUE" } else { "FALSE" },
+        "es-ES" | "es" | "es_ES" => if valor { "VERDADERO" } else { "FALSO" },
+        _ => if valor { "VERDADEIRO" } else { "FALSO" },
+    }
+}
+
 /// Texto efetivamente exibido na grade para qualquer valor da planilha.
 ///
 /// Porta `style.ts::formatValue`: só números recebem formatos numéricos;
@@ -433,6 +443,9 @@ pub fn format_value(valor: &crate::celulas::values::Value, estilo: Option<&Style
     }
     match valor {
         crate::celulas::values::Value::Number(n) => format_number(*n, estilo),
+        crate::celulas::values::Value::Bool(b) => {
+            texto_booleano(*b, &crate::celulas::locale::get_locale_config().code).to_owned()
+        }
         _ => crate::celulas::values::to_text(valor),
     }
 }

@@ -235,8 +235,17 @@ impl Grade<'_> {
         // cada célula, sem avaliar fórmulas, converter números ou aplicar formato.
         if self.mostrar_formulas {
             return self.workbook.aba(self.aba)
-                .map(|aba| feathersheet_core::celulas::locale::apresentar_formula(
-                    &crate::idioma::mostrar_formula(&aba.sheet.get_raw(r, c)), &feathersheet_core::get_locale_config()))
+                .map(|aba| {
+                    let raw = aba.sheet.get_raw(r, c);
+                    if !raw.starts_with('=') {
+                        if let feathersheet_core::celulas::values::Value::Bool(b) = aba.sheet.get_value(r, c) {
+                            return feathersheet_core::celulas::style::texto_booleano(
+                                b, &feathersheet_core::get_locale_config().code).to_owned();
+                        }
+                    }
+                    feathersheet_core::celulas::locale::apresentar_formula(
+                        &crate::idioma::mostrar_formula(&raw), &feathersheet_core::get_locale_config())
+                })
                 .unwrap_or_default();
         }
         // O desenho nunca calcula: conta pendente aparece como "…" e o app

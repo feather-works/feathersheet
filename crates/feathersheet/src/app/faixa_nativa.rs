@@ -349,7 +349,7 @@ impl App {
         row![
             button(row![
                 feather_ui::icones::icone_colorido("sum", 18., "#21865c"),
-                text("AutoSoma").size(12),
+                text(tr!("AutoSoma")).size(12),
             ].spacing(5).align(pelicano::Align::Center))
                 .padding([6, 4])
                 .style(estilo_botao_pequeno(false))
@@ -751,7 +751,7 @@ impl App {
             ]),
             _ => self.faixa_linha(vec![
                 self.faixa_pilha(vec![
-                    self.faixa_pequeno("AutoSoma","sum",Some(Msg::AutoSoma),false),
+                    self.faixa_pequeno(tr!("AutoSoma"),"sum",Some(Msg::AutoSoma),false),
                     self.faixa_pequeno(tr!("Classificar"),"filter",
                         Some(Msg::AlternarMenuEdicao("classificar")),false),
                     self.faixa_pequeno(tr!("Localizar"),"search",Some(Msg::BuscaAba(false)),false),

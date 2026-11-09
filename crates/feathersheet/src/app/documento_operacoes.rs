@@ -42,7 +42,16 @@ impl App {
         // Fórmula oculta (Formatar células → Proteção) com a aba protegida: a barra fica vazia.
         self.edicao = self.workbook.aba(self.folha)
             .filter(|a| !a.sheet.formula_oculta(self.linha, self.coluna))
-            .map(|a| self.formula_para_mostrar(&a.sheet.get_raw(self.linha, self.coluna))).unwrap_or_default();
+            .map(|a| {
+                let raw = a.sheet.get_raw(self.linha, self.coluna);
+                if !raw.starts_with('=') {
+                    if let feathersheet_core::celulas::values::Value::Bool(b) =
+                        a.sheet.get_value(self.linha, self.coluna) {
+                        return feathersheet_core::celulas::style::texto_booleano(b, &self.config.idioma).to_owned();
+                    }
+                }
+                self.formula_para_mostrar(&raw)
+            }).unwrap_or_default();
     }
 
     fn trocar_selecao_com(&mut self, r: u32, c: u32, clique: Option<(u32, u32)>) {
