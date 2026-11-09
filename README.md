@@ -4,7 +4,7 @@
 It opens huge files, calculates in parallel, takes formulas in Portuguese or English,
 and runs entirely on your machine: no account, no login, no telemetry (the only network call is the daily update check, which you can turn off).
 
-> **Status:** under active development. Latest release: **[v0.2.9](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-04).
+> **Status:** under active development. Latest release: **[v0.3.0](https://github.com/feather-works/feathersheet/releases/latest)** (2026-11-08).
 
 ![FeatherSheet with the Cash flow template and an income/expenses chart, with the mouse tooltip open on June](docs/imagens/planilha-e-grafico.png)
 
@@ -33,8 +33,8 @@ for a new version on startup (at most once a day, by reading the public
 releases list on GitHub; nothing about you or your files is sent) and offers
 *Update and restart*. Turn it off in Settings → About.
 
-> Linux: from the next release on, the `.deb` and `.tar.gz` run on Ubuntu 22.04 or newer,
-> Debian 12 and Mint 21 (glibc 2.35). Versions up to v0.2.9 need Ubuntu 26.04 or newer (glibc 2.43).
+> Linux: since v0.3.0 the `.deb` and `.tar.gz` run on Ubuntu 22.04 or newer, Debian 12 and
+> Mint 21 (glibc 2.36). Versions up to v0.2.9 need Ubuntu 26.04 or newer (glibc 2.43).
 
 ---
 
@@ -54,6 +54,16 @@ macro took 25 s.
 
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
+
+### New in v0.3.0
+
+- **Power Query in OpenQuery:** paste Excel's M code and the steps appear; *Copy as Power Query* takes them back to Excel. Queries that Excel saved inside an `.xlsx` open too. OpenQuery also gained the missing Power Query steps (replace, fill, format text, remove rows, transpose, split by position, custom column with a formula, group with several aggregations), undo on steps, duplicate/reference and combining a folder.
+- **A smarter PivotTable:** Recommended PivotTables suggest ready summaries with one click; distinct count, median and quartiles; date fields show as dates.
+- **Gantt with today's date:** a today line and tasks colored as done, in progress or upcoming, worked out from today's date.
+- **Page setup and properties in the file:** margins, paper, print area, titles and header/footer are saved and read from Excel's `.xlsx`; title, subject, author, company, keywords and comments in Menu → Info.
+- **Excel habits:** Ctrl+Z undoes inserting and deleting rows and columns; AutoComplete in the column; Ctrl while dragging the fill handle counts; a centered cell edits centered.
+- **Faster and lighter:** saving to `.xlsx` up to 3× faster; saving a large workbook uses ~470 MB less memory; IFS formulas with a blank or zero criterion no longer scan the column for each cell.
+- **Excel macros:** SpecialCells, AutoFilter with two conditions, Advanced Filter, InputBox with a text box, CopyPicture; a faulty macro no longer closes the app.
 
 ### New in v0.2.9
 

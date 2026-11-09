@@ -10,6 +10,38 @@ pub use feather_ui::novidades::Versao;
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.3.0",
+        data: "08/11/2026",
+        resumo: "Power Query, dinâmica mais esperta e arquivos mais leves",
+        ilustracao: Ilustracao::Atualizacao,
+        destaques: &[
+            ("file-export", "Power Query no OpenQuery", "Cole o M do Excel e as etapas aparecem; Copiar como Power Query leva de volta."),
+            ("table", "Dinâmica mais esperta", "Dinâmicas recomendadas, contagem de distintos, mediana, quartis e datas como data."),
+            ("timeline", "Gantt com o dia de hoje", "Linha de hoje e tarefas pintadas como concluídas, em andamento ou futuras."),
+            ("printer", "Página e propriedades no arquivo", "Margens, papel e área de impressão salvos; título, autor e empresa no .xlsx."),
+        ],
+        tambem: &[
+            "OpenQuery com os passos do Power Query que faltavam: substituir, preencher, formatar texto, remover linhas, transpor, dividir por posição, coluna personalizada com fórmula, agrupar com várias contas.",
+            "Consultas: Ctrl+Z nas etapas, duplicar e referenciar, juntar arquivos de uma pasta e nomes parecidos, atualizar ao abrir o arquivo.",
+            "Abra as consultas do Power Query que o Excel guardou no .xlsx.",
+            "Ctrl+Z desfaz inserir e excluir linhas e colunas, com as fórmulas que liam a área.",
+            "AutoConclusão: ao digitar, o valor que já existe na coluna aparece e o Enter completa.",
+            "Ctrl ao arrastar a alça conta 7, 8, 9; sem Ctrl o número é copiado, como no Excel.",
+            "Editar uma célula centralizada mantém o texto no centro, como no Excel.",
+            "Formatar células… e Copiar como imagem no botão direito da célula.",
+            "Nome e empresa que vão nos arquivos agora também em Configurações ▸ Seus dados.",
+            "Opção para o Salvar como… sugerir .xlsx, para quem troca arquivo com o Excel.",
+            "Salvar em .xlsx até 3 vezes mais rápido em planilhas grandes.",
+            "Salvar planilha grande gasta bem menos memória.",
+            "Fórmulas SES com critério em branco ou zero muito mais rápidas em planilhas grandes.",
+            "Macros do Excel: SpecialCells, AutoFilter com duas condições, Filtro Avançado, InputBox com caixa para digitar, CopyPicture e número com vírgula ao juntar texto.",
+            "Tab passa pelos campos dos formulários das macros na ordem do Excel.",
+            "Uma macro com defeito não fecha mais o FeatherSheet.",
+            "Interface em inglês e espanhol sem sobras de português na faixa.",
+            "O F12 mostra a mesma memória do Monitor do sistema.",
+        ],
+    },
+    Versao {
         numero: "0.2.9",
         data: "04/11/2026",
         resumo: "Minigráficos na célula e arquivos mais fiéis",

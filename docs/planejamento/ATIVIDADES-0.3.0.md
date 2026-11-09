@@ -1048,20 +1048,20 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 ## Frente 14 — Lançamento da v0.3.0
 
 ### LAN-1. Versão e nome
-**Situação (08/11):** ❌ falta. Continua `version = "0.2.9"`.
+**Situação (08/11):** ✅ `version = "0.3.0"` (o snap anda no LAN-7).
 - **Onde:** `crates/feathersheet/Cargo.toml` (`version`); `snap/snapcraft.yaml` (depois, LAN-7); `pacote/`.
 - **Pronto:** `version = "0.3.0"`; `grep -rn 0.2.2` só em histórico.
 - **Depende:** D1, D2 (o nome da versão).  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### LAN-2. "O que há de novo" em pt-BR, en-US e es-ES
-**Situação (08/11):** ❌ falta. `VERSOES` começa na 0.2.9; as novidades da próxima estão só anotadas no CLAUDE.md (as linhas "Novidade: …" das seções "Depois da v0.2.9").
+**Situação (08/11):** ✅ entrada 0.3.0 no `VERSOES` (4 destaques + 18 linhas) em pt-BR, en-US e es-ES; os testes das novidades passam.
 - **Onde:** `crates/feathersheet/src/app/novidades.rs` (testes `toda_versao_tem_traducao` e
   `versao_desta_compilacao_e_a_primeira_e_todas_desenham`).
 - **Pronto:** a entrada 0.3.0 existe nos três idiomas; os dois testes passam (o usuário roda só esses).
 - **Depende:** as atividades que entram na 0.3.0.  **Issue:** nenhuma.  **Tamanho:** M.
 
 ### LAN-3. Notas da release e seção do CLAUDE.md
-**Situação (08/11):** ❌ falta.
+**Situação (08/11):** ✅ seção `## v0.3.0` no CLAUDE.md, README com "New in v0.3.0"; notas em inglês na release.
 - **Onde:** `CLAUDE.md` (pt); notas de release (en, sem rodapé "Generated with Claude Code"); modelo em
   `pacote/PUBLICAR.md`.
 - **Pronto:** notas em inglês prontas; CLAUDE.md com a seção; revisão com o usuário.
