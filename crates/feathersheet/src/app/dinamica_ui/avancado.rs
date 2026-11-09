@@ -288,6 +288,8 @@ pub(super) fn gravar_campos(meta: &mut Json, e: &Estado) {
             AgregacaoOp::Media => "media", AgregacaoOp::Min => "minimo",
             AgregacaoOp::Max => "maximo", AgregacaoOp::DesvioPadrao => "desviopadrao",
             AgregacaoOp::Moda => "moda",
+            AgregacaoOp::Distintos => "distintos", AgregacaoOp::Mediana => "mediana",
+            AgregacaoOp::Percentil(p) => return json!({"col": coluna_persistida(e,m.coluna), "como": format!("percentil{p}")}),
         };
         json!({"col": coluna_persistida(e,m.coluna), "como": como})
     }).collect::<Vec<_>>());

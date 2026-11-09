@@ -13,8 +13,28 @@ use crate::celulas::values::{to_number, Value};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Medida {
     Vazio,
-    Texto,
+    /// O hash do texto em minúsculas (para Distintos).
+    Texto(u64),
     Numero(f64),
+}
+
+fn hash_texto(t: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    for c in t.chars().flat_map(char::to_lowercase) { c.hash(&mut h); }
+    h.finish()
+}
+
+/// O percentil `p` (0 a 1) com interpolação, como o PERCENTIL.INC do Excel.
+pub(crate) fn percentil(v: &mut [f64], p: f64) -> f64 {
+    if v.is_empty() { return 0.0; }
+    v.sort_by(f64::total_cmp);
+    let pos = p * (v.len() - 1) as f64;
+    let (i, frac) = (pos.floor() as usize, pos - pos.floor());
+    match v.get(i + 1) {
+        Some(prox) if frac > 0.0 => v[i] + frac * (prox - v[i]),
+        _ => v[i],
+    }
 }
 
 impl Medida {
@@ -25,7 +45,7 @@ impl Medida {
             Value::Text(t) if t.trim().is_empty() => Medida::Vazio,
             outro => match to_number(outro) {
                 Ok(n) => Medida::Numero(n),
-                Err(_) => Medida::Texto,
+                Err(_) => Medida::Texto(match outro { Value::Text(t) => hash_texto(t), _ => 0 }),
             },
         }
     }
@@ -44,6 +64,10 @@ pub(super) struct Acumulador {
     frequencias: HashMap<u64, usize>,
     moda: f64,
     moda_frequencia: usize,
+    /// Distintos: bits do número, ou o hash do texto com o bit alto trocado.
+    distintos: std::collections::HashSet<u64>,
+    /// Mediana e percentil: todos os números do grupo.
+    numeros: Vec<f64>,
 }
 
 impl Acumulador {
@@ -52,13 +76,19 @@ impl Acumulador {
             op, quantidade: 0, soma: 0., menor: f64::INFINITY,
             maior: f64::NEG_INFINITY, media_desvio: 0.0, soma_quadrados: 0.0,
             frequencias: HashMap::new(), moda: 0., moda_frequencia: 0,
+            distintos: Default::default(), numeros: Vec::new(),
         }
     }
     /// Vazio fica de fora; texto só soma na Contagem.
     pub fn receber_medida(&mut self, m: Medida) {
         match m {
             Medida::Numero(n) => self.receber(n),
-            Medida::Texto if self.op == AgregacaoOp::Contagem => self.quantidade += 1,
+            Medida::Texto(_) if self.op == AgregacaoOp::Contagem => self.quantidade += 1,
+            // O texto entra num espaço de chaves à parte do dos números (`!h`... basta um xor).
+            Medida::Texto(h) if self.op == AgregacaoOp::Distintos => {
+                self.quantidade += 1;
+                self.distintos.insert(h ^ 0x8000_0000_0000_0001);
+            }
             _ => {}
         }
     }
@@ -82,6 +112,8 @@ impl Acumulador {
                     self.moda = n;
                 }
             }
+            AgregacaoOp::Distintos => { self.distintos.insert(if n == 0.0 { 0 } else { n.to_bits() }); }
+            AgregacaoOp::Mediana | AgregacaoOp::Percentil(_) => self.numeros.push(n),
             AgregacaoOp::Contagem => {}
         }
     }
@@ -94,6 +126,9 @@ impl Acumulador {
             AgregacaoOp::Min => self.menor,
             AgregacaoOp::Max => self.maior,
             AgregacaoOp::Moda => self.moda,
+            AgregacaoOp::Distintos => self.distintos.len() as f64,
+            AgregacaoOp::Mediana => percentil(&mut self.numeros.clone(), 0.5),
+            AgregacaoOp::Percentil(p) => percentil(&mut self.numeros.clone(), p as f64 / 100.0),
             AgregacaoOp::DesvioPadrao => {
                 if self.quantidade < 2 { return 0.; }
                 (self.soma_quadrados.max(0.) / (self.quantidade - 1) as f64).sqrt()
@@ -112,7 +147,7 @@ mod testes {
         for op in [
             AgregacaoOp::Soma, AgregacaoOp::Contagem, AgregacaoOp::Media,
             AgregacaoOp::Min, AgregacaoOp::Max, AgregacaoOp::DesvioPadrao,
-            AgregacaoOp::Moda,
+            AgregacaoOp::Moda, AgregacaoOp::Distintos, AgregacaoOp::Mediana, AgregacaoOp::Percentil(90),
         ] {
             let mut acc = Acumulador::novo(op);
             for &n in &numeros { acc.receber(n); }
@@ -156,5 +191,23 @@ mod testes {
         for _ in 0..1_000_000 { acc.receber(2.); }
         assert_eq!(acc.resultado(), 2_000_000.);
         assert!(acc.frequencias.is_empty());
+    }
+
+    #[test]
+    fn distintos_mediana_e_percentil_como_no_excel() {
+        let mut d = Acumulador::novo(AgregacaoOp::Distintos);
+        for v in [Value::Text("Sul".into()), Value::Text("SUL".into()), Value::Number(3.), Value::Number(3.),
+                  Value::Empty, Value::Text("Norte".into()), Value::Number(-0.0), Value::Number(0.)] {
+            d.receber_medida(Medida::de(&v));
+        }
+        assert_eq!(d.resultado(), 4.0, "sul, 3, norte, 0");
+        // PERCENTIL.INC({1;2;3;4};0,9) = 3,7; MED({1;2;3;4}) = 2,5; texto e vazio ficam de fora.
+        for (op, esperado) in [(AgregacaoOp::Mediana, 2.5), (AgregacaoOp::Percentil(90), 3.7), (AgregacaoOp::Percentil(25), 1.75)] {
+            let mut a = Acumulador::novo(op);
+            for v in [Value::Number(4.), Value::Text("x".into()), Value::Number(1.), Value::Empty, Value::Number(3.), Value::Number(2.)] {
+                a.receber_medida(Medida::de(&v));
+            }
+            assert!((a.resultado() - esperado).abs() < 1e-12, "{op:?}: {}", a.resultado());
+        }
     }
 }

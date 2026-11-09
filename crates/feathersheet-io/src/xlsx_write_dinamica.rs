@@ -663,9 +663,12 @@ fn tabela_xml(p: &Plano, n: usize, nome: &str, nomes: &[String], itens: &[Option
             let _ = write!(x, " name=\"{}\"", atributo(&nome));
         }
         let _ = write!(x, " fld=\"{}\"", m.campo);
-        // Moda não existe no Excel: vai como soma (sem `subtotal`).
+        // Moda, distintos, mediana e percentil não existem na dinâmica clássica do Excel
+        // (só no modelo de dados): vão como soma; os valores gravados nas células valem
+        // até alguém atualizar a dinâmica lá.
         let subtotal = match m.op {
-            AgregacaoOp::Soma | AgregacaoOp::Moda => None,
+            AgregacaoOp::Soma | AgregacaoOp::Moda | AgregacaoOp::Distintos | AgregacaoOp::Mediana
+                | AgregacaoOp::Percentil(_) => None,
             AgregacaoOp::Contagem => Some("count"),
             AgregacaoOp::Media => Some("average"),
             AgregacaoOp::Min => Some("min"),

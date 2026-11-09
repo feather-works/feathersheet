@@ -92,7 +92,7 @@
         "corpo": [
           "• Ctrl+T converte os dados em tabela: cabeçalho, listras, linha de total e filtro em cada coluna. A tabela cresce sozinha quando você digita logo abaixo.",
           "• Ctrl+Shift+L liga ou desliga o filtro. Classificar fica na Página Inicial e na aba Dados.",
-          "• Inserir → Tabela dinâmica resume os dados: arraste os campos para linhas, colunas e valores (soma, contagem, média…). Dinâmicas recomendadas sugere resumos prontos a partir da seleção.",
+          "• Inserir → Tabela dinâmica resume os dados: arraste os campos para linhas, colunas e valores (soma, contagem, média, contagem de distintos, mediana, quartis…). Dinâmicas recomendadas sugere resumos prontos a partir da seleção.",
           "• Segmentação de dados (Inserir → Filtros): botões para filtrar uma tabela ou dinâmica com um clique."
         ]
       },

@@ -4694,5 +4694,8 @@
  "O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do OpenQuery.": "Excel saved these queries in the file. The one you pick opens in the Advanced editor, converted into OpenQuery steps.",
  "Enter completa": "Enter completes",
  "pasta grande: isto não se desfaz com Ctrl+Z": "large workbook: this cannot be undone with Ctrl+Z",
- "Não deu para desfazer: {e}": "Could not undo: {e}"
+ "Não deu para desfazer: {e}": "Could not undo: {e}",
+ "Contagem de distintos": "Distinct count",
+ "Percentil 90": "90th percentile",
+ "Percentil": "Percentile"
 }

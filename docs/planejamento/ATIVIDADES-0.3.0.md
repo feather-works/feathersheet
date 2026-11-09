@@ -522,7 +522,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** criar (se faltar).  **Tamanho:** M.
 
 ### DIN-12. Agregações: contagem de distintos, mediana e percentil
-**Situação (08/11):** ❌ falta. `AgregacaoOp` continua igual (sem distintos, mediana nem percentil).
+**Situação (08/11):** ✅ feito em 08/11: `AgregacaoOp::Distintos`, `Mediana` e `Percentil(p)` (PERCENTIL.INC; o painel oferece 1º quartil, 3º quartil e percentil 90) no `Acumulador`; distintos conta número e texto sem ligar para maiúscula, vazio fora. Gravados como `distintos`/`mediana`/`percentilNN`. No `.xlsx` vão como soma (a dinâmica clássica do Excel não tem essas contas; os valores das células valem até atualizar lá). Testes `distintos_mediana_e_percentil_como_no_excel` (motor) e `distintos_e_mediana_na_dinamica_e_guardados_no_arquivo` (app).
 - **Onde:** `feathersheet-core/src/dinamica/pivot.rs:13` (`AgregacaoOp`) e `do_str`; `dinamica_ui.rs`
   (seletor de agregação).
 - **Pronto:** `Distintos`, `Mediana` e `Percentil` no motor, com teste contra valores conhecidos (texto

@@ -29,7 +29,12 @@ pub(super) fn agregacao(como: &str) -> Option<AgregacaoOp> {
         "max" | "máx" | "maximo" | "máximo" => AgregacaoOp::Max,
         "desviopadrao" | "desvio_padrao" | "desvio" | "stdev" => AgregacaoOp::DesvioPadrao,
         "moda" | "mode" => AgregacaoOp::Moda,
-        _ => return None,
+        "distintos" | "distinct" => AgregacaoOp::Distintos,
+        "mediana" | "median" => AgregacaoOp::Mediana,
+        outro => match outro.strip_prefix("percentil").and_then(|n| n.parse::<u8>().ok()) {
+            Some(p @ 1..=99) => AgregacaoOp::Percentil(p),
+            _ => return None,
+        },
     })
 }
 

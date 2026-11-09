@@ -13,9 +13,10 @@ use pelicano::column;
 use feathersheet_core::dinamica::dinamica_layout;
 use feathersheet_core::dinamica::exibicao::{CampoBase, CampoExtra, Faixas, ItemBase, ParteData};
 
-pub(super) const OPERACOES: [AgregacaoOp; 7] = [
+pub(super) const OPERACOES: [AgregacaoOp; 12] = [
     AgregacaoOp::Soma, AgregacaoOp::Contagem, AgregacaoOp::Media, AgregacaoOp::Min,
-    AgregacaoOp::Max, AgregacaoOp::DesvioPadrao, AgregacaoOp::Moda,
+    AgregacaoOp::Max, AgregacaoOp::DesvioPadrao, AgregacaoOp::Moda, AgregacaoOp::Distintos,
+    AgregacaoOp::Mediana, AgregacaoOp::Percentil(25), AgregacaoOp::Percentil(75), AgregacaoOp::Percentil(90),
 ];
 
 /// Até quantas linhas da origem a lista de itens base olha (a mesma conta

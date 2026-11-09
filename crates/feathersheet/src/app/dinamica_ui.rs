@@ -341,6 +341,12 @@ fn nome_operacao(op: AgregacaoOp) -> &'static str {
         AgregacaoOp::Max => tr!("Máximo"),
         AgregacaoOp::DesvioPadrao => tr!("Desvio padrão"),
         AgregacaoOp::Moda => tr!("Moda"),
+        AgregacaoOp::Distintos => tr!("Contagem de distintos"),
+        AgregacaoOp::Mediana => tr!("Mediana"),
+        AgregacaoOp::Percentil(25) => tr!("1º quartil"),
+        AgregacaoOp::Percentil(75) => tr!("3º quartil"),
+        AgregacaoOp::Percentil(90) => tr!("Percentil 90"),
+        AgregacaoOp::Percentil(_) => tr!("Percentil"),
     }
 }
 
@@ -352,7 +358,12 @@ fn proxima_operacao(op: AgregacaoOp) -> AgregacaoOp {
         AgregacaoOp::Min => AgregacaoOp::Max,
         AgregacaoOp::Max => AgregacaoOp::DesvioPadrao,
         AgregacaoOp::DesvioPadrao => AgregacaoOp::Moda,
-        AgregacaoOp::Moda => AgregacaoOp::Soma,
+        AgregacaoOp::Moda => AgregacaoOp::Distintos,
+        AgregacaoOp::Distintos => AgregacaoOp::Mediana,
+        AgregacaoOp::Mediana => AgregacaoOp::Percentil(25),
+        AgregacaoOp::Percentil(25) => AgregacaoOp::Percentil(75),
+        AgregacaoOp::Percentil(75) => AgregacaoOp::Percentil(90),
+        AgregacaoOp::Percentil(_) => AgregacaoOp::Soma,
     }
 }
 
@@ -1151,6 +1162,35 @@ mod testes {
         let a1 = app.workbook.aba(app.folha).unwrap().sheet.get_raw(0, 0);
         assert_ne!(a1, aviso, "a tabela foi reescrita");
         assert_eq!(app.edicao, a1);
+    }
+
+    #[test]
+    fn distintos_e_mediana_na_dinamica_e_guardados_no_arquivo() {
+        // DIN-12: as contas novas montam e voltam pelos metadados (`como`).
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0,0,"Região"); s.set_cell(0,1,"Vendas");
+            for (r, (reg, v)) in [("Sul","10"),("Sul","10"),("Sul","40"),("Norte","5")].iter().enumerate() {
+                s.set_cell(r as u32 + 1, 0, reg); s.set_cell(r as u32 + 1, 1, v);
+            }
+        });
+        app.linha=0; app.coluna=0; app.fim_selecao=(4,1);
+        app.evento_dinamica(Evento::Abrir);
+        campos_de_antes(&mut app);
+        app.dinamica.as_mut().unwrap().valores = vec![
+            MedidaDinamica { coluna: 1, op: AgregacaoOp::Distintos },
+            MedidaDinamica { coluna: 1, op: AgregacaoOp::Mediana },
+            MedidaDinamica { coluna: 1, op: AgregacaoOp::Percentil(75) },
+        ];
+        app.evento_dinamica(Evento::Criar);
+        let linha = |app: &App, nome: &str| (0..4).find(|&r| app.workbook.valor(1, r, 0) == Value::Text(nome.into()))
+            .map(|r| (1..4).map(|c| app.workbook.valor(1, r, c)).collect::<Vec<_>>());
+        // Sul: 10, 10, 40 → 2 distintos, mediana 10, 3º quartil 25.
+        assert_eq!(linha(&app, "Sul"), Some(vec![Value::Number(2.), Value::Number(10.), Value::Number(25.)]));
+        let meta = app.workbook.aba(1).unwrap().sheet.dn.clone().unwrap();
+        assert!(meta.contains("\"distintos\"") && meta.contains("\"percentil75\""), "{meta}");
+        assert_eq!(edicao::agregacao("percentil75"), Some(AgregacaoOp::Percentil(75)));
+        assert_eq!(edicao::agregacao("mediana"), Some(AgregacaoOp::Mediana));
     }
 
     #[test]

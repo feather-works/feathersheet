@@ -92,7 +92,7 @@
         "corpo": [
           "• Ctrl+T turns the data into a table: header, stripes, total row and a filter on each column. The table grows by itself when you type right below it.",
           "• Ctrl+Shift+L turns the filter on or off. Sort is on the Home and Data tabs.",
-          "• Insert → PivotTable summarizes the data: drag fields to rows, columns and values (sum, count, average…). Recommended PivotTables suggests ready-made summaries from the selection.",
+          "• Insert → PivotTable summarizes the data: drag fields to rows, columns and values (sum, count, average, distinct count, median, quartiles…). Recommended PivotTables suggests ready-made summaries from the selection.",
           "• Slicer (Insert → Filters): buttons that filter a table or pivot with one click."
         ]
       },

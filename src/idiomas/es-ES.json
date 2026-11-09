@@ -92,7 +92,7 @@
     "corpo": [
      "• Ctrl+T convierte los datos en una tabla: encabezado, franjas, fila de totales y un filtro en cada columna. La tabla crece sola cuando escribe justo debajo.",
      "• Ctrl+Mayús+L activa o desactiva el filtro. Ordenar está en las pestañas Inicio y Datos.",
-     "• Insertar → Tabla dinámica resume los datos: arrastre campos a filas, columnas y valores (suma, cuenta, promedio…). Tablas dinámicas recomendadas sugiere resúmenes listos a partir de la selección.",
+     "• Insertar → Tabla dinámica resume los datos: arrastre campos a filas, columnas y valores (suma, cuenta, promedio, recuento distinto, mediana, cuartiles…). Tablas dinámicas recomendadas sugiere resúmenes listos a partir de la selección.",
      "• Segmentación de datos (Insertar → Filtros): botones para filtrar una tabla o dinámica con un clic."
     ]
    },

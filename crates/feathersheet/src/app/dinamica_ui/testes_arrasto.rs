@@ -244,7 +244,7 @@ fn menu_da_setinha_agrupa_mover_para_num_submenu() {
     let menu = App::menu_do_item(e, AreaDinamica::Valores, 0);
     let ItemMenu::Sub { rotulo, itens, .. } = &menu[1] else { panic!("Resumir por") };
     assert_eq!(rotulo, "Resumir por");
-    assert_eq!(itens.len(), 7);
+    assert_eq!(itens.len(), super::config_campo::OPERACOES.len());
     // Escolher no submenu move o campo e fecha o menu.
     app.evento_dinamica(Evento::MenuItem(Some((AreaDinamica::Linhas, 0))));
     app.evento_dinamica(Evento::MenuSub(Some(0)));

@@ -18,6 +18,11 @@ pub enum AgregacaoOp {
     Max,
     DesvioPadrao,
     Moda,
+    /// Contagem de valores distintos (número e texto; texto sem ligar para maiúscula).
+    Distintos,
+    Mediana,
+    /// Percentil de 1 a 99, como o PERCENTIL.INC.
+    Percentil(u8),
 }
 
 impl AgregacaoOp {
@@ -29,7 +34,12 @@ impl AgregacaoOp {
             "max" | "máx" | "maximo" | "máximo" => AgregacaoOp::Max,
             "desviopadrao" | "desvio_padrao" | "desvio" | "stdev" => AgregacaoOp::DesvioPadrao,
             "moda" | "mode" => AgregacaoOp::Moda,
-            _ => AgregacaoOp::Soma,
+            "distintos" | "distinct" | "contagemdistinta" => AgregacaoOp::Distintos,
+            "mediana" | "median" => AgregacaoOp::Mediana,
+            outro => match outro.strip_prefix("percentil").or_else(|| outro.strip_prefix("percentile")).and_then(|n| n.parse::<u8>().ok()) {
+                Some(p @ 1..=99) => AgregacaoOp::Percentil(p),
+                _ => AgregacaoOp::Soma,
+            },
         }
     }
 }
@@ -180,6 +190,9 @@ pub(crate) fn aggregate(nums: &[f64], op: AgregacaoOp) -> f64 {
             }
             best_val
         }
+        AgregacaoOp::Distintos => nums.iter().map(|n| n.to_bits()).collect::<std::collections::HashSet<_>>().len() as f64,
+        AgregacaoOp::Mediana => super::acumulador::percentil(&mut nums.to_vec(), 0.5),
+        AgregacaoOp::Percentil(p) => super::acumulador::percentil(&mut nums.to_vec(), p as f64 / 100.0),
     }
 }
 

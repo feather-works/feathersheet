@@ -89,6 +89,9 @@ das colunas lidas (`Sheet::agregado`, sem matriz derramada na aba). DIN-1: rótu
 o formato de data da origem (`config_campo::formatos_de_data`). Novidades: "Fórmulas SES com critério em
 branco ou zero muito mais rápidas em planilhas grandes." e "Datas na tabela dinâmica aparecem como data, não
 como número."
+DIN-12: a dinâmica ganhou Contagem de distintos, Mediana e Percentil (`AgregacaoOp::Distintos/Mediana/
+Percentil(p)`, `acumulador::percentil`; no `.xlsx` vão como soma, como a Moda). Novidade: "Tabela dinâmica
+com contagem de distintos, mediana e quartis."
 
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
