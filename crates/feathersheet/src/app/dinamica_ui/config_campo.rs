@@ -451,36 +451,66 @@ fn rotulos_numericos_sem_milhar(
     sheet: &mut feathersheet_core::planilha::sheet::Sheet,
     area: &Rect,
     resultado: &dinamica_layout::Resultado,
+    datas: &[Option<feathersheet_core::celulas::estilo_parcial::EstiloParcial>],
 ) {
     use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
     use feathersheet_core::dinamica::dinamica_layout::TipoLinha;
-    let mut patch = EstiloParcial::new();
+    let mut numero = EstiloParcial::new();
     // `#` no fim some quando não há casa: 2024 → "2024", 1,5 → "1,5".
-    patch.insert("numFmt".into(), Campo::Texto("0.##########".into()));
+    numero.insert("numFmt".into(), Campo::Texto("0.##########".into()));
     let numerico = |v: &Value| matches!(v, Value::Text(t) if {
         let l = feathersheet_core::celulas::input::parse_literal(t);
         matches!(l.value, Value::Number(_)) && l.format.is_none()
     });
     let linhas = resultado.matriz.rows();
     let largura = linhas.iter().map(Vec::len).max().unwrap_or(0);
+    // O formato de cada rótulo: `None` (nada), `Some(None)` (número) ou
+    // `Some(Some(i))` (data do campo `i` de Linhas, DIN-1: o serial aparecia cru).
+    let formato = |r: usize, c: usize| -> Option<Option<usize>> {
+        let info = resultado.linhas.get(r);
+        let cabecalho = info.map_or(r == 0, |l| l.tipo == TipoLinha::Cabecalho);
+        if !(cabecalho || c < resultado.colunas_de_rotulo) || !linhas[r].get(c).is_some_and(numerico) {
+            return None;
+        }
+        if cabecalho {
+            return Some(None);
+        }
+        let campo = if resultado.colunas_de_rotulo == 1 { info.map_or(0, |l| l.nivel) } else { c };
+        Some(datas.get(campo).and_then(Option::as_ref).map(|_| campo))
+    };
     for c in 0..largura {
-        let mut inicio: Option<usize> = None;
+        let mut inicio: Option<(usize, Option<usize>)> = None;
         for r in 0..=linhas.len() {
-            let rotulo = r < linhas.len() && {
-                let cabecalho = resultado.linhas.get(r).map_or(r == 0, |l| l.tipo == TipoLinha::Cabecalho);
-                (cabecalho || c < resultado.colunas_de_rotulo) && linhas[r].get(c).is_some_and(numerico)
-            };
-            match (rotulo, inicio) {
-                (true, None) => inicio = Some(r),
-                (false, Some(i)) => {
-                    let col = area.c0 + c as u32;
-                    sheet.set_style(&Rect::new(area.r0 + i as u32, col, area.r0 + r as u32 - 1, col), &patch);
-                    inicio = None;
-                }
-                _ => {}
+            let agora = if r < linhas.len() { formato(r, c) } else { None };
+            if inicio.is_some_and(|(_, f)| Some(f) != agora) {
+                let (i, f) = inicio.take().expect("conferido");
+                let col = area.c0 + c as u32;
+                let patch = f.and_then(|k| datas[k].as_ref()).unwrap_or(&numero);
+                sheet.set_style(&Rect::new(area.r0 + i as u32, col, area.r0 + r as u32 - 1, col), patch);
+            }
+            if inicio.is_none() {
+                inicio = agora.map(|f| (r, f));
             }
         }
     }
+}
+
+/// O formato de data (como estilo parcial) de cada campo de Linhas cuja
+/// coluna de origem tem data: os rótulos desses campos saem como data.
+pub(super) fn formatos_de_data(sheet: Option<&feathersheet_core::planilha::sheet::Sheet>, e: &Estado)
+    -> Vec<Option<feathersheet_core::celulas::estilo_parcial::EstiloParcial>> {
+    use feathersheet_core::celulas::estilo_parcial::{nome_do_formato, Campo, EstiloParcial};
+    use feathersheet_core::celulas::style::NumberFormat;
+    e.linhas.iter().map(|&col| {
+        let estilo = sheet?.estilo_resolvido(e.origem.r0 + 1, col as u32)?;
+        if !matches!(estilo.format, NumberFormat::Date | NumberFormat::Datetime) {
+            return None;
+        }
+        let mut p = EstiloParcial::new();
+        p.insert("format".into(), Campo::Texto(nome_do_formato(estilo.format)?.into()));
+        p.insert("numFmt".into(), estilo.code.map_or(Campo::Nulo, Campo::Texto));
+        Some(p)
+    }).collect()
 }
 
 /// Põe nas colunas de valor do resultado (`area`, cabeçalho na 1ª linha) o
@@ -493,10 +523,11 @@ pub(super) fn formatar_valores(
     resultado: &dinamica_layout::Resultado,
     extras: &Extras,
     n_medidas: usize,
+    datas: &[Option<feathersheet_core::celulas::estilo_parcial::EstiloParcial>],
 ) {
     use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
     use feathersheet_core::celulas::style::NumberFormat;
-    rotulos_numericos_sem_milhar(sheet, area, resultado);
+    rotulos_numericos_sem_milhar(sheet, area, resultado, datas);
     if area.r1 <= area.r0 {
         return;
     }

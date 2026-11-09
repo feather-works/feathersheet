@@ -1059,6 +1059,7 @@ impl App {
         let metadados = serde_json::to_string(&existentes)
             .expect("metadados JSON em memória são serializáveis");
         let extras = avancado::extras_vigentes(&e);
+        let datas = config_campo::formatos_de_data(self.workbook.aba(e.folha_origem).map(|a| &a.sheet), &e);
         // Escrever em uma transação, preservando o histórico de edição.
         self.workbook.editar(indice, |sheet| {
             sheet.abrir_transacao();
@@ -1076,7 +1077,7 @@ impl App {
             sheet.compactar_lote_divisao();
             config_campo::formatar_valores(sheet,
                 &Rect::new(0, inicio_col, (altura - 1) as u32, inicio_col + colunas as u32 - 1),
-                &resultado, &extras, e.valores.len());
+                &resultado, &extras, e.valores.len(), &datas);
             // Metadados e células compõem uma única operação de Ctrl+Z.
             sheet.alterar_dinamicas(Some(metadados),
                 &Rect::new(0,inicio_col,(altura-1) as u32,inicio_col+colunas as u32-1));
@@ -1150,6 +1151,37 @@ mod testes {
         let a1 = app.workbook.aba(app.folha).unwrap().sheet.get_raw(0, 0);
         assert_ne!(a1, aviso, "a tabela foi reescrita");
         assert_eq!(app.edicao, a1);
+    }
+
+    #[test]
+    fn campo_de_data_em_linhas_sai_como_data_em_todas_as_linhas() {
+        // DIN-1: o rótulo de data aparecia como o número de série (46240).
+        use feathersheet_core::celulas::style::NumberFormat;
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0,0,"Data"); s.set_cell(0,1,"Vendas");
+            s.set_cell(1,0,"15/07/2026"); s.set_cell(1,1,"10");
+            s.set_cell(2,0,"30/07/2026"); s.set_cell(2,1,"20");
+            s.set_cell(3,0,"15/07/2026"); s.set_cell(3,1,"5");
+        });
+        app.linha=0; app.coluna=0; app.fim_selecao=(3,1);
+        app.evento_dinamica(Evento::Abrir);
+        campos_de_antes(&mut app);
+        app.evento_dinamica(Evento::Criar);
+        let conferir = |app: &App| {
+            let s = &app.workbook.aba(1).unwrap().sheet;
+            for r in 1..=2 {
+                let estilo = s.estilo_resolvido(r, 0);
+                assert!(estilo.as_ref().is_some_and(|e| e.format == NumberFormat::Date), "linha {r}: {estilo:?}");
+            }
+            let texto = feathersheet_core::planilha::bloco::texto_formatado(&app.workbook.valor(1, 2, 0), s.estilo_resolvido(2, 0).as_ref());
+            assert!(texto.contains("30") && texto.contains("2026"), "{texto}");
+        };
+        conferir(&app);
+        // Mexer num campo reescreve pelo outro caminho (edição): continua data.
+        app.evento_dinamica(Evento::Campo(1));
+        app.evento_dinamica(Evento::Campo(1));
+        conferir(&app);
     }
 
     #[test]

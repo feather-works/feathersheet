@@ -1462,10 +1462,20 @@ impl Sheet {
         // indexável: só o trecho da primeira faixa dentro da área usada.
         let usado = self.used_rect();
         if self.is_empty() || primeiro.r0 > usado.r1 || primeiro.c0 > usado.c1 {
-            return Some(std::sync::Arc::new(Agregado::default()));
+            return Some(std::sync::Arc::new(Agregado::so_vazias(linhas * colunas)));
         }
-        let linhas = (linhas as u32).min(usado.r1 - primeiro.r0 + 1);
+        let total = linhas * colunas;
+        let mut linhas = (linhas as u32).min(usado.r1 - primeiro.r0 + 1);
         let colunas = (colunas as u32).min(usado.c1 - primeiro.c0 + 1);
+        // A área usada pode vir de outra coluna (3 milhões de fórmulas em C lendo
+        // A:A e B:B com uma linha): para na última linha das colunas lidas. Matriz
+        // derramada não fica guardada na coluna, então com ela não se corta.
+        if colunas <= 16 && self.deps.array_cells.is_empty() {
+            let usadas = criterios.iter().chain(soma).map(|r| {
+                (r.c0..r.c0 + colunas).map(|c| self.ultima_linha_na_coluna(c)).max().unwrap_or(0).saturating_sub(r.r0)
+            }).max().unwrap_or(0);
+            linhas = linhas.min(usadas);
+        }
         // O empréstimo do mapa fica solto aqui: ler pode calcular fórmulas.
         let texto = |id: i32| self.pool.get(id);
         let leitor = std::cell::RefCell::new(crate::planilha::agregado::LeitorChaves::novo(&texto));
@@ -1474,7 +1484,7 @@ impl Sheet {
                 let (row, col) = (criterios[i].r0 + r, criterios[i].c0 + c);
                 match self.cru_rapido(row, col) {
                     Rapido::Cru(cru, literal) => leitor.borrow_mut().do_cru(cru, literal),
-                    Rapido::Vazia => Ok(None),
+                    Rapido::Vazia => Ok(Some(leitor.borrow_mut().vazia())),
                     Rapido::Lento => {
                         let v = self.get_value_em(row, col, host);
                         leitor.borrow_mut().da_celula(&v)
@@ -1498,7 +1508,7 @@ impl Sheet {
         if corrente::voltando() {
             return None;
         }
-        let agregado = std::sync::Arc::new(agregado);
+        let agregado = std::sync::Arc::new(agregado.com_total(total, linhas as u64 * colunas as u64));
         if self.geracao.get() == geracao {
             let mut agregados = self.agregados.borrow_mut();
             if agregados.grupos + agregado.len() > crate::planilha::agregado::LIMITE_GRUPOS {

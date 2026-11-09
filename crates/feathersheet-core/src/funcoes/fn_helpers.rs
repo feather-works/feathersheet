@@ -152,9 +152,9 @@ pub fn grupo_agregado(ev: &Evaluator<'_>, soma: Option<&crate::celulas::refs::Re
     if faixas.is_empty() || faixas.len() != criterios.len() {
         return None;
     }
-    let chaves = criterios.iter().map(ChaveCriterio::do_criterio).collect::<Option<Vec<_>>>()?;
+    let alternativas = criterios.iter().map(ChaveCriterio::alternativas).collect::<Option<Vec<_>>>()?;
     let agregado = ev.ctx.agregado(soma, faixas)?;
-    Some(agregado.grupo(&chaves))
+    agregado.grupo_de(&alternativas)
 }
 
 /// Transforma o critério em uma pergunta que se faz a cada valor.

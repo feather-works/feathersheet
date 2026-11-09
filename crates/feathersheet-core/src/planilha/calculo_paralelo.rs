@@ -396,7 +396,7 @@ impl EvalContext for Contexto<'_, '_> {
             );
             // Alguma célula ilegível daqui (avulsa, ainda suja): varre célula por célula.
             if self.falhou.replace(antes) { return None; }
-            agregado.map(Arc::new)
+            agregado.map(|a| Arc::new(a.com_total(linhas as u64 * colunas as u64, linhas_lidas as u64 * colunas as u64)))
         })())).clone()
     }
 

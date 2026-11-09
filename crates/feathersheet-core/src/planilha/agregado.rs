@@ -13,8 +13,10 @@
 //! zero, ou texto sem operador e sem curinga) — é o que
 //! [`crate::funcoes::fn_helpers::make_predicate`] trata como "igualdade", com
 //! a mesma regra de comparação (texto sem ligar para maiúscula, número por
-//! valor). `">10"`, `"a*"`, vazio, zero e lógico continuam no caminho célula
-//! por célula, que já estava certo.
+//! valor). Zero, `""` e a célula vazia como critério (ROB-8) também: casam
+//! com mais de um tipo de célula (zero com vazia; vazia com zero, `""` e
+//! FALSO), então viram a junção desses grupos ([`ChaveCriterio::alternativas`]).
+//! `">10"`, `"a*"` e lógico continuam no caminho célula por célula.
 //!
 //! Frente de velocidade V2 do plano (`docs/planejamento/PLANO-MEMORIA-400MB.md`).
 
@@ -38,6 +40,12 @@ pub enum ChaveCriterio {
     /// Texto em minúsculas (a igualdade de critério ignora maiúsculas).
     /// `Arc` para a chave de uma célula custar um incremento, não uma cópia.
     Texto(Arc<str>),
+    /// Célula vazia (só casa com critério zero, `""` ou vazio).
+    Vazia,
+    /// Texto vazio (`=""`).
+    TextoVazio,
+    /// O lógico FALSO (só o critério vazio casa com ele).
+    Falso,
 }
 
 fn bits(n: f64) -> u64 {
@@ -71,6 +79,7 @@ pub(crate) struct LeitorChaves<'a> {
     /// A chave de cada código.
     pub chaves: Vec<ChaveCriterio>,
     pub texto_do_pool: &'a dyn Fn(i32) -> &'a str,
+    codigo_vazia: Option<u32>,
 }
 
 const NAO_VISTO: u32 = u32::MAX;
@@ -81,6 +90,7 @@ impl<'a> LeitorChaves<'a> {
         LeitorChaves {
             por_id: Vec::new(), por_id_literal: Vec::new(), por_numero: Default::default(),
             por_texto: HashMap::new(), codigos: HashMap::new(), chaves: Vec::new(), texto_do_pool,
+            codigo_vazia: None,
         }
     }
 
@@ -92,6 +102,14 @@ impl<'a> LeitorChaves<'a> {
         let c = self.chaves.len() as u32;
         self.chaves.push(chave.clone());
         self.codigos.insert(chave, c);
+        c
+    }
+
+    /// O código da célula vazia.
+    pub(crate) fn vazia(&mut self) -> u32 {
+        if let Some(c) = self.codigo_vazia { return c; }
+        let c = self.codigo(ChaveCriterio::Vazia);
+        self.codigo_vazia = Some(c);
         c
     }
 
@@ -126,7 +144,11 @@ impl<'a> LeitorChaves<'a> {
         }
         let bruto = (self.texto_do_pool)(id);
         let texto = crate::planilha::data_table::sem_marca(bruto);
-        let codigo = if texto.is_empty() || (literal && (bruto == "VERDADEIRO" || bruto == "FALSO")) {
+        let codigo = if texto.is_empty() {
+            self.codigo(ChaveCriterio::TextoVazio)
+        } else if literal && bruto == "FALSO" {
+            self.codigo(ChaveCriterio::Falso)
+        } else if literal && bruto == "VERDADEIRO" {
             NAO_CASA
         } else {
             self.codigo(ChaveCriterio::Texto(minusculas(texto)))
@@ -153,6 +175,9 @@ impl<'a> LeitorChaves<'a> {
                 self.por_texto.insert(t.as_str().into(), c);
                 Ok(Some(c))
             }
+            Value::Text(_) => Ok(Some(self.codigo(ChaveCriterio::TextoVazio))),
+            Value::Empty => Ok(Some(self.vazia())),
+            Value::Bool(false) => Ok(Some(self.codigo(ChaveCriterio::Falso))),
             _ => Ok(None),
         }
     }
@@ -176,6 +201,20 @@ impl ChaveCriterio {
                 Some(ChaveCriterio::Texto(minusculas(t)))
             }
             _ => None,
+        }
+    }
+
+    /// As chaves que casam com o critério, pela regra do
+    /// [`crate::funcoes::fn_helpers::make_predicate`]: uma só para a igualdade
+    /// simples; zero casa também com a vazia; `""` com a vazia; a célula vazia
+    /// como critério casa com vazia, zero, `""` e FALSO (o `compare`).
+    pub fn alternativas(v: &Value) -> Option<Vec<Self>> {
+        use ChaveCriterio::*;
+        match v {
+            Value::Number(n) if *n == 0.0 => Some(vec![Numero(bits(0.0)), Vazia]),
+            Value::Text(t) if t.is_empty() => Some(vec![TextoVazio, Vazia]),
+            Value::Empty => Some(vec![Vazia, Numero(bits(0.0)), TextoVazio, Falso]),
+            _ => Self::do_criterio(v).map(|k| vec![k]),
         }
     }
 
@@ -216,6 +255,20 @@ pub struct Grupo {
 }
 
 impl Grupo {
+    fn juntar(&mut self, outro: &Grupo) {
+        if outro.numeros > 0 {
+            if self.numeros == 0 {
+                (self.maximo, self.minimo) = (outro.maximo, outro.minimo);
+            } else {
+                self.maximo = self.maximo.max(outro.maximo);
+                self.minimo = self.minimo.min(outro.minimo);
+            }
+        }
+        self.linhas += outro.linhas;
+        self.numeros += outro.numeros;
+        self.soma += outro.soma;
+    }
+
     fn acrescentar(&mut self, numero: Option<f64>) {
         self.linhas += 1;
         if let Some(n) = numero {
@@ -237,12 +290,46 @@ impl Grupo {
 #[derive(Debug, Default)]
 pub struct Agregado {
     grupos: HashMap<Vec<ChaveCriterio>, Grupo>,
+    /// Posições da faixa que ficaram além da área usada (não lidas: são vazias).
+    fora: u64,
 }
 
 impl Agregado {
     /// O grupo da tupla de critérios; vazio (zeros) quando nenhuma linha casou.
     pub fn grupo(&self, chaves: &[ChaveCriterio]) -> Grupo {
         self.grupos.get(chaves).copied().unwrap_or_default()
+    }
+
+    /// A junção dos grupos de cada combinação das alternativas
+    /// ([`ChaveCriterio::alternativas`]); as posições além da área usada entram
+    /// na contagem quando todo critério aceita a vazia. `None`: combinações demais.
+    pub fn grupo_de(&self, alternativas: &[Vec<ChaveCriterio>]) -> Option<Grupo> {
+        let combinacoes = alternativas.iter().try_fold(1usize, |n, a| n.checked_mul(a.len()).filter(|&n| n <= 256))?;
+        let mut total = Grupo::default();
+        let mut tupla = Vec::with_capacity(alternativas.len());
+        for mut i in 0..combinacoes {
+            tupla.clear();
+            for a in alternativas {
+                tupla.push(a[i % a.len()].clone());
+                i /= a.len();
+            }
+            total.juntar(&self.grupo(&tupla));
+        }
+        if alternativas.iter().all(|a| a.contains(&ChaveCriterio::Vazia)) {
+            total.linhas = total.linhas.saturating_add(u32::try_from(self.fora).unwrap_or(u32::MAX));
+        }
+        Some(total)
+    }
+
+    /// Anota as posições da faixa (`total`) que não foram lidas.
+    pub(crate) fn com_total(mut self, total: u64, lidas: u64) -> Self {
+        self.fora = total.saturating_sub(lidas);
+        self
+    }
+
+    /// Uma faixa toda além da área usada: só vazias.
+    pub(crate) fn so_vazias(total: u64) -> Self {
+        Agregado { grupos: HashMap::new(), fora: total }
     }
 
     pub fn len(&self) -> usize {
@@ -272,6 +359,7 @@ impl Agregado {
         let mut curtos: HashMap<u128, Grupo, std::hash::BuildHasherDefault<crate::celulas::mapa_chave::HasherChave>> = Default::default();
         let mut longos: HashMap<Vec<u32>, Grupo> = HashMap::new();
         let curto = n_criterios <= 4;
+        let mut corrida: Option<(u128, Grupo)> = None;
         let mut tupla: Vec<u32> = Vec::with_capacity(n_criterios);
         for r in 0..linhas {
             'posicao: for c in 0..colunas {
@@ -286,10 +374,19 @@ impl Agregado {
                 let valor = if tem_soma { numero(r, c) } else { None };
                 let grupo = if curto {
                     let k = tupla.iter().fold(0u128, |k, &c| (k << 32) | c as u128);
-                    if curtos.len() >= MAX_GRUPOS && !curtos.contains_key(&k) {
-                        return None;
+                    // Linhas seguidas com a mesma chave (as vazias, sobretudo) somam
+                    // num grupo local e vão ao mapa uma vez.
+                    match &mut corrida {
+                        Some((ck, g)) if *ck == k => { g.acrescentar(valor); continue 'posicao; }
+                        _ => {}
                     }
-                    curtos.entry(k).or_default()
+                    if let Some((ck, g)) = corrida.replace((k, Grupo::default())) {
+                        if curtos.len() >= MAX_GRUPOS && !curtos.contains_key(&ck) {
+                            return None;
+                        }
+                        curtos.entry(ck).or_default().juntar(&g);
+                    }
+                    &mut corrida.as_mut().expect("acabou de entrar").1
                 } else {
                     if longos.len() >= MAX_GRUPOS && !longos.contains_key(&tupla) {
                         return None;
@@ -298,6 +395,12 @@ impl Agregado {
                 };
                 grupo.acrescentar(valor);
             }
+        }
+        if let Some((ck, g)) = corrida {
+            if curtos.len() >= MAX_GRUPOS && !curtos.contains_key(&ck) {
+                return None;
+            }
+            curtos.entry(ck).or_default().juntar(&g);
         }
         let chaves = chaves();
         let traduzir = |codigos: &mut dyn Iterator<Item = u32>| -> Vec<ChaveCriterio> {
@@ -311,7 +414,7 @@ impl Agregado {
         for (k, g) in longos {
             grupos.insert(traduzir(&mut k.into_iter()), g);
         }
-        Some(Agregado { grupos })
+        Some(Agregado { grupos, fora: 0 })
     }
 }
 
@@ -382,8 +485,8 @@ mod testes {
         assert_eq!(norte1, Grupo { linhas: 2, numeros: 1, soma: 5.0, maximo: 5.0, minimo: 5.0 });
         let nada = ag.grupo(&[ChaveCriterio::Texto(Arc::from("leste")), ChaveCriterio::Numero(1.0f64.to_bits())]);
         assert_eq!(nada, Grupo::default());
-        // A linha com região vazia não entra em grupo nenhum.
-        assert_eq!(ag.len(), 3);
+        // A linha com região vazia fica no grupo da vazia (critério zero ou "" a acha).
+        assert_eq!(ag.len(), 4);
     }
 
     #[test]
@@ -406,11 +509,11 @@ mod testes {
         assert_eq!(chave(Cru::Texto(0), true), Ok(Some(0)), "mesmo código");
         assert_eq!(chave(Cru::Texto(1), true), Ok(None));
         assert_eq!(chave(Cru::Texto(1), false), Ok(Some(1)));
-        assert_eq!(chave(Cru::Texto(2), false), Ok(None));
-        assert_eq!(chave(Cru::Numero(-0.0), true), Ok(Some(2)));
+        assert_eq!(chave(Cru::Texto(2), false), Ok(Some(2)), "texto vazio");
+        assert_eq!(chave(Cru::Numero(-0.0), true), Ok(Some(3)));
         assert_eq!(chave(Cru::Numero(f64::NAN), true), Err(()));
         assert_eq!(leitor.chaves, vec![ChaveCriterio::Texto(Arc::from("sul")),
-            ChaveCriterio::Texto(Arc::from("verdadeiro")), ChaveCriterio::Numero(0)]);
+            ChaveCriterio::Texto(Arc::from("verdadeiro")), ChaveCriterio::TextoVazio, ChaveCriterio::Numero(0)]);
         // "SUL" escrito de outro jeito numa célula calculada: o mesmo código.
         assert_eq!(leitor.da_celula(&Value::Text("SUL".into())), Ok(Some(0)));
     }

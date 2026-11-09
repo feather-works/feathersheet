@@ -1163,3 +1163,74 @@ fn codinome_do_vba_acompanha_a_aba_quando_outra_entra_antes() {
     assert_eq!(w.codinome_da_aba(0), None);
     assert_eq!(w.codinome_da_aba(1), Some("Planilha1"));
 }
+
+#[test]
+fn excluir_a_primeira_linha_encolhe_o_intervalo_das_formulas_da_aba() {
+    // ROB-2: avulsa e empacotada (uma coluna de fórmulas iguais), na mesma aba.
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    for l in 1..2000 { w.escrever_celula(0, l, 8, "1".into()); }
+    w.escrever_celula(0, 0, 10, "=SOMA($I$2:$I$2000)".into());
+    for l in 1..50 { w.escrever_celula(0, l, 11, "=SOMA($I$2:$I$2000)+0".into()); }
+    w.excluir_linhas(0, 1, 1);
+    let s = &w.aba(0).unwrap().sheet;
+    assert_eq!(s.get_raw(0, 10), "=SOMA($I$2:$I$1999)");
+    assert_eq!(s.get_raw(1, 11), "=SOMA($I$2:$I$1999)+0");
+    assert_eq!(s.get_raw(47, 11), "=SOMA($I$2:$I$1999)+0");
+    assert_eq!(w.valor(0, 0, 10), Value::Number(1998.0));
+}
+
+#[test]
+#[ignore]
+fn medir_minimoses_em_milhoes_com_criterio_vazio() {
+    let mut w = Workbook::new();
+    w.escrever_celula(0, 0, 0, "a".into());
+    w.escrever_celula(0, 0, 1, "5".into());
+    w.escrever_celula(0, 0, 2, "=MÍNIMOSES(B:B;A:A;A1)".into());
+    let t = std::time::Instant::now();
+    w.editar(0, |aba| {
+        aba.abrir_transacao();
+        aba.preencher_formula_faixa_vazia(2, 1, 2_999_999, "=MÍNIMOSES(B:B;A:A;A2)");
+        aba.fechar_transacao();
+    });
+    eprintln!("preencher {:?}", t.elapsed());
+    let t = std::time::Instant::now();
+    let v = w.valor(0, 0, 2);
+    eprintln!("valor C1 {:?} {v:?}", t.elapsed());
+    let t = std::time::Instant::now();
+    let v = w.valor(0, 5, 2);
+    eprintln!("valor C6 {:?} {v:?}", t.elapsed());
+}
+
+#[test]
+fn ses_com_criterio_vazio_zero_e_texto_vazio_da_o_mesmo_com_e_sem_agregado() {
+    // ROB-8: o agregado (critério indexável) contra a varredura célula a célula
+    // (uma volátil na pasta desliga o agregado).
+    let montar = |volatil: bool| {
+        let mut w = Workbook::new();
+        let tipos = ["", "0", "=\"\"", "FALSO", "Sul", "=0", "VERDADEIRO", "5"];
+        for l in 0..4000u32 {
+            let t = tipos[(l as usize * 7 + l as usize / 3) % tipos.len()];
+            if !t.is_empty() { w.escrever_celula(0, l, 0, t.into()); }
+            if l % 5 != 0 { w.escrever_celula(0, l, 1, format!("{}", (l % 97) as i32 - 40)); }
+        }
+        w.escrever_celula(0, 0, 9, "0".into());
+        w.escrever_celula(0, 1, 9, "=\"\"".into());
+        // Outra coluna estica a área usada além das faixas lidas.
+        w.escrever_celula(0, 7999, 25, "1".into());
+        if volatil { w.escrever_celula(0, 0, 20, "=ALEATÓRIO()".into()); }
+        let formulas = [
+            "=CONT.SES(A1:A6000;J1)", "=CONT.SES(A1:A6000;J2)", "=CONT.SES(A1:A6000;J3)",
+            "=CONT.SES(A1:A6000;0)", "=CONT.SES(A1:A6000;\"\")",
+            "=SOMASES(B1:B6000;A1:A6000;J3)", "=SOMASES(B1:B6000;A1:A6000;0)",
+            "=MÍNIMOSES(B1:B6000;A1:A6000;J3)", "=MÁXIMOSES(B1:B6000;A1:A6000;\"\")",
+            "=MÉDIASES(B1:B6000;A1:A6000;J3)", "=CONT.SES(A1:A6000;J3;B1:B6000;J3)",
+            "=CONT.SE(A1:A6000;J3)", "=SOMASE(A1:A6000;0;B1:B6000)",
+        ];
+        for (i, f) in formulas.iter().enumerate() { w.escrever_celula(0, i as u32, 12, (*f).into()); }
+        (0..formulas.len() as u32).map(|i| w.valor(0, i, 12)).collect::<Vec<_>>()
+    };
+    let (rapido, gabarito) = (montar(false), montar(true));
+    assert_eq!(rapido, gabarito);
+    assert!(matches!(gabarito[0], crate::celulas::values::Value::Number(n) if n > 2000.0), "{gabarito:?}");
+}

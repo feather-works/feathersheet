@@ -82,6 +82,13 @@ também no `em_fundo`); SEG-3 teto de 512 MB na fonte Web do OpenQuery (`importa
 Dinâmicas recomendadas de verdade (`feathersheet_core::dinamica::campos::sugestoes`, `Estado::sugestoes`,
 `Evento::Sugestao`). Novidade: "Dinâmicas recomendadas: sugestões prontas (soma por região, contagem…) com um
 clique." e "Uma macro com defeito não fecha mais o FeatherSheet."
+ROB-8: SOMASES/CONT.SES/MÍNIMOSES… com critério zero, `""` ou célula vazia usam o agregado
+(`ChaveCriterio::alternativas` + `Agregado::grupo_de`: vazia, texto vazio e FALSO viram chaves; o trecho além
+das linhas lidas, `Agregado::fora`, conta quando todo critério aceita vazia) e o agregado para na última linha
+das colunas lidas (`Sheet::agregado`, sem matriz derramada na aba). DIN-1: rótulo de data na dinâmica sai com
+o formato de data da origem (`config_campo::formatos_de_data`). Novidades: "Fórmulas SES com critério em
+branco ou zero muito mais rápidas em planilhas grandes." e "Datas na tabela dinâmica aparecem como data, não
+como número."
 
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 

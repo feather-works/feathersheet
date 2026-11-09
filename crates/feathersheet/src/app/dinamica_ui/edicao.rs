@@ -339,6 +339,7 @@ impl App {
         let gravar = serde_json::to_string(&lista)
             .map_err(|_| tr!("Falha ao serializar as opções da dinâmica."))?;
         let extras = avancado::extras_vigentes(e);
+        let datas = super::config_campo::formatos_de_data(self.workbook.aba(e.folha_origem).map(|a| &a.sheet), e);
         self.workbook.editar(destino, |sheet| {
             sheet.abrir_transacao();
             let mut escritas = 0usize;
@@ -385,7 +386,7 @@ impl App {
                 }
             }
             sheet.compactar_lote_divisao();
-            super::config_campo::formatar_valores(sheet, &nova, &resultado, &extras, e.valores.len());
+            super::config_campo::formatar_valores(sheet, &nova, &resultado, &extras, e.valores.len(), &datas);
             sheet.alterar_dinamicas(Some(gravar), &nova);
             sheet.fechar_transacao();
         });

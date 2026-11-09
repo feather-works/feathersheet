@@ -275,7 +275,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** criar (bug).  **Tamanho:** M.
 
 ### ROB-2. Excluir a primeira linha de intervalo encolhe o intervalo
-**Situação (08/11):** ❌ falta. Não achei teste com `$I$2:$I$2000`. A conferir: o comentário de `workbook.rs:1026` diz que um nome com parte da área excluída "encolhe", mas isso não cobre a fórmula.
+**Situação (08/11):** ✅ conferido em 08/11: não reproduz. O motor já encolhe o intervalo (avulsa, coluna empacotada e de outra aba); fica travado por `excluir_a_primeira_linha_encolhe_o_intervalo_das_formulas_da_aba` (`workbook/tests.rs`), além do teste de texto do `formula_text.rs`.
 - **Onde:** `crates/feathersheet-core/src/planilha/mover.rs` (regra de reescrita) e a reescrita de
   referências (a conferir: `formula_text.rs`).
 - **Pronto:** teste com `=SOMA($I$2:$I$2000)` ao excluir a linha 2 vira `$I$2:$I$1999` (como no Excel),
@@ -322,7 +322,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** nada.  **Issue:** nenhuma.  **Tamanho:** P (medir) / M (se não resolveu).
 
 ### ROB-8. SES com critério vazio ou zero sem índice
-**Situação (08/11):** ❌ falta. Nada mudou no `agregado.rs` sobre critério vazio. Não rodei o teste (sem `cargo`).
+**Situação (08/11):** ✅ feito em 08/11: o agregado ganhou chaves para vazia, texto vazio e FALSO (`ChaveCriterio::alternativas`, `Agregado::grupo_de`); critério zero, `""` e célula vazia juntam os grupos pela mesma regra do `make_predicate`, e o que fica além das linhas lidas conta no CONT.SES. O agregado para na última linha das colunas lidas (não da aba). Release: 173 ms → 12 µs por fórmula de critério vazio. Gabarito: `ses_com_criterio_vazio_zero_e_texto_vazio_da_o_mesmo_com_e_sem_agregado`. O teste do Ctrl+D passa (1,9 s em debug, com o cálculo em fundo das 3 milhões; teto subiu para 5 s porque o teste espera o cálculo).
 - **Onde:** `crates/feathersheet-core/src/planilha/agregado.rs` (índice por grupo, `sheet_deps.rs`);
   o teste que trava: `crates/feathersheet/src/app/preenchimento_ui.rs:216`.
 - **Pronto:** o teste `ctrl_d_de_formula_em_milhoes_de_linhas_vai_em_bloco` passa dentro do tempo do teste
@@ -439,7 +439,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 ## Frente 4 — Tabela dinâmica
 
 ### DIN-1. Bug: a coluna DATA sai como número no começo e como texto no fim
-**Situação (08/11):** ❌ falta. Nenhum commit na dinâmica desde 29/10, e ainda sem issue.
+**Situação (08/11):** ✅ feito em 08/11: o rótulo numérico de um campo de Linhas cuja coluna de origem tem formato de data recebe esse formato (`config_campo::formatos_de_data`), nos dois caminhos (criar e editar). Teste `campo_de_data_em_linhas_sai_como_data_em_todas_as_linhas`. Limite: data guardada como texto na origem (`7/30/2026` de CSV americano) continua texto e vai para o fim; isso é da importação.
 - **Onde:** `feathersheet-core/src/dinamica/pivot.rs` (`excel_serial_to_ymd`), `dinamica_layout.rs`;
   `crates/feathersheet/src/app/dinamica_ui.rs`.
 - **Pronto:** teste com 3 datas de origem: a dinâmica mostra data em todas as linhas (formato único);
