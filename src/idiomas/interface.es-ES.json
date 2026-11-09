@@ -4702,5 +4702,9 @@
  "Futura": "Futura",
  "SOMA": "SUMA",
  "MÉDIA": "PROMEDIO",
- "COUNT": "CONTAR"
+ "COUNT": "CONTAR",
+ "Memória própria": "Memoria propia",
+ "O mesmo número do Monitor do sistema": "El mismo número del Monitor del sistema",
+ "Bibliotecas e fontes compartilhadas": "Bibliotecas y fuentes compartidas",
+ "{} (a diferença entre a Memória em uso e o Monitor do sistema)": "{} (la diferencia entre la Memoria en uso y el Monitor del sistema)"
 }

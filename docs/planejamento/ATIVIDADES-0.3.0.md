@@ -28,7 +28,7 @@
 
 ## Corte de escopo (08/11/2026, pedido do usuário: "falta 64 ainda")
 
-51 itens marcados **⏭️ 0.4.0**: memória (MEM-1–11), dinâmica avançada (DIN-6–11, 14, 16–19), interface grande
+48 itens marcados **⏭️ 0.4.0**: memória (MEM-1–5, 7, 8, 11; MEM-6, 9 e 10 voltaram a pedido do usuário), dinâmica avançada (DIN-6–11, 14, 16–19), interface grande
 (INT-1, 2, 4–6, 8, 9, 11, 14), Windows que pede o notebook (WIN-2–4), paridade (GRI-1–3), gráficos (GRA-5, 9),
 MCP-6/7, DOC-3, ROB-6/7/10, Feather Sans (PUB-4–8) e MAC-2. Ficam na 0.3.0: 29 ✅, 15 🟡 (quase todos só
 conferir) e 20 ❌, dos quais 9 são o lançamento (LAN-1–9). Os ⏭️ não entram na contagem da 0.3.0.
@@ -400,7 +400,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** MEM-1.  **Issue:** criar.  **Tamanho:** M.
 
 ### MEM-6. Medir o número atual no app (linha de partida da meta)
-**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta (o usuário mede). Os números mudaram depois da v0.2.2: na v0.2.6 o pico de abrir a planilha-4M-EA caiu de 2,2 para 1,07 GB; depois da v0.2.5, o `.xlsx` do #136 caiu de 1,66 GB para 320 MB.
+**Situação (08/11):** ❌ falta (o usuário mede). Os números mudaram depois da v0.2.2: na v0.2.6 o pico de abrir a planilha-4M-EA caiu de 2,2 para 1,07 GB; depois da v0.2.5, o `.xlsx` do #136 caiu de 1,66 GB para 320 MB.
 - **Onde:** F12 (`app/monitor.rs`) no app; arquivo `Planilha Pesada` e `2026_03.fshz` do usuário.
 - **Pronto:** tabela com RAM do app vazio, do `2026_03.fshz` aberto e calculado, e da Planilha Pesada.
   Meta do plano: 400–500 MB (hoje a memória cita ~1.600 MB antes da v0.2.2; medir de novo).
@@ -422,14 +422,14 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D9.  **Issue:** nenhuma.  **Tamanho:** G.
 
 ### MEM-9. Gravar em fluxo (pico de +360 MB ao salvar)
-**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
+**Situação (08/11):** ❌ falta.
 - **Onde:** `feathersheet-io/src/fshz_write.rs`.
 - **Pronto:** pico ao salvar medido no `2026_03.fshz` sem o acréscimo; arquivo igual ao atual
   (`examples/conferir_fshz_iguais.rs`).
 - **Depende:** ROB-7, D9.  **Issue:** nenhuma.  **Tamanho:** G.
 
 ### MEM-10. F12 e Monitor do GNOME: mesmo critério de memória
-**Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta (a conferir; o `monitor.rs` só mudou com a v0.2.8).
+**Situação (08/11):** ✅ feito em 08/11: a diferença é de critério. O Monitor do GNOME mostra residente menos compartilhada (`RssAnon`); a "Memória em uso" do F12 (feather-ui) é o `VmRSS`, que soma bibliotecas, fontes e o driver de vídeo. O F12 do app ganhou o cartão "Memória própria" (o número do Monitor do sistema) e a linha "Bibliotecas e fontes compartilhadas" com a diferença (`monitor::campo_status_kb`). Trocar o cartão principal na feather-ui fica para quando o `monitor.rs` de lá estiver livre (há trabalho de outro chat nele).
 - **Onde:** `crates/feathersheet/src/app/monitor.rs`; leitura de `VmRSS`/`VmHWM` (a conferir o que o F12 mostra).
 - **Pronto:** o F12 mostra o mesmo número que o Monitor do sistema (diferença explicada ou corrigida;
   hoje ~300 MB).

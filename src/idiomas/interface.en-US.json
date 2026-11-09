@@ -4706,5 +4706,9 @@
  "Futura": "Upcoming",
  "SOMA": "SUM",
  "MÉDIA": "AVERAGE",
- "COUNT": "COUNT"
+ "COUNT": "COUNT",
+ "Memória própria": "Own memory",
+ "O mesmo número do Monitor do sistema": "Same number as the system monitor",
+ "Bibliotecas e fontes compartilhadas": "Shared libraries and fonts",
+ "{} (a diferença entre a Memória em uso e o Monitor do sistema)": "{} (the difference between Memory in use and the system monitor)"
 }

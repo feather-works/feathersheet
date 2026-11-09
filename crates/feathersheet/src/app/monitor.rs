@@ -47,11 +47,20 @@ impl App {
             (tr!("Operação").into(), if self.carregando { tr!("Importando planilha") } else { tr!("Pronto") }.into()),
         ];
         linhas.extend(self.linhas_nao_convertidas());
+        let mut cartoes = vec![
+            (tr!("Abas").into(), self.workbook.len().to_string(), tr!("No documento atual").into()),
+            (tr!("Células ocupadas").into(), celulas.to_string(), tr!("Dados e fórmulas").into()),
+        ];
+        // MEM-10: o Monitor do sistema (GNOME) mostra a residente menos a compartilhada (`RssAnon`);
+        // a "Memória em uso" da aba Memória é o `VmRSS`, que soma bibliotecas, fontes e o driver de vídeo.
+        if let (Some(propria), Some(rss)) = (campo_status_kb("RssAnon:"), campo_status_kb("VmRSS:")) {
+            let mb = |kb: u64| format!("{:.0} MB", kb as f64 / 1024.0);
+            cartoes.push((tr!("Memória própria").into(), mb(propria), tr!("O mesmo número do Monitor do sistema").into()));
+            linhas.push((tr!("Bibliotecas e fontes compartilhadas").into(),
+                trf!("{} (a diferença entre a Memória em uso e o Monitor do sistema)", mb(rss.saturating_sub(propria)))));
+        }
         let metricas = Metricas {
-            cartoes: vec![
-                (tr!("Abas").into(), self.workbook.len().to_string(), tr!("No documento atual").into()),
-                (tr!("Células ocupadas").into(), celulas.to_string(), tr!("Dados e fórmulas").into()),
-            ],
+            cartoes,
             linhas,
             ocupado: self.carregando.then(|| tr!("Importação em andamento").into()),
         };
@@ -88,6 +97,13 @@ impl App {
     }
 }
 
+/// Um campo em KiB do `/proc/self/status` (Linux; nos outros sistemas, `None`).
+fn campo_status_kb(nome: &str) -> Option<u64> {
+    std::fs::read_to_string("/proc/self/status").ok()?
+        .lines().find_map(|l| l.strip_prefix(nome))?
+        .split_whitespace().next()?.parse().ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,6 +116,14 @@ mod tests {
             let _ = app.update(Msg::MonitorEvento(EventoMonitor::Aba(aba)));
             let _view = app.view_monitor();
         }
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn memoria_propria_e_a_do_monitor_do_sistema() {
+        // MEM-10: a própria (RssAnon, o número do GNOME) é parte da residente (VmRSS).
+        let (propria, rss) = (campo_status_kb("RssAnon:").unwrap(), campo_status_kb("VmRSS:").unwrap());
+        assert!(propria > 0 && propria <= rss, "{propria} {rss}");
     }
 
     #[test]

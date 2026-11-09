@@ -103,6 +103,8 @@ Corte da 0.3.0 (08/11/2026): 51 itens do `ATIVIDADES-0.3.0.md` marcados ⏭️ 0
 interface grande, Windows, Feather Sans…). INT-13: `feathersheet --version`/`-V`. INT-7: em teste o `tr` anota as
 chaves sem tradução (`idioma::tirar_faltas`); o teste `com_ingles_as_telas_principais_nao_pedem_texto_sem_traducao`
 desenha as telas principais em inglês. Novidade: "Interface em inglês e espanhol sem sobras de português na faixa."
+MEM-10: F12 ▸ Métricas mostra "Memória própria" (`RssAnon`, o número do Monitor do GNOME) e a parte compartilhada
+(`VmRSS − RssAnon`). Novidade: "O F12 mostra a mesma memória do Monitor do sistema."
 
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 
