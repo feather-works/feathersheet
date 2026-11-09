@@ -582,7 +582,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 ## Frente 5 — Gráficos
 
 ### GRA-1. Gantt: linha do dia de hoje e pintar concluídas, em andamento e futuras (#133)
-**Situação (08/11):** ❌ falta. #133 aberta; o feather-charts continua na v0.3.4.
+**Situação (08/11):** ✅ feito em 08/11: feather-charts v0.3.5 (`EstiloGantt`: linha de hoje e cores pela situação, data em `PedidoAvancado::hoje`; commit `02bead2`). Painel: Séries ▸ Cronograma (liga, cores); a cor por barra já existia em Pontos. MCP: `sheet_grafico` com `gantt {hoje, situacao, cores}`. **Pendente:** publicar a tag `v0.3.5` da feather-charts (o push da tag pediu permissão) e trocar o `rev` pela tag nos dois `Cargo.toml`. "% concluído" preenchendo a barra ficou de fora.
 - **Onde:** `feather-charts` (`personalizacao.rs`, `cor_do_ponto`; tag nova `v0.3.5`);
   `crates/feathersheet/src/app/graficos.rs` (painel); `app/graficos/`; MCP em `sheet_grafico` (MCP-10).
 - **Pronto:** foto do Gantt com linha "Hoje" ligável no painel e três cores calculadas pela data (não

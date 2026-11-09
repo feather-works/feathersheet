@@ -98,6 +98,22 @@ pub fn grafico(h: &mut dyn Hospede, args: &Json) -> Saida {
             for (arg, campo) in [("series_em_colunas", "seriesInColumns"), ("cabecalho", "hasHeaders"), ("categorias", "hasCategoryLabels")] {
                 if let Some(b) = args[arg].as_bool() { valor[campo] = json!(b); }
             }
+            if args["gantt"].is_object() {
+                // #133: liga a linha de hoje e as cores pela situação dentro do estilo do gráfico
+                // (`_featherNative.estilo.gantt`), sem mexer no resto da aparência.
+                let antigo = lista.iter().find(|v| v["id"] == id.as_str()).map(|v| v["_featherNative"].clone()).unwrap_or(Json::Null);
+                let mut nativo = if antigo.is_object() { antigo } else { json!({}) };
+                if !nativo["estilo"].is_object() { nativo["estilo"] = json!({}); }
+                let gt = &mut nativo["estilo"]["gantt"];
+                if !gt.is_object() { *gt = json!({}); }
+                for (arg, campo) in [("hoje", "linha_hoje"), ("situacao", "pintar_situacao")] {
+                    if let Some(b) = args["gantt"][arg].as_bool() { gt[campo] = json!(b); }
+                }
+                for campo in ["concluida", "andamento", "futura", "cor_hoje"] {
+                    if let Some(c) = args["gantt"][campo].as_str() { gt[campo] = json!(c); }
+                }
+                valor["_featherNative"] = nativo;
+            }
             let p = &args["posicao"];
             let medida = |k: &str| p[k].as_f64().filter(|v| *v >= 0.0);
             if criar || p.is_object() {
@@ -144,6 +160,21 @@ mod testes {
 
     fn texto(r: crate::ferramentas::Saida) -> String {
         r.unwrap().iter().filter_map(|c| c["text"].as_str()).collect::<Vec<_>>().join("\n")
+    }
+
+    #[test]
+    fn gantt_liga_a_linha_de_hoje_e_as_cores_pela_situacao() {
+        let mut h = Avulso::default();
+        for (r, linha) in [["Tarefa", "Início", "Fim"], ["X", "1", "5"]].iter().enumerate() {
+            for (c, v) in linha.iter().enumerate() { h.pasta.escrever_celula(0, r as u32, c as u32, (*v).into()); }
+        }
+        texto(chamar(&mut h, "sheet_grafico", &json!({ "acao": "criar", "intervalo": "A1:C2", "tipo": "gantt" })));
+        let t = texto(chamar(&mut h, "sheet_grafico", &json!({ "acao": "editar", "id": "mcp-1",
+            "gantt": { "hoje": true, "situacao": true, "concluida": "#00ff00" } })));
+        assert!(t.contains("alterado"), "{t}");
+        let salvo = &feathersheet_io::graficos_salvos::listar(&h.pasta().aba(0).unwrap().sheet).unwrap()[0];
+        let gt = &salvo["_featherNative"]["estilo"]["gantt"];
+        assert_eq!((gt["linha_hoje"].as_bool(), gt["pintar_situacao"].as_bool(), gt["concluida"].as_str()), (Some(true), Some(true), Some("#00ff00")));
     }
 
     #[test]

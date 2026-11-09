@@ -180,6 +180,8 @@ pub enum AlvoCor {
     Serie(usize),
     Contorno(usize),
     Ponto(usize, usize),
+    /// Gantt: 0 concluída, 1 em andamento, 2 futura, 3 a linha de hoje.
+    Gantt(u8),
     Rotulos,
     DicaFundo,
     DicaTexto,
@@ -189,6 +191,8 @@ pub enum AlvoCor {
 #[derive(Debug, Clone)]
 pub enum Mudanca {
     Tema(Option<&'static str>),
+    GanttHoje(bool),
+    GanttSituacao(bool),
     TituloVisivel(bool),
     TituloAlinhar(Alinhamento),
     TituloSobreposto(bool),
@@ -611,6 +615,8 @@ pub fn aplicar(e: &mut EstiloGrafico, m: &Mudanca) -> bool {
         Mudanca::DicaTamanho(t) => return ok!(tam(&t), v => e.dica.tamanho = v),
         Mudanca::Tema(id) => e.aplicar_tema(id),
         Mudanca::TituloVisivel(v) => e.titulo.visivel = Some(v),
+        Mudanca::GanttHoje(v) => e.gantt.linha_hoje = v,
+        Mudanca::GanttSituacao(v) => e.gantt.pintar_situacao = v,
         Mudanca::TituloAlinhar(a) => e.titulo.alinhamento = Some(a),
         Mudanca::TituloSobreposto(v) => e.titulo.sobreposto = v,
         Mudanca::TituloTamanho(s) => return ok!(tam(&s), v => e.titulo.fonte.tamanho = v),
@@ -749,10 +755,16 @@ pub fn cor_de(e: &EstiloGrafico, alvo: AlvoCor) -> Option<CorEstilo> {
         AlvoCor::Serie(i) => e.serie(i).and_then(|s| s.cor),
         AlvoCor::Contorno(i) => e.serie(i).and_then(|s| s.contorno),
         AlvoCor::Ponto(s, p) => e.serie(s).and_then(|x| x.pontos.get(&p)).and_then(|q| q.cor),
+        AlvoCor::Gantt(k) => *cor_gantt(&mut e.clone(), k),
         AlvoCor::Rotulos => e.rotulos.fonte.cor,
         AlvoCor::DicaFundo => e.dica.fundo,
         AlvoCor::DicaTexto => e.dica.texto,
     }
+}
+
+fn cor_gantt(e: &mut EstiloGrafico, k: u8) -> &mut Option<CorEstilo> {
+    let g = &mut e.gantt;
+    match k { 0 => &mut g.concluida, 1 => &mut g.andamento, 2 => &mut g.futura, _ => &mut g.cor_hoje }
 }
 
 pub fn definir_cor(e: &mut EstiloGrafico, alvo: AlvoCor, cor: Option<CorEstilo>) {
@@ -793,6 +805,7 @@ pub fn definir_cor(e: &mut EstiloGrafico, alvo: AlvoCor, cor: Option<CorEstilo>)
         AlvoCor::Serie(i) => e.serie_mut(i).cor = cor,
         AlvoCor::Contorno(i) => e.serie_mut(i).contorno = cor,
         AlvoCor::Ponto(s, p) => e.serie_mut(s).pontos.entry(p).or_default().cor = cor,
+        AlvoCor::Gantt(k) => *cor_gantt(e, k) = cor,
         AlvoCor::Rotulos => e.rotulos.fonte.cor = cor,
         AlvoCor::DicaFundo => e.dica.fundo = cor,
         AlvoCor::DicaTexto => e.dica.texto = cor,
@@ -1688,8 +1701,23 @@ impl App {
                             mud(Mudanca::SerieMarcador(i, *f)))).collect(), 3))
                         .push(linha(tr!("Tamanho do marcador"), self.campo_num(format!("serie{i}.marcador"), se.tamanho_marcador.map(f64::from), "6", move |t| Mudanca::SerieTamanhoMarcador(i, t))));
                 }
-                if !pizza {
+                if !pizza && g.tipo != TipoUi::Gantt {
                     col = col.push(alternar(tr!("Eixo secundário (à direita)"), se.eixo_secundario, move |v| mud(Mudanca::SerieSecundario(i, v))));
+                }
+                if g.tipo == TipoUi::Gantt {
+                    // #133: a situação de cada tarefa sai da data de hoje (muda sozinha com os dias).
+                    let gt = &e.gantt;
+                    col = col.push(secao(tr!("Cronograma")))
+                        .push(alternar(tr!("Linha do dia de hoje"), gt.linha_hoje, |v| mud(Mudanca::GanttHoje(v))));
+                    if gt.linha_hoje {
+                        col = col.push(self.campo_cor(tr!("Cor da linha de hoje"), AlvoCor::Gantt(3), e, CorEstilo::rgb(211, 47, 47)));
+                    }
+                    col = col.push(alternar(tr!("Pintar pela situação (concluída, em andamento, futura)"), gt.pintar_situacao, |v| mud(Mudanca::GanttSituacao(v))));
+                    if gt.pintar_situacao {
+                        col = col.push(self.campo_cor(tr!("Concluída"), AlvoCor::Gantt(0), e, CorEstilo::rgb(67, 160, 71)))
+                            .push(self.campo_cor(tr!("Em andamento"), AlvoCor::Gantt(1), e, cor_resolvida_serie(e, &p.cores_base, 0)))
+                            .push(self.campo_cor(tr!("Futura"), AlvoCor::Gantt(2), e, CorEstilo::rgb(176, 190, 197)));
+                    }
                 }
                 col.into()
             }

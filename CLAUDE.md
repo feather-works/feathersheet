@@ -92,6 +92,12 @@ como número."
 DIN-12: a dinâmica ganhou Contagem de distintos, Mediana e Percentil (`AgregacaoOp::Distintos/Mediana/
 Percentil(p)`, `acumulador::percentil`; no `.xlsx` vão como soma, como a Moda). Novidade: "Tabela dinâmica
 com contagem de distintos, mediana e quartis."
+Gantt (#133, GRA-1): linha do dia de hoje e barras pela situação (concluída/em andamento/futura) pela data de
+hoje (`filtro_extra::serial_de_hoje`, passada no `PedidoAvancado::hoje`); painel Séries ▸ Cronograma
+(`Mudanca::GanttHoje/GanttSituacao`, `AlvoCor::Gantt(k)`), MCP `sheet_grafico` com `gantt {…}`, estilo em
+`_featherNative.estilo.gantt`. **feather-charts por `rev = "02bead2…"`** (a v0.3.5 está no main dela; falta
+publicar a tag e trocar o `rev` pela tag antes do lançamento; a feather-io v0.2.1 ainda puxa a feather-charts v0.3.4, e as duas entram no binário até a feather-io subir de versão). Novidade: "Gantt com a linha de hoje e as tarefas
+pintadas como concluídas, em andamento ou futuras."
 
 ## Depois da v0.2.9 (06/11/2026): OpenQuery (FeatherQuery) mais completo — entra na próxima versão (lote)
 

@@ -146,6 +146,7 @@
         "titulo": "Gráficos e imagens",
         "corpo": [
           "Selecione os dados e use Inserir → Gráficos: Recomendados, ou um tipo direto (colunas, linhas, pizza, dispersão, cascata…). São mais de 25 tipos. O gráfico flutua sobre a grade: arraste para mover, puxe o canto para redimensionar, e o editor ao lado troca o tipo, as séries e as cores. Ele acompanha os dados quando eles mudam.",
+          "Gantt (cronograma de tarefas com Início e Fim): no painel, Séries ▸ Cronograma liga a linha do dia de hoje e pinta cada tarefa pela situação (concluída, em andamento, futura), calculada pela data de hoje; as três cores mudam ali, e Pontos pinta uma barra à mão.",
           "Minigráficos: Inserir → Minigráficos (Linha, Coluna ou Ganhos/Perdas) desenha um gráfico pequeno dentro da célula. Informe o intervalo de dados e o local (uma linha ou coluna de células; cada uma recebe uma linha ou coluna dos dados). Com a célula selecionada, a aba Minigráfico troca o tipo, destaca pontos alto, baixo, negativos, primeiro e último, muda o estilo, usa o mesmo eixo para o grupo ou limpa.",
           "Imagens: Inserir → Imagem, colar (Ctrl+V) ou arrastar o arquivo para a grade."
         ]

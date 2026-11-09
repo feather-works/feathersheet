@@ -4697,5 +4697,11 @@
  "Não deu para desfazer: {e}": "Could not undo: {e}",
  "Contagem de distintos": "Distinct count",
  "Percentil 90": "90th percentile",
- "Percentil": "Percentile"
+ "Percentil": "Percentile",
+ "Cronograma": "Schedule",
+ "Linha do dia de hoje": "Today line",
+ "Cor da linha de hoje": "Today line color",
+ "Pintar pela situação (concluída, em andamento, futura)": "Color by status (done, in progress, upcoming)",
+ "Em andamento": "In progress",
+ "Futura": "Upcoming"
 }

@@ -728,8 +728,10 @@ pub(super) fn desenhar_especial(
             g.exportar_svg_formatado_com_mapa(largura, altura, &e).map_err(falha)?
         }
         Rota::Avancado(tipo) => {
+            let hoje = (tipo == feather_charts::formatado::TipoAvancado::Gantt && (e.gantt.linha_hoje || e.gantt.pintar_situacao))
+                .then(|| (crate::app::tabelas::filtro_extra::serial_de_hoje() as f64, tr!("Hoje").to_string()));
             let pedido = feather_charts::formatado::PedidoAvancado {
-                tipo, x: dados.x_values.clone(), z: dados.z_values.clone(),
+                tipo, x: dados.x_values.clone(), z: dados.z_values.clone(), hoje,
             };
             g.exportar_svg_avancado_com_mapa(largura, altura, &e, &pedido).map_err(falha)?
         }

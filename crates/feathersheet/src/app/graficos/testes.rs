@@ -1505,3 +1505,31 @@ fn grafico_numa_aba_com_dinamica_deixa_o_total_geral_de_fora() {
     assert_eq!(d.series.len(), 1);
     assert_eq!(d.series[0].values, [1.0, 2.0]);
 }
+
+/// #133: linha do dia de hoje e cores pela situação, ligadas no painel.
+#[test]
+fn gantt_marca_hoje_e_pinta_pela_situacao_pelo_painel() {
+    let hoje = crate::app::tabelas::filtro_extra::serial_de_hoje();
+    let tabela = format!("Tarefa\tInício\tFim\nFeita\t{}\t{}\nAgora\t{}\t{}\nDepois\t{}\t{}",
+        hoje - 20, hoje - 10, hoje - 2, hoje + 3, hoje + 5, hoje + 9);
+    let mut app = editor_de(&tabela, TipoUi::Gantt);
+    assert!(!app.graficos.svg.clone().unwrap().contains("class=\"hoje\""), "desligada por padrão");
+    let _ = app.evento_grafico(Evento::Formatar(painel::Mudanca::GanttHoje(true)));
+    let _ = app.evento_grafico(Evento::Formatar(painel::Mudanca::GanttSituacao(true)));
+    {
+        let _painel: Element<'_, Msg> = app.view_graficos();
+    }
+    let svg = app.graficos.svg.clone().unwrap();
+    assert!(svg.contains("class=\"hoje\"") && svg.contains(">Hoje</text>"), "linha de hoje");
+    let barra = |i: usize| svg.split(&format!("tarefa p{i}\"")).nth(1).unwrap().split('>').next().unwrap().to_owned();
+    assert!(barra(0).contains("#43a047"), "concluída: {}", barra(0));
+    assert!(barra(2).contains("#b0bec5"), "futura: {}", barra(2));
+    // A cor da concluída muda pelo painel e vai para o arquivo.
+    let _ = app.evento_grafico(Evento::Cor(painel::AlvoCor::Gantt(0), Some("#123456".into())));
+    assert!(app.graficos.svg.clone().unwrap().contains("#123456"));
+    let _ = app.inserir_grafico();
+    let aba = app.workbook.aba(0).unwrap();
+    let salvos = feathersheet_io::graficos_salvos::listar(&aba.sheet).unwrap();
+    assert_eq!(salvos[0]["_featherNative"]["estilo"]["gantt"]["concluida"], "#123456");
+    assert!(svg_do_grafico_salvo(&aba.sheet, &salvos[0]).unwrap().contains("class=\"hoje\""));
+}

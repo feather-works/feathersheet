@@ -146,6 +146,7 @@
     "titulo": "Gráficos e imágenes",
     "corpo": [
      "Seleccione los datos y use Insertar → Gráficos: Recomendados, o un tipo directo (columnas, líneas, circular, dispersión, cascada…). Hay más de 25 tipos. El gráfico flota sobre la cuadrícula: arrástrelo para moverlo, tire de la esquina para cambiar el tamaño, y el editor lateral cambia el tipo, las series y los colores. Se actualiza cuando cambian los datos.",
+     "Gantt (cronograma de tareas con Inicio y Fin): en el panel, Series ▸ Cronograma activa la línea de hoy y colorea cada tarea por estado (terminada, en curso, futura), calculado con la fecha de hoy; los tres colores se cambian ahí, y Puntos colorea una barra a mano.",
      "Minigráficos: Insertar → Minigráficos (Línea, Columna o Ganancia/Pérdida) dibuja un gráfico pequeño dentro de la celda. Indique el rango de datos y la ubicación (una fila o columna de celdas; cada una recibe una fila o columna de los datos). Con la celda seleccionada, la pestaña Minigráfico cambia el tipo, resalta los puntos alto, bajo, negativos, primero y último, cambia el estilo, usa el mismo eje para el grupo o lo borra.",
      "Imágenes: Insertar → Imagen, pegue (Ctrl+V) o suelte el archivo sobre la cuadrícula."
     ]

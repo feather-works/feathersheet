@@ -146,6 +146,7 @@
         "titulo": "Charts and images",
         "corpo": [
           "Select the data and use Insert → Charts: Recommended, or a type directly (columns, lines, pie, scatter, waterfall…). There are more than 25 types. The chart floats over the grid: drag to move, pull the corner to resize, and the side editor changes the type, series and colors. It follows the data when it changes.",
+          "Gantt (task schedule with Start and End): in the panel, Series ▸ Schedule turns on the today line and colors each task by status (done, in progress, upcoming), worked out from today's date; the three colors are set there, and Points colors one bar by hand.",
           "Sparklines: Insert → Sparklines (Line, Column or Win/Loss) draws a small chart inside the cell. Enter the data range and the location (a row or column of cells; each one gets one row or column of the data). With the cell selected, the Sparkline tab changes the type, highlights high, low, negative, first and last points, changes the style, uses the same axis for the group or clears it.",
           "Images: Inserir → Imagem, paste (Ctrl+V) or drop the file on the grid."
         ]

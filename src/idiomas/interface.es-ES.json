@@ -4693,5 +4693,11 @@
  "Não deu para desfazer: {e}": "No se pudo deshacer: {e}",
  "Contagem de distintos": "Recuento distinto",
  "Percentil 90": "Percentil 90",
- "Percentil": "Percentil"
+ "Percentil": "Percentil",
+ "Cronograma": "Cronograma",
+ "Linha do dia de hoje": "Línea de hoy",
+ "Cor da linha de hoje": "Color de la línea de hoy",
+ "Pintar pela situação (concluída, em andamento, futura)": "Colorear por estado (terminada, en curso, futura)",
+ "Em andamento": "En curso",
+ "Futura": "Futura"
 }
