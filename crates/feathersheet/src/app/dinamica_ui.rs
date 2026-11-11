@@ -287,11 +287,12 @@ impl Estado {
     /// Põe o campo na área, como o Excel: Linhas, Colunas e Filtros não
     /// repetem o mesmo campo entre si; Valores aceita qualquer campo.
     fn por_em(&mut self, col: usize, area: AreaDinamica, numerico: bool) {
-        self.por_em_posicao(col, area, numerico, None);
+        self.por_em_posicao(col, area, numerico, None, false);
     }
 
-    /// [`Self::por_em`] numa posição da área (`None` = no fim).
-    fn por_em_posicao(&mut self, col: usize, area: AreaDinamica, numerico: bool, posicao: Option<usize>) {
+    /// [`Self::por_em`] numa posição da área (`None` = no fim). `manter`: o campo veio da
+    /// lista e não sai da área em que já está (o mesmo campo em Filtros e em Linhas/Colunas).
+    fn por_em_posicao(&mut self, col: usize, area: AreaDinamica, numerico: bool, posicao: Option<usize>, manter: bool) {
         let real = self.origem.c0 as usize + self.nomes.len().saturating_sub(self.calculados.len());
         let calculado = col >= real;
         match area {
@@ -299,6 +300,21 @@ impl Estado {
                 coluna: col, op: if numerico { AgregacaoOp::Soma } else { AgregacaoOp::Contagem },
             }),
             _ if calculado => {}
+            // Arrastado da lista: o campo fica onde já estava e ganha a outra área também
+            // (filtro em cima da tabela + linha/coluna). Entre áreas, continua sendo mover.
+            AreaDinamica::Filtros if manter && (self.linhas.contains(&col) || self.colunas.contains(&col)) => {
+                if !self.filtros.iter().any(|f| f.coluna == col) {
+                    self.filtros.push(Filtro { coluna: col, valores: Default::default(), excluir: true });
+                }
+                if !self.pagina_tambem.contains(&col) { self.pagina_tambem.push(col); }
+            }
+            AreaDinamica::Linhas | AreaDinamica::Colunas
+                if manter && self.filtros_de_relatorio().iter().any(|f| f.coluna == col) => {
+                self.linhas.retain(|&c| c != col);
+                self.colunas.retain(|&c| c != col);
+                if area == AreaDinamica::Linhas { self.linhas.push(col) } else { self.colunas.push(col) }
+                if !self.pagina_tambem.contains(&col) { self.pagina_tambem.push(col); }
+            }
             AreaDinamica::Linhas | AreaDinamica::Colunas | AreaDinamica::Filtros => {
                 self.pagina_tambem.retain(|&c| c != col);
                 self.linhas.retain(|&c| c != col);
@@ -931,7 +947,7 @@ impl App {
                         }
                         (origem, Some(para)) if para != AreaDinamica::Lista => {
                             if let Some((de, i)) = origem { e.tirar_de(de, i); }
-                            e.por_em_posicao(a.coluna, para, numerico, posicao);
+                            e.por_em_posicao(a.coluna, para, numerico, posicao, origem.is_none());
                         }
                         // Fora das áreas (ou de volta na lista): sai, como no Excel.
                         (Some((de, i)), _) => e.tirar_de(de, i),

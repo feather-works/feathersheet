@@ -201,6 +201,40 @@ fn campo_em_filtros_e_em_linhas_mantem_o_filtro_em_cima() {
     assert!(app.dinamica.as_ref().unwrap().pagina_tambem.is_empty());
 }
 
+/// Arrastar da lista um campo que já está em Linhas para Filtros (e o contrário) deixa o
+/// campo nas duas áreas; arrastar de uma área para a outra continua sendo mover.
+#[test]
+fn arrastar_da_lista_poe_o_campo_em_filtros_e_em_linhas() {
+    let nas_duas = |app: &App| {
+        let e = app.dinamica.as_ref().unwrap();
+        e.linhas.contains(&1) && e.filtros_de_relatorio().iter().any(|f| f.coluna == 1)
+    };
+    // Já em Linhas, a lista leva também para Filtros.
+    let mut app = app_com_dinamica();
+    let d = destino(&app);
+    if !app.dinamica.as_ref().unwrap().linhas.contains(&1) { app.evento_dinamica(Evento::Campo(1)); }
+    para_filtros(&mut app, 1);
+    assert!(nas_duas(&app), "Produto em Linhas e em Filtros");
+    assert!(area_dos_filtros(&app, d).is_some(), "o filtro aparece em cima da tabela");
+    // Já em Filtros, a lista leva também para Linhas.
+    let mut app = app_com_dinamica();
+    if let Some(i) = app.dinamica.as_ref().unwrap().linhas.iter().position(|&c| c == 1) {
+        app.evento_dinamica(Evento::Remover(EixoDinamica::Linhas, i));
+    }
+    para_filtros(&mut app, 1);
+    app.evento_dinamica(Evento::ArrastoInicio(1, None));
+    app.evento_dinamica(Evento::ArrastoMover(pelicano::Point::new(0.0, 0.0)));
+    app.evento_dinamica(Evento::ArrastoMover(pelicano::Point::new(40.0, 40.0)));
+    app.evento_dinamica(Evento::ArrastoSobre(Some(AreaDinamica::Linhas)));
+    app.evento_dinamica(Evento::ArrastoSoltar);
+    assert!(nas_duas(&app), "Produto em Filtros e em Linhas");
+    // De Linhas para Filtros (entre áreas): move, sai das linhas.
+    let i = app.dinamica.as_ref().unwrap().linhas.iter().position(|&c| c == 1).unwrap();
+    arrastar(&mut app, (AreaDinamica::Linhas, i), Some((AreaDinamica::Filtros, None)));
+    let e = app.dinamica.as_ref().unwrap();
+    assert!(!e.linhas.contains(&1) && e.filtros.iter().any(|f| f.coluna == 1));
+}
+
 /// #106: o funil da grade abre a lista embaixo dele e não mexe na seleção.
 #[test]
 fn filtrar_pelo_funil_nao_tira_a_selecao_do_lugar() {
