@@ -4975,5 +4975,6 @@
  "Substituir não vale em comentários: escolha Fórmulas em Examinar.": "Remplacer ne fonctionne pas dans les commentaires : choisissez Formules dans Regarder dans.",
  "AutoFiltro": "Filtre automatique",
  "O nome não pode conter \":\".": "Le nom ne peut pas contenir \":\".",
- "O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.": "Le .fshz ne garde pas le mot de passe : enregistrez en .xlsx pour que le fichier soit chiffré."
+ "O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.": "Le .fshz ne garde pas le mot de passe : enregistrez en .xlsx pour que le fichier soit chiffré.",
+ "Baixando a atualização em segundo plano: o FeatherSheet fecha e a versão nova abre sozinha.": "Téléchargement de la mise à jour en arrière-plan : FeatherSheet se ferme et la nouvelle version s'ouvre toute seule."
 }

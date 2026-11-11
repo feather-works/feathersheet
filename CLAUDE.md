@@ -578,6 +578,7 @@ Detalhe item a item em `docs/planejamento/ATIVIDADES-0.3.0.md` (linhas `Situaç�
 - **Faixa**: fora da Página Inicial os grupos que não cabem viram um botão que abre o grupo (`plano_recolhido`).
 - **Windows**: `.github/workflows/windows.yml` compila a cada push no `main`.
 - **Senha e `.fshz` (11/11)**: com `senha_documento`, `formato_sugerido` dá `.xlsx` e o `Msg::Salvar` num caminho que não é `.xlsx/.xlsm` abre o Salvar como em vez de gravar em claro. Novidade: "Pasta com senha não é mais gravada em .fshz sem aviso: o Salvar sugere .xlsx."
+- **Atualizar no Windows sem console (#159, 11/11)**: o `.ps1` roda com `CREATE_NO_WINDOW`; erro vira `MessageBox`, sem `Read-Host`. Só conferido por teste do texto do roteiro e pelo job de Windows no CI; falta ver numa máquina Windows. Novidade: "Atualizar no Windows não abre mais a janela do PowerShell."
 - **Auditoria de 11/11** (ponytail-audit no código novo): espaço comum só é milhar ao digitar na língua que separa assim (`01 310` fica texto em português; o espaço que não quebra vale sempre); rótulos do Consolidar por índice (`Rotulos`, antes busca linear).
 
 ### Referência entre arquivos abertos (v0.1.0, 16/10/2026) — feita e testada com duas janelas

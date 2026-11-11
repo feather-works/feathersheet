@@ -4975,5 +4975,6 @@
  "// Relatório mensal · JavaScript do FeatherSheet": "// Informe mensual · JavaScript de FeatherSheet",
  "// {nome} · JavaScript do FeatherSheet\n": "// {nome} · JavaScript de FeatherSheet\n",
  "O nome não pode conter \":\".": "El nombre no puede contener \":\".",
- "O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.": "El .fshz no lleva la contraseña: guarde como .xlsx para que el archivo salga cifrado."
+ "O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.": "El .fshz no lleva la contraseña: guarde como .xlsx para que el archivo salga cifrado.",
+ "Baixando a atualização em segundo plano: o FeatherSheet fecha e a versão nova abre sozinha.": "Descargando la actualización en segundo plano: FeatherSheet se cierra y la versión nueva se abre sola."
 }

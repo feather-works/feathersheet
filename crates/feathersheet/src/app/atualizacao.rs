@@ -231,7 +231,7 @@ pub fn roteiro(inst: Instalacao, versao: &str, pid: u32) -> Option<(String, Stri
              \n  Write-Host '== Conferindo se o arquivo é exatamente o publicado'\n  $linha = Select-String -Path (Join-Path $pasta 'SHA256SUMS') -Pattern ' {arquivo}$' | Select-Object -First 1\n  $esperado = $linha.Line.Split(' ')[0].ToLower()\n  $obtido = (Get-FileHash $instalador -Algorithm SHA256).Hash.ToLower()\n  if ($obtido -ne $esperado) {{ throw 'O arquivo baixado não confere com o publicado.' }}\n\
              \n  Write-Host '== Esperando o FeatherSheet fechar (feche a janela dele)'\n  Wait-Process -Id {pid} -ErrorAction SilentlyContinue\n\
              \n  Write-Host '== Instalando por cima da versão atual'\n  Start-Process -FilePath $instalador -ArgumentList '/S' -Wait\n  Start-Process (Join-Path $env:ProgramFiles 'FeatherWorks\\FeatherSheet\\feathersheet.exe')\n  Write-Host ''\n  Write-Host 'Pronto: FeatherSheet {versao} instalado.'\n\
-             }} catch {{\n  Write-Host ''\n  Write-Host \"Algo deu errado; a versão instalada continua a mesma. ($_)\"\n}}\nRead-Host 'Pressione Enter para fechar esta janela'\n",
+             }} catch {{\n  Add-Type -AssemblyName PresentationFramework\n  [System.Windows.MessageBox]::Show(\"Algo deu errado; a versão instalada continua a mesma. ($_)\", 'FeatherSheet') | Out-Null\n}}\n",
             cabecalho("#"),
         )),
         Instalacao::Desconhecida => return None,
@@ -267,8 +267,9 @@ pub fn abrir_no_terminal(inst: Instalacao, versao: &str) -> Result<(), String> {
             #[cfg(windows)]
             {
                 use std::os::windows::process::CommandExt;
-                // Console próprio e visível.
-                c.creation_flags(0x0000_0010);
+                // Sem janela de console (pedido do usuário, 11/11): o roteiro roda escondido e,
+                // se falhar, mostra uma caixa de mensagem.
+                c.creation_flags(0x0800_0000);
             }
             c.spawn().map(|_| ()).map_err(|e| trf!("Não consegui abrir o PowerShell: {e}"))
         }
@@ -436,7 +437,9 @@ impl App {
                     self.atualizacao = match abrir_no_terminal(inst, &versao) {
                         Ok(()) if inst.pede_senha() => Estado::Instalando(trf!(
                             "O terminal abriu com cada passo à vista. Digite sua senha lá; depois feche e abra o FeatherSheet de novo.")),
-                        Ok(()) if matches!(inst, Instalacao::Windows | Instalacao::Mac) => Estado::Instalando(
+                        Ok(()) if inst == Instalacao::Windows => Estado::Instalando(
+                            tr!("Baixando a atualização em segundo plano: o FeatherSheet fecha e a versão nova abre sozinha.").to_owned()),
+                        Ok(()) if inst == Instalacao::Mac => Estado::Instalando(
                             tr!("O terminal abriu e está baixando. Feche o FeatherSheet quando ele pedir: a versão nova abre sozinha.").to_owned()),
                         Ok(()) => Estado::Instalando(
                             tr!("O terminal abriu com cada passo à vista. Depois feche e abra o FeatherSheet de novo.").to_owned()),
@@ -545,6 +548,7 @@ mod testes {
         assert!(nome.ends_with(".ps1"));
         assert!(win.contains("Get-FileHash") && win.contains("Wait-Process -Id 42") && win.contains("'/S'"));
         assert!(win.find("Get-FileHash").unwrap() < win.find("Start-Process -FilePath").unwrap());
+        assert!(!win.contains("Read-Host") && win.contains("MessageBox"), "roda sem console: nada de esperar Enter");
 
         let (nome, mac) = roteiro(Instalacao::Mac, "0.0.3", 42).unwrap();
         assert!(nome.ends_with(".command"));
