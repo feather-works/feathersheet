@@ -517,7 +517,7 @@ pub enum Msg {
     TecladoNoCampo(window::Id, keyboard::Key, keyboard::Modifiers),
     Tema(bool), TemaAuto, Acento(usize), BarraPropria(bool), Faixa, SecaoConfig(usize),
     Idioma(&'static str), CsvDetectarSeparador(bool),
-    AutoSalvar(bool), SalvarXlsx(bool), Propriedade(usize, String), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), Fuso(Option<i32>), CalcularPulso, CalculoPulso, CalcularEmFundo, CalculoParar, FonteGrade(&'static str), CorpoGrade(u16),
+    AutoSalvar(bool), SalvarXlsx(bool), ListasAlca(String), Propriedade(usize, String), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), Fuso(Option<i32>), CalcularPulso, CalculoPulso, CalcularEmFundo, CalculoParar, FonteGrade(&'static str), CorpoGrade(u16),
     CapturarAtalho(&'static str), RestaurarAtalhos,
     FecharMenu, Cancelar, Descartar, SalvarAntes, GuardarTemporariamente,
     /// Resposta à pergunta Sim/Não da macro; fecha a mensagem da macro.
@@ -1265,6 +1265,7 @@ impl App {
         feathersheet_core::paralelismo::definir(app.config.nucleos as usize);
         fuso::aplicar(app.config.fuso_minutos);
         feathersheet_core::set_locale_config(app.regionalizacao());
+        app.config.aplicar_listas_alca();
         ajuda::definir_idioma(&app.config.idioma);
         // Modo de captura: FEATHERSHEET_CAPTURAR_IDIOMA=en-US mostra a tela
         // nesse idioma sem gravar nada na configuração do usuário.

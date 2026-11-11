@@ -64,6 +64,7 @@
         "corpo": [
           "• Faites glisser le petit carré au coin de la sélection (la poignée de recopie) pour prolonger une série : 1, 2, 3…, dates, \"Article 1, Article 2…\" et formules.",
           "• Un double-clic sur la poignée remplit jusqu'à la fin des données de la colonne voisine.",
+          "• Les mois et les jours de la semaine continuent leur liste (janv, févr, mars…). Pour vos propres listes (S, M, L, XL), saisissez-les dans Paramètres › Feuille › Listes de la poignée de recopie.",
           "• Un nombre seul est copié ; maintenez Ctrl en faisant glisser pour incrémenter (7, 8, 9). Avec une série, Ctrl fait l'inverse et copie.",
           "• Ctrl+D recopie la cellule du dessus vers le bas ; Ctrl+R recopie la cellule de gauche vers la droite.",
           "• Faire glisser la bordure de la sélection déplace les cellules ; les formules qui lisent le bloc suivent.",

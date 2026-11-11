@@ -579,6 +579,7 @@ Detalhe item a item em `docs/planejamento/ATIVIDADES-0.3.0.md` (linhas `Situaç�
 - **Windows**: `.github/workflows/windows.yml` compila a cada push no `main`.
 - **Senha e `.fshz` (11/11)**: com `senha_documento`, `formato_sugerido` dá `.xlsx` e o `Msg::Salvar` num caminho que não é `.xlsx/.xlsm` abre o Salvar como em vez de gravar em claro. Novidade: "Pasta com senha não é mais gravada em .fshz sem aviso: o Salvar sugere .xlsx."
 - **Atualizar no Windows sem console (#159, 11/11)**: o `.ps1` roda com `CREATE_NO_WINDOW`; erro vira `MessageBox`, sem `Read-Host`. Só conferido por teste do texto do roteiro e pelo job de Windows no CI; falta ver numa máquina Windows. Novidade: "Atualizar no Windows não abre mais a janela do PowerShell."
+- **Listas próprias da alça (11/11)**: Configurações ▸ Planilha ▸ "Listas da alça de preenchimento" (`config.listas_alca`, itens com `;`, listas com `|`; `Msg::ListasAlca`). São globais no motor (`ordenacao_ext::definir_listas_do_usuario`, como o idioma) e a `SerieDeLista` procura nelas depois das prontas; teste em `tests/lista_da_alca.rs` (arquivo à parte por ser global). Novidade: "Crie suas listas para a alça de preenchimento (P, M, G, GG) em Configurações ▸ Planilha."
 - **Auditoria de 11/11** (ponytail-audit no código novo): espaço comum só é milhar ao digitar na língua que separa assim (`01 310` fica texto em português; o espaço que não quebra vale sempre); rótulos do Consolidar por índice (`Rotulos`, antes busca linear).
 
 ### Referência entre arquivos abertos (v0.1.0, 16/10/2026) — feita e testada com duas janelas

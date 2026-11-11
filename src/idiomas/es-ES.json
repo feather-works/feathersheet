@@ -64,6 +64,7 @@
     "corpo": [
      "• Arrastre el cuadrito de la esquina de la selección (el controlador de relleno) para continuar una serie: 1, 2, 3…, fechas, \"Elemento 1, Elemento 2…\" y fórmulas.",
      "• Hacer doble clic en el controlador rellena hacia abajo hasta el final de los datos de la columna vecina.",
+     "• Meses y días de la semana continúan la lista (ene, feb, mar…). Para sus listas (S, M, L, XL), escríbalas en Configuración › Hoja › Listas del controlador de relleno.",
      "• Un número solo se copia; con Ctrl pulsado al arrastrar, cuenta (7, 8, 9). Con una serie, Ctrl hace lo contrario y copia.",
      "• Ctrl+D copia la celda de arriba hacia abajo; Ctrl+R copia la celda de la izquierda hacia la derecha.",
      "• Arrastrar el borde de la selección mueve las celdas; las fórmulas que leen el bloque se actualizan.",

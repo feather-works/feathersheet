@@ -65,6 +65,8 @@ pub struct Configuracao {
     pub caneta_pressao: bool,
     /// Salvar como… de planilha nova sugere `.xlsx` em vez de `.fshz` (quem troca arquivo com o Excel).
     pub salvar_xlsx: bool,
+    /// Listas próprias que a alça continua (`P; M; G | baixa; média; alta`): itens com `;`, listas com `|`.
+    pub listas_alca: String,
     /// Linux/Wayland: onde abrir a janela — `auto` (XWayland se houver mesa,
     /// para a caneta clicar), `x11` ou `wayland`. Vale na próxima abertura.
     pub janela_linux: String,
@@ -138,6 +140,14 @@ pub const ROTULOS_JANELAS_LINUX: [&str; 3] = [JANELAS_LINUX[0].0, JANELAS_LINUX[
 pub const ROTULOS_CURVAS_CANETA: [&str; 4] =
     [CURVAS_CANETA[0].0, CURVAS_CANETA[1].0, CURVAS_CANETA[2].0, CURVAS_CANETA[3].0];
 
+impl Configuracao {
+    /// Entrega ao motor as listas próprias da alça.
+    pub fn aplicar_listas_alca(&self) {
+        use feathersheet_core::operacoes::ordenacao_ext::{definir_listas_do_usuario, lista_de_texto};
+        definir_listas_do_usuario(self.listas_alca.split('|').map(lista_de_texto).collect());
+    }
+}
+
 impl Default for Configuracao {
     fn default() -> Self {
         Self {
@@ -151,6 +161,7 @@ impl Default for Configuracao {
             atalhos: std::collections::BTreeMap::new(),
             caneta_pressao: true,
             salvar_xlsx: false,
+            listas_alca: String::new(),
             janela_linux: "auto".into(),
             fuso_minutos: None,
             caneta_gama: CURVAS_CANETA[1].1,

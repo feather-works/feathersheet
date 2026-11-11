@@ -266,6 +266,9 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                 text(if app.config.idioma == "en-US" { tr!("Vírgula (,)") } else { tr!("Ponto e vírgula (;)") }).size(12)),
             linha(tr!("Detectar separador do arquivo CSV"), tr!("Desligado: usa o idioma (; em português, , em inglês). Ligado: detecta um único separador; os demais ficam no texto."),
                 toggler("", app.config.csv_detectar_separador).on_toggle(Msg::CsvDetectarSeparador).color(COR_AZUL_ACENTO())),
+            linha(tr!("Listas da alça de preenchimento"), tr!("Arrastar a alça continua estas listas, como jan, fev, mar. Itens separados por ; e listas por |."),
+                pelicano::text_input(tr!("Ex.: P; M; G; GG | baixa; média; alta"), &app.config.listas_alca).on_input(Msg::ListasAlca)
+                    .padding([6, 9]).size(13).width(Length::Fixed(300.0))),
             linha(tr!("Linhas de grade"), tr!("Mostra ou oculta o quadriculado das células."),
                 toggler("", app.linhas_grade).on_toggle(Msg::LinhasGrade).color(COR_AZUL_ACENTO())),
             linha(tr!("Barra de fórmulas"), tr!("Campo fx acima da planilha."),

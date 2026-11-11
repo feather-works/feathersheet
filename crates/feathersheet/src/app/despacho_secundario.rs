@@ -1750,6 +1750,12 @@ impl App {
                 if *alvo != texto { *alvo = texto; self.alterado = true; }
                 Task::none()
             }
+            Msg::ListasAlca(texto) => {
+                self.config.listas_alca = texto;
+                self.config.aplicar_listas_alca();
+                self.config.gravar();
+                Task::none()
+            }
             Msg::SalvarXlsx(ativo) => {
                 self.config.salvar_xlsx = ativo;
                 self.config.gravar();

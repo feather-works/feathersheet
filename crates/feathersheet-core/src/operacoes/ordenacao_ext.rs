@@ -57,6 +57,20 @@ pub fn listas_prontas() -> Vec<(&'static str, Vec<String>)> {
     ]
 }
 
+/// Listas que a pessoa criou (Configurações ▸ Planilha): a alça as continua como as prontas.
+/// Global como o idioma: vale para o app inteiro, não para um arquivo.
+static LISTAS_DO_USUARIO: std::sync::RwLock<Vec<Vec<String>>> = std::sync::RwLock::new(Vec::new());
+
+/// Troca as listas da pessoa; lista com menos de dois itens não tem o que continuar e sai.
+pub fn definir_listas_do_usuario(listas: Vec<Vec<String>>) {
+    let listas = listas.into_iter().filter(|l| l.len() >= 2).collect();
+    *LISTAS_DO_USUARIO.write().unwrap_or_else(|e| e.into_inner()) = listas;
+}
+
+pub fn listas_do_usuario() -> Vec<Vec<String>> {
+    LISTAS_DO_USUARIO.read().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
 /// Texto de uma lista personalizada digitada (`"baixa; média; alta"` ou uma
 /// por linha) em itens.
 pub fn lista_de_texto(texto: &str) -> Vec<String> {

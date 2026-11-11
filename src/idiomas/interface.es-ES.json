@@ -4976,5 +4976,8 @@
  "// {nome} · JavaScript do FeatherSheet\n": "// {nome} · JavaScript de FeatherSheet\n",
  "O nome não pode conter \":\".": "El nombre no puede contener \":\".",
  "O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.": "El .fshz no lleva la contraseña: guarde como .xlsx para que el archivo salga cifrado.",
- "Baixando a atualização em segundo plano: o FeatherSheet fecha e a versão nova abre sozinha.": "Descargando la actualización en segundo plano: FeatherSheet se cierra y la versión nueva se abre sola."
+ "Baixando a atualização em segundo plano: o FeatherSheet fecha e a versão nova abre sozinha.": "Descargando la actualización en segundo plano: FeatherSheet se cierra y la versión nueva se abre sola.",
+ "Listas da alça de preenchimento": "Listas del controlador de relleno",
+ "Arrastar a alça continua estas listas, como jan, fev, mar. Itens separados por ; e listas por |.": "Arrastrar el controlador continúa estas listas, como ene, feb, mar. Elementos separados por ; y listas por |.",
+ "Ex.: P; M; G; GG | baixa; média; alta": "Ej.: S; M; L; XL | baja; media; alta"
 }

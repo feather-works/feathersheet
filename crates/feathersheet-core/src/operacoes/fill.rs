@@ -108,7 +108,8 @@ struct SerieDeLista {
 impl SerieDeLista {
     fn de(textos: &[&str]) -> Option<Self> {
         let ultimo_texto = *textos.last()?;
-        super::ordenacao_ext::listas_prontas().into_iter().find_map(|(_, itens)| {
+        let prontas = super::ordenacao_ext::listas_prontas().into_iter().map(|(_, itens)| itens);
+        prontas.chain(super::ordenacao_ext::listas_do_usuario()).find_map(|itens| {
             let indices: Vec<i64> = textos.iter()
                 .map(|t| itens.iter().position(|i| i.to_lowercase() == t.trim().to_lowercase()).map(|p| p as i64))
                 .collect::<Option<_>>()?;
