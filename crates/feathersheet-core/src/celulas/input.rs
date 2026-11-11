@@ -24,11 +24,10 @@ pub fn parse_literal(raw: &str) -> Literal {
     if raw.is_empty() { return Literal { value: Value::Empty, format: None }; }
     let t = raw.trim();
 
-    if t.eq_ignore_ascii_case("VERDADEIRO") || t.eq_ignore_ascii_case("TRUE") {
-        return Literal { value: Value::Bool(true), format: None };
-    }
-    if t.eq_ignore_ascii_case("FALSO") || t.eq_ignore_ascii_case("FALSE") {
-        return Literal { value: Value::Bool(false), format: None };
+    // O que a célula mostra na língua do app (VERDADERO, VRAI) também entra como lógico:
+    // senão F2 e Enter numa célula lógica a transformava em texto.
+    if let Some(logico) = super::locale::logico_digitado(t) {
+        return Literal { value: Value::Bool(logico), format: None };
     }
     if let Some(n) = moeda(t) {
         return Literal { value: Value::Number(n), format: Some(NumberFormat::Currency) };

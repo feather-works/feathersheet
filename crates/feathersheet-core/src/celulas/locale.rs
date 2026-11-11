@@ -110,6 +110,38 @@ fn atual() -> &'static RwLock<LocaleConfig> {
 
 static DECIMAL: AtomicU32 = AtomicU32::new(',' as u32);
 static MILHAR: AtomicU32 = AtomicU32::new('.' as u32);
+/// As palavras do valor lógico na língua do app, vindas do dicionário de funções dela
+/// (`TRUE` → `VRAI`): quem carrega o dicionário chama [`definir_logicos`]. `None`: português.
+static LOGICOS: RwLock<Option<(String, String)>> = RwLock::new(None);
+
+/// Define como a célula mostra VERDADEIRO e FALSO (os nomes de `TRUE` e `FALSE` no dicionário
+/// da língua). O valor guardado, o arquivo e o motor continuam com a forma única em português.
+pub fn definir_logicos(verdadeiro: &str, falso: &str) {
+    let par = (!verdadeiro.is_empty() && !falso.is_empty()).then(|| (verdadeiro.to_owned(), falso.to_owned()));
+    *LOGICOS.write().unwrap_or_else(|e| e.into_inner()) = par;
+}
+
+/// O texto de um valor lógico na língua em uso.
+pub fn texto_logico(valor: bool) -> String {
+    match &*LOGICOS.read().unwrap_or_else(|e| e.into_inner()) {
+        Some((sim, nao)) => if valor { sim.clone() } else { nao.clone() },
+        None => if valor { "VERDADEIRO" } else { "FALSO" }.to_owned(),
+    }
+}
+
+/// O lógico que a pessoa digitou: as formas de sempre (português e inglês) em qualquer
+/// língua, mais as da língua em uso. `VRAI` só é lógico com o app em francês.
+pub fn logico_digitado(texto: &str) -> Option<bool> {
+    let e = |p: &str| texto.eq_ignore_ascii_case(p);
+    if e("VERDADEIRO") || e("TRUE") { return Some(true); }
+    if e("FALSO") || e("FALSE") { return Some(false); }
+    let t = texto.to_uppercase();
+    match &*LOGICOS.read().unwrap_or_else(|e| e.into_inner()) {
+        Some((sim, _)) if t == sim.to_uppercase() => Some(true),
+        Some((_, nao)) if t == nao.to_uppercase() => Some(false),
+        _ => None,
+    }
+}
 
 /// Troca a língua do processo.
 pub fn set_locale_config(cfg: LocaleConfig) {

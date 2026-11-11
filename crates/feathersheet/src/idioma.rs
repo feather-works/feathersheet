@@ -65,6 +65,9 @@ thread_local! {
 pub fn definir(idioma: &str) {
     if cfg!(test) { return; }
     LINGUA.store(Lingua::de_codigo(idioma).indice(), Ordering::Relaxed);
+    // A célula mostra o lógico com o nome de TRUE/FALSE no dicionário de funções da língua.
+    let (verdadeiro, falso) = logicos_de(Lingua::de_codigo(idioma));
+    feathersheet_core::celulas::locale::definir_logicos(verdadeiro, falso);
     // F12 e barra de baixo do feather-ui usam o mesmo dicionário.
     feather_ui::idioma::definir_tradutor(|pt| {
         if lingua() == Lingua::Pt { return None; }
@@ -363,6 +366,14 @@ pub fn funcoes_de(l: Lingua) -> &'static FuncoesIdioma {
     &todos[l.indice() as usize]
 }
 
+/// VERDADEIRO e FALSO na língua: os nomes de `TRUE` e `FALSE` em `funcoes.<idioma>.json`
+/// (vazio se o dicionário não os tiver, e o motor fica no português).
+pub fn logicos_de(l: Lingua) -> (&'static str, &'static str) {
+    let nomes = &funcoes_de(l).nomes;
+    let nome = |canonico: &str| nomes.get(canonico).map_or("", String::as_str);
+    (nome("TRUE"), nome("FALSE"))
+}
+
 #[cfg(test)]
 pub fn funcoes_en() -> &'static FuncoesIdioma {
     funcoes_de(Lingua::En)
@@ -484,6 +495,15 @@ mod tests {
             }
         }
         assert!(faltam.is_empty(), "faltam traduções: {faltam:#?}");
+    }
+
+    /// O valor lógico da célula sai do dicionário de funções: toda língua precisa de TRUE e FALSE.
+    #[test]
+    fn toda_lingua_tem_as_palavras_do_valor_logico() {
+        let esperado = [("VERDADEIRO", "FALSO"), ("TRUE", "FALSE"), ("VERDADERO", "FALSO"), ("VRAI", "FAUX")];
+        for (l, par) in Lingua::TODAS.into_iter().zip(esperado) {
+            assert_eq!(logicos_de(l), par, "{}", l.codigo());
+        }
     }
 
     #[test]

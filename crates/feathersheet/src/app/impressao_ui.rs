@@ -806,7 +806,7 @@ impl App {
                         Value::Number(_) => feathersheet_core::celulas::style::format_value(&valor, estilo.as_ref()),
                         Value::Empty => String::new(),
                         Value::Text(s) => s.clone(),
-                        Value::Bool(b) => if *b { "VERDADEIRO".into() } else { "FALSO".into() },
+                        Value::Bool(b) => feathersheet_core::celulas::locale::texto_logico(*b),
                         Value::Error(err) => err.code.as_str().into(),
                     };
                     let v = crate::estilos_comuns::projetar_estilo(estilo.as_ref(), None);

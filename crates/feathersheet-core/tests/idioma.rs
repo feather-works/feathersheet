@@ -46,6 +46,24 @@ fn numeros_em_ingles_e_de_volta_ao_portugues() {
     });
     assert_eq!(format_number(1234567.891, None), "1.234.567,891");
     assert_eq!(format_number(-1250.5, Some(&com(NumberFormat::Currency, None))), "-1.250,50\u{a0}€");
+    // O lógico aparece na palavra de cada língua e, digitado de volta (F2 e Enter), continua lógico.
+    use feathersheet_core::celulas::input::parse_literal;
+    use feathersheet_core::celulas::style::format_value;
+    use feathersheet_core::celulas::values::Value;
+    // As palavras chegam do dicionário de funções do app (`definir_logicos`); aqui, à mão.
+    use feathersheet_core::celulas::locale::definir_logicos;
+    for (sim, nao) in [("TRUE", "FALSE"), ("VERDADERO", "FALSO"), ("VRAI", "FAUX"), ("VERDADEIRO", "FALSO")] {
+        definir_logicos(sim, nao);
+        for (valor, texto) in [(true, sim), (false, nao)] {
+            assert_eq!(format_value(&Value::Bool(valor), None), texto);
+            assert_eq!(parse_literal(texto).value, Value::Bool(valor), "{texto} digitado de volta");
+            assert_eq!(parse_literal(if valor { "true" } else { "FALSO" }).value, Value::Bool(valor), "formas de sempre");
+        }
+        assert_eq!(format_value(&Value::Text("VERDADEIRO".into()), None), "VERDADEIRO", "texto não é traduzido");
+    }
+    assert_eq!(parse_literal("VRAI").value, Value::Text("VRAI".into()), "em português VRAI é texto");
+    definir_logicos("", "");
+    assert_eq!(format_value(&Value::Bool(true), None), "VERDADEIRO", "sem dicionário, português");
     // Em francês o espaço comum separa milhar ao digitar; em português não (é código).
     set_locale_config(LocaleConfig::fr_fr());
     assert_eq!(feathersheet_core::celulas::input::parse_literal("1 250,50").value, feathersheet_core::celulas::values::Value::Number(1250.5));
