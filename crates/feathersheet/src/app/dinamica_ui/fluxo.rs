@@ -448,6 +448,10 @@ impl App {
                 }
                 None => ((x - 268.0).max(0.0), topo + 60.0),
             };
+            // Clique fora da lista fecha (#161). Fica com o que foi marcado: a tabela já
+            // mostrou cada marcação na hora, e desfazer ao clicar fora pareceria defeito.
+            camadas = camadas.push(pelicano::mouse_area(Space::new(Length::FILL, Length::FILL))
+                .on_press(Msg::Dinamica(Evento::FiltroOk)));
             camadas = camadas.push(column![
                 Space::new(0.0, Length::Fixed(fy)),
                 row![Space::new(Length::Fixed(fx), 0.0), self.view_filtro_campo(e, col)],
