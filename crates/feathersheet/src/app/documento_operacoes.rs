@@ -986,8 +986,9 @@ impl App {
     fn formato_sugerido(&self) -> String {
         self.caminho.as_ref().or(self.origem.as_ref())
             .and_then(|p| p.extension()).and_then(|e| e.to_str()).map(str::to_ascii_lowercase)
-            .filter(|e| e == "xlsx" || e == "xlsm" || e == "fshz")
-            .unwrap_or_else(|| if self.config.salvar_xlsx { "xlsx".into() } else { "fshz".into() })
+            // Com senha, só o .xlsx sai cifrado: o .fshz não é sugerido.
+            .filter(|e| e == "xlsx" || e == "xlsm" || (e == "fshz" && self.senha_documento.is_none()))
+            .unwrap_or_else(|| if self.config.salvar_xlsx || self.senha_documento.is_some() { "xlsx".into() } else { "fshz".into() })
     }
 
     pub(super) fn dialogo_salvar(&self) -> Task<Msg> {
@@ -1312,5 +1313,12 @@ mod testes_formato_sugerido {
         app.origem = Some(PathBuf::from("/tmp/b.csv"));
         assert_eq!(app.formato_sugerido(), "xlsx");
         app.config.salvar_xlsx = false;
+        // Com senha, o Ctrl+S num .fshz não grava em claro: pede onde salvar e sugere .xlsx.
+        app.origem = None;
+        app.caminho = Some(PathBuf::from("/tmp/a.fshz"));
+        app.senha_documento = Some("segredo".into());
+        assert_eq!(app.formato_sugerido(), "xlsx");
+        let _ = app.update(Msg::Salvar);
+        assert!(!app.salvando, "não gravou o .fshz sem a senha");
     }
 }

@@ -577,6 +577,7 @@ Detalhe item a item em `docs/planejamento/ATIVIDADES-0.3.0.md` (linhas `Situaç�
 - **Consolidar** (`operacoes/consolidar.rs`, `app/consolidar_ui.rs`), **referências 3D** (`Jan:Dez!B5`; renomear uma ponta reescreve a fórmula, `pontas_3d`; nome de aba não aceita `:`), **datas 1904** só na leitura do `.xlsx`.
 - **Faixa**: fora da Página Inicial os grupos que não cabem viram um botão que abre o grupo (`plano_recolhido`).
 - **Windows**: `.github/workflows/windows.yml` compila a cada push no `main`.
+- **Senha e `.fshz` (11/11)**: com `senha_documento`, `formato_sugerido` dá `.xlsx` e o `Msg::Salvar` num caminho que não é `.xlsx/.xlsm` abre o Salvar como em vez de gravar em claro. Novidade: "Pasta com senha não é mais gravada em .fshz sem aviso: o Salvar sugere .xlsx."
 - **Auditoria de 11/11** (ponytail-audit no código novo): espaço comum só é milhar ao digitar na língua que separa assim (`01 310` fica texto em português; o espaço que não quebra vale sempre); rótulos do Consolidar por índice (`Rotulos`, antes busca linear).
 
 ### Referência entre arquivos abertos (v0.1.0, 16/10/2026) — feita e testada com duas janelas

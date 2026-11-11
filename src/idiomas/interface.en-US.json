@@ -4974,5 +4974,6 @@
  "Mesmo formato da célula ativa": "Same format as the active cell",
  "Substituir não vale em comentários: escolha Fórmulas em Examinar.": "Replace does not work on comments: choose Formulas in Look in.",
  "AutoFiltro": "AutoFilter",
- "O nome não pode conter \":\".": "The name cannot contain \":\"."
+ "O nome não pode conter \":\".": "The name cannot contain \":\".",
+ "O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.": "A .fshz file does not carry the password: save as .xlsx so the file is encrypted."
 }

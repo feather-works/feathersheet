@@ -4974,5 +4974,6 @@
  "// O que do VBA de {arquivo} não foi convertido (ou pode agir diferente).\n": "// Lo que del VBA de {arquivo} no se convirtió (o puede actuar distinto).\n",
  "// Relatório mensal · JavaScript do FeatherSheet": "// Informe mensual · JavaScript de FeatherSheet",
  "// {nome} · JavaScript do FeatherSheet\n": "// {nome} · JavaScript de FeatherSheet\n",
- "O nome não pode conter \":\".": "El nombre no puede contener \":\"."
+ "O nome não pode conter \":\".": "El nombre no puede contener \":\".",
+ "O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.": "El .fshz no lleva la contraseña: guarde como .xlsx para que el archivo salga cifrado."
 }

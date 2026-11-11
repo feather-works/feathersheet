@@ -824,6 +824,11 @@ impl App {
             Msg::Salvar => {
                 self.menu_aberto = false;
                 self.confirmar();
+                // Pasta com senha num .fshz: o Ctrl+S gravaria tudo em claro. Pede onde salvar (sugere .xlsx).
+                if self.senha_documento.is_some() && self.caminho.as_ref().is_some_and(|p| !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("xlsx") || e.eq_ignore_ascii_case("xlsm"))) {
+                    self.status = tr!("O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.").into();
+                    return self.dialogo_salvar();
+                }
                 // Salvar por cima de um .xlsx apagaria o que não foi convertido (segmentação, Power
                 // Pivot…): pede "Salvar como", dizendo o que se perderia. Escolher o mesmo arquivo confirma.
                 match self.nao_convertidos_do_arquivo() {
