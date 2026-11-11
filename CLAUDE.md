@@ -13,7 +13,7 @@ duas áreas e o filtro que fecha ao clicar fora foram conferidos pelo usuário n
 sem PowerShell numa máquina Windows e um `.xlsx` cifrado pelo Excel de verdade.
 Release publicada em 11/11 (`.deb`, `.tar.gz`, `.exe`, `SHA256SUMS`); o `.exe` **não passou pelo VirusTotal** (decisão do usuário:
 publicar sem conferir; se um antivírus acusar o PowerShell escondido da atualização, corrigir numa 0.3.2). Snap 0.3.1
-empacotado (`snap/snapcraft.yaml` na 0.3.1); o envio à Snap Store ficou para o usuário rodar.
+publicado no canal estável da Snap Store (revisão 5), sem o teste de instalar aqui (pede `sudo`).
 
 ## v0.3.0 — 08/11/2026: Power Query, dinâmica, Gantt, página e propriedades no arquivo
 
