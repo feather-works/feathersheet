@@ -689,7 +689,7 @@ pub fn extract_chart_data_visiveis(
         if bruto.is_empty() { format!("Item {item}") } else { bruto }
     };
     let nome_da_coluna = |c: u32| {
-        let reserva = format!("Série {}", c - c0 + 1);
+        let reserva = crate::trf!("Série {}", c - c0 + 1);
         if header_offset > 0 {
             let s = str_de(r0, c);
             if s.is_empty() { reserva } else { s }
@@ -739,7 +739,7 @@ pub fn extract_chart_data_visiveis(
                 let series = grupos
                     .iter()
                     .map(|k| ChartSeries {
-                        name: if k.is_empty() { "(vazio)".into() } else { k.clone() },
+                        name: if k.is_empty() { crate::tr!("(vazio)") } else { k.clone() },
                         values: ys.iter().zip(&rotulos).map(|(v, r)| if r == k { *v } else { f64::NAN }).collect(),
                     })
                     .collect();
@@ -946,12 +946,12 @@ pub fn extract_chart_data_visiveis(
                     }
                 }
                 if name_parts.is_empty() {
-                    format!("Série {}", r - r0 + 1)
+                    crate::trf!("Série {}", r - r0 + 1)
                 } else {
                     name_parts.join(" - ")
                 }
             } else {
-                format!("Série {}", r - r0 + 1)
+                crate::trf!("Série {}", r - r0 + 1)
             };
             let mut numerica = false;
             let values = colunas
@@ -1049,7 +1049,7 @@ pub fn extract_raw_chart_series_with(
         .into_iter()
         .enumerate()
         .map(|(i, s)| {
-            let nome = if s.name.is_empty() { format!("Série {}", i + 1) } else { s.name };
+            let nome = if s.name.is_empty() { crate::trf!("Série {}", i + 1) } else { s.name };
             (i as u32, nome)
         })
         .collect()

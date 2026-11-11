@@ -5862,5 +5862,22 @@
  "{grupo} Var": "Var {grupo}",
  "Var Geral": "Var general",
  "Dinâmica{n}": "Dinámica{n}",
- "Consulta_{nome}": "Consulta_{nome}"
+ "Consulta_{nome}": "Consulta_{nome}",
+ "Série {}": "Serie {}",
+ "Gráfico {}": "Gráfico {}",
+ "(vazio)": "(vacío)",
+ "(Vazio)": "(Vacío)",
+ "(Vazias)": "(Vacías)",
+ "== Baixando a versão {versao} do GitHub": "== Descargando la versión {versao} de GitHub",
+ "== Conferindo se o arquivo é exatamente o publicado": "== Comprobando que el archivo es exactamente el publicado",
+ "== Copiando para Aplicativos": "== Copiando a Aplicaciones",
+ "== Esperando o FeatherSheet fechar (feche a janela dele)": "== Esperando a que FeatherSheet se cierre (cierre su ventana)",
+ "== Instalando por cima da versão atual (o apt pede sua senha)": "== Instalando sobre la versión actual (apt pide su contraseña)",
+ "== Instalando por cima da versão atual": "== Instalando sobre la versión actual",
+ "== Trocando os arquivos em ~/.local (sem senha)": "== Cambiando los archivos en ~/.local (sin contraseña)",
+ "Algo deu errado; a versão instalada continua a mesma.": "Algo salió mal; la versión instalada sigue siendo la misma.",
+ "Feche o FeatherSheet e abra de novo para usar a versão nova.": "Cierre FeatherSheet y ábralo de nuevo para usar la versión nueva.",
+ "Pronto: FeatherSheet {versao} instalado.": "Listo: FeatherSheet {versao} instalado.",
+ "Pressione Enter para fechar esta janela.": "Pulse Intro para cerrar esta ventana.",
+ "O arquivo baixado não confere com o publicado.": "El archivo descargado no coincide con el publicado."
 }

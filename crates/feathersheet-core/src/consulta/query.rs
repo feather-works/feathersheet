@@ -341,7 +341,7 @@ fn chave_das(l: &[Value], cols: &[usize]) -> String {
 /// `textoDe`: o rótulo de um valor na pivotagem.
 fn texto_de(v: &Value) -> String {
     match v {
-        Value::Empty => "(vazio)".to_string(),
+        Value::Empty => crate::tr!("(vazio)"),
         outro => string_js(outro),
     }
 }

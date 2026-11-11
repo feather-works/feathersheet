@@ -5862,5 +5862,22 @@
  "{grupo} Var": "{grupo} Var",
  "Var Geral": "Grand Var",
  "Dinâmica{n}": "PivotTable{n}",
- "Consulta_{nome}": "Query_{nome}"
+ "Consulta_{nome}": "Query_{nome}",
+ "Série {}": "Series {}",
+ "Gráfico {}": "Chart {}",
+ "(vazio)": "(blank)",
+ "(Vazio)": "(Blank)",
+ "(Vazias)": "(Blanks)",
+ "== Baixando a versão {versao} do GitHub": "== Downloading version {versao} from GitHub",
+ "== Conferindo se o arquivo é exatamente o publicado": "== Checking that the file is exactly the published one",
+ "== Copiando para Aplicativos": "== Copying to Applications",
+ "== Esperando o FeatherSheet fechar (feche a janela dele)": "== Waiting for FeatherSheet to close (close its window)",
+ "== Instalando por cima da versão atual (o apt pede sua senha)": "== Installing over the current version (apt asks for your password)",
+ "== Instalando por cima da versão atual": "== Installing over the current version",
+ "== Trocando os arquivos em ~/.local (sem senha)": "== Replacing the files in ~/.local (no password)",
+ "Algo deu errado; a versão instalada continua a mesma.": "Something went wrong; the installed version is unchanged.",
+ "Feche o FeatherSheet e abra de novo para usar a versão nova.": "Close FeatherSheet and open it again to use the new version.",
+ "Pronto: FeatherSheet {versao} instalado.": "Done: FeatherSheet {versao} installed.",
+ "Pressione Enter para fechar esta janela.": "Press Enter to close this window.",
+ "O arquivo baixado não confere com o publicado.": "The downloaded file does not match the published one."
 }

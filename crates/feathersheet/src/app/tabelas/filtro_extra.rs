@@ -342,7 +342,14 @@ impl App {
                 }
             }
         }
-        valor.to_owned()
+        // A chave fica como está (é o que o filtro guarda); o que aparece segue a língua.
+        match valor {
+            "(Vazias)" => tr!("(Vazias)").to_owned(),
+            "VERDADEIRO" => feathersheet_core::celulas::locale::texto_logico(true),
+            "FALSO" => feathersheet_core::celulas::locale::texto_logico(false),
+            outro => feathersheet_core::celulas::values::ErrorCode::from_code(outro)
+                .map_or_else(|| outro.to_owned(), |c| c.na_lingua()),
+        }
     }
 
     /// Se o valor da lista bate com a pesquisa (pelo texto ou pela data mostrada).

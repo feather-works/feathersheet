@@ -357,8 +357,12 @@ pub(super) fn opcoes_de_filtro(app: &App, e: &Estado, coluna: usize) -> (Vec<(St
         };
         if !encontrados.contains_key(&chave) {
             let estilo = aba.and_then(|a| a.sheet.estilo_resolvido(r, coluna as u32));
-            let rotulo = if chave == "(Vazio)" { chave.clone() } else {
-                feathersheet_core::planilha::bloco::texto_formatado(&valor, estilo.as_ref())
+            // A chave fica como está (é o que o filtro salvo guarda); só o rótulo segue a língua.
+            let rotulo = match &valor {
+                _ if chave == "(Vazio)" => tr!("(Vazio)").to_owned(),
+                Value::Bool(b) => feathersheet_core::celulas::locale::texto_logico(*b),
+                Value::Error(e) => e.code.na_lingua(),
+                _ => feathersheet_core::planilha::bloco::texto_formatado(&valor, estilo.as_ref()),
             };
             encontrados.insert(chave, rotulo);
         }

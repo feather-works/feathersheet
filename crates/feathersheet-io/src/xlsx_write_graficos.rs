@@ -1067,7 +1067,7 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
         let rid = format!("rIdGrafico{}", k + 1);
         let (de, ate) = ancora_xml(sheet, &v["position"]);
         let id_forma = 100_000 + k * 2; // longe dos ids da tinta (1, 2, …)
-        let nome = if cfg.title.trim().is_empty() { format!("Gráfico {}", k + 1) } else { cfg.title.clone() };
+        let nome = if cfg.title.trim().is_empty() { feathersheet_core::trf!("Gráfico {}", k + 1) } else { cfg.title.clone() };
         let _ = write!(ancoras, "<xdr:twoCellAnchor><xdr:from>{de}</xdr:from><xdr:to>{ate}</xdr:to>");
         if matches!(cfg.tipo, ChartType::Waterfall | ChartType::Histogram) {
             let rid_reserva = format!("rIdReserva{}", k + 1);

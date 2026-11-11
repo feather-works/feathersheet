@@ -235,7 +235,36 @@ pub fn roteiro(inst: Instalacao, versao: &str, pid: u32) -> Option<(String, Stri
             cabecalho("#"),
         )),
         Instalacao::Desconhecida => return None,
-    })
+    }).map(|(nome, texto)| (nome, roteiro_na_lingua(texto, versao)))
+}
+
+/// As frases que o roteiro mostra a quem atualiza, em português (a chave do dicionário).
+/// A mais comprida vem antes da que é o começo dela.
+const FRASES_DO_ROTEIRO: [&str; 12] = [
+    "== Baixando a versão {versao} do GitHub",
+    "== Conferindo se o arquivo é exatamente o publicado",
+    "== Copiando para Aplicativos",
+    "== Esperando o FeatherSheet fechar (feche a janela dele)",
+    "== Instalando por cima da versão atual (o apt pede sua senha)",
+    "== Instalando por cima da versão atual",
+    "== Trocando os arquivos em ~/.local (sem senha)",
+    "Algo deu errado; a versão instalada continua a mesma.",
+    "Feche o FeatherSheet e abra de novo para usar a versão nova.",
+    "Pronto: FeatherSheet {versao} instalado.",
+    "Pressione Enter para fechar esta janela.",
+    "O arquivo baixado não confere com o publicado.",
+];
+
+/// Troca as frases do roteiro pelas da língua do app. Aspas saem da tradução: a frase vai
+/// dentro de `echo "…"` (bash) e de `'…'` (PowerShell), e uma aspa a mais quebraria o roteiro.
+fn roteiro_na_lingua(mut texto: String, versao: &str) -> String {
+    for frase in FRASES_DO_ROTEIRO {
+        let traduzida = tr!(frase);
+        if traduzida == frase { continue; }
+        let limpa = traduzida.replace('\'', "\u{2019}").replace(['"', '`', '$', '\\'], "");
+        texto = texto.replace(&frase.replace("{versao}", versao), &limpa.replace("{versao}", versao));
+    }
+    texto
 }
 
 /// Grava o roteiro na pasta temporária e abre o terminal do sistema com ele.
@@ -555,5 +584,21 @@ mod testes {
         assert!(mac.contains("shasum -a 256 -c") && mac.contains("kill -0 42") && mac.contains("/Applications/FeatherSheet.app"));
 
         assert!(roteiro(Instalacao::Desconhecida, "0.0.3", 42).is_none());
+    }
+
+    /// O roteiro sai na língua do app, sem aspa a mais (quebraria o bash e o PowerShell).
+    #[test]
+    fn roteiro_sai_na_lingua_do_app_sem_aspas_novas() {
+        for inst in [Instalacao::Windows, Instalacao::Mac] {
+            let (_, pt) = roteiro(inst, "0.0.3", 42).unwrap();
+            crate::idioma::definir_na_thread("fr-FR");
+            let (_, fr) = roteiro(inst, "0.0.3", 42).unwrap();
+            crate::idioma::definir_na_thread("pt-BR");
+            assert!(fr.contains("Téléchargement de la version 0.0.3 depuis GitHub"), "{fr}");
+            assert!(!fr.contains("Baixando"), "sobrou português: {fr}");
+            for aspa in ['\'', '"', '`', '$'] {
+                assert_eq!(fr.matches(aspa).count(), pt.matches(aspa).count(), "{aspa:?} a mais ou a menos");
+            }
+        }
     }
 }
