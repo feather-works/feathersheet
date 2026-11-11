@@ -55,13 +55,13 @@ fn comparacao_aproximada(a: &Json, b: &Json, tipo: i8) -> bool {
 fn validar_matriz(tabela: &Json) -> Result<(usize,usize),String> {
     let linhas = tabela.as_array();
     let nlinhas = linhas.map_or(1,Vec::len);
-    if nlinhas > LIMITE { return Err("WorksheetFunction: mais de 500.000 linhas".into()); }
+    if nlinhas > LIMITE { return Err(feathersheet_core::tr!("WorksheetFunction: mais de 500.000 linhas").into()); }
     let mut total = 0usize;
     if let Some(linhas) = linhas {
         for linha in linhas {
             total = total.saturating_add(linha.as_array().map_or(1,Vec::len));
             if total > LIMITE {
-                return Err("WorksheetFunction: limite de 500.000 valores".into());
+                return Err(feathersheet_core::tr!("WorksheetFunction: limite de 500.000 valores").into());
             }
         }
     }
@@ -126,7 +126,7 @@ fn localizar(dados: &Json) -> Result<Json,String> {
     let tipo = match dados.get(2) {
         None => 0.0,
         Some(v) => v.as_f64().filter(|n| n.is_finite())
-            .ok_or("MATCH: tipo deve ser um número finito")?,
+            .ok_or_else(|| feathersheet_core::tr!("MATCH: tipo deve ser um número finito"))?,
     };
     let mut itens = Vec::new();
     achatar(fonte,&mut itens,0)?;

@@ -32,7 +32,7 @@ pub(crate) const LIMITE_DE_BYTES: usize = 64 * 1024 * 1024;
 
 /// Descomprime um contêiner comprimido do MS-OVBA (§2.4.1). Erro em português, nunca pânico.
 pub fn descomprimir(dados: &[u8]) -> Result<Vec<u8>, String> {
-    let erro = || "O código VBA está corrompido (compressão inválida).".to_string();
+    let erro = || feathersheet_core::tr!("O código VBA está corrompido (compressão inválida).");
     if dados.first() != Some(&1) {
         return Err(erro());
     }
@@ -129,7 +129,7 @@ fn ler_dir(dir: &[u8]) -> Result<(u16, Vec<Entrada>), String> {
         if id == 0x0009 {
             tamanho = 6;
         }
-        let Some(dado) = dir.get(i..i + tamanho) else { return Err("O índice do projeto VBA está corrompido.".into()) };
+        let Some(dado) = dir.get(i..i + tamanho) else { return Err(feathersheet_core::tr!("O índice do projeto VBA está corrompido.").into()) };
         i += tamanho;
         match id {
             0x0003 if tamanho >= 2 => pagina = u16::from_le_bytes([dado[0], dado[1]]),
@@ -158,13 +158,13 @@ fn tipo_pelo_codigo(codigo: &str) -> TipoDeModulo {
 
 /// Lê os módulos de um `vbaProject.bin`.
 pub fn ler_projeto(bin: &[u8]) -> Result<Vec<ModuloVba>, String> {
-    let mut cfb = cfb::CompoundFile::open(Cursor::new(bin)).map_err(|_| "O projeto VBA (vbaProject.bin) não é um arquivo OLE válido.".to_string())?;
+    let mut cfb = cfb::CompoundFile::open(Cursor::new(bin)).map_err(|_| feathersheet_core::tr!("O projeto VBA (vbaProject.bin) não é um arquivo OLE válido."))?;
     let mut fluxo = |nome: &str| -> Result<Vec<u8>, String> {
-        let mut f = cfb.open_stream(nome).map_err(|_| format!("O projeto VBA não tem o fluxo {nome}."))?;
+        let mut f = cfb.open_stream(nome).map_err(|_| feathersheet_core::trf!("O projeto VBA não tem o fluxo {nome}."))?;
         let mut v = Vec::new();
-        f.take(LIMITE_DE_BYTES as u64 + 1).read_to_end(&mut v).map_err(|e| format!("Não consegui ler {nome}: {e}"))?;
+        f.take(LIMITE_DE_BYTES as u64 + 1).read_to_end(&mut v).map_err(|e| feathersheet_core::trf!("Não consegui ler {nome}: {e}"))?;
         if v.len() > LIMITE_DE_BYTES {
-            return Err(format!("O fluxo {nome} do projeto VBA é grande demais."));
+            return Err(feathersheet_core::trf!("O fluxo {nome} do projeto VBA é grande demais."));
         }
         Ok(v)
     };
@@ -172,7 +172,7 @@ pub fn ler_projeto(bin: &[u8]) -> Result<Vec<ModuloVba>, String> {
     let mut modulos = Vec::new();
     for e in entradas {
         let bruto = fluxo(&format!("/VBA/{}", e.fluxo))?;
-        let comprimido = bruto.get(e.deslocamento..).ok_or_else(|| format!("O módulo {} está corrompido.", e.nome))?;
+        let comprimido = bruto.get(e.deslocamento..).ok_or_else(|| feathersheet_core::trf!("O módulo {} está corrompido.", e.nome))?;
         let codigo = decodificar(&descomprimir(comprimido)?, pagina).replace("\r\n", "\n").replace('\r', "\n");
         let tipo = if e.padrao { TipoDeModulo::Padrao } else { tipo_pelo_codigo(&codigo) };
         modulos.push(ModuloVba { nome: e.nome, tipo, codigo });

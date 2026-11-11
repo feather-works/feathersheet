@@ -295,15 +295,15 @@ impl Workbook {
 
     /// Oculta uma aba, exigindo que pelo menos uma permaneça visível.
     /// Devolve uma aba visível segura para seleção na GUI.
-    pub fn ocultar_aba(&mut self, indice: usize) -> Result<usize, &'static str> {
+    pub fn ocultar_aba(&mut self, indice: usize) -> Result<usize, String> {
         if indice >= self.abas.len() {
-            return Err("A aba não existe");
+            return Err(crate::tr!("A aba não existe"));
         }
         if self.abas[indice].sheet.oculta {
-            return Err("A aba já está oculta");
+            return Err(crate::tr!("A aba já está oculta"));
         }
         if self.abas_visiveis().count() <= 1 {
-            return Err("A pasta precisa ter pelo menos uma aba visível");
+            return Err(crate::tr!("A pasta precisa ter pelo menos uma aba visível"));
         }
         self.abas[indice].sheet.oculta = true;
         self.abas[indice].versao = self.abas[indice].versao.wrapping_add(1);

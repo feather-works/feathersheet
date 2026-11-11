@@ -119,8 +119,8 @@ impl Gerador<'_> {
             // Rótulo que ninguém chama (ou já tratado pelo bloco): não faz nada.
             TipoInstr::Rotulo(_) => String::new(),
             TipoInstr::IrPara(n) if self.rotulos.contains(&n.to_lowercase()) => format!("break {};", rotulo_js(n)),
-            TipoInstr::IrPara(_) => return Err(Motivo::novo("GoTo para trás ou para dentro de um bloco (reescrever com laço ou if)")),
-            TipoInstr::EmErro(_) => return Err(Motivo::novo("On Error GoTo fora do começo do procedimento (reescrever com try/catch)")),
+            TipoInstr::IrPara(_) => return Err(Motivo::novo(feathersheet_core::tr!("GoTo para trás ou para dentro de um bloco (reescrever com laço ou if)"))),
+            TipoInstr::EmErro(_) => return Err(Motivo::novo(feathersheet_core::tr!("On Error GoTo fora do começo do procedimento (reescrever com try/catch)"))),
             TipoInstr::Desconhecida(t) => return Err(Motivo::novo(motivo_da_desconhecida(t))),
             _ => unreachable!("blocos vão por instrucao()"),
         })
@@ -256,7 +256,7 @@ impl Gerador<'_> {
             if let Expr::Membro(b, m) = &**f {
                 if let Some(js) = self.var_colecao(b).filter(|_| m.eq_ignore_ascii_case("key")) {
                     let (k, v) = (self.valores(idx)?, self.valor(valor)?);
-                    let k = k.into_iter().next().ok_or_else(|| Motivo::novo("Key sem chave"))?;
+                    let k = k.into_iter().next().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("Key sem chave")))?;
                     return Ok(format!("{js}.key({}, {});", k.js, v.js));
                 }
             }
@@ -276,11 +276,11 @@ impl Gerador<'_> {
                     Some(Expr::Nome(n)) => self.var(n).or_else(|| self.global(n)).filter(|v| matches!(v.tipo, Tipo::Valor(_))).map(|v| v.js),
                     _ => None,
                 };
-                let js = alvo_var.ok_or_else(|| Motivo::novo("Mid(...) = sobre algo que não é variável de texto"))?;
+                let js = alvo_var.ok_or_else(|| Motivo::novo(feathersheet_core::tr!("Mid(...) = sobre algo que não é variável de texto")))?;
                 let args = self.valores(&idx[1..])?;
                 let v = self.valor(valor)?;
                 let quantos = args.get(1).map_or_else(|| "undefined".to_string(), |a| a.js.clone());
-                let inicio = args.first().ok_or_else(|| Motivo::novo("Mid(...) = sem início"))?.js.clone();
+                let inicio = args.first().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("Mid(...) = sem início")))?.js.clone();
                 Ok(format!("{js} = vba.{}({js}, {inicio}, {quantos}, {});", self.ajuda("midTroca"), v.js))
             }
             Expr::Chamada(f, idx) if matches!(&**f, Expr::Nome(n) if self.var(n).is_some_and(|v| v.matriz || matches!(v.tipo, Tipo::Valor(T::Var | T::Matriz)))) => {
@@ -298,7 +298,7 @@ impl Gerador<'_> {
                 self.atribuir_propriedade(o, prop, valor)
             }
             Expr::MembroDoCom(prop) => {
-                let o = self.com.last().cloned().ok_or_else(|| Motivo::novo("`.membro` fora de With"))??;
+                let o = self.com.last().cloned().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("`.membro` fora de With")))??;
                 self.atribuir_propriedade(o, prop, valor)
             }
             Expr::Chamada(..) => {
@@ -306,7 +306,7 @@ impl Gerador<'_> {
                 let o = self.objeto(alvo)?;
                 self.atribuir_propriedade(o, "value", valor)
             }
-            _ => Err(Motivo::novo("atribuição a algo que não é variável nem propriedade")),
+            _ => Err(Motivo::novo(feathersheet_core::tr!("atribuição a algo que não é variável nem propriedade"))),
         }
     }
 
@@ -326,7 +326,7 @@ impl Gerador<'_> {
                         if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = Tipo::Colecao; }
                         v.js
                     }
-                    Some(_) => return Err(Motivo::novo(format!("coleção guardada em {n}, que tem outro tipo"))),
+                    Some(_) => return Err(Motivo::novo(feathersheet_core::trf!("coleção guardada em {n}, que tem outro tipo"))),
                     None => self.declarar(n, Tipo::Colecao, false),
                 };
                 return Ok(format!("{js} = {};", nova.unwrap_or_else(|| "null".into())));
@@ -342,7 +342,7 @@ impl Gerador<'_> {
         }
         let var = match self.var(n).or_else(|| self.global(n)) {
             Some(v) => v,
-            None if self.p.codenames.contains_key(&chave) => return Err(Motivo::novo("atribuir a uma aba")),
+            None if self.p.codenames.contains_key(&chave) => return Err(Motivo::novo(feathersheet_core::tr!("atribuir a uma aba"))),
             // `TextBox1 = "x"` no código do formulário: o valor padrão do controle.
             None if self.controle_do_modulo(n).is_some() => {
                 let c = self.controle_do_modulo(n).unwrap_or_default();
@@ -364,7 +364,7 @@ impl Gerador<'_> {
                     Obj::Aba(..) => Tipo::Aba,
                     Obj::NovaPasta(_) => Tipo::NovaPasta,
                     Obj::FuncoesDaPlanilha => Tipo::Funcoes,
-                    _ => return Err(Motivo::novo("Set de objeto que não é aba nem intervalo")),
+                    _ => return Err(Motivo::novo(feathersheet_core::tr!("Set de objeto que não é aba nem intervalo"))),
                 };
                 self.declarar(n, tipo, false);
                 self.var(n).expect("acabou de declarar")
@@ -391,10 +391,10 @@ impl Gerador<'_> {
             }
         }
         match &var.tipo {
-            Tipo::Funcoes => Err(Motivo::novo("WorksheetFunction guardada em variável e trocada depois")),
+            Tipo::Funcoes => Err(Motivo::novo(feathersheet_core::tr!("WorksheetFunction guardada em variável e trocada depois"))),
             // `Set sh = Nothing` no fim: nada a soltar.
             Tipo::Shell if matches!(valor, Expr::Nada) => Ok(String::new()),
-            Tipo::Shell => Err(Motivo::novo("WScript.Shell guardado em variável e trocado depois")),
+            Tipo::Shell => Err(Motivo::novo(feathersheet_core::tr!("WScript.Shell guardado em variável e trocado depois"))),
             // `Set c = FuncaoQueDevolveColecao()`.
             Tipo::Colecao => Ok(format!("{} = {};", var.js, self.valor(valor)?.js)),
             Tipo::Impossivel(antes) if set && antes.starts_with("objeto do tipo") => {
@@ -410,12 +410,12 @@ impl Gerador<'_> {
                 Expr::Nada => Ok(format!("{} = null;", var.js)),
                 _ => match self.objeto(valor)? {
                     Obj::NovaPasta(js) => Ok(format!("{} = {js};", var.js)),
-                    _ => Err(Motivo::novo("outra pasta de trabalho (só Workbooks.Add converte)")),
+                    _ => Err(Motivo::novo(feathersheet_core::tr!("outra pasta de trabalho (só Workbooks.Add converte)"))),
                 },
             },
             Tipo::Aba => match self.objeto(valor)? {
                 Obj::Aba(js, _) => Ok(format!("{} = {js};", var.js)),
-                _ => Err(Motivo::novo("Set de aba com algo que não é aba")),
+                _ => Err(Motivo::novo(feathersheet_core::tr!("Set de aba com algo que não é aba"))),
             },
             Tipo::Faixa(_) if set || matches!(valor, Expr::Nada) => match valor {
                 Expr::Nada => Ok(format!("{} = null;", var.js)),
@@ -424,7 +424,7 @@ impl Gerador<'_> {
                         self.escopo.aba_da_faixa.insert(var.js.clone(), f.aba.clone());
                         Ok(format!("{} = {};", var.js, f.end))
                     }
-                    _ => Err(Motivo::novo("Set de intervalo com algo que não é intervalo")),
+                    _ => Err(Motivo::novo(feathersheet_core::tr!("Set de intervalo com algo que não é intervalo"))),
                 },
             },
             Tipo::Faixa(_) => {
@@ -452,7 +452,7 @@ impl Gerador<'_> {
         let como_objeto = self.objeto(e).err();
         match self.valor(e) {
             Err(m) if !m.0.contains("desconhecido") && !m.0.contains("não é objeto") => m,
-            _ => como_objeto.unwrap_or_else(|| Motivo::novo("objeto sem equivalente")),
+            _ => como_objeto.unwrap_or_else(|| Motivo::novo(feathersheet_core::tr!("objeto sem equivalente"))),
         }
     }
 
@@ -484,12 +484,12 @@ impl Gerador<'_> {
                     self.ajuda("rnd");
                     return Ok("vba.randomize();".into());
                 }
-                Err(Motivo::novo(format!("{n} sem equivalente")))
+                Err(Motivo::novo(feathersheet_core::trf!("{n} sem equivalente")))
             }
             Expr::Chamada(f, args) if matches!(&**f, Expr::Nome(n) if n.eq_ignore_ascii_case("callbyname")) => {
                 match self.call_by_name(args)? {
                     (o, nome, 4 | 8, resto) => {
-                        let valor = resto.first().and_then(|a| a.valor.clone()).ok_or_else(|| Motivo::novo("CallByName VbLet sem valor"))?;
+                        let valor = resto.first().and_then(|a| a.valor.clone()).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("CallByName VbLet sem valor")))?;
                         let obj = self.objeto(&o)?;
                         self.atribuir_propriedade(obj, &nome, &valor)
                     }
@@ -504,23 +504,23 @@ impl Gerador<'_> {
                         Some(Expr::Nome(f)) if self.formulario_por_nome(f).is_some() => {
                             Ok(if n.eq_ignore_ascii_case("unload") { "sheet.hideComponent();".into() } else { String::new() })
                         }
-                        _ => Err(Motivo::novo(format!("{n} de algo que não é formulário"))),
+                        _ => Err(Motivo::novo(feathersheet_core::trf!("{n} de algo que não é formulário"))),
                     }
                 }
                 Expr::Nome(_) => Ok(format!("{};", self.valor(e)?.js)),
                 Expr::Membro(base, m) => self.chamar_membro(base, m, args),
                 Expr::MembroDoCom(m) => {
-                    let o = self.com.last().cloned().ok_or_else(|| Motivo::novo("`.membro` fora de With"))??;
+                    let o = self.com.last().cloned().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("`.membro` fora de With")))??;
                     self.metodo(o, m, args)
                 }
-                _ => Err(Motivo::novo("chamada estranha")),
+                _ => Err(Motivo::novo(feathersheet_core::tr!("chamada estranha"))),
             },
             Expr::Membro(base, m) => self.chamar_membro(base, m, &[]),
             Expr::MembroDoCom(m) => {
-                let o = self.com.last().cloned().ok_or_else(|| Motivo::novo("`.membro` fora de With"))??;
+                let o = self.com.last().cloned().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("`.membro` fora de With")))??;
                 self.metodo(o, m, &[])
             }
-            _ => Err(Motivo::novo("instrução estranha")),
+            _ => Err(Motivo::novo(feathersheet_core::tr!("instrução estranha"))),
         }
     }
 
@@ -683,7 +683,7 @@ impl Gerador<'_> {
                 (format!("vba.{h}({}, {})", f.aba, f.end), Some((Tipo::Faixa(None), Some(f.aba))))
             }
             Ok(Obj::Abas) => (format!("vba.{}()", self.ajuda("abas")), Some((Tipo::Aba, None))),
-            Ok(_) => return Err(Motivo::novo("For Each sobre coleção do Excel")),
+            Ok(_) => return Err(Motivo::novo(feathersheet_core::tr!("For Each sobre coleção do Excel"))),
             Err(m) if matches!(em, Expr::Nome(n) if self.var(n).is_some() || self.global(n).is_some()) => {
                 let _ = m;
                 (self.valor(em)?.js, None)
@@ -759,7 +759,7 @@ impl Gerador<'_> {
             "function" | "property" => Ok(if self.escopo.funcao.is_some() { "return $r;".into() } else { "return;".into() }),
             "for" | "do" => {
                 let n = self.lacos.len();
-                let alvo = self.lacos.iter().rposition(|l| l.tipo == o).ok_or_else(|| Motivo::novo(format!("Exit {o} fora de laço")))?;
+                let alvo = self.lacos.iter().rposition(|l| l.tipo == o).ok_or_else(|| Motivo::novo(feathersheet_core::trf!("Exit {o} fora de laço")))?;
                 if alvo + 1 == n {
                     return Ok("break;".into());
                 }

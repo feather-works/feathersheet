@@ -17,8 +17,7 @@ pub(crate) fn celulas_especiais(
     pasta: &Workbook, aba: usize, area: &Rect, tipo: &str, filtros: &[crate::pasta::PedidoFiltro],
 ) -> Result<Vec<(u32, u32)>, String> {
     if !matches!(tipo, "blanks" | "formulas" | "constants" | "errors" | "visible") {
-        return Err(format!(
-            "Tipo inválido: {tipo}. Use blanks, formulas, constants, errors ou visible"
+        return Err(feathersheet_core::trf!("Tipo inválido: {tipo}. Use blanks, formulas, constants, errors ou visible"
         ));
     }
     let sheet = &pasta.aba(aba).ok_or("Aba inexistente")?.sheet;

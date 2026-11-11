@@ -14,15 +14,15 @@ pub fn criar_backup(origem: &Path, destino_dir: &Path) -> Result<PathBuf, String
     if !origem.extension().and_then(|v| v.to_str())
         .is_some_and(|v| v.eq_ignore_ascii_case("fshz"))
     {
-        return Err("O backup manual requer um arquivo .fshz salvo.".into());
+        return Err(feathersheet_core::tr!("O backup manual requer um arquivo .fshz salvo.").into());
     }
     let meta = fs::metadata(origem)
-        .map_err(|e| format!("Não consegui acessar {}: {e}", origem.display()))?;
+        .map_err(|e| feathersheet_core::trf!("Não consegui acessar {}: {e}", origem.display()))?;
     if !meta.is_file() {
-        return Err("O arquivo de origem não é uma planilha regular.".into());
+        return Err(feathersheet_core::tr!("O arquivo de origem não é uma planilha regular.").into());
     }
     fs::create_dir_all(destino_dir)
-        .map_err(|e| format!("Não consegui criar a pasta de backups: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("Não consegui criar a pasta de backups: {e}"))?;
 
     let nome = origem.file_stem().and_then(|s| s.to_str()).unwrap_or("Planilha");
     let nome: String = nome.chars().take(48)
@@ -38,10 +38,10 @@ pub fn criar_backup(origem: &Path, destino_dir: &Path) -> Result<PathBuf, String
     ));
 
     let mut arquivo_origem = fs::File::open(origem)
-        .map_err(|e| format!("Não consegui abrir a planilha salva: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("Não consegui abrir a planilha salva: {e}"))?;
     super::arquivo::gravar_atomico_com(&destino, |arquivo| {
         io::copy(&mut arquivo_origem, arquivo).map(|_| ())
-    }).map_err(|e| format!("Falha ao gravar a cópia de segurança: {e}"))?;
+    }).map_err(|e| feathersheet_core::trf!("Falha ao gravar a cópia de segurança: {e}"))?;
     Ok(destino)
 }
 

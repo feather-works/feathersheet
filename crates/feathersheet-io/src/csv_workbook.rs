@@ -24,7 +24,7 @@ pub fn importar_csv_tsv_arquivo(
     let inicio = std::time::Instant::now();
     let leitor = std::io::BufReader::with_capacity(64 * 1024, crate::progresso::Contador(arquivo));
     let (delim, leitor) = crate::csv_colunas::separador_e_leitor(leitor, tsv, separador)
-        .map_err(|e| format!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
     if !delim.is_ascii() {
         importar_celula_a_celula(leitor, delim, aba)?;
         return Ok(workbook);
@@ -60,9 +60,9 @@ fn importar_celula_a_celula(
         }
     };
     feather_io::csv_lotes::dividir_csv_leitor(leitor, Some(delim), 512, entregar)
-        .map_err(|e| format!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
     if excedeu {
-        return Err("CSV/TSV excede os limites de linhas ou colunas da planilha".into());
+        return Err(feathersheet_core::tr!("CSV/TSV excede os limites de linhas ou colunas da planilha").into());
     }
     Ok(())
 }
@@ -114,7 +114,7 @@ pub fn importar_csv_tsv_com_separador(
         }
     });
     if excedeu {
-        return Err("CSV/TSV excede os limites de linhas ou colunas da planilha".into());
+        return Err(feathersheet_core::tr!("CSV/TSV excede os limites de linhas ou colunas da planilha").into());
     }
     Ok(workbook)
 }

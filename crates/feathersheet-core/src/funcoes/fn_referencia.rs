@@ -90,7 +90,7 @@ fn indireto(args: &[Node], ev: &Evaluator<'_>) -> Res<Node> {
     let texto = arg_texto(args, ev, 0)?;
     let texto = texto.trim().trim_start_matches('=');
     let a1 = if has(args, 1) { arg_logico(args, ev, 1)? } else { true };
-    let invalida = || erro_motivo(ErrorCode::Ref, &format!("\"{texto}\" não é uma referência"));
+    let invalida = || erro_motivo(ErrorCode::Ref, &crate::trf!("\"{texto}\" não é uma referência"));
     if !a1 {
         return l1c1(texto, ev.here).map(no_de).ok_or_else(invalida);
     }

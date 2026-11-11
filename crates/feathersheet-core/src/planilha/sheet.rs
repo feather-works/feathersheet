@@ -2122,7 +2122,7 @@ impl<'a> EvalContext for SheetCtx<'a> {
             Some(aba) => aba.get_value_em(row, col, self.host),
             None => Value::Error(CellError::com_motivo(
                 ErrorCode::Ref,
-                format!("Aba \"{}\" não existe", sheet.unwrap_or_default()),
+                crate::trf!("Aba \"{}\" não existe", sheet.unwrap_or_default()),
             )),
         }
     }

@@ -48,11 +48,11 @@ pub fn renderizar_dados(
     config: &ChartConfig, dados: &ChartData, largura: f32, altura: f32,
 ) -> Result<String, String> {
     let tipo = tipo_compartilhado(config.tipo)
-        .ok_or("O tipo do gráfico ainda não é reconhecido pelo motor Rust.")?;
+        .ok_or_else(|| feathersheet_core::tr!("O tipo do gráfico ainda não é reconhecido pelo motor Rust."))?;
     let series = dados.series.iter().enumerate().map(|(i, s)| {
         let cor = get_series_color(&config.style, i as u32);
         let cor = cor_css(&cor)
-            .ok_or_else(|| format!("Cor de série inválida: {cor}"))?;
+            .ok_or_else(|| feathersheet_core::trf!("Cor de série inválida: {cor}"))?;
         Ok(Serie {
             nome: s.name.clone(),
             valores: s.values.clone(),
@@ -67,7 +67,7 @@ pub fn renderizar_dados(
         z_values: dados.z_values.clone(),
     };
     renderizar_svg(tipo, &entrada, largura, altura)
-        .map_err(|e| format!("Gráfico {}: {e:?}", tipo.id()))
+        .map_err(|e| feathersheet_core::trf!("Gráfico {}: {e:?}", tipo.id()))
 }
 
 /// Extrai a partir de Sheet, preservando locale/agrupamentos e totais originais.

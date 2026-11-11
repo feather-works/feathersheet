@@ -60,7 +60,7 @@ impl Gerador<'_> {
 
     /// `d(k) = v` / `d.Item(k) = v`.
     pub fn atribuir_colecao(&mut self, js: &str, args: &[Arg], valor: &Expr) -> R<String> {
-        let k = self.valores(args)?.into_iter().next().ok_or_else(|| Motivo::novo("item da coleção sem chave"))?;
+        let k = self.valores(args)?.into_iter().next().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("item da coleção sem chave")))?;
         let v = self.valor(valor)?;
         Ok(format!("{js}.set({}, {});", k.js, v.js))
     }

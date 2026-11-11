@@ -211,12 +211,12 @@ impl Gerador<'_> {
                 V::composto(format!("{c} ? {} : {}", a[1].par(), a[2].par()), T::Var)
             }
             "now" | "date" | "time" | "timer" => self.embutida_sem_args(n)?,
-            "createobject" | "getobject" => return Some(Err(Motivo::novo("automação de outro programa (CreateObject)"))),
+            "createobject" | "getobject" => return Some(Err(Motivo::novo(feathersheet_core::tr!("automação de outro programa (CreateObject)")))),
             // Shell(comando, [estilo da janela]): o app mostra o comando e pergunta antes de rodar.
             "shell" => V::novo(format!("app.shell({})", a.first().map(|v| self.como_texto(v)).unwrap_or_default()), T::Num),
-            "dir" | "freefile" | "eof" | "filelen" | "filedatetime" | "curdir" => return Some(Err(Motivo::novo("acesso a arquivo"))),
-            "environ" => return Some(Err(Motivo::novo("variável de ambiente do Windows"))),
-            "evaluate" => return Some(Err(Motivo::novo("Evaluate (avaliar fórmula em texto)"))),
+            "dir" | "freefile" | "eof" | "filelen" | "filedatetime" | "curdir" => return Some(Err(Motivo::novo(feathersheet_core::tr!("acesso a arquivo")))),
+            "environ" => return Some(Err(Motivo::novo(feathersheet_core::tr!("variável de ambiente do Windows")))),
+            "evaluate" => return Some(Err(Motivo::novo(feathersheet_core::tr!("Evaluate (avaliar fórmula em texto)")))),
             "typename" => self.chamar_ajuda("typeName", a, T::Texto),
             "vartype" => self.chamar_ajuda("varType", a, T::Num),
             "isobject" => self.chamar_ajuda("isObject", a, T::Bool),

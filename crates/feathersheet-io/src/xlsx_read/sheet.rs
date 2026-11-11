@@ -443,8 +443,7 @@ fn read_sheet_com_links_limite(
         }
     })?;
     if excedeu {
-        return Err(format!(
-            "XLSX excede {} celulas (inclusive celulas so formatadas). Remova              formatacao de linhas/colunas inteiras no Excel antes de importar.",
+        return Err(feathersheet_core::trf!("XLSX excede {} celulas (inclusive celulas so formatadas). Remova formatacao de linhas/colunas inteiras no Excel antes de importar.",
             limite,
         ));
     }

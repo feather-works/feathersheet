@@ -625,12 +625,12 @@ impl ObjetosAba {
     /// Lê o campo `ob`. Vazio/ausente = sem objetos.
     pub fn ler(ob: Option<&str>) -> Result<Self, String> {
         let Some(texto) = ob.filter(|t| !t.trim().is_empty()) else { return Ok(Self::default()) };
-        let lido: Self = serde_json::from_str(texto).map_err(|e| format!("Objetos da aba inválidos: {e}"))?;
+        let lido: Self = serde_json::from_str(texto).map_err(|e| feathersheet_core::trf!("Objetos da aba inválidos: {e}"))?;
         if lido.v != VERSAO {
-            return Err(format!("Versão {} dos objetos da aba desconhecida.", lido.v));
+            return Err(feathersheet_core::trf!("Versão {} dos objetos da aba desconhecida.", lido.v));
         }
         if lido.objetos.len() > MAX_OBJETOS {
-            return Err(format!("Mais de {MAX_OBJETOS} objetos numa aba."));
+            return Err(feathersheet_core::trf!("Mais de {MAX_OBJETOS} objetos numa aba."));
         }
         Ok(lido)
     }

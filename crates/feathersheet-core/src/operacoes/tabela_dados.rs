@@ -37,27 +37,27 @@ pub fn calcular(workbook: &mut Workbook, aba: usize, area: &Rect,
     -> Result<Vec<(u32, u32, String)>, String> {
     let a = area.normalized();
     if a.r1 <= a.r0 || a.c1 <= a.c0 {
-        return Err("Selecione a tabela inteira: valores de entrada e fórmulas, ao menos 2 × 2.".into());
+        return Err(crate::tr!("Selecione a tabela inteira: valores de entrada e fórmulas, ao menos 2 × 2.").into());
     }
     let combinacoes = u64::from(a.r1 - a.r0) * u64::from(a.c1 - a.c0);
     if combinacoes > MAX_COMBINACOES {
-        return Err(format!("A tabela teria {combinacoes} resultados; o limite é {MAX_COMBINACOES}."));
+        return Err(crate::trf!("A tabela teria {combinacoes} resultados; o limite é {MAX_COMBINACOES}."));
     }
     let dentro = |(r, c): (u32, u32)| r >= a.r0 && r <= a.r1 && c >= a.c0 && c <= a.c1;
     if entrada_linha.is_some_and(dentro) || entrada_coluna.is_some_and(dentro) {
-        return Err("A célula de entrada precisa ficar fora da tabela.".into());
+        return Err(crate::tr!("A célula de entrada precisa ficar fora da tabela.").into());
     }
-    let sheet = &workbook.aba(aba).ok_or("A aba não existe.")?.sheet;
+    let sheet = &workbook.aba(aba).ok_or_else(|| crate::tr!("A aba não existe."))?.sheet;
     let formula = |r: u32, c: u32| sheet.get_raw(r, c).starts_with('=');
     // Onde ficam as fórmulas em cada arranjo, conferido antes de calcular.
     match (entrada_linha, entrada_coluna) {
-        (None, None) => return Err("Informe ao menos uma célula de entrada.".into()),
+        (None, None) => return Err(crate::tr!("Informe ao menos uma célula de entrada.").into()),
         (Some(_), Some(_)) if !formula(a.r0, a.c0) =>
-            return Err("Com duas entradas, a fórmula fica no canto superior esquerdo da tabela.".into()),
+            return Err(crate::tr!("Com duas entradas, a fórmula fica no canto superior esquerdo da tabela.").into()),
         (None, Some(_)) if !(a.c0 + 1..=a.c1).any(|c| formula(a.r0, c)) =>
-            return Err("Coloque as fórmulas na primeira linha da tabela.".into()),
+            return Err(crate::tr!("Coloque as fórmulas na primeira linha da tabela.").into()),
         (Some(_), None) if !(a.r0 + 1..=a.r1).any(|r| formula(r, a.c0)) =>
-            return Err("Coloque as fórmulas na primeira coluna da tabela.".into()),
+            return Err(crate::tr!("Coloque as fórmulas na primeira coluna da tabela.").into()),
         _ => {}
     }
     let originais: Vec<((u32, u32), Option<Snap>)> = [entrada_linha, entrada_coluna].into_iter()

@@ -132,7 +132,7 @@ pub fn quando(aberto: u64, agora: u64) -> String {
     // O TypeScript exibia a data local em pt-BR para entradas com 7 dias
     // ou mais. Sem acrescentar dependências de calendário ao motor IO,
     // calculamos a data civil UTC. O instante gravado permanece intacto.
-    data_pt_br_utc(aberto).unwrap_or_else(|| format!("há {d} dias"))
+    data_pt_br_utc(aberto).unwrap_or_else(|| feathersheet_core::trf!("há {d} dias"))
 }
 
 /// Converte os milissegundos Unix persistidos no histórico para DD/MM/AAAA.

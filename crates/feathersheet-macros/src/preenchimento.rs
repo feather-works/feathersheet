@@ -12,22 +12,22 @@ const TETO_CELULAS: u64 = 500_000;
 /// Pré-valida antes de alocar o plano de preenchimento no core.
 pub(crate) fn validar(origem: &Rect, destino: &Rect) -> Result<bool, String> {
     if origem.sheet.is_some() || destino.sheet.is_some() {
-        return Err("autoFill aceita endereços da aba atual; selecione wb.sheet(nome)".into());
+        return Err(feathersheet_core::tr!("autoFill aceita endereços da aba atual; selecione wb.sheet(nome)").into());
     }
     let o = origem.normalized();
     let d = destino.normalized();
     if o.r1 >= MAX_ROWS || o.c1 >= MAX_COLS ||
         d.r1 >= MAX_ROWS || d.c1 >= MAX_COLS {
-        return Err("autoFill ultrapassa limites de linhas ou colunas".into());
+        return Err(feathersheet_core::tr!("autoFill ultrapassa limites de linhas ou colunas").into());
     }
     if o.area() > TETO_CELULAS || d.area() > TETO_CELULAS {
-        return Err("autoFill excede 500.000 células: restrinja o intervalo".into());
+        return Err(feathersheet_core::tr!("autoFill excede 500.000 células: restrinja o intervalo").into());
     }
     if o == d {
         return Ok(false);
     }
     if d.r0 > o.r0 || d.c0 > o.c0 || d.r1 < o.r1 || d.c1 < o.c1 {
-        return Err("O destino deve incluir todo o intervalo de origem".into());
+        return Err(feathersheet_core::tr!("O destino deve incluir todo o intervalo de origem").into());
     }
     let vertical = d.c0 == o.c0 && d.c1 == o.c1
         && ((d.r0 < o.r0 && d.r1 == o.r1)
@@ -36,7 +36,7 @@ pub(crate) fn validar(origem: &Rect, destino: &Rect) -> Result<bool, String> {
         && ((d.c0 < o.c0 && d.c1 == o.c1)
             || (d.c0 == o.c0 && d.c1 > o.c1));
     if !vertical && !horizontal {
-        return Err("O destino deve ampliar a origem em uma direção: cima, baixo, esquerda ou direita".into());
+        return Err(feathersheet_core::tr!("O destino deve ampliar a origem em uma direção: cima, baixo, esquerda ou direita").into());
     }
     Ok(true)
 }

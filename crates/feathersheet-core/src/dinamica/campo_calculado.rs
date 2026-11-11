@@ -58,9 +58,9 @@ fn lexar(texto: &str) -> Result<Vec<Token>, String> {
             let t: String = cs[ini..i].iter().collect::<String>().replace(',', ".");
             // Number.isFinite era obrigatório no parser TypeScript: parse()
             // pode aceitar +infinito quando um literal decimal é muito grande.
-            let n: f64 = t.parse().map_err(|_| format!("número inválido: {t}"))?;
+            let n: f64 = t.parse().map_err(|_| crate::trf!("número inválido: {t}"))?;
             if !n.is_finite() {
-                return Err(format!("número inválido: {t}"));
+                return Err(crate::trf!("número inválido: {t}"));
             }
             out.push(Token::Numero(n));
         } else if c.is_alphabetic() || c == '_' {
@@ -70,7 +70,7 @@ fn lexar(texto: &str) -> Result<Vec<Token>, String> {
             }
             out.push(Token::Nome(cs[ini..i].iter().collect()));
         } else {
-            return Err(format!("não entendi \"{c}\""));
+            return Err(crate::trf!("não entendi \"{c}\""));
         }
     }
     Ok(out)
@@ -106,7 +106,7 @@ impl Analisador<'_> {
     }
 
     fn fator(&mut self) -> Result<Expr, String> {
-        let t = self.olha().cloned().ok_or("a fórmula terminou antes da hora")?;
+        let t = self.olha().cloned().ok_or_else(|| crate::tr!("a fórmula terminou antes da hora"))?;
         self.p += 1;
         match t {
             Token::Op('-') => Ok(Expr::Neg(Box::new(self.fator()?))),
@@ -118,7 +118,7 @@ impl Analisador<'_> {
                         self.p += 1;
                         Ok(e)
                     }
-                    _ => Err("falta fechar o parêntese".into()),
+                    _ => Err(crate::tr!("falta fechar o parêntese").into()),
                 }
             }
             Token::Numero(n) => Ok(Expr::Numero(n)),
@@ -128,9 +128,9 @@ impl Analisador<'_> {
                     .iter()
                     .position(|c| normalizar(c) == alvo)
                     .map(Expr::Campo)
-                    .ok_or_else(|| format!("não existe o campo \"{nome}\""))
+                    .ok_or_else(|| crate::trf!("não existe o campo \"{nome}\""))
             }
-            Token::Op(op) => Err(format!("\"{op}\" fora do lugar")),
+            Token::Op(op) => Err(crate::trf!("\"{op}\" fora do lugar")),
         }
     }
 }
@@ -141,11 +141,11 @@ impl Analisador<'_> {
 pub fn compilar(formula: &str, campos: &[String]) -> Result<Expr, String> {
     let mut a = Analisador { t: lexar(formula)?, p: 0, campos };
     if a.t.is_empty() {
-        return Err("a fórmula está vazia".into());
+        return Err(crate::tr!("a fórmula está vazia").into());
     }
     let e = a.expr()?;
     if a.p < a.t.len() {
-        return Err("sobrou coisa no fim da fórmula".into());
+        return Err(crate::tr!("sobrou coisa no fim da fórmula").into());
     }
     Ok(e)
 }
@@ -160,7 +160,7 @@ pub fn compilar_sequencia(
     let mut expressoes = Vec::with_capacity(calculados.len());
     for (nome, formula) in calculados {
         if nome.trim().is_empty() {
-            return Err("nome do campo calculado está vazio".into());
+            return Err(crate::tr!("nome do campo calculado está vazio").into());
         }
         if nomes.iter().any(|existente| normalizar(existente) == normalizar(nome)) {
             return Err(format!("campo duplicado: {nome}"));

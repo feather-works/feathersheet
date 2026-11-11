@@ -38,7 +38,7 @@ pub fn ler_intervalo(
     tem_cabecalho: bool,
     max_celulas: u64,
 ) -> Result<Tabela, String> {
-    let aba = workbook.aba(indice).ok_or("A aba de origem não existe")?;
+    let aba = workbook.aba(indice).ok_or_else(|| crate::tr!("A aba de origem não existe"))?;
     let vazio = || Tabela { cabecalho: Vec::new(), linhas: Vec::new() };
     if aba.sheet.is_empty() { return Ok(vazio()); }
     let retangulo = area.normalized();
@@ -56,8 +56,7 @@ pub fn ler_intervalo(
     let largura = u64::from(c1 - c0) + 1;
     let total = altura.saturating_mul(largura);
     if total > max_celulas {
-        return Err(format!(
-            "Intervalo efetivo de {total} células: FeatherQuery aceita até {max_celulas} por fonte. Reduza a seleção."
+        return Err(crate::trf!("Intervalo efetivo de {total} células: FeatherQuery aceita até {max_celulas} por fonte. Reduza a seleção."
         ));
     }
     let mut cabecalho = Vec::with_capacity(largura as usize);
@@ -93,13 +92,13 @@ pub fn area_saida(
         .max().unwrap_or(0).max(tabela.cabecalho.len()).max(1) as u64;
     let altura = tabela.linhas.len() as u64 + u64::from(com_cabecalho);
     if altura == 0 {
-        return Err("A consulta não possui registros nem cabeçalho para gravar".into());
+        return Err(crate::tr!("A consulta não possui registros nem cabeçalho para gravar").into());
     }
     if largura.saturating_mul(altura) > max_celulas
         || u64::from(coluna0) + largura > u64::from(MAX_COLS)
         || u64::from(linha0) + altura > u64::from(MAX_ROWS)
     {
-        return Err("Resultado FeatherQuery excede os limites da planilha ou de memória".into());
+        return Err(crate::tr!("Resultado FeatherQuery excede os limites da planilha ou de memória").into());
     }
     Ok(Rect::new(linha0, coluna0,
         (u64::from(linha0) + altura - 1) as u32,
@@ -124,7 +123,7 @@ pub fn escrever_tabela(
         if area.r1 >= MAX_ROWS || area.c1 >= MAX_COLS
             || area.area() > max_celulas
         {
-            return Err("Área anterior inválida ou acima do orçamento FeatherQuery".into());
+            return Err(crate::tr!("Área anterior inválida ou acima do orçamento FeatherQuery").into());
         }
     }
 

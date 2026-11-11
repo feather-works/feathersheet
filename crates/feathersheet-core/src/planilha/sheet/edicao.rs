@@ -1693,14 +1693,14 @@ impl Sheet {
         let inicio = a.min(b);
         let fim = a.max(b);
         if fim >= limite_eixo {
-            return Err("O intervalo ultrapassa os limites da planilha".into());
+            return Err(crate::tr!("O intervalo ultrapassa os limites da planilha").into());
         }
         // Até o fim da planilha (ex.: da linha 30 até a 100.000.000): um
         // número só, sem laço. Excel também deixa ocultar tudo abaixo.
         let desde_atual = if coluna { self.colunas_ocultas_desde } else { self.linhas_ocultas_desde };
         if ocultar && fim == limite_eixo - 1 {
             if inicio == 0 {
-                return Err("Mantenha ao menos uma linha ou coluna visível".into());
+                return Err(crate::tr!("Mantenha ao menos uma linha ou coluna visível").into());
             }
             let novo = desde_atual.map_or(inicio, |n| n.min(inicio));
             if desde_atual == Some(novo) { return Ok(0); }
@@ -1723,7 +1723,7 @@ impl Sheet {
         let mapa = if coluna { &self.col_widths } else { &self.row_heights };
         let indices: Vec<u32> = if ocultar {
             if u64::from(fim) - u64::from(inicio) + 1 > MAX_DIMENSOES_OCULTAS {
-                return Err("Seleção grande demais para ocultação individual; reduza o intervalo".into());
+                return Err(crate::tr!("Seleção grande demais para ocultação individual; reduza o intervalo").into());
             }
             (inicio..=fim).filter(|i| mapa.get(i).copied() != Some(0)).collect()
         } else {
@@ -1737,7 +1737,7 @@ impl Sheet {
                 .filter_map(|(&i, &v)| (v == 0 && i >= de && i <= ate).then_some(i))
                 .collect();
             if ocultos.len() as u64 > MAX_DIMENSOES_OCULTAS {
-                return Err("Muitas dimensões ocultas para reexibir numa operação".into());
+                return Err(crate::tr!("Muitas dimensões ocultas para reexibir numa operação").into());
             }
             ocultos.sort_unstable();
             ocultos
@@ -1747,7 +1747,7 @@ impl Sheet {
         if ocultar {
             let restantes_ocultos = mapa.values().filter(|&&px| px == 0).count() as u64;
             if restantes_ocultos + indices.len() as u64 >= limite_eixo as u64 {
-                return Err("Mantenha ao menos uma linha ou coluna visível".into());
+                return Err(crate::tr!("Mantenha ao menos uma linha ou coluna visível").into());
             }
         }
         self.abrir_transacao();

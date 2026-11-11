@@ -234,7 +234,7 @@ pub fn executar_query_limitado(
     let inicial = (atual.cabecalho.len() as u64)
         .saturating_mul(atual.linhas.len() as u64);
     if inicial > max_celulas {
-        return Err("Fonte FeatherQuery excede o orçamento de memória".into());
+        return Err(crate::tr!("Fonte FeatherQuery excede o orçamento de memória").into());
     }
     for passo in passos {
         limites::verificar(&atual, passo, fontes, max_celulas)?;
@@ -412,7 +412,7 @@ fn aplicar_passo(t: Tabela, passo: &Passo, fontes: &HashMap<String, Tabela>) -> 
                     let mut v = converter(antes, para);
                     if *erros && tinha && matches!(v, Value::Empty) {
                         v = Value::Error(crate::celulas::values::CellError::com_motivo(
-                            crate::celulas::values::ErrorCode::Value, format!("não converteu para {para}")));
+                            crate::celulas::values::ErrorCode::Value, crate::trf!("não converteu para {para}")));
                     }
                     gravar_em(&mut l, *col, v);
                     l
@@ -586,7 +586,7 @@ fn aplicar_passo(t: Tabela, passo: &Passo, fontes: &HashMap<String, Tabela>) -> 
         }
         Passo::DuplicarColuna { col, nome } => {
             let mut cabecalho = t.cabecalho.clone();
-            cabecalho.push(nome.clone().unwrap_or_else(|| format!("{} - Cópia", nome_da_coluna(&t, *col))));
+            cabecalho.push(nome.clone().unwrap_or_else(|| crate::trf!("{} - Cópia", nome_da_coluna(&t, *col))));
             let linhas = t.linhas.into_iter().map(|mut l| {
                 let v = celula(&l, *col);
                 l.resize(cabecalho.len() - 1, Value::Empty);
@@ -784,7 +784,7 @@ fn agrupar(t: Tabela, por: &[usize], agregar: &[Agregado]) -> Tabela {
     }
     let mut cabecalho: Vec<String> = por.iter().map(|&c| nome_da_coluna(&t, c)).collect();
     for a in agregar {
-        cabecalho.push(a.nome.clone().unwrap_or_else(|| format!("{} de {}", a.como.rotulo(), nome_da_coluna(&t, a.col))));
+        cabecalho.push(a.nome.clone().unwrap_or_else(|| crate::trf!("{} de {}", a.como.rotulo(), nome_da_coluna(&t, a.col))));
     }
     let linhas = grupos
         .itens

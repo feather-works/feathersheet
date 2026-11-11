@@ -77,7 +77,7 @@ struct Parametros {
 }
 
 fn parametros(xml: &str, tag: &str) -> Result<Parametros, ErroSenha> {
-    let a = |n: &str| atributo(xml, tag, n).ok_or_else(|| ErroSenha::Corrompido(format!("{tag} sem {n}")));
+    let a = |n: &str| atributo(xml, tag, n).ok_or_else(|| ErroSenha::Corrompido(feathersheet_core::trf!("{tag} sem {n}")));
     let numero = |n: &str| a(n)?.parse::<usize>().map_err(|_| ErroSenha::Corrompido(format!("{tag} {n}")));
     let cifra = a("cipherAlgorithm")?;
     let encadeamento = a("cipherChaining")?;
@@ -91,7 +91,7 @@ fn parametros(xml: &str, tag: &str) -> Result<Parametros, ErroSenha> {
         hash: Hash::de(a("hashAlgorithm")?)?,
     };
     if p.bloco != 16 || !matches!(p.bits, 128 | 192 | 256) || p.sal.len() < p.bloco {
-        return Err(ErroSenha::NaoSuportado(format!("AES de {} bits, bloco {}", p.bits, p.bloco)));
+        return Err(ErroSenha::NaoSuportado(feathersheet_core::trf!("AES de {} bits, bloco {}", p.bits, p.bloco)));
     }
     Ok(p)
 }
@@ -122,11 +122,11 @@ fn ajustar(mut v: Vec<u8>, n: usize) -> Vec<u8> {
 /// O ZIP do `.xlsx` decifrado com a `senha`.
 pub fn decifrar(bytes: &[u8], senha: &str) -> Result<Vec<u8>, ErroSenha> {
     let mut composto = cfb::CompoundFile::open(Cursor::new(bytes))
-        .map_err(|_| ErroSenha::Corrompido("não é um arquivo composto".into()))?;
+        .map_err(|_| ErroSenha::Corrompido(feathersheet_core::tr!("não é um arquivo composto").into()))?;
     let mut ler = |nome: &str| -> Result<Vec<u8>, ErroSenha> {
         let mut v = Vec::new();
         composto.open_stream(nome).and_then(|mut f| f.read_to_end(&mut v))
-            .map_err(|_| ErroSenha::Corrompido(format!("sem {nome}")))?;
+            .map_err(|_| ErroSenha::Corrompido(feathersheet_core::trf!("sem {nome}")))?;
         Ok(v)
     };
     let info = ler("EncryptionInfo")?;
@@ -149,7 +149,7 @@ fn tamanho_e_cifrado(pacote: &[u8]) -> Result<(usize, &[u8]), ErroSenha> {
     }
     let tamanho = u64::from_le_bytes(pacote[..8].try_into().expect("8 bytes")) as usize;
     if tamanho > pacote.len() - 8 {
-        return Err(ErroSenha::Corrompido("EncryptedPackage menor que o tamanho declarado".into()));
+        return Err(ErroSenha::Corrompido(feathersheet_core::tr!("EncryptedPackage menor que o tamanho declarado").into()));
     }
     Ok((tamanho, &pacote[8..]))
 }
@@ -186,7 +186,7 @@ fn decifrar_standard(info: &[u8], pacote: &[u8], senha: &str) -> Result<Vec<u8>,
     let alg_hash = u32_em(info, cab + 12)?;
     let bits = u32_em(info, cab + 16)? as usize;
     if !matches!(alg, 0x660E | 0x660F | 0x6610) || !matches!(alg_hash, 0 | 0x8004) || !matches!(bits, 128 | 192 | 256) {
-        return Err(ErroSenha::NaoSuportado(format!("Standard com algoritmo {alg:#x}, hash {alg_hash:#x}, {bits} bits")));
+        return Err(ErroSenha::NaoSuportado(feathersheet_core::trf!("Standard com algoritmo {alg:#x}, hash {alg_hash:#x}, {bits} bits")));
     }
     let ver = cab + tamanho_cab;
     let tam_sal = u32_em(info, ver)? as usize;
@@ -266,7 +266,7 @@ fn decifrar_agile(info: &[u8], pacote: &[u8], senha: &str) -> Result<Vec<u8>, Er
         let ch = decifrar_cbc(segredo, &iv(BLOCO_CHAVE_HMAC), &ch)?;
         let va = decifrar_cbc(segredo, &iv(BLOCO_VALOR_HMAC), &va)?;
         if ch.len() < 64 || va.len() < 64 || hmac_sha512(&ch[..64], pacote) != va[..64] {
-            return Err(ErroSenha::Corrompido("o arquivo foi alterado depois de cifrado".into()));
+            return Err(ErroSenha::Corrompido(feathersheet_core::tr!("o arquivo foi alterado depois de cifrado").into()));
         }
     }
 
@@ -317,7 +317,7 @@ pub fn cifrar(zip: &[u8], senha: &str) -> Result<Vec<u8>, String> {
     let b64 = crate::base64::codificar;
     let h = |p: &[&[u8]]| Hash::Sha512.resumo(p);
     let mut acaso = [0u8; 16 + 16 + 32 + 16 + 64];
-    getrandom::getrandom(&mut acaso).map_err(|e| format!("gerador aleatório: {e}"))?;
+    getrandom::getrandom(&mut acaso).map_err(|e| feathersheet_core::trf!("gerador aleatório: {e}"))?;
     let (sal_dados, resto) = acaso.split_at(16);
     let (sal_chave, resto) = resto.split_at(16);
     let (segredo, resto) = resto.split_at(32);

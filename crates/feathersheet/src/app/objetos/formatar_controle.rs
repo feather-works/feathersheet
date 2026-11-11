@@ -84,8 +84,8 @@ const PX_CM: f32 = 96.0 / 2.54;
 fn numero(t: &str) -> Result<Option<i64>, String> {
     let t = t.trim();
     if t.is_empty() { return Ok(None); }
-    let n: i64 = t.parse().map_err(|_| format!("\"{t}\" não é um número inteiro"))?;
-    if !(0..=TETO).contains(&n) { return Err(format!("{n} fora de 0 a {TETO}")); }
+    let n: i64 = t.parse().map_err(|_| trf!("\"{t}\" não é um número inteiro"))?;
+    if !(0..=TETO).contains(&n) { return Err(trf!("{n} fora de 0 a {TETO}")); }
     Ok(Some(n))
 }
 
@@ -93,8 +93,8 @@ fn cm(px: f32) -> String { format!("{:.2}", px / PX_CM).replace('.', ",") }
 
 /// Centímetros (vírgula ou ponto) para px; de 0,05 a 200 cm.
 fn de_cm(t: &str) -> Result<f32, String> {
-    let v: f32 = t.trim().trim_end_matches("cm").trim().replace(',', ".").parse().map_err(|_| format!("\"{}\" não é uma medida em cm", t.trim()))?;
-    if !(0.05..=200.0).contains(&v) { return Err(format!("{} cm fora de 0,05 a 200", t.trim())); }
+    let v: f32 = t.trim().trim_end_matches("cm").trim().replace(',', ".").parse().map_err(|_| trf!("\"{}\" não é uma medida em cm", t.trim()))?;
+    if !(0.05..=200.0).contains(&v) { return Err(trf!("{} cm fora de 0,05 a 200", t.trim())); }
     Ok(v * PX_CM)
 }
 
@@ -141,8 +141,8 @@ impl Rascunho {
     pub fn fonte(&self, atual: Option<modelo::FonteTexto>) -> Result<Option<modelo::FonteTexto>, String> {
         let t = self.fonte_tam.trim().replace(',', ".");
         let tamanho = if t.is_empty() { None } else {
-            let v: f32 = t.parse().map_err(|_| format!("\"{}\" não é um tamanho de fonte", self.fonte_tam.trim()))?;
-            if !(4.0..=96.0).contains(&v) { return Err(format!("Fonte de {t} pt fora de 4 a 96")); }
+            let v: f32 = t.parse().map_err(|_| trf!("\"{}\" não é um tamanho de fonte", self.fonte_tam.trim()))?;
+            if !(4.0..=96.0).contains(&v) { return Err(trf!("Fonte de {t} pt fora de 4 a 96")); }
             Some(v)
         };
         let mut f = atual.unwrap_or_default();
@@ -167,7 +167,7 @@ impl Rascunho {
         match c.tipo {
             T::Girar | T::Rolagem => {
                 let (min, max) = (numero(&self.min)?, numero(&self.max)?);
-                if let (Some(a), Some(b)) = (min, max) { if a > b { return Err("O mínimo é maior que o máximo".into()); } }
+                if let (Some(a), Some(b)) = (min, max) { if a > b { return Err(tr!("O mínimo é maior que o máximo").into()); } }
                 novo.min = min;
                 novo.max = max;
                 novo.passo = numero(&self.passo)?;

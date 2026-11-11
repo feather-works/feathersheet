@@ -97,9 +97,9 @@ impl Sheet {
             Computed::Matrix(m) if m.size() > 1 => {
                 let (h, w) = (m.height() as u32, m.width() as u32);
                 if m.size() > TAMANHO_MAXIMO {
-                    (Value::Error(CellError::com_motivo(ErrorCode::Num, "Matriz grande demais para derramar")), None)
+                    (Value::Error(CellError::com_motivo(ErrorCode::Num, crate::tr!("Matriz grande demais para derramar"))), None)
                 } else if r0 + h > MAX_ROWS || c0 + w > MAX_COLS {
-                    (Value::Error(CellError::com_motivo(ErrorCode::Ref, "A matriz não cabe na planilha")), None)
+                    (Value::Error(CellError::com_motivo(ErrorCode::Ref, crate::tr!("A matriz não cabe na planilha"))), None)
                 } else {
                     (m.first().clone(), Some((area_de(k, h, w), m)))
                 }

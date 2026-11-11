@@ -14,7 +14,7 @@ pub(crate) const OPERACOES: &[&str] = &["formaLer", "formaFonte", "formaTexto", 
 fn objetos(sheet: &Sheet) -> Result<Json, String> {
     match sheet.ob.as_deref() {
         None | Some("") => Ok(json!({ "v": 1, "objetos": [] })),
-        Some(t) => serde_json::from_str(t).map_err(|e| format!("Formas da aba ilegíveis: {e}")),
+        Some(t) => serde_json::from_str(t).map_err(|e| feathersheet_core::trf!("Formas da aba ilegíveis: {e}")),
     }
 }
 
@@ -57,8 +57,8 @@ fn cor(v: &Json) -> Result<String, String> {
     match v {
         Json::String(s) if s.starts_with('#') && matches!(s.len(), 7 | 9) && s[1..].chars().all(|c| c.is_ascii_hexdigit()) => Ok(s.to_lowercase()),
         Json::Number(n) => n.as_u64().filter(|&x| x <= 0xFF_FF_FF).map(|x| crate::enderecos::vba_cor_hex(x as u32))
-            .ok_or_else(|| format!("Cor inválida: {n}")),
-        outro => Err(format!("Cor inválida: {outro} (use \"#RRGGBB\" ou app.rgb)")),
+            .ok_or_else(|| feathersheet_core::trf!("Cor inválida: {n}")),
+        outro => Err(feathersheet_core::trf!("Cor inválida: {outro} (use \"#RRGGBB\" ou app.rgb)")),
     }
 }
 
@@ -81,14 +81,14 @@ fn ler(sheet: &Sheet, ob: &Json, nome: &str) -> Json {
 /// Aplica `mudar` à forma e grava; `Ok(false)` se nada mudou.
 fn alterar(sheet: &mut Sheet, nome: &str, mudar: impl FnOnce(&mut Map<String, Json>) -> Result<(), String>) -> Result<bool, String> {
     let mut ob = objetos(sheet)?;
-    let i = achar(&ob, nome).ok_or_else(|| format!("A aba não tem a forma \"{nome}\""))?;
-    let o = ob["objetos"][i].as_object_mut().ok_or("Forma inválida")?;
+    let i = achar(&ob, nome).ok_or_else(|| feathersheet_core::trf!("A aba não tem a forma \"{nome}\""))?;
+    let o = ob["objetos"][i].as_object_mut().ok_or_else(|| feathersheet_core::tr!("Forma inválida"))?;
     mudar(o)?;
     Ok(sheet.alterar_objetos(Some(ob.to_string())))
 }
 
 fn fonte(o: &mut Map<String, Json>, pedido: &Json) -> Result<(), String> {
-    let pedido = pedido.as_object().ok_or("font: passe um objeto { bold, italic, size, color }")?;
+    let pedido = pedido.as_object().ok_or_else(|| feathersheet_core::tr!("font: passe um objeto { bold, italic, size, color }"))?;
     let f = o.entry("fonte").or_insert_with(|| json!({}));
     if !f.is_object() { *f = json!({}); }
     let f = f.as_object_mut().expect("objeto");
@@ -97,7 +97,7 @@ fn fonte(o: &mut Map<String, Json>, pedido: &Json) -> Result<(), String> {
             "bold" => { f.insert("negrito".into(), json!(v.as_bool().unwrap_or(v.as_f64().is_some_and(|x| x != 0.0)))); }
             "italic" => { f.insert("italico".into(), json!(v.as_bool().unwrap_or(v.as_f64().is_some_and(|x| x != 0.0)))); }
             "size" => {
-                let t = v.as_f64().filter(|t| (1.0..=409.0).contains(t)).ok_or("font: size de 1 a 409")?;
+                let t = v.as_f64().filter(|t| (1.0..=409.0).contains(t)).ok_or_else(|| feathersheet_core::tr!("font: size de 1 a 409"))?;
                 f.insert("tamanho".into(), json!(t));
             }
             "color" => { f.insert("cor".into(), json!(cor(v)?)); }
@@ -109,7 +109,7 @@ fn fonte(o: &mut Map<String, Json>, pedido: &Json) -> Result<(), String> {
 
 /// Executa a operação na aba `sheet`. `Ok(true)` quando mudou a aba.
 pub(crate) fn executar(op: &str, sheet: &mut Sheet, dados: &Json) -> Result<(Json, bool), String> {
-    let nome = dados[1].as_str().ok_or("shape: informe o nome da forma")?;
+    let nome = dados[1].as_str().ok_or_else(|| feathersheet_core::tr!("shape: informe o nome da forma"))?;
     match op {
         "formaLer" => Ok((ler(sheet, &objetos(sheet)?, nome), false)),
         "formaFonte" => alterar(sheet, nome, |o| fonte(o, &dados[2])).map(|m| (Json::Null, m)),
@@ -130,6 +130,6 @@ pub(crate) fn executar(op: &str, sheet: &mut Sheet, dados: &Json) -> Result<(Jso
             }
             Ok(())
         }).map(|m| (Json::Null, m)),
-        _ => Err(format!("Operação desconhecida: {op}")),
+        _ => Err(feathersheet_core::trf!("Operação desconhecida: {op}")),
     }
 }

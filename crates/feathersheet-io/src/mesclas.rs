@@ -60,7 +60,7 @@ pub fn refluir(
 ) -> Result<(), String> {
     if count == 0 { return Ok(()); }
     let anterior = ler(&workbook.aba(aba)
-        .ok_or("Aba da mesclagem indisponível")?.sheet);
+        .ok_or_else(|| feathersheet_core::tr!("Aba da mesclagem indisponível"))?.sheet);
     if anterior.is_empty() { return Ok(()); }
     let delta = if removendo { -(count as i64) } else { count as i64 };
     let atualizada = feathersheet_core::operacoes::reflow::refluir_mesclas(
@@ -69,9 +69,9 @@ pub fn refluir(
     if anterior == atualizada { return Ok(()); }
     let novo = if atualizada.is_empty() { None } else {
         Some(serde_json::to_string(&atualizada)
-            .map_err(|e| format!("Falha ao serializar mesclagens: {e}"))?)
+            .map_err(|e| feathersheet_core::trf!("Falha ao serializar mesclagens: {e}"))?)
     };
-    let viva = workbook.aba_mut(aba).ok_or("Aba da mesclagem indisponível")?;
+    let viva = workbook.aba_mut(aba).ok_or_else(|| feathersheet_core::tr!("Aba da mesclagem indisponível"))?;
     viva.sheet.mc = novo;
     viva.versao = viva.versao.wrapping_add(1).max(1);
     Ok(())

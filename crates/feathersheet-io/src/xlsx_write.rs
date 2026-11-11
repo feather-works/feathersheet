@@ -1935,8 +1935,7 @@ fn cabe_no_excel(pasta: &Workbook) -> Result<(), String> {
     for i in 0..pasta.len() {
         let Some(aba) = pasta.aba(i) else { continue };
         if !aba.sheet.is_empty() && aba.sheet.used_rect().r1 >= MAX_ROWS_XLSX {
-            return Err(format!(
-                "A aba \"{}\" tem {} linhas e o Excel aceita até {MAX_ROWS_XLSX}. Salve em .fshz para não perder linhas.",
+            return Err(feathersheet_core::trf!("A aba \"{}\" tem {} linhas e o Excel aceita até {MAX_ROWS_XLSX}. Salve em .fshz para não perder linhas.",
                 nomes.get(i).map_or("", String::as_str), aba.sheet.used_rect().r1 + 1,
             ));
         }
@@ -1983,7 +1982,7 @@ fn texto_formatado(valor: &Value, estilo: Option<&feathersheet_core::celulas::st
 /// no TypeScript; o campo leva aspas quando contém aspas, quebra de linha ou
 /// o separador.
 pub fn gerar_delimitado(pasta: &mut Workbook, indice: usize, separador: char) -> Result<Vec<u8>, String> {
-    let viva = pasta.aba_mut(indice).ok_or_else(|| format!("não existe a aba {indice}"))?;
+    let viva = pasta.aba_mut(indice).ok_or_else(|| feathersheet_core::trf!("não existe a aba {indice}"))?;
     let (max_r, max_c) = (viva.sheet.max_row_ts(), viva.sheet.max_col_ts());
     let pasta = &*pasta;
     let sheet = &pasta.aba(indice).expect("acabou de ser achada").sheet;

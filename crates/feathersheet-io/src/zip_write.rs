@@ -36,7 +36,7 @@ fn u32le(out: &mut Vec<u8>, v: u32) {
 }
 
 fn cabe(n: usize, o_que: &str) -> Result<u32, String> {
-    u32::try_from(n).map_err(|_| format!("{o_que} passou de 4 GB, o limite do ZIP sem ZIP64"))
+    u32::try_from(n).map_err(|_| feathersheet_core::trf!("{o_que} passou de 4 GB, o limite do ZIP sem ZIP64"))
 }
 
 /// Monta o ZIP com as entradas na ordem dada. Consome as entradas: cada
@@ -45,7 +45,7 @@ fn cabe(n: usize, o_que: &str) -> Result<u32, String> {
 pub fn zipar(entradas: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, String> {
     let mut out: Vec<u8> = Vec::new();
     let mut central: Vec<u8> = Vec::new();
-    let quantas = u16::try_from(entradas.len()).map_err(|_| "entradas demais para um ZIP".to_string())?;
+    let quantas = u16::try_from(entradas.len()).map_err(|_| feathersheet_core::tr!("entradas demais para um ZIP"))?;
 
     for (nome, cru) in entradas {
         let nome = nome.as_bytes();
@@ -54,7 +54,7 @@ pub fn zipar(entradas: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, String> {
         let soma = crc.sum();
         let deslocamento = cabe(out.len(), "o arquivo")?;
         let tam_cru = cabe(cru.len(), "uma parte")?;
-        let tam_nome = u16::try_from(nome.len()).map_err(|_| "nome de entrada comprido demais".to_string())?;
+        let tam_nome = u16::try_from(nome.len()).map_err(|_| feathersheet_core::tr!("nome de entrada comprido demais"))?;
 
         // O cabeçalho vai antes do corpo, mas o método e o tamanho
         // comprimido só se sabem depois: ficam em branco e são acertados.

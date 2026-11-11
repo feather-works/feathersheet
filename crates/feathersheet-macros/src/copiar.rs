@@ -29,8 +29,7 @@ impl Modo {
             "values" => Ok(Self::Valores),
             "formulas" => Ok(Self::Formulas),
             "formats" => Ok(Self::Formatos),
-            _ => Err(format!(
-                "Tipo de colagem inválido: {texto}. Use all, values, formulas ou formats"
+            _ => Err(feathersheet_core::trf!("Tipo de colagem inválido: {texto}. Use all, values, formulas ou formats"
             )),
         }
     }
@@ -87,27 +86,27 @@ pub(crate) fn preparar(
     modo: Modo,
 ) -> Result<Option<Plano>, String> {
     if origem.sheet.is_some() || destino.sheet.is_some() {
-        return Err("Use a API da aba para copiar; não qualifique outra aba no endereço".into());
+        return Err(feathersheet_core::tr!("Use a API da aba para copiar; não qualifique outra aba no endereço").into());
     }
     let origem = origem.normalized();
     let destino = destino.normalized();
     if origem.r1 >= MAX_ROWS || origem.c1 >= MAX_COLS
         || destino.r0 >= MAX_ROWS || destino.c0 >= MAX_COLS {
-        return Err("Intervalo fora dos limites da planilha".into());
+        return Err(feathersheet_core::tr!("Intervalo fora dos limites da planilha").into());
     }
     if origem.area() > MAX_CELULAS_MACRO {
-        return Err("Cópia acima de 500.000 células: reduza a origem".into());
+        return Err(feathersheet_core::tr!("Cópia acima de 500.000 células: reduza a origem").into());
     }
     let altura = origem.r1 - origem.r0 + 1;
     let largura = origem.c1 - origem.c0 + 1;
     let ultima_linha = destino.r0.checked_add(altura - 1)
-        .ok_or("Destino ultrapassa o limite de linhas")?;
+        .ok_or_else(|| feathersheet_core::tr!("Destino ultrapassa o limite de linhas"))?;
     let ultima_coluna = destino.c0.checked_add(largura - 1)
-        .ok_or("Destino ultrapassa o limite de colunas")?;
+        .ok_or_else(|| feathersheet_core::tr!("Destino ultrapassa o limite de colunas"))?;
     if ultima_linha >= MAX_ROWS || ultima_coluna >= MAX_COLS {
-        return Err("Destino ultrapassa os limites de linhas ou colunas".into());
+        return Err(feathersheet_core::tr!("Destino ultrapassa os limites de linhas ou colunas").into());
     }
-    let sheet = &wb.aba(aba).ok_or("Aba de origem não encontrada")?.sheet;
+    let sheet = &wb.aba(aba).ok_or_else(|| feathersheet_core::tr!("Aba de origem não encontrada"))?.sheet;
     if sheet.is_empty() {
         return Ok(None);
     }

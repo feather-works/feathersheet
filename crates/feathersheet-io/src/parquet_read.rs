@@ -21,25 +21,25 @@ const DIAS_ATE_1970: f64 = 25_569.0;
 /// Lê o arquivo inteiro numa pasta nova com uma aba ("Dados").
 pub fn ler_parquet_arquivo(caminho: &Path) -> Result<Workbook, String> {
     let arquivo = std::fs::File::open(caminho)
-        .map_err(|e| format!("Não consegui abrir {}: {e}", caminho.display()))?;
+        .map_err(|e| feathersheet_core::trf!("Não consegui abrir {}: {e}", caminho.display()))?;
     let construtor = ParquetRecordBatchReaderBuilder::try_new(arquivo)
-        .map_err(|e| format!("Não é um arquivo Parquet válido: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("Não é um arquivo Parquet válido: {e}"))?;
     let meta = construtor.metadata().clone();
     let zstd = meta.row_groups().iter().flat_map(|g| g.columns()).any(|c| matches!(c.compression(), Compression::ZSTD(_)));
     if zstd {
-        return Err("Este .parquet usa compressão Zstandard, que o FeatherSheet ainda não lê. Grave-o com Snappy (padrão do pandas e do DuckDB) ou sem compressão.".into());
+        return Err(feathersheet_core::tr!("Este .parquet usa compressão Zstandard, que o FeatherSheet ainda não lê. Grave-o com Snappy (padrão do pandas e do DuckDB) ou sem compressão.").into());
     }
     let total = u64::try_from(meta.file_metadata().num_rows()).unwrap_or(0);
     if total + 1 > u64::from(MAX_ROWS) {
-        return Err(format!("O arquivo tem {total} linhas; o limite por aba é {}.", MAX_ROWS - 1));
+        return Err(feathersheet_core::trf!("O arquivo tem {total} linhas; o limite por aba é {}.", MAX_ROWS - 1));
     }
     let esquema = construtor.schema().clone();
     let leitor = construtor.with_batch_size(65_536).build()
-        .map_err(|e| format!("Não consegui ler o Parquet: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("Não consegui ler o Parquet: {e}"))?;
 
     let mut pasta = Workbook::new();
     pasta.renomear_aba(0, "Dados");
-    let aba = &mut pasta.aba_mut(0).ok_or("pasta sem aba")?.sheet;
+    let aba = &mut pasta.aba_mut(0).ok_or_else(|| feathersheet_core::tr!("pasta sem aba"))?.sheet;
     for (c, campo) in esquema.fields().iter().enumerate() {
         aba.set_cell_valor(0, c as u32, Value::Text(campo.name().clone()));
     }
@@ -47,7 +47,7 @@ pub fn ler_parquet_arquivo(caminho: &Path) -> Result<Workbook, String> {
     let mut lidas = 0u64;
     let mut datas = vec![Datas::default(); esquema.fields().len()];
     for lote in leitor {
-        let lote = lote.map_err(|e| format!("Erro ao ler o Parquet: {e}"))?;
+        let lote = lote.map_err(|e| feathersheet_core::trf!("Erro ao ler o Parquet: {e}"))?;
         for (c, coluna) in lote.columns().iter().enumerate() {
             gravar_coluna(aba, linha, c as u32, coluna.as_ref(), &mut datas[c])?;
         }

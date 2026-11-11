@@ -30,7 +30,7 @@ pub struct Passo {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Explicacao {
     pub code: &'static str,
-    pub meaning: &'static str,
+    pub meaning: String,
     pub summary: String,
     /// Do topo até a origem; o último passo é onde o erro nasceu.
     pub steps: Vec<Passo>,
@@ -38,7 +38,13 @@ pub struct Explicacao {
 }
 
 /// O que cada código quer dizer, e a dica de sempre.
-fn significado(code: ErrorCode) -> (&'static str, &'static str) {
+/// O que o erro quer dizer e o que fazer, na língua do app.
+fn significado(code: ErrorCode) -> (String, String) {
+    let (o_que, como) = significado_pt(code);
+    (crate::tr!(o_que), crate::tr!(como))
+}
+
+fn significado_pt(code: ErrorCode) -> (&'static str, &'static str) {
     match code {
         ErrorCode::Div0 => (
             "Uma divisão tem zero (ou uma célula vazia) como divisor.",
@@ -206,7 +212,7 @@ pub fn explicar_erro(pasta: &Workbook, aba: usize, row: u32, col: u32) -> Option
             // Fim da linha: uma célula sem fórmula. O que ela guarda entra
             // como detalhe do passo anterior, onde a conta de fato quebrou.
             match passos.last_mut() {
-                Some(anterior) => anterior.onde = Some(format!("{nome} contém {}", descrever(&aqui, &raw))),
+                Some(anterior) => anterior.onde = Some(crate::trf!("{nome} contém {}", descrever(&aqui, &raw))),
                 None => {
                     let culprit = if tem_celula { raw.clone() } else { crate::operacoes::filtro::texto_js(&aqui) };
                     passos.push(Passo { cell: nome, formula: raw, culprit, onde: None, blame_cell: None });
@@ -263,21 +269,21 @@ fn dica(erro: &CellError, passos: &[Passo]) -> String {
     let detalhe = erro.detail.as_deref().unwrap_or("");
     let fundo = passos.last();
     let culpada = fundo.and_then(|p| p.blame_cell.as_deref());
-    if erro.code == ErrorCode::Value && (detalhe.contains("não é número") || detalhe.contains("não um número")) {
+    if erro.code == ErrorCode::Value && (crate::idioma::veio_de(detalhe, "\"{texto}\" não é número") || detalhe.contains("não um número")) {
         return match culpada {
-            Some(c) => format!("{c} guarda texto, e essa conta só aceita número. Confira se o intervalo é o certo — colunas de texto precisam ficar de fora."),
-            None => "A conta pegou texto onde esperava número. Confira o intervalo: colunas de texto precisam ficar de fora.".to_string(),
+            Some(c) => crate::trf!("{c} guarda texto, e essa conta só aceita número. Confira se o intervalo é o certo — colunas de texto precisam ficar de fora."),
+            None => crate::tr!("A conta pegou texto onde esperava número. Confira o intervalo: colunas de texto precisam ficar de fora."),
         };
     }
-    if erro.code == ErrorCode::Value && detalhe.contains("dimensões") {
-        return "As matrizes não se encaixam: as colunas da primeira têm de ser tantas quanto as linhas da segunda.".to_string();
+    if erro.code == ErrorCode::Value && crate::idioma::veio_de(detalhe, "As dimensões não se encaixam") {
+        return crate::tr!("As matrizes não se encaixam: as colunas da primeira têm de ser tantas quanto as linhas da segunda.");
     }
     if erro.code == ErrorCode::Num && detalhe.contains("inversa") {
-        return "A matriz não tem inversa (colunas repetidas ou dependentes). Confira se há coluna duplicada nos dados.".to_string();
+        return crate::tr!("A matriz não tem inversa (colunas repetidas ou dependentes). Confira se há coluna duplicada nos dados.");
     }
     if erro.code == ErrorCode::Div0 {
         if let Some(c) = culpada {
-            return format!("{c} está em zero ou vazia. Proteja a conta com SEERRO, ou garanta um divisor diferente de zero.");
+            return crate::trf!("{c} está em zero ou vazia. Proteja a conta com SEERRO, ou garanta um divisor diferente de zero.");
         }
     }
     significado(erro.code).1.to_string()
@@ -293,19 +299,19 @@ struct ProblemaDeEscrita {
 /// Dicas para os enroscos de escrita mais comuns.
 fn dica_de_escrita(ch: Option<char>, mensagem: &str) -> String {
     if matches!(ch, Some('[') | Some(']')) {
-        return "Colchetes em referências de tabela devem ser fechados corretamente.".to_string();
+        return crate::tr!("Colchetes em referências de tabela devem ser fechados corretamente.");
     }
-    if mensagem.contains("Matriz") {
-        return "Dentro de { }, \";\" separa linhas e \"\\\" separa colunas, e todas as linhas precisam do mesmo tamanho.".to_string();
+    if (crate::idioma::veio_de(mensagem, "Matriz vazia") || crate::idioma::veio_de(mensagem, "Matriz com linhas de tamanhos diferentes")) {
+        return crate::tr!("Dentro de { }, \";\" separa linhas e \"\\\" separa colunas, e todas as linhas precisam do mesmo tamanho.");
     }
-    if mensagem.contains("aspas") {
-        return "Falta fechar as aspas do texto.".to_string();
+    if crate::idioma::veio_de(mensagem, "Texto sem aspas de fechamento") {
+        return crate::tr!("Falta fechar as aspas do texto.");
     }
-    if mensagem.contains("Sobra") {
-        return "Sobrou coisa depois do fim da fórmula: confira os parênteses.".to_string();
+    if crate::idioma::veio_de(mensagem, "Sobra \"{}\" no fim da fórmula") {
+        return crate::tr!("Sobrou coisa depois do fim da fórmula: confira os parênteses.");
     }
-    if mensagem.contains("incompleta") {
-        return "A fórmula termina no meio: falta um argumento ou um fechamento.".to_string();
+    if crate::idioma::veio_de(mensagem, "Fórmula incompleta perto de \"{achei}\"") {
+        return crate::tr!("A fórmula termina no meio: falta um argumento ou um fechamento.");
     }
     significado(ErrorCode::Error).1.to_string()
 }
@@ -315,7 +321,7 @@ fn problema_de_escrita(raw: &str) -> Option<ProblemaDeEscrita> {
     let corpo = raw.strip_prefix('=')?;
     let e = parse_formula(corpo).err()?;
     let Some(at) = e.at else {
-        return Some(ProblemaDeEscrita { dica: dica_de_escrita(None, &e.message), mensagem: e.message, onde: "na fórmula".into(), trecho: raw.into() });
+        return Some(ProblemaDeEscrita { dica: dica_de_escrita(None, &e.message), mensagem: e.message, onde: crate::tr!("na fórmula").into(), trecho: raw.into() });
     };
     // Contado em caracteres, como o `at` do analisador.
     let letras: Vec<char> = corpo.chars().collect();
@@ -332,7 +338,7 @@ fn problema_de_escrita(raw: &str) -> Option<ProblemaDeEscrita> {
         if ate < letras.len() { "…" } else { "" },
     );
     // +2: o corpo começa em zero e a pessoa conta o "=" como caractere 1.
-    Some(ProblemaDeEscrita { dica: dica_de_escrita(ch, &e.message), mensagem: e.message, onde: format!("na posição {}", at + 2), trecho })
+    Some(ProblemaDeEscrita { dica: dica_de_escrita(ch, &e.message), mensagem: e.message, onde: crate::trf!("na posição {}", at + 2), trecho })
 }
 
 /// Frase do caso concreto, montada a partir do último passo.
@@ -340,8 +346,8 @@ fn resumir(erro: &CellError, passos: &[Passo]) -> String {
     let Some(fundo) = passos.last() else {
         return erro.detail.clone().unwrap_or_else(|| significado(erro.code).0.to_string());
     };
-    let la = if passos.len() > 1 { format!(", lá em {}", fundo.cell) } else { String::new() };
-    let trecho = format!("{} nasce em `{}`{la}", erro.code.as_str(), fundo.culprit);
+    let la = if passos.len() > 1 { crate::trf!(", lá em {}", fundo.cell) } else { String::new() };
+    let trecho = crate::trf!("{} nasce em `{}`{la}", erro.code.as_str(), fundo.culprit);
     let arg = fundo.onde.as_ref().map(|o| format!(" ({o})")).unwrap_or_default();
     // Quando o "onde" já cita o valor culpado, repetir o detalhe só cansa.
     let citado = erro.detail.as_deref().and_then(entre_aspas);
@@ -385,13 +391,13 @@ fn culpa_em(no: &Node, ctx: &Contexto, erro: Option<&CellError>) -> Option<Culpa
         Node::Range { .. } => {
             let ruim = primeiro_erro_nos_intervalos(std::slice::from_ref(no), ctx)?;
             let cell = cell_name(ruim.row, ruim.col);
-            Some(Culpa { onde: Some(format!("a célula {cell} dentro de {}", escrever(no))), cell: Some(cell), next: Some(ruim) })
+            Some(Culpa { onde: Some(crate::trf!("a célula {cell} dentro de {}", escrever(no))), cell: Some(cell), next: Some(ruim) })
         }
         Node::Binary { op, left, right } => {
             if *op == crate::formula::ast::BinaryOp::Div {
                 let divisor = ctx.eval(right);
                 if matches!(divisor, Value::Empty) || matches!(divisor, Value::Number(n) if n == 0.0) {
-                    let mut c = Culpa { onde: Some(format!("o divisor `{}`", escrever(right))), ..Culpa::default() };
+                    let mut c = Culpa { onde: Some(crate::trf!("o divisor `{}`", escrever(right))), ..Culpa::default() };
                     if let Node::Ref { row, col, .. } = right.as_ref() {
                         c.cell = Some(cell_name(*row, *col));
                     }
@@ -408,20 +414,20 @@ fn culpa_em(no: &Node, ctx: &Contexto, erro: Option<&CellError>) -> Option<Culpa
         Node::Call { name, args } => {
             let mut c = Culpa::default();
             if let Some(i) = argumento_culpado(args, ctx, erro) {
-                c.onde = Some(format!("{}º argumento de {name}", i + 1));
+                c.onde = Some(crate::trf!("{}º argumento de {name}", i + 1));
             }
             // Um intervalo não vira erro sozinho: quem estraga é uma célula dentro dele.
             if let Some(ruim) = primeiro_erro_nos_intervalos(args, ctx) {
                 c.cell = Some(cell_name(ruim.row, ruim.col));
                 c.next = Some(ruim);
                 if c.onde.is_none() {
-                    c.onde = Some(format!("intervalo lido por {name}"));
+                    c.onde = Some(crate::trf!("intervalo lido por {name}"));
                 }
             } else if let Some(citado) = erro.and_then(|e| e.detail.as_deref()).and_then(entre_aspas) {
                 // O erro citou um texto: procura de qual célula ele veio.
                 if let Some(fonte) = achar_nos_intervalos(args, ctx, citado) {
                     let cell = cell_name(fonte.row, fonte.col);
-                    c.onde = Some(format!("{cell} tem o texto \"{citado}\""));
+                    c.onde = Some(crate::trf!("{cell} tem o texto \"{citado}\""));
                     c.cell = Some(cell);
                     c.next = None;
                 }
@@ -460,12 +466,12 @@ fn operando_culpado<'n>(lados: [&'n Node; 2], ctx: &Contexto, erro: Option<&Cell
 /// Como citar o conteúdo de uma célula sem fórmula.
 fn descrever(v: &Value, raw: &str) -> String {
     match v {
-        _ if matches!(v, Value::Empty) || raw.is_empty() => "está vazia".to_string(),
-        Value::Text(t) => format!("o texto \"{t}\""),
-        Value::Number(n) => format!("o número {}", to_js_string(*n).replace('.', ",")),
-        Value::Bool(b) => if *b { "VERDADEIRO" } else { "FALSO" }.to_string(),
+        _ if matches!(v, Value::Empty) || raw.is_empty() => crate::tr!("está vazia"),
+        Value::Text(t) => crate::trf!("o texto \"{t}\""),
+        Value::Number(n) => crate::trf!("o número {}", to_js_string(*n).replace('.', ",")),
+        Value::Bool(b) => crate::celulas::locale::texto_logico(*b),
         Value::Error(e) => e.code.as_str().to_string(),
-        Value::Empty => "está vazia".to_string(),
+        Value::Empty => crate::tr!("está vazia"),
     }
 }
 
@@ -520,7 +526,7 @@ pub fn escrever(no: &Node) -> String {
     match no {
         Node::Num(n) => to_js_string(*n).replace('.', ","),
         Node::Str(s) => format!("\"{s}\""),
-        Node::Bool(b) => if *b { "VERDADEIRO" } else { "FALSO" }.to_string(),
+        Node::Bool(b) => crate::celulas::locale::texto_logico(*b),
         Node::Error(code) => code.clone(),
         Node::Blank => String::new(),
         Node::Name(n) => n.clone(),

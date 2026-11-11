@@ -28,7 +28,7 @@ fn strings_compartilhadas(archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>
     let arquivo = match archive.by_name("xl/sharedStrings.xml") {
         Ok(arquivo) => arquivo,
         Err(ZipError::FileNotFound) => return Ok(Vec::new()),
-        Err(e) => return Err(format!("XLSX: erro no sharedStrings.xml: {e}")),
+        Err(e) => return Err(feathersheet_core::trf!("XLSX: erro no sharedStrings.xml: {e}")),
     };
     if arquivo.size() > MAX_SHARED_STRINGS_XML {
         return Err("XLSX: sharedStrings.xml excede 1 GiB descomprimido".into());
@@ -46,7 +46,7 @@ fn strings_compartilhadas(archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>
         // `<si/>` vazio também ocupa um `String` na lista: conta o cabeçalho junto.
         tamanho = tamanho.saturating_add(texto.len() + std::mem::size_of::<String>());
         if tamanho > MAX_TEXTO_COMPARTILHADO {
-            return Err("XLSX: strings compartilhadas excedem 256 MiB de texto; importação interrompida para proteger a RAM".into());
+            return Err(feathersheet_core::tr!("XLSX: strings compartilhadas excedem 256 MiB de texto; importação interrompida para proteger a RAM").into());
         }
         strings.push(texto);
         Ok(())
@@ -360,10 +360,10 @@ fn ler_aba(
         Err(ZipError::FileNotFound) => {
             return Ok(sheet::SheetJson { name: nome.to_string(), ..Default::default() });
         }
-        Err(e) => return Err(format!("XLSX: erro ao ler {caminho}: {e}")),
+        Err(e) => return Err(feathersheet_core::trf!("XLSX: erro ao ler {caminho}: {e}")),
     };
     if arquivo.size() > MAX_WORKSHEET_XML {
-        return Err(format!("XLSX: '{caminho}' excede 4 GiB de XML descomprimido"));
+        return Err(feathersheet_core::trf!("XLSX: '{caminho}' excede 4 GiB de XML descomprimido"));
     }
     let mut shared = HashMap::<String, sheet::SharedFormula>::new();
     let mut alturas = Vec::<sheet::AlturaLida>::new();
@@ -510,7 +510,7 @@ fn ler_aba(
                     if let Some(url) = imagem {
                         bytes_de_imagem += url.len();
                         if bytes_de_imagem > MAX_BYTES_IMAGEM_NA_ABA {
-                            return Err(format!("XLSX: imagens nas células da aba '{nome}' passam de {} MB.", MAX_BYTES_IMAGEM_NA_ABA >> 20));
+                            return Err(feathersheet_core::trf!("XLSX: imagens nas células da aba '{nome}' passam de {} MB.", MAX_BYTES_IMAGEM_NA_ABA >> 20));
                         }
                         bruto.push_str(url);
                     } else if let Some(f) = formula_comum {
@@ -554,7 +554,7 @@ fn ler_aba(
                     lote.push(at.row as u32, at.col as u32, raw, xf_estilo, guardado);
                     if lote.len() >= LOTE_CARGA {
                         let cheio = std::mem::replace(&mut lote, LoteBruto::com_capacidade(LOTE_CARGA));
-                        para_preparar.send(cheio).map_err(|_| "XLSX: a gravação parou no meio".to_string())?;
+                        para_preparar.send(cheio).map_err(|_| feathersheet_core::tr!("XLSX: a gravação parou no meio"))?;
                     }
                 }
                 Ok(())
@@ -565,8 +565,8 @@ fn ler_aba(
         }
         // Fechar o canal encerra o preparador, que encerra o gravador.
         drop(para_preparar);
-        let t_preparar = preparador.join().map_err(|_| "XLSX: falha ao preparar as células".to_string())?;
-        let t_gravar = gravador.join().map_err(|_| "XLSX: falha ao gravar as células".to_string())?;
+        let t_preparar = preparador.join().map_err(|_| feathersheet_core::tr!("XLSX: falha ao preparar as células"))?;
+        let t_gravar = gravador.join().map_err(|_| feathersheet_core::tr!("XLSX: falha ao gravar as células"))?;
         Ok((raiz?, t_preparar, t_gravar))
     })?;
     let total_aba = inicio.elapsed();
@@ -653,11 +653,10 @@ fn propriedades(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> feath
 /// O arquivo cabe no limite de leitura do `.xlsx` (antes de ler os bytes).
 pub fn conferir_tamanho_xlsx(path: &std::path::Path) -> Result<(), String> {
     let tamanho = std::fs::metadata(path)
-        .map_err(|e| format!("Não foi possível acessar {}: {e}", path.display()))?
+        .map_err(|e| feathersheet_core::trf!("Não foi possível acessar {}: {e}", path.display()))?
         .len();
     if tamanho > LIMITE_XLSX_NATIVO {
-        return Err(format!(
-            "Arquivo XLSX possui {} MiB, acima do limite de {} MiB compactados",
+        return Err(feathersheet_core::trf!("Arquivo XLSX possui {} MiB, acima do limite de {} MiB compactados",
             tamanho / 1_048_576, LIMITE_XLSX_NATIVO / 1_048_576,
         ));
     }
@@ -667,7 +666,7 @@ pub fn conferir_tamanho_xlsx(path: &std::path::Path) -> Result<(), String> {
 pub fn ler_xlsx_arquivo(path: &std::path::Path) -> Result<(Workbook, usize), String> {
     conferir_tamanho_xlsx(path)?;
     let bytes = std::fs::read(path)
-        .map_err(|e| format!("Não foi possível ler {}: {e}", path.display()))?;
+        .map_err(|e| feathersheet_core::trf!("Não foi possível ler {}: {e}", path.display()))?;
     ler_xlsx_workbook(bytes)
 }
 
@@ -681,11 +680,11 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         return Err(format!("Arquivo XLSX excede {} MiB compactados", LIMITE_XLSX_NATIVO / 1_048_576));
     }
     let mut arquivo = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes)))
-        .map_err(|e| format!("Não parece um arquivo XLSX/ZIP válido: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("Não parece um arquivo XLSX/ZIP válido: {e}"))?;
     let book_xml = entry_text(&mut arquivo, "xl/workbook.xml")?;
     let book = xml::parse_xml(&book_xml)?;
     if book.name != "workbook" {
-        return Err("XLSX inválido: falta xl/workbook.xml".into());
+        return Err(feathersheet_core::tr!("XLSX inválido: falta xl/workbook.xml").into());
     }
     let rels = sheet::read_rels(&entry_text(&mut arquivo, "xl/_rels/workbook.xml.rels")?);
     let strings = strings_compartilhadas(&mut arquivo)?;

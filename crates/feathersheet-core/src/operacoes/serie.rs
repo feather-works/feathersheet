@@ -138,7 +138,7 @@ impl Gerador {
             TipoSerie::Geometrica => {
                 passo = cfg.incremento.unwrap_or(if n >= 2 {
                     if sementes[0] == 0.0 {
-                        return Err("Série de crescimento: o primeiro valor não pode ser zero.".into());
+                        return Err(crate::tr!("Série de crescimento: o primeiro valor não pode ser zero.").into());
                     }
                     sementes[1] / sementes[0]
                 } else {
@@ -151,7 +151,7 @@ impl Gerador {
             TipoSerie::TendenciaLinear => reta = minimos_quadrados(&sementes),
             TipoSerie::TendenciaExponencial => {
                 if sementes.iter().any(|&v| v <= 0.0) {
-                    return Err("Tendência exponencial: os valores selecionados precisam ser positivos.".into());
+                    return Err(crate::tr!("Tendência exponencial: os valores selecionados precisam ser positivos.").into());
                 }
                 let ln: Vec<f64> = sementes.iter().map(|v| v.ln()).collect();
                 reta = minimos_quadrados(&ln);
@@ -214,7 +214,7 @@ where
             _ => cfg.incremento == Some(0.0),
         };
         if neutro {
-            return Err("O incremento nunca chega ao valor de parada.".into());
+            return Err(crate::tr!("O incremento nunca chega ao valor de parada.").into());
         }
     }
     let teto = if so_limite {

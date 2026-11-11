@@ -160,7 +160,7 @@ where
         // Não deixar que uma nova âncora sobrescreva a área derramada por outra.
         // O get_cell só enxerga conteúdo real: células virtuais de spill têm raw vazio.
         if self.spill_index.contains_key(&anchor) {
-            return Value::Error(CellError::com_motivo(ErrorCode::Spill, "Há outra matriz neste endereço"));
+            return Value::Error(CellError::com_motivo(ErrorCode::Spill, crate::tr!("Há outra matriz neste endereço")));
         }
         self.clear_spill(anchor);
         if matrix.size() == 0 {
@@ -175,7 +175,7 @@ where
         let height = matrix.height() as u32;
         let width = matrix.width() as u32;
         if row0 + height > MAX_ROWS || col0 + width > MAX_COLS {
-            return Value::Error(CellError::com_motivo(ErrorCode::Ref, "A matriz não cabe na planilha"));
+            return Value::Error(CellError::com_motivo(ErrorCode::Ref, crate::tr!("A matriz não cabe na planilha")));
         }
 
         for r in 0..height {
@@ -186,11 +186,11 @@ where
                 let covered = key(row0 + r, col0 + c);
                 // A âncora de outra matriz não está no índice das virtuais: conferir à parte.
                 if self.spill_index.contains_key(&covered) || self.spills.contains_key(&covered) {
-                    return Value::Error(CellError::com_motivo(ErrorCode::Spill, "Há outra matriz no caminho"));
+                    return Value::Error(CellError::com_motivo(ErrorCode::Spill, crate::tr!("Há outra matriz no caminho")));
                 }
                 if let Some(occupant) = (self.get_cell)(covered) {
                     if !occupant.raw.is_empty() {
-                        return Value::Error(CellError::com_motivo(ErrorCode::Spill, "Há conteúdo no caminho da matriz"));
+                        return Value::Error(CellError::com_motivo(ErrorCode::Spill, crate::tr!("Há conteúdo no caminho da matriz")));
                     }
                 }
             }

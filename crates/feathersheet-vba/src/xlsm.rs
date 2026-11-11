@@ -109,8 +109,8 @@ fn codename(xml: &[u8]) -> Option<String> {
 
 /// Lê o projeto VBA de um `.xlsm`. Sem macros, erro em português.
 pub fn ler(bytes: &[u8]) -> Result<ProjetoVba, String> {
-    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| "Este arquivo não é um .xlsm (não é um ZIP).".to_string())?;
-    let bin = ler_parte(&mut zip, "xl/vbaProject.bin").ok_or_else(|| "Este arquivo não tem macros VBA (falta xl/vbaProject.bin). Só o .xlsm, o .xlsb e o .xlam guardam macros.".to_string())?;
+    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| feathersheet_core::tr!("Este arquivo não é um .xlsm (não é um ZIP)."))?;
+    let bin = ler_parte(&mut zip, "xl/vbaProject.bin").ok_or_else(|| feathersheet_core::tr!("Este arquivo não tem macros VBA (falta xl/vbaProject.bin). Só o .xlsm, o .xlsb e o .xlam guardam macros."))?;
     let modulos = ovba::ler_projeto(&bin)?;
     let formularios = crate::formulario::ler_do_projeto(&bin, &modulos);
     let mut projeto = ProjetoVba { modulos, formularios, ..ProjetoVba::default() };

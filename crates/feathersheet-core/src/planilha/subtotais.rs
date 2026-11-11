@@ -86,13 +86,13 @@ impl Workbook {
     /// substituindo subtotais que já existam nela.
     pub fn subtotais(&mut self, indice: usize, area: Rect, op: &OpcoesSubtotal) -> Result<Mudanca, String> {
         let area = area.normalized();
-        if area.r1 <= area.r0 { return Err("Selecione a lista com o cabeçalho e ao menos uma linha.".into()); }
-        if !(area.c0..=area.c1).contains(&op.coluna_grupo) { return Err("A coluna de grupo está fora da lista.".into()); }
-        if op.colunas.is_empty() { return Err("Escolha ao menos uma coluna para o subtotal.".into()); }
+        if area.r1 <= area.r0 { return Err(crate::tr!("Selecione a lista com o cabeçalho e ao menos uma linha.").into()); }
+        if !(area.c0..=area.c1).contains(&op.coluna_grupo) { return Err(crate::tr!("A coluna de grupo está fora da lista.").into()); }
+        if op.colunas.is_empty() { return Err(crate::tr!("Escolha ao menos uma coluna para o subtotal.").into()); }
         if op.colunas.iter().any(|c| !(area.c0..=area.c1).contains(c)) {
-            return Err("Uma coluna do subtotal está fora da lista.".into());
+            return Err(crate::tr!("Uma coluna do subtotal está fora da lista.").into());
         }
-        if !FUNCOES.iter().any(|(n, _)| *n == op.funcao) { return Err("Função de subtotal desconhecida.".into()); }
+        if !FUNCOES.iter().any(|(n, _)| *n == op.funcao) { return Err(crate::tr!("Função de subtotal desconhecida.").into()); }
         self.aba(indice).ok_or("Aba inexistente.")?;
 
         self.aba_mut(indice).ok_or("Aba inexistente.")?.sheet.abrir_transacao();
@@ -111,7 +111,7 @@ impl Workbook {
         // A lista termina na última linha usada dela.
         let fim = (area.r0 + 1..=area.r1.min(usado.r1)).rev()
             .find(|&r| (area.c0..=area.c1).any(|c| s.has_content(r, c)))
-            .ok_or("A lista não tem dados abaixo do cabeçalho.")?;
+            .ok_or_else(|| crate::tr!("A lista não tem dados abaixo do cabeçalho."))?;
 
         // Os grupos: sequências com a mesma chave na coluna de grupo.
         let mut grupos: Vec<(u32, u32, String)> = Vec::new();
@@ -126,22 +126,22 @@ impl Workbook {
             anterior = Some(k);
         }
         if grupos.len() > LIMITE_GRUPOS {
-            return Err(format!("São {} grupos; o limite é {LIMITE_GRUPOS}. Ordene a lista pela coluna de grupo.", grupos.len()));
+            return Err(crate::trf!("São {} grupos; o limite é {LIMITE_GRUPOS}. Ordene a lista pela coluna de grupo.", grupos.len()));
         }
         let g = grupos.len() as u32;
         if usado.r1.max(fim) + g + 1 >= MAX_ROWS {
-            return Err("Não cabe: os totais empurrariam dados para fora da planilha.".into());
+            return Err(crate::tr!("Não cabe: os totais empurrariam dados para fora da planilha.").into());
         }
         let c1 = usado.c1.max(area.c1);
 
         // Abrir espaço, de baixo para cima.
         if usado.r1 > fim {
             self.mover_intervalo(indice, Rect::new(fim + 1, 0, usado.r1, c1), (g + 1) as i32, 0)
-                .ok_or("Não consegui deslocar o que está abaixo da lista.")?;
+                .ok_or_else(|| crate::tr!("Não consegui deslocar o que está abaixo da lista."))?;
         }
         for (k, &(a, b, _)) in grupos.iter().enumerate().skip(1).rev() {
             self.mover_intervalo(indice, Rect::new(a, 0, b, c1), k as i32, 0)
-                .ok_or("Não consegui abrir espaço para os totais.")?;
+                .ok_or_else(|| crate::tr!("Não consegui abrir espaço para os totais."))?;
         }
 
         // Escrever os totais e os níveis.
@@ -219,7 +219,7 @@ impl Workbook {
             let ate = linhas.get(j + 1).map_or(usado.r1, |&p| p - 1);
             if r + 1 <= ate && ate <= usado.r1 {
                 self.mover_intervalo(indice, Rect::new(r + 1, 0, ate, c1), -(j as i32 + 1), 0)
-                    .ok_or("Não consegui fechar as linhas dos subtotais.")?;
+                    .ok_or_else(|| crate::tr!("Não consegui fechar as linhas dos subtotais."))?;
             }
         }
         for (j, &r) in linhas.iter().enumerate().rev() {

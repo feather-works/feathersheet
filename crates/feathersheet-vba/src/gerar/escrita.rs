@@ -34,7 +34,7 @@ impl Gerador<'_> {
             return self.atribuir_propriedade(forma, prop, valor);
         }
         if n == "onaction" && !matches!(o, Obj::Forma(_)) {
-            return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)"));
+            return Err(Motivo::novo(feathersheet_core::tr!("formas e botões do Excel (use Inserir → Botão de macro)")));
         }
         if let Some((o, end)) = por_area(&o) {
             let js = self.atribuir_propriedade(o, prop, valor)?;
@@ -49,7 +49,7 @@ impl Gerador<'_> {
             Obj::Controle(c) => self.escrever_no_controle(&c, &n, valor),
             Obj::Formulario(f) => match self.p.controle(&f, prop).map(String::from) {
                 Some(c) => self.escrever_no_controle(&c, "value", valor),
-                None => Err(Motivo::novo(format!("{f}.{prop} do formulário"))),
+                None => Err(Motivo::novo(feathersheet_core::trf!("{f}.{prop} do formulário"))),
             },
             Obj::Aba(aba, nome) => self.escrever_na_aba(&aba, nome, &n, valor),
             Obj::Janela => self.escrever_na_janela(&n, valor),
@@ -81,7 +81,7 @@ impl Gerador<'_> {
                     "rgb" | "color" => "color",
                     // `.Fill.Visible = msoTrue`, `.Transparency = 0`: o padrão do texto.
                     "visible" | "transparency" => return Ok(String::new()),
-                    _ => return Err(Motivo::novo(format!("Font.{prop} da forma"))),
+                    _ => return Err(Motivo::novo(feathersheet_core::trf!("Font.{prop} da forma"))),
                 };
                 let v = self.valor(valor)?;
                 let js_v = if chave == "bold" || chave == "italic" { self.como_bool(&v) } else { v.js };
@@ -108,7 +108,7 @@ impl Gerador<'_> {
                     (Parte::Interior | Parte::Fonte, "colorindex") => {
                         return Ok(format!("{c}.o.{} = vba.{}({});", if parte == Parte::Interior { "fill" } else { "color" }, self.ajuda("corIndice"), v.js));
                     }
-                    _ => return Err(Motivo::novo(format!("estilo da formatação condicional: {prop}"))),
+                    _ => return Err(Motivo::novo(feathersheet_core::trf!("estilo da formatação condicional: {prop}"))),
                 };
                 Ok(format!("{c}.o.{campo} = {};", v.js))
             }
@@ -183,7 +183,7 @@ impl Gerador<'_> {
         Ok(match f.inteira {
             Inteira::Linhas => format!("{}.hideRow(vba.{}({}), {b});", f.aba, self.ajuda("linha"), f.end),
             Inteira::Colunas => format!("{}.hideColumn(vba.{}({}), {b});", f.aba, self.ajuda("coluna"), f.end),
-            Inteira::Nao => return Err(Motivo::novo("esconder célula que não é linha/coluna inteira")),
+            Inteira::Nao => return Err(Motivo::novo(feathersheet_core::tr!("esconder célula que não é linha/coluna inteira"))),
         })
     }
 
@@ -267,7 +267,7 @@ impl Gerador<'_> {
     /// (os cabeçalhos ficam sempre à mostra), como o `Application.DisplayHeadings`.
     fn escrever_na_janela(&mut self, n: &str, valor: &Expr) -> R<String> {
         match n {
-            "freezepanes" | "splitrow" | "splitcolumn" | "split" => Err(Motivo::novo("congelar painéis pela macro (sem API de macro)")),
+            "freezepanes" | "splitrow" | "splitcolumn" | "split" => Err(Motivo::novo(feathersheet_core::tr!("congelar painéis pela macro (sem API de macro)"))),
             "displaygridlines" => {
                 let v = self.valor(valor)?;
                 let b = self.como_bool(&v);
@@ -308,12 +308,12 @@ impl Gerador<'_> {
             "showalldata" => format!("{aba}.showAllData();"),
             "clear" => format!("vba.{o}({aba}).chaves = [];"),
             "add" | "add2" => {
-                let chave = self.arg_faixa(args, &["key"], 0)?.ok_or_else(|| Motivo::novo("SortFields.Add sem Key"))?;
+                let chave = self.arg_faixa(args, &["key"], 0)?.ok_or_else(|| Motivo::novo(feathersheet_core::tr!("SortFields.Add sem Key")))?;
                 let ordem = self.arg_js(args, &["order"], 2)?;
                 format!("vba.{o}({aba}).chaves.push([{chave}, {ordem}]);")
             }
             "setrange" => {
-                let f = self.arg_faixa(args, &["rng"], 0)?.ok_or_else(|| Motivo::novo("SetRange sem intervalo"))?;
+                let f = self.arg_faixa(args, &["rng"], 0)?.ok_or_else(|| Motivo::novo(feathersheet_core::tr!("SetRange sem intervalo")))?;
                 format!("vba.{o}({aba}).faixa = {f};")
             }
             "apply" => format!("vba.{}({aba});", self.ajuda("ordenar")),
@@ -331,7 +331,7 @@ impl Gerador<'_> {
             }
         }
         if chaves.is_empty() {
-            return Err(Motivo::novo("Range.Sort sem Key1"));
+            return Err(Motivo::novo(feathersheet_core::tr!("Range.Sort sem Key1")));
         }
         let cab = self.arg_js(args, &["header"], 7)?;
         Ok(format!("vba.{}({}, {}, [{}], {cab});", self.ajuda("ordenarFaixa"), f.aba, f.end, chaves.join(", ")))
@@ -362,13 +362,13 @@ impl Gerador<'_> {
                 Some(Expr::Bool(b)) => Some(b),
                 Some(e) => match constante(&e) {
                     Some(n) => Some(n != 0),
-                    None => return Err(Motivo::novo("TextToColumns com opção calculada (use True/False)")),
+                    None => return Err(Motivo::novo(feathersheet_core::tr!("TextToColumns com opção calculada (use True/False)"))),
                 },
             })
         };
         if let Some(t) = Self::arg_de(args, &["datatype"], 1) {
             if constante(&t) == Some(2) {
-                return Err(Motivo::novo("Texto para colunas com largura fixa (xlFixedWidth)"));
+                return Err(Motivo::novo(feathersheet_core::tr!("Texto para colunas com largura fixa (xlFixedWidth)")));
             }
         }
         let mut delims: Vec<String> = Vec::new();
@@ -376,7 +376,7 @@ impl Gerador<'_> {
             if sim(Self::arg_de(args, &[nome], pos))? == Some(true) { delims.push(js.into()); }
         }
         if sim(Self::arg_de(args, &["other"], 8))? == Some(true) {
-            let c = Self::arg_de(args, &["otherchar"], 9).ok_or_else(|| Motivo::novo("TextToColumns Other:=True sem OtherChar"))?;
+            let c = Self::arg_de(args, &["otherchar"], 9).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("TextToColumns Other:=True sem OtherChar")))?;
             let v = self.valor(&c)?;
             delims.push(format!("String({}).charAt(0)", v.js));
         }
@@ -404,10 +404,10 @@ impl Gerador<'_> {
     fn exportar_pdf(&mut self, aba: &str, args: &[Arg]) -> R<String> {
         if let Some(t) = Self::arg_de(args, &["type"], 0) {
             if constante(&t) != Some(0) {
-                return Err(Motivo::novo("exportar em formato que não é PDF (XPS)"));
+                return Err(Motivo::novo(feathersheet_core::tr!("exportar em formato que não é PDF (XPS)")));
             }
         }
-        let caminho = Self::arg_de(args, &["filename"], 1).ok_or_else(|| Motivo::novo("ExportAsFixedFormat sem Filename"))?;
+        let caminho = Self::arg_de(args, &["filename"], 1).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("ExportAsFixedFormat sem Filename")))?;
         let v = self.valor(&caminho)?;
         Ok(format!("{aba}.exportPdf({});", self.como_texto(&v)))
     }
@@ -419,10 +419,10 @@ impl Gerador<'_> {
             let Some(e) = Self::arg_de(args, &[chave], pos) else { continue };
             return match self.objeto(&e)? {
                 Obj::AbaNova(p, i) => Ok(format!("{p}.abas.splice({i}{desloca}, 0, {nome_js});")),
-                _ => Err(Motivo::novo("copiar a aba dentro da mesma pasta (use wb.copySheet)")),
+                _ => Err(Motivo::novo(feathersheet_core::tr!("copiar a aba dentro da mesma pasta (use wb.copySheet)"))),
             };
         }
-        Err(Motivo::novo("copiar a aba para uma pasta nova sem Workbooks.Add"))
+        Err(Motivo::novo(feathersheet_core::tr!("copiar a aba para uma pasta nova sem Workbooks.Add")))
     }
 
     /// `newBook.SaveAs Filename` grava as abas copiadas num arquivo novo; `Close` não
@@ -430,12 +430,12 @@ impl Gerador<'_> {
     fn metodo_da_nova_pasta(&mut self, p: &str, n: &str, args: &[Arg]) -> R<String> {
         match n {
             "saveas" | "savecopyas" => {
-                let caminho = Self::arg_de(args, &["filename"], 0).ok_or_else(|| Motivo::novo("SaveAs sem nome de arquivo"))?;
+                let caminho = Self::arg_de(args, &["filename"], 0).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("SaveAs sem nome de arquivo")))?;
                 let v = self.valor(&caminho)?;
                 Ok(format!("wb.saveSheetsAs({p}.abas.filter((a) => a !== null), {});", self.como_texto(&v)))
             }
             "close" => Ok(String::new()),
-            _ => Err(Motivo::novo(format!("Workbook.{n} da pasta nova"))),
+            _ => Err(Motivo::novo(feathersheet_core::trf!("Workbook.{n} da pasta nova"))),
         }
     }
 
@@ -469,7 +469,7 @@ impl Gerador<'_> {
             "caption" => "caption",
             "enabled" => "enabled",
             "visible" => "visible",
-            _ => return Err(Motivo::novo(format!("{c}.{n} do controle do formulário"))),
+            _ => return Err(Motivo::novo(feathersheet_core::trf!("{c}.{n} do controle do formulário"))),
         };
         let v = self.valor(valor)?;
         Ok(format!("sheet.field({c:?}).{p} = {};", v.js))
@@ -489,17 +489,17 @@ impl Gerador<'_> {
             Obj::Formulario(f) => match n.as_str() {
                 "show" => Ok(format!("sheet.showComponent({f:?});")),
                 "hide" => Ok("sheet.hideComponent();".into()),
-                _ => Err(Motivo::novo(format!("{f}.{nome} do formulário"))),
+                _ => Err(Motivo::novo(feathersheet_core::trf!("{f}.{nome} do formulário"))),
             },
             Obj::Controle(c) => match n.as_str() {
                 "setfocus" => Ok(String::new()),
-                _ => Err(Motivo::novo(format!("{c}.{nome}: a lista do formulário mudada pela macro (só AddItem com texto fixo no UserForm_Initialize converte)"))),
+                _ => Err(Motivo::novo(feathersheet_core::trf!("{c}.{nome}: a lista do formulário mudada pela macro (só AddItem com texto fixo no UserForm_Initialize converte)"))),
             },
             Obj::Aba(aba, nome_aba) => self.metodo_da_aba(&aba, nome_aba, &n, args),
             Obj::Nomes if n == "add" => self.nome_novo(args),
             Obj::Abas if n == "add" => Ok(format!("{};", self.aba_nova_da_pasta(args)?)),
             // Rolar, ativar outra janela, zoom: a planilha da macro não tem janela.
-            Obj::Janela if n == "close" => Err(Motivo::novo("fechar a janela do Excel")),
+            Obj::Janela if n == "close" => Err(Motivo::novo(feathersheet_core::tr!("fechar a janela do Excel"))),
             Obj::Janela => Ok(String::new()),
             Obj::Ordem(aba) => self.metodo_da_ordem(&aba, &n, args),
             Obj::Forma(js) if n == "select" => Ok(format!("vba.{}({js});", self.ajuda("formaEscolher"))),
@@ -514,19 +514,19 @@ impl Gerador<'_> {
             Obj::NovaPasta(p) => self.metodo_da_nova_pasta(&p, &n, args),
             // `Run(comando, [janela], [esperar])`: o app mostra o comando e pergunta antes.
             Obj::Shell if n == "run" => Ok(format!("app.shell(String({}));", self.arg_js(args, &["command"], 0)?)),
-            Obj::Shell => Err(Motivo::novo(format!("WScript.Shell.{nome} (só o Run converte)"))),
-            Obj::Pastas if n == "open" => Err(Motivo::novo("abrir outra pasta de trabalho (Workbooks.Open)")),
-            Obj::Pastas => Err(Motivo::novo(format!("Workbooks.{nome} (só Set x = Workbooks.Add converte)"))),
+            Obj::Shell => Err(Motivo::novo(feathersheet_core::trf!("WScript.Shell.{nome} (só o Run converte)"))),
+            Obj::Pastas if n == "open" => Err(Motivo::novo(feathersheet_core::tr!("abrir outra pasta de trabalho (Workbooks.Open)"))),
+            Obj::Pastas => Err(Motivo::novo(feathersheet_core::trf!("Workbooks.{nome} (só Set x = Workbooks.Add converte)"))),
             Obj::AbaNova(p, i) if n == "delete" => Ok(format!("{p}.abas.splice({i} - 1, 1);")),
             Obj::App | Obj::Pasta => match n.as_str() {
                 "calculate" | "calculatefull" => Ok("app.calculate();".into()),
                 // Função que recalcula sempre: a planilha recalcula o que depende do que mudou.
                 "volatile" => Ok(String::new()),
-                "save" | "saveas" | "close" | "savecopyas" => Err(Motivo::novo("salvar/fechar o arquivo pela macro")),
+                "save" | "saveas" | "close" | "savecopyas" => Err(Motivo::novo(feathersheet_core::tr!("salvar/fechar o arquivo pela macro"))),
                 "run" | "ontime" | "wait" | "quit" | "goto" | "sendkeys" => Err(Motivo::novo(format!("Application.{nome}"))),
-                _ => Err(Motivo::novo(format!("{nome} da pasta/Application"))),
+                _ => Err(Motivo::novo(feathersheet_core::trf!("{nome} da pasta/Application"))),
             },
-            _ => Err(Motivo::novo(format!("método {nome}"))),
+            _ => Err(Motivo::novo(feathersheet_core::trf!("método {nome}"))),
         }
     }
 
@@ -558,14 +558,14 @@ impl Gerador<'_> {
                 let copiar = match Self::arg_de(args, &["action"], 0).as_ref().and_then(constante) {
                     Some(1) => false,
                     Some(2) => true,
-                    _ => return Err(Motivo::novo("AdvancedFilter sem Action fixa (xlFilterInPlace ou xlFilterCopy)")),
+                    _ => return Err(Motivo::novo(feathersheet_core::tr!("AdvancedFilter sem Action fixa (xlFilterInPlace ou xlFilterCopy)"))),
                 };
                 let criterios = self.arg_faixa(args, &["criteriarange"], 1)?.unwrap_or_else(|| "null".into());
                 let unico = match Self::arg_de(args, &["unique"], 3) { Some(e) => { let v = self.valor(&e)?; self.como_bool(&v) } None => "false".into() };
                 let mut opcoes = vec![format!("unique: {unico}")];
                 if copiar {
-                    let e = Self::arg_de(args, &["copytorange"], 2).ok_or_else(|| Motivo::novo("AdvancedFilter xlFilterCopy sem CopyToRange"))?;
-                    let Obj::Faixa(d) = self.objeto(&e)? else { return Err(Motivo::novo("CopyToRange que não é intervalo")) };
+                    let e = Self::arg_de(args, &["copytorange"], 2).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("AdvancedFilter xlFilterCopy sem CopyToRange")))?;
+                    let Obj::Faixa(d) = self.objeto(&e)? else { return Err(Motivo::novo(feathersheet_core::tr!("CopyToRange que não é intervalo"))) };
                     opcoes.push(format!("copyTo: {}", d.end));
                     if d.aba != f.aba { opcoes.push(format!("sheet: {}.name", d.aba)); }
                 }
@@ -581,7 +581,7 @@ impl Gerador<'_> {
                         Some(-4122) => "'formats'".into(),
                         Some(-4123 | 11) => "'formulas'".into(),
                         Some(-4104) => "'all'".into(),
-                        Some(_) => return Err(Motivo::novo("colar especial (largura de coluna, comentários, validação)")),
+                        Some(_) => return Err(Motivo::novo(feathersheet_core::tr!("colar especial (largura de coluna, comentários, validação)"))),
                         None => {
                             let v = self.valor(&e)?;
                             format!("({{ [-4163]: 'values', [-4122]: 'formats', [-4123]: 'formulas' }}[{}] ?? 'all')", v.js)
@@ -594,7 +594,7 @@ impl Gerador<'_> {
             "autofit" => String::new(),
             "replace" => {
                 let p: Vec<&Expr> = args.iter().filter_map(|a| a.valor.as_ref()).collect();
-                let (Some(a), Some(b)) = (p.first(), p.get(1)) else { return Err(Motivo::novo("Replace sem argumentos")) };
+                let (Some(a), Some(b)) = (p.first(), p.get(1)) else { return Err(Motivo::novo(feathersheet_core::tr!("Replace sem argumentos"))) };
                 let (va, vb) = (self.valor(a)?, self.valor(b)?);
                 format!("{aba}.replace({end}, {}, {});", va.js, vb.js)
             }
@@ -614,7 +614,7 @@ impl Gerador<'_> {
     pub fn condicao_nova(&mut self, f: &Faixa, args: &[Arg]) -> R<String> {
         let tipo = self.arg_js(args, &["type"], 0)?;
         if !matches!(constante(&Self::arg_de(args, &["type"], 0).unwrap_or(Expr::Num(1.0))), Some(1 | 2)) {
-            return Err(Motivo::novo("formatação condicional que não é por valor nem por fórmula (escala, barra, ícones: há sheet.addColorScale/addDataBar)"));
+            return Err(Motivo::novo(feathersheet_core::tr!("formatação condicional que não é por valor nem por fórmula (escala, barra, ícones: há sheet.addColorScale/addDataBar)")));
         }
         let op = self.arg_js(args, &["operator"], 1)?;
         let mut fs = Vec::new();
@@ -633,7 +633,7 @@ impl Gerador<'_> {
     /// `Names.Add Name:=…, RefersTo:=Range(…)` → `wb.addName(nome, endereço)`.
     fn nome_novo(&mut self, args: &[Arg]) -> R<String> {
         let achar = |chaves: &[&str], pos: usize| args.iter().find(|a| a.nome.as_deref().is_some_and(|n| chaves.iter().any(|c| n.eq_ignore_ascii_case(c)))).or_else(|| args.get(pos).filter(|a| a.nome.is_none())).and_then(|a| a.valor.clone());
-        let (Some(nome), Some(alvo)) = (achar(&["name"], 0), achar(&["refersto", "referstor1c1", "referstolocal"], 1)) else { return Err(Motivo::novo("Names.Add sem nome ou intervalo")) };
+        let (Some(nome), Some(alvo)) = (achar(&["name"], 0), achar(&["refersto", "referstor1c1", "referstolocal"], 1)) else { return Err(Motivo::novo(feathersheet_core::tr!("Names.Add sem nome ou intervalo"))) };
         let n = self.valor(&nome)?;
         let end = match self.objeto(&alvo) {
             Ok(Obj::Faixa(f)) => f.end,
@@ -685,7 +685,7 @@ impl Gerador<'_> {
         let Some(e) = destino else {
             return Ok(format!("vba.{}({}, {}, {cortar});", self.ajuda("copiar"), f.aba, f.end));
         };
-        let Obj::Faixa(d) = self.objeto(&e)? else { return Err(Motivo::novo("destino da cópia")) };
+        let Obj::Faixa(d) = self.objeto(&e)? else { return Err(Motivo::novo(feathersheet_core::tr!("destino da cópia"))) };
         let mesma = d.aba == f.aba;
         Ok(match (cortar, mesma) {
             (false, true) => format!("{}.copy({}, {});", f.aba, f.end, d.end),
@@ -734,16 +734,16 @@ impl Gerador<'_> {
             "showalldata" => format!("{aba}.showAllData();"),
             "delete" => format!("wb.deleteSheet({nome_js});"),
             "exportasfixedformat" => self.exportar_pdf(aba, args)?,
-            "printout" | "printpreview" => return Err(Motivo::novo("imprimir pela macro (use exportar PDF)")),
+            "printout" | "printpreview" => return Err(Motivo::novo(feathersheet_core::tr!("imprimir pela macro (use exportar PDF)"))),
             "protect" | "unprotect" => self.proteger_aba(aba, n == "protect", args)?,
             "copy" => self.copiar_aba(&nome_js, args)?,
-            "move" => return Err(Motivo::novo("mover a aba para outra pasta")),
+            "move" => return Err(Motivo::novo(feathersheet_core::tr!("mover a aba para outra pasta"))),
             // `ActiveSheet.Paste [Destination:=…]`: cola o último `Copy`/`Cut` na seleção.
             "paste" => {
                 let alvo = self.arg_faixa(args, &["destination"], 0)?.unwrap_or_else(|| format!("{aba}.selection().address"));
                 format!("vba.{}({aba}, {alvo});", self.ajuda("colar"))
             }
-            "pastespecial" => return Err(Motivo::novo("colar especial da aba (imagem, link)")),
+            "pastespecial" => return Err(Motivo::novo(feathersheet_core::tr!("colar especial da aba (imagem, link)"))),
             _ => return Err(Motivo::novo(format!("Worksheet.{n}"))),
         })
     }

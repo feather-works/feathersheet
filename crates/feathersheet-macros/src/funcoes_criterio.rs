@@ -17,7 +17,7 @@ pub(crate) fn achatar<'a>(valor: &'a Json, saida: &mut Vec<&'a Json>, nivel: usi
         for item in itens { achatar(item, saida, nivel+1)?; }
     } else {
         if saida.len() >= LIMITE {
-            return Err("WorksheetFunction: limite de 500.000 valores".into());
+            return Err(feathersheet_core::tr!("WorksheetFunction: limite de 500.000 valores").into());
         }
         saida.push(valor);
     }
@@ -29,18 +29,18 @@ fn valor(v: &Json) -> Result<Value, String> {
         Json::Null => Value::Empty,
         Json::String(s) => Value::Text(s.clone()),
         Json::Bool(b) => Value::Bool(*b),
-        Json::Number(n) => Value::Number(n.as_f64().ok_or("Número inválido")?),
+        Json::Number(n) => Value::Number(n.as_f64().ok_or_else(|| feathersheet_core::tr!("Número inválido"))?),
         Json::Object(m) if m.get("__ftCellError").and_then(Json::as_str).is_some() => {
             use feathersheet_core::celulas::values::{CellError, ErrorCode};
             let code = m.get("__ftCellError").and_then(Json::as_str).unwrap();
-            let code = ErrorCode::from_code(code).ok_or("Código de erro inválido")?;
+            let code = ErrorCode::from_code(code).ok_or_else(|| feathersheet_core::tr!("Código de erro inválido"))?;
             let e = match m.get("detail").and_then(Json::as_str) {
                 Some(d) => CellError::com_motivo(code, d),
                 None => CellError::new(code),
             };
             Value::Error(e)
         }
-        _ => return Err("Critério deve ser número, texto, booleano, erro ou null".into()),
+        _ => return Err(feathersheet_core::tr!("Critério deve ser número, texto, booleano, erro ou null").into()),
     })
 }
 
@@ -136,7 +136,7 @@ pub(crate) fn executar(op: &str, dados: &Json) -> Result<Json, String> {
         | "worksheetMax" | "worksheetMin") {
         return agregacao(op, dados);
     }
-    let mut criterio = valor(dados.get(1).ok_or("WorksheetFunction: critério ausente")?)?;
+    let mut criterio = valor(dados.get(1).ok_or_else(|| feathersheet_core::tr!("WorksheetFunction: critério ausente"))?)?;
     let so_numero = exige_numero(&criterio);
     // O critério <>5 também seleciona textos, booleanos e vazios,
     // pois a implementação TS usa a negação da igualdade estrita.
@@ -191,7 +191,7 @@ pub(crate) fn executar(op: &str, dados: &Json) -> Result<Json, String> {
         });
     }
     if !total.is_finite() {
-        return Err("Soma não finita".into());
+        return Err(feathersheet_core::tr!("Soma não finita").into());
     }
     Ok(json!(total))
 }

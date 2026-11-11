@@ -108,13 +108,13 @@ pub(crate) fn ler_colunas<R: Read>(origem: R, len: usize, linhas: u32) -> Result
 /// [`ler_colunas`] com um [`Plano`] por nome de campo; campo sem plano vem em vetor.
 pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32, mut planos: HashMap<String, Plano>) -> Result<HashMap<String, ColunaArrow>, String> {
     if linhas > feathersheet_core::MAX_ROWS {
-        return Err(format!("Aba com {linhas} linhas passa do limite da planilha"));
+        return Err(feathersheet_core::trf!("Aba com {linhas} linhas passa do limite da planilha"));
     }
     let linhas = linhas as usize;
     let mut r = origem.take(len as u64);
     let magico = ler_exato(&mut r, 6)?;
     if magico != b"ARROW1" {
-        return Err("Bloco Arrow sem assinatura".into());
+        return Err(feathersheet_core::tr!("Bloco Arrow sem assinatura").into());
     }
     // Depois da assinatura vêm zeros até o alinhamento (8 ou 64 bytes,
     // conforme a versão do arrow que gravou); a primeira mensagem começa no
@@ -125,7 +125,7 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
         r.read_exact(&mut primeiro).map_err(|e| format!("Bloco Arrow truncado: {e}"))?;
         if primeiro[0] != 0 { break; }
         zeros += 1;
-        if zeros > 64 { return Err("Bloco Arrow sem mensagens".into()); }
+        if zeros > 64 { return Err(feathersheet_core::tr!("Bloco Arrow sem mensagens").into()); }
     }
     let mut adiantado = Some(primeiro[0]);
     let mut nomes: Vec<String> = Vec::new();
@@ -150,11 +150,11 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
             break;
         }
         let meta = ler_exato(&mut r, tamanho as usize)?;
-        let msg = root_as_message(&meta).map_err(|e| format!("Mensagem Arrow inválida: {e}"))?;
-        let corpo = u64::try_from(msg.bodyLength()).map_err(|_| "Corpo Arrow inválido")?;
+        let msg = root_as_message(&meta).map_err(|e| feathersheet_core::trf!("Mensagem Arrow inválida: {e}"))?;
+        let corpo = u64::try_from(msg.bodyLength()).map_err(|_| feathersheet_core::tr!("Corpo Arrow inválido"))?;
         match msg.header_type() {
             MessageHeader::Schema => {
-                let esquema = msg.header_as_schema().ok_or("Esquema Arrow inválido")?;
+                let esquema = msg.header_as_schema().ok_or_else(|| feathersheet_core::tr!("Esquema Arrow inválido"))?;
                 let mut alocadas = 0u64;
                 for campo in esquema.fields().into_iter().flatten() {
                     let nome = campo.name().unwrap_or_default().to_owned();
@@ -163,7 +163,7 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
                     if !planos.contains_key(&nome) {
                         alocadas += linhas as u64;
                         if alocadas > MAX_CELULAS_DECLARADAS {
-                            return Err(format!("O arquivo declara células demais ({} campos × {linhas} linhas).", colunas.len() + 1));
+                            return Err(feathersheet_core::trf!("O arquivo declara células demais ({} campos × {linhas} linhas).", colunas.len() + 1));
                         }
                     }
                     let mascara = vec![0u8; linhas.div_ceil(8)];
@@ -171,46 +171,46 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
                     colunas.push(match (planos.remove(&nome), campo.type_type()) {
                         (Some(Plano::Num), Type::FloatingPoint) => ColunaArrow::NumBlocos(Montador::novo()),
                         (Some(Plano::Txt(mapa)), _) if int32 => ColunaArrow::TxtBlocos(Montador::novo(), mapa),
-                        (Some(_), outro) => return Err(format!("Tipo Arrow {outro:?} no campo \"{nome}\" não bate com a coluna")),
+                        (Some(_), outro) => return Err(feathersheet_core::trf!("Tipo Arrow {outro:?} no campo \"{nome}\" não bate com a coluna")),
                         (None, Type::FloatingPoint) => ColunaArrow::Float(vec![0.0; linhas], mascara),
                         (None, Type::Int) if int32 => ColunaArrow::Int(vec![0; linhas], mascara),
-                        (None, outro) => return Err(format!("Tipo Arrow {outro:?} no campo \"{nome}\" não é do .fshz")),
+                        (None, outro) => return Err(feathersheet_core::trf!("Tipo Arrow {outro:?} no campo \"{nome}\" não é do .fshz")),
                     });
                     nomes.push(nome);
                 }
                 pular(&mut r, corpo)?;
             }
             MessageHeader::RecordBatch => {
-                let lote = msg.header_as_record_batch().ok_or("Lote Arrow inválido")?;
+                let lote = msg.header_as_record_batch().ok_or_else(|| feathersheet_core::tr!("Lote Arrow inválido"))?;
                 if lote.compression().is_some() {
-                    return Err("Lote Arrow comprimido não é do .fshz".into());
+                    return Err(feathersheet_core::tr!("Lote Arrow comprimido não é do .fshz").into());
                 }
-                let n = usize::try_from(lote.length()).map_err(|_| "Lote Arrow inválido")?;
-                let nos = lote.nodes().ok_or("Lote Arrow sem campos")?;
-                let buffers = lote.buffers().ok_or("Lote Arrow sem buffers")?;
+                let n = usize::try_from(lote.length()).map_err(|_| feathersheet_core::tr!("Lote Arrow inválido"))?;
+                let nos = lote.nodes().ok_or_else(|| feathersheet_core::tr!("Lote Arrow sem campos"))?;
+                let buffers = lote.buffers().ok_or_else(|| feathersheet_core::tr!("Lote Arrow sem buffers"))?;
                 if nos.len() != colunas.len() || buffers.len() != 2 * colunas.len() {
-                    return Err("Lote Arrow não bate com o esquema".into());
+                    return Err(feathersheet_core::tr!("Lote Arrow não bate com o esquema").into());
                 }
                 let mut pos = 0u64;
                 for (i, coluna) in colunas.iter_mut().enumerate() {
                     let (validade, valores) = (buffers.get(2 * i), buffers.get(2 * i + 1));
                     let nulos = nos.get(i).null_count();
                     // A máscara do lote (vazia = todas presentes).
-                    let inicio = u64::try_from(validade.offset()).map_err(|_| "Buffer Arrow inválido")?;
-                    pular(&mut r, inicio.checked_sub(pos).ok_or("Buffers Arrow fora de ordem")?)?;
-                    let bits = ler_exato(&mut r, usize::try_from(validade.length()).map_err(|_| "Buffer Arrow inválido")?)?;
+                    let inicio = u64::try_from(validade.offset()).map_err(|_| feathersheet_core::tr!("Buffer Arrow inválido"))?;
+                    pular(&mut r, inicio.checked_sub(pos).ok_or_else(|| feathersheet_core::tr!("Buffers Arrow fora de ordem"))?)?;
+                    let bits = ler_exato(&mut r, usize::try_from(validade.length()).map_err(|_| feathersheet_core::tr!("Buffer Arrow inválido"))?)?;
                     pos = inicio + bits.len() as u64;
                     if bits.is_empty() && nulos > 0 {
-                        return Err("Lote Arrow com nulos sem máscara".into());
+                        return Err(feathersheet_core::tr!("Lote Arrow com nulos sem máscara").into());
                     }
                     let presente = |k: usize| bits.is_empty() || bits.get(k >> 3).is_some_and(|b| b & (1 << (k & 7)) != 0);
-                    let inicio = u64::try_from(valores.offset()).map_err(|_| "Buffer Arrow inválido")?;
-                    pular(&mut r, inicio.checked_sub(pos).ok_or("Buffers Arrow fora de ordem")?)?;
+                    let inicio = u64::try_from(valores.offset()).map_err(|_| feathersheet_core::tr!("Buffer Arrow inválido"))?;
+                    pular(&mut r, inicio.checked_sub(pos).ok_or_else(|| feathersheet_core::tr!("Buffers Arrow fora de ordem"))?)?;
                     let largura = match coluna { ColunaArrow::Float(..) | ColunaArrow::NumBlocos(..) => 8, ColunaArrow::Int(..) | ColunaArrow::TxtBlocos(..) => 4 };
-                    let total = usize::try_from(valores.length()).map_err(|_| "Buffer Arrow inválido")?;
-                    let tamanho_do_lote = n.checked_mul(largura).ok_or("Lote Arrow inválido")?;
+                    let total = usize::try_from(valores.length()).map_err(|_| feathersheet_core::tr!("Buffer Arrow inválido"))?;
+                    let tamanho_do_lote = n.checked_mul(largura).ok_or_else(|| feathersheet_core::tr!("Lote Arrow inválido"))?;
                     if total < tamanho_do_lote {
-                        return Err("Buffer Arrow menor que o lote".into());
+                        return Err(feathersheet_core::tr!("Buffer Arrow menor que o lote").into());
                     }
                     // Os valores em pedaços de 1 MB, direto para a coluna.
                     let mut pedaco = vec![0u8; (1 << 20) / largura * largura];
@@ -248,7 +248,7 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
                     pular(&mut r, (total - lidos) as u64)?;
                     pos = inicio + total as u64;
                 }
-                pular(&mut r, corpo.checked_sub(pos).ok_or("Corpo Arrow menor que os buffers")?)?;
+                pular(&mut r, corpo.checked_sub(pos).ok_or_else(|| feathersheet_core::tr!("Corpo Arrow menor que os buffers"))?)?;
                 linha0 += n;
             }
             _ => pular(&mut r, corpo)?,

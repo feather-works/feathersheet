@@ -122,7 +122,7 @@ fn parse_xml_impl<R: BufRead>(
                     ..Default::default()
                 };
                 if stack.len() > MAX_PROFUNDIDADE {
-                    return Err(format!("XML aninhado demais (mais de {MAX_PROFUNDIDADE} níveis): o arquivo não parece um .xlsx de verdade."));
+                    return Err(feathersheet_core::trf!("XML aninhado demais (mais de {MAX_PROFUNDIDADE} níveis): o arquivo não parece um .xlsx de verdade."));
                 }
                 stack.push(node);
             }
@@ -187,7 +187,7 @@ fn parse_xml_impl<R: BufRead>(
             }
             Ok(Event::Eof) => break,
             Ok(_) => {} // comentário, PI, declaração — ignorados, igual ao JS
-            Err(e) => return Err(format!("XML inválido: {e}")),
+            Err(e) => return Err(feathersheet_core::trf!("XML inválido: {e}")),
         }
         buf.clear();
     }
@@ -363,7 +363,7 @@ fn ler_linha<R: BufRead>(reader: &mut Reader<R>, buf: &mut Vec<u8>, linha: &mut 
     loop {
         buf.clear();
         let decoder = reader.decoder();
-        let evento = reader.read_event_into(buf).map_err(|e| format!("XML inválido: {e}"))?;
+        let evento = reader.read_event_into(buf).map_err(|e| feathersheet_core::trf!("XML inválido: {e}"))?;
         match evento {
             Event::Start(ref e) | Event::Empty(ref e) => {
                 let vazio = matches!(evento, Event::Empty(_));
@@ -410,7 +410,7 @@ fn ler_linha<R: BufRead>(reader: &mut Reader<R>, buf: &mut Vec<u8>, linha: &mut 
                 let txt = String::from_utf8_lossy(e.as_ref()).to_string();
                 empurrar(linha, alvo, &txt);
             }
-            Event::Eof => return Err("XML inválido: <row> sem fim".into()),
+            Event::Eof => return Err(feathersheet_core::tr!("XML inválido: <row> sem fim").into()),
             _ => {}
         }
     }
@@ -452,7 +452,7 @@ pub fn parse_xml_linhas_rapidas<R: BufRead>(
     const MAX_DEPOIS_DAS_LINHAS: u64 = 64 * 1024 * 1024;
     let lidos = source.by_ref().take(MAX_DEPOIS_DAS_LINHAS + 1).read_to_end(&mut resto).map_err(|e| format!("XML: {e}"))?;
     if lidos as u64 > MAX_DEPOIS_DAS_LINHAS {
-        return Err("O XML da aba passa do tamanho aceito depois das linhas: o arquivo não parece um .xlsx de verdade.".into());
+        return Err(feathersheet_core::tr!("O XML da aba passa do tamanho aceito depois das linhas: o arquivo não parece um .xlsx de verdade.").into());
     }
     if vazio {
         // `<sheetData/>` já fechou no prefixo.
@@ -496,7 +496,7 @@ fn parse_xml_linhas_quick<R: BufRead>(
             Ok(Event::Start(e)) => {
                 // O mesmo teto do `parse_xml_impl`: aninhamento sem fim estoura a pilha ao soltar a árvore.
                 if stack.len() > MAX_PROFUNDIDADE {
-                    return Err(format!("XML aninhado demais (mais de {MAX_PROFUNDIDADE} níveis): o arquivo não parece um .xlsx de verdade."));
+                    return Err(feathersheet_core::trf!("XML aninhado demais (mais de {MAX_PROFUNDIDADE} níveis): o arquivo não parece um .xlsx de verdade."));
                 }
                 stack.push(XmlNode { name: local_name(e.name().as_ref()), attrs: read_attrs(&e, decoder), ..Default::default() });
             }
@@ -523,7 +523,7 @@ fn parse_xml_linhas_quick<R: BufRead>(
             }
             Ok(Event::Eof) => break,
             Ok(_) => {}
-            Err(e) => return Err(format!("XML inválido: {e}")),
+            Err(e) => return Err(feathersheet_core::trf!("XML inválido: {e}")),
         }
         buf.clear();
     }

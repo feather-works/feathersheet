@@ -519,17 +519,17 @@ fn escrever_em_fatias<W: Write>(destino: W, nomes: &[String], campos: &[Campo], 
     let fields: Vec<Field> = nomes.iter().zip(campos).map(|(n, c)| Field::new(n, c.tipo(), true)).collect();
     let schema = Arc::new(Schema::new(fields));
     let mut writer = FileWriter::try_new(destino, &schema)
-        .map_err(|e| format!("Não consegui abrir o gravador Arrow de \"{aba}\": {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("Não consegui abrir o gravador Arrow de \"{aba}\": {e}"))?;
     let mut r0 = 0u32;
     while r0 < linhas {
         let r1 = linhas.min(r0.saturating_add(passo));
         let arrays: Vec<ArrayRef> = campos.iter().map(|c| c.fatia(r0, r1)).collect();
         let batch = RecordBatch::try_new(schema.clone(), arrays)
-            .map_err(|e| format!("Não consegui montar a tabela Arrow de \"{aba}\": {e}"))?;
-        writer.write(&batch).map_err(|e| format!("Não consegui gravar a tabela Arrow de \"{aba}\": {e}"))?;
+            .map_err(|e| feathersheet_core::trf!("Não consegui montar a tabela Arrow de \"{aba}\": {e}"))?;
+        writer.write(&batch).map_err(|e| feathersheet_core::trf!("Não consegui gravar a tabela Arrow de \"{aba}\": {e}"))?;
         r0 = r1;
     }
-    writer.finish().map_err(|e| format!("Não consegui fechar a tabela Arrow de \"{aba}\": {e}"))
+    writer.finish().map_err(|e| feathersheet_core::trf!("Não consegui fechar a tabela Arrow de \"{aba}\": {e}"))
 }
 
 /// O dicionário local de [`dicionario_local`] sem copiar os índices: devolve
@@ -797,7 +797,7 @@ fn montar_partes(pasta: &PastaBruta) -> Result<(LivroMeta<'_>, Blocos<'_>), Stri
             escrever_bloco(&mut contador, &nomes, &campos, aba.linhas, &aba.n)?;
             let tamanho = usize::try_from(contador.0).map_err(|_| "Bloco Arrow grande demais".to_string())?;
             meta.ar = Some((deslocamento, tamanho));
-            deslocamento = deslocamento.checked_add(tamanho).ok_or("Região Arrow grande demais")?;
+            deslocamento = deslocamento.checked_add(tamanho).ok_or_else(|| feathersheet_core::tr!("Região Arrow grande demais"))?;
             blocos.push((&aba.n, aba.linhas, nomes, campos));
         }
         abas_meta.push(meta);
@@ -860,9 +860,9 @@ fn gravar_binario_com<W: Write, T: Serialize>(
     let tamanho = u32::try_from(contador.0).map_err(|_| "Metadados FSH3 excedem 4 GiB".to_string())?;
     let mut enc = GzEncoder::new(destino, Compression::default());
     enc.write_all(&tamanho.to_le_bytes()).map_err(|e| e.to_string())?;
-    rmp_serde::encode::write_named(&mut enc, meta).map_err(|e| format!("Não consegui gravar os metadados binários: {e}"))?;
+    rmp_serde::encode::write_named(&mut enc, meta).map_err(|e| feathersheet_core::trf!("Não consegui gravar os metadados binários: {e}"))?;
     blocos(&mut enc)?;
-    enc.finish().map_err(|e| format!("Não consegui comprimir: {e}"))?;
+    enc.finish().map_err(|e| feathersheet_core::trf!("Não consegui comprimir: {e}"))?;
     Ok(())
 }
 

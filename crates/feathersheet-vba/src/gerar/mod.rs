@@ -294,7 +294,7 @@ fn converter_eventos(p: &Programa, totais: &mut Totais, arquivo: &str, c: &mut C
             let n = pr.nome.to_lowercase();
             let Some((_, _, evento)) = EVENTOS.iter().find(|(e, t, _)| *e == n && *t == m.tipo) else {
                 if n.starts_with("workbook_") || n.starts_with("worksheet_") {
-                    c.pendencias.push(Pendencia { modulo: m.nome.clone(), linha: pr.linha, vba: format!("Sub {}", pr.nome), motivo: "evento do Excel sem equivalente no FeatherSheet".into(), aviso: false });
+                    c.pendencias.push(Pendencia { modulo: m.nome.clone(), linha: pr.linha, vba: format!("Sub {}", pr.nome), motivo: feathersheet_core::tr!("evento do Excel sem equivalente no FeatherSheet").into(), aviso: false });
                 }
                 continue;
             };
@@ -317,7 +317,7 @@ fn converter_formularios(p: &Programa, projeto: &ProjetoVba, totais: &mut Totais
         let mut desenho = form.clone();
         for ctl in &form.controles {
             if let crate::formulario::TipoVba::Outro(k) = ctl.tipo {
-                c.pendencias.push(Pendencia { modulo: form.nome.clone(), linha: 0, vba: ctl.nome.clone(), motivo: format!("controle do formulário sem equivalente (tipo {k})"), aviso: false });
+                c.pendencias.push(Pendencia { modulo: form.nome.clone(), linha: 0, vba: ctl.nome.clone(), motivo: feathersheet_core::trf!("controle do formulário sem equivalente (tipo {k})"), aviso: false });
             }
         }
         let mut macros = Vec::new();
@@ -334,7 +334,7 @@ fn converter_formularios(p: &Programa, projeto: &ProjetoVba, totais: &mut Totais
             if let Some((&primeira, outras)) = resto.split_first() {
                 let mut ligados = Vec::new();
                 let mut avisos = Vec::new();
-                let codigo = montar_macro(p, totais, primeira, &cabecalho(&format!("o formulário {}", form.nome), arquivo), |m, _| {
+                let codigo = montar_macro(p, totais, primeira, &cabecalho(&feathersheet_core::trf!("o formulário {}", form.nome), arquivo), |m, _| {
                     for &r in std::iter::once(&primeira).chain(outras) {
                         let js = m.pedir(p, r);
                         let nome = &p.proc(r).nome;
@@ -343,7 +343,7 @@ fn converter_formularios(p: &Programa, projeto: &ProjetoVba, totais: &mut Totais
                             Some((ctl, _)) => ligados.push((p.controle(&form.nome, ctl).unwrap_or(ctl).to_string(), js)),
                             None if nome.to_lowercase().starts_with("userform_") => avisos.push(Pendencia {
                                 modulo: form.nome.clone(), linha: p.proc(r).linha, vba: format!("Sub {nome}"),
-                                motivo: "evento do formulário sem equivalente (a função fica no módulo)".into(), aviso: true,
+                                motivo: feathersheet_core::tr!("evento do formulário sem equivalente (a função fica no módulo)").into(), aviso: true,
                             }),
                             None => {}
                         }
@@ -416,7 +416,7 @@ fn dobrar_ao_abrir(p: &Programa, mi: usize, corpo: &[Instr], desenho: &mut crate
         if feito.is_none() {
             pendencias.push(Pendencia {
                 modulo: p.modulos[mi].nome.clone(), linha: i.linha, vba: p.fonte(mi, i).join("\n"),
-                motivo: "UserForm_Initialize: só AddItem e valores fixos convertem (o formulário abre sem rodar código)".into(), aviso: false,
+                motivo: feathersheet_core::tr!("UserForm_Initialize: só AddItem e valores fixos convertem (o formulário abre sem rodar código)").into(), aviso: false,
             });
         }
     }
@@ -520,7 +520,7 @@ pub fn converter(projeto: &ProjetoVba, arquivo: &str) -> Conversao {
             botoes(&pr.corpo, &mut String::new(), &mut c.botoes);
         }
         for (linha, t) in &m.ast.ignorados {
-            c.pendencias.push(Pendencia { modulo: m.nome.clone(), linha: *linha, vba: t.clone(), motivo: "trecho do módulo fora de procedimento".into(), aviso: false });
+            c.pendencias.push(Pendencia { modulo: m.nome.clone(), linha: *linha, vba: t.clone(), motivo: feathersheet_core::tr!("trecho do módulo fora de procedimento").into(), aviso: false });
         }
     }
     c.pendencias.extend(totais.pendencias);

@@ -90,22 +90,21 @@ fn entry_text_com_limite(
     match archive.by_name(path) {
         Ok(mut file) => {
             if file.size() > limite {
-                return Err(format!(
-                    "XLSX: '{}' excede {} MiB de XML descomprimido.                      Remova formatacoes de areas vazias ou divida a planilha.",
+                return Err(feathersheet_core::trf!("XLSX: '{}' excede {} MiB de XML descomprimido. Remova formatacoes de areas vazias ou divida a planilha.",
                     path, limite / 1024 / 1024,
                 ));
             }
             let mut buf = String::new();
             file.by_ref().take(limite + 1)
                 .read_to_string(&mut buf)
-                .map_err(|e| format!("XLSX: falha ao ler '{path}': {e}"))?;
+                .map_err(|e| feathersheet_core::trf!("XLSX: falha ao ler '{path}': {e}"))?;
             if buf.len() as u64 > limite {
-                return Err(format!("XLSX: '{}' excede o limite de XML descomprimido.", path));
+                return Err(feathersheet_core::trf!("XLSX: '{}' excede o limite de XML descomprimido.", path));
             }
             Ok(buf)
         }
         Err(zip::result::ZipError::FileNotFound) => Ok(String::new()),
-        Err(e) => Err(format!("XLSX: erro ao acessar '{path}': {e}")),
+        Err(e) => Err(feathersheet_core::trf!("XLSX: erro ao acessar '{path}': {e}")),
     }
 }
 
@@ -139,14 +138,14 @@ struct RectJson {
 /// `.wasm` (e o navegador) abrir `.xlsx` sem o leitor em TypeScript.
 pub fn ler_xlsx_bytes(bytes: Vec<u8>) -> Result<serde_json::Value, String> {
     if bytes.len() > LIMITE_XLSX_BYTES {
-        return Err(format!("Arquivo XLSX excede o limite de {} MB", LIMITE_XLSX_BYTES / (1024 * 1024)));
+        return Err(feathersheet_core::trf!("Arquivo XLSX excede o limite de {} MB", LIMITE_XLSX_BYTES / (1024 * 1024)));
     }
-    let mut archive = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes))).map_err(|e| format!("Não parece um arquivo ZIP: {e}"))?;
+    let mut archive = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes))).map_err(|e| feathersheet_core::trf!("Não parece um arquivo ZIP: {e}"))?;
 
     let workbook_xml = entry_text(&mut archive, "xl/workbook.xml")?;
     let book = xml::parse_xml(&workbook_xml).map_err(|e| e.to_string())?;
     if book.name != "workbook" {
-        return Err("Não parece uma planilha do Excel: falta o xl/workbook.xml".to_string());
+        return Err(feathersheet_core::tr!("Não parece uma planilha do Excel: falta o xl/workbook.xml"));
     }
 
     let rels = sheet::read_rels(&entry_text(&mut archive, "xl/_rels/workbook.xml.rels")?);
@@ -201,7 +200,7 @@ pub fn ler_xlsx_bytes(bytes: Vec<u8>) -> Result<serde_json::Value, String> {
         .collect();
 
     let out = WorkbookJson { version: 2, active: 0, names, sheets };
-    serde_json::to_value(out).map_err(|e| format!("Não consegui montar o JSON: {e}"))
+    serde_json::to_value(out).map_err(|e| feathersheet_core::trf!("Não consegui montar o JSON: {e}"))
 }
 
 /// Metadados não celulares do Excel, compartilhados pelos caminhos JSON e nativo.

@@ -339,7 +339,7 @@ impl<'a> Evaluator<'a> {
                     Some(rect) => self.matrix_of(&rect),
                     None => Computed::Scalar(Value::Error(CellError::com_motivo(
                         ErrorCode::Name,
-                        format!("\"{name}\" não existe"),
+                        crate::trf!("\"{name}\" não existe"),
                     ))),
                 }
             }
@@ -376,7 +376,7 @@ impl<'a> Evaluator<'a> {
                         None if self.ctx.funcao_externa(&maiusculo) => self.chamar_externa(&maiusculo, args),
                         None => Computed::Scalar(Value::Error(CellError::com_motivo(
                             ErrorCode::Name,
-                            format!("Função {name} não existe"),
+                            crate::trf!("Função {name} não existe"),
                         ))),
                     },
                 }
@@ -562,7 +562,7 @@ impl<'a> Evaluator<'a> {
         if altura * largura > MATRIX_LIMIT {
             return Computed::Scalar(Value::Error(CellError::com_motivo(
                 ErrorCode::Num,
-                format!("o intervalo tem {} células; uma conta de matriz aceita até {MATRIX_LIMIT}",
+                crate::trf!("o intervalo tem {} células; uma conta de matriz aceita até {MATRIX_LIMIT}",
                     altura * largura),
             )));
         }
@@ -664,9 +664,9 @@ impl<'a> Evaluator<'a> {
                 sheet: sheet.clone(),
             }),
             Node::Name(name) => self.ctx.resolve_name(name).ok_or_else(|| {
-                CellError::com_motivo(ErrorCode::Name, format!("\"{name}\" não existe"))
+                CellError::com_motivo(ErrorCode::Name, crate::trf!("\"{name}\" não existe"))
             }),
-            _ => Err(CellError::com_motivo(ErrorCode::Value, "Esperava um intervalo")),
+            _ => Err(CellError::com_motivo(ErrorCode::Value, crate::tr!("Esperava um intervalo"))),
         }
     }
 
@@ -711,7 +711,7 @@ impl<'a> Evaluator<'a> {
                 None => {
                     return Some(CellError::com_motivo(
                         ErrorCode::Name,
-                        format!("\"{name}\" não existe"),
+                        crate::trf!("\"{name}\" não existe"),
                     ))
                 }
             },

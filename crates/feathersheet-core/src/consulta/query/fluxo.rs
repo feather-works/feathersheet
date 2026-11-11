@@ -93,7 +93,7 @@ pub fn executar_query_em_fluxo(
                         let saida = aplicar_passo(entrada, passo, &fontes);
                         if saida.linhas.len() > limite_linhas.saturating_sub(total)
                             .saturating_sub(proximas.len()) {
-                            return Err("FeatherQuery incremental excede o limite de saída".into());
+                            return Err(crate::tr!("FeatherQuery incremental excede o limite de saída").into());
                         }
                         proximas.extend(saida.linhas);
                     }
@@ -103,7 +103,7 @@ pub fn executar_query_em_fluxo(
         }
         for linha in linhas {
             if total >= limite_linhas {
-                return Err("FeatherQuery incremental excede o limite de linhas".into());
+                return Err(crate::tr!("FeatherQuery incremental excede o limite de linhas").into());
             }
             escrever(&linha)?;
             total += 1;

@@ -21,7 +21,7 @@ pub(crate) fn comando(op: &str) -> bool {
 
 fn flag(valor: &Json, default: bool) -> Result<bool, String> {
     if valor.is_null() { return Ok(default); }
-    valor.as_bool().ok_or("Esperado verdadeiro ou falso".into())
+    valor.as_bool().ok_or(feathersheet_core::tr!("Esperado verdadeiro ou falso").into())
 }
 
 pub(super) fn cor(valor: &Json) -> Result<String, String> {
@@ -36,7 +36,7 @@ pub(super) fn cor(valor: &Json) -> Result<String, String> {
     if let Some(texto) = valor.as_str() {
         return enderecos::cor_hex(texto);
     }
-    Err("Cor inválida: use #RRGGBB, #RGB ou número VBA BGR".into())
+    Err(feathersheet_core::tr!("Cor inválida: use #RRGGBB, #RGB ou número VBA BGR").into())
 }
 
 /// Valida antes de modificar; erros nunca deixam a macro meio aplicada.
@@ -55,55 +55,55 @@ pub(crate) fn preparar(op: &str, dados: &Json) -> Result<EstiloParcial, String> 
                     match v.as_str() {
                         Some("single" | "double") => true,
                         Some("none") => false,
-                        _ => return Err("Sublinhado: use true, false, single, double ou none".into()),
+                        _ => return Err(feathersheet_core::tr!("Sublinhado: use true, false, single, double ou none").into()),
                     }
                 };
             ("underline", Campo::Logico(ativado))
         }
         "setFontFamily" => {
-            let nome = v.as_str().ok_or("Nome de fonte precisa ser texto")?;
+            let nome = v.as_str().ok_or_else(|| feathersheet_core::tr!("Nome de fonte precisa ser texto"))?;
             if nome.trim().is_empty() || nome.len() > 200 {
-                return Err("Nome de fonte inválido".into());
+                return Err(feathersheet_core::tr!("Nome de fonte inválido").into());
             }
             ("fontFamily", Campo::Texto(nome.to_owned()))
         }
         "setFontSize" => {
-            let n = v.as_f64().ok_or("Tamanho da fonte precisa ser número")?;
+            let n = v.as_f64().ok_or_else(|| feathersheet_core::tr!("Tamanho da fonte precisa ser número"))?;
             if !n.is_finite() || n <= 0.0 || n > 400.0 {
-                return Err("Tamanho de fonte fora do intervalo (0, 400]".into());
+                return Err(feathersheet_core::tr!("Tamanho de fonte fora do intervalo (0, 400]").into());
             }
             ("fontSize", Campo::Numero(n))
         }
         "setFontColor" => ("color", Campo::Texto(cor(v)?)),
         "setBackground" => ("bg", Campo::Texto(cor(v)?)),
         "setAlignHorizontal" => {
-            let align = v.as_str().ok_or("Alinhamento horizontal inválido")?;
+            let align = v.as_str().ok_or_else(|| feathersheet_core::tr!("Alinhamento horizontal inválido"))?;
             match align {
                 "left" | "center" | "right" => ("align", Campo::Texto(align.into())),
                 "general" => ("align", Campo::Nulo),
-                _ => return Err("Use left, center, right ou general".into()),
+                _ => return Err(feathersheet_core::tr!("Use left, center, right ou general").into()),
             }
         }
         "setAlignVertical" => {
-            let align = v.as_str().ok_or("Alinhamento vertical inválido")?;
+            let align = v.as_str().ok_or_else(|| feathersheet_core::tr!("Alinhamento vertical inválido"))?;
             if !matches!(align, "top" | "middle" | "bottom") {
-                return Err("Use top, middle ou bottom".into());
+                return Err(feathersheet_core::tr!("Use top, middle ou bottom").into());
             }
             ("vAlign", Campo::Texto(align.into()))
         }
         "setTextRotation" => {
-            let n = v.as_f64().ok_or("Rotação deve ser número")?;
+            let n = v.as_f64().ok_or_else(|| feathersheet_core::tr!("Rotação deve ser número"))?;
             if !n.is_finite() {
-                return Err("Rotação não pode ser infinita".into());
+                return Err(feathersheet_core::tr!("Rotação não pode ser infinita").into());
             }
             ("rotation", Campo::Numero((n + 0.5).floor().clamp(-90.0, 90.0)))
         }
         "setHyperlink" => {
-            let link = v.as_str().ok_or("Endereço do hyperlink deve ser texto")?;
+            let link = v.as_str().ok_or_else(|| feathersheet_core::tr!("Endereço do hyperlink deve ser texto"))?;
             if link.len() > 8192 { return Err("Link muito longo".into()); }
             ("link", Campo::Texto(link.into()))
         }
-        _ => return Err(format!("Comando de formatação desconhecido: {op}")),
+        _ => return Err(feathersheet_core::trf!("Comando de formatação desconhecido: {op}")),
     };
     patch.insert(campo.into(), valor);
     Ok(patch)

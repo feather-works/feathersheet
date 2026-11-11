@@ -101,14 +101,14 @@ pub struct Recusa(pub String);
 
 impl Recusa {
     pub fn celula_bloqueada() -> Self {
-        Recusa("A célula que você está tentando alterar está em uma planilha protegida. Para alterá-la, desproteja a planilha (menu Formatar, Proteger ou desproteger planilha).".into())
+        Recusa(crate::tr!("A célula que você está tentando alterar está em uma planilha protegida. Para alterá-la, desproteja a planilha (menu Formatar, Proteger ou desproteger planilha).").into())
     }
     pub fn sem_permissao(p: Permissao) -> Self {
         let texto = Permissao::TODAS.iter().find(|(x, ..)| *x == p).map(|(_, t, _)| *t).unwrap_or("isso");
-        Recusa(format!("A planilha está protegida e não permite \"{}\".", texto.to_lowercase()))
+        Recusa(crate::trf!("A planilha está protegida e não permite \"{}\".", texto.to_lowercase()))
     }
     pub fn planilha_protegida() -> Self {
-        Recusa("A planilha está protegida: esta ação não está disponível. Desproteja a planilha para continuar.".into())
+        Recusa(crate::tr!("A planilha está protegida: esta ação não está disponível. Desproteja a planilha para continuar.").into())
     }
 }
 

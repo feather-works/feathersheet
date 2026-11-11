@@ -91,30 +91,30 @@ impl crate::planilha::workbook::Workbook {
     /// escrever por cima de alguma célula com conteúdo. Devolve o tamanho gravado.
     pub fn consolidar(&mut self, origens: &[crate::celulas::refs::Rect], op: AgregacaoOp, rotulos_topo: bool,
         rotulos_esquerda: bool, destino: usize, linha: u32, coluna: u32) -> Result<(u32, u32), String> {
-        if origens.is_empty() { return Err("Escolha pelo menos um intervalo para consolidar.".into()); }
+        if origens.is_empty() { return Err(crate::tr!("Escolha pelo menos um intervalo para consolidar.").into()); }
         let mut lidas = Vec::with_capacity(origens.len());
         for r in origens {
             let aba = match r.sheet.as_deref() {
-                Some(nome) => self.indice_por_nome(nome).ok_or_else(|| format!("A aba \"{nome}\" não existe."))?,
+                Some(nome) => self.indice_por_nome(nome).ok_or_else(|| crate::trf!("A aba \"{nome}\" não existe."))?,
                 None => destino,
             };
             // Teto de leitura: Consolidar é para tabelas de resumo, não para colunas inteiras.
             let celulas = (r.r1 - r.r0 + 1) as u64 * (r.c1 - r.c0 + 1) as u64;
-            if celulas > 2_000_000 { return Err("Intervalo grande demais para consolidar (até 2 milhões de células cada).".into()); }
+            if celulas > 2_000_000 { return Err(crate::tr!("Intervalo grande demais para consolidar (até 2 milhões de células cada).").into()); }
             lidas.push((r.r0..=r.r1).map(|l| (r.c0..=r.c1).map(|c| self.valor(aba, l, c)).collect()).collect::<Vec<Vec<Value>>>());
         }
         let tabela = Consolidar { origens: &lidas, op, rotulos_topo, rotulos_esquerda }.montar();
         let altura = tabela.len() as u32;
         let largura = tabela.iter().map(Vec::len).max().unwrap_or(0) as u32;
-        if altura == 0 || largura == 0 { return Err("Os intervalos não têm valores para consolidar.".into()); }
+        if altura == 0 || largura == 0 { return Err(crate::tr!("Os intervalos não têm valores para consolidar.").into()); }
         let (r1, c1) = (linha.checked_add(altura - 1), coluna.checked_add(largura - 1));
-        let (Some(r1), Some(c1)) = (r1, c1) else { return Err("O resultado passa do fim da planilha.".into()) };
+        let (Some(r1), Some(c1)) = (r1, c1) else { return Err(crate::tr!("O resultado passa do fim da planilha.").into()) };
         if r1 >= crate::celulas::refs::MAX_ROWS || c1 >= crate::celulas::refs::MAX_COLS {
-            return Err("O resultado passa do fim da planilha.".into());
+            return Err(crate::tr!("O resultado passa do fim da planilha.").into());
         }
-        let aba = self.aba(destino).ok_or("Aba de destino inexistente.")?;
+        let aba = self.aba(destino).ok_or_else(|| crate::tr!("Aba de destino inexistente."))?;
         let ocupada = (linha..=r1).any(|l| (coluna..=c1).any(|c| !aba.sheet.get_raw(l, c).is_empty()));
-        if ocupada { return Err("O destino tem dados: escolha uma área vazia.".into()); }
+        if ocupada { return Err(crate::tr!("O destino tem dados: escolha uma área vazia.").into()); }
         self.editar(destino, |s| {
             s.abrir_transacao();
             for (i, fila) in tabela.iter().enumerate() {

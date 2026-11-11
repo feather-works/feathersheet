@@ -364,16 +364,16 @@ fn colapsar(aba: &mut Aba) -> u64 {
 /// byte a byte e **as fatias `ar` continuam válidas** porque nada nela se move.
 pub fn enxugar_corpo(mut corpo: Vec<u8>) -> Result<(Vec<u8>, Resumo), String> {
     if corpo.len() < 4 {
-        return Err("corpo curto demais para ter o tamanho dos metadados".into());
+        return Err(feathersheet_core::tr!("corpo curto demais para ter o tamanho dos metadados").into());
     }
     let meta_len = u32::from_le_bytes([corpo[0], corpo[1], corpo[2], corpo[3]]) as usize;
     let fim = 4 + meta_len;
     if corpo.len() < fim {
-        return Err(format!("metadados dizem ter {meta_len} bytes, o corpo não tem"));
+        return Err(feathersheet_core::trf!("metadados dizem ter {meta_len} bytes, o corpo não tem"));
     }
 
     let mut livro: Livro = serde_json::from_slice(&corpo[4..fim])
-        .map_err(|e| format!("metadados FSH2 não reconhecidos: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("metadados FSH2 não reconhecidos: {e}"))?;
 
     let mut resumo = Resumo::default();
     for aba in &mut livro.s {
@@ -383,7 +383,7 @@ pub fn enxugar_corpo(mut corpo: Vec<u8>) -> Result<(Vec<u8>, Resumo), String> {
         resumo.avulsas_depois += aba.c_saida.len() as u64;
     }
 
-    let meta = serde_json::to_vec(&livro).map_err(|e| format!("não consegui reescrever os metadados: {e}"))?;
+    let meta = serde_json::to_vec(&livro).map_err(|e| feathersheet_core::trf!("não consegui reescrever os metadados: {e}"))?;
     drop(livro);
 
     // A montagem é FEITA POR CIMA do próprio `corpo`, não num buffer novo.
@@ -415,12 +415,12 @@ pub fn ler_e_enxugar(bytes: &[u8]) -> Result<(Vec<u8>, Resumo), String> {
     use std::io::Read;
 
     if bytes.len() < 4 || &bytes[..4] != b"FSH2" {
-        return Err("não é um FSH2".into());
+        return Err(feathersheet_core::tr!("não é um FSH2").into());
     }
     let mut corpo = Vec::new();
     flate2::read::GzDecoder::new(&bytes[4..])
         .read_to_end(&mut corpo)
-        .map_err(|e| format!("não consegui descomprimir o FSH2: {e}"))?;
+        .map_err(|e| feathersheet_core::trf!("não consegui descomprimir o FSH2: {e}"))?;
     enxugar_corpo(corpo)
 }
 

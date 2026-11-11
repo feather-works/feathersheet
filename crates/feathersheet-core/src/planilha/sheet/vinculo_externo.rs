@@ -139,7 +139,7 @@ impl Sheet {
             }
         });
         falta.map(|nome| {
-            Value::Error(CellError::com_motivo(ErrorCode::Ref, format!("Sem valores de \"{nome}\": abra o arquivo ou atualize os valores")))
+            Value::Error(CellError::com_motivo(ErrorCode::Ref, crate::trf!("Sem valores de \"{nome}\": abra o arquivo ou atualize os valores")))
         })
     }
 }

@@ -75,7 +75,7 @@ impl Gerador<'_> {
             Expr::Nome(n) => self.objeto_por_nome(n),
             Expr::Paren(x) => self.objeto(x),
             Expr::MembroDoCom(nome) => {
-                let base = self.com.last().cloned().ok_or_else(|| Motivo::novo("`.membro` fora de With"))??;
+                let base = self.com.last().cloned().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("`.membro` fora de With")))??;
                 self.membro_objeto(base, nome, &[])
             }
             Expr::Membro(base, nome) => {
@@ -86,14 +86,14 @@ impl Gerador<'_> {
                 self.membro_objeto(b, nome, &[])
             }
             Expr::Chamada(f, args) => self.objeto_chamado(f, args),
-            _ => Err(Motivo::novo("não é objeto do Excel")),
+            _ => Err(Motivo::novo(feathersheet_core::tr!("não é objeto do Excel"))),
         }
     }
 
     /// `Sheet8.Proc` como objeto não existe: deixa o chamador tratar como procedimento.
     fn qualificado(&mut self, base: &Expr, nome: &str) -> Option<R<Obj>> {
         let Expr::Nome(m) = base else { return None };
-        self.p.achar_qualificado(m, nome).map(|_| Err(Motivo::novo("procedimento, não objeto")))
+        self.p.achar_qualificado(m, nome).map(|_| Err(Motivo::novo(feathersheet_core::tr!("procedimento, não objeto"))))
     }
 
     fn objeto_chamado(&mut self, f: &Expr, args: &[Arg]) -> R<Obj> {
@@ -124,7 +124,7 @@ impl Gerador<'_> {
                 self.membro_objeto(b, nome, args)
             }
             Expr::MembroDoCom(nome) => {
-                let base = self.com.last().cloned().ok_or_else(|| Motivo::novo("`.membro` fora de With"))??;
+                let base = self.com.last().cloned().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("`.membro` fora de With")))??;
                 self.membro_objeto(base, nome, args)
             }
             _ => {
@@ -142,9 +142,9 @@ impl Gerador<'_> {
                 Tipo::NovaPasta => Ok(Obj::NovaPasta(v.js.clone())),
                 Tipo::Funcoes => Ok(Obj::FuncoesDaPlanilha),
                 Tipo::Shell => Ok(Obj::Shell),
-                Tipo::Colecao => Err(Motivo::novo(format!("{n} é coleção, não objeto do Excel"))),
+                Tipo::Colecao => Err(Motivo::novo(feathersheet_core::trf!("{n} é coleção, não objeto do Excel"))),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
-                Tipo::Valor(_) => Err(Motivo::novo(format!("{n} não é objeto do Excel"))),
+                Tipo::Valor(_) => Err(Motivo::novo(feathersheet_core::trf!("{n} não é objeto do Excel"))),
             };
         }
         if let Some((var, nome)) = self.aba_por_codename(n) {
@@ -178,9 +178,9 @@ impl Gerador<'_> {
             "columns" => Obj::Contagem(implicita, Inteira::Colunas),
             "usedrange" => Obj::Faixa(Faixa::dinamica(&implicita, format!("({implicita}.getDataRange()?.address ?? 'A1')"))),
             "workbooks" => Obj::Pastas,
-            "py" => return Err(Motivo::novo("xlwings (Python chamado pelo Excel — a macro do FeatherSheet ainda não roda Python)")),
+            "py" => return Err(Motivo::novo(feathersheet_core::tr!("xlwings (Python chamado pelo Excel — a macro do FeatherSheet ainda não roda Python)"))),
             "activewindow" | "windows" => Obj::Janela,
-            _ if self.p.e_externa(n) => return Err(Motivo::novo("API do Windows (Declare)")),
+            _ if self.p.e_externa(n) => return Err(Motivo::novo(feathersheet_core::tr!("API do Windows (Declare)"))),
             _ => return Err(Motivo::novo(format!("objeto {n} desconhecido"))),
         })
     }
@@ -198,34 +198,34 @@ impl Gerador<'_> {
             Obj::Aba(aba, nome_aba) => self.membro_da_aba(&aba, nome_aba, &n, args),
             Obj::Faixa(f) => self.membro_da_faixa(f, &n, args),
             Obj::Parte(f, Parte::Bordas(None)) if n == "item" && args.len() == 1 => {
-                let lado = args[0].valor.as_ref().and_then(lado_da_borda).ok_or_else(|| Motivo::novo("borda com lado calculado"))?;
+                let lado = args[0].valor.as_ref().and_then(lado_da_borda).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("borda com lado calculado")))?;
                 Ok(Obj::Parte(f, Parte::Bordas(Some(lado.into()))))
             }
             Obj::Contagem(aba, eixo) if n == "item" && args.len() == 1 => self.linha_ou_coluna(&aba, eixo, &args[0]),
             Obj::Ordem(aba) if matches!(n.as_str(), "sortfields" | "sort") => Ok(Obj::Ordem(aba)),
             Obj::Janela => Ok(Obj::Janela),
-            Obj::Shell => Err(Motivo::novo(format!("WScript.Shell.{nome} (só o Run converte)"))),
+            Obj::Shell => Err(Motivo::novo(feathersheet_core::trf!("WScript.Shell.{nome} (só o Run converte)"))),
             Obj::Pastas => match n.as_str() {
                 "add" => Ok(Obj::NovaPasta(format!("vba.{}()", self.ajuda("novaPasta")))),
-                "open" => Err(Motivo::novo("abrir outra pasta de trabalho (Workbooks.Open)")),
-                _ => Err(Motivo::novo("outra pasta de trabalho aberta (Workbooks(…))")),
+                "open" => Err(Motivo::novo(feathersheet_core::tr!("abrir outra pasta de trabalho (Workbooks.Open)"))),
+                _ => Err(Motivo::novo(feathersheet_core::tr!("outra pasta de trabalho aberta (Workbooks(…))"))),
             },
             Obj::NovaPasta(p) => match n.as_str() {
                 "sheets" | "worksheets" if args.is_empty() => Ok(Obj::AbasNovas(p)),
                 "sheets" | "worksheets" => self.aba_nova(p, args),
-                _ => Err(Motivo::novo(format!("Workbook.{nome} da pasta nova"))),
+                _ => Err(Motivo::novo(feathersheet_core::trf!("Workbook.{nome} da pasta nova"))),
             },
             Obj::AbasNovas(p) if n == "item" => self.aba_nova(p, args),
-            Obj::AbasNovas(_) | Obj::AbaNova(..) => Err(Motivo::novo(format!("membro {nome} da pasta nova"))),
+            Obj::AbasNovas(_) | Obj::AbaNova(..) => Err(Motivo::novo(feathersheet_core::trf!("membro {nome} da pasta nova"))),
             Obj::Formulario(f) => match self.p.controle(&f, nome) {
                 Some(c) => Ok(Obj::Controle(c.to_string())),
-                None => Err(Motivo::novo(format!("{f}.{nome} do formulário"))),
+                None => Err(Motivo::novo(feathersheet_core::trf!("{f}.{nome} do formulário"))),
             },
-            Obj::Controle(c) => Err(Motivo::novo(format!("{c}.{nome} do controle do formulário"))),
+            Obj::Controle(c) => Err(Motivo::novo(feathersheet_core::trf!("{c}.{nome} do controle do formulário"))),
             Obj::Condicoes(f) if n == "add" => self.condicao_nova(&f, args).map(Obj::Condicao),
             Obj::Condicao(c) if n == "interior" => Ok(Obj::EstiloCondicao(c, Parte::Interior)),
             Obj::Condicao(c) if n == "font" => Ok(Obj::EstiloCondicao(c, Parte::Fonte)),
-            Obj::Condicoes(_) | Obj::Condicao(_) | Obj::EstiloCondicao(..) => Err(Motivo::novo(format!("FormatConditions: {nome} (só Add, Delete, Interior e Font convertem)"))),
+            Obj::Condicoes(_) | Obj::Condicao(_) | Obj::EstiloCondicao(..) => Err(Motivo::novo(feathersheet_core::trf!("FormatConditions: {nome} (só Add, Delete, Interior e Font convertem)"))),
             Obj::Formas(aba) => match n.as_str() {
                 "item" | "range" if args.len() == 1 => self.forma_do_argumento(&aba, &args[0]),
                 _ => Err(Motivo::novo(format!("Shapes.{nome}"))),
@@ -238,7 +238,7 @@ impl Gerador<'_> {
             },
             Obj::FonteForma(js) => match n.as_str() {
                 "fill" | "forecolor" => Ok(Obj::FonteForma(js)),
-                _ => Err(Motivo::novo(format!("Font.{nome} da forma"))),
+                _ => Err(Motivo::novo(feathersheet_core::trf!("Font.{nome} da forma"))),
             },
             Obj::Dimensao(..) | Obj::Contagem(..) | Obj::Parte(..) | Obj::FuncoesDaPlanilha | Obj::Nomes | Obj::Ordem(_) | Obj::Validacao(_) => Err(Motivo::novo(format!("membro {nome}"))),
         }
@@ -262,14 +262,14 @@ impl Gerador<'_> {
 
     /// `Shapes("TextBox 39")` ou `Shapes.Range(Array("TextBox 39"))` (só o primeiro nome).
     fn forma_do_argumento(&mut self, aba: &str, a: &Arg) -> R<Obj> {
-        let e = a.valor.as_ref().ok_or_else(|| Motivo::novo("Shapes sem nome"))?;
+        let e = a.valor.as_ref().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("Shapes sem nome")))?;
         let e = match e {
             Expr::Chamada(f, xs) if matches!(f.as_ref(), Expr::Nome(n) if n.eq_ignore_ascii_case("array")) =>
-                xs.first().and_then(|x| x.valor.as_ref()).ok_or_else(|| Motivo::novo("Shapes.Range sem nome"))?,
+                xs.first().and_then(|x| x.valor.as_ref()).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("Shapes.Range sem nome")))?,
             e => e,
         };
         let v = self.valor(e)?;
-        if v.t == T::Num { return Err(Motivo::novo("Shapes(número): forma pela posição")); }
+        if v.t == T::Num { return Err(Motivo::novo(feathersheet_core::tr!("Shapes(número): forma pela posição"))); }
         let nome = self.como_texto(&v);
         Ok(Obj::Forma(format!("{aba}.shape({nome})")))
     }
@@ -278,14 +278,14 @@ impl Gerador<'_> {
     pub fn aba_nova_da_pasta(&mut self, args: &[Arg]) -> R<String> {
         let achar = |chaves: &[&str], pos: usize| args.iter().find(|a| a.nome.as_deref().is_some_and(|n| chaves.iter().any(|c| n.eq_ignore_ascii_case(c)))).or_else(|| args.get(pos).filter(|a| a.nome.is_none())).and_then(|a| a.valor.clone());
         if achar(&["count"], 2).is_some_and(|c| c != Expr::Num(1.0)) || achar(&["type"], 3).is_some() {
-            return Err(Motivo::novo("Worksheets.Add com Count ou Type (uma aba de planilha por vez)"));
+            return Err(Motivo::novo(feathersheet_core::tr!("Worksheets.Add com Count ou Type (uma aba de planilha por vez)")));
         }
         let mut pos = Vec::new();
         for (chave, p) in [("before", 0), ("after", 1)] {
             if let Some(e) = achar(&[chave], p) {
                 let aba = match self.objeto(&e)? {
                     Obj::Aba(js, _) => js,
-                    _ => return Err(Motivo::novo(format!("Worksheets.Add {chave}:= que não é uma aba"))),
+                    _ => return Err(Motivo::novo(feathersheet_core::trf!("Worksheets.Add {chave}:= que não é uma aba"))),
                 };
                 pos.push(format!("{chave}: {aba}"));
             }
@@ -312,16 +312,16 @@ impl Gerador<'_> {
                 Obj::Faixa(Faixa::dinamica(&atual, js))
             }
             "workbooks" if args.is_empty() => Obj::Pastas,
-            "workbooks" => return Err(Motivo::novo("outra pasta de trabalho aberta (Workbooks(…))")),
+            "workbooks" => return Err(Motivo::novo(feathersheet_core::tr!("outra pasta de trabalho aberta (Workbooks(…))"))),
             _ => return Err(Motivo::novo(format!("Application/Workbook.{n}"))),
         })
     }
 
     /// `newBook.Sheets(1)`: a aba pela posição (o nome de uma aba da pasta nova não se sabe).
     fn aba_nova(&mut self, p: String, args: &[Arg]) -> R<Obj> {
-        let Some(Some(e)) = args.first().map(|a| a.valor.as_ref()) else { return Err(Motivo::novo("Sheets sem argumento")) };
+        let Some(Some(e)) = args.first().map(|a| a.valor.as_ref()) else { return Err(Motivo::novo(feathersheet_core::tr!("Sheets sem argumento"))) };
         if matches!(e, Expr::Texto(_)) {
-            return Err(Motivo::novo("aba da pasta nova pelo nome"));
+            return Err(Motivo::novo(feathersheet_core::tr!("aba da pasta nova pelo nome")));
         }
         let v = self.valor(e)?;
         Ok(Obj::AbaNova(p, self.como_num(&v)))
@@ -329,7 +329,7 @@ impl Gerador<'_> {
 
     /// `Worksheets("MAIN")`, `Worksheets(2)`.
     fn aba_do_argumento(&mut self, args: &[Arg]) -> R<Obj> {
-        let Some(Some(e)) = args.first().map(|a| a.valor.as_ref()) else { return Err(Motivo::novo("Worksheets sem argumento")) };
+        let Some(Some(e)) = args.first().map(|a| a.valor.as_ref()) else { return Err(Motivo::novo(feathersheet_core::tr!("Worksheets sem argumento"))) };
         if let Expr::Texto(nome) = e {
             let var = self.aba_por_nome(nome);
             return Ok(Obj::Aba(var, Some(nome.clone())));
@@ -350,10 +350,10 @@ impl Gerador<'_> {
             "usedrange" => Obj::Faixa(Faixa::dinamica(aba, format!("({aba}.getDataRange()?.address ?? 'A1')"))),
             "shapes" | "buttons" | "pictures" if args.is_empty() => Obj::Formas(aba.into()),
             "shapes" | "buttons" | "pictures" => self.forma_do_argumento(aba, &args[0])?,
-            "chartobjects" => return Err(Motivo::novo("formas e botões do Excel (use Inserir → Botão de macro)")),
+            "chartobjects" => return Err(Motivo::novo(feathersheet_core::tr!("formas e botões do Excel (use Inserir → Botão de macro)"))),
             // `ws.AutoFilter.Sort`: a mesma ordenação do `ws.Sort`, sobre o intervalo do filtro.
             "sort" | "autofilter" => Obj::Ordem(aba.into()),
-            "pagesetup" => return Err(Motivo::novo("configuração de página")),
+            "pagesetup" => return Err(Motivo::novo(feathersheet_core::tr!("configuração de página"))),
             "parent" => Obj::Pasta,
             _ => {
                 let _ = nome_aba;
@@ -364,7 +364,7 @@ impl Gerador<'_> {
 
     /// `Rows(5)`, `Columns("B")`, `Columns(2)`.
     fn linha_ou_coluna(&mut self, aba: &str, eixo: Inteira, a: &Arg) -> R<Obj> {
-        let e = a.valor.as_ref().ok_or_else(|| Motivo::novo("Rows/Columns sem argumento"))?;
+        let e = a.valor.as_ref().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("Rows/Columns sem argumento")))?;
         let mut f = match (eixo, e) {
             (Inteira::Linhas, Expr::Num(n)) => Faixa::fixa(aba, &format!("{0}:{0}", num(*n))),
             (Inteira::Colunas, Expr::Num(n)) => Faixa::fixa(aba, &format!("{0}:{0}", letra(*n as u32))),
@@ -408,7 +408,7 @@ impl Gerador<'_> {
                 let h = self.ajuda("faixa");
                 Ok(Faixa::dinamica(aba, format!("vba.{h}({}, {})", fa.end, fb.end)))
             }
-            _ => Err(Motivo::novo("Range com argumentos estranhos")),
+            _ => Err(Motivo::novo(feathersheet_core::tr!("Range com argumentos estranhos"))),
         }
     }
 
@@ -430,7 +430,7 @@ impl Gerador<'_> {
     /// `Cells(linha, coluna)`: endereço fixo quando os dois são números; senão `` `B${i}` ``.
     fn faixa_de_cells(&mut self, aba: &str, args: &[Arg]) -> R<Faixa> {
         let exprs: Vec<&Expr> = args.iter().filter_map(|a| a.valor.as_ref()).collect();
-        let [l, c] = exprs.as_slice() else { return Err(Motivo::novo("Cells com um argumento só")) };
+        let [l, c] = exprs.as_slice() else { return Err(Motivo::novo(feathersheet_core::tr!("Cells com um argumento só"))) };
         let fundo = matches!(l, Expr::Membro(b, m) if m.eq_ignore_ascii_case("count") && matches!(&**b, Expr::Nome(r) if r.eq_ignore_ascii_case("rows")));
         let coluna_letra = match c {
             Expr::Num(n) => Some(letra(*n as u32)),
@@ -485,7 +485,7 @@ impl Gerador<'_> {
             "interior" => Obj::Parte(f, Parte::Interior),
             "borders" if args.is_empty() => Obj::Parte(f, Parte::Bordas(None)),
             "borders" => {
-                let lado = args[0].valor.as_ref().and_then(lado_da_borda).ok_or_else(|| Motivo::novo("borda com lado calculado"))?;
+                let lado = args[0].valor.as_ref().and_then(lado_da_borda).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("borda com lado calculado")))?;
                 Obj::Parte(f, Parte::Bordas(Some(lado.into())))
             }
             "rows" if args.is_empty() => Obj::Dimensao(f, Inteira::Linhas),
@@ -522,8 +522,8 @@ impl Gerador<'_> {
             // `Selection.ShapeRange`: a forma do último `Shapes(…).Select`.
             "shaperange" => Obj::Forma(format!("vba.{}()", self.ajuda("formaSel"))),
             "validation" => Obj::Validacao(f),
-            "sort" => return Err(Motivo::novo("Range.Sort usado como objeto")),
-            "autofilter" => return Err(Motivo::novo("filtro do Excel (AutoFilter — converter à mão)")),
+            "sort" => return Err(Motivo::novo(feathersheet_core::tr!("Range.Sort usado como objeto"))),
+            "autofilter" => return Err(Motivo::novo(feathersheet_core::tr!("filtro do Excel (AutoFilter — converter à mão)"))),
             "formatconditions" => Obj::Condicoes(f),
             "specialcells" => self.celulas_especiais(f, args)?,
             _ => return Err(Motivo::novo(format!("Range.{n}"))),
@@ -541,7 +541,7 @@ impl Gerador<'_> {
             _ => None,
         };
         let p: Vec<&Expr> = args.iter().filter_map(|a| a.valor.as_ref()).collect();
-        let valor = match p.get(1) { None => None, e => Some(fixo(e.copied()).ok_or_else(|| Motivo::novo("SpecialCells com Value calculado"))?) };
+        let valor = match p.get(1) { None => None, e => Some(fixo(e.copied()).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("SpecialCells com Value calculado")))?) };
         let tipo = match (fixo(p.first().copied()), valor) {
             (Some(11), _) => {
                 let l = self.ajuda("letra");
@@ -553,9 +553,9 @@ impl Gerador<'_> {
             (Some(2), None | Some(23)) => "constants",
             (Some(-4123), None | Some(23)) => "formulas",
             (Some(-4123), Some(16)) => "errors",
-            (Some(2 | -4123), Some(_)) => return Err(Motivo::novo("SpecialCells só de números, textos ou lógicos")),
-            (Some(_), _) => return Err(Motivo::novo("SpecialCells de comentários, validação ou formatação condicional")),
-            (None, _) => return Err(Motivo::novo("SpecialCells com tipo calculado")),
+            (Some(2 | -4123), Some(_)) => return Err(Motivo::novo(feathersheet_core::tr!("SpecialCells só de números, textos ou lógicos"))),
+            (Some(_), _) => return Err(Motivo::novo(feathersheet_core::tr!("SpecialCells de comentários, validação ou formatação condicional"))),
+            (None, _) => return Err(Motivo::novo(feathersheet_core::tr!("SpecialCells com tipo calculado"))),
         };
         let h = self.ajuda("especiais");
         Ok(Obj::Faixa(Faixa::dinamica(&f.aba, format!("vba.{h}({}, {}, '{tipo}')", f.aba, f.end))))
@@ -574,7 +574,7 @@ impl Gerador<'_> {
 
     /// `.End(xlUp)`: o `getLastRow` quando é `Cells(Rows.Count, c)`; senão o Ctrl+seta.
     fn fim_da_faixa(&mut self, f: Faixa, args: &[Arg]) -> R<Obj> {
-        let dir = args.first().and_then(|a| a.valor.as_ref()).ok_or_else(|| Motivo::novo("End sem direção"))?;
+        let dir = args.first().and_then(|a| a.valor.as_ref()).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("End sem direção")))?;
         if let (Some(col), true) = (&f.fundo_da_coluna, e_constante(dir, "xlUp")) {
             let l = self.ajuda("letra");
             let coluna = if col.starts_with('"') { col.clone() } else { format!("vba.{l}({col})") };
@@ -593,7 +593,7 @@ impl Gerador<'_> {
         match o {
             Obj::Faixa(f) => Ok(self.valor_da_faixa(&f)),
             Obj::Controle(c) => Ok(V::novo(format!("sheet.field({c:?}).value"), T::Var)),
-            _ => Err(Motivo::novo("objeto usado como valor")),
+            _ => Err(Motivo::novo(feathersheet_core::tr!("objeto usado como valor"))),
         }
     }
 
@@ -618,7 +618,7 @@ impl Gerador<'_> {
             Obj::Controle(c) => propriedade_do_controle(&c, &n),
             Obj::Formulario(f) => match self.p.controle(&f, nome) {
                 Some(c) => Ok(V::novo(format!("sheet.field({c:?}).value"), T::Var)),
-                None => Err(Motivo::novo(format!("{f}.{nome} do formulário"))),
+                None => Err(Motivo::novo(feathersheet_core::trf!("{f}.{nome} do formulário"))),
             },
             Obj::Aba(aba, nome_aba) => match n.as_str() {
                 "name" | "codename" => Ok(nome_aba.map_or_else(|| V::novo(format!("{aba}.name"), T::Texto), |x| V::novo(format!("{x:?}"), T::Texto))),
@@ -658,7 +658,7 @@ impl Gerador<'_> {
                 // A pasta e o caminho do arquivo aberto (vazios numa pasta nunca salva).
                 "path" => Ok(V::novo("wb.path", T::Texto)),
                 "fullname" => Ok(V::novo("wb.fullName", T::Texto)),
-                "caller" => Err(Motivo::novo("Application.Caller (quem chamou a macro)")),
+                "caller" => Err(Motivo::novo(feathersheet_core::tr!("Application.Caller (quem chamou a macro)"))),
                 _ => {
                     let o = self.membro_objeto(o, nome, args)?;
                     self.valor_do_objeto(o)
@@ -736,7 +736,7 @@ impl Gerador<'_> {
             "rounddown" => return Ok(V::novo(format!("vba.{}({})", self.ajuda("arredBaixo"), vs.join(", ")), T::Num)),
             "roundup" => return Ok(V::novo(format!("vba.{}({})", self.ajuda("arredCima"), vs.join(", ")), T::Num)),
             "round" => return Ok(V::novo(format!("vba.{}({})", self.ajuda("round"), vs.join(", ")), T::Num)),
-            _ => return Err(Motivo::novo(format!("WorksheetFunction.{n} (sem equivalente em app.fn)"))),
+            _ => return Err(Motivo::novo(feathersheet_core::trf!("WorksheetFunction.{n} (sem equivalente em app.fn)"))),
         };
         Ok(V::novo(format!("app.fn.{api}({})", vs.join(", ")), T::Var))
     }
@@ -749,7 +749,7 @@ fn propriedade_do_controle(c: &str, n: &str) -> R<V> {
         "caption" => ("caption", T::Texto),
         "enabled" => ("enabled", T::Bool),
         "visible" => ("visible", T::Bool),
-        _ => return Err(Motivo::novo(format!("{c}.{n} do controle do formulário"))),
+        _ => return Err(Motivo::novo(feathersheet_core::trf!("{c}.{n} do controle do formulário"))),
     };
     Ok(V::novo(format!("sheet.field({c:?}).{p}"), t))
 }

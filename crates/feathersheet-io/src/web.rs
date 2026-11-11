@@ -51,7 +51,7 @@ fn json(texto: &str, caminho: &str) -> Resposta {
     };
     match seguir_caminho(&dado, caminho) {
         Some(alvo) => como_valor(alvo),
-        None => erro(ErrorCode::Na, format!("O caminho \"{caminho}\" não existe nesse JSON")),
+        None => erro(ErrorCode::Na, feathersheet_core::trf!("O caminho \"{caminho}\" não existe nesse JSON")),
     }
 }
 

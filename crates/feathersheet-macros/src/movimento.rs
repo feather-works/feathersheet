@@ -23,16 +23,16 @@ pub(crate) fn mover(
     destino: &Rect,
 ) -> Result<(), String> {
     if origem.sheet.is_some() || destino.sheet.is_some() {
-        return Err("Use wb.sheet(nome) para escolher a aba da operação".into());
+        return Err(feathersheet_core::tr!("Use wb.sheet(nome) para escolher a aba da operação").into());
     }
     let origem = origem.normalized();
     let destino = destino.normalized();
     if origem.area() > LIMITE_MACRO {
-        return Err("Mover aceita no máximo 500.000 células por operação".into());
+        return Err(feathersheet_core::tr!("Mover aceita no máximo 500.000 células por operação").into());
     }
     if origem.r1 >= MAX_ROWS || origem.c1 >= MAX_COLS
         || destino.r0 >= MAX_ROWS || destino.c0 >= MAX_COLS {
-        return Err("Endereço fora dos limites da planilha".into());
+        return Err(feathersheet_core::tr!("Endereço fora dos limites da planilha").into());
     }
     let dr = i64::from(destino.r0) - i64::from(origem.r0);
     let dc = i64::from(destino.c0) - i64::from(origem.c0);
@@ -44,12 +44,12 @@ pub(crate) fn mover(
     if destino_r1 < 0 || destino_c1 < 0
         || destino_r1 >= i64::from(MAX_ROWS)
         || destino_c1 >= i64::from(MAX_COLS) {
-        return Err("Mover ultrapassaria a última linha ou coluna da planilha".into());
+        return Err(feathersheet_core::tr!("Mover ultrapassaria a última linha ou coluna da planilha").into());
     }
-    let dr = i32::try_from(dr).map_err(|_|"Deslocamento de linha inválido")?;
-    let dc = i32::try_from(dc).map_err(|_|"Deslocamento de coluna inválido")?;
+    let dr = i32::try_from(dr).map_err(|_|feathersheet_core::tr!("Deslocamento de linha inválido"))?;
+    let dc = i32::try_from(dc).map_err(|_|feathersheet_core::tr!("Deslocamento de coluna inválido"))?;
     com_transacoes(wb, alteradas, aba, |wb| wb.mover_intervalo(aba, origem, dr, dc)
-        .map(|_| ()).ok_or_else(|| "Não foi possível mover intervalo; destino ou operação inválida".into()))
+        .map(|_| ()).ok_or_else(|| feathersheet_core::tr!("Não foi possível mover intervalo; destino ou operação inválida").into()))
 }
 
 /// Roda `f` com uma transação aberta em cada aba ainda não mexida pela macro.
@@ -106,8 +106,8 @@ pub(crate) fn deslocar_celulas(
     let sentido = match (inserir, sentido) {
         (false, "up") | (true, "down") => Deslocamento::Vertical,
         (false, "left") | (true, "right") => Deslocamento::Horizontal,
-        _ => return Err(if inserir { "insertCells: use 'down' ou 'right'".into() }
-            else { "deleteCells: use 'up' ou 'left'".into() }),
+        _ => return Err(if inserir { feathersheet_core::tr!("insertCells: use 'down' ou 'right'").into() }
+            else { feathersheet_core::tr!("deleteCells: use 'up' ou 'left'").into() }),
     };
     let area = area.normalized();
     com_transacoes(wb, alteradas, aba, |wb| {
@@ -131,19 +131,19 @@ pub(crate) fn linhas_colunas(
         match onde.as_str() {
             Some(t) => crate::enderecos::coluna_texto(t)?,
             None => crate::enderecos::coluna_numero(onde.as_u64().and_then(|n| u32::try_from(n).ok())
-                .ok_or("Coluna deve ser letra ou número de 1 a 16384")?)?,
+                .ok_or_else(|| feathersheet_core::tr!("Coluna deve ser letra ou número de 1 a 16384"))?)?,
         }
     } else {
         crate::enderecos::linha_numero(onde.as_u64().and_then(|n| u32::try_from(n).ok())
-            .ok_or("Linha deve ser número inteiro a partir de 1")?)?
+            .ok_or_else(|| feathersheet_core::tr!("Linha deve ser número inteiro a partir de 1"))?)?
     };
     let n = if quantas.is_null() { 1 } else {
         quantas.as_u64().and_then(|n| u32::try_from(n).ok()).filter(|&n| n >= 1)
-            .ok_or("A quantidade deve ser inteiro a partir de 1")?
+            .ok_or_else(|| feathersheet_core::tr!("A quantidade deve ser inteiro a partir de 1"))?
     };
     let limite = if coluna { MAX_COLS } else { MAX_ROWS };
     if u64::from(at) + u64::from(n) > u64::from(limite) {
-        return Err("Ultrapassa o fim da planilha".into());
+        return Err(feathersheet_core::tr!("Ultrapassa o fim da planilha").into());
     }
     com_transacoes(wb, alteradas, aba, |wb| {
         let feito = match op {
@@ -152,7 +152,7 @@ pub(crate) fn linhas_colunas(
             "insertColumn" => wb.inserir_colunas(aba, at, n),
             _ => wb.excluir_colunas(aba, at, n),
         };
-        feito.map(|_| ()).ok_or_else(|| format!("{op}: não foi possível alterar a planilha"))
+        feito.map(|_| ()).ok_or_else(|| feathersheet_core::trf!("{op}: não foi possível alterar a planilha"))
     })
 }
 

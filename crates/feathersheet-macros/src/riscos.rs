@@ -85,20 +85,20 @@ pub fn binario_escondido(texto: &str) -> Vec<String> {
         }
     }
     if exe_b64 || exe_hex {
-        motivos.push(format!("um programa executável escondido como texto ({})", if exe_b64 { "Base64" } else { "hexadecimal" }));
+        motivos.push(feathersheet_core::trf!("um programa executável escondido como texto ({})", if exe_b64 { "Base64" } else { "hexadecimal" }));
     } else if b64 + hex >= TETO_CODIFICADO {
-        motivos.push(format!("{} KB de texto codificado (Base64 ou hexadecimal), o formato de um arquivo escondido", (b64 + hex).div_ceil(1024)));
+        motivos.push(feathersheet_core::trf!("{} KB de texto codificado (Base64 ou hexadecimal), o formato de um arquivo escondido", (b64 + hex).div_ceil(1024)));
     }
     let (bytes, exe) = maior_lista_de_bytes(texto);
     if exe {
-        motivos.push("um programa executável escondido como lista de números (bytes)".into());
+        motivos.push(feathersheet_core::tr!("um programa executável escondido como lista de números (bytes)").into());
     } else if bytes >= TETO_BYTES {
-        motivos.push(format!("uma lista de {bytes} números de 0 a 255 seguidos, o formato de um arquivo escondido"));
+        motivos.push(feathersheet_core::trf!("uma lista de {bytes} números de 0 a 255 seguidos, o formato de um arquivo escondido"));
     }
     let minusculo = texto.to_lowercase();
     let chr = minusculo.matches("chr(").count() + minusculo.matches("chrw(").count() + minusculo.matches("fromcharcode(").count();
     if chr >= TETO_BYTES {
-        motivos.push(format!("{chr} caracteres montados um a um (Chr), jeito comum de esconder comando"));
+        motivos.push(feathersheet_core::trf!("{chr} caracteres montados um a um (Chr), jeito comum de esconder comando"));
     }
     let achados: Vec<&str> = DECODIFICA.iter().copied().filter(|k| minusculo.contains(k)).collect();
     // "-enc" sozinho também é o atalho do PowerShell para -EncodedCommand.
@@ -106,7 +106,7 @@ pub fn binario_escondido(texto: &str) -> Vec<String> {
     if !achados.is_empty() || enc {
         let mut lista = achados.join(", ");
         if enc { if !lista.is_empty() { lista.push_str(", "); } lista.push_str("powershell -enc"); }
-        motivos.push(format!("comandos que decodificam ou rodam arquivo escondido ({lista})"));
+        motivos.push(feathersheet_core::trf!("comandos que decodificam ou rodam arquivo escondido ({lista})"));
     }
     motivos
 }

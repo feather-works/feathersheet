@@ -73,12 +73,12 @@ pub fn desenhar_borda(sheet: &mut Sheet, area: &Rect, modo: ModoBorda, caneta: &
     let r = area.normalized();
     let total = (r.r1 - r.r0 + 1) as u64 * (r.c1 - r.c0 + 1) as u64;
     if total > LIMITE_CELULAS {
-        return Err(format!("Área grande demais para desenhar bordas ({total} células; o limite é {LIMITE_CELULAS})."));
+        return Err(crate::trf!("Área grande demais para desenhar bordas ({total} células; o limite é {LIMITE_CELULAS})."));
     }
     let estilo = match caneta.estilo.as_deref() {
         None | Some("Fina") => Campo::Nulo,
         Some(e) if ESTILOS.contains(&e) => Campo::Texto(e.to_string()),
-        Some(e) => return Err(format!("Estilo de linha desconhecido: {e}.")),
+        Some(e) => return Err(crate::trf!("Estilo de linha desconhecido: {e}.")),
     };
     let mut mudou = false;
     sheet.abrir_transacao();

@@ -198,11 +198,11 @@ fn ponto(cfvo: &XmlNode, cor: String) -> Result<ScalePoint, String> {
     let (tipo, v) = match cfvo.attr("type").unwrap_or("") {
         "min" | "autoMin" => (ScalePointType::Min, None),
         "max" | "autoMax" => (ScalePointType::Max, None),
-        "num" => (ScalePointType::Number, Some(numero().ok_or("ponto de escala com fórmula")?)),
-        "percent" => (ScalePointType::Percent, Some(numero().ok_or("ponto de escala inválido")?)),
-        "percentile" => (ScalePointType::Percentile, Some(numero().ok_or("ponto de escala inválido")?)),
-        "formula" => (ScalePointType::Number, Some(numero().ok_or("ponto de escala com fórmula")?)),
-        outro => return Err(format!("ponto de escala '{outro}'")),
+        "num" => (ScalePointType::Number, Some(numero().ok_or_else(|| feathersheet_core::tr!("ponto de escala com fórmula"))?)),
+        "percent" => (ScalePointType::Percent, Some(numero().ok_or_else(|| feathersheet_core::tr!("ponto de escala inválido"))?)),
+        "percentile" => (ScalePointType::Percentile, Some(numero().ok_or_else(|| feathersheet_core::tr!("ponto de escala inválido"))?)),
+        "formula" => (ScalePointType::Number, Some(numero().ok_or_else(|| feathersheet_core::tr!("ponto de escala com fórmula"))?)),
+        outro => return Err(feathersheet_core::trf!("ponto de escala '{outro}'")),
     };
     Ok(ScalePoint { point_type: tipo, value: v, color: cor })
 }
@@ -216,7 +216,7 @@ fn converter(b: &Bruta, estilo: CondStyle) -> Result<Itens, String> {
     let tl = canto(ranges);
     match tipo {
         "expression" => {
-            let f = fs.first().ok_or("sem fórmula")?;
+            let f = fs.first().ok_or_else(|| feathersheet_core::tr!("sem fórmula"))?;
             Ok(por_faixa(ranges, f, &estilo))
         }
         "cellIs" => {
@@ -234,7 +234,7 @@ fn converter(b: &Bruta, estilo: CondStyle) -> Result<Itens, String> {
             let dois = matches!(op, CellOp::Between | CellOp::NotBetween);
             let esperados = if dois { 2 } else { 1 };
             if fs.len() < esperados {
-                return Err("sem valor de comparação".into());
+                return Err(feathersheet_core::tr!("sem valor de comparação").into());
             }
             let lits: Option<Vec<String>> = fs.iter().take(esperados).map(|f| literal(f)).collect();
             if let Some(values) = lits {
@@ -257,7 +257,7 @@ fn converter(b: &Bruta, estilo: CondStyle) -> Result<Itens, String> {
             Ok(por_faixa(ranges, &expr, &estilo))
         }
         "containsText" | "notContainsText" | "beginsWith" | "endsWith" => {
-            let texto = r.attr("text").ok_or("sem texto")?.to_string();
+            let texto = r.attr("text").ok_or_else(|| feathersheet_core::tr!("sem texto"))?.to_string();
             let op = match tipo {
                 "containsText" => CellOp::TextContains,
                 "notContainsText" => CellOp::TextNotContains,
@@ -274,11 +274,11 @@ fn converter(b: &Bruta, estilo: CondStyle) -> Result<Itens, String> {
         "uniqueValues" => Ok(celula(ranges.clone(), CellOp::Unique, vec![], estilo)),
         "aboveAverage" => {
             if r.attr("stdDev").is_some_and(|s| s != "0") {
-                return Err("desvio padrão".into());
+                return Err(feathersheet_core::tr!("desvio padrão").into());
             }
             let acima = !matches!(r.attr("aboveAverage"), Some("0") | Some("false"));
             if matches!(r.attr("equalAverage"), Some("1") | Some("true")) {
-                let abs = absoluto(ranges).ok_or("igual à média em vários intervalos")?;
+                let abs = absoluto(ranges).ok_or_else(|| feathersheet_core::tr!("igual à média em vários intervalos"))?;
                 let sinal = if acima { ">=" } else { "<=" };
                 return Ok(por_faixa(ranges, &format!("{tl}{sinal}AVERAGE({abs})"), &estilo));
             }
@@ -286,24 +286,24 @@ fn converter(b: &Bruta, estilo: CondStyle) -> Result<Itens, String> {
         }
         "top10" => {
             if matches!(r.attr("percent"), Some("1") | Some("true")) {
-                return Err("10 primeiros por percentual".into());
+                return Err(feathersheet_core::tr!("10 primeiros por percentual").into());
             }
             let n: u32 = r.attr("rank").and_then(|v| v.parse().ok()).unwrap_or(10);
-            let abs = absoluto(ranges).ok_or("10 primeiros em vários intervalos")?;
+            let abs = absoluto(ranges).ok_or_else(|| feathersheet_core::tr!("10 primeiros em vários intervalos"))?;
             let abaixo = matches!(r.attr("bottom"), Some("1") | Some("true"));
             let expr = if abaixo { format!("RANK({tl},{abs},1)<={n}") } else { format!("RANK({tl},{abs})<={n}") };
             Ok(por_faixa(ranges, &expr, &estilo))
         }
         "colorScale" => {
-            let escala = r.child("colorScale").ok_or("sem escala")?;
+            let escala = r.child("colorScale").ok_or_else(|| feathersheet_core::tr!("sem escala"))?;
             let vos: Vec<&XmlNode> = escala.children_named("cfvo").collect();
             let cores: Vec<Option<String>> = escala.children_named("color").map(cor_de).collect();
             if vos.len() != cores.len() || !(2..=3).contains(&vos.len()) {
-                return Err("escala com número de pontos inesperado".into());
+                return Err(feathersheet_core::tr!("escala com número de pontos inesperado").into());
             }
             let mut pts = Vec::new();
             for (vo, c) in vos.iter().zip(&cores) {
-                pts.push(ponto(vo, c.clone().ok_or("cor de escala fora de RGB/tema")?)?);
+                pts.push(ponto(vo, c.clone().ok_or_else(|| feathersheet_core::tr!("cor de escala fora de RGB/tema"))?)?);
             }
             let max = pts.pop().unwrap();
             let min = pts.remove(0);
@@ -311,8 +311,8 @@ fn converter(b: &Bruta, estilo: CondStyle) -> Result<Itens, String> {
             Ok(vec![(ranges.clone(), Condition::ColorScale(ColorScaleCondition { min, mid, max }))])
         }
         "dataBar" => {
-            let barra = r.child("dataBar").ok_or("sem barra")?;
-            let cor = barra.child("color").and_then(cor_de).ok_or("cor da barra fora de RGB/tema")?;
+            let barra = r.child("dataBar").ok_or_else(|| feathersheet_core::tr!("sem barra"))?;
+            let cor = barra.child("color").and_then(cor_de).ok_or_else(|| feathersheet_core::tr!("cor da barra fora de RGB/tema"))?;
             let vos: Vec<&XmlNode> = barra.children_named("cfvo").collect();
             let extremo = |vo: Option<&&XmlNode>, auto: ScalePointType| -> Option<ScalePoint> {
                 let p = ponto(vo?, cor.clone()).ok()?;
@@ -329,8 +329,8 @@ fn converter(b: &Bruta, estilo: CondStyle) -> Result<Itens, String> {
                 }),
             )])
         }
-        "iconSet" => Err("conjunto de ícones".into()),
-        "timePeriod" => Err("período de datas".into()),
+        "iconSet" => Err(feathersheet_core::tr!("conjunto de ícones").into()),
+        "timePeriod" => Err(feathersheet_core::tr!("período de datas").into()),
         outro => Err(format!("tipo '{outro}'")),
     }
 }

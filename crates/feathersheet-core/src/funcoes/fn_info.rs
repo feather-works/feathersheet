@@ -294,7 +294,7 @@ fn url_valida(bruto: &str) -> Result<String, CellError> {
     let texto = bruto.trim();
     let minusculo = texto.to_lowercase();
     if !(minusculo.starts_with("http://") || minusculo.starts_with("https://")) {
-        return Err(CellError::com_motivo(ErrorCode::Value, "O endereço precisa começar com http:// ou https://"));
+        return Err(CellError::com_motivo(ErrorCode::Value, crate::tr!("O endereço precisa começar com http:// ou https://")));
     }
     Ok(texto.to_string())
 }

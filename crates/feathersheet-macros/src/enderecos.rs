@@ -346,9 +346,9 @@ pub fn mascara_para_estilo(valor: &str) -> Result<Mascara, String> {
         if !exp.is_empty() && exp.bytes().all(|b|b == b'0') {
             match casas_simples(mantissa, "0") {
                 Some(n) => (F::Scientific,Some(n)),
-                None => return Err(format!("Máscara não suportada: {valor}")),
+                None => return Err(feathersheet_core::trf!("Máscara não suportada: {valor}")),
             }
-        } else { return Err(format!("Máscara não suportada: {valor}")); }
+        } else { return Err(feathersheet_core::trf!("Máscara não suportada: {valor}")); }
     } else if ["dd/mm/yyyy hh:mm","dd/mm/yyyy hh:mm:ss",
         "dd-mm-yyyy hh:mm","dd-mm-yyyy hh:mm:ss"].contains(&lower.as_str()) {
         (F::Datetime,None)
@@ -376,7 +376,7 @@ pub fn mascara_para_estilo(valor: &str) -> Result<Mascara, String> {
         (F::Integer,None)
     } else if let Some(resto) = mascara.strip_prefix("#,##0") {
         (F::Number,Some(casas_decimais(resto)
-            .ok_or_else(||format!("Máscara não suportada: {valor}"))?))
+            .ok_or_else(||feathersheet_core::trf!("Máscara não suportada: {valor}"))?))
     } else if let Some(n) = casas_simples(mascara,"0") {
         (F::Number,Some(n))
     } else {
@@ -386,7 +386,7 @@ pub fn mascara_para_estilo(valor: &str) -> Result<Mascara, String> {
             && formatar(&Value::Number(45000.0), mascara).is_some() {
             return Ok(Mascara { formato: F::Auto, casas: None, codigo: Some(mascara.to_string()) });
         }
-        return Err(format!("Máscara de número não suportada: \"{valor}\""));
+        return Err(feathersheet_core::trf!("Máscara de número não suportada: \"{valor}\""));
     };
     Ok(Mascara { formato, casas, codigo: None })
 }
@@ -457,14 +457,14 @@ fn casas_simples(valor: &str, base: &str) -> Option<u8> {
 /// Coluna Excel base 1, número ou texto A:Z, AA:XFD.
 pub fn coluna_texto(valor: &str) -> Result<u32, String> {
     feathersheet_core::celulas::refs::col_index(valor.trim())
-        .ok_or_else(||format!("Coluna inválida: {valor}"))
+        .ok_or_else(||feathersheet_core::trf!("Coluna inválida: {valor}"))
 }
 pub fn coluna_numero(valor: u32) -> Result<u32, String> {
-    if valor == 0 || valor > MAX_COLS { Err(format!("Coluna inválida: {valor}")) }
+    if valor == 0 || valor > MAX_COLS { Err(feathersheet_core::trf!("Coluna inválida: {valor}")) }
     else { Ok(valor - 1) }
 }
 pub fn linha_numero(valor: u32) -> Result<u32, String> {
-    if valor == 0 || valor > MAX_ROWS { Err(format!("Linha inválida: {valor}")) }
+    if valor == 0 || valor > MAX_ROWS { Err(feathersheet_core::trf!("Linha inválida: {valor}")) }
     else { Ok(valor - 1) }
 }
 /// RGB VBA: `r + g * 256 + b * 65536`, representação numérica BGR.
@@ -475,7 +475,7 @@ pub fn vba_cor_hex(cor: u32) -> String {
     format!("#{:02x}{:02x}{:02x}", cor & 255, (cor >> 8) & 255, (cor >> 16) & 255)
 }
 pub fn cor_hex(texto: &str) -> Result<String, String> {
-    let cor = texto.trim().strip_prefix('#').ok_or("Cor precisa começar com #")?;
+    let cor = texto.trim().strip_prefix('#').ok_or_else(|| feathersheet_core::tr!("Cor precisa começar com #"))?;
     if cor.len() == 3 && cor.bytes().all(|b|b.is_ascii_hexdigit()) {
         return Ok(format!("#{}{}{}{}{}{}", &cor[0..1],&cor[0..1],
             &cor[1..2],&cor[1..2],&cor[2..3],&cor[2..3]).to_lowercase());
@@ -483,7 +483,7 @@ pub fn cor_hex(texto: &str) -> Result<String, String> {
     if cor.len() == 6 && cor.bytes().all(|b|b.is_ascii_hexdigit()) {
         return Ok(format!("#{cor}").to_lowercase());
     }
-    Err(format!("Cor inválida: {texto}"))
+    Err(feathersheet_core::trf!("Cor inválida: {texto}"))
 }
 
 /// Interseção/união dos intervalos do módulo TS, sem expandir células.

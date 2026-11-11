@@ -165,14 +165,14 @@ pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAti
 /// absoluto fora dela e `..` que escapa são recusados.
 fn resolver_caminho(pedido: &str, arquivo: Option<&Path>) -> Result<PathBuf, String> {
     let texto = pedido.trim();
-    if texto.is_empty() { return Err("Caminho de arquivo vazio".into()); }
+    if texto.is_empty() { return Err(feathersheet_core::tr!("Caminho de arquivo vazio").into()); }
     let texto = if cfg!(windows) { texto.to_string() } else { texto.replace('\\', "/") };
     let caminho = PathBuf::from(&texto);
     let pasta = arquivo.and_then(Path::parent).filter(|p| !p.as_os_str().is_empty())
-        .ok_or_else(|| format!("Salve a pasta antes: o caminho {texto} depende da pasta do arquivo"))?;
-    let pasta = normalizar(pasta).ok_or_else(|| format!("Pasta do arquivo inválida: {}", pasta.display()))?;
+        .ok_or_else(|| feathersheet_core::trf!("Salve a pasta antes: o caminho {texto} depende da pasta do arquivo"))?;
+    let pasta = normalizar(pasta).ok_or_else(|| feathersheet_core::trf!("Pasta do arquivo inválida: {}", pasta.display()))?;
     let alvo = normalizar(&pasta.join(&caminho)).filter(|c| c.starts_with(&pasta) && *c != pasta);
-    alvo.ok_or_else(|| format!("A macro só grava dentro da pasta do arquivo ({}): {texto}", pasta.display()))
+    alvo.ok_or_else(|| feathersheet_core::trf!("A macro só grava dentro da pasta do arquivo ({}): {texto}", pasta.display()))
 }
 
 /// Tira `.` e resolve `..` só pelo texto (sem tocar no disco); `None` se o
@@ -199,7 +199,7 @@ fn com_extensao(mut caminho: PathBuf, aceitas: &[&str]) -> Result<PathBuf, Strin
     match caminho.extension().map(|e| e.to_string_lossy().to_lowercase()) {
         None => { caminho.set_extension(aceitas[0]); Ok(caminho) }
         Some(e) if aceitas.contains(&e.as_str()) => Ok(caminho),
-        Some(e) => Err(format!("Formato .{e} não suportado pela macro (use {})",
+        Some(e) => Err(feathersheet_core::trf!("Formato .{e} não suportado pela macro (use {})",
             aceitas.iter().map(|a| format!(".{a}")).collect::<Vec<_>>().join(" ou "))),
     }
 }
@@ -222,7 +222,7 @@ fn pedido_de_arquivo(op: &str, dados: &Json, a: &mut Acumulado, nomes_abas: &[St
     -> Result<Json, String>
 {
     if a.arquivos.len() >= LIMITE_ARQUIVOS {
-        return Err(format!("Limite de {LIMITE_ARQUIVOS} arquivos por execução"));
+        return Err(feathersheet_core::trf!("Limite de {LIMITE_ARQUIVOS} arquivos por execução"));
     }
     let caminho = resolver_caminho(&texto(dados, 1), a.contexto.arquivo.as_deref())?;
     let pedido = if op == "exportarPdf" {
@@ -230,13 +230,13 @@ fn pedido_de_arquivo(op: &str, dados: &Json, a: &mut Acumulado, nomes_abas: &[St
             .ok_or("Aba inexistente")?;
         PedidoArquivo::Pdf { aba: ids[aba], caminho: com_extensao(caminho, &["pdf"])? }
     } else {
-        let lista = dados[0].as_array().ok_or("Informe a lista de abas a salvar")?;
+        let lista = dados[0].as_array().ok_or_else(|| feathersheet_core::tr!("Informe a lista de abas a salvar"))?;
         let mut abas = Vec::new();
         for v in lista.iter().filter(|v| !v.is_null()) {
             let id = ids[indice_da_aba(v, nomes_abas)?];
             if !abas.contains(&id) { abas.push(id); }
         }
-        if abas.is_empty() { return Err("Nenhuma aba para salvar no arquivo novo".into()); }
+        if abas.is_empty() { return Err(feathersheet_core::tr!("Nenhuma aba para salvar no arquivo novo").into()); }
         PedidoArquivo::Abas { abas, caminho: com_extensao(caminho, &["xlsx", "fshz"])? }
     };
     a.arquivos.push(pedido);
@@ -279,17 +279,17 @@ pub(crate) fn executar(
             let (Some(destino), Some(origem)) = (id(&dados[0]), id(&dados[1])) else { return Some(Err("Aba inexistente".into())) };
             let end = texto(dados, 2);
             let Some(area) = parse_range_ref(end.trim().trim_start_matches('=')).map(|r| r.normalized()).filter(|r| r.sheet.is_none()) else {
-                return Some(Err(format!("pastePicture: intervalo inválido: {end}")));
+                return Some(Err(feathersheet_core::trf!("pastePicture: intervalo inválido: {end}")));
             };
             let cel = texto(dados, 3);
-            let Some(c) = parse_range_ref(cel.trim()).map(|r| r.normalized()) else { return Some(Err(format!("pastePicture: célula inválida: {cel}"))) };
+            let Some(c) = parse_range_ref(cel.trim()).map(|r| r.normalized()) else { return Some(Err(feathersheet_core::trf!("pastePicture: célula inválida: {cel}"))) };
             if a.imagens.len() >= LIMITE_ARQUIVOS { return Some(Err("Imagens demais numa macro".into())); }
             a.imagens.push(PedidoImagem { origem, area, destino, celula: (c.r0, c.c0), largura: None, altura: None });
             Ok(json!(a.imagens.len() - 1))
         }
         "tamanhoImagem" => {
             let Some(p) = dados[0].as_u64().and_then(|i| a.imagens.get_mut(i as usize)) else { return Some(Err("Imagem colada inexistente".into())) };
-            let Some(v) = dados[2].as_f64().filter(|v| v.is_finite() && *v >= 1.0 && *v <= 1e5) else { return Some(Err("Tamanho da imagem: número de 1 a 100000 pontos".into())) };
+            let Some(v) = dados[2].as_f64().filter(|v| v.is_finite() && *v >= 1.0 && *v <= 1e5) else { return Some(Err(feathersheet_core::tr!("Tamanho da imagem: número de 1 a 100000 pontos").into())) };
             if texto(dados, 1) == "height" { p.altura = Some(v) } else { p.largura = Some(v) }
             Ok(Json::Null)
         }
@@ -312,12 +312,12 @@ pub(crate) fn executar(
         "escolher" => {
             let botoes: Vec<u32> = dados[1].as_array().map(|b| b.iter().filter_map(|x| x.as_u64())
                 .filter(|&x| (1..=7).contains(&x)).map(|x| x as u32).collect()).unwrap_or_default();
-            if botoes.is_empty() || botoes.len() > 3 { return Some(Err("app.choose: de 1 a 3 botões (1 a 7, os do MsgBox)".into())); }
+            if botoes.is_empty() || botoes.len() > 3 { return Some(Err(feathersheet_core::tr!("app.choose: de 1 a 3 botões (1 a 7, os do MsgBox)").into())); }
             let n = a.escolhas_feitas;
             a.escolhas_feitas += 1;
             match a.contexto.escolhas.get(n) {
                 Some(&i) if (i as usize) < botoes.len() => Ok(json!(i)),
-                Some(_) => Err("app.choose: resposta fora dos botões".into()),
+                Some(_) => Err(feathersheet_core::tr!("app.choose: resposta fora dos botões").into()),
                 None => {
                     // Como no confirm: a macro segue sem efeito e roda de novo com a resposta.
                     if a.pergunta.is_none() {
@@ -342,7 +342,7 @@ pub(crate) fn executar(
             let comando = texto(dados, 0).trim().to_string();
             if comando.is_empty() { return Some(Err("Shell: comando vazio".into())); }
             if a.programas.len() >= LIMITE_PROGRAMAS {
-                return Some(Err(format!("Shell: mais de {LIMITE_PROGRAMAS} programas numa execução")));
+                return Some(Err(feathersheet_core::trf!("Shell: mais de {LIMITE_PROGRAMAS} programas numa execução")));
             }
             a.programas.push(comando);
             // O VBA devolve o número da tarefa; aqui o programa só roda depois da macro.
@@ -354,13 +354,13 @@ pub(crate) fn executar(
                 return Some(Err("Aba inexistente".into()));
             };
             if a.protecoes.len() >= LIMITE_ARQUIVOS {
-                return Some(Err(format!("Limite de {LIMITE_ARQUIVOS} proteções por execução")));
+                return Some(Err(feathersheet_core::trf!("Limite de {LIMITE_ARQUIVOS} proteções por execução")));
             }
             let mut permitidas = Vec::new();
             for c in dados[3].as_array().into_iter().flatten().filter_map(Json::as_str) {
                 match Permissao::da_chave(c) {
                     Some(p) => permitidas.push(p),
-                    None => return Some(Err(format!("Permissão de proteção desconhecida: {c}"))),
+                    None => return Some(Err(feathersheet_core::trf!("Permissão de proteção desconhecida: {c}"))),
                 }
             }
             let senha = dados[2].as_str().filter(|s| !s.is_empty()).map(|s| s.chars().take(255).collect());
@@ -371,7 +371,7 @@ pub(crate) fn executar(
             let link = texto(dados, 0).trim().to_string();
             if link.is_empty() { return Some(Err("openUrl: link vazio".into())); }
             if a.links.len() >= LIMITE_PROGRAMAS {
-                return Some(Err(format!("openUrl: mais de {LIMITE_PROGRAMAS} links numa execução")));
+                return Some(Err(feathersheet_core::trf!("openUrl: mais de {LIMITE_PROGRAMAS} links numa execução")));
             }
             a.links.push(link);
             Ok(json!(true))
@@ -394,13 +394,13 @@ pub(crate) fn executar(
                 _ => {
                     let end = texto(dados, 2);
                     let Some(area) = parse_range_ref(end.trim()) else {
-                        return Some(Err(format!("autoFilter: intervalo inválido: {end}")));
+                        return Some(Err(feathersheet_core::trf!("autoFilter: intervalo inválido: {end}")));
                     };
                     let coluna = match &dados[3] {
                         Json::Null => None,
                         c => match c.as_f64().filter(|n| *n >= 1.0 && n.fract() == 0.0 && *n <= f64::from(area.c1 - area.c0 + 1)) {
                             Some(n) => Some(n as u32),
-                            None => return Some(Err(format!("autoFilter: coluna {c} fora de {end}"))),
+                            None => return Some(Err(feathersheet_core::trf!("autoFilter: coluna {c} fora de {end}"))),
                         },
                     };
                     AcaoFiltro::Aplicar { area, coluna, criterio: Some(dados[4].clone()).filter(|c| !c.is_null()) }
@@ -418,12 +418,12 @@ pub(crate) fn executar(
             let mut erro = None;
             let mut campo = |k: &str, minimo: f64| p.get(k).filter(|v| !v.is_null()).and_then(|v| match v.as_f64() {
                 Some(n) if n.is_finite() && n >= minimo && n <= 1e7 => Some(n),
-                _ => { erro = Some(format!("shape.{k}: número de {minimo} a 10000000")); None }
+                _ => { erro = Some(feathersheet_core::trf!("shape.{k}: número de {minimo} a 10000000")); None }
             });
             let pedido = PedidoForma { aba, nome: texto(dados, 1), esquerda: campo("left", 0.0), topo: campo("top", 0.0),
                 largura: campo("width", 1.0), altura: campo("height", 1.0) };
             if let Some(e) = erro { return Some(Err(e)); }
-            if a.formas.len() >= LIMITE_ARQUIVOS { return Some(Err("Mudanças de forma demais numa macro".into())); }
+            if a.formas.len() >= LIMITE_ARQUIVOS { return Some(Err(feathersheet_core::tr!("Mudanças de forma demais numa macro").into())); }
             a.formas.push(pedido);
             Ok(Json::Null)
         }
@@ -434,7 +434,7 @@ pub(crate) fn executar(
             let valido = nome.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_')
                 && nome.chars().all(|c| c.is_alphanumeric() || matches!(c, '_' | '.'))
                 && parse_range_ref(&nome).is_none();
-            if !valido { return Some(Err(format!("Nome inválido: {nome}"))); }
+            if !valido { return Some(Err(feathersheet_core::trf!("Nome inválido: {nome}"))); }
             let refe = texto(dados, 1);
             let refe = refe.trim().trim_start_matches('=');
             // `Aba!A1:B2` ou `'Minha aba'!A1`: o parser só lê a parte do intervalo.
@@ -449,7 +449,7 @@ pub(crate) fn executar(
             };
             let refe = refe.as_str();
             let Some(mut area) = parse_range_ref(refe) else {
-                return Some(Err(format!("Referência inválida para o nome {nome}: {refe}")));
+                return Some(Err(feathersheet_core::trf!("Referência inválida para o nome {nome}: {refe}")));
             };
             area.sheet = aba_ref;
             if area.sheet.is_none() {

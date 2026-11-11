@@ -99,7 +99,7 @@ pub(super) fn linhas<R: BufRead>(src: &mut R, inicio: Vec<u8>, linha: &mut Linha
                 return Some(Ok(Some((lt + f + 2, false))));
             }
             if fecha || nome != b"row" {
-                return Some(Err(format!("XML: <{}> inesperado no sheetData", String::from_utf8_lossy(nome))));
+                return Some(Err(feathersheet_core::trf!("XML: <{}> inesperado no sheetData", String::from_utf8_lossy(nome))));
             }
             let fim_abre = fim_da_tag(&buf, fim_nome)?;
             let fim = if buf[fim_abre - 1] == b'/' {
@@ -130,7 +130,7 @@ pub(super) fn linhas<R: BufRead>(src: &mut R, inicio: Vec<u8>, linha: &mut Linha
             }
             Some(Ok(None)) => return Ok(buf.split_off(pos)),
             Some(Err(e)) => return Err(e),
-            None if fim_do_fluxo => return Err("XML inválido: sheetData sem fim".into()),
+            None if fim_do_fluxo => return Err(feathersheet_core::tr!("XML inválido: sheetData sem fim").into()),
             None => {}
         }
         // Falta texto: descarta o já lido e pede mais ao fluxo.
@@ -153,7 +153,7 @@ pub(super) fn linhas<R: BufRead>(src: &mut R, inicio: Vec<u8>, linha: &mut Linha
 pub(super) fn ler_linha(b: &[u8], linha: &mut LinhaXml) -> Result<(), String> {
     linha.limpar();
     let (_, _, fim_nome) = nome_em(b, 0);
-    let fim_abre = fim_da_tag(b, fim_nome).ok_or("XML: <row> sem fim")?;
+    let fim_abre = fim_da_tag(b, fim_nome).ok_or_else(|| feathersheet_core::tr!("XML: <row> sem fim"))?;
     let vazio = b[fim_abre - 1] == b'/';
     for (k, v) in atributos(&b[fim_nome..if vazio { fim_abre - 1 } else { fim_abre }]) {
         let campo = match k {
@@ -182,7 +182,7 @@ pub(super) fn ler_linha(b: &[u8], linha: &mut LinhaXml) -> Result<(), String> {
             texto(&b[p..lt], linha, alvo);
         }
         if b[lt + 1..].starts_with(b"![CDATA[") {
-            let f = memchr::memmem::find(&b[lt..], b"]]>").ok_or("XML: CDATA sem fim")?;
+            let f = memchr::memmem::find(&b[lt..], b"]]>").ok_or_else(|| feathersheet_core::tr!("XML: CDATA sem fim"))?;
             if alvo != Alvo::Nada {
                 super::empurrar(linha, alvo, &String::from_utf8_lossy(&b[lt + 9..lt + f]));
             }
@@ -190,15 +190,15 @@ pub(super) fn ler_linha(b: &[u8], linha: &mut LinhaXml) -> Result<(), String> {
             continue;
         }
         if b[lt + 1..].starts_with(b"!--") {
-            p = lt + memchr::memmem::find(&b[lt..], b"-->").ok_or("XML: comentário sem fim")? + 3;
+            p = lt + memchr::memmem::find(&b[lt..], b"-->").ok_or_else(|| feathersheet_core::tr!("XML: comentário sem fim"))? + 3;
             continue;
         }
         if b[lt + 1..].starts_with(b"?") {
-            p = lt + memchr::memmem::find(&b[lt..], b"?>").ok_or("XML: instrução sem fim")? + 2;
+            p = lt + memchr::memmem::find(&b[lt..], b"?>").ok_or_else(|| feathersheet_core::tr!("XML: instrução sem fim"))? + 2;
             continue;
         }
         let (fecha, nome, fim_nome) = nome_em(b, lt);
-        let fim_tag = fim_da_tag(b, fim_nome).ok_or("XML: tag sem fim")?;
+        let fim_tag = fim_da_tag(b, fim_nome).ok_or_else(|| feathersheet_core::tr!("XML: tag sem fim"))?;
         p = fim_tag + 1;
         if fecha {
             match nome {
@@ -255,7 +255,7 @@ pub(super) fn ler_linha(b: &[u8], linha: &mut LinhaXml) -> Result<(), String> {
             _ => {}
         }
     }
-    Err("XML inválido: <row> sem fim".into())
+    Err(feathersheet_core::tr!("XML inválido: <row> sem fim").into())
 }
 
 /// Texto entre tags, com as entidades resolvidas como o quick_xml fazia

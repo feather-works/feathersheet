@@ -397,7 +397,7 @@ pub fn to_number(v: &Value) -> Result<f64, CellError> {
                 Some(n) => Ok(n),
                 None => Err(CellError::com_motivo(
                     ErrorCode::Value,
-                    format!("\"{texto}\" não é número"),
+                    crate::trf!("\"{texto}\" não é número"),
                 )),
             }
         }

@@ -62,7 +62,7 @@ struct Plano {
 }
 
 fn plano_da_area(wb: &Workbook, folha: usize, area: AreaImpressao, config: &ConfigPagina) -> Result<Plano, String> {
-    let aba = wb.aba(folha).ok_or_else(|| format!("aba {folha} não existe"))?;
+    let aba = wb.aba(folha).ok_or_else(|| feathersheet_core::trf!("aba {folha} não existe"))?;
     let sheet = &aba.sheet;
     let (r0, r1) = (area.linha0.min(area.linha1), area.linha0.max(area.linha1));
     let (c0, c1) = (area.coluna0.min(area.coluna1), area.coluna0.max(area.coluna1));
@@ -109,7 +109,7 @@ fn plano_da_area(wb: &Workbook, folha: usize, area: AreaImpressao, config: &Conf
     let (util_l, util_a) = config.area_util_pt();
     let util_a = util_a - ALTURA_CABECALHO - ALTURA_RODAPE;
     if util_l <= 1.0 || util_a <= 1.0 {
-        return Err("margens maiores que a folha".into());
+        return Err(feathersheet_core::tr!("margens maiores que a folha").into());
     }
 
     // Escala.
@@ -140,10 +140,10 @@ pub fn gerar_varias(
     areas: &[AreaImpressao],
     config: &ConfigPagina,
 ) -> Result<Vec<u8>, String> {
-    let aba = wb.aba(folha).ok_or_else(|| format!("aba {folha} não existe"))?;
+    let aba = wb.aba(folha).ok_or_else(|| feathersheet_core::trf!("aba {folha} não existe"))?;
     let sheet = &aba.sheet;
     if areas.is_empty() {
-        return Err("nenhuma área para imprimir".into());
+        return Err(feathersheet_core::tr!("nenhuma área para imprimir").into());
     }
     let planos: Vec<Plano> = areas.iter().map(|a| plano_da_area(wb, folha, *a, config)).collect::<Result<_, _>>()?;
     let (pl, pa) = {
@@ -301,9 +301,9 @@ pub fn svg_da_area(wb: &Workbook, folha: usize, area: Rect, grade: bool) -> Resu
     let config = ConfigPagina { cabecalhos: false, linhas_de_grade: grade, escala: Escala::Porcentagem(100), ..ConfigPagina::default() };
     let plano = plano_da_area(wb, folha, AreaImpressao { linha0: a.r0, coluna0: a.c0, linha1: a.r1, coluna1: a.c1 }, &config)?;
     let (l, h) = (plano.colunas.iter().map(|c| c.1).sum::<f32>(), plano.linhas.iter().map(|r| r.1).sum::<f32>());
-    if l <= 0.0 || h <= 0.0 { return Err("a área não tem linha nem coluna visível".into()); }
+    if l <= 0.0 || h <= 0.0 { return Err(feathersheet_core::tr!("a área não tem linha nem coluna visível").into()); }
     if l / PX > MAX_LADO_IMAGEM || h / PX > MAX_LADO_IMAGEM {
-        return Err(format!("área grande demais para virar imagem (mais de {MAX_LADO_IMAGEM} px de lado)"));
+        return Err(feathersheet_core::trf!("área grande demais para virar imagem (mais de {MAX_LADO_IMAGEM} px de lado)"));
     }
     let ctx = Ctx { wb, folha, config: &config, escala: 1.0, ox: 0.0, oy: 0.0, larg_cab: 0.0, alt_cab: 0.0, mesclas: &plano.mesclas };
     let mut svg = Svg::default();

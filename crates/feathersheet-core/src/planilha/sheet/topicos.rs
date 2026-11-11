@@ -135,11 +135,11 @@ impl Sheet {
     /// Agrupa os índices `a..=b`: cada um sobe um nível (Shift+Alt+→).
     pub fn agrupar(&mut self, coluna: bool, a: u32, b: u32) -> Result<(), String> {
         let (a, b) = (a.min(b), a.max(b));
-        if b >= Self::limite_eixo(coluna) { return Err("O intervalo ultrapassa os limites da planilha.".into()); }
-        if b - a + 1 > LIMITE_INDICES { return Err("Seleção grande demais para agrupar.".into()); }
+        if b >= Self::limite_eixo(coluna) { return Err(crate::tr!("O intervalo ultrapassa os limites da planilha.").into()); }
+        if b - a + 1 > LIMITE_INDICES { return Err(crate::tr!("Seleção grande demais para agrupar.").into()); }
         let eixo = self.topicos.eixo(coluna);
         if (a..=b).any(|i| eixo.nivel(i) >= NIVEL_MAXIMO) {
-            return Err(format!("O Excel permite no máximo {NIVEL_MAXIMO} níveis de agrupamento."));
+            return Err(crate::trf!("O Excel permite no máximo {NIVEL_MAXIMO} níveis de agrupamento."));
         }
         let mut novo = self.topicos.clone();
         let eixo = novo.eixo_mut(coluna);
@@ -184,7 +184,7 @@ impl Sheet {
         let eixo = self.topicos.eixo(coluna);
         let resumo = (1..=eixo.nivel_maior()).rev()
             .find_map(|n| eixo.resumo_para(indice, n).filter(|s| !eixo.recolhidas.contains(s)).map(|s| (n, s)));
-        let Some((nivel, resumo)) = resumo else { return Err("Não há grupo aberto aqui.".into()); };
+        let Some((nivel, resumo)) = resumo else { return Err(crate::tr!("Não há grupo aberto aqui.").into()); };
         self.recolher(coluna, nivel, resumo, true)
     }
 
@@ -194,7 +194,7 @@ impl Sheet {
         let eixo = self.topicos.eixo(coluna);
         let resumo = (1..=eixo.nivel_maior())
             .find_map(|n| eixo.resumo_para(indice, n).filter(|s| eixo.recolhidas.contains(s)).map(|s| (n, s)));
-        let Some((nivel, resumo)) = resumo else { return Err("Não há grupo recolhido aqui.".into()); };
+        let Some((nivel, resumo)) = resumo else { return Err(crate::tr!("Não há grupo recolhido aqui.").into()); };
         self.recolher(coluna, nivel, resumo, false)
     }
 
@@ -206,8 +206,8 @@ impl Sheet {
 
     fn recolher(&mut self, coluna: bool, nivel: u8, resumo: u32, recolher: bool) -> Result<(), String> {
         let eixo = self.topicos.eixo(coluna);
-        let (inicio, fim) = eixo.grupo_do_resumo(resumo, nivel).ok_or("Não há grupo aqui.")?;
-        if fim - inicio + 1 > LIMITE_INDICES { return Err("Grupo grande demais para recolher.".into()); }
+        let (inicio, fim) = eixo.grupo_do_resumo(resumo, nivel).ok_or_else(|| crate::tr!("Não há grupo aqui."))?;
+        if fim - inicio + 1 > LIMITE_INDICES { return Err(crate::tr!("Grupo grande demais para recolher.").into()); }
         let mut novo = self.topicos.clone();
         let mostrar = if recolher {
             novo.eixo_mut(coluna).recolhidas.insert(resumo);
@@ -229,7 +229,7 @@ impl Sheet {
     /// totais de fora). Os grupos de nível `>= nivel` ficam recolhidos.
     pub fn mostrar_nivel(&mut self, coluna: bool, nivel: u8) -> Result<(), String> {
         let eixo = self.topicos.eixo(coluna);
-        if eixo.niveis.is_empty() { return Err("Não há estrutura de tópicos.".into()); }
+        if eixo.niveis.is_empty() { return Err(crate::tr!("Não há estrutura de tópicos.").into()); }
         if eixo.niveis.len() as u32 > LIMITE_INDICES { return Err("Estrutura grande demais.".into()); }
         let nivel = nivel.max(1);
         let mut novo = self.topicos.clone();

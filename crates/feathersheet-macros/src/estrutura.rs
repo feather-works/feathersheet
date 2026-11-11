@@ -14,14 +14,14 @@ fn indice_coluna(valor: &Json) -> Result<u32, String> {
     if let Some(texto) = valor.as_str() {
         return enderecos::coluna_texto(texto);
     }
-    let numero = valor.as_u64().ok_or("Coluna deve ser letra ou número inteiro de 1 a 16384")?;
-    let numero = u32::try_from(numero).map_err(|_|"Coluna fora dos limites")?;
+    let numero = valor.as_u64().ok_or_else(|| feathersheet_core::tr!("Coluna deve ser letra ou número inteiro de 1 a 16384"))?;
+    let numero = u32::try_from(numero).map_err(|_|feathersheet_core::tr!("Coluna fora dos limites"))?;
     enderecos::coluna_numero(numero)
 }
 
 fn indice_linha(valor: &Json) -> Result<u32, String> {
-    let numero = valor.as_u64().ok_or("Linha deve ser número inteiro a partir de 1")?;
-    let numero = u32::try_from(numero).map_err(|_|"Linha fora dos limites")?;
+    let numero = valor.as_u64().ok_or_else(|| feathersheet_core::tr!("Linha deve ser número inteiro a partir de 1"))?;
+    let numero = u32::try_from(numero).map_err(|_|feathersheet_core::tr!("Linha fora dos limites"))?;
     enderecos::linha_numero(numero)
 }
 
@@ -31,15 +31,15 @@ pub(crate) fn preparar(op: &str, dados: &Json) -> Result<Acao, String> {
         else { indice_linha(&dados[1])? };
     if matches!(op, "hideRow" | "hideColumn") {
         let esconder = if dados[2].is_null() { true }
-            else { dados[2].as_bool().ok_or("Ocultar exige true ou false")? };
+            else { dados[2].as_bool().ok_or_else(|| feathersheet_core::tr!("Ocultar exige true ou false"))? };
         return Ok(Acao::Ocultar { coluna, indice, esconder });
     }
     if !matches!(op, "setRowHeight" | "setColumnWidth") {
-        return Err(format!("Operação de dimensão desconhecida: {op}"));
+        return Err(feathersheet_core::trf!("Operação de dimensão desconhecida: {op}"));
     }
-    let px = dados[2].as_f64().ok_or("Dimensão deve ser número de pixels")?;
+    let px = dados[2].as_f64().ok_or_else(|| feathersheet_core::tr!("Dimensão deve ser número de pixels"))?;
     if !px.is_finite() || !(0.0..=10_000.0).contains(&px) {
-        return Err("Dimensão deve estar entre 0 e 10000 pixels".into());
+        return Err(feathersheet_core::tr!("Dimensão deve estar entre 0 e 10000 pixels").into());
     }
     // O modelo do core persiste dimensões inteiras. Arredondar aqui,
     // explicitamente, antes de mandar ao motor comum.

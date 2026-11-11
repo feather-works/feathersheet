@@ -11,7 +11,7 @@ const LIMITE: u64 = 32 * 1024 * 1024;
 
 fn ler_parte<R: Read + std::io::Seek>(zip: &mut zip::ZipArchive<R>, nome: &str) -> Result<Vec<u8>, String> {
     let parte = zip.by_name(nome).map_err(|e| e.to_string())?;
-    if parte.size() > LIMITE { return Err(format!("{nome} passa de 32 MiB")); }
+    if parte.size() > LIMITE { return Err(feathersheet_core::trf!("{nome} passa de 32 MiB")); }
     let mut bytes = Vec::new();
     parte.take(LIMITE).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
     Ok(bytes)
@@ -35,10 +35,10 @@ fn texto(bytes: &[u8]) -> String {
 /// O `Section1.m` de dentro do base64 do `<DataMashup>`.
 fn secao_do_mashup(base64: &str) -> Result<String, String> {
     let limpo: String = base64.chars().filter(|c| !c.is_whitespace()).collect();
-    let bin = crate::base64::decodificar(&limpo).ok_or("DataMashup com base64 inválido")?;
+    let bin = crate::base64::decodificar(&limpo).ok_or_else(|| feathersheet_core::tr!("DataMashup com base64 inválido"))?;
     let tamanho = bin.get(4..8).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize)
         .ok_or("DataMashup curto demais")?;
-    let pacote = bin.get(8..8 + tamanho).ok_or("DataMashup com tamanho errado")?;
+    let pacote = bin.get(8..8 + tamanho).ok_or_else(|| feathersheet_core::tr!("DataMashup com tamanho errado"))?;
     let mut zip = zip::ZipArchive::new(Cursor::new(pacote)).map_err(|e| e.to_string())?;
     let m = ler_parte(&mut zip, "Formulas/Section1.m")?;
     Ok(texto(&m))

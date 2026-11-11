@@ -24,21 +24,20 @@ pub(crate) struct Preparacao {
 /// Números seguem o Excel: base 1; o motor Rust usa base 0.
 fn coluna(v: &Json) -> Result<u32, String> {
     if let Some(nome) = v.as_str() {
-        return col_index(nome.trim()).ok_or_else(|| format!("Coluna inválida: {nome}"));
+        return col_index(nome.trim()).ok_or_else(|| feathersheet_core::trf!("Coluna inválida: {nome}"));
     }
     if let Some(numero) = v.as_u64() {
         if numero > 0 && numero <= u64::from(MAX_COLS) {
             return Ok(numero as u32 - 1);
         }
     }
-    Err(format!("Coluna inválida: {v} (use letra ou número a partir de 1)"))
+    Err(feathersheet_core::trf!("Coluna inválida: {v} (use letra ou número a partir de 1)"))
 }
 
 fn dentro(v: &Json, area: &Rect) -> Result<u32, String> {
     let col = coluna(v)?;
     if col < area.c0 || col > area.c1 {
-        return Err(format!(
-            "A coluna {} não faz parte da área selecionada",
+        return Err(feathersheet_core::trf!("A coluna {} não faz parte da área selecionada",
             feathersheet_core::celulas::refs::col_name(col),
         ));
     }
@@ -61,14 +60,14 @@ pub(crate) fn preparar(
             let entradas = dados[2].as_array()
                 .ok_or("sort: informe as chaves como [{col:'B',order:'asc'}]")?;
             if entradas.is_empty() || entradas.len() > 32 {
-                return Err("sort: informe entre 1 e 32 colunas de ordenação".into());
+                return Err(feathersheet_core::tr!("sort: informe entre 1 e 32 colunas de ordenação").into());
             }
             let mut chaves = Vec::with_capacity(entradas.len());
             for item in entradas {
                 let col = dentro(&item["col"], area)?;
                 let sentido = item["order"].as_str().unwrap_or("asc");
                 if sentido != "asc" && sentido != "desc" {
-                    return Err(format!("sort: ordem inválida: {sentido} (use asc ou desc)"));
+                    return Err(feathersheet_core::trf!("sort: ordem inválida: {sentido} (use asc ou desc)"));
                 }
                 chaves.push(SortKey { col, ascending: sentido != "desc" });
             }
@@ -92,7 +91,7 @@ pub(crate) fn preparar(
                     }
                     Some(colunas)
                 }
-                _ => return Err("removeDuplicates: colunas deve ser uma lista ou omitido".into()),
+                _ => return Err(feathersheet_core::tr!("removeDuplicates: colunas deve ser uma lista ou omitido").into()),
             };
             let tem_cabecalho = dados[3]["header"].as_bool().unwrap_or(false);
             let plano = (!folha.sheet.is_empty())
@@ -110,19 +109,19 @@ pub(crate) fn preparar(
         "textToColumns" => {
             // Uma coluna só, como o Excel ("só pode converter uma coluna por vez").
             if area.c0 != area.c1 {
-                return Err("textToColumns: selecione uma coluna só".into());
+                return Err(feathersheet_core::tr!("textToColumns: selecione uma coluna só").into());
             }
             let o = &dados[2];
             let mut delimitadores: Vec<String> = match &o["delimiters"] {
                 Json::Null => vec![],
                 Json::String(s) => vec![s.clone()],
                 Json::Array(v) => v.iter().filter_map(|d| d.as_str().map(str::to_owned)).collect(),
-                _ => return Err("textToColumns: delimiters deve ser texto ou lista de textos".into()),
+                _ => return Err(feathersheet_core::tr!("textToColumns: delimiters deve ser texto ou lista de textos").into()),
             };
             delimitadores.retain(|d| !d.is_empty());
             delimitadores.truncate(16);
             if delimitadores.is_empty() {
-                return Err("textToColumns: informe ao menos um delimitador".into());
+                return Err(feathersheet_core::tr!("textToColumns: informe ao menos um delimitador").into());
             }
             let qualificador = match &o["qualifier"] {
                 Json::Null => Some('"'),
@@ -140,9 +139,9 @@ pub(crate) fn preparar(
                 None => (0i64, area.c0),
                 Some(d) => {
                     let alvo = parse_range_ref(d.trim().trim_start_matches('=').replace('$', "").as_str())
-                        .ok_or_else(|| format!("textToColumns: destino inválido: {d}"))?;
+                        .ok_or_else(|| feathersheet_core::trf!("textToColumns: destino inválido: {d}"))?;
                     if alvo.sheet.is_some() {
-                        return Err("textToColumns: o destino fica na mesma aba".into());
+                        return Err(feathersheet_core::tr!("textToColumns: o destino fica na mesma aba").into());
                     }
                     (i64::from(alvo.r0) - i64::from(area.r0), alvo.c0)
                 }
@@ -154,9 +153,9 @@ pub(crate) fn preparar(
             let mut destino = Vec::with_capacity(linhas.len());
             for (r, partes) in linhas {
                 let r = u32::try_from(i64::from(r) + dr).ok().filter(|&r| r < MAX_ROWS)
-                    .ok_or("textToColumns: o destino passa do limite de linhas")?;
+                    .ok_or_else(|| feathersheet_core::tr!("textToColumns: o destino passa do limite de linhas"))?;
                 if u64::from(c0) + partes.len() as u64 > u64::from(MAX_COLS) {
-                    return Err("textToColumns: o destino passa do limite de colunas".into());
+                    return Err(feathersheet_core::tr!("textToColumns: o destino passa do limite de colunas").into());
                 }
                 destino.push((r, partes));
             }
@@ -166,7 +165,7 @@ pub(crate) fn preparar(
                 mudanca: (quantidade > 0).then_some(Mudanca::Dividir { c0, linhas: destino }),
             })
         }
-        _ => Err(format!("Operação de dados desconhecida: {op}")),
+        _ => Err(feathersheet_core::trf!("Operação de dados desconhecida: {op}")),
     }
 }
 

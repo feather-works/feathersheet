@@ -45,7 +45,7 @@ pub fn fn_mmult(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     {
         // A frase é a do `fn-lookup-matrix.ts`: é por ela que o "Por que deu
         // erro?" sabe dizer que são as dimensões (`formula/explicar.rs`).
-        return Computed::Scalar(Value::Error(CellError::com_motivo(ErrorCode::Value, "As dimensões não se encaixam")));
+        return Computed::Scalar(Value::Error(CellError::com_motivo(ErrorCode::Value, crate::tr!("As dimensões não se encaixam"))));
     }
     // O mesmo teto do TypeScript para o resultado.
     if r1 * c2 > 200_000 {

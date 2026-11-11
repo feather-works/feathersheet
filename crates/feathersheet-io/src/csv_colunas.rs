@@ -490,15 +490,15 @@ pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, aba: &mut Sheet) 
             t_gravar += t0.elapsed();
         }
         aba.terminar_carga();
-        let (excedeu, t_dividir) = divisor.join().map_err(|_| "CSV: falha ao dividir o texto".to_string())?
-            .map_err(|e| format!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
-        let t_montar = montador.join().map_err(|_| "CSV: falha ao classificar as colunas".to_string())?
-            .map_err(|e| format!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
+        let (excedeu, t_dividir) = divisor.join().map_err(|_| feathersheet_core::tr!("CSV: falha ao dividir o texto"))?
+            .map_err(|e| feathersheet_core::trf!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
+        let t_montar = montador.join().map_err(|_| feathersheet_core::tr!("CSV: falha ao classificar as colunas"))?
+            .map_err(|e| feathersheet_core::trf!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
         feathersheet_core::anotar!(
             "[abrir] CSV por colunas: dividir {:.1} s · classificar {:.1} s ({nucleos} núcleos) · gravar {:.1} s (correm juntos)",
             t_dividir.as_secs_f64(), t_montar.as_secs_f64(), t_gravar.as_secs_f64());
         if excedeu {
-            return Err("CSV/TSV excede os limites de linhas ou colunas da planilha".into());
+            return Err(feathersheet_core::tr!("CSV/TSV excede os limites de linhas ou colunas da planilha").into());
         }
         Ok(celulas)
     })

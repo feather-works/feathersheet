@@ -13,30 +13,29 @@ pub(super) fn verificar(
     // interativo não deve salvar silenciosamente JOIN/APPEND incompleto.
     match passo {
         Passo::Juntar { fonte, esquerda, direita, modo, semelhanca } => {
-            let outra = fontes.get(fonte).ok_or_else(|| format!(
-                "A fonte '{fonte}' não está carregada. Selecione a tabela secundária."
+            let outra = fontes.get(fonte).ok_or_else(|| crate::trf!("A fonte '{fonte}' não está carregada. Selecione a tabela secundária."
             ))?;
             let (esq, dir) = (esquerda.to_vec(), direita.to_vec());
             if esq.is_empty() || esq.len() != dir.len() {
-                return Err("A junção precisa da mesma quantidade de colunas-chave".into());
+                return Err(crate::tr!("A junção precisa da mesma quantidade de colunas-chave").into());
             }
             if esq.iter().any(|i| *i >= tabela.cabecalho.len()) ||
                 dir.iter().any(|i| *i >= outra.cabecalho.len()) {
-                return Err("Uma das colunas-chave da junção não existe mais".into());
+                return Err(crate::tr!("Uma das colunas-chave da junção não existe mais").into());
             }
             if let Some(modo) = modo {
                 if !["esquerda","interna","direita","total","anti_esquerda","anti_direita"]
                     .contains(&modo.as_str()) {
-                    return Err(format!("Modo de junção '{modo}' desconhecido"));
+                    return Err(crate::trf!("Modo de junção '{modo}' desconhecido"));
                 }
             }
             if let Some(s) = semelhanca {
                 if !(0.0..=1.0).contains(s) {
-                    return Err("A semelhança da mesclagem aproximada vai de 0 a 1 (ex.: 0,8)".into());
+                    return Err(crate::tr!("A semelhança da mesclagem aproximada vai de 0 a 1 (ex.: 0,8)").into());
                 }
                 let distintas = outra.linhas.iter().map(|l| chave_das(l, &dir)).collect::<HashSet<_>>().len() as u64;
                 if (tabela.linhas.len() as u64).saturating_mul(distintas) > super::extras::MAX_COMPARACOES_APROXIMADAS {
-                    return Err("Mesclagem aproximada grande demais (linhas × chaves): filtre antes ou use a chave igual".into());
+                    return Err(crate::tr!("Mesclagem aproximada grande demais (linhas × chaves): filtre antes ou use a chave igual").into());
                 }
             }
         }
@@ -45,7 +44,7 @@ pub(super) fn verificar(
         }
         Passo::Acrescentar { fonte } => {
             if !fontes.contains_key(fonte) {
-                return Err(format!("A fonte '{fonte}' não está carregada para Acrescentar"));
+                return Err(crate::trf!("A fonte '{fonte}' não está carregada para Acrescentar"));
             }
         }
         _ => {}

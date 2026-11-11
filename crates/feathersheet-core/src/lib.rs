@@ -45,6 +45,7 @@
 //! (o `HashMap<u64, f64>`), então essa decisão também afeta os dois.
 
 pub mod celulas;
+pub mod idioma;
 pub mod formula;
 pub mod funcoes;
 pub mod planilha;

@@ -311,7 +311,7 @@ fn gunzip(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let mut saida = Vec::new();
     GzDecoder::new(bytes).take(limite + 1).read_to_end(&mut saida).map_err(|e| e.to_string())?;
     if saida.len() as u64 > limite {
-        return Err(format!("O arquivo descompacta para mais de {} MB, {}× o tamanho dele: não parece um .fshz de verdade.",
+        return Err(feathersheet_core::trf!("O arquivo descompacta para mais de {} MB, {}× o tamanho dele: não parece um .fshz de verdade.",
             limite >> 20, limite / (bytes.len().max(1) as u64)));
     }
     Ok(saida)
@@ -319,8 +319,8 @@ fn gunzip(bytes: &[u8]) -> Result<Vec<u8>, String> {
 
 fn tabela_de(arrow_bytes: &[u8]) -> Result<Vec<RecordBatch>, String> {
     let leitor = FileReader::try_new(Cursor::new(arrow_bytes), None)
-        .map_err(|e| format!("Não consegui abrir a tabela Arrow: {e}"))?;
-    leitor.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Não consegui ler a tabela Arrow: {e}"))
+        .map_err(|e| feathersheet_core::trf!("Não consegui abrir a tabela Arrow: {e}"))?;
+    leitor.collect::<Result<Vec<_>, _>>().map_err(|e| feathersheet_core::trf!("Não consegui ler a tabela Arrow: {e}"))
 }
 
 /// As colunas Arrow da aba, já em vetores (ver [`crate::arrow_fluxo`]).
@@ -345,7 +345,7 @@ fn colunas_da_fatia(aba: &AbaMetaLida, arrow_bytes: &[u8]) -> Result<ColunasArro
     let (Some((off, len)), Some(linhas)) = (aba.ar, aba.len) else { return Ok(Default::default()) };
     let fatia = arrow_bytes
         .get(off..off.checked_add(len).ok_or("Fatia Arrow excede o intervalo")?)
-        .ok_or_else(|| format!("Fatia Arrow fora dos limites na aba \"{}\"", aba.n))?;
+        .ok_or_else(|| feathersheet_core::trf!("Fatia Arrow fora dos limites na aba \"{}\"", aba.n))?;
     crate::arrow_fluxo::ler_colunas(fatia, len, linhas)
 }
 
@@ -438,7 +438,7 @@ fn montar_aba_lida_com_pool(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>
                         });
                     }
                 }
-                outro => return Err(format!("Tipo de coluna desconhecido \"{outro}\" na aba \"{}\"", aba.n)),
+                outro => return Err(feathersheet_core::trf!("Tipo de coluna desconhecido \"{outro}\" na aba \"{}\"", aba.n)),
             }
         }
     }
@@ -514,7 +514,7 @@ fn ler_fshz2(resto: &[u8]) -> Result<PastaLida, String> {
         return Err("Arquivo FSH2 truncado".to_string());
     }
     let livro: LivroMetaLida =
-        serde_json::from_slice(&corpo[4..4 + meta_len]).map_err(|e| format!("JSON do FSH2 inválido: {e}"))?;
+        serde_json::from_slice(&corpo[4..4 + meta_len]).map_err(|e| feathersheet_core::trf!("JSON do FSH2 inválido: {e}"))?;
     montar_pasta_lida(livro, &corpo[4 + meta_len..])
 }
 
@@ -545,15 +545,15 @@ fn ler_fluxo<R: Read>(origem: R, versao: u32) -> Result<PastaLida, String> {
 fn ler_fluxo_com<R: Read>(origem: R, versao: u32, compacto: bool) -> Result<PastaLida, String> {
     let mut leitor = BufReader::new(GzDecoder::new(origem));
     let mut tamanho = [0; 4];
-    leitor.read_exact(&mut tamanho).map_err(|e| format!("Cabeçalho FSH3 inválido: {e}"))?;
+    leitor.read_exact(&mut tamanho).map_err(|e| feathersheet_core::trf!("Cabeçalho FSH3 inválido: {e}"))?;
     let mut metadados = leitor.by_ref().take(u32::from_le_bytes(tamanho) as u64);
     let livro: LivroMetaLida = if versao == 3 {
-        rmp_serde::from_read(&mut metadados).map_err(|e| format!("Metadados binários FSH3 inválidos: {e}"))?
+        rmp_serde::from_read(&mut metadados).map_err(|e| feathersheet_core::trf!("Metadados binários FSH3 inválidos: {e}"))?
     } else {
-        serde_json::from_reader(&mut metadados).map_err(|e| format!("Metadados FSH2 inválidos: {e}"))?
+        serde_json::from_reader(&mut metadados).map_err(|e| feathersheet_core::trf!("Metadados FSH2 inválidos: {e}"))?
     };
     if metadados.limit() != 0 || livro.v != versao {
-        return Err("Tamanho ou versão dos metadados FSH3 inválido".into());
+        return Err(feathersheet_core::tr!("Tamanho ou versão dos metadados FSH3 inválido").into());
     }
     // O teto de células vale para o arquivo inteiro, não por aba: 20 abas de 1 bilhão
     // pediam ~160 GB (auditoria de 04/11/2026).
@@ -561,7 +561,7 @@ fn ler_fluxo_com<R: Read>(origem: R, versao: u32, compacto: bool) -> Result<Past
         .map(|a| a.cols.as_ref().map_or(0, |c| c.len() as u64).saturating_mul(a.len.unwrap_or(0) as u64))
         .fold(0u64, u64::saturating_add);
     if declaradas > crate::arrow_fluxo::MAX_CELULAS_DECLARADAS {
-        return Err(format!("O arquivo declara células demais ({declaradas} no total)."));
+        return Err(feathersheet_core::trf!("O arquivo declara células demais ({declaradas} no total)."));
     }
     let mut deslocamento = 0usize;
     let tabela = std::sync::Arc::new(livro.t);
@@ -570,19 +570,19 @@ fn ler_fluxo_com<R: Read>(origem: R, versao: u32, compacto: bool) -> Result<Past
         let mut colunas = ColunasArrow::default();
         let mut pool = None;
         if let Some((off, len)) = aba.ar {
-            if off != deslocamento { return Err("Blocos Arrow FSH3 fora de ordem".into()); }
+            if off != deslocamento { return Err(feathersheet_core::tr!("Blocos Arrow FSH3 fora de ordem").into()); }
             let planos = if compacto { planos_da_aba(&aba, pool.insert(Default::default())) } else { Default::default() };
             // Direto do gzip para as colunas, sem o bloco inteiro na memória.
             colunas = crate::arrow_fluxo::ler_colunas_com_plano(&mut leitor, len, aba.len.unwrap_or(0), planos)
-                .map_err(|e| format!("Bloco Arrow FSH3 inválido: {e}"))?;
+                .map_err(|e| feathersheet_core::trf!("Bloco Arrow FSH3 inválido: {e}"))?;
             deslocamento = deslocamento.checked_add(len).ok_or("Blocos Arrow grandes demais")?;
         }
         sheets.push(montar_aba_lida_com_pool(aba, &tabela, colunas, pool)?);
     }
     // Verifica o checksum gzip inclusive quando não há colunas Arrow.
     let mut extra = [0];
-    if leitor.read(&mut extra).map_err(|e| format!("Compressão FSH3 inválida: {e}"))? != 0 {
-        return Err("Dados extras no fim do FSH3".into());
+    if leitor.read(&mut extra).map_err(|e| feathersheet_core::trf!("Compressão FSH3 inválida: {e}"))? != 0 {
+        return Err(feathersheet_core::tr!("Dados extras no fim do FSH3").into());
     }
     Ok(PastaLida { v: versao, a: livro.a, names: livro.names, es: livro.es, pr: livro.pr, mc: livro.mc, ex: livro.ex, fm: livro.fm, vb: livro.vb, sheets })
 }
@@ -609,13 +609,13 @@ fn planos_da_aba(aba: &AbaMetaLida, pool: &mut feathersheet_core::celulas::pool:
 pub fn converter_fshz2<R: Read, W: std::io::Write>(mut origem: R, mut destino: W) -> Result<(), String> {
     let mut magic = [0; 4];
     origem.read_exact(&mut magic).map_err(|e| e.to_string())?;
-    if &magic != b"FSH2" { return Err("A conversão requer um arquivo FSH2".into()); }
+    if &magic != b"FSH2" { return Err(feathersheet_core::tr!("A conversão requer um arquivo FSH2").into()); }
     let mut leitor = BufReader::new(GzDecoder::new(origem));
     let mut tamanho = [0; 4];
     leitor.read_exact(&mut tamanho).map_err(|e| e.to_string())?;
     let mut metadados = leitor.by_ref().take(u32::from_le_bytes(tamanho) as u64);
     let mut livro: LivroMetaLida = serde_json::from_reader(&mut metadados).map_err(|e| e.to_string())?;
-    if metadados.limit() != 0 || livro.v != 2 { return Err("Metadados FSH2 inválidos".into()); }
+    if metadados.limit() != 0 || livro.v != 2 { return Err(feathersheet_core::tr!("Metadados FSH2 inválidos").into()); }
     livro.v = 3;
     for aba in &mut livro.s { aba.c.sort_by_key(|c| c.k); }
     let mut blocos = Vec::new();
@@ -623,18 +623,18 @@ pub fn converter_fshz2<R: Read, W: std::io::Write>(mut origem: R, mut destino: W
     let mut saida_off = 0usize;
     for aba in &mut livro.s {
         let Some((off, len)) = aba.ar else { continue };
-        if off != entrada_off { return Err("Blocos FSH2 fora de ordem".into()); }
+        if off != entrada_off { return Err(feathersheet_core::tr!("Blocos FSH2 fora de ordem").into()); }
         let bloco = ler_bloco(&mut leitor, len).map_err(|e| e.to_string())?;
         if bloco.len() != len { return Err("Bloco Arrow FSH2 truncado".into()); }
-        entrada_off = entrada_off.checked_add(len).ok_or("Região Arrow grande demais")?;
+        entrada_off = entrada_off.checked_add(len).ok_or_else(|| feathersheet_core::tr!("Região Arrow grande demais"))?;
         let batches = tabela_de(&bloco)?;
-        let primeiro = batches.first().ok_or("Bloco Arrow sem registros")?;
+        let primeiro = batches.first().ok_or_else(|| feathersheet_core::tr!("Bloco Arrow sem registros"))?;
         let batch = arrow::compute::concat_batches(&primeiro.schema(), &batches).map_err(|e| e.to_string())?;
         let mut arrays = batch.columns().to_vec();
         for col in aba.cols.iter_mut().flatten() {
             if col.k != "txt" { continue; }
             let at = batch.schema().index_of(&col.f).map_err(|e| e.to_string())?;
-            let arr = arrays[at].as_any().downcast_ref::<Int32Array>().ok_or("Índices de texto não são Int32")?;
+            let arr = arrays[at].as_any().downcast_ref::<Int32Array>().ok_or_else(|| feathersheet_core::tr!("Índices de texto não são Int32"))?;
             let mut indices: Vec<i32> = arr.iter().map(|v| v.unwrap_or(0)).collect();
             let mut bitmap = vec![0u8; arr.len().div_ceil(8)];
             for i in 0..arr.len() { if arr.is_valid(i) { bitmap[i >> 3] |= 1 << (i & 7); } }
@@ -651,7 +651,7 @@ pub fn converter_fshz2<R: Read, W: std::io::Write>(mut origem: R, mut destino: W
         writer.finish().map_err(|e| e.to_string())?;
         drop(writer);
         aba.ar = Some((saida_off, bytes.len()));
-        saida_off = saida_off.checked_add(bytes.len()).ok_or("Região Arrow grande demais")?;
+        saida_off = saida_off.checked_add(bytes.len()).ok_or_else(|| feathersheet_core::tr!("Região Arrow grande demais"))?;
         blocos.push(bytes);
     }
     let mut extra = [0];
@@ -700,7 +700,7 @@ pub fn ler_fshz(bytes: &[u8]) -> Result<PastaLida, String> {
             return ler_fshz2(&bytes[4..]);
         }
     }
-    Err("Arquivo do FeatherSheet (.fshz) inválido".to_string())
+    Err(feathersheet_core::tr!("Arquivo do FeatherSheet (.fshz) inválido"))
 }
 
 #[cfg(test)]

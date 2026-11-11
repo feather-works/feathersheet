@@ -37,7 +37,7 @@ fn pela_parte(nome: &str) -> Option<&'static str> {
 }
 
 pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
-    let mut z = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes))).map_err(|e| format!("Não parece um arquivo ZIP: {e}"))?;
+    let mut z = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes))).map_err(|e| feathersheet_core::trf!("Não parece um arquivo ZIP: {e}"))?;
     let mut saida: Vec<NaoConvertido> = Vec::new();
     let mut somar = |aba: Option<&str>, o_que: &'static str, n: usize| {
         if n == 0 { return; }

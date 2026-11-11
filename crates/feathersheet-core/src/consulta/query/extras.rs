@@ -133,11 +133,11 @@ pub fn traduzir_formula(formula: &str, cabecalho: &[String]) -> Result<String, S
     while let Some((i, ch)) = resto.next() {
         if ch == '"' { aspas = !aspas; saida.push(ch); continue; }
         if ch == '[' && !aspas {
-            let fim = f[i + 1..].find(']').ok_or_else(|| format!("Falta o ] depois de \"{}\"", &f[i..]))?;
+            let fim = f[i + 1..].find(']').ok_or_else(|| crate::trf!("Falta o ] depois de \"{}\"", &f[i..]))?;
             let nome = &f[i + 1..i + 1 + fim];
             let alvo = nome.trim().to_lowercase();
             let c = cabecalho.iter().position(|h| h.to_lowercase() == alvo)
-                .ok_or_else(|| format!("A coluna [{nome}] não existe neste ponto da consulta"))?;
+                .ok_or_else(|| crate::trf!("A coluna [{nome}] não existe neste ponto da consulta"))?;
             saida.push_str(&format!("{}1", col_name(c as u32)));
             while resto.peek().is_some_and(|(j, _)| *j <= i + 1 + fim) { resto.next(); }
             continue;

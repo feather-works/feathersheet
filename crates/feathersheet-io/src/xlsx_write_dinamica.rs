@@ -748,7 +748,7 @@ pub(crate) fn da_aba(pasta: &Workbook, indice: usize, contador: &mut usize) -> V
         *contador += 1;
         let n = *contador;
         // O nome da dinâmica é único na aba.
-        let base = p.nome.clone().unwrap_or_else(|| format!("Tabela dinâmica{n}"));
+        let base = p.nome.clone().unwrap_or_else(|| feathersheet_core::trf!("Tabela dinâmica{n}"));
         let mut nome = base.clone();
         let mut k = 2;
         while !nomes_na_aba.insert(nome.to_lowercase()) {

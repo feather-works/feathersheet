@@ -23,25 +23,25 @@ pub(crate) struct Opcoes {
 fn sim(o: &Json, chave: &str) -> Result<bool, String> {
     let v=&o[chave];
     if v.is_null() { Ok(false) }
-    else { v.as_bool().ok_or_else(||format!("Opção {chave} deve ser verdadeiro/falso")) }
+    else { v.as_bool().ok_or_else(||feathersheet_core::trf!("Opção {chave} deve ser verdadeiro/falso")) }
 }
 pub(crate) fn preparar(area: &Rect, op: &str, opts: &Json) -> Result<Opcoes, String> {
     if area.area() > TETO {
-        return Err("Bordas não aceitam mais de 20.000 células por chamada".into());
+        return Err(feathersheet_core::tr!("Bordas não aceitam mais de 20.000 células por chamada").into());
     }
     if !opts.is_object() && !opts.is_null() {
-        return Err("As opções de borda devem ser um objeto".into());
+        return Err(feathersheet_core::tr!("As opções de borda devem ser um objeto").into());
     }
     if let Some(style)=opts["style"].as_str() {
-        if style!="solid" { return Err("Estilo de borda suportado: solid".into()); }
+        if style!="solid" { return Err(feathersheet_core::tr!("Estilo de borda suportado: solid").into()); }
     } else if !opts["style"].is_null() {
-        return Err("Estilo de borda deve ser texto".into());
+        return Err(feathersheet_core::tr!("Estilo de borda deve ser texto").into());
     }
     if !opts["width"].is_null() && opts["width"].as_f64()!=Some(1.0) {
-        return Err("Espessura de borda suportada: 1".into());
+        return Err(feathersheet_core::tr!("Espessura de borda suportada: 1").into());
     }
     if sim(opts,"diagonalDown")? || sim(opts,"diagonalUp")? {
-        return Err("Bordas diagonais ainda não são suportadas".into());
+        return Err(feathersheet_core::tr!("Bordas diagonais ainda não são suportadas").into());
     }
     let cor = if opts["color"].is_null() {None}
         else {Some(operacoes_formato::cor(&opts["color"])? )};

@@ -116,7 +116,7 @@ impl Workbook {
                 if opcoes.iter().any(|o| o.trim() == t) {
                     ResultadoValidacao { ok: true, motivo: None }
                 } else {
-                    ResultadoValidacao { ok: false, motivo: Some(format!("O valor \"{t}\" não está presente na lista de opções.")) }
+                    ResultadoValidacao { ok: false, motivo: Some(crate::trf!("O valor \"{t}\" não está presente na lista de opções.")) }
                 }
             }
             _ => validar(valor, regra, Some(|r, c| self.valor(indice, r, c))),

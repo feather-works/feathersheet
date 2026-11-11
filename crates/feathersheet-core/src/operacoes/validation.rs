@@ -330,7 +330,7 @@ where
             } else {
                 ResultadoValidacao {
                     ok: false,
-                    motivo: Some(format!("O valor \"{}\" não está presente na lista de opções.", text_val)),
+                    motivo: Some(crate::trf!("O valor \"{}\" não está presente na lista de opções.", text_val)),
                 }
             }
         }
@@ -345,7 +345,7 @@ where
             if origem.area() > 10_000 {
                 return ResultadoValidacao {
                     ok: false,
-                    motivo: Some("O intervalo de origem excede 10.000 células.".into()),
+                    motivo: Some(crate::tr!("O intervalo de origem excede 10.000 células.").into()),
                 };
             }
             // Antes alocava uma Vec de todas as opções. Comparar em streaming
@@ -360,11 +360,11 @@ where
             }
             ResultadoValidacao {
                 ok: false,
-                motivo: Some(format!("O valor \"{}\" não pertence ao intervalo especificado.", text_val)),
+                motivo: Some(crate::trf!("O valor \"{}\" não pertence ao intervalo especificado.", text_val)),
             }
         }
         Regra::Numero { inteiro: true, .. } if to_number(valor).is_ok_and(|n| n.fract() != 0.0) => {
-            ResultadoValidacao { ok: false, motivo: Some("O valor deve ser um número inteiro.".to_string()) }
+            ResultadoValidacao { ok: false, motivo: Some(crate::tr!("O valor deve ser um número inteiro.")) }
         }
         Regra::Numero { op, a, b, .. } => {
             // Em validation.ts, toNumber usa a mesma coerção das fórmulas:
@@ -374,7 +374,7 @@ where
                 _ => {
                     return ResultadoValidacao {
                         ok: false,
-                        motivo: Some("O valor digitado não é um número válido.".to_string()),
+                        motivo: Some(crate::tr!("O valor digitado não é um número válido.")),
                     };
                 }
             };
@@ -388,7 +388,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some(format!("O número {} deve estar entre {} e {}.", num, min_val, max_val)),
+                            motivo: Some(crate::trf!("O número {} deve estar entre {} e {}.", num, min_val, max_val)),
                         }
                     }
                 }
@@ -398,7 +398,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some(format!("O número {} deve ser maior que {}.", num, a)),
+                            motivo: Some(crate::trf!("O número {} deve ser maior que {}.", num, a)),
                         }
                     }
                 }
@@ -408,7 +408,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some(format!("O número {} deve ser menor que {}.", num, a)),
+                            motivo: Some(crate::trf!("O número {} deve ser menor que {}.", num, a)),
                         }
                     }
                 }
@@ -418,7 +418,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some(format!("O número {} deve ser igual a {}.", num, a)),
+                            motivo: Some(crate::trf!("O número {} deve ser igual a {}.", num, a)),
                         }
                     }
                 }
@@ -430,7 +430,7 @@ where
                         NumeroOp::MaiorIgual => (num >= *a, format!("maior ou igual a {a}")),
                         _ => (num <= *a, format!("menor ou igual a {a}")),
                     };
-                    ResultadoValidacao { ok, motivo: (!ok).then(|| format!("O número {num} deve ser {regra}.")) }
+                    ResultadoValidacao { ok, motivo: (!ok).then(|| crate::trf!("O número {num} deve ser {regra}.")) }
                 }
             }
         }
@@ -440,7 +440,7 @@ where
                 None => {
                     return ResultadoValidacao {
                         ok: false,
-                        motivo: Some("O valor digitado não é uma data válida.".to_string()),
+                        motivo: Some(crate::tr!("O valor digitado não é uma data válida.")),
                     };
                 }
             };
@@ -462,7 +462,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some("A data está fora do intervalo permitido.".to_string()),
+                            motivo: Some(crate::tr!("A data está fora do intervalo permitido.")),
                         }
                     }
                 }
@@ -472,7 +472,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some("A data deve ser anterior à limite.".to_string()),
+                            motivo: Some(crate::tr!("A data deve ser anterior à limite.")),
                         }
                     }
                 }
@@ -482,7 +482,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some("A data deve ser posterior à limite.".to_string()),
+                            motivo: Some(crate::tr!("A data deve ser posterior à limite.")),
                         }
                     }
                 }
@@ -507,7 +507,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some(format!("O texto deve começar com \"{}\".", target)),
+                            motivo: Some(crate::trf!("O texto deve começar com \"{}\".", target)),
                         }
                     }
                 }
@@ -518,7 +518,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some("O valor deve ser um e-mail válido.".to_string()),
+                            motivo: Some(crate::tr!("O valor deve ser um e-mail válido.")),
                         }
                     }
                 }
@@ -529,7 +529,7 @@ where
                     } else {
                         ResultadoValidacao {
                             ok: false,
-                            motivo: Some("O valor deve ser um link (URL) válido.".to_string()),
+                            motivo: Some(crate::tr!("O valor deve ser um link (URL) válido.")),
                         }
                     }
                 }
@@ -540,7 +540,7 @@ where
         Regra::Formula { .. } => ResultadoValidacao { ok: true, motivo: None },
         Regra::Hora { op, a, b } => {
             let Some(t) = parse_hora_segundos(valor) else {
-                return ResultadoValidacao { ok: false, motivo: Some("O valor digitado não é uma hora válida.".to_string()) };
+                return ResultadoValidacao { ok: false, motivo: Some(crate::tr!("O valor digitado não é uma hora válida.")) };
             };
             let Some(ta) = parse_hora_segundos(&Value::Text(a.clone())) else {
                 return ResultadoValidacao { ok: true, motivo: None };
@@ -565,7 +565,7 @@ where
             } else {
                 ResultadoValidacao {
                     ok: false,
-                    motivo: Some(format!("O valor deve ser \"{}\" ou \"{}\".", marcado, desmarcado)),
+                    motivo: Some(crate::trf!("O valor deve ser \"{}\" ou \"{}\".", marcado, desmarcado)),
                 }
             }
         }

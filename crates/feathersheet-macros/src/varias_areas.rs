@@ -41,7 +41,7 @@ pub(crate) fn executar(op: &str, dados: &Json, chamar: &dyn Fn(&str, &Json) -> R
     let lista = areas(op, dados)?;
     Some((|| {
         if UMA_SO.contains(&op) {
-            return Err(format!("{op} não vale para um intervalo de várias áreas ({})", dados[1].as_str().unwrap_or("")));
+            return Err(feathersheet_core::trf!("{op} não vale para um intervalo de várias áreas ({})", dados[1].as_str().unwrap_or("")));
         }
         if PRIMEIRA.contains(&op) { return chamar(op, &com(dados, 1, json!(lista[0]))); }
         match op {
@@ -63,7 +63,7 @@ pub(crate) fn executar(op: &str, dados: &Json, chamar: &dyn Fn(&str, &Json) -> R
                     else { json!(todas.iter().filter_map(Json::as_str).collect::<Vec<_>>().join(",")) })
             }
             "copy" => copiar_juntando(&lista, dados, chamar),
-            "set" if dados[2].is_array() => Err("Valor em matriz num intervalo de várias áreas: escreva um valor só".into()),
+            "set" if dados[2].is_array() => Err(feathersheet_core::tr!("Valor em matriz num intervalo de várias áreas: escreva um valor só").into()),
             _ => {
                 let mut ultimo = Json::Null;
                 for a in &lista { ultimo = chamar(op, &com(dados, 1, json!(a)))?; }
@@ -77,7 +77,7 @@ pub(crate) fn executar(op: &str, dados: &Json, chamar: &dyn Fn(&str, &Json) -> R
 /// sem os buracos entre elas. Como no Excel, só se as áreas formam uma grade (as mesmas
 /// colunas em todas as linhas, como as linhas visíveis de um filtro).
 fn copiar_juntando(lista: &[&str], dados: &Json, chamar: &dyn Fn(&str, &Json) -> Result<Json, String>) -> Result<Json, String> {
-    let rects: Vec<Rect> = lista.iter().map(|a| parse_range_ref(a).map(|r| r.normalized()).ok_or_else(|| format!("Endereço inválido: {a}")))
+    let rects: Vec<Rect> = lista.iter().map(|a| parse_range_ref(a).map(|r| r.normalized()).ok_or_else(|| feathersheet_core::trf!("Endereço inválido: {a}")))
         .collect::<Result<_, _>>()?;
     let mut linhas: Vec<u32> = rects.iter().flat_map(|r| r.r0..=r.r1).collect();
     let mut colunas: Vec<u32> = rects.iter().flat_map(|r| r.c0..=r.c1).collect();
@@ -85,11 +85,11 @@ fn copiar_juntando(lista: &[&str], dados: &Json, chamar: &dyn Fn(&str, &Json) ->
     colunas.sort_unstable(); colunas.dedup();
     let celulas: u64 = rects.iter().map(|r| u64::from(r.r1 - r.r0 + 1) * u64::from(r.c1 - r.c0 + 1)).sum();
     if celulas != linhas.len() as u64 * colunas.len() as u64 {
-        return Err("Copiar várias áreas só vale quando elas formam uma grade (as mesmas linhas ou as mesmas colunas)".into());
+        return Err(feathersheet_core::tr!("Copiar várias áreas só vale quando elas formam uma grade (as mesmas linhas ou as mesmas colunas)").into());
     }
-    let destino = dados[2].as_str().ok_or("Destino da cópia precisa ser endereço A1")?;
+    let destino = dados[2].as_str().ok_or_else(|| feathersheet_core::tr!("Destino da cópia precisa ser endereço A1"))?;
     let (prefixo, end) = match destino.rsplit_once('!') { Some((a, b)) => (format!("{a}!"), b), None => (String::new(), destino) };
-    let alvo = parse_range_ref(end).ok_or_else(|| format!("Destino inválido: {destino}"))?.normalized();
+    let alvo = parse_range_ref(end).ok_or_else(|| feathersheet_core::trf!("Destino inválido: {destino}"))?.normalized();
     let posicao = |v: &[u32], x: u32| v.binary_search(&x).unwrap_or(0) as u32;
     for (r, a) in rects.iter().zip(lista) {
         let canto = cell_name(alvo.r0 + posicao(&linhas, r.r0), alvo.c0 + posicao(&colunas, r.c0));

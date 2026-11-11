@@ -42,7 +42,7 @@ impl Plano {
 pub(crate) fn preparar(sheet:&Sheet,area:&Rect,mesclar:bool)->Result<Plano,String>{
     let area=area.normalized();
     if mesclar && area.r0==area.r1 && area.c0==area.c1 {
-        return Err("merge: escolha mais de uma célula".into());
+        return Err(feathersheet_core::tr!("merge: escolha mais de uma célula").into());
     }
     let mut lista=ler(sheet);
     let n=lista.len();
@@ -55,7 +55,7 @@ pub(crate) fn preparar(sheet:&Sheet,area:&Rect,mesclar:bool)->Result<Plano,Strin
     }
     let novo=if lista.is_empty() { None }
         else { Some(serde_json::to_string(&lista)
-            .map_err(|e|format!("Falha ao serializar mesclagens: {e}"))?) };
+            .map_err(|e|feathersheet_core::trf!("Falha ao serializar mesclagens: {e}"))?) };
     let mut limpar=Vec::new();
     if mesclar {
         for chave in sheet.chaves_no_retangulo(&area) {

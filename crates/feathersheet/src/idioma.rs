@@ -68,6 +68,10 @@ pub fn definir(idioma: &str) {
     // A célula mostra o lógico com o nome de TRUE/FALSE no dicionário de funções da língua.
     let (verdadeiro, falso) = logicos_de(Lingua::de_codigo(idioma));
     feathersheet_core::celulas::locale::definir_logicos(verdadeiro, falso);
+    // Os textos prontos do motor (erros, rótulos) usam o mesmo dicionário da interface.
+    feathersheet_core::idioma::definir_tradutor(
+        |pt| if lingua() == Lingua::Pt { None } else { dicionario().get(pt).cloned() },
+        traduzir_formatado);
     // F12 e barra de baixo do feather-ui usam o mesmo dicionário.
     feather_ui::idioma::definir_tradutor(|pt| {
         if lingua() == Lingua::Pt { return None; }
@@ -495,6 +499,62 @@ mod tests {
             }
         }
         assert!(faltam.is_empty(), "faltam traduções: {faltam:#?}");
+    }
+
+    /// Todo texto pronto do motor (`tr!`/`trf!` nos crates core, io, macros e vba) tem de estar
+    /// nos três dicionários: senão a mensagem sai em português nas outras línguas, calada.
+    #[test]
+    fn todo_texto_pronto_do_motor_esta_nos_dicionarios() {
+        fn arquivos(pasta: &std::path::Path, saida: &mut Vec<std::path::PathBuf>) {
+            for item in std::fs::read_dir(pasta).into_iter().flatten().flatten() {
+                let p = item.path();
+                if p.is_dir() { arquivos(&p, saida) } else if p.extension().is_some_and(|e| e == "rs") { saida.push(p) }
+            }
+        }
+        /// O texto de um literal do Rust que começa em `s` (depois da aspa de abertura).
+        fn literal(s: &str) -> Option<String> {
+            let mut saida = String::new();
+            let mut letras = s.chars().peekable();
+            while let Some(c) = letras.next() {
+                match c {
+                    '"' => return Some(saida),
+                    '\\' => match letras.next()? {
+                        'n' => saida.push('\n'), 't' => saida.push('\t'), 'r' => saida.push('\r'),
+                        'u' => {
+                            let hex: String = letras.by_ref().skip(1).take_while(|c| *c != '}').collect();
+                            saida.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+                        }
+                        '\n' => while letras.peek().is_some_and(|c| c.is_whitespace()) { letras.next(); },
+                        outro => saida.push(outro),
+                    },
+                    c => saida.push(c),
+                }
+            }
+            None
+        }
+        let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let mut fontes = Vec::new();
+        for crate_ in ["feathersheet-core", "feathersheet-io", "feathersheet-macros", "feathersheet-vba"] {
+            arquivos(&raiz.join(crate_).join("src"), &mut fontes);
+        }
+        assert!(fontes.len() > 100, "não achei as fontes do motor em {}", raiz.display());
+        let mut chaves = std::collections::BTreeSet::new();
+        for arquivo in fontes {
+            // O próprio módulo de tradução do motor só tem exemplos na documentação e no teste.
+            if arquivo.ends_with("feathersheet-core/src/idioma.rs") { continue; }
+            let texto = std::fs::read_to_string(&arquivo).unwrap();
+            for marca in ["tr!(\"", "trf!(\""] {
+                for (i, _) in texto.match_indices(marca) {
+                    if let Some(chave) = literal(&texto[i + marca.len()..]) { chaves.insert(chave); }
+                }
+            }
+        }
+        assert!(chaves.len() > 500, "só {} textos prontos achados no motor", chaves.len());
+        let faltam: Vec<String> = [Lingua::En, Lingua::Es, Lingua::Fr].into_iter().flat_map(|l| {
+            let d = dicionario_de(l);
+            chaves.iter().filter(move |k| !d.contains_key(*k)).map(move |k| format!("{}: {k:?}", l.codigo()))
+        }).collect();
+        assert!(faltam.is_empty(), "{} textos do motor sem tradução:\n{}", faltam.len(), faltam.join("\n"));
     }
 
     /// O valor lógico da célula sai do dicionário de funções: toda língua precisa de TRUE e FALSE.

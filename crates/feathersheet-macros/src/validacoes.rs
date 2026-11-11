@@ -10,12 +10,12 @@ use serde_json::Value as Json;
 
 fn texto<'a>(r: &'a Json, chave: &str) -> Result<&'a str,String> {
     r.get(chave).and_then(Json::as_str)
-        .ok_or_else(||format!("Validação: campo {chave} precisa ser texto"))
+        .ok_or_else(||feathersheet_core::trf!("Validação: campo {chave} precisa ser texto"))
 }
 fn numero(r:&Json,chave:&str) -> Result<f64,String> {
     r.get(chave).and_then(Json::as_f64)
         .filter(|n|n.is_finite())
-        .ok_or_else(||format!("Validação: {chave} precisa ser número finito"))
+        .ok_or_else(||feathersheet_core::trf!("Validação: {chave} precisa ser número finito"))
 }
 fn string_js(v:&Json)->String {
     match v {
@@ -32,7 +32,7 @@ fn string_js(v:&Json)->String {
 }
 fn campo_texto_js(r:&Json,chave:&str) -> Result<String,String> {
     r.get(chave).map(string_js)
-        .ok_or_else(||format!("Validação: campo {chave} obrigatório"))
+        .ok_or_else(||feathersheet_core::trf!("Validação: campo {chave} obrigatório"))
 }
 
 /// Executada antes de abrir a transação; nenhuma entrada malformada
@@ -46,12 +46,12 @@ fn regra(r:&Json) -> Result<Regra,String> {
                 // viram lista por fórmula, resolvida pelo motor (como no .xlsx).
                 let corpo=origem.trim().trim_start_matches('=').trim();
                 if corpo.is_empty() {
-                    return Err("Origem da validação vazia".into());
+                    return Err(feathersheet_core::tr!("Origem da validação vazia").into());
                 }
                 match parse_range_ref(corpo).map(|r|r.normalized()) {
                     Some(intervalo) if intervalo.sheet.is_none() => {
                         if intervalo.area() > 10_000 {
-                            return Err("Origem da lista limitada a 10.000 células".into());
+                            return Err(feathersheet_core::tr!("Origem da lista limitada a 10.000 células").into());
                         }
                         Ok(Regra::Intervalo{origem:intervalo})
                     }
@@ -60,7 +60,7 @@ fn regra(r:&Json) -> Result<Regra,String> {
             } else {
                 let itens=r.get("values").and_then(Json::as_array)
                     .filter(|v|!v.is_empty() && v.len()<=10_000)
-                    .ok_or("Validação de lista: informe values com 1 a 10.000 itens")?;
+                    .ok_or_else(|| feathersheet_core::tr!("Validação de lista: informe values com 1 a 10.000 itens"))?;
                 Ok(Regra::Lista{valores:itens.iter().map(string_js).collect()})
             }
         }
@@ -75,7 +75,7 @@ fn regra(r:&Json) -> Result<Regra,String> {
                 "notEqual" => (NumeroOp::Diferente, numero(r,"value")?,None),
                 "greaterThanOrEqual" => (NumeroOp::MaiorIgual, numero(r,"value")?,None),
                 "lessThanOrEqual" => (NumeroOp::MenorIgual, numero(r,"value")?,None),
-                _ => return Err(format!("Operador numérico inválido: {op}")),
+                _ => return Err(feathersheet_core::trf!("Operador numérico inválido: {op}")),
             };
             let inteiro=r.get("integer").and_then(Json::as_bool).unwrap_or(false);
             Ok(Regra::Numero{op,a,b,inteiro})
@@ -87,7 +87,7 @@ fn regra(r:&Json) -> Result<Regra,String> {
                     Some(campo_texto_js(r,"max")?)),
                 "before" => (DataOp::Antes,campo_texto_js(r,"value")?,None),
                 "after" => (DataOp::Depois,campo_texto_js(r,"value")?,None),
-                _ => return Err(format!("Operador de data inválido: {op}")),
+                _ => return Err(feathersheet_core::trf!("Operador de data inválido: {op}")),
             };
             Ok(Regra::Data{op,a,b})
         }
@@ -98,7 +98,7 @@ fn regra(r:&Json) -> Result<Regra,String> {
                 "startsWith"=>TextoOp::Comeca,
                 "email"=>TextoOp::Email,
                 "url"=>TextoOp::Url,
-                _=>return Err(format!("Operador de texto inválido: {op}")),
+                _=>return Err(feathersheet_core::trf!("Operador de texto inválido: {op}")),
             };
             let valor=r.get("value").map(string_js);
             Ok(Regra::Texto{op,valor})
@@ -107,7 +107,7 @@ fn regra(r:&Json) -> Result<Regra,String> {
             marcado:r.get("checked").map(string_js).unwrap_or_else(||"Sim".into()),
             desmarcado:r.get("unchecked").map(string_js).unwrap_or_else(||"Não".into()),
         }),
-        _ => Err(format!("Validação desconhecida: {t}")),
+        _ => Err(feathersheet_core::trf!("Validação desconhecida: {t}")),
     }
 }
 fn intersecta(a:&Rect,b:&Rect)->bool {
@@ -122,12 +122,12 @@ pub(crate) fn preparar(
     let mut existentes:Vec<Validacao> = match sheet.va.as_deref() {
         None => Vec::new(),
         Some(s) => serde_json::from_str(s)
-            .map_err(|e|format!("Metadados de validação inválidos: {e}"))?,
+            .map_err(|e|feathersheet_core::trf!("Metadados de validação inválidos: {e}"))?,
     };
     existentes.retain(|v|!v.ranges.iter().any(|r|intersecta(r,area)));
     if op=="setDataValidation" {
         if !opcoes.is_object() {
-            return Err("setDataValidation exige um objeto de regra".into());
+            return Err(feathersheet_core::tr!("setDataValidation exige um objeto de regra").into());
         }
         let regra=regra(opcoes)?;
         if opcoes.get("errorMessage").is_some_and(|v|!v.is_string()) {
@@ -153,7 +153,7 @@ pub(crate) fn preparar(
     }
     if existentes.is_empty() {Ok(None)}
     else {serde_json::to_string(&existentes).map(Some)
-        .map_err(|e|format!("Erro ao serializar validação: {e}"))}
+        .map_err(|e|feathersheet_core::trf!("Erro ao serializar validação: {e}"))}
 }
 
 #[cfg(test)]

@@ -42,7 +42,7 @@ pub fn arity(args: &[Node], min: usize, max: usize) -> Option<CellError> {
     if args.len() < min || args.len() > max {
         return Some(CellError::com_motivo(
             ErrorCode::Value,
-            format!("Número de argumentos inválido ({})", args.len()),
+            crate::trf!("Número de argumentos inválido ({})", args.len()),
         ));
     }
     None

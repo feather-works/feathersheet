@@ -977,6 +977,7 @@ name = "feathersheet-vba"
 version = "0.0.2"
 dependencies = [
  "cfb",
+ "feathersheet-core",
  "quick-xml",
  "serde",
  "zip",

@@ -218,33 +218,33 @@ impl Formulario {
 
     fn conferir(&self) -> Result<(), String> {
         let nome = self.nome.trim();
-        if nome.is_empty() { return Err("Formulário sem nome.".into()); }
-        if !cor_valida(&self.fundo) { return Err(format!("Cor de fundo \"{}\" inválida no formulário \"{nome}\".", self.fundo)); }
-        if self.controles.len() > MAX_CONTROLES { return Err(format!("O formulário \"{nome}\" passa de {MAX_CONTROLES} controles.")); }
+        if nome.is_empty() { return Err(feathersheet_core::tr!("Formulário sem nome.").into()); }
+        if !cor_valida(&self.fundo) { return Err(feathersheet_core::trf!("Cor de fundo \"{}\" inválida no formulário \"{nome}\".", self.fundo)); }
+        if self.controles.len() > MAX_CONTROLES { return Err(feathersheet_core::trf!("O formulário \"{nome}\" passa de {MAX_CONTROLES} controles.")); }
         if !(80.0..=2000.0).contains(&self.largura) || !(60.0..=2000.0).contains(&self.altura) {
-            return Err(format!("O formulário \"{nome}\" tem tamanho fora de 80–2000 × 60–2000 px."));
+            return Err(feathersheet_core::trf!("O formulário \"{nome}\" tem tamanho fora de 80–2000 × 60–2000 px."));
         }
         for c in &self.controles {
             if c.tipo.tem_valor() && c.nome.trim().is_empty() {
-                return Err(format!("Um controle \"{}\" do formulário \"{nome}\" está sem nome.", c.tipo.nome()));
+                return Err(feathersheet_core::trf!("Um controle \"{}\" do formulário \"{nome}\" está sem nome.", c.tipo.nome()));
             }
             if ![c.x, c.y, c.largura, c.altura].iter().all(|v| v.is_finite() && *v >= 0.0) {
-                return Err(format!("O controle \"{}\" do formulário \"{nome}\" tem posição inválida.", c.nome));
+                return Err(feathersheet_core::trf!("O controle \"{}\" do formulário \"{nome}\" tem posição inválida.", c.nome));
             }
             if let Some(cor) = [&c.fundo, &c.cor, &c.borda].into_iter().find(|x| !cor_valida(x)) {
-                return Err(format!("Cor \"{cor}\" inválida no formulário \"{nome}\": use #rrggbb."));
+                return Err(feathersheet_core::trf!("Cor \"{cor}\" inválida no formulário \"{nome}\": use #rrggbb."));
             }
             if c.raio.is_some_and(|r| !(0.0..=200.0).contains(&r)) || c.letra.is_some_and(|l| !(6.0..=96.0).contains(&l)) {
-                return Err(format!("O controle \"{}\" do formulário \"{nome}\" tem cantos (0–200) ou letra (6–96) fora do limite.", c.nome));
+                return Err(feathersheet_core::trf!("O controle \"{}\" do formulário \"{nome}\" tem cantos (0–200) ou letra (6–96) fora do limite.", c.nome));
             }
-            if c.imagem.len() > MAX_IMAGEM { return Err(format!("A imagem do formulário \"{nome}\" passa de 1,5 MB.")); }
+            if c.imagem.len() > MAX_IMAGEM { return Err(feathersheet_core::trf!("A imagem do formulário \"{nome}\" passa de 1,5 MB.")); }
         }
         // Mesmo nome só entre opções do mesmo grupo.
         let mut vistos = std::collections::BTreeMap::new();
         for c in self.controles.iter().filter(|c| c.tipo.tem_valor()) {
             if let Some(tipo) = vistos.insert(c.nome.trim(), c.tipo) {
                 if !(tipo == TipoControle::Opcao && c.tipo == TipoControle::Opcao) {
-                    return Err(format!("Dois controles com o nome \"{}\" no formulário \"{nome}\".", c.nome));
+                    return Err(feathersheet_core::trf!("Dois controles com o nome \"{}\" no formulário \"{nome}\".", c.nome));
                 }
             }
         }
@@ -255,7 +255,7 @@ impl Formulario {
 /// Os formulários guardados na pasta (`None` = nenhum).
 pub fn ler(json: Option<&str>) -> Result<Vec<Formulario>, String> {
     let Some(texto) = json else { return Ok(Vec::new()) };
-    let lista: Vec<Formulario> = serde_json::from_str(texto).map_err(|e| format!("Formulários inválidos: {e}"))?;
+    let lista: Vec<Formulario> = serde_json::from_str(texto).map_err(|e| feathersheet_core::trf!("Formulários inválidos: {e}"))?;
     conferir(&lista)?;
     Ok(lista)
 }
@@ -267,11 +267,11 @@ pub fn gravar(lista: &[Formulario]) -> Result<Option<String>, String> {
 }
 
 fn conferir(lista: &[Formulario]) -> Result<(), String> {
-    if lista.len() > MAX_FORMULARIOS { return Err(format!("Mais de {MAX_FORMULARIOS} formulários na pasta.")); }
+    if lista.len() > MAX_FORMULARIOS { return Err(feathersheet_core::trf!("Mais de {MAX_FORMULARIOS} formulários na pasta.")); }
     let mut nomes = std::collections::BTreeSet::new();
     for f in lista {
         f.conferir()?;
-        if !nomes.insert(f.nome.trim().to_lowercase()) { return Err(format!("Dois formulários com o nome \"{}\".", f.nome)); }
+        if !nomes.insert(f.nome.trim().to_lowercase()) { return Err(feathersheet_core::trf!("Dois formulários com o nome \"{}\".", f.nome)); }
     }
     Ok(())
 }

@@ -29,12 +29,12 @@ impl TintaAba {
     /// Lê o campo `tn`. Vazio/ausente = sem tinta.
     pub fn ler(tn: Option<&str>) -> Result<Self, String> {
         let Some(texto) = tn.filter(|t| !t.trim().is_empty()) else { return Ok(Self::default()) };
-        let v: Value = serde_json::from_str(texto).map_err(|e| format!("Tinta da aba inválida: {e}"))?;
+        let v: Value = serde_json::from_str(texto).map_err(|e| feathersheet_core::trf!("Tinta da aba inválida: {e}"))?;
         if v["v"].as_u64() != Some(1) {
-            return Err("Versão da tinta da aba desconhecida.".into());
+            return Err(feathersheet_core::tr!("Versão da tinta da aba desconhecida.").into());
         }
         let tinta = Tinta::de_texto(v["t"].as_str().unwrap_or("FTINTA 1\n"))
-            .map_err(|e| format!("Tinta da aba inválida: {e}"))?;
+            .map_err(|e| feathersheet_core::trf!("Tinta da aba inválida: {e}"))?;
         let mut ancoras = BTreeMap::new();
         if let Some(mapa) = v["a"].as_object() {
             for (id, rc) in mapa {

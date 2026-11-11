@@ -6,21 +6,21 @@ use serde_json::{json,Value as Json};
 fn argumento_int(args:&Json,i:usize,op:&str)->Result<i64,String> {
     // Conta feita no JS (`k / 2 * 2`, `Math.round`) chega como 5.0, não 5.
     args[i].as_i64().or_else(||args[i].as_f64().filter(|x|x.fract()==0.0&&x.abs()<9e15).map(|x|x as i64))
-        .ok_or_else(||format!("{op}: parâmetro deve ser inteiro"))
+        .ok_or_else(||feathersheet_core::trf!("{op}: parâmetro deve ser inteiro"))
 }
 fn retangulo(args:&Json)->Result<Rect,String> {
-    let s=args[1].as_str().ok_or("Informe um intervalo A1")?;
+    let s=args[1].as_str().ok_or_else(|| feathersheet_core::tr!("Informe um intervalo A1"))?;
     let r=parse_range_ref(s)
-        .ok_or_else(||format!("Intervalo inválido: {s}"))?.normalized();
+        .ok_or_else(||feathersheet_core::trf!("Intervalo inválido: {s}"))?.normalized();
     if r.sheet.is_some() {
-        return Err("Use wb.sheet(nome).range(endereço) para outra aba".into());
+        return Err(feathersheet_core::tr!("Use wb.sheet(nome).range(endereço) para outra aba").into());
     }
     Ok(r)
 }
 fn criar(r0:i64,c0:i64,r1:i64,c1:i64,op:&str)->Result<Rect,String> {
     if r0<0 || c0<0 || r1<r0 || c1<c0
         || r1>=i64::from(MAX_ROWS) || c1>=i64::from(MAX_COLS) {
-        return Err(format!("{op}: intervalo fora dos limites da planilha"));
+        return Err(feathersheet_core::trf!("{op}: intervalo fora dos limites da planilha"));
     }
     Ok(Rect::new(r0 as u32,c0 as u32,r1 as u32,c1 as u32))
 }
@@ -52,7 +52,7 @@ pub(crate) fn executar(op:&str,args:&Json)->Result<Json,String> {
             let n=argumento_int(args,2,op)?;
             let total=i64::from(area.c1-area.c0)+1;
             if n<1 || n>total {
-                return Err(format!("columnOf: há {total} coluna(s)"));
+                return Err(feathersheet_core::trf!("columnOf: há {total} coluna(s)"));
             }
             let c=area.c0+(n as u32)-1;
             Rect::new(area.r0,c,area.r1,c)
@@ -61,12 +61,12 @@ pub(crate) fn executar(op:&str,args:&Json)->Result<Json,String> {
             let n=argumento_int(args,2,op)?;
             let total=i64::from(area.r1-area.r0)+1;
             if n<1 || n>total {
-                return Err(format!("rowOf: há {total} linha(s)"));
+                return Err(feathersheet_core::trf!("rowOf: há {total} linha(s)"));
             }
             let r=area.r0+(n as u32)-1;
             Rect::new(r,area.c0,r,area.c1)
         }
-        _ => return Err(format!("Operação não implementada: {op}")),
+        _ => return Err(feathersheet_core::trf!("Operação não implementada: {op}")),
     };
     Ok(json!(crate::operacoes_valores::endereco_a1(&saida)))
 }

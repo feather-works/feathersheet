@@ -130,7 +130,7 @@ pub fn tokenize_com_decimal(src: &str, decimal: char) -> Result<Vec<Token>, Pars
                 i += 1;
             }
             if !fechou {
-                return Err(ParseError::new("Texto sem aspas de fechamento", inicio));
+                return Err(ParseError::new(crate::tr!("Texto sem aspas de fechamento"), inicio));
             }
             i += 1; // a aspa que fecha
             tokens.push(Token::novo(TokenType::Str, out, inicio));
@@ -254,7 +254,7 @@ fn achar_fechamento_colchete(s: &[char], inicio: usize) -> Option<usize> {
             }
             if !fechou {
                 return Err(ParseError::new(
-                    "Aspas simples sem fechamento",
+                    crate::tr!("Aspas simples sem fechamento"),
                     inicio,
                 ));
             }
@@ -280,7 +280,7 @@ fn achar_fechamento_colchete(s: &[char], inicio: usize) -> Option<usize> {
                     }
                     if !t_fechou {
                         return Err(ParseError::new(
-                            "Aspas simples sem fechamento na referência",
+                            crate::tr!("Aspas simples sem fechamento na referência"),
                             inicio,
                         ));
                     }
@@ -306,7 +306,7 @@ fn achar_fechamento_colchete(s: &[char], inicio: usize) -> Option<usize> {
                         continue;
                     } else {
                         return Err(ParseError::new(
-                            format!("Colchete sem fechamento depois de '{nome}'!{target}"),
+                            crate::trf!("Colchete sem fechamento depois de '{nome}'!{target}"),
                             inicio,
                         ));
                     }
@@ -345,7 +345,7 @@ fn achar_fechamento_colchete(s: &[char], inicio: usize) -> Option<usize> {
                     continue;
                 } else {
                     return Err(ParseError::new(
-                        format!("Colchete sem fechamento depois de '{nome}'"),
+                        crate::trf!("Colchete sem fechamento depois de '{nome}'"),
                         inicio,
                     ));
                 }
@@ -428,7 +428,7 @@ fn achar_fechamento_colchete(s: &[char], inicio: usize) -> Option<usize> {
                         continue;
                     } else {
                         return Err(ParseError::new(
-                            format!("Colchete sem fechamento depois de '{texto}'!{referencia}"),
+                            crate::trf!("Colchete sem fechamento depois de '{texto}'!{referencia}"),
                             inicio,
                         ));
                     }
@@ -461,7 +461,7 @@ fn achar_fechamento_colchete(s: &[char], inicio: usize) -> Option<usize> {
                     continue;
                 } else {
                     return Err(ParseError::new(
-                        format!("Colchete sem fechamento depois de '{texto}'"),
+                        crate::trf!("Colchete sem fechamento depois de '{texto}'"),
                         inicio,
                     ));
                 }

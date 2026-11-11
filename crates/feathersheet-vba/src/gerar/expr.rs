@@ -36,8 +36,8 @@ impl Gerador<'_> {
                 Some(js) => Ok(V::novo(js, T::Obj)),
                 None => Err(Motivo::novo(format!("New {c}"))),
             },
-            Expr::TipoDe(..) => Err(Motivo::novo("TypeOf")),
-            Expr::Bang(..) => Err(Motivo::novo("acesso por nome (a!b)")),
+            Expr::TipoDe(..) => Err(Motivo::novo(feathersheet_core::tr!("TypeOf"))),
+            Expr::Bang(..) => Err(Motivo::novo(feathersheet_core::tr!("acesso por nome (a!b)"))),
             Expr::Membro(..) | Expr::MembroDoCom(_) | Expr::Chamada(..) => self.composto(e),
         }
     }
@@ -111,7 +111,7 @@ impl Gerador<'_> {
             Expr::Chamada(f, args) => self.chamada(f, args),
             Expr::Membro(base, nome) => self.membro(base, nome, &[]),
             Expr::MembroDoCom(nome) => {
-                let o = self.com.last().cloned().ok_or_else(|| Motivo::novo("`.membro` fora de With"))??;
+                let o = self.com.last().cloned().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("`.membro` fora de With")))??;
                 self.propriedade(o, nome, &[])
             }
             _ => unreachable!("composto só recebe membro e chamada"),
@@ -130,7 +130,7 @@ impl Gerador<'_> {
             Expr::Nome(n) => self.chamada_por_nome(n, args),
             Expr::Membro(base, nome) => self.membro(base, nome, args),
             Expr::MembroDoCom(nome) => {
-                let o = self.com.last().cloned().ok_or_else(|| Motivo::novo("`.membro` fora de With"))??;
+                let o = self.com.last().cloned().ok_or_else(|| Motivo::novo(feathersheet_core::tr!("`.membro` fora de With")))??;
                 self.propriedade(o, nome, args)
             }
             _ => {
@@ -144,14 +144,14 @@ impl Gerador<'_> {
     /// tipo é VbMethod 1, VbGet 2, VbLet 4 ou VbSet 8; a chamada vira a mesma coisa escrita direto.
     pub fn call_by_name(&mut self, args: &[Arg]) -> R<(Expr, String, i64, Vec<Arg>)> {
         let arg = |i: usize| args.get(i).and_then(|a| a.valor.clone());
-        let o = arg(0).ok_or_else(|| Motivo::novo("CallByName sem objeto"))?;
+        let o = arg(0).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("CallByName sem objeto")))?;
         let Some(Expr::Texto(nome)) = arg(1) else {
-            return Err(Motivo::novo("CallByName com o nome calculado (só nome fixo converte)"));
+            return Err(Motivo::novo(feathersheet_core::tr!("CallByName com o nome calculado (só nome fixo converte)")));
         };
         let tipo = match arg(2) {
             Some(Expr::Num(x)) => x as i64,
             Some(Expr::Nome(c)) => super::funcoes::valor_da_constante(&c).ok_or_else(|| Motivo::novo(format!("CallByName: tipo {c}")))?,
-            _ => return Err(Motivo::novo("CallByName sem o tipo da chamada")),
+            _ => return Err(Motivo::novo(feathersheet_core::tr!("CallByName sem o tipo da chamada"))),
         };
         if ![1, 2, 4, 8].contains(&tipo) { return Err(Motivo::novo(format!("CallByName: tipo {tipo}"))); }
         Ok((o, nome, tipo, args.iter().skip(3).cloned().collect()))
@@ -160,7 +160,7 @@ impl Gerador<'_> {
     fn chamada_por_nome(&mut self, n: &str, args: &[Arg]) -> R<V> {
         if n.eq_ignore_ascii_case("callbyname") && self.var(n).is_none() {
             let (o, nome, tipo, resto) = self.call_by_name(args)?;
-            if tipo == 4 || tipo == 8 { return Err(Motivo::novo("CallByName VbLet/VbSet usado como valor")); }
+            if tipo == 4 || tipo == 8 { return Err(Motivo::novo(feathersheet_core::tr!("CallByName VbLet/VbSet usado como valor"))); }
             let alvo = Expr::Membro(Box::new(o), nome);
             return self.valor(&if resto.is_empty() { alvo } else { Expr::Chamada(Box::new(alvo), resto) });
         }
@@ -196,9 +196,9 @@ impl Gerador<'_> {
             }
         }
         if self.p.e_externa(n) {
-            return Err(Motivo::novo(format!("API do Windows ({n})")));
+            return Err(Motivo::novo(feathersheet_core::trf!("API do Windows ({n})")));
         }
-        let o = self.objeto(&Expr::Chamada(Box::new(Expr::Nome(n.into())), args.to_vec())).map_err(|_| Motivo::novo(format!("função {n} sem equivalente")))?;
+        let o = self.objeto(&Expr::Chamada(Box::new(Expr::Nome(n.into())), args.to_vec())).map_err(|_| Motivo::novo(feathersheet_core::trf!("função {n} sem equivalente")))?;
         self.valor_do_objeto(o)
     }
 
@@ -235,10 +235,10 @@ impl Gerador<'_> {
         for a in args.iter().filter_map(|a| a.valor.as_ref()) {
             match self.objeto(a)? {
                 Obj::Faixa(f) => faixas.push(f),
-                _ => return Err(Motivo::novo(format!("{n} com algo que não é intervalo"))),
+                _ => return Err(Motivo::novo(feathersheet_core::trf!("{n} com algo que não é intervalo"))),
             }
         }
-        let [a, b] = faixas.as_slice() else { return Err(Motivo::novo(format!("{n} com mais de dois intervalos"))) };
+        let [a, b] = faixas.as_slice() else { return Err(Motivo::novo(feathersheet_core::trf!("{n} com mais de dois intervalos"))) };
         let metodo = if n.eq_ignore_ascii_case("intersect") { "intersect" } else { "union" };
         Ok(V::novo(format!("{}.{metodo}({}, {})", a.aba, a.end, b.end), T::Obj))
     }
@@ -281,7 +281,7 @@ impl Gerador<'_> {
         let mut pos = 0;
         for a in args {
             let i = match &a.nome {
-                Some(n) => proc.params.iter().position(|p| p.nome.eq_ignore_ascii_case(n)).ok_or_else(|| Motivo::novo(format!("argumento {n} de {}", proc.nome)))?,
+                Some(n) => proc.params.iter().position(|p| p.nome.eq_ignore_ascii_case(n)).ok_or_else(|| Motivo::novo(feathersheet_core::trf!("argumento {n} de {}", proc.nome)))?,
                 None => {
                     pos += 1;
                     pos - 1
@@ -360,7 +360,7 @@ impl Gerador<'_> {
                 let (x, y) = (self.como_texto(&va), self.como_texto(&vb));
                 Ok(V::novo(format!("vba.{}({x}, {y})", self.ajuda("like")), T::Bool))
             }
-            Op::Eqv | Op::Imp => Err(Motivo::novo("operador Eqv/Imp")),
+            Op::Eqv | Op::Imp => Err(Motivo::novo(feathersheet_core::tr!("operador Eqv/Imp"))),
             _ => Ok(self.aritmetico(op, &va, &vb)),
         }
     }

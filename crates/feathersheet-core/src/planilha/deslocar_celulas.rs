@@ -58,7 +58,7 @@ impl Workbook {
     pub fn inserir_celulas(&mut self, indice: usize, area: Rect, sentido: Deslocamento) -> Result<Mudanca, String> {
         let a = area.normalized();
         let n = sentido.passo(&a);
-        let bloco = bloco_deslocado(&a, sentido, true).ok_or("A seleção é grande demais para deslocar.")?;
+        let bloco = bloco_deslocado(&a, sentido, true).ok_or_else(|| crate::tr!("A seleção é grande demais para deslocar."))?;
         let sheet = &self.aba(indice).ok_or("Aba inexistente.")?.sheet;
         // O que está na borda da planilha cairia para fora.
         let borda = match sentido {
@@ -66,13 +66,13 @@ impl Workbook {
             Deslocamento::Horizontal => Rect::new(a.r0, MAX_COLS - n, a.r1, MAX_COLS - 1),
         };
         if !sheet.chaves_no_retangulo(&borda).is_empty() {
-            return Err("Não cabe: há dados no fim da planilha que seriam empurrados para fora.".into());
+            return Err(crate::tr!("Não cabe: há dados no fim da planilha que seriam empurrados para fora.").into());
         }
         if sheet.chaves_no_retangulo(&bloco).is_empty() {
             return Ok(Mudanca { versao: self.aba(indice).map_or(0, |x| x.versao), sujos: Vec::new() });
         }
         let (dr, dc) = match sentido { Deslocamento::Vertical => (n as i32, 0), Deslocamento::Horizontal => (0, n as i32) };
-        self.mover_intervalo(indice, bloco, dr, dc).ok_or_else(|| "Não consegui deslocar as células.".into())
+        self.mover_intervalo(indice, bloco, dr, dc).ok_or_else(|| crate::tr!("Não consegui deslocar as células.").into())
     }
 
     /// Exclui as células de `area`, puxando o que está depois delas para
@@ -86,7 +86,7 @@ impl Workbook {
         let tem_depois = bloco.as_ref().is_some_and(|b| !sheet.chaves_no_retangulo(b).is_empty());
         if tem_depois {
             return self.mover_intervalo(indice, bloco.expect("conferido"), dr, dc)
-                .ok_or_else(|| "Não consegui deslocar as células.".into());
+                .ok_or_else(|| crate::tr!("Não consegui deslocar as células.").into());
         }
         // Nada depois: só apagar a seleção, com as referências a ela virando #REF!.
         // É o mesmo mover, de um bloco vazio que cai por cima dela.
@@ -98,7 +98,7 @@ impl Workbook {
             Deslocamento::Vertical => (a.r0 as i32 - vazio.r0 as i32, 0),
             Deslocamento::Horizontal => (0, a.c0 as i32 - vazio.c0 as i32),
         };
-        self.mover_intervalo(indice, vazio, dr, dc).ok_or_else(|| "Não consegui excluir as células.".into())
+        self.mover_intervalo(indice, vazio, dr, dc).ok_or_else(|| crate::tr!("Não consegui excluir as células.").into())
     }
 }
 

@@ -143,11 +143,11 @@ fn estrutura_de_abas(e: &mut Estado, op: &str, dados: &Json) -> Result<Json, Str
             let nomes = e.pasta.nomes();
             let livre = |n: &str| !nomes.iter().any(|x| x.eq_ignore_ascii_case(n));
             let nome = match dados[0].as_str() {
-                Some(n) if !livre(n.trim()) => return Err(format!("Já existe uma aba chamada \"{}\"", n.trim())),
+                Some(n) if !livre(n.trim()) => return Err(feathersheet_core::trf!("Já existe uma aba chamada \"{}\"", n.trim())),
                 Some(n) => n.trim().to_string(),
                 None => (nomes.len() + 1..).map(|k| format!("Planilha{k}")).find(|n| livre(n)).unwrap_or_default(),
             };
-            if nome.is_empty() || nome.contains('!') { return Err("Nome de aba inválido".into()); }
+            if nome.is_empty() || nome.contains('!') { return Err(feathersheet_core::tr!("Nome de aba inválido").into()); }
             // Como o Excel: antes da aba pedida, depois dela, ou antes da aba ativa.
             let em = if !dados[1].is_null() { indice(e, &dados[1])? }
                 else if !dados[2].is_null() { indice(e, &dados[2])? + 1 }
@@ -162,7 +162,7 @@ fn estrutura_de_abas(e: &mut Estado, op: &str, dados: &Json) -> Result<Json, Str
         "apagarAba" => {
             let i = indice(e, &dados[0])?;
             let aberta = e.alteradas.contains(&i);
-            let aba = e.pasta.retirar_aba(i).ok_or("A pasta precisa ficar com pelo menos uma aba visível")?;
+            let aba = e.pasta.retirar_aba(i).ok_or_else(|| feathersheet_core::tr!("A pasta precisa ficar com pelo menos uma aba visível"))?;
             e.deslocar_indices(i, false);
             e.estrutura.push(PassoAba::Apagou { indice: i, aba, aberta });
             Ok(Json::Null)
@@ -171,7 +171,7 @@ fn estrutura_de_abas(e: &mut Estado, op: &str, dados: &Json) -> Result<Json, Str
             let i = indice(e, &dados[0])?;
             let antigo = e.pasta.nomes()[i].clone();
             let novo = dados[1].as_str().unwrap_or_default();
-            if !e.pasta.renomear_aba(i, novo) { return Err(format!("Nome de aba inválido ou repetido: \"{novo}\"")); }
+            if !e.pasta.renomear_aba(i, novo) { return Err(feathersheet_core::trf!("Nome de aba inválido ou repetido: \"{novo}\"")); }
             e.estrutura.push(PassoAba::Renomeou(e.pasta.ids()[i], antigo));
             Ok(Json::Null)
         }
@@ -224,12 +224,12 @@ impl HospedeiroMacros for HospedeiroSheet {
             let ids = e.pasta.ids();
             let ativa = e.aba_ativa;
             return pasta::executar(op, dados, &mut e.extra, &nomes, &ids, ativa)
-                .unwrap_or_else(|| Err(format!("Operação desconhecida: {op}")));
+                .unwrap_or_else(|| Err(feathersheet_core::trf!("Operação desconhecida: {op}")));
         }
         let resposta = if op == "nomes" {
             json!(e.pasta.nomes())
         } else if op == "idAba" {
-            let i = dados[0].as_u64().ok_or("Índice de aba inválido")? as usize;
+            let i = dados[0].as_u64().ok_or_else(|| feathersheet_core::tr!("Índice de aba inválido"))? as usize;
             json!(e.pasta.ids().get(i).ok_or("Aba inexistente")?)
         } else if op == "nomeAba" {
             let i = dados[0].as_u64().and_then(|id| e.pasta.indice_do_id(id as u32)).ok_or("Aba inexistente")?;
@@ -239,7 +239,7 @@ impl HospedeiroMacros for HospedeiroSheet {
         } else if op == "indiceAba" {
             // API wb.sheet de api-pasta.ts: nomes sem distinção
             // de maiúsculas/minúsculas, usando Workbook::indice_por_nome.
-            let nome = dados[0].as_str().ok_or("O nome da aba precisa ser texto")?;
+            let nome = dados[0].as_str().ok_or_else(|| feathersheet_core::tr!("O nome da aba precisa ser texto"))?;
             // O nome exato primeiro: o Excel aceita aba com espaço no fim ("ESTUDO ").
             json!(e.pasta.indice_por_nome(nome).or_else(|| e.pasta.nomes().iter().position(|n| n.trim().to_lowercase() == nome.trim().to_lowercase())))
         } else if matches!(op, "worksheetCountIf" | "worksheetSumIf"
@@ -257,18 +257,18 @@ impl HospedeiroMacros for HospedeiroSheet {
             folha.sheet.invalidar_todos_calculos();
             Json::Null
         } else if op == "mostrarFormulario" {
-            let nome = dados[0].as_str().ok_or("showComponent: o nome do formulário precisa ser texto")?;
+            let nome = dados[0].as_str().ok_or_else(|| feathersheet_core::tr!("showComponent: o nome do formulário precisa ser texto"))?;
             let lista = formularios::ler(e.pasta.formularios.as_deref())?;
-            let f = formularios::obter(&lista, nome).ok_or_else(|| format!("showComponent: não existe o formulário \"{nome}\""))?;
+            let f = formularios::obter(&lista, nome).ok_or_else(|| feathersheet_core::trf!("showComponent: não existe o formulário \"{nome}\""))?;
             let extra = if dados[1].is_object() || dados[1].is_null() { dados[1].clone() }
-                else { return Err("showComponent: os dados precisam ser um objeto { campo: valor }".into()) };
+                else { return Err(feathersheet_core::tr!("showComponent: os dados precisam ser um objeto { campo: valor }").into()) };
             e.extra.formulario = Some((f.nome.clone(), extra));
             Json::Null
         } else if op == "campoFormulario" {
-            let nome = dados[0].as_str().ok_or("field: o nome do campo precisa ser texto")?;
+            let nome = dados[0].as_str().ok_or_else(|| feathersheet_core::tr!("field: o nome do campo precisa ser texto"))?;
             let prop = dados[1].as_str().unwrap_or_default();
             if !matches!(prop, "value" | "enabled" | "visible" | "backColor" | "foreColor" | "caption") { return Err(format!("field: propriedade \"{prop}\" desconhecida")); }
-            if e.extra.campos.len() >= 1000 { return Err("field: mudanças demais no formulário numa execução".into()); }
+            if e.extra.campos.len() >= 1000 { return Err(feathersheet_core::tr!("field: mudanças demais no formulário numa execução").into()); }
             e.extra.campos.push((nome.to_owned(), prop.to_owned(), dados[2].clone()));
             Json::Null
         } else if op == "fecharFormulario" {
@@ -276,7 +276,7 @@ impl HospedeiroMacros for HospedeiroSheet {
             Json::Null
         } else if op == "appStatus" {
             let mensagem = dados.get(0).and_then(Json::as_str)
-                .ok_or("app.status: informe uma mensagem de texto")?;
+                .ok_or_else(|| feathersheet_core::tr!("app.status: informe uma mensagem de texto"))?;
             // Não permite textos enormes na barra de status.
             e.status = Some(mensagem.chars().take(1024).collect());
             Json::Null
@@ -284,14 +284,14 @@ impl HospedeiroMacros for HospedeiroSheet {
             // Os códigos de erro pertencem ao motor Rust, não a JS.
             let codigo = dados.get(0).and_then(Json::as_str)
                 .and_then(feathersheet_core::celulas::values::ErrorCode::from_code)
-                .ok_or("app.error: código de erro de planilha inválido")?;
+                .ok_or_else(|| feathersheet_core::tr!("app.error: código de erro de planilha inválido"))?;
             let detalhe = dados.get(1).and_then(Json::as_str)
                 .map(|s|s.chars().take(2048).collect::<String>());
             json!({"__ftCellError":codigo.as_str(),"detail":detalhe})
         } else if op == "appRgb" {
             let canal = |i: usize| -> Result<u8, String> {
-                let n = dados[i].as_u64().ok_or("RGB exige inteiros de 0 a 255")?;
-                u8::try_from(n).map_err(|_|"RGB exige canais de 0 a 255".into())
+                let n = dados[i].as_u64().ok_or_else(|| feathersheet_core::tr!("RGB exige inteiros de 0 a 255"))?;
+                u8::try_from(n).map_err(|_|feathersheet_core::tr!("RGB exige canais de 0 a 255").into())
             };
             json!(enderecos::rgb_vba(canal(0)?, canal(1)?, canal(2)?))
         } else if op == "appVbaColorToHex" {
@@ -299,7 +299,7 @@ impl HospedeiroMacros for HospedeiroSheet {
             json!(enderecos::vba_cor_hex(n as u32))
         } else {
             // O objeto da aba no JavaScript guarda o id: o índice muda quando se cria ou apaga aba.
-            let id = dados[0].as_u64().ok_or_else(|| "Aba inválida".to_string())?;
+            let id = dados[0].as_u64().ok_or_else(|| feathersheet_core::tr!("Aba inválida"))?;
             let aba = e.pasta.indice_do_id(id as u32).ok_or_else(|| "Aba inexistente".to_string())?;
             // API de navegação: cada comando é escalar; nunca gera
             // uma matriz 10M x 16K para devolver metadados.
@@ -313,25 +313,22 @@ impl HospedeiroMacros for HospedeiroSheet {
                     "lastColumn" => Ok(json!(s.max_col_ts() + 1)),
                     "getLastRow" => {
                         let coluna=if let Some(nome)=dados[1].as_str() {
-                            col_index(nome.trim()).ok_or_else(||format!(
-                                "Coluna inválida: {nome} (use A a XFD)"
+                            col_index(nome.trim()).ok_or_else(||feathersheet_core::trf!("Coluna inválida: {nome} (use A a XFD)"
                             ))?
                         } else {
                             let n=dados[1].as_u64()
-                                .ok_or("Coluna deve ser letra ou número inteiro a partir de 1")?;
+                                .ok_or_else(|| feathersheet_core::tr!("Coluna deve ser letra ou número inteiro a partir de 1"))?;
                             if n==0 || n>u64::from(MAX_COLS) {
-                                return Err("Coluna fora dos limites (1 a 16384)".into());
+                                return Err(feathersheet_core::tr!("Coluna fora dos limites (1 a 16384)").into());
                             }
                             (n-1) as u32
                         };
                         Ok(json!(s.ultima_linha_na_coluna(coluna)))
                     }
                     "getLastColumn" => {
-                        let n=dados[1].as_u64().ok_or(
-                            "Linha deve ser número inteiro a partir de 1"
-                        )?;
+                        let n=dados[1].as_u64().ok_or_else(|| feathersheet_core::tr!("Linha deve ser número inteiro a partir de 1"))?;
                         if n==0 || n>u64::from(MAX_ROWS) {
-                            return Err(format!("Linha fora dos limites (1 a {MAX_ROWS})"));
+                            return Err(feathersheet_core::trf!("Linha fora dos limites (1 a {MAX_ROWS})"));
                         }
                         Ok(json!(s.ultima_coluna_na_linha((n-1) as u32)))
                     }
@@ -348,12 +345,12 @@ impl HospedeiroMacros for HospedeiroSheet {
                     }
                     "address" => {
                         let linha=dados[1].as_u64()
-                            .ok_or("Linha deve ser inteiro a partir de 1")?;
+                            .ok_or_else(|| feathersheet_core::tr!("Linha deve ser inteiro a partir de 1"))?;
                         let coluna=dados[2].as_u64()
-                            .ok_or("Coluna deve ser inteiro a partir de 1")?;
+                            .ok_or_else(|| feathersheet_core::tr!("Coluna deve ser inteiro a partir de 1"))?;
                         if linha==0 || linha>u64::from(MAX_ROWS)
                             || coluna==0 || coluna>u64::from(MAX_COLS) {
-                            return Err("Endereço fora dos limites da planilha".into());
+                            return Err(feathersheet_core::tr!("Endereço fora dos limites da planilha").into());
                         }
                         Ok(json!(cell_name((linha-1) as u32,(coluna-1) as u32)))
                     }
@@ -400,7 +397,7 @@ impl HospedeiroMacros for HospedeiroSheet {
             if op == "autoFitColumns" {
                 // A mesma medida do duplo clique na borda da coluna (`operacoes::autoajuste`).
                 let endereco = dados[1].as_str().ok_or("autoFitColumns: informe as colunas (\"A:F\")")?;
-                let area = parse_range_ref(endereco).ok_or_else(|| format!("Endereço inválido: {endereco}"))?.normalized();
+                let area = parse_range_ref(endereco).ok_or_else(|| feathersheet_core::trf!("Endereço inválido: {endereco}"))?.normalized();
                 let sheet = &e.pasta.aba(aba).unwrap().sheet;
                 let padrao = sheet.largura_padrao.unwrap_or(122);
                 let larguras = feathersheet_core::operacoes::autoajuste::larguras_ideais(&e.pasta, aba, area.c0, area.c1, padrao, &mesclagem::ler(sheet));
@@ -434,29 +431,29 @@ impl HospedeiroMacros for HospedeiroSheet {
             }
             if op == "getRegion" {
                 let endereco=dados[1].as_str()
-                    .ok_or("getRegion: informe o endereço A1 da seleção")?;
+                    .ok_or_else(|| feathersheet_core::tr!("getRegion: informe o endereço A1 da seleção"))?;
                 let area=parse_range_ref(endereco)
-                    .ok_or_else(||format!("getRegion: endereço inválido: {endereco}"))?
+                    .ok_or_else(||feathersheet_core::trf!("getRegion: endereço inválido: {endereco}"))?
                     .normalized();
                 if area.sheet.is_some() {
-                    return Err("Use wb.sheet(nome).getRegion(endereço) para outra aba".into());
+                    return Err(feathersheet_core::tr!("Use wb.sheet(nome).getRegion(endereço) para outra aba").into());
                 }
                 let folha=&e.pasta.aba(aba).unwrap().sheet;
                 let regiao=feathersheet_core::operacoes::ops::regiao_atual(folha,area);
                 return Ok(json!(operacoes_valores::endereco_a1(&regiao)));
             }
             if op == "find" {
-                let texto = dados[1].as_str().ok_or("Texto da busca inválido")?;
+                let texto = dados[1].as_str().ok_or_else(|| feathersheet_core::tr!("Texto da busca inválido"))?;
                 let opcoes = &dados[2];
                 let sheet = &e.pasta.aba(aba).unwrap().sheet;
                 if sheet.is_empty() { return Ok(Json::Null); }
                 let usada = sheet.used_rect();
                 let pedido = if let Some(endereco) = opcoes["range"].as_str() {
                     let pedido = parse_range_ref(endereco)
-                        .ok_or_else(||format!("Intervalo de busca inválido: {endereco}"))?
+                        .ok_or_else(||feathersheet_core::trf!("Intervalo de busca inválido: {endereco}"))?
                         .normalized();
                     if pedido.sheet.is_some() {
-                        return Err("Use wb.sheet(nome).find(...) para outra aba".into());
+                        return Err(feathersheet_core::tr!("Use wb.sheet(nome).find(...) para outra aba").into());
                     }
                     pedido
                 } else {
@@ -473,7 +470,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                     area.0,area.1,area.2,area.3,
                 );
                 if area.area() > 500_000 {
-                    return Err("A busca excede 500.000 células; indique options.range".into());
+                    return Err(feathersheet_core::tr!("A busca excede 500.000 células; indique options.range").into());
                 }
                 return Ok(json!(operacoes_valores::localizar(
                     &e.pasta,aba,&area,texto,
@@ -482,9 +479,9 @@ impl HospedeiroMacros for HospedeiroSheet {
                     opcoes["inFormulas"].as_bool().unwrap_or(false),
                 )));
             }
-            let endereco = dados[1].as_str().ok_or_else(|| "Endereço precisa ser texto A1".to_string())?;
-            let area = parse_range_ref(endereco).ok_or_else(|| format!("Endereço inválido: {endereco}"))?.normalized();
-            if area.sheet.is_some() { return Err("Use wb.sheet(nome).range(endereço) para outra aba".to_string()); }
+            let endereco = dados[1].as_str().ok_or_else(|| feathersheet_core::tr!("Endereço precisa ser texto A1"))?;
+            let area = parse_range_ref(endereco).ok_or_else(|| feathersheet_core::trf!("Endereço inválido: {endereco}"))?.normalized();
+            if area.sheet.is_some() { return Err(feathersheet_core::tr!("Use wb.sheet(nome).range(endereço) para outra aba")); }
             // `Cells.Copy` / `Columns("A:C").Copy` / `Columns("A").TextToColumns` / `.SpecialCells`:
             // como o Excel, só o que tem dado (a área usada da aba).
             // `areasEspeciais` devolve poucas áreas (as linhas visíveis do filtro de uma tabela
@@ -502,7 +499,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                 // Ordenar e tirar repetidas rodam inteiros no motor (nada volta célula a célula).
                 | "sort" | "removeDuplicates")
                 && u64::from(area.r1-area.r0+1) * u64::from(area.c1-area.c0+1) > if op == "areasEspeciais" { 20_000_000 } else { 500_000 } {
-                return Err("Restrinja o intervalo a 500.000 células".to_string());
+                return Err(feathersheet_core::tr!("Restrinja o intervalo a 500.000 células"));
             }
             match op {
                 "addConditionalFormat" | "addColorScale" | "addDataBar" | "clearConditionalFormats" => {
@@ -553,7 +550,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                 }
                 "specialCells" | "areasEspeciais" => {
                     let tipo = dados[2].as_str()
-                        .ok_or("specialCells exige o tipo: blanks, formulas, constants, errors ou visible")?;
+                        .ok_or_else(|| feathersheet_core::tr!("specialCells exige o tipo: blanks, formulas, constants, errors ou visible"))?;
                     let celulas = navegacao::celulas_especiais(&e.pasta, aba, &area, tipo, &e.extra.filtros)?;
                     if op == "areasEspeciais" { json!(varias_areas::endereco(&celulas)) }
                     else { json!(celulas.iter().map(|&(r, c)| feathersheet_core::celulas::refs::cell_name(r, c)).collect::<Vec<_>>()) }
@@ -562,12 +559,12 @@ impl HospedeiroMacros for HospedeiroSheet {
                     // Reaproveita as operações de retângulo já portadas
                     // de enderecos.ts; não cria um motor de geometria novo.
                     let segundo = dados[2].as_str()
-                        .ok_or("O segundo intervalo precisa ser um endereço A1")?;
+                        .ok_or_else(|| feathersheet_core::tr!("O segundo intervalo precisa ser um endereço A1"))?;
                     let outro = parse_range_ref(segundo)
-                        .ok_or_else(||format!("Intervalo inválido: {segundo}"))?
+                        .ok_or_else(||feathersheet_core::trf!("Intervalo inválido: {segundo}"))?
                         .normalized();
                     if outro.sheet.is_some() {
-                        return Err("Use a mesma aba para intersect e union".into());
+                        return Err(feathersheet_core::tr!("Use a mesma aba para intersect e union").into());
                     }
                     if op == "intersect" {
                         json!(enderecos::intersecao(&area, &outro)
@@ -599,7 +596,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                         dados[3].as_str()
                     } else { None };
                     if op == "setHyperlink" && !dados[3].is_null() && texto.is_none() {
-                        return Err("O texto do hyperlink deve ser uma string".into());
+                        return Err(feathersheet_core::tr!("O texto do hyperlink deve ser uma string").into());
                     }
                     let iniciou = e.alteradas.insert(aba);
                     if iniciou {
@@ -617,9 +614,9 @@ impl HospedeiroMacros for HospedeiroSheet {
                 }
                 "autoFill" => {
                     let alvo = dados[2].as_str()
-                        .ok_or("O destino de autoFill precisa ser texto A1")?;
+                        .ok_or_else(|| feathersheet_core::tr!("O destino de autoFill precisa ser texto A1"))?;
                     let alvo = parse_range_ref(alvo)
-                        .ok_or_else(||format!("Destino inválido: {alvo}"))?
+                        .ok_or_else(||feathersheet_core::trf!("Destino inválido: {alvo}"))?
                         .normalized();
                     if !preenchimento::validar(&area, &alvo)? {
                         json!(0)
@@ -653,9 +650,9 @@ impl HospedeiroMacros for HospedeiroSheet {
                 }
                 "move" => {
                     let destino = dados[2].as_str()
-                        .ok_or("Destino de move precisa ser endereço A1")?;
+                        .ok_or_else(|| feathersheet_core::tr!("Destino de move precisa ser endereço A1"))?;
                     let destino = parse_range_ref(destino)
-                        .ok_or_else(||format!("Destino inválido: {destino}"))?
+                        .ok_or_else(||feathersheet_core::trf!("Destino inválido: {destino}"))?
                         .normalized();
                     let estado: &mut Estado = &mut *e;
                     movimento::mover(
@@ -668,20 +665,20 @@ impl HospedeiroMacros for HospedeiroSheet {
                     // 1. Planejar e congelar a origem ANTES de alterar a
                     // planilha: cópias sobrepostas têm a mesma semântica TS.
                     let destino = dados[2].as_str()
-                        .ok_or("Destino da cópia precisa ser endereço A1")?;
+                        .ok_or_else(|| feathersheet_core::tr!("Destino da cópia precisa ser endereço A1"))?;
                     // Colar em outra aba: { sheet: "Nome" } ou "Nome!B2" / "'Nome X'!B2".
                     let (prefixo, endereco) = match destino.rsplit_once('!') {
                         Some((a, b)) => (Some(a.trim_matches('\'').replace("''", "'")), b),
                         None => (None, destino),
                     };
                     let destino = parse_range_ref(endereco)
-                        .ok_or_else(||format!("Destino inválido: {destino}"))?
+                        .ok_or_else(||feathersheet_core::trf!("Destino inválido: {destino}"))?
                         .normalized();
                     let nome_destino = dados[3]["sheet"].as_str().map(str::to_owned).or(prefixo);
                     let alvo = match nome_destino {
                         Some(n) => (0..e.pasta.len()).find(|&i| e.pasta.aba(i)
                             .is_some_and(|a| a.sheet.name.eq_ignore_ascii_case(&n)))
-                            .ok_or_else(|| format!("Aba de destino inexistente: {n}"))?,
+                            .ok_or_else(|| feathersheet_core::trf!("Aba de destino inexistente: {n}"))?,
                         None => aba,
                     };
                     let modo = copiar::Modo::ler(
@@ -708,10 +705,10 @@ impl HospedeiroMacros for HospedeiroSheet {
                 }
                 "clearContents" | "clearFormats" | "replace" => {
                     let antigo = if op == "replace" {
-                        Some(dados[2].as_str().ok_or("Texto de busca inválido")?)
+                        Some(dados[2].as_str().ok_or_else(|| feathersheet_core::tr!("Texto de busca inválido"))?)
                     } else { None };
                     let novo = if op == "replace" {
-                        dados[3].as_str().ok_or("Texto de substituição inválido")?
+                        dados[3].as_str().ok_or_else(|| feathersheet_core::tr!("Texto de substituição inválido"))?
                     } else { "" };
                     let match_case = dados[4]["matchCase"].as_bool().unwrap_or(false);
                     if antigo == Some("") {
@@ -755,7 +752,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                 }
                 "setNumberFormat" => {
                     let mascara = dados[2].as_str()
-                        .ok_or("A máscara de formato deve ser texto")?;
+                        .ok_or_else(|| feathersheet_core::tr!("A máscara de formato deve ser texto"))?;
                     let formato = enderecos::mascara_para_estilo(mascara)?;
                     let mut patch = EstiloParcial::new();
                     patch.insert("format".into(),match nome_do_formato(formato.formato) {
@@ -812,7 +809,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                                 let r = area.r0 as usize + dr;
                                 let c = area.c0 as usize + dc;
                                 if r >= MAX_ROWS as usize || c >= MAX_COLS as usize || escritas.len() >= 500_000 {
-                                    return Err("A matriz excede os limites de escrita".to_string());
+                                    return Err(feathersheet_core::tr!("A matriz excede os limites de escrita"));
                                 }
                                 escritas.push((r as u32,c as u32,bruto(valor)));
                             }
@@ -823,7 +820,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                         } else { bruto(&dados[2]) };
                         if (op == "setFormula" || op == "setFormulaR1C1")
                             && !texto.trim_start().starts_with('=') {
-                            return Err("A fórmula deve começar com '='".into());
+                            return Err(feathersheet_core::tr!("A fórmula deve começar com '='").into());
                         }
                         for r in area.r0..=area.r1 {
                             for c in area.c0..=area.c1 {
@@ -872,7 +869,7 @@ impl HospedeiroMacros for HospedeiroSheet {
                     }
                     Json::Null
                 }
-                _ => return Err(format!("Operação de macro ainda não migrada: {op}")),
+                _ => return Err(feathersheet_core::trf!("Operação de macro ainda não migrada: {op}")),
             }
         };
         Ok(resposta)

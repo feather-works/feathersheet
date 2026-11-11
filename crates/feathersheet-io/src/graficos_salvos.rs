@@ -6,7 +6,7 @@ pub fn listar(sheet: &Sheet) -> Result<Vec<Value>, String> {
     match &sheet.g {
         None => Ok(Vec::new()),
         Some(json) => serde_json::from_str::<Vec<Value>>(json)
-            .map_err(|_| "As configurações de gráficos desta aba não puderam ser lidas.".into()),
+            .map_err(|_| feathersheet_core::tr!("As configurações de gráficos desta aba não puderam ser lidas.").into()),
     }
 }
 /// Mescla somente os campos editados; tipos/estilos desconhecidos são preservados.
@@ -20,11 +20,11 @@ pub fn mesclado(sheet: &Sheet, id: &str, atualizacao: Value) -> Result<String, S
     let mut graficos = listar(sheet)?;
     let objeto = atualizacao
         .as_object()
-        .ok_or("Configuração de gráfico inválida.")?;
+        .ok_or_else(|| feathersheet_core::tr!("Configuração de gráfico inválida."))?;
     if let Some(existente) = graficos.iter_mut().find(|g| g["id"].as_str() == Some(id)) {
         let destino = existente
             .as_object_mut()
-            .ok_or("Configuração de gráfico inválida.")?;
+            .ok_or_else(|| feathersheet_core::tr!("Configuração de gráfico inválida."))?;
         for (campo, valor) in objeto {
             if campo == "style" {
                 if let (Some(antigo), Some(novo)) = (

@@ -36,7 +36,7 @@ pub(crate) fn linhas_que_passam(pasta: &Workbook, aba: usize, lista: &Rect, crit
     // (coluna da lista, teste) de cada linha de critério.
     let mut alternativas: Vec<Vec<(u32, Box<dyn Fn(&Value) -> bool>)>> = Vec::new();
     if let Some(c) = criterios {
-        if c.r1 <= c.r0 { return Err("AdvancedFilter: o intervalo de critérios precisa dos cabeçalhos e de uma linha embaixo".into()); }
+        if c.r1 <= c.r0 { return Err(feathersheet_core::tr!("AdvancedFilter: o intervalo de critérios precisa dos cabeçalhos e de uma linha embaixo").into()); }
         let cabecalhos: Vec<String> = (lista.c0..=lista.c1).map(|col| texto(&valor(lista.r0, col)).trim().to_lowercase()).collect();
         for r in c.r0 + 1..=c.r1.min(c.r0 + 1000) {
             let mut linha = Vec::new();
@@ -45,7 +45,7 @@ pub(crate) fn linhas_que_passam(pasta: &Workbook, aba: usize, lista: &Rect, crit
                 if matches!(v, Value::Empty) || texto(&v).is_empty() { continue; }
                 let nome = texto(&valor(c.r0, col)).trim().to_lowercase();
                 let pos = cabecalhos.iter().position(|h| *h == nome)
-                    .ok_or_else(|| format!("AdvancedFilter: o critério \"{nome}\" não é cabeçalho da lista"))?;
+                    .ok_or_else(|| feathersheet_core::trf!("AdvancedFilter: o critério \"{nome}\" não é cabeçalho da lista"))?;
                 linha.push((lista.c0 + pos as u32, teste(&v)));
             }
             // Linha de critério vazia: tudo passa, como no Excel.

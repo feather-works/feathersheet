@@ -79,7 +79,7 @@ impl Parser {
         let t = self.peek();
         if t.kind != TokenType::Eof {
             return Err(ParseError::new(
-                format!("Sobra \"{}\" no fim da fórmula", t.text),
+                crate::trf!("Sobra \"{}\" no fim da fórmula", t.text),
                 t.pos,
             ));
         }
@@ -117,7 +117,7 @@ impl Parser {
         self.profundidade += 1;
         if self.profundidade > MAX_ANINHAMENTO {
             return Err(ParseError::new(
-                format!("Fórmula aninhada demais: o limite é de {MAX_ANINHAMENTO} níveis"),
+                crate::trf!("Fórmula aninhada demais: o limite é de {MAX_ANINHAMENTO} níveis"),
                 self.peek().pos,
             ));
         }
@@ -167,7 +167,7 @@ impl Parser {
                     self.next();
                     let fim = self.next();
                     if fim.kind != TokenType::Ref {
-                        return Err(ParseError::new("Intervalo inválido", fim.pos));
+                        return Err(ParseError::new(crate::tr!("Intervalo inválido"), fim.pos));
                     }
                     let Some(b) = parse_a1(&fim.text) else {
                         return Ok(Node::Error("#REF!".to_string()));
@@ -182,7 +182,7 @@ impl Parser {
             _ => {
                 let achei = if t.text.is_empty() { "fim" } else { t.text.as_str() };
                 Err(ParseError::new(
-                    format!("Fórmula incompleta perto de \"{achei}\""),
+                    crate::trf!("Fórmula incompleta perto de \"{achei}\""),
                     t.pos,
                 ))
             }
@@ -271,7 +271,7 @@ impl Parser {
                 };
                 return match c1 {
                     Some(c1) => Ok(faixa(0, c0, MAX_ROWS - 1, c1, None)),
-                    None => Err(ParseError::new("Intervalo de colunas inválido", fim.pos)),
+                    None => Err(ParseError::new(crate::tr!("Intervalo de colunas inválido"), fim.pos)),
                 };
             }
         }
@@ -287,7 +287,7 @@ impl Parser {
         let mut rows: Vec<Vec<Node>> = Vec::new();
         let mut linha: Vec<Node> = Vec::new();
         if self.peek().kind == TokenType::RBrace {
-            return Err(ParseError::new("Matriz vazia", at));
+            return Err(ParseError::new(crate::tr!("Matriz vazia"), at));
         }
         loop {
             linha.push(self.parse_expr(0)?);
@@ -305,7 +305,7 @@ impl Parser {
         self.expect(TokenType::RBrace, "\"}\"")?;
         let largura = rows[0].len();
         if rows.iter().any(|l| l.len() != largura) {
-            return Err(ParseError::new("Matriz com linhas de tamanhos diferentes", at));
+            return Err(ParseError::new(crate::tr!("Matriz com linhas de tamanhos diferentes"), at));
         }
         Ok(Node::Array { rows })
     }
@@ -343,7 +343,7 @@ fn faixa(r0: u32, c0: u32, r1: u32, c1: u32, sheet: Option<String>) -> Node {
 pub fn parse_formula(src: &str) -> Result<Node, ParseError> {
     if src.chars().nth(MAX_CARACTERES).is_some() {
         return Err(ParseError::new(
-            format!("Fórmula grande demais: o limite é de {MAX_CARACTERES} caracteres, como no Excel"),
+            crate::trf!("Fórmula grande demais: o limite é de {MAX_CARACTERES} caracteres, como no Excel"),
             MAX_CARACTERES,
         ));
     }
@@ -351,8 +351,7 @@ pub fn parse_formula(src: &str) -> Result<Node, ParseError> {
     let operacoes = tokens.iter().filter(|t| matches!(t.kind,
         TokenType::Op | TokenType::Ident | TokenType::LBrace | TokenType::Colon)).count();
     if operacoes > MAX_OPERACOES {
-        return Err(ParseError::solto(format!(
-            "Fórmula longa demais: o limite é de {MAX_OPERACOES} operações, funções e intervalos")));
+        return Err(ParseError::solto(crate::trf!("Fórmula longa demais: o limite é de {MAX_OPERACOES} operações, funções e intervalos")));
     }
     Parser { tokens, i: 0, profundidade: 0 }.parse()
 }

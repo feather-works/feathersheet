@@ -743,7 +743,7 @@ pub fn extract_chart_data_visiveis(
                         values: ys.iter().zip(&rotulos).map(|(v, r)| if r == k { *v } else { f64::NAN }).collect(),
                     })
                     .collect();
-                let aviso = sobrou.then(|| format!("Só os {MAX_GRUPOS_3D} primeiros valores da descrição viram linhas."));
+                let aviso = sobrou.then(|| crate::trf!("Só os {MAX_GRUPOS_3D} primeiros valores da descrição viram linhas."));
                 (rotulos, series, aviso)
             }
             None => (
@@ -856,7 +856,7 @@ pub fn extract_chart_data_visiveis(
                 // Sem amostra: este caminho leu tudo.
                 amostrado: None,
                 aviso: (!sem_moda.is_empty()).then(|| {
-                    format!("Valores distintos demais para calcular a moda de {}.", sem_moda.join(", "))
+                    crate::trf!("Valores distintos demais para calcular a moda de {}.", sem_moda.join(", "))
                 }),
             };
         }
