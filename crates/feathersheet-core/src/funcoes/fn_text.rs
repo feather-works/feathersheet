@@ -7,7 +7,7 @@ use crate::formula::evaluator::Evaluator;
 use crate::funcoes::fn_helpers::{
     arity, e_nd, e_valor, has, matriz_de, numero, por_elemento, texto, Res,
 };
-use crate::celulas::values::{to_text, Computed, Value};
+use crate::celulas::values::{to_text_formula as to_text, Computed, Value};
 
 /// `=MAIÚSCULA(texto)` / `=UPPER(texto)`
 pub fn fn_upper(args: &[Node], ev: &Evaluator<'_>) -> Computed {

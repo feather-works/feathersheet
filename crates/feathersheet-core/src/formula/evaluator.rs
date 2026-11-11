@@ -23,7 +23,7 @@ use crate::formula::ast::{BinaryOp, Node, UnaryOp};
 use crate::funcoes::functions;
 use crate::celulas::refs::{Rect, MAX_COLS, MAX_ROWS};
 use crate::celulas::values::{
-    compare, to_boolean, to_number, to_text, CellError, Computed, ErrorCode, Lambda, Matrix, Value,
+    compare, to_boolean, to_number, CellError, Computed, ErrorCode, Lambda, Matrix, Value,
 };
 
 /// O trabalho que uma função pede para ser feito fora da hora do cálculo.
@@ -641,7 +641,7 @@ impl<'a> Evaluator<'a> {
     pub fn text(&self, node: &Node) -> Result<String, CellError> {
         match self.eval(node) {
             Value::Error(e) => Err(e),
-            v => Ok(to_text(&v)),
+            v => Ok(crate::celulas::values::to_text_formula(&v)),
         }
     }
 
@@ -873,7 +873,7 @@ pub fn apply_binary(op: BinaryOp, a: &Value, b: &Value) -> Value {
     }
 
     if op == BinaryOp::Concat {
-        return Value::Text(format!("{}{}", to_text(a), to_text(b)));
+        return Value::Text(format!("{}{}", crate::celulas::values::to_text_formula(a), crate::celulas::values::to_text_formula(b)));
     }
 
     if matches!(

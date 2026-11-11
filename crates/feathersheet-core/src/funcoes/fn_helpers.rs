@@ -568,7 +568,7 @@ pub fn logico(v: &Value) -> Res<bool> {
 pub fn texto_de(v: &Value) -> Res<String> {
     match v {
         Value::Error(e) => Err(e.clone()),
-        outro => Ok(to_text(outro)),
+        outro => Ok(crate::celulas::values::to_text_formula(outro)),
     }
 }
 

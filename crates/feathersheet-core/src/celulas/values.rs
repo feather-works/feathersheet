@@ -404,6 +404,16 @@ pub fn to_number(v: &Value) -> Result<f64, CellError> {
     }
 }
 
+/// Valor → texto **dentro de fórmula** (`=A1&""`, CONCAT, ESQUERDA…): o lógico sai na palavra
+/// da língua do app (TRUE, VRAI), como no Excel. Fora de fórmula (chaves de filtro e dinâmica,
+/// o que a coluna guarda) vale [`to_text`], sempre em português.
+pub fn to_text_formula(v: &Value) -> String {
+    match v {
+        Value::Bool(b) => crate::celulas::locale::texto_logico(*b),
+        outro => to_text(outro),
+    }
+}
+
 pub fn to_text(v: &Value) -> String {
     match v {
         Value::Empty => String::new(),
@@ -421,11 +431,12 @@ pub fn to_boolean(v: &Value) -> Result<bool, CellError> {
         Value::Number(n) => Ok(*n != 0.0),
         Value::Error(e) => Err(e.clone()),
         Value::Text(texto) => {
-            let t = texto.trim().to_uppercase();
-            match t.as_str() {
-                "VERDADEIRO" | "TRUE" => Ok(true),
-                "FALSO" | "FALSE" | "" => Ok(false),
-                _ => Err(CellError::new(ErrorCode::Value)),
+            let t = texto.trim();
+            // As formas de sempre e a palavra da língua do app (o que `to_text_formula` produz).
+            match crate::celulas::locale::logico_digitado(t) {
+                Some(b) => Ok(b),
+                None if t.is_empty() => Ok(false),
+                None => Err(CellError::new(ErrorCode::Value)),
             }
         }
     }
