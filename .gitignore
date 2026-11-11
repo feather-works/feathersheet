@@ -26,3 +26,8 @@ pacote/flatpak/.flatpak-builder/
 
 # Pacotes snap gerados localmente
 *.snap
+
+# Arquivos locais que não vão para o repositório
+/crates/feathersheet/0
+/docs/planejamento/video-v0.2/banner-featheroffice.png
+/docs/planejamento/video-v0.2/vendas-outubro.xlsx
