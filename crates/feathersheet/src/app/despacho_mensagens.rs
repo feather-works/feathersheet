@@ -440,6 +440,19 @@ impl App {
                 self.config.gravar();
                 Task::none()
             },
+            Msg::ZoomSelecao => {
+                if self.edicao_inline.is_some() && !self.confirmar() { return Task::none(); }
+                let a = self.area_selecionada();
+                if let Some(zoom) = self.grade().zoom_para_area((a.r0, a.c0, a.r1, a.c1)) {
+                    self.config.zoom = self.config.zoom_limitado(zoom);
+                    // A seleção vai para o canto de cima à esquerda.
+                    self.linha_inicio = a.r0;
+                    self.coluna_inicio = a.c0;
+                    self.ancorar_rodape = false;
+                    self.config.gravar();
+                }
+                Task::none()
+            },
             Msg::ExplicacaoErroAbrir => {
                 if !self.confirmar() { return Task::none(); }
                 self.erro_explicando = Some((self.folha, self.linha, self.coluna));

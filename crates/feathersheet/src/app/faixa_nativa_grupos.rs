@@ -436,7 +436,10 @@ impl App {
                     self.faixa_grande(if self.tela_inteira { tr!("Sair tela inteira") } else { tr!("Tela inteira") },
                         "arrows-maximize", Some(Msg::TelaInteira), self.tela_inteira),
                 ])));
-                grupos.push(self.faixa_grupo(tr!("Zoom"), self.faixa_lista(tr!("Zoom"), "zoom", ZOOMS, self.faixa_nome_zoom(), 88.)));
+                grupos.push(self.faixa_grupo(tr!("Zoom"), self.faixa_linha(vec![
+                    self.faixa_lista(tr!("Zoom"), "zoom", ZOOMS, self.faixa_nome_zoom(), 88.),
+                    self.faixa_grande(tr!("Zoom na seleção"), "zoom-in", Some(Msg::ZoomSelecao), false),
+                ])));
                 grupos.push(self.faixa_grupo(tr!("Impressão"), self.faixa_linha(vec![
                     self.faixa_grande(tr!("Visualizar"), "printer", Some(Msg::Impressao(EventoImpressao::Abrir)), false),
                     self.faixa_pilha(vec![

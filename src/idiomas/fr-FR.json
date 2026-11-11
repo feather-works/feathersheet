@@ -221,7 +221,7 @@
       "config": {
         "titulo": "Paramètres",
         "corpo": [
-          "Dans les Paramètres : thème clair ou sombre, jeu de couleurs et accent, police et taille de la grille, zoom, enregistrement automatique, langue (qui détermine aussi le séparateur des formules) et raccourcis clavier.",
+          "Dans les Paramètres : thème clair ou sombre, jeu de couleurs et accent, police et taille de la grille, zoom, enregistrement automatique, langue (qui détermine aussi le séparateur des formules) et raccourcis clavier. Dans Affichage › Zoom sur la sélection, la zone sélectionnée remplit l'écran.",
           "Affichage → Moniteur (ou F12) montre la mémoire, le processeur et la Console avec ce que l'application a journalisé — utile à joindre à un rapport de bogue.",
           "Mises à jour : au démarrage, FeatherSheet vérifie sur GitHub s'il existe une nouvelle version (au plus une fois par jour) et, s'il y en a une, affiche une carte dans le coin avec Nouveautés, Plus tard et Mettre à jour. Désactivez-la dans Paramètres → À propos → Signaler les nouvelles versions ; le bouton Rechercher des mises à jour vérifie immédiatement.", "Paramètres ▸ Vos informations : nom, initiales et organisation, enregistrés comme auteur des fichiers, \"dernière modification par\" et société, et utilisés pour signer les commentaires (comme dans Premiers pas)."
         ]

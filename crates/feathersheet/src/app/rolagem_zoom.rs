@@ -145,3 +145,18 @@ fn sem_tamanho_do_canvas_usa_a_estimativa_antiga() {
     app.trocar_selecao(100, 40);
     assert_eq!((app.linha_inicio, app.coluna_inicio), (98, 38));
 }
+
+#[test]
+fn zoom_na_selecao_faz_a_area_caber_e_a_leva_ao_canto() {
+    let mut app = app_com_zoom(100);
+    // 30 colunas de 122 px + cabeçalho não cabem em 1280 px a 100%: o zoom diminui.
+    app.update(Msg::Selecionar(4, 2));
+    app.fim_selecao = (20, 31);
+    app.update(Msg::ZoomSelecao);
+    assert!(app.config.zoom < 100 && app.config.zoom >= app.config.zoom_minimo, "zoom {}", app.config.zoom);
+    assert_eq!((app.linha_inicio, app.coluna_inicio), (4, 2));
+    // Uma célula só: aumenta até o teto das Configurações.
+    app.fim_selecao = (4, 2);
+    app.update(Msg::ZoomSelecao);
+    assert_eq!(app.config.zoom, app.config.zoom_maximo);
+}

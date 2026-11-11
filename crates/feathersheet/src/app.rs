@@ -552,7 +552,7 @@ pub enum Msg {
     PerfilColunaPronto(u64, Result<perfil_coluna_ui::PerfilVisao, String>),
     EstatisticasAbrir, EstatisticasFechar,
     EstatisticasProntas(u64, Result<estatisticas_ui::Visao, String>),
-    Zoom(u16), ZoomMinimo(u16), ZoomMaximo(u16),
+    Zoom(u16), ZoomSelecao, ZoomMinimo(u16), ZoomMaximo(u16),
     Macros, MacroVisual(EventoVisual), MacroEditar, MacroExecutar,
     MacroAbrir, MacroLido(Result<Option<String>,String>), MacroSalvar, MacroDestino(Option<PathBuf>),
     MacroNome(String), MacroNovoModulo, MacroComponentes, MacroNovoFormulario, MacroGuardarModulo, MacroAbrirModulo(String), MacroExcluirModulo,

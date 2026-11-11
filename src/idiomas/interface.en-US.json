@@ -4979,5 +4979,6 @@
  "Baixando a atualização em segundo plano: o FeatherSheet fecha e a versão nova abre sozinha.": "Downloading the update in the background: FeatherSheet closes and the new version opens by itself.",
  "Listas da alça de preenchimento": "Fill handle lists",
  "Arrastar a alça continua estas listas, como jan, fev, mar. Itens separados por ; e listas por |.": "Dragging the fill handle continues these lists, like Jan, Feb, Mar. Items separated by ; and lists by |.",
- "Ex.: P; M; G; GG | baixa; média; alta": "E.g.: S; M; L; XL | low; medium; high"
+ "Ex.: P; M; G; GG | baixa; média; alta": "E.g.: S; M; L; XL | low; medium; high",
+ "Zoom na seleção": "Zoom to Selection"
 }

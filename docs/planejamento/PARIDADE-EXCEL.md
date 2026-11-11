@@ -629,7 +629,7 @@ Faltando:
 - [~] Modos de exibição: Normal e Visualização de quebra de página. Falta: Layout da página com régua e cabeçalho editável na folha.
 - [ ] Modos de exibição de planilha (visões por pessoa) e personalizados.
 - [x] Foco na célula → "Pintar linha/coluna" da célula ativa (Exibir).
-- [~] Zoom e controles da interface: zoom, linhas de grade, barra de fórmulas. Falta: zoom na seleção, cor da grade, ocultar títulos e guias.
+- [~] Zoom e controles da interface: zoom, linhas de grade, barra de fórmulas. Zoom na seleção em Exibir (11/11, `Grade::zoom_para_area`). Falta: cor da grade, ocultar títulos e guias.
 - [~] Ocultar linhas, colunas e abas. Falta: ocultar janela e aba "muito oculta" (o leitor do XLSX conhece `veryHidden`).
 - [~] Impressão: área de impressão, orientação, papel, ajustar a 1 página, linhas de grade, títulos A/B/C e 1/2/3, PDF e quebras de página. O motor já guarda margens, cabeçalho, rodapé e quebras manuais (`planilha/impressao.rs`); falta a interface. Falta também: imprimir títulos (linhas que repetem), ordem das páginas, preto e branco, rascunho, notas e troca de erros por branco na impressão, variáveis `&[Página]` no cabeçalho.
 

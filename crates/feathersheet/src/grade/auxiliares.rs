@@ -206,6 +206,19 @@ impl Grade<'_> {
          eixo(colunas, cabecalho_linha(), self.congelar_colunas, origem.1, p.x))
     }
 
+    /// Zoom (em %) que faz a área (r0, c0, r1, c1) caber na tela, como o "Zoom na Seleção" do
+    /// Excel. `None` antes do primeiro desenho (a tela ainda não foi medida).
+    pub fn zoom_para_area(&self, (r0, c0, r1, c1): (u32, u32, u32, u32)) -> Option<u16> {
+        let mut cache = self.eixos.borrow_mut();
+        let tela = cache.tamanho_canvas?;
+        let (linhas, colunas) = cache.para(self.workbook, self.aba, MAX_ROWS, MAX_COLS, ALTURA_PADRAO, LARGURA_PADRAO)?;
+        let alto = linhas.inicio(r1.saturating_add(1)) - linhas.inicio(r0) + f64::from(CABECALHO_COLUNA);
+        let largo = colunas.inicio(c1.saturating_add(1)) - colunas.inicio(c0) + f64::from(cabecalho_linha());
+        // 18 px: as barras de rolagem da borda.
+        let z = ((f64::from(tela.width) - 18.0) / largo).min((f64::from(tela.height) - 18.0) / alto);
+        (z.is_finite() && z > 0.0).then(|| (z * 100.0).floor().clamp(1.0, 1000.0) as u16)
+    }
+
     /// Mapeia ponto do viewport para célula absoluta, respeitando alturas
     /// e larguras configuradas em Rust, inclusive rolagem horizontal.
     pub fn celula_no_ponto(&self, p: Point, tamanho: Size) -> Option<(u32, u32)> {
