@@ -1,6 +1,6 @@
 [package]
 name = "feathersheet"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "FeatherSheet: planilha nativa em Rust (interface no pelicano)"
 
@@ -13,7 +13,7 @@ path = "src/main.rs"
 pelicano = { version = "0.1.30", features = ["highlighter"] }
 # Idioma do sistema na primeira abertura (já vinha como dependência indireta).
 sys-locale = "0.3"
-feather-charts = { git = "https://github.com/feather-works/feather-charts", rev = "02bead2d9251ecb1cb8c501728f16ea5e653aa70" }
+feather-charts = { git = "https://github.com/feather-works/feather-charts", tag = "v0.3.5" }
 feather-ui = { git = "https://github.com/feather-works/feather-ui.git", tag = "v0.3.15" }
 feather-draw = { git = "https://github.com/feather-works/feather-draw", tag = "v0.1.1" }
 # Formas, ícones e SmartArt comuns da suíte (camada de objetos soltos, app/objetos).

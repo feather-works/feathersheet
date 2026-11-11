@@ -10,6 +10,35 @@ pub use feather_ui::novidades::Versao;
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.3.1",
+        data: "11/11/2026",
+        resumo: "Excel com senha, dinâmica mais completa, francês e FeatherQuery",
+        ilustracao: Ilustracao::Atualizacao,
+        destaques: &[
+            ("lock", "Excel com senha", "Abra .xlsx protegido por senha e salve cifrado em Revisão ▸ Criptografar com senha."),
+            ("table", "Tabela dinâmica mais completa", "Agrupar itens, itens calculados, subtotais em cima ou embaixo e páginas do filtro."),
+            ("columns", "Consolidar e referências 3D", "Junte intervalos de várias abas numa tabela só e some com =SOMA(Jan:Dez!B5)."),
+            ("list-details", "Interface em francês", "A quarta língua do aplicativo: menus, janelas e Ajuda F1."),
+        ],
+        tambem: &[
+            "O editor de consultas agora se chama FeatherQuery.",
+            "Moedas do mundo no formato de célula (libra, iene, pesos, rupia…) e número no estilo indiano.",
+            "Copie a aba para outro arquivo, novo ou existente.",
+            "Planilhas do Excel no sistema de datas 1904 abrem com as datas certas.",
+            "Tabela dinâmica: o mesmo campo em Filtros e em Linhas ou Colunas, recolher e expandir por nível, adiar atualização, sugestão de campos na fórmula e origem em outra aba ou tabela.",
+            "A lista do filtro da tabela dinâmica fecha ao clicar fora.",
+            "A alça de preenchimento continua meses, dias da semana e as suas listas (P, M, G, GG), em Configurações ▸ Planilha.",
+            "Zoom na seleção: a área selecionada passa a encher a tela.",
+            "A faixa recolhe os grupos que não cabem em botões, cada um com o seu ícone.",
+            "Editor de macros: Localizar em caixa flutuante, abas centralizadas e botão direito para criar módulo ou formulário.",
+            "Fórmula arrastada até o fim da planilha gasta muito menos memória.",
+            "Código com espaço, como 01 310, não vira mais número em português.",
+            "Pasta com senha não é gravada em .fshz sem aviso: o Salvar sugere .xlsx.",
+            "Atualizar no Windows não abre mais a janela do PowerShell.",
+            "A IA (MCP) monta a tabela dinâmica inteira e converte VBA em JavaScript.",
+        ],
+    },
+    Versao {
         numero: "0.3.0",
         data: "08/11/2026",
         resumo: "Power Query, dinâmica mais esperta e arquivos mais leves",

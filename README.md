@@ -55,6 +55,17 @@ macro took 25 s.
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
 
+### New in v0.3.1
+
+- **Password-protected Excel files:** open an encrypted `.xlsx` (Excel or LibreOffice) and save it encrypted with *Review ▸ Encrypt with password* (AES-256, like Excel).
+- **A fuller PivotTable:** group items by hand, calculated items, subtotals at the top or bottom, one sheet per filter item, collapse and expand by level, defer update, the same field in Filters and in Rows or Columns, a source in another sheet or table.
+- **Consolidate and 3D references:** *Data ▸ Consolidate* joins ranges from several sheets; `=SUM(Jan:Dec!B5)` reads the same cell across sheets and follows a renamed sheet.
+- **French interface** (the fourth language), a catalog of world currencies in the cell format and Indian-style number grouping.
+- **FeatherQuery:** the query editor (the Power Query equivalent) is now called FeatherQuery everywhere.
+- **Everyday touches:** your own lists for the fill handle (S, M, L, XL), *Zoom to Selection*, copy a sheet to another file, the ribbon collapses groups that don't fit, the 1904 date system when opening `.xlsx`.
+- **Lighter:** a formula dragged to row 100 million takes 43 KB per column instead of 403 MB; a formula over the whole sheet fits in 714 MB.
+- **Fixes:** a code like `01 310` no longer becomes a number in Portuguese; a workbook with a password is not saved as `.fshz` without warning; updating on Windows no longer opens a PowerShell window.
+
 ### New in v0.3.0
 
 - **Power Query in FeatherQuery:** paste Excel's M code and the steps appear; *Copy as Power Query* takes them back to Excel. Queries that Excel saved inside an `.xlsx` open too. FeatherQuery also gained the missing Power Query steps (replace, fill, format text, remove rows, transpose, split by position, custom column with a formula, group with several aggregations), undo on steps, duplicate/reference and combining a folder.

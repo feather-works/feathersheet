@@ -2,6 +2,16 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.3.1 — 11/11/2026: Excel com senha, dinâmica mais completa, francês, FeatherQuery
+
+Junta o "Lote de 10/11/2026" e as entregas de 11/11 (seção "Fila de trabalho" abaixo, item a item). Destaques no
+`VERSOES`: `.xlsx` com senha, tabela dinâmica mais completa, Consolidar e referências 3D, interface em francês. O
+editor de consultas passa a se chamar **FeatherQuery** em todo texto visível. **feather-charts por `tag = "v0.3.5"`**
+(a tag foi publicada em 11/11; é o mesmo commit do `rev` de antes). Telas novas conferidas por foto (faixa de Exibir,
+Dados, Inserir, Configurações ▸ Planilha, Revisão em francês, dinâmica, janela do FeatherQuery); o arrasto do campo para
+duas áreas e o filtro que fecha ao clicar fora foram conferidos pelo usuário na tela. **Sem conferir:** a atualização
+sem PowerShell numa máquina Windows e um `.xlsx` cifrado pelo Excel de verdade.
+
 ## v0.3.0 — 08/11/2026: Power Query, dinâmica, Gantt, página e propriedades no arquivo
 
 Junta as seções "Depois da v0.2.9" abaixo (o que entrou desde 04/11). Destaques no `VERSOES`: Power Query no

@@ -1896,7 +1896,7 @@ dependencies = [
 [[package]]
 name = "feather-charts"
 version = "0.3.5"
-source = "git+https://github.com/feather-works/feather-charts?rev=02bead2d9251ecb1cb8c501728f16ea5e653aa70#02bead2d9251ecb1cb8c501728f16ea5e653aa70"
+source = "git+https://github.com/feather-works/feather-charts?tag=v0.3.5#02bead2d9251ecb1cb8c501728f16ea5e653aa70"
 dependencies = [
  "feather-draw",
  "serde",
@@ -1967,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "feathersheet"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "arboard",
  "base64 0.22.1",
