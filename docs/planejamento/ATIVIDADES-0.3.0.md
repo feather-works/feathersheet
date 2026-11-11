@@ -820,6 +820,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### GRI-2. Cálculo iterativo (referência circular com iterações)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
+**Situação (11/11):** ✅ feito. `feathersheet-core/src/planilha/iterativo.rs` (opção global, como o idioma) e `Sheet::valor_da_volta`/`fechar_ciclo`: a célula a que a conta voltou devolve o valor da rodada anterior e repete o ciclo até o máximo ou até mudar menos que a diferença; o F9 e a troca da opção sujam os ciclos (`sujar_ciclos`). Configurações › Planilha › Cálculo iterativo (desligado por padrão; 100 e 0,001). Teste `tests/iterativo.rs` (convergência, contador, F9, ligar e desligar). Limites: ciclo que passa por outra aba anda uma iteração por recálculo; a opção não é lida nem gravada no `.xlsx`; fórmula empacotada em ciclo não tem teste próprio.
 - **Onde:** `feathersheet-core/src/planilha/calculo_manual.rs` / detecção de circular (a conferir o
   módulo); opções nas Configurações.
 - **Pronto:** opção "Iterações" (máximo e diferença), com teste de convergência em fórmula circular

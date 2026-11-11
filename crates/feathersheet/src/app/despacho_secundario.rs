@@ -1756,6 +1756,19 @@ impl App {
                 self.config.gravar();
                 Task::none()
             }
+            m @ (Msg::CalculoIterativo(_) | Msg::IteracoesMaximo(_) | Msg::IteracoesDiferenca(_)) => {
+                match m {
+                    Msg::CalculoIterativo(ativo) => self.config.calculo_iterativo = ativo,
+                    Msg::IteracoesMaximo(n) => self.config.iteracoes_maximo = n.clamp(1, 32_767),
+                    Msg::IteracoesDiferenca(d) if d.is_finite() => self.config.iteracoes_diferenca = d.abs(),
+                    _ => {}
+                }
+                self.config.aplicar_iterativo();
+                self.config.gravar();
+                // Os ciclos trocam o #CIRCULAR! pelo valor (ou de volta) já.
+                self.workbook.calcular_agora();
+                Task::none()
+            }
             Msg::SalvarXlsx(ativo) => {
                 self.config.salvar_xlsx = ativo;
                 self.config.gravar();

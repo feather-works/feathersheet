@@ -11,6 +11,7 @@ pub mod deslocar_celulas;
 pub mod faixa_lida;
 pub mod frame;
 pub mod image;
+pub mod iterativo;
 pub mod impressao;
 pub mod lista_validacao;
 pub mod mover;

@@ -56,7 +56,8 @@
           "Enquanto você digita, aparecem sugestões e a dica dos argumentos. Clicar ou arrastar na grade insere a referência; o retângulo colorido de cada referência pode ser arrastado (move) ou puxado pelo canto (redimensiona).",
           "Funções que devolvem várias células (FILTRO, ÚNICO, CLASSIFICAR, SEQUÊNCIA…) derramam o resultado para baixo e para a direita. Se algo estiver no caminho, a célula mostra #SPILL!.",
           "Fórmula com erro: botão direito na célula → \"Explicar este erro\" mostra o trecho que falhou e como consertar.",
-          "• Nomes (Fórmulas → Nomes definidos): Definir nome, Gerenciador, Criar da seleção e Usar em fórmula. Um nome vale em qualquer fórmula: =SOMA(Vendas). Em Fórmulas → Cálculo ficam as Opções de cálculo e o Calcular agora."
+          "• Nomes (Fórmulas → Nomes definidos): Definir nome, Gerenciador, Criar da seleção e Usar em fórmula. Um nome vale em qualquer fórmula: =SOMA(Vendas). Em Fórmulas → Cálculo ficam as Opções de cálculo e o Calcular agora.",
+          "• Cálculo iterativo: uma fórmula que depende dela mesma (A1 lê B1 e B1 lê A1) mostra #CIRCULAR!. Para ela repetir a conta até se acertar, ligue Configurações › Planilha › Cálculo iterativo e escolha o máximo de iterações e a diferença em que a conta para. Cada F9 repete as iterações."
         ]
       },
       "preencher": {

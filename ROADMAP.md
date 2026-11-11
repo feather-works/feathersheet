@@ -115,8 +115,9 @@ In order of how much users miss them.
 All 520 Excel functions are in ([`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md)
 lists the known limits). What is left is calculation behavior:
 
-- [ ] 3D references (`Jan:Dec!B5`), iterative calculation (intentional circular
-      references), R1C1 style, precision as displayed, 1904 dates.
+- [x] 3D references (`Jan:Dec!B5`) and iterative calculation (intentional circular
+      references: Settings › Sheet › Iterative calculation).
+- [ ] R1C1 style, precision as displayed, 1904 dates when saving (reading works).
 - [ ] **Rich text in a cell** (bold, color or superscript on a single word).
 
 ## Phase 4 — Macros

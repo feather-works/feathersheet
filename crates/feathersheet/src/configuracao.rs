@@ -67,6 +67,11 @@ pub struct Configuracao {
     pub salvar_xlsx: bool,
     /// Listas próprias que a alça continua (`P; M; G | baixa; média; alta`): itens com `;`, listas com `|`.
     pub listas_alca: String,
+    /// Cálculo iterativo: fórmula que depende dela mesma repete a conta em vez de dar #CIRCULAR!.
+    pub calculo_iterativo: bool,
+    /// Máximo de iterações e a diferença abaixo da qual o ciclo para (padrões do Excel).
+    pub iteracoes_maximo: u32,
+    pub iteracoes_diferenca: f64,
     /// Linux/Wayland: onde abrir a janela — `auto` (XWayland se houver mesa,
     /// para a caneta clicar), `x11` ou `wayland`. Vale na próxima abertura.
     pub janela_linux: String,
@@ -141,6 +146,11 @@ pub const ROTULOS_CURVAS_CANETA: [&str; 4] =
     [CURVAS_CANETA[0].0, CURVAS_CANETA[1].0, CURVAS_CANETA[2].0, CURVAS_CANETA[3].0];
 
 impl Configuracao {
+    /// Entrega ao motor a opção de cálculo iterativo.
+    pub fn aplicar_iterativo(&self) {
+        feathersheet_core::planilha::iterativo::definir(
+            self.calculo_iterativo.then_some((self.iteracoes_maximo.max(1), self.iteracoes_diferenca)));
+    }
     /// Entrega ao motor as listas próprias da alça.
     pub fn aplicar_listas_alca(&self) {
         use feathersheet_core::operacoes::ordenacao_ext::{definir_listas_do_usuario, lista_de_texto};
@@ -162,6 +172,7 @@ impl Default for Configuracao {
             caneta_pressao: true,
             salvar_xlsx: false,
             listas_alca: String::new(),
+            calculo_iterativo: false, iteracoes_maximo: 100, iteracoes_diferenca: 0.001,
             janela_linux: "auto".into(),
             fuso_minutos: None,
             caneta_gama: CURVAS_CANETA[1].1,

@@ -269,6 +269,23 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
             linha(tr!("Listas da alça de preenchimento"), tr!("Arrastar a alça continua estas listas, como jan, fev, mar. Itens separados por ; e listas por |."),
                 pelicano::text_input(tr!("Ex.: P; M; G; GG | baixa; média; alta"), &app.config.listas_alca).on_input(Msg::ListasAlca)
                     .padding([6, 9]).size(13).width(Length::Fixed(300.0))),
+            linha(tr!("Cálculo iterativo"), tr!("Fórmula que depende dela mesma repete a conta em vez de mostrar #CIRCULAR!. Cada F9 repete as iterações."),
+                toggler("", app.config.calculo_iterativo).on_toggle(Msg::CalculoIterativo).color(COR_AZUL_ACENTO())),
+            if app.config.calculo_iterativo {
+                linha(tr!("Iterações"), tr!("Para no máximo de iterações ou quando o valor muda menos que a diferença."),
+                    pelicano::row![
+                        feather_ui::componentes::lista_suspensa(
+                            tr!("Máximo"), &ITERACOES_MAXIMO,
+                            ITERACOES_MAXIMO.iter().copied().find(|t| t.parse() == Ok(app.config.iteracoes_maximo)),
+                            |valor| Msg::IteracoesMaximo(valor.parse().unwrap_or(100)), 90.0),
+                        feather_ui::componentes::lista_suspensa(
+                            tr!("Diferença"), &ITERACOES_DIFERENCA,
+                            ITERACOES_DIFERENCA.iter().copied().find(|t| t.parse() == Ok(app.config.iteracoes_diferenca)),
+                            |valor| Msg::IteracoesDiferenca(valor.parse().unwrap_or(0.001)), 110.0),
+                    ].spacing(6))
+            } else {
+                Space::new(0.0, 0.0).into()
+            },
             linha(tr!("Linhas de grade"), tr!("Mostra ou oculta o quadriculado das células."),
                 toggler("", app.linhas_grade).on_toggle(Msg::LinhasGrade).color(COR_AZUL_ACENTO())),
             linha(tr!("Barra de fórmulas"), tr!("Campo fx acima da planilha."),
@@ -736,3 +753,7 @@ fn descricao_memoria() -> String {
         None => base.to_string(),
     }
 }
+
+/// Opções das listas do cálculo iterativo (o arquivo de configuração aceita outros valores).
+const ITERACOES_MAXIMO: [&str; 5] = ["1", "10", "100", "1000", "10000"];
+const ITERACOES_DIFERENCA: [&str; 5] = ["0.1", "0.01", "0.001", "0.0001", "0"];

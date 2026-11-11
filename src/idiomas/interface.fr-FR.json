@@ -5896,5 +5896,10 @@
  "CONSULTA": "REQUÊTE",
  "COLUNAS": "COLONNES",
  "COMBINAR": "COMBINER",
- "A aba não tem a forma \"{}\"": "La feuille n'a pas la forme \"{}\""
+ "A aba não tem a forma \"{}\"": "La feuille n'a pas la forme \"{}\"",
+ "Cálculo iterativo": "Calcul itératif",
+ "Fórmula que depende dela mesma repete a conta em vez de mostrar #CIRCULAR!. Cada F9 repete as iterações.": "Une formule qui dépend d'elle-même répète le calcul au lieu d'afficher #CIRCULAIRE!. Chaque F9 répète les itérations.",
+ "Iterações": "Itérations",
+ "Para no máximo de iterações ou quando o valor muda menos que a diferença.": "S'arrête au nombre maximal d'itérations ou quand la valeur change de moins que l'écart.",
+ "Diferença": "Écart"
 }

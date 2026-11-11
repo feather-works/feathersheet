@@ -56,7 +56,8 @@
           "While you type, suggestions and argument hints show up. Clicking or dragging on the grid inserts the reference; each colored reference box can be dragged (move) or pulled by its corner (resize).",
           "Functions that return several cells (FILTER, UNIQUE, SORT, SEQUENCE…) spill the result down and to the right. If something is in the way, the cell shows #SPILL!.",
           "Formula with an error: right-click the cell → \"Explicar este erro\" shows the failing part and how to fix it.",
-          "• Names (Formulas → Defined Names): Define Name, Manager, Create from Selection and Use in Formula. A name works in any formula: =SUM(Sales). Formulas → Calculation has Calculation Options and Calculate Now."
+          "• Names (Formulas → Defined Names): Define Name, Manager, Create from Selection and Use in Formula. A name works in any formula: =SUM(Sales). Formulas → Calculation has Calculation Options and Calculate Now.",
+          "• Iterative calculation: a formula that depends on itself (A1 reads B1 and B1 reads A1) shows #CIRCULAR!. To have it repeat the calculation until it settles, turn on Settings › Sheet › Iterative calculation and choose the maximum number of iterations and the change at which it stops. Each F9 repeats the iterations."
         ]
       },
       "preencher": {

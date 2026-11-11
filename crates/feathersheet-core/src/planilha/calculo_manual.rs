@@ -71,6 +71,7 @@ impl Workbook {
     pub fn calcular_aba(&mut self, indice: usize) {
         if let Some(aba) = self.aba_mut(indice) {
             aba.sheet.sujar_volateis();
+            aba.sheet.sujar_ciclos();
             if aba.sheet.soltar_adiadas() {
                 aba.versao = crate::planilha::workbook::proxima_versao(aba.versao);
             }

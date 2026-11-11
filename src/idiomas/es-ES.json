@@ -56,7 +56,8 @@
      "Mientras escribe aparecen sugerencias y ayudas de argumentos. Al hacer clic o arrastrar sobre la cuadrícula se inserta la referencia; cada recuadro de referencia de color se puede arrastrar (mover) o estirar por su esquina (cambiar tamaño).",
      "Las funciones que devuelven varias celdas (FILTER, UNIQUE, SORT, SEQUENCE…) extienden el resultado hacia abajo y hacia la derecha. Si algo estorba, la celda muestra #SPILL!.",
      "Fórmula con error: haga clic derecho en la celda → \"Explicar este error\" muestra la parte que falla y cómo corregirla.",
-     "• Nombres (Fórmulas → Nombres definidos): Definir nombre, Administrador, Crear a partir de la selección y Usar en fórmula. Un nombre vale en cualquier fórmula: =SUMA(Ventas). En Fórmulas → Cálculo están las Opciones de cálculo y Calcular ahora."
+     "• Nombres (Fórmulas → Nombres definidos): Definir nombre, Administrador, Crear a partir de la selección y Usar en fórmula. Un nombre vale en cualquier fórmula: =SUMA(Ventas). En Fórmulas → Cálculo están las Opciones de cálculo y Calcular ahora.",
+     "• Cálculo iterativo: una fórmula que depende de sí misma (A1 lee B1 y B1 lee A1) muestra #¡CIRCULAR!. Para que repita el cálculo hasta estabilizarse, active Configuración › Hoja › Cálculo iterativo y elija el máximo de iteraciones y la diferencia en la que el cálculo se detiene. Cada F9 repite las iteraciones."
     ]
    },
    "preencher": {

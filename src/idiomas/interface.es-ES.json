@@ -5896,5 +5896,10 @@
  "CONSULTA": "CONSULTA",
  "COLUNAS": "COLUMNAS",
  "COMBINAR": "COMBINAR",
- "A aba não tem a forma \"{}\"": "La hoja no tiene la forma \"{}\""
+ "A aba não tem a forma \"{}\"": "La hoja no tiene la forma \"{}\"",
+ "Cálculo iterativo": "Cálculo iterativo",
+ "Fórmula que depende dela mesma repete a conta em vez de mostrar #CIRCULAR!. Cada F9 repete as iterações.": "Una fórmula que depende de sí misma repite el cálculo en lugar de mostrar #¡CIRCULAR!. Cada F9 repite las iteraciones.",
+ "Iterações": "Iteraciones",
+ "Para no máximo de iterações ou quando o valor muda menos que a diferença.": "Se detiene al llegar al máximo de iteraciones o cuando el valor cambia menos que la diferencia.",
+ "Diferença": "Diferencia"
 }

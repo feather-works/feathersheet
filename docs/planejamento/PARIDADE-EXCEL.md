@@ -565,7 +565,7 @@ Faltando:
 ## 5. Motor de cálculo e endereçamento
 
 - [~] Modos de cálculo: Automático e Manual em Fórmulas > Opções de cálculo, F9 calcula a pasta e Shift+F9 a planilha (`app/formulas_ui.rs:139-146`, `:420-421`; motor `planilha/calculo_manual.rs:31-68`); voltar ao automático calcula o que esperava. Falta o modo "automático exceto tabelas de dados". Feito em 14/10.
-- [ ] Cálculo iterativo (referência circular intencional). Hoje a circular vira `#CIRCULAR!` com explicação.
+- [x] Cálculo iterativo (referência circular intencional): Configurações › Planilha › Cálculo iterativo, com máximo de iterações e diferença (11/11). Desligado, a circular vira `#CIRCULAR!` com explicação. Não lê nem grava a opção do `.xlsx` (`calcPr iterate`); ciclo que passa por outra aba anda uma iteração por recálculo.
 - [x] Matrizes dinâmicas com derramamento (`#SPILL!`, FILTRO, ÚNICO, CLASSIFICAR, SEQUÊNCIA…).
 - [x] Marcar valores desatualizados no modo manual: com conta esperando, o rodapé mostra "Calcular" / "Há fórmulas por calcular (F9)" (`app/formulas_ui.rs:586-593`, `Workbook::calculo_pendente_manual`). A célula em si não é marcada.
 - [x] Cálculo em várias threads: escolhe de 1 até todos os núcleos menos um (Configurações → Desempenho; padrão todos menos um). Calcula em paralelo, coluna por coluna, na ordem das dependências (`planilha/calculo_paralelo.rs`, 13/10: Planilha Pesada de 25,9 s para 5,5 s).

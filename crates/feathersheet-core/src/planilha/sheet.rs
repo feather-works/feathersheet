@@ -154,6 +154,16 @@ struct CalcCache {
     /// Pilha de quem está sendo avaliado agora, nesta cadeia de chamadas —
     /// achar `k` aqui de novo é referência circular.
     evaluating: crate::celulas::mapa_chave::ConjuntoChave,
+    /// Cálculo iterativo: as células a que a conta voltou (cada uma repete o seu ciclo)...
+    cabecas: crate::celulas::mapa_chave::ConjuntoChave,
+    /// ...e as que terminaram de calcular com um ciclo aberto: refazem a cada iteração.
+    no_ciclo: Vec<CellKey>,
+    /// As células de ciclo já vistas (com iteração ou com `#CIRCULAR!`), para o F9 e a
+    /// troca da opção calcularem de novo.
+    em_ciclo: crate::celulas::mapa_chave::ConjuntoChave,
+    /// O último valor de cada célula a que a conta voltou: sujar a célula apaga o cache,
+    /// e o recálculo seguinte continua daqui (como no Excel), não do zero.
+    anterior: crate::celulas::mapa_chave::MapaChave<Value>,
 }
 
 // `Debug`/`Clone` saíram do derive: `DataTable` e `StringPool` não os têm
@@ -614,6 +624,7 @@ impl Sheet {
                     // conjunto `evaluating` de uma rodada enxergar.
                     let k = Self::cell_key(r2, c2);
                     let mut calc = self.calc.borrow_mut();
+                    calc.em_ciclo.insert(k);
                     calc.cache.insert(k, Value::Error(CellError::new(ErrorCode::Circular)));
                     calc.dirty.remove(&k);
                 }
@@ -775,6 +786,7 @@ impl Sheet {
         {
             let mut calc = self.calc.borrow_mut();
             if calc.evaluating.contains(&k) {
+                if let Some(anterior) = Self::valor_da_volta(&mut calc, k) { return anterior; }
                 calc.cache.insert(k, Value::Error(CellError::new(ErrorCode::Circular)));
                 calc.dirty.remove(&k);
                 return Value::Error(CellError::new(ErrorCode::Circular));
@@ -786,26 +798,27 @@ impl Sheet {
             self.calc.borrow_mut().evaluating.remove(&k);
             return Value::Empty;
         };
-        let val = match arvore {
+        let avaliar = || match &arvore {
             // O `#REF!` da faixa de outro arquivo sem valores, como na avulsa.
             Ok(node) => match host.is_some().then(|| self.formulas.le_de_fora_em(row, col))
-                .filter(|&fora| fora).and_then(|_| self.intervalo_externo_sem_valores(&node, host)) {
+                .filter(|&fora| fora).and_then(|_| self.intervalo_externo_sem_valores(node, host)) {
                 Some(erro) => erro,
                 None => {
                     let ctx = SheetCtx { sheet: self, host };
                     let ev = Evaluator::na_celula(&ctx, row, col);
-                    ev.eval(&node)
+                    ev.eval(node)
                 }
             },
-            Err(e) => Value::Error(CellError::com_motivo(ErrorCode::Name, e)),
+            Err(e) => Value::Error(CellError::com_motivo(ErrorCode::Name, e.clone())),
         };
-
-        let mut calc = self.calc.borrow_mut();
-        calc.evaluating.remove(&k);
+        let val = avaliar();
+        self.calc.borrow_mut().evaluating.remove(&k);
         if corrente::voltando() {
             // Resultado de uma rodada interrompida: pode estar errado.
             return Value::Empty;
         }
+        let val = self.fechar_ciclo(k, val, &avaliar);
+        let mut calc = self.calc.borrow_mut();
         // Uma consulta sem a pasta não pode guardar #REF! no lugar de um
         // resultado que será resolvido quando o hospedeiro estiver presente.
         if host.is_none() && self.formulas.le_de_fora_em(row, col) {
@@ -1016,6 +1029,13 @@ impl Sheet {
     /// Um recálculo da pasta (edição, F9, abrir) sorteia de novo as
     /// voláteis; leitura e desenho nunca. Marca cada volátil como suja, com
     /// os dependentes. Quem já está suja é pulada.
+    /// Cálculo iterativo: suja de novo os ciclos e quem depende deles. O F9 repete as
+    /// iterações, e ligar ou desligar a opção troca `#CIRCULAR!` pelo valor (e de volta).
+    pub(crate) fn sujar_ciclos(&self) {
+        let ciclos: Vec<CellKey> = self.calc.borrow().em_ciclo.iter().copied().collect();
+        if !ciclos.is_empty() { self.sujar_cascata_de(ciclos); }
+    }
+
     pub(crate) fn sujar_volateis(&self) {
         if self.deps.volatiles.is_empty() {
             return;
@@ -1216,6 +1236,56 @@ impl Sheet {
         }
     }
 
+    /// Cálculo iterativo ligado: a célula a que a conta voltou devolve o valor da rodada
+    /// anterior (zero na primeira) em vez de `#CIRCULAR!`, e fica marcada para repetir.
+    fn valor_da_volta(calc: &mut CalcCache, k: CellKey) -> Option<Value> {
+        calc.em_ciclo.insert(k);
+        crate::planilha::iterativo::config()?;
+        calc.cabecas.insert(k);
+        Some(match calc.cache.get(&k).or_else(|| calc.anterior.get(&k)) {
+            Some(Value::Error(e)) if e.code == ErrorCode::Circular => Value::Number(0.0),
+            Some(v) => v.clone(),
+            None => Value::Number(0.0),
+        })
+    }
+
+    /// Cálculo iterativo: `k` acabou de calcular. Se a conta voltou a ela, repete o ciclo
+    /// até o máximo de iterações ou até mudar menos que a diferença aceita.
+    // shortcut: só fecha ciclo dentro da mesma aba e mais curto que a corrente adiada;
+    // ciclo que passa por outra aba anda uma iteração por recálculo. Trocar por um
+    // controle na pasta se alguém precisar.
+    fn fechar_ciclo(&self, k: CellKey, mut valor: Value, avaliar: &dyn Fn() -> Value) -> Value {
+        let Some((maximo, diferenca)) = crate::planilha::iterativo::config() else { return valor };
+        {
+            let mut calc = self.calc.borrow_mut();
+            if !calc.cabecas.contains(&k) {
+                if !calc.cabecas.is_empty() { calc.no_ciclo.push(k); }
+                return valor;
+            }
+        }
+        for _ in 1..maximo {
+            {
+                let mut calc = self.calc.borrow_mut();
+                calc.cache.insert(k, valor.clone());
+                for m in std::mem::take(&mut calc.no_ciclo) { calc.dirty.insert(m); }
+                calc.evaluating.insert(k);
+            }
+            let novo = avaliar();
+            self.calc.borrow_mut().evaluating.remove(&k);
+            let perto = match (&novo, &valor) {
+                (Value::Number(a), Value::Number(b)) => (a - b).abs() <= diferenca,
+                (a, b) => a == b,
+            };
+            valor = novo;
+            if perto || corrente::voltando() { break; }
+        }
+        let mut calc = self.calc.borrow_mut();
+        calc.cabecas.remove(&k);
+        calc.anterior.insert(k, valor.clone());
+        if calc.cabecas.is_empty() { calc.no_ciclo.clear(); } else { calc.no_ciclo.push(k); }
+        valor
+    }
+
     /// Recalcula `k` se estiver sujo (ou nunca calculado, ou volátil).
     ///
     /// Devolve `Some` quando o valor foi calculado sem a pasta em volta e a
@@ -1240,6 +1310,10 @@ impl Sheet {
         {
             let mut calc = self.calc.borrow_mut();
             if calc.evaluating.contains(&k) {
+                if let Some(anterior) = Self::valor_da_volta(&mut calc, k) {
+                    calc.cache.insert(k, anterior); // quem pediu lê do cache
+                    return None;
+                }
                 calc.cache.insert(k, Value::Error(CellError::new(ErrorCode::Circular)));
                 calc.dirty.remove(&k);
                 return None;
@@ -1248,18 +1322,20 @@ impl Sheet {
         }
         let ctx = SheetCtx { sheet: self, host };
         let ev = Evaluator::na_celula(&ctx, row, col);
-        let valor = if let Some(erro) = externa.then(|| self.intervalo_externo_sem_valores(node, host)).flatten() {
+        let avaliar = || if let Some(erro) = externa.then(|| self.intervalo_externo_sem_valores(node, host)).flatten() {
             erro
         } else if !self.deps.array_cells.is_empty() && self.deps.array_cells.contains(&k) {
             self.avaliar_ancora(k, &ev, node, externa && host.is_none())
         } else {
             ev.eval(node)
         };
-        let mut calc = self.calc.borrow_mut();
-        calc.evaluating.remove(&k);
+        let valor = avaliar();
+        self.calc.borrow_mut().evaluating.remove(&k);
         if corrente::voltando() {
             return Some(Value::Empty);
         }
+        let valor = self.fechar_ciclo(k, valor, &avaliar);
+        let mut calc = self.calc.borrow_mut();
         if externa && host.is_none() {
             return Some(valor);
         }

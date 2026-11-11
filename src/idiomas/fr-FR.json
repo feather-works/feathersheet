@@ -56,7 +56,8 @@
           "Pendant la saisie, des suggestions et des aides sur les arguments apparaissent. Cliquer ou faire glisser sur la grille insère la référence ; chaque cadre de référence coloré peut être déplacé (glisser) ou étiré par son coin (redimensionner).",
           "Les fonctions qui renvoient plusieurs cellules (FILTRE, UNIQUE, TRIER, SEQUENCE…) étendent le résultat vers le bas et vers la droite. Si quelque chose gêne, la cellule affiche #SPILL!.",
           "Formule en erreur : clic droit sur la cellule → \"Expliquer cette erreur\" montre la partie qui échoue et comment la corriger.",
-          "• Noms (Formules → Noms définis) : Définir un nom, Gestionnaire, Créer à partir de la sélection et Utiliser dans la formule. Un nom fonctionne dans n'importe quelle formule : =SOMME(Ventes). Formules → Calcul propose les Options de calcul et Calculer maintenant."
+          "• Noms (Formules → Noms définis) : Définir un nom, Gestionnaire, Créer à partir de la sélection et Utiliser dans la formule. Un nom fonctionne dans n'importe quelle formule : =SOMME(Ventes). Formules → Calcul propose les Options de calcul et Calculer maintenant.",
+          "• Calcul itératif : une formule qui dépend d'elle-même (A1 lit B1 et B1 lit A1) affiche #CIRCULAIRE!. Pour qu'elle répète le calcul jusqu'à se stabiliser, activez Paramètres › Feuille › Calcul itératif et choisissez le nombre maximal d'itérations et l'écart à partir duquel le calcul s'arrête. Chaque F9 répète les itérations."
         ]
       },
       "preencher": {

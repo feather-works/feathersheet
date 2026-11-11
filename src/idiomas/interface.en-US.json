@@ -5896,5 +5896,10 @@
  "CONSULTA": "QUERY",
  "COLUNAS": "COLUMNS",
  "COMBINAR": "COMBINE",
- "A aba não tem a forma \"{}\"": "The sheet has no shape \"{}\""
+ "A aba não tem a forma \"{}\"": "The sheet has no shape \"{}\"",
+ "Cálculo iterativo": "Iterative calculation",
+ "Fórmula que depende dela mesma repete a conta em vez de mostrar #CIRCULAR!. Cada F9 repete as iterações.": "A formula that depends on itself repeats the calculation instead of showing #CIRCULAR!. Each F9 repeats the iterations.",
+ "Iterações": "Iterations",
+ "Para no máximo de iterações ou quando o valor muda menos que a diferença.": "Stops at the maximum number of iterations or when the value changes by less than the difference.",
+ "Diferença": "Difference"
 }
