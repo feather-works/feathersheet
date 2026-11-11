@@ -15,6 +15,27 @@ thread_local! {
     /// Enquanto `Some`, `faixa_grupo` anota o título de cada grupo montado (INT-1: as abas
     /// fora da Página Inicial recolhem grupo a grupo e o botão recolhido mostra o nome).
     static TITULOS_GRUPOS: std::cell::RefCell<Option<Vec<&'static str>>> = const { std::cell::RefCell::new(None) };
+    /// O primeiro ícone de botão grande e o primeiro de qualquer botão montados desde o último grupo.
+    static ICONE_VISTO: std::cell::RefCell<(Option<String>, Option<String>)> = const { std::cell::RefCell::new((None, None)) };
+    /// Ícone de cada grupo (pelo título), para o botão do grupo recolhido não ser sempre o mesmo.
+    static ICONES_GRUPOS: std::cell::RefCell<std::collections::HashMap<&'static str, String>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Anota o ícone de um botão da faixa: o grupo que o contém usa o primeiro como o seu.
+fn notar_icone(icone: &str, grande: bool) {
+    ICONE_VISTO.with_borrow_mut(|(g, q)| {
+        let alvo = if grande { g } else { q };
+        if alvo.is_none() { *alvo = Some(icone.to_owned()); }
+    });
+}
+
+/// Fecha um grupo: guarda o ícone dele (o do primeiro botão grande; sem um, o do primeiro botão).
+fn guardar_icone_do_grupo(titulo: &'static str) {
+    let (grande, qualquer) = ICONE_VISTO.with_borrow_mut(std::mem::take);
+    if let Some(icone) = grande.or(qualquer) {
+        ICONES_GRUPOS.with_borrow_mut(|m| { m.insert(titulo, icone); });
+    }
 }
 
 pub(super) const FONTES: &[&str] = &["Padrão", "Serifada", "Monoespaçada", "Arial", "Georgia", "Courier New", "Verdana", "Times New Roman"];
@@ -62,6 +83,7 @@ pub(super) fn montar_catalogos_funcoes() -> Vec<Vec<String>> {
 
 impl App {
     pub(super) fn faixa_pequeno(&self, rotulo: &str, icone: &str, msg: Option<Msg>, ativo: bool) -> Element<'_, Msg> {
+        notar_icone(icone, false);
         ui::botao_pequeno(feather_ui::icones::icone(icone, 17.), rotulo, msg, ativo)
     }
 
@@ -76,6 +98,7 @@ impl App {
     }
 
     pub(super) fn faixa_icone(&self, dica: &str, icone: &str, msg: Option<Msg>, ativo: bool) -> Element<'_, Msg> {
+        notar_icone(icone, false);
         ui::botao_icone(feather_ui::icones::icone(icone, 17.), dica, msg, ativo)
     }
 
@@ -207,6 +230,7 @@ impl App {
     }
 
     pub(super) fn faixa_grande(&self, rotulo: &str, icone: &str, msg: Option<Msg>, ativo: bool) -> Element<'_, Msg> {
+        notar_icone(icone, true);
         ui::botao_grande(feather_ui::icones::icone(icone, 23.), rotulo, msg, ativo)
     }
 
@@ -248,6 +272,7 @@ impl App {
 
     /// Ícone de Inserir com seta SVG integrada: sem PickList/dropdown.
     pub(super) fn faixa_grande_seta(&self, rotulo: &str, icone: &str, msg: Option<Msg>, ativo: bool) -> Element<'_, Msg> {
+        notar_icone(icone, true);
         button(pelicano::column![
             feather_ui::icones::icone(icone, 23.0),
             pelicano::row![
@@ -312,6 +337,7 @@ impl App {
 
     pub(super) fn faixa_grupo<'a>(&self, titulo: &'static str, elementos: Element<'a, Msg>) -> Element<'a, Msg> {
         TITULOS_GRUPOS.with_borrow_mut(|t| if let Some(t) = t { t.push(titulo) });
+        guardar_icone_do_grupo(titulo);
         // Todos os grupos, não apenas Fonte: mesmo espaço para legenda.
         // O antigo grupo_faixa com Height::Fill deixava os títulos invadirem
         // a rolagem horizontal no rodapé (ex.: "Alinhamento").
@@ -321,6 +347,7 @@ impl App {
     /// Grupo com a setinha ↘ do Office, que abre Formatar células (Ctrl+1) na `aba`.
     pub(super) fn faixa_grupo_com_janela<'a>(&self, titulo: &'static str, aba: super::formatar_celulas::Aba, elementos: Element<'a, Msg>) -> Element<'a, Msg> {
         TITULOS_GRUPOS.with_borrow_mut(|t| if let Some(t) = t { t.push(titulo) });
+        guardar_icone_do_grupo(titulo);
         ui::grupo_faixa_com_janela(elementos, crate::idioma::tr(titulo),
             Some((tr!("Formatar células (Ctrl+1)"), Msg::FormatarCelulasNa(aba))))
     }
@@ -551,8 +578,12 @@ impl App {
 
     /// Entrada para comandos globais; busca somente os comandos já ligados ao Rust.
     pub(super) fn faixa_pesquisa(&self) -> Element<'_, Msg> {
-        let largura = if self.tamanho_principal.width >= 1300.0 { 250.0 } else { 172.0 };
-        let campo = text_input(tr!("Pesquisar comandos..."), &self.busca_comandos)
+        // Com aba contextual (Tabela Dinâmica, Design da Tabela…) em janela estreita a busca
+        // encolhe: senão o nome da aba ficava cortado atrás dela.
+        let contextual = self.dinamica_na_faixa() || self.minigrafico_na_celula().is_some() || self.tem_forma_selecionada()
+            || super::tabelas::sob_celula(&self.workbook, self.folha, self.linha, self.coluna).is_some();
+        let largura = if self.tamanho_principal.width >= 1300.0 { 250.0 } else if contextual { 92.0 } else { 172.0 };
+        let campo = text_input(if largura < 150.0 { tr!("Pesquisar") } else { tr!("Pesquisar comandos...") }, &self.busca_comandos)
             .on_input(Msg::BuscaComandos).width(Length::Fixed(largura))
             .size(12).padding([6, 9]);
         let mut lista = column![campo].spacing(2);
@@ -652,8 +683,9 @@ impl App {
 
     /// Botão de um grupo recolhido de qualquer aba: abre o grupo inteiro num painel.
     pub(super) fn faixa_grupo_recolhido(&self, indice: usize, titulo: &'static str) -> Element<'_, Msg> {
+        let icone = ICONES_GRUPOS.with_borrow(|m| m.get(titulo).cloned()).unwrap_or_else(|| "layout-grid".to_owned());
         let botao = button(pelicano::column![
-            feather_ui::icones::icone("layout-grid", 21.),
+            feather_ui::icones::icone(&icone, 21.),
             feather_ui::icones::icone("chevron-down", 11.),
         ].spacing(7).align(pelicano::Align::Center))
             .padding([10, 16])
