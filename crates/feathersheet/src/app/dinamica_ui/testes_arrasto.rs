@@ -126,7 +126,7 @@ fn aba_da_faixa_aparece_na_dinamica_e_muda_sem_o_painel() {
     let _ = app.evento_dinamica(Evento::NaFaixa(Box::new(Evento::Subtotais)));
     assert!(app.dinamica.is_none(), "o painel continua fechado");
     assert_ne!(subtotais(&app), antes, "a opção foi gravada na dinâmica");
-    assert_eq!(app.grupos_faixa_dinamica().len(), 6);
+    assert_eq!(app.grupos_faixa_dinamica().len(), 7);
     // Fora da dinâmica a aba some.
     app.trocar_selecao(40, 10);
     assert!(!app.dinamica_na_faixa());
@@ -478,4 +478,172 @@ fn montar_dinamica_de_blocos() {
         feathersheet_io::fshz_write::gravar_fshz_para(arquivo, &pasta).map_err(std::io::Error::other)
     }).unwrap();
     eprintln!("gravar {saida}: {:?}", t.elapsed());
+}
+
+#[test]
+fn adiar_atualizacao_so_aplica_no_botao() {
+    let mut app = app_com_dinamica();
+    let d = destino(&app);
+    let dn = |app: &App| app.workbook.aba(d).unwrap().sheet.dn.clone();
+    let _ = app.evento_dinamica(Evento::Adiar);
+    let antes = dn(&app);
+    let _ = app.evento_dinamica(Evento::Subtotais);
+    let _ = app.evento_dinamica(Evento::RepetirRotulos);
+    assert_eq!(dn(&app), antes, "adiado: a tabela não muda");
+    assert!(app.dinamica.as_ref().unwrap().ui.pendente);
+    let _ = app.evento_dinamica(Evento::AtualizarPainel);
+    assert_ne!(dn(&app), antes, "Atualizar aplica as duas mudanças");
+    assert!(!app.dinamica.as_ref().unwrap().ui.pendente);
+}
+
+/// DIN-6: selecionar dois itens de Linhas na grade e Agrupar junta os dois num item só,
+/// com a soma deles; Desagrupar desfaz. Tudo pela aba da faixa, com o painel fechado.
+#[test]
+fn agrupar_selecao_junta_itens_e_desagrupar_desfaz() {
+    let mut app = app_com_dinamica();
+    let d = destino(&app);
+    let _ = app.evento_dinamica(Evento::Fechar);
+    app.folha = d;
+    let linha_de = |app: &App, texto: &str| -> Option<u32> {
+        let s = &app.workbook.aba(d).unwrap().sheet;
+        (0..40).find(|&r| (0..6).any(|c| s.get_raw(r, c) == texto))
+    };
+    let valor_ao_lado = |app: &App, texto: &str| -> String {
+        let s = &app.workbook.aba(d).unwrap().sheet;
+        let r = linha_de(app, texto).unwrap();
+        let c = (0..6).find(|&c| s.get_raw(r, c) == texto).unwrap();
+        to_text(&s.get_value(r, c + 1))
+    };
+    let (norte, sul) = (linha_de(&app, "Norte").expect("Norte"), linha_de(&app, "Sul").expect("Sul"));
+    app.trocar_selecao(norte.min(sul), 0);
+    app.fim_selecao = (norte.max(sul), 0);
+    let _ = app.evento_dinamica(Evento::NaFaixa(Box::new(Evento::AgruparItens(true))));
+    assert!(linha_de(&app, "Norte").is_none() && linha_de(&app, "Sul").is_none(), "{}", app.status);
+    assert_eq!(valor_ao_lado(&app, "Grupo1"), "60", "10 + 30 + 20");
+    // Digitar por cima do rótulo renomeia o grupo (a dinâmica se refaz com o nome novo).
+    let grupo = linha_de(&app, "Grupo1").unwrap();
+    app.trocar_selecao(grupo, 0);
+    let _ = app.update(Msg::Digitar("Norte e Sul".into()));
+    assert!(app.confirmar());
+    assert!(linha_de(&app, "Grupo1").is_none(), "{}", app.status);
+    assert_eq!(valor_ao_lado(&app, "Norte e Sul"), "60");
+    let grupo = linha_de(&app, "Norte e Sul").unwrap();
+    app.trocar_selecao(grupo, 0);
+    let _ = app.evento_dinamica(Evento::NaFaixa(Box::new(Evento::AgruparItens(false))));
+    assert!(linha_de(&app, "Norte e Sul").is_none());
+    assert_eq!(valor_ao_lado(&app, "Norte"), "30");
+}
+
+/// DIN-6 no tabular com dois campos em Linhas: o nível do grupo é o da coluna selecionada.
+/// FECAM e TCA selecionados na coluna da FONTE juntam as fontes, e o STATUS fica como está.
+#[test]
+fn agrupar_no_tabular_usa_o_nivel_da_coluna_selecionada() {
+    let mut app = App::default();
+    app.preparar_captura_dinamica("agrupar");
+    let s = &app.workbook.aba(app.folha).unwrap().sheet;
+    let coluna = |c: u32| (0..20u32).map(|r| s.get_raw(r, c)).collect::<Vec<_>>();
+    let (fontes, status) = (coluna(0), coluna(1));
+    assert!(fontes.iter().any(|t| t == "Grupo1"), "{fontes:?} · {}", app.status);
+    assert!(!fontes.iter().any(|t| t == "FECAM" || t == "TCA"));
+    assert!(!status.iter().any(|t| t == "Grupo1"), "o STATUS não foi agrupado: {status:?}");
+    assert!(status.iter().any(|t| t == "Concluído"));
+}
+
+/// DIN-6 em Colunas: com Produto em Colunas, selecionar no cabeçalho as colunas de A e B e
+/// Agrupar junta as duas numa coluna "Grupo1" com a soma (10 + 30 + 20 = 60 no total).
+#[test]
+fn agrupar_no_cabecalho_junta_itens_de_colunas() {
+    let mut app = app_com_dinamica();
+    let _ = app.evento_dinamica(Evento::ArrastoInicio(1, None));
+    let _ = app.evento_dinamica(Evento::ArrastoMover(pelicano::Point::new(0.0, 0.0)));
+    let _ = app.evento_dinamica(Evento::ArrastoMover(pelicano::Point::new(40.0, 40.0)));
+    let _ = app.evento_dinamica(Evento::ArrastoSobre(Some(AreaDinamica::Colunas)));
+    let _ = app.evento_dinamica(Evento::ArrastoSoltar);
+    assert_eq!(app.dinamica.as_ref().unwrap().colunas, vec![1]);
+    let d = destino(&app);
+    let _ = app.evento_dinamica(Evento::Fechar);
+    app.folha = d;
+    let cabecalho = |app: &App| -> (u32, Vec<String>) {
+        let s = &app.workbook.aba(d).unwrap().sheet;
+        let norte = (0..40u32).find(|&r| s.get_raw(r, 0) == "Norte").expect("Norte");
+        (norte - 1, (0..8).map(|c| s.get_raw(norte - 1, c)).collect())
+    };
+    let (r, textos) = cabecalho(&app);
+    let a = textos.iter().position(|t| t.starts_with('A')).expect("coluna A");
+    let b = textos.iter().position(|t| t.starts_with('B')).expect("coluna B");
+    app.trocar_selecao(r, a.min(b) as u32);
+    app.fim_selecao = (r, a.max(b) as u32);
+    let _ = app.evento_dinamica(Evento::NaFaixa(Box::new(Evento::AgruparItens(true))));
+    let (r, textos) = cabecalho(&app);
+    let g = textos.iter().position(|t| t.starts_with("Grupo1")).unwrap_or_else(|| panic!("{textos:?} · {}", app.status));
+    assert!(!textos.iter().any(|t| t.starts_with('A') || t.starts_with('B')));
+    let s = &app.workbook.aba(d).unwrap().sheet;
+    let total = (r + 1..r + 6).find(|&l| s.get_raw(l, 0) == "Total Geral").unwrap();
+    assert_eq!(to_text(&s.get_value(total, g as u32)), "60");
+}
+
+/// DIN-14: o tema da dinâmica e o formato posto à mão nas células sobrevivem ao Atualizar.
+#[test]
+fn tema_e_formato_a_mao_sobrevivem_ao_atualizar() {
+    let mut app = app_com_dinamica();
+    let d = destino(&app);
+    let _ = app.evento_dinamica(Evento::Fechar);
+    app.folha = d;
+    let s = &app.workbook.aba(d).unwrap().sheet;
+    let norte = (0..40u32).find(|&r| s.get_raw(r, 0) == "Norte").unwrap();
+    app.trocar_selecao(norte, 0);
+    let _ = app.evento_dinamica(Evento::NaFaixa(Box::new(Evento::Tema)));
+    let tema = |app: &App| serde_json::from_str::<Vec<serde_json::Value>>(app.workbook.aba(d).unwrap().sheet.dn.as_deref().unwrap()).unwrap()[0]["tema"].clone();
+    app.trocar_selecao(norte, 1);
+    let _ = app.update(Msg::EstiloMenu("format".into(), Campo::Texto("currency".into())));
+    let _ = app.update(Msg::AlternarEstilo("bold".into()));
+    let fmt = |app: &App| app.workbook.aba(d).unwrap().sheet.estilo_resolvido(norte, 1).map(|s| (s.format, s.bold));
+    let fundo = |app: &App| app.workbook.aba(d).unwrap().sheet.estilo_resolvido(norte, 0).and_then(|s| s.bg);
+    let antes = (tema(&app), fmt(&app), fundo(&app));
+    assert!(antes.0.as_str().is_some_and(|t| t != "Padrão"), "o Tema trocou: {:?}", antes.0);
+    assert!(antes.1.as_ref().is_some_and(|(_, b)| *b), "negrito aplicado: {:?}", antes.1);
+    let _ = app.evento_dinamica(Evento::Atualizar);
+    assert_eq!((tema(&app), fmt(&app), fundo(&app)), antes);
+}
+
+/// DIN-6: item calculado pelo painel (campo, nome, fórmula com sugestão) e removido.
+#[test]
+fn item_calculado_pelo_painel_entra_e_sai() {
+    let mut app = app_com_dinamica();
+    let d = destino(&app);
+    let linha_de = |app: &App, texto: &str| -> Option<u32> {
+        let s = &app.workbook.aba(d).unwrap().sheet;
+        (0..40).find(|&r| s.get_raw(r, 0) == texto)
+    };
+    let _ = app.evento_dinamica(Evento::ItemCampo(0));
+    let _ = app.evento_dinamica(Evento::ItemNome("Norte dobrado".into()));
+    let _ = app.evento_dinamica(Evento::ItemFormula("No".into()));
+    let _ = app.evento_dinamica(Evento::CompletarItem("Norte".into()));
+    let f = format!("{} * 2", app.dinamica.as_ref().unwrap().ui.item_formula);
+    let _ = app.evento_dinamica(Evento::ItemFormula(f));
+    let _ = app.evento_dinamica(Evento::AdicionarItem);
+    let r = linha_de(&app, "Norte dobrado").unwrap_or_else(|| panic!("{}", app.status));
+    assert_eq!(to_text(&app.workbook.aba(d).unwrap().sheet.get_value(r, 1)), "60", "(10 + 20) * 2");
+    let _ = app.evento_dinamica(Evento::RemoverItem(0));
+    assert!(linha_de(&app, "Norte dobrado").is_none());
+}
+
+/// Audit 3: a lista do "item base" mostra o grupo feito à mão, não os itens de dentro dele.
+#[test]
+fn item_base_lista_o_grupo_feito_a_mao() {
+    let mut app = app_com_dinamica();
+    let d = destino(&app);
+    let _ = app.evento_dinamica(Evento::Fechar);
+    app.folha = d;
+    let linha_de = |app: &App, texto: &str| (0..40u32).find(|&r| app.workbook.aba(d).unwrap().sheet.get_raw(r, 0) == texto);
+    let (norte, sul) = (linha_de(&app, "Norte").unwrap(), linha_de(&app, "Sul").unwrap());
+    app.trocar_selecao(norte.min(sul), 0);
+    app.fim_selecao = (norte.max(sul), 0);
+    let _ = app.evento_dinamica(Evento::NaFaixa(Box::new(Evento::AgruparItens(true))));
+    let grupo = linha_de(&app, "Grupo1").expect("grupo feito");
+    app.trocar_selecao(grupo, 0);
+    let _ = app.evento_dinamica(Evento::NaFaixa(Box::new(Evento::Atualizar)));
+    let (_, meta) = edicao::localizar_na_celula(&app, d, grupo, 0).expect("dinâmica na célula");
+    let e = edicao::ler_estado(&app, d, &meta).unwrap();
+    assert_eq!(app.itens_do_campo(&e, e.linhas[0]), ["Grupo1"]);
 }

@@ -43,6 +43,7 @@ const LARGURA_PAINEL: f32 = 200.0;
 /// Galeria do WordArt: lado da miniatura de estilo e de deformação, e largura.
 const MINI_WORDART: (f32, f32) = (96.0, 44.0);
 const MINI_DEFORMACAO: (f32, f32) = (72.0, 34.0);
+const LARGURA_MENU_DIAGRAMAS: f32 = 380.0;
 const LARGURA_MENU_WORDART: f32 = 4.0 * (MINI_WORDART.0 + 10.0 + 6.0) + 18.0;
 
 /// Ícone sozinho sempre com dica (GUIA-JANELAS, seção 6).
@@ -463,6 +464,36 @@ impl App {
         container(corpo.padding(12).width(Length::Fixed(LARGURA_MENU_ICONES))).style(estilo_popup_menu).into()
     }
 
+    /// Inserir > SmartArt: uma lista das categorias; um clique insere perto da célula ativa.
+    fn menu_diagramas(&self) -> Element<'_, Msg> {
+        use feather_shapes::diagramas::Categoria;
+        let icone = |c: Categoria| match c {
+            Categoria::Listas => "list", Categoria::Processos | Categoria::Fluxo => "arrow-right",
+            Categoria::Ciclos | Categoria::Radiais | Categoria::Engrenagens => "refresh",
+            Categoria::Hierarquias | Categoria::Organogramas => "sitemap", Categoria::Piramides => "chart-bar",
+            Categoria::Matrizes => "layout-grid", Categoria::Comparacao => "columns", _ => "circle-dot",
+        };
+        let botoes: Vec<Element<'_, Msg>> = Categoria::TODAS.iter().enumerate().map(|(k, &c)| {
+            button(row![feather_ui::icones::icone(icone(c), 15.0), text(tr!(c.rotulo())).size(12.5)].spacing(8).align(pelicano::Align::Center))
+                .width(Length::FILL).padding([6, 9]).style(estilo_botao_pequeno(false))
+                .on_press(ev(Evento::InserirDiagrama(k))).into()
+        }).collect();
+        let mut grade = column(Vec::new()).spacing(4);
+        for par in botoes.into_iter().collect::<Vec<_>>().chunks_mut(2).map(|p| p.iter_mut().map(|e| std::mem::replace(e, Space::new(0.0, 0.0).into())).collect::<Vec<_>>()) {
+            grade = grade.push(row(par).spacing(4));
+        }
+        let corpo = column![
+            row![
+                text("SmartArt").size(14),
+                Space::new(Length::FILL, 0.0),
+                dica(button(feather_ui::icones::icone("x", 14.0)).padding(4).style(estilo_botao_pequeno(false)).on_press(ev(Evento::FecharMenu)), tr!("Fechar (Esc)")),
+            ].align(pelicano::Align::Center),
+            grade,
+            text(tr!("Um clique insere o diagrama perto da célula ativa; cada caixa é uma forma com texto editável.")).size(11).color(COR_TEXTO_MUTED()),
+        ].spacing(8);
+        container(corpo.padding(12).width(Length::Fixed(LARGURA_MENU_DIAGRAMAS))).style(estilo_popup_menu).into()
+    }
+
     /// Inserir > WordArt: os estilos prontos comuns da suíte e, com um WordArt
     /// selecionado, a deformação (Reto, Arco, Onda, Inclinado), a intensidade e a sombra.
     fn menu_wordart(&self) -> Element<'_, Msg> {
@@ -539,11 +570,11 @@ impl App {
         let modo = self.objetos.menu.unwrap_or(ModoMenu::Inserir);
         let (titulo, ajuda) = match modo {
             ModoMenu::Inserir => (tr!("Formas"), tr!("Escolha e arraste na planilha. Um clique cria no tamanho padrão.")),
-            ModoMenu::Trocar | ModoMenu::Icones | ModoMenu::WordArt => (tr!("Trocar forma"), tr!("A forma selecionada muda de desenho e mantém posição, cores e texto.")),
+            ModoMenu::Trocar | ModoMenu::Icones | ModoMenu::WordArt | ModoMenu::Diagramas => (tr!("Trocar forma"), tr!("A forma selecionada muda de desenho e mantém posição, cores e texto.")),
         };
         let atual: Option<String> = match modo {
             ModoMenu::Inserir => self.objetos.inserir.map(str::to_owned),
-            ModoMenu::Trocar | ModoMenu::Icones | ModoMenu::WordArt => self.objeto_selecionado().map(|o| o.forma),
+            ModoMenu::Trocar | ModoMenu::Icones | ModoMenu::WordArt | ModoMenu::Diagramas => self.objeto_selecionado().map(|o| o.forma),
         };
         let mut lista = column(Vec::new()).spacing(6);
         for (grupo, tipos) in geometria::catalogo() {
@@ -725,6 +756,7 @@ impl App {
             let (largura, alto) = match self.objetos.menu {
                 Some(ModoMenu::Icones) => (LARGURA_MENU_ICONES, alto),
                 Some(ModoMenu::WordArt) => (LARGURA_MENU_WORDART, alto.min(330.0)),
+                Some(ModoMenu::Diagramas) => (LARGURA_MENU_DIAGRAMAS, alto.min(360.0)),
                 _ => (LARGURA_MENU, alto),
             };
             let x = x.min(janela.width - largura - 8.0).max(8.0);
@@ -732,6 +764,7 @@ impl App {
             let menu = match self.objetos.menu {
                 Some(ModoMenu::Icones) => self.menu_icones(alto),
                 Some(ModoMenu::WordArt) => self.menu_wordart(),
+                Some(ModoMenu::Diagramas) => self.menu_diagramas(),
                 _ => self.menu_formas(alto),
             };
             base = stack![base, fora(ev(Evento::FecharMenu)), em(x, y, menu)]

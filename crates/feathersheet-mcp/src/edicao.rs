@@ -81,6 +81,99 @@ pub fn ordenar(h: &mut dyn Hospede, args: &Json) -> Saida {
         descricao.join(", então "), if cabecalho { " (a 1ª linha é cabeçalho e ficou no lugar)" } else { "" })))
 }
 
+/// Dados → Remover duplicadas: o plano e a remoção moram no motor (`ops::planejar_repetidas`).
+pub fn duplicados(h: &mut dyn Hospede, args: &Json) -> Saida {
+    let (aba, area) = intervalo(h, args, "intervalo")?;
+    let cabecalho = arg_bool(args, "cabecalho", true);
+    let sheet = &h.pasta().aba(aba).ok_or("Aba inexistente")?.sheet;
+    let area = ate_a_area_usada(sheet, area);
+    let colunas = match args.get("colunas").and_then(Json::as_array) {
+        Some(lista) if !lista.is_empty() => Some(lista.iter()
+            .map(|c| coluna_da_chave(sheet, &area, cabecalho, &serde_json::json!({ "coluna": c })))
+            .collect::<Result<Vec<u32>, String>>()?),
+        _ => None,
+    };
+    let pasta = h.pasta();
+    let plano = feathersheet_core::operacoes::ops::planejar_repetidas(area.clone(), cabecalho, colunas.as_deref(),
+        area.r1, |r, c| pasta.valor(aba, r, c));
+    let quais = colunas.as_ref().map_or("todas as colunas".to_string(),
+        |c| c.iter().map(|&i| col_name(i)).collect::<Vec<_>>().join(", "));
+    let Some(plano) = plano.filter(|p| p.removidas > 0) else {
+        return Ok(conteudo(format!("Nenhuma linha duplicada em {} (comparando {quais}).", nome_area(&area))));
+    };
+    let n = plano.removidas;
+    if arg_bool(args, "contar", false) {
+        return Ok(conteudo(format!("{n} linha(s) duplicada(s) sairiam de {} (comparando {quais}); nada mudou.", nome_area(&area))));
+    }
+    h.pasta_mut().editar(aba, |s| feathersheet_core::operacoes::ops::aplicar_repetidas(s, area.c0, area.c1, &plano));
+    h.marcar_alterado();
+    Ok(conteudo(format!("{n} linha(s) duplicada(s) removida(s) de {} (comparando {quais}). Um Ctrl+Z desfaz.", nome_area(&area))))
+}
+
+/// Atingir meta: a busca mora no motor (`operacoes::atingir_meta::buscar`); cada tentativa
+/// escreve sem histórico e só o valor achado entra no Ctrl+Z, como na janela do app.
+pub fn atingir_meta(h: &mut dyn Hospede, args: &Json) -> Saida {
+    use feathersheet_core::celulas::number::to_js_string;
+    use feathersheet_core::celulas::values::Value;
+    use feathersheet_core::operacoes::atingir_meta::{buscar, ITERACOES, TOLERANCIA};
+    use feathersheet_core::planilha::sheet::edicao::Snap;
+    let (aba, d) = intervalo(h, args, "definir")?;
+    let (aba_a, a) = intervalo(h, args, "alterando")?;
+    if aba != aba_a { return Err("`definir` e `alterando` precisam estar na mesma aba.".into()); }
+    let alvo = args.get("para").and_then(Json::as_f64).ok_or("Falta `para` (o número a atingir).")?;
+    let ((dr, dc), (ar, ac)) = ((d.r0, d.c0), (a.r0, a.c0));
+    let sheet = &h.pasta().aba(aba).ok_or("Aba inexistente")?.sheet;
+    if !sheet.get_raw(dr, dc).starts_with('=') { return Err(format!("{} precisa conter uma fórmula.", cell_name(dr, dc))); }
+    if sheet.get_raw(ar, ac).starts_with('=') { return Err(format!("{} precisa conter um número, não uma fórmula.", cell_name(ar, ac))); }
+    let original = sheet.snapshot(ar, ac);
+    let estilo = original.as_ref().and_then(|s| s.style.clone());
+    let inicio = match h.pasta().valor(aba, ar, ac) {
+        Value::Number(n) => n,
+        Value::Empty => 0.0,
+        _ => return Err(format!("{} precisa conter um número.", cell_name(ar, ac))),
+    };
+    let pasta = h.pasta_mut();
+    let busca = buscar(|x| {
+        let snap = Snap { raw: to_js_string(x), style: estilo.clone() };
+        pasta.editar(aba, |s| { s.apply(ar, ac, Some(snap), false); });
+        match pasta.valor(aba, dr, dc) { Value::Number(n) => Some(n), _ => None }
+    }, inicio, alvo, ITERACOES, TOLERANCIA);
+    // Volta ao original sem histórico; o valor achado entra com histórico.
+    pasta.editar(aba, |s| { s.apply(ar, ac, original.clone(), false); });
+    let Some(b) = busca else {
+        return Err(format!("{} dá erro com o valor atual de {}.", cell_name(dr, dc), cell_name(ar, ac)));
+    };
+    if !b.convergiu {
+        return Ok(conteudo(format!("Não achei em {} tentativas: o melhor foi {} = {} (com {} = {}). Nada mudou.",
+            b.tentativas, cell_name(ar, ac), to_js_string(b.x), cell_name(dr, dc), to_js_string(b.y))));
+    }
+    pasta.escrever_celula(aba, ar, ac, to_js_string(b.x));
+    h.marcar_alterado();
+    Ok(conteudo(format!("{} = {} faz {} dar {} ({} tentativa(s)). Um Ctrl+Z volta ao valor de antes.",
+        cell_name(ar, ac), to_js_string(b.x), cell_name(dr, dc), to_js_string(b.y), b.tentativas)))
+}
+
+/// Dados → Consolidar: a conta mora no motor (`Workbook::consolidar`).
+pub fn consolidar(h: &mut dyn Hospede, args: &Json) -> Saida {
+    let textos: Vec<String> = args.get("origens").and_then(Json::as_array)
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
+    if textos.is_empty() { return Err("Falta `origens` (ex.: [\"Jan!A1:C20\", \"Fev!A1:C20\"]).".into()); }
+    let mut origens = Vec::with_capacity(textos.len());
+    for t in &textos {
+        let (aba, area) = intervalo(h, &serde_json::json!({ "r": t }), "r")?;
+        let sheet = &h.pasta().aba(aba).ok_or("Aba inexistente")?.sheet;
+        origens.push(Rect { sheet: Some(h.pasta().nomes()[aba].clone()), ..ate_a_area_usada(sheet, area) });
+    }
+    let (aba, canto) = intervalo(h, args, "destino")?;
+    let op = feathersheet_core::dinamica::pivot::AgregacaoOp::do_str(arg_texto(args, "conta").unwrap_or("soma"));
+    let (topo, esquerda) = (arg_bool(args, "rotulos_topo", false), arg_bool(args, "rotulos_esquerda", false));
+    let (alt, larg) = h.pasta_mut().consolidar(&origens, op, topo, esquerda, aba, canto.r0, canto.c0)?;
+    h.marcar_alterado();
+    let fim = cell_name(canto.r0 + alt - 1, canto.c0 + larg - 1);
+    Ok(conteudo(format!("{} intervalo(s) consolidado(s) em {}!{}:{fim} ({alt} × {larg}). Um Ctrl+Z desfaz.",
+        origens.len(), h.pasta().nomes()[aba], cell_name(canto.r0, canto.c0))))
+}
+
 /// AutoFiltro: ligar com um critério numa coluna, limpar, remover ou listar.
 /// A regra do filtro (tabelas e AutoFiltro) mora no aplicativo.
 pub fn filtrar(h: &mut dyn Hospede, args: &Json) -> Saida {
@@ -302,6 +395,18 @@ mod testes {
     }
 
     #[test]
+    fn consolidar_duas_abas_pelos_rotulos() {
+        let mut h = pasta_exemplo();
+        ok(&mut h, "sheet_aba", json!({ "acao": "criar", "nome": "Fev" }));
+        ok(&mut h, "sheet_escrever", json!({ "celula": "Fev!A1", "valores": [["Nome", "UF", "Valor"], ["Bia", "SP", 5]] }));
+        let t = ok(&mut h, "sheet_consolidar", json!({ "origens": ["Planilha1!A1:C5", "Fev!A1:C2"], "destino": "Planilha1!F1",
+            "rotulos_topo": true, "rotulos_esquerda": true }));
+        assert!(t.contains("F1:H5"), "{t}");
+        assert_eq!(crate::texto::valor_texto(&h.pasta.valor(0, 1, 7)), "35", "Bia: 30 + 5");
+        assert!(chamar(&mut h, "sheet_consolidar", &json!({ "origens": ["Fev!A1:C2"], "destino": "Planilha1!F1" })).is_err(), "não escreve por cima");
+    }
+
+    #[test]
     fn ordenar_por_titulo_e_por_letra_e_desfazer() {
         let mut h = pasta_exemplo();
         let t = ok(&mut h, "sheet_ordenar", json!({ "intervalo": "A:C", "chaves": [{ "coluna": "uf" }, { "coluna": "C", "decrescente": true }] }));
@@ -357,5 +462,35 @@ mod testes {
         assert!(erro.contains("aplicativo") && erro.contains("sheet_consulta"), "{erro}");
         assert!(crate::permissoes::so_le("sheet_filtrar", &json!({ "acao": "listar" })));
         assert!(!crate::permissoes::so_le("sheet_filtrar", &json!({ "acao": "aplicar" })));
+    }
+
+    #[test]
+    fn duplicados_conta_e_remove_pela_coluna_escolhida() {
+        let mut h = pasta_exemplo();
+        let t = ok(&mut h, "sheet_duplicados", json!({ "intervalo": "A:C", "colunas": ["UF"], "contar": true }));
+        assert!(t.contains("1 linha(s)") && t.contains("nada mudou"), "{t}");
+        assert_eq!(coluna(&h, 0), ["Nome", "Bia", "Ana", "Caio", "Davi"]);
+        let t = ok(&mut h, "sheet_duplicados", json!({ "intervalo": "A:C", "colunas": ["B"] }));
+        assert!(t.contains("removida"), "{t}");
+        assert_eq!(coluna(&h, 0), ["Nome", "Bia", "Ana", "Davi", ""], "o segundo SP (Caio) sai");
+        let t = ok(&mut h, "sheet_duplicados", json!({ "intervalo": "A1:C5" }));
+        assert!(t.contains("Nenhuma"), "{t}");
+        assert!(crate::permissoes::so_le("sheet_duplicados", &json!({ "contar": true })));
+    }
+
+    #[test]
+    fn atingir_meta_acha_o_valor_e_grava() {
+        let mut h = Avulso::default();
+        ok(&mut h, "sheet_escrever", json!({ "celula": "A1", "valores": [[10], ["=A1*3+5"]] }));
+        let t = ok(&mut h, "sheet_atingir_meta", json!({ "definir": "A2", "para": 50, "alterando": "A1" }));
+        assert!(t.contains("A1 = 15"), "{t}");
+        let Value::Number(y) = h.pasta.valor(0, 1, 0) else { panic!("A2 sem número") };
+        assert!((y - 50.0).abs() <= 0.001, "{y}");
+        // Impossível (o quadrado nunca dá negativo): nada muda.
+        ok(&mut h, "sheet_escrever", json!({ "celula": "B1", "valores": [[2], ["=B1*B1"]] }));
+        let t = ok(&mut h, "sheet_atingir_meta", json!({ "definir": "B2", "para": -4, "alterando": "B1" }));
+        assert!(t.contains("Nada mudou"), "{t}");
+        assert_eq!(crate::texto::valor_texto(&h.pasta.valor(0, 0, 1)), "2");
+        assert!(chamar(&mut h, "sheet_atingir_meta", &json!({ "definir": "A1", "para": 1, "alterando": "A2" })).is_err());
     }
 }

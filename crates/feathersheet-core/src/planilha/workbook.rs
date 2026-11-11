@@ -387,6 +387,38 @@ impl Workbook {
         }
     }
 
+    /// Uma cópia de `origem` (desta pasta ou de outra) chamada `nome`. Nome de tabela é global
+    /// na pasta: as tabelas da cópia recebem `TabelaN` livres aqui.
+    fn copia_de_aba(&self, origem: &Sheet, nome: String) -> Sheet {
+        let mut usados: Vec<String> = self.nomeados.values().map(|n| n.nome.clone()).collect();
+        for a in &self.abas {
+            usados.extend(a.sheet.nomes_das_tabelas());
+        }
+        let mut renomes: Vec<(String, String)> = Vec::new();
+        for nome_antigo in origem.nomes_das_tabelas() {
+            let novo = crate::operacoes::tabela::nome_disponivel(&usados, "Tabela");
+            usados.push(novo.clone());
+            renomes.push((nome_antigo, novo));
+        }
+        origem.duplicar_renomeando(nome, &renomes)
+    }
+
+    /// Acrescenta no fim uma cópia de `origem`, vinda de outro arquivo; com o nome tomado,
+    /// vira "Nome (2)". Devolve o índice. Não entra no Ctrl+Z (como `criar_aba`).
+    pub fn receber_aba(&mut self, origem: &Sheet) -> usize {
+        let livre = !self.abas.iter().any(|a| a.sheet.name.to_lowercase() == origem.name.to_lowercase());
+        let nome = if livre { origem.name.clone() } else { self.nome_da_copia(&origem.name) };
+        let sheet = self.copia_de_aba(origem, nome);
+        let id = self.proximo_id;
+        self.proximo_id += 1;
+        self.abas.push(AbaViva { sheet, versao: 1, id });
+        let em = self.abas.len() - 1;
+        self.abas[em].sheet.manual.set(self.manual);
+        self.hist_abas = HistoricoAbas::default();
+        self.depois_de_mudar(usize::MAX);
+        em
+    }
+
     /// Duplica a aba `indice`, logo depois dela, e devolve o índice da cópia
     /// (a que deve ficar ativa). A cópia é uma `Sheet` nova com tudo da
     /// original; as outras abas não são tocadas — fórmulas que citam a
@@ -395,18 +427,7 @@ impl Workbook {
     pub fn duplicar_aba(&mut self, indice: usize) -> Option<usize> {
         let origem = self.abas.get(indice)?;
         let nome = self.nome_da_copia(&origem.sheet.name);
-        // Nome de tabela é global na pasta: a cópia recebe `TabelaN` livres.
-        let mut usados: Vec<String> = self.nomeados.values().map(|n| n.nome.clone()).collect();
-        for a in &self.abas {
-            usados.extend(a.sheet.nomes_das_tabelas());
-        }
-        let mut renomes: Vec<(String, String)> = Vec::new();
-        for nome_antigo in origem.sheet.nomes_das_tabelas() {
-            let novo = crate::operacoes::tabela::nome_disponivel(&usados, "Tabela");
-            usados.push(novo.clone());
-            renomes.push((nome_antigo, novo));
-        }
-        let sheet = origem.sheet.duplicar_renomeando(nome, &renomes);
+        let sheet = self.copia_de_aba(&origem.sheet, nome);
         let id = self.proximo_id;
         self.proximo_id += 1;
         let em = indice + 1;
@@ -493,7 +514,8 @@ impl Workbook {
     /// o `renameSheet` do TypeScript. Recusa nome vazio, com `!` ou repetido.
     pub fn renomear_aba(&mut self, indice: usize, nome: &str) -> bool {
         let limpo = nome.trim();
-        if indice >= self.abas.len() || limpo.is_empty() || limpo.contains('!') {
+        // `:` é da referência 3D (`Jan:Dez!B5`); o Excel também recusa.
+        if indice >= self.abas.len() || limpo.is_empty() || limpo.contains('!') || limpo.contains(':') {
             return false;
         }
         let repetido = self
@@ -1643,6 +1665,20 @@ pub fn reescrever_aba(formula: &str, de: &str, para: &str) -> String {
         // renomear a aba "Dados" daqui não mexe nela.
         let fronteira = i == 0 || !(letra_de_nome(texto[i - 1]) || texto[i - 1] == ']');
         if fronteira {
+            // Referência 3D (`Jan:Dez!B5` ou `'Jan:Dez 2'!B5`): troca a ponta renomeada.
+            if let Some((a, b, fim)) = pontas_3d(&texto, i) {
+                let troca = |n: &str| if n.to_lowercase() == de.to_lowercase() { para.to_string() } else { n.to_string() };
+                if a.to_lowercase() == de.to_lowercase() || b.to_lowercase() == de.to_lowercase() {
+                    let (a, b) = (troca(&a), troca(&b));
+                    if nome_citado(&a) == a && nome_citado(&b) == b {
+                        saida.push_str(&format!("{a}:{b}!"));
+                    } else {
+                        saida.push_str(&format!("'{}'!", format!("{a}:{b}").replace('\'', "''")));
+                    }
+                    i = fim;
+                    continue;
+                }
+            }
             if casa(i, &puro) {
                 saida.push_str(&destino);
                 i += puro.len() + 1;
@@ -1658,6 +1694,29 @@ pub fn reescrever_aba(formula: &str, de: &str, para: &str) -> String {
         i += 1;
     }
     saida
+}
+
+/// As duas abas de uma referência 3D que começa em `i` e a posição depois do `!`.
+fn pontas_3d(texto: &[char], i: usize) -> Option<(String, String, usize)> {
+    let (dentro, fim): (String, usize) = if texto[i] == '\'' {
+        let mut k = i + 1;
+        let mut nome = String::new();
+        loop {
+            match (texto.get(k)?, texto.get(k + 1)) {
+                ('\'', Some('\'')) => { nome.push('\''); k += 2; }
+                ('\'', _) => break,
+                (c, _) => { nome.push(*c); k += 1; }
+            }
+        }
+        (nome, k + 1)
+    } else {
+        let mut k = i;
+        while k < texto.len() && (letra_de_nome(texto[k]) || texto[k] == ':') { k += 1; }
+        (texto[i..k].iter().collect(), k)
+    };
+    if texto.get(fim) != Some(&'!') { return None; }
+    let (a, b) = dentro.split_once(':')?;
+    (!a.is_empty() && !b.is_empty() && !b.contains(':')).then(|| (a.to_string(), b.to_string(), fim + 1))
 }
 
 /// Os outros arquivos citados pelas fórmulas (`[Vendas.fshz]Dados!A1`).

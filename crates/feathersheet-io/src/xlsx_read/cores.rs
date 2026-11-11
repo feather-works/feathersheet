@@ -259,12 +259,12 @@ pub fn cor_drawingml(no: &XmlNode) -> Option<String> {
     Some(hex(c))
 }
 
-/// Família de cor do estilo de tabela embutido do Excel
-/// (`TableStyleLight1`…`TableStyleDark11`) no tema mais próximo do
+/// Família de cor do estilo de tabela ou de dinâmica embutido do Excel
+/// (`TableStyleLight1`…`TableStyleDark11`, `PivotStyle…`) no tema mais próximo do
 /// FeatherSheet. A cada sete estilos a cor recomeça: escuro 1 (cinza/preto)
 /// e depois ênfase 1 a 6, cuja cor vem do tema do arquivo.
 pub fn tema_de_tabela(nome: &str) -> Option<&'static str> {
-    let resto = nome.strip_prefix("TableStyle")?;
+    let resto = nome.strip_prefix("TableStyle").or_else(|| nome.strip_prefix("PivotStyle"))?;
     let n: usize = resto.trim_start_matches(|c: char| c.is_ascii_alphabetic()).parse().ok()?;
     if n == 0 { return None; }
     let posicao = (n - 1) % 7;

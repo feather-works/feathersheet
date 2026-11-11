@@ -15,6 +15,8 @@ pub fn so_le(nome: &str, args: &Value) -> bool {
         "sheet_formulario" => matches!(acao, "listar" | "ler"),
         // Sem destino a consulta só devolve a prévia.
         "sheet_consulta" => args.get("destino").is_none_or(Value::is_null),
+        // `contar` só diz quantas sairiam.
+        "sheet_duplicados" => args.get("contar").and_then(Value::as_bool).unwrap_or(false),
         _ => false,
     }
 }

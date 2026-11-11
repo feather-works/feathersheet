@@ -220,6 +220,51 @@ pub fn avaliar(e: &Expr, campo: &dyn Fn(usize) -> f64) -> f64 {
     }
 }
 
+/// Onde começa a palavra que está sendo digitada no fim da fórmula (byte) e se
+/// ela está dentro de um `[` ainda aberto.
+fn palavra_em_curso(formula: &str) -> (usize, bool) {
+    if let Some(a) = formula.rfind('[').filter(|&a| !formula[a..].contains(']')) {
+        return (a + 1, true);
+    }
+    let ini = formula.char_indices().rev()
+        .find(|(_, c)| !(c.is_alphanumeric() || *c == '_' || *c == '.'))
+        .map_or(0, |(i, c)| i + c.len_utf8());
+    (ini, false)
+}
+
+/// DIN-7: os campos que completam a palavra no fim da fórmula, sem diferença de
+/// maiúscula. Depois de um operador, todos; com a fórmula vazia, nenhum (o painel fica limpo).
+pub fn sugestoes<'a>(formula: &str, campos: &'a [String]) -> Vec<&'a str> {
+    if formula.trim().trim_start_matches('=').is_empty() {
+        return Vec::new();
+    }
+    let (ini, no_colchete) = palavra_em_curso(formula);
+    let parte = normalizar(&formula[ini..]);
+    // Solto, começar por algarismo é número; entre colchetes pode ser o campo "2024".
+    if !no_colchete && parte.starts_with(|c: char| c.is_ascii_digit()) {
+        return Vec::new();
+    }
+    campos.iter().map(String::as_str)
+        .filter(|c| { let c = normalizar(c); c.starts_with(&parte) && c != parte })
+        .collect()
+}
+
+/// Troca a palavra no fim da fórmula pelo campo; entre colchetes quando o nome
+/// não é uma palavra solta para o leitor (espaço, hífen, começa por número).
+pub fn completar(formula: &str, campo: &str) -> String {
+    let (ini, no_colchete) = palavra_em_curso(formula);
+    let solta = campo.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_')
+        && campo.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.');
+    let antes = &formula[..ini];
+    if no_colchete {
+        format!("{antes}{campo}]")
+    } else if solta {
+        format!("{antes}{campo}")
+    } else {
+        format!("{antes}[{campo}]")
+    }
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -291,5 +336,26 @@ mod testes {
         assert_eq!(numero_de(&Value::Empty), 0.0);
         assert_eq!(numero_de(&Value::Text("x".into())), 0.0);
         assert_eq!(numero_de(&Value::Number(2.5)), 2.5);
+    }
+
+    #[test]
+    fn sugere_e_completa_o_nome_do_campo() {
+        let campos: Vec<String> = ["Preço", "Quantidade", "Custo total", "Qtd"].map(String::from).to_vec();
+        assert!(sugestoes("", &campos).is_empty());
+        assert_eq!(sugestoes("=Preço * ", &campos).len(), 4);
+        assert_eq!(sugestoes("=[Preço] * q", &campos), ["Quantidade", "Qtd"]);
+        assert_eq!(sugestoes("=[cus", &campos), ["Custo total"]);
+        assert!(sugestoes("=Preço * 2", &campos).is_empty(), "número não sugere");
+        assert!(sugestoes("=Qtd", &campos).is_empty(), "já completo");
+        let anos: Vec<String> = ["2024", "2025"].map(String::from).to_vec();
+        assert_eq!(sugestoes("=[2024] + [20", &anos), ["2024", "2025"]);
+        assert_eq!(completar("=[2024] + [20", "2025"), "=[2024] + [2025]");
+        assert_eq!(completar("=[Preço] * q", "Quantidade"), "=[Preço] * Quantidade");
+        assert_eq!(completar("=Preço + cus", "Custo total"), "=Preço + [Custo total]");
+        assert_eq!(completar("=[cus", "Custo total"), "=[Custo total]");
+        let f = completar("=pr", "Preço") + "*";
+        let f = completar(&f, "Quantidade");
+        assert_eq!(f, "=Preço*Quantidade");
+        assert!(compilar(&f, &campos).is_ok());
     }
 }

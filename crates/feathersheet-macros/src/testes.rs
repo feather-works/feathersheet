@@ -710,10 +710,12 @@ fn to_locale_string_segue_a_lingua_pedida() {
          log((833402.5).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})); \
          log((-1234.5678).toLocaleString('en-US')); \
          log((0.358).toLocaleString('pt-BR', {style: 'percent', maximumFractionDigits: 1})); \
-         log((1234.5).toLocaleString('es-ES', {style: 'currency', currency: 'EUR'}));");
+         log((1234.5).toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})); \
+         log((1234567.5).toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'}));");
     assert!(resultado.erro.is_none(), "{:?}", resultado.erro);
     assert_eq!(resultado.saida, vec![
         "19/10/2026, 08:05:09", "19/10/2026", "8:05:09 AM",
         "833.402,00", "R$ 833.402,50", "-1,234.568", "35,8 %", "1.234,50 €",
+        "1\u{202f}234\u{202f}567,50 €",
     ]);
 }

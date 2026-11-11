@@ -566,6 +566,19 @@ Inventário completo, item a item: **`docs/planejamento/ROADMAP.md`**.
 
 ## Fila de trabalho
 
+### Lote de 10/11/2026 (depois da v0.3.0, entra na 0.4.0) — commitado em 11/11
+
+Detalhe item a item em `docs/planejamento/ATIVIDADES-0.3.0.md` (linhas `Situação (10/11)`), `PARIDADE-EXCEL.md` e `MCP-PENDENTE.md`.
+
+- **Francês** (`Lingua::Fr`, `src/idiomas/*.fr-FR.json`): quarta língua da interface. Texto novo sai em pt-BR, en-US, es-ES **e fr-FR**; o teste das novidades cobra as três traduções.
+- **`.xlsx` com senha** (`feathersheet-io/src/xlsx_senha.rs`): abre Standard e Agile, grava Agile; Revisão › Proteger › Criptografar com senha. Falta conferir com arquivo cifrado pelo Excel de verdade.
+- **Memória com teto nos testes** (`teste_memoria.rs`, `tetos_de_memoria.rs`): alocador de teste que recusa pedido acima do teto. Achou `Bloco::Constante` (fórmula até a linha 100 milhões: 403 MB → 43 KB por coluna) e a máscara de presença que cresce sob demanda.
+- **Dinâmica**: itens agrupados à mão, itens calculados, subtotais em cima/embaixo, recolher/expandir nível, páginas do filtro, adiar atualização, origem em outra aba ou tabela, tema gravado no `.xlsx`.
+- **Consolidar** (`operacoes/consolidar.rs`, `app/consolidar_ui.rs`), **referências 3D** (`Jan:Dez!B5`; renomear uma ponta reescreve a fórmula, `pontas_3d`; nome de aba não aceita `:`), **datas 1904** só na leitura do `.xlsx`.
+- **Faixa**: fora da Página Inicial os grupos que não cabem viram um botão que abre o grupo (`plano_recolhido`).
+- **Windows**: `.github/workflows/windows.yml` compila a cada push no `main`.
+- **Auditoria de 11/11** (ponytail-audit no código novo): espaço comum só é milhar ao digitar na língua que separa assim (`01 310` fica texto em português; o espaço que não quebra vale sempre); rótulos do Consolidar por índice (`Rotulos`, antes busca linear).
+
 ### Referência entre arquivos abertos (v0.1.0, 16/10/2026) — feita e testada com duas janelas
 
 `=[Vendas.fshz]Dados!A1`, `=SOMA([Vendas.fshz]Dados!A1:A10)` e

@@ -120,7 +120,22 @@ pub fn consulta(h: &mut dyn Hospede, args: &Json) -> Saida {
         .map_err(|e| format!("Passos inválidos: {e}. Exemplo: [{{\"tipo\":\"filtrar\",\"col\":0,\"criterio\":{{\"Text\":\"SP\"}}}}, {{\"tipo\":\"agrupar\",\"por\":[0],\"agregar\":[{{\"col\":2,\"como\":\"soma\"}}]}}]"))?;
     let fonte = ler_intervalo(h.pasta(), aba, area, cabecalho, MAX_CONSULTA)?;
     let entrada = fonte.linhas.len();
-    let resultado = executar_query_limitado(fonte, &passos, &HashMap::new(), MAX_CONSULTA)?;
+    // As outras tabelas de juntar/acrescentar: {"Clientes": "Clientes!A1:C50"}.
+    let mut fontes = HashMap::new();
+    for (nome, endereco) in args.get("fontes").and_then(Json::as_object).into_iter().flatten() {
+        let endereco = endereco.as_str().ok_or_else(|| format!("A fonte \"{nome}\" é um endereço, ex.: \"Clientes!A1:C50\"."))?;
+        let (aba, area) = intervalo(h, &json!({ "x": endereco }), "x")?;
+        fontes.insert(nome.clone(), ler_intervalo(h.pasta(), aba, area, cabecalho, MAX_CONSULTA)?);
+    }
+    for p in &passos {
+        if let Passo::Juntar { fonte, .. } | Passo::Acrescentar { fonte } = p {
+            if !fontes.contains_key(fonte) {
+                let nomes: Vec<&String> = fontes.keys().collect();
+                return Err(format!("O passo usa a fonte \"{fonte}\", que não está em `fontes` ({nomes:?}). Ex.: \"fontes\": {{\"{fonte}\": \"{fonte}!A1:C50\"}}."));
+            }
+        }
+    }
+    let resultado = executar_query_limitado(fonte, &passos, &fontes, MAX_CONSULTA)?;
     let mut s = format!("{} linha(s) de entrada → {} linha(s) × {} coluna(s)\n{}", entrada,
         resultado.linhas.len(), resultado.cabecalho.len(), previa(&resultado, arg_num(args, "previa", 20).min(MAX_AMOSTRA) as usize));
     if let Some(destino) = arg_texto(args, "destino") {
@@ -193,5 +208,21 @@ mod testes {
         assert!(r.contains("→ 3 linha(s)") && r.contains("Gravado"), "{r}");
         let i = indice_aba(&h.pasta, &json!("Resumo")).unwrap();
         assert_eq!(valor_texto(&h.pasta.valor(i, 1, 1)), "40");
+    }
+
+    #[test]
+    fn consulta_junta_com_outra_aba() {
+        let mut h = pasta();
+        let i = h.pasta.criar_aba("Estados");
+        for (r, (a, b)) in [("Cidade", "UF"), ("SP", "SP"), ("RJ", "RJ")].iter().enumerate() {
+            h.pasta.escrever_celula(i, r as u32, 0, a.to_string());
+            h.pasta.escrever_celula(i, r as u32, 1, b.to_string());
+        }
+        let r = texto(consulta(&mut h, &json!({ "fonte": "A1:B5", "fontes": { "Estados": "Estados!A1:B3" },
+            "passos": [{ "tipo": "juntar", "fonte": "Estados", "esquerda": 0, "direita": 0, "modo": "esquerda" }] })));
+        assert!(r.contains("UF") && r.contains("RJ\t20\tRJ"), "{r}");
+        let erro = consulta(&mut h, &json!({ "fonte": "A1:B5",
+            "passos": [{ "tipo": "acrescentar", "fonte": "Outra" }] })).unwrap_err();
+        assert!(erro.contains("não está em `fontes`"), "{erro}");
     }
 }

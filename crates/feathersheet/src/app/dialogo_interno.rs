@@ -67,7 +67,20 @@ impl App {
             "celulas" => self.update(Msg::Celulas(celulas_dialogo::Evento::Abrir(true))),
             "dimensao" => self.update(Msg::Dimensao(dimensao_dialogo::Evento::Abrir(true))),
             "protecao" => self.update(Msg::Protecao(protecao_ui::Evento::Abrir)),
+            // A senha de um .xlsx, já digitada uma vez errada.
+            "senha" => {
+                let _ = self.update(Msg::SenhaArquivo(senha_abrir::Evento::Pedir("Relatório 2026.xlsx".into(), true)));
+                self.update(Msg::SenhaArquivo(senha_abrir::Evento::Texto("senha12".into())))
+            }
+            // Revisão › Criptografar com senha, com a confirmação diferente.
+            "criptografar" => {
+                let _ = self.update(Msg::SenhaArquivo(senha_abrir::Evento::Definir));
+                let _ = self.update(Msg::SenhaArquivo(senha_abrir::Evento::Texto("segredo".into())));
+                let _ = self.update(Msg::SenhaArquivo(senha_abrir::Evento::Confirmar("segred".into())));
+                self.update(Msg::SenhaArquivo(senha_abrir::Evento::Abrir))
+            }
             "subtotal" => self.update(Msg::Topicos(topicos_ui::Evento::SubtotalAbrir)),
+            "consolidar" => self.update(Msg::Consolidar(consolidar_ui::Evento::Abrir)),
             "novo_estilo" => self.update(Msg::NovoEstilo(estilo_novo::Evento::Abrir)),
             // Série… e Validação de dados (abas, alerta, balão, círculos).
             "serie" | "serie_data" => self.preparar_captura_serie(nome),

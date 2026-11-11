@@ -71,7 +71,7 @@ impl EditorFormula {
     }
     pub fn sugestoes(&self, texto:&str, ingles:bool)->Vec<Sugestao> {
         if !self.ativo || self.ocultar_sugestoes { return Vec::new(); }
-        if crate::idioma::lingua()==crate::idioma::Lingua::Es {
+        if crate::idioma::lingua().nomes_proprios() {
             return sugestoes_es(texto,self.posicao(texto),6);
         }
         suggest_at(texto,self.posicao(texto),6,ingles)
@@ -295,7 +295,7 @@ mod testes {
     }
 }
 
-/// Autocompletar em espanhol: os nomes do de-para (`funcoes.es-ES.json`)
+/// Autocompletar em espanhol e francês: os nomes do de-para (`funcoes.es-ES.json`, `funcoes.fr-FR.json`)
 /// que começam com o que foi digitado; a ajuda vem do nome canônico.
 fn sugestoes_es(texto:&str, cursor:usize, limite:usize)->Vec<Sugestao> {
     use feathersheet_core::formula::assistente::describe;
@@ -307,7 +307,7 @@ fn sugestoes_es(texto:&str, cursor:usize, limite:usize)->Vec<Sugestao> {
     let prefixo=token.text.to_uppercase();
     if prefixo.is_empty() || prefixo.chars().next().is_some_and(|c| !c.is_alphabetic()) { return Vec::new(); }
     if texto.chars().nth(token.end)==Some('(') { return Vec::new(); }
-    let nomes=&crate::idioma::funcoes_de(crate::idioma::Lingua::Es).nomes;
+    let nomes=&crate::idioma::funcoes_de(crate::idioma::lingua()).nomes;
     let mut achados:Vec<(&String,&String)>=nomes.iter()
         .filter(|(c,es)| es.starts_with(&prefixo)
             && feathersheet_core::funcoes::function_help::help_for(c).is_some())

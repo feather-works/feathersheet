@@ -398,7 +398,17 @@ fn achar_fechamento_colchete(s: &[char], inicio: usize) -> Option<usize> {
             while i < n && (e_letra_de_nome(s[i]) || s[i] == '$') {
                 i += 1;
             }
-            let texto = em(inicio, i);
+            let mut texto = em(inicio, i);
+            // Jan:Dez!B5 — referência 3D: as duas abas formam um nome só,
+            // que o avaliador abre nas abas do meio (`Evaluator::abas_3d`).
+            if olhar(i) == Some(':') && !parece_referencia(&texto) {
+                let mut k = i + 1;
+                while k < n && e_letra_de_nome(s[k]) { k += 1; }
+                if k > i + 1 && olhar(k) == Some('!') && !parece_referencia(&em(i + 1, k)) {
+                    i = k;
+                    texto = em(inicio, i);
+                }
+            }
             // Plan1!A1 — o nome da aba entra no mesmo token da referência.
             if olhar(i) == Some('!') && !parece_referencia(&texto) {
                 let inicio_ref = i + 1;

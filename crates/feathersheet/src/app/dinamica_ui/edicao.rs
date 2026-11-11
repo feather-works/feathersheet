@@ -101,6 +101,7 @@ pub(super) fn ler_estado(app: &App, destino: usize, meta: &Json) -> Result<Estad
         novo_nome: String::new(), nova_formula: String::new(),
         previa_calculado: None,
         layout, repetir_rotulos, subtotais, recolhidos, grupos, filtros,
+        subtotal_embaixo: meta["subtotaisEmbaixo"].as_bool().unwrap_or(false),
         tema: meta["tema"].as_str().unwrap_or("padrao").to_owned(),
         campo_filtro: None, valores_filtro: Vec::new(), filtro_cortado: false,
         fase: Fase::Campos, avancado: false,

@@ -950,11 +950,11 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
 
 const API: &str = r#"
 // O Boa vem sem `intl` (seriam MB de dados ICU): toLocaleString ignorava a
-// língua e devolvia "Mon Oct 19 2026…". Aqui, pt-BR (padrão), en-US e es-ES.
-// shortcut: só essas três línguas e moeda BRL/USD/EUR; outra língua cai no pt-BR.
+// língua e devolvia "Mon Oct 19 2026…". Aqui, pt-BR (padrão), en-US, es-ES e fr-FR.
+// shortcut: só essas quatro línguas e moeda BRL/USD/EUR; outra língua cai no pt-BR.
 (() => {
     const P = n => String(n).padStart(2, '0');
-    const lingua = l => { l = String(l || 'pt-BR').toLowerCase(); return l.startsWith('en') ? 'en' : l.startsWith('es') ? 'es' : 'pt'; };
+    const lingua = l => { l = String(l || 'pt-BR').toLowerCase(); return l.startsWith('en') ? 'en' : l.startsWith('es') ? 'es' : l.startsWith('fr') ? 'fr' : 'pt'; };
     const data = (x, l) => {
         const [d, m, a] = [x.getDate(), x.getMonth() + 1, x.getFullYear()];
         return l === 'en' ? m + '/' + d + '/' + a : l === 'es' ? d + '/' + m + '/' + a : P(d) + '/' + P(m) + '/' + a;
@@ -978,13 +978,13 @@ const API: &str = r#"
         const max = Math.max(min, o.maximumFractionDigits ?? (moeda ? 2 : pct ? 0 : 3));
         let [int, dec = ''] = Math.abs(n).toFixed(max).split('.');
         while (dec.length > min && dec.endsWith('0')) dec = dec.slice(0, -1);
-        const [mil, virg] = l === 'en' ? [',', '.'] : ['.', ','];
+        const [mil, virg] = l === 'en' ? [',', '.'] : l === 'fr' ? ['\u202f', ','] : ['.', ','];
         if (o.useGrouping !== false) int = int.replace(/\B(?=(\d{3})+(?!\d))/g, mil);
         let s = (n < 0 ? '-' : '') + int + (dec ? virg + dec : '');
         if (pct) s += l === 'en' ? '%' : ' %';
         if (moeda) {
             const simbolo = { BRL: 'R$', USD: '$', EUR: '€' }[String(o.currency || 'BRL').toUpperCase()] || o.currency;
-            s = l === 'es' ? s + ' ' + simbolo : simbolo + (l === 'en' ? '' : ' ') + s;
+            s = l === 'es' || l === 'fr' ? s + ' ' + simbolo : simbolo + (l === 'en' ? '' : ' ') + s;
         }
         return s;
     };

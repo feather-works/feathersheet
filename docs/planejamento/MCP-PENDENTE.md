@@ -62,36 +62,48 @@ O que mais se pede depois de dados e fórmulas.
 - [x] **`sheet_dinamica`** (17/10, ao vivo): listar, criar (origem + linhas/colunas/valores pelo
       título ou letra, nova aba por padrão), editar, atualizar (uma ou todas) e excluir, pelo mesmo
       caminho do painel (`app/dinamica_ui/mcp.rs`). Sem o app explica e indica `sheet_consulta`.
-      **Falta:** filtros, campos calculados, agrupar datas e "mostrar valores como" pelo MCP; modo
-      arquivo (a regra mora na interface).
-- [ ] **Gráficos**: criar (tipo, séries, intervalo), mudar o tipo, título e eixos, apagar; listar os
-      gráficos da aba. O motor já tem `grafico`. Ao vivo, o `sheet_ver` confere o desenho.
-- [ ] **Formatação condicional**: listar regras, criar (operador e valor, fórmula, escala de cor,
-      barra de dados, cores alternadas), remover. A regra mora no motor (`condicional`).
-- [ ] **Validação de dados**: lista suspensa, número/data entre limites, caixa de seleção; listar e remover.
+      10/11 (MCP-6): criar/editar aceitam `tema`, `subtotais` (sem/em_cima/embaixo), `totais_gerais`
+      (`linha_embaixo`, `coluna_direita`), `campos_calculados`, `itens_calculados`, `grupos`, `filtros`
+      (mostrar/ocultar itens), `ordenar` (A→Z, Z→A, por valor) e `mostrar_como` (percentuais, índice,
+      acumulado, classificação); o listar mostra tudo isso. Teste `opcoes_da_dinamica_pelo_mcp`.
+      Também "% de"/"diferença de" com item base e `recolher` (tudo, nada, por nível ou a lista).
+      Também `agrupar` (datas por ano, trimestre, mês ou dia; faixas numéricas).
+      **Falta:** páginas do filtro, segmentação e gráfico dinâmico (esses dois esperam GRA-9/DIN-15); modo arquivo
+      (a regra mora na interface).
+- [x] **Gráficos**: `sheet_grafico` (listar, criar, editar, remover). Conferido em 10/11 na lista de ferramentas.
+- [x] **Formatação condicional**: `sheet_condicional` (listar, criar, remover, limpar).
+- [x] **Validação de dados**: `sheet_validacao` (listar, criar, remover, limpar).
 - [ ] **Links** em células: inserir, remover, listar.
-- [ ] **Imagens e botões de macro**: inserir imagem (arquivo ou `=IMAGEM`), botão ligado a uma macro.
-- [ ] **Componentes HTML das macros** (formulários): escrever pelo modelo do designer, ligar a um
-      módulo. Hoje o `sheet_macro` só cuida dos módulos JS.
+- [ ] **Imagens**: inserir imagem (arquivo ou `=IMAGEM`). Botões de macro já em `sheet_botao`.
+- [x] **Formulários das macros**: `sheet_formulario` (listar, ler, escrever, remover).
 
 ## Falta — dados e análise (prioridade média)
 
-- [ ] **Dividir texto em colunas** e **remover duplicados**, com as mesmas opções das janelas.
-- [ ] **Atingir meta**, **tabela de dados** e **cenários** (o motor já tem `atingir_meta`).
+- [x] **Remover duplicados** (10/11): `sheet_duplicados` (colunas por letra ou título, `contar` só
+      conta). Teste `duplicados_conta_e_remove_pela_coluna_escolhida`.
+- [ ] **Dividir texto em colunas**: a regra mora na interface (`app/assistente_divisao`); mover para o
+      motor antes de dar ferramenta. Até lá, o passo `dividirColunas` do `sheet_consulta` faz o mesmo
+      numa aba de destino.
+- [x] **Atingir meta** (10/11): `sheet_atingir_meta` (definir, para, alterando; grava só se achar).
+      Teste `atingir_meta_acha_o_valor_e_grava`.
+- [ ] **Tabela de dados** e **cenários**: o JSON dos cenários (`Sheet::ce`) é lido e gravado só pela
+      interface (`app/cenarios_ui.rs`); levar o formato para o motor antes de dar ferramenta, para não
+      haver duas cópias da regra.
 - [ ] **OpenQuery com fonte externa**: CSV/XLSX de outro arquivo, Web/API (só por pedido explícito,
       regra 5) e consultas guardadas no arquivo com atualização. Hoje `sheet_consulta` lê só
       intervalos da própria pasta e não guarda a consulta.
-- [ ] **Juntar duas fontes** no `sheet_consulta` (`juntar`/`acrescentar` precisam do mapa `fontes`,
-      que hoje vai vazio).
-- [ ] **Conversor VBA → JS**: ler o `vbaProject.bin` de um `.xlsm` e devolver o JS com a lista
-      do que não converteu (motor pronto em `feathersheet-vba`, falta a ferramenta).
+- [x] **Juntar duas fontes** (10/11): `sheet_consulta` com `fontes` ({nome: endereço}); passo que cita
+      fonte ausente explica. Teste `consulta_junta_com_outra_aba`.
+- [x] **Conversor VBA → JS** (10/11): `sheet_macro` acao `converter_vba` (`arquivo` .xlsm ou `vba`
+      colado) devolve o JS e o que não converteu; `guardar` põe as macros na pasta. Os eventos são
+      só listados (quem liga é o Importar VBA do app). Teste `converter_vba_devolve_o_js_e_guarda`.
 
 ## Falta — exibição e arquivo (prioridade baixa)
 
 - [ ] **Congelar painéis**, zoom, linhas de grade, tema: hoje só ao vivo, por `menu`/`tecla`
       (são estado da janela, não do arquivo).
 - [ ] **Impressão**: área de impressão, quebras, exportar PDF pelo produtor comum da suíte.
-- [ ] **Proteção**: proteger aba/intervalo com senha (o bloqueio ainda não existe no app).
+- [ ] **Proteção**: proteger aba/pasta com senha e bloquear células (existe no app e nas macros, `sheet.protect`; falta ferramenta).
 - [ ] **Recentes e modelos**: abrir um recente, criar a partir de um modelo da tela inicial.
 
 ## Falta — no próprio MCP
@@ -122,3 +134,5 @@ O que mais se pede depois de dados e fórmulas.
 3. Gráfico, tabela dinâmica e formatação condicional (reaproveitam o motor que já existe).
 4. Transporte comum da suíte (antes de o Docs/Slide ganharem MCP ao vivo).
 5. O restante, conforme o uso pedir.
+
+- 10/11: `sheet_consolidar` (Dados → Consolidar, por posição ou rótulos; motor `Workbook::consolidar`). Subtotais em cima/embaixo, recolher por nível, páginas do filtro e adiar atualização da dinâmica ainda sem ferramenta própria.

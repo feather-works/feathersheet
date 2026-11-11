@@ -70,6 +70,36 @@ fn modulos_da_pasta<'a>(
     itens
 }
 
+/// Bits de `EstadoVisual::recolhidos` e ids de `menu_grupo`.
+pub(in crate::app) const GRUPO_PLANILHAS: u8 = 0;
+pub(in crate::app) const GRUPO_MODULOS: u8 = 1;
+pub(in crate::app) const GRUPO_FORMULARIOS: u8 = 2;
+
+/// Cabeçalho de grupo da árvore: clicar recolhe/abre (#157); botão direito
+/// em Módulos/Formulários abre o "Novo…" logo abaixo (#156).
+fn grupo_recolhivel<'a>(app: &'a App, grupo: u8, rotulo: &str, icone: &str) -> Element<'a, Msg> {
+    let aberto = app.macro_visual.recolhidos & (1 << grupo) == 0;
+    let b = button(row![
+        Space::new(Length::Fixed(6.0), 0.0),
+        feather_ui::icones::icone(if aberto { "chevron-down" } else { "chevron-right" }, 12.0),
+        feather_ui::icones::icone(icone, 13.0),
+        text(rotulo.to_owned()).size(12).color(cor_secundaria(app.config.escuro)),
+    ].align(pelicano::Align::Center).spacing(5))
+        .padding([6, 5]).width(Length::FILL)
+        .on_press(Msg::MacroVisual(EventoVisual::RecolherGrupo(grupo)))
+        .style(estilo_botao_ide(false));
+    let area = pelicano::mouse_area(b);
+    if grupo == GRUPO_PLANILHAS { area.into() } else {
+        area.on_right_press(Msg::MacroVisual(EventoVisual::MenuGrupo(grupo))).into()
+    }
+}
+
+/// O menu do botão direito do grupo, preso logo abaixo dele na árvore.
+fn menu_do_grupo<'a>(rotulo: &str, icone: &str, acao: Msg, escuro: bool) -> Element<'a, Msg> {
+    container(pelicano::opaque(item_arvore(rotulo, icone, 4.0, Some(acao), false)))
+        .padding(3).width(Length::FILL).style(estilo_area(escuro)).into()
+}
+
 fn arvore<'a>(app: &'a App, altura: Length) -> Element<'a, Msg> {
     let escuro = app.config.escuro;
     let mut itens = column![
@@ -78,9 +108,10 @@ fn arvore<'a>(app: &'a App, altura: Length) -> Element<'a, Msg> {
             event(EventoVisual::Documento("pasta".into())),
             app.macro_visual.documento == "pasta",
         ),
-        grupo_arvore(tr!("Planilhas"), "table", escuro),
+        grupo_recolhivel(app, GRUPO_PLANILHAS, tr!("Planilhas"), "table"),
     ].spacing(1).padding(4);
-    for nome in app.workbook.nomes().iter().take(48) {
+    let aberto = |g: u8| app.macro_visual.recolhidos & (1 << g) == 0;
+    for nome in app.workbook.nomes().iter().take(if aberto(GRUPO_PLANILHAS) { 48 } else { 0 }) {
         let id = format!("planilha:{nome}");
         // Raio: a aba tem código de evento ligado.
         let com_evento = app.eventos_vba.iter().any(|e| e.aba.eq_ignore_ascii_case(nome));
@@ -90,18 +121,23 @@ fn arvore<'a>(app: &'a App, altura: Length) -> Element<'a, Msg> {
             app.macro_visual.documento == id,
         ));
     }
-    itens = itens.push(item_arvore(
-        tr!("Esta pasta de trabalho"), "window", 21.0,
-        event(EventoVisual::Documento("pasta".into())),
-        app.macro_visual.documento == "pasta",
-    ));
-    itens = itens.push(grupo_arvore(tr!("Módulos"), "file-code", escuro));
-    let nomes: Vec<&str> = app.macro_catalogo.macros.iter().take(400)
+    if aberto(GRUPO_PLANILHAS) {
+        itens = itens.push(item_arvore(
+            tr!("Esta pasta de trabalho"), "window", 21.0,
+            event(EventoVisual::Documento("pasta".into())),
+            app.macro_visual.documento == "pasta",
+        ));
+    }
+    itens = itens.push(grupo_recolhivel(app, GRUPO_MODULOS, tr!("Módulos"), "file-code"));
+    if app.macro_visual.menu_grupo == Some(GRUPO_MODULOS) {
+        itens = itens.push(menu_do_grupo(tr!("Nova macro (módulo)"), "file-code", Msg::MacroNovoModulo, escuro));
+    }
+    let nomes: Vec<&str> = app.macro_catalogo.macros.iter().take(if aberto(GRUPO_MODULOS) { 400 } else { 0 })
         .map(|m| m.name.as_str())
         .filter(|n| !n.starts_with(super::organizacao::PASTA_EVENTOS)).collect();
     itens = modulos_da_pasta(app, itens, &nomes, "", 21.0);
     // Módulo ainda não guardado, só depois de ter código: o editor vazio do começo não é rascunho.
-    let rascunho = !app.macro_nome.starts_with(super::organizacao::PASTA_EVENTOS)
+    let rascunho = aberto(GRUPO_MODULOS) && !app.macro_nome.starts_with(super::organizacao::PASTA_EVENTOS)
         && app.macro_catalogo.obter(&app.macro_nome).is_none()
         && !app.macro_codigo.text().trim().is_empty();
     if rascunho {
@@ -113,8 +149,11 @@ fn arvore<'a>(app: &'a App, altura: Length) -> Element<'a, Msg> {
         ));
     }
     let formularios = feathersheet_macros::formularios::ler(app.workbook.formularios.as_deref()).unwrap_or_default();
-    itens = itens.push(grupo_arvore(tr!("Formulários"), "forms", escuro));
-    for f in formularios {
+    itens = itens.push(grupo_recolhivel(app, GRUPO_FORMULARIOS, tr!("Formulários"), "forms"));
+    if app.macro_visual.menu_grupo == Some(GRUPO_FORMULARIOS) {
+        itens = itens.push(menu_do_grupo(tr!("Novo formulário"), "forms", Msg::MacroNovoFormulario, escuro));
+    }
+    for f in formularios.into_iter().filter(|_| aberto(GRUPO_FORMULARIOS)) {
         let aberto = app.macro_visual.documento == "componente:previsao"
             && app.macro_visual.designer.original.as_deref() == Some(f.nome.as_str());
         itens = itens.push(item_arvore(&f.nome, "forms", 21.0,
@@ -274,8 +313,10 @@ fn abas_documento<'a>(app: &'a App) -> Element<'a, Msg> {
         event(EventoVisual::Documento(atual.clone())), true,
     ));
     abas = abas.push(botao_icone_simples("plus", Some(Msg::MacroNovoModulo)));
-    container(scrollable(abas).direction(pelicano::Direction::Horizontal).height(Length::Fixed(43.0)))
-        .width(Length::FILL).padding([4, 6]).style(estilo_cabecalho(escuro)).into()
+    // Altura fixa no invólucro e a aba centrada nela (#155).
+    container(scrollable(abas.align(pelicano::Align::Center)).direction(pelicano::Direction::Horizontal))
+        .width(Length::FILL).height(Length::Fixed(51.0)).align_y(pelicano::Align::Center)
+        .padding([4, 6]).style(estilo_cabecalho(escuro)).into()
 }
 
 fn edicao_codigo<'a>(app: &'a App) -> Element<'a, Msg> {
@@ -408,6 +449,17 @@ fn janela_com<'a>(app: &'a App, altura_janela: f32, largura_janela: f32) -> Elem
 #[cfg(test)]
 mod testes {
     use super::*;
+    #[test]
+    fn grupo_recolhe_e_menu_do_botao_direito_fecha_com_outro_clique() {
+        let mut app = App::default();
+        app.evento_macro_visual(EventoVisual::RecolherGrupo(GRUPO_MODULOS));
+        assert_eq!(app.macro_visual.recolhidos, 1 << GRUPO_MODULOS);
+        app.evento_macro_visual(EventoVisual::MenuGrupo(GRUPO_FORMULARIOS));
+        assert_eq!(app.macro_visual.menu_grupo, Some(GRUPO_FORMULARIOS));
+        let _ = janela(&app);
+        app.evento_macro_visual(EventoVisual::RecolherGrupo(GRUPO_MODULOS));
+        assert_eq!((app.macro_visual.recolhidos, app.macro_visual.menu_grupo), (0, None));
+    }
     #[test]
     fn janela_monta_todas_as_areas_nas_duas_aparencias() {
         let mut app = App::default();

@@ -3,6 +3,34 @@ use super::*;
 use pelicano::column;
 use feathersheet_core::dinamica::campo_calculado;
 
+/// O campo da fórmula: volta o foco a ele depois de completar um nome.
+pub(super) const ID_FORMULA_CALCULADO: &str = "dinamica-formula-calculado";
+
+/// Por que um campo calculado não entrou.
+pub(super) enum ErroCalculado {
+    JaExiste,
+    SemColunas,
+    Formula(String),
+}
+
+/// Põe um campo calculado em `e` (a coluna nova depois da origem e a soma dele em Valores).
+/// A regra é a mesma para o painel e o MCP.
+pub(super) fn acrescentar_calculado(e: &mut Estado, nome: &str, formula: &str) -> Result<(), ErroCalculado> {
+    if e.nomes.iter().any(|existente| existente.eq_ignore_ascii_case(nome)) {
+        return Err(ErroCalculado::JaExiste);
+    }
+    let real = e.nomes.len().saturating_sub(e.calculados.len());
+    if (e.origem.c1 as usize) + e.calculados.len() + 1 >= MAX_COLS as usize {
+        return Err(ErroCalculado::SemColunas);
+    }
+    campo_calculado::compilar(formula, &e.nomes[..real]).map_err(ErroCalculado::Formula)?;
+    let col = e.origem.c1 as usize + 1 + e.calculados.len();
+    e.calculados.push(Calculado { nome: nome.to_owned(), formula: formula.to_owned() });
+    e.nomes.push(nome.to_owned());
+    e.valores.push(MedidaDinamica { coluna: col, op: AgregacaoOp::Soma });
+    Ok(())
+}
+
 impl App {
     pub(super) fn adicionar_campo_calculado(&mut self) {
         let Some(e) = self.dinamica.as_mut() else { return };
@@ -12,27 +40,17 @@ impl App {
             self.status = tr!("Informe nome e fórmula para o campo calculado.").into();
             return;
         }
-        if e.nomes.iter().any(|existente| existente.eq_ignore_ascii_case(&nome)) {
-            self.status = trf!("O campo '{nome}' já existe na tabela dinâmica.");
-            return;
-        }
-        let real = e.nomes.len().saturating_sub(e.calculados.len());
-        if (e.origem.c1 as usize) + e.calculados.len() + 1 >= MAX_COLS as usize {
-            self.status = tr!("Não existem mais colunas disponíveis para campos calculados.").into();
-            return;
-        }
-        if let Err(msg) = campo_calculado::compilar(&formula, &e.nomes[..real]) {
-            self.status = trf!("Fórmula inválida: {msg}");
-            return;
-        }
-        let col = e.origem.c1 as usize + 1 + e.calculados.len();
-        e.calculados.push(Calculado { nome: nome.clone(), formula });
-        e.nomes.push(nome);
-        e.valores.push(MedidaDinamica { coluna: col, op: AgregacaoOp::Soma });
-        e.novo_nome.clear();
-        e.nova_formula.clear();
-        e.previa_calculado = None;
-        self.status = tr!("Campo calculado adicionado. Clique em Criar/Aplicar para atualizar o resultado.").into();
+        self.status = match acrescentar_calculado(e, &nome, &formula) {
+            Ok(()) => {
+                e.novo_nome.clear();
+                e.nova_formula.clear();
+                e.previa_calculado = None;
+                tr!("Campo calculado adicionado. Clique em Criar/Aplicar para atualizar o resultado.").into()
+            }
+            Err(ErroCalculado::JaExiste) => trf!("O campo '{nome}' já existe na tabela dinâmica."),
+            Err(ErroCalculado::SemColunas) => tr!("Não existem mais colunas disponíveis para campos calculados.").into(),
+            Err(ErroCalculado::Formula(msg)) => trf!("Fórmula inválida: {msg}"),
+        };
     }
 
     pub(super) fn remover_campo_calculado(&mut self, indice: usize) {
@@ -74,6 +92,14 @@ impl App {
                 .collect::<Vec<_>>().join(" · "))).size(11).color(COR_TEXTO_MUTED()).into()
         } else { Space::new(0.0, 0).into() };
         let titulo = |t: &'static str| text(t).size(10.5).color(COR_TEXTO_MUTED());
+        // DIN-7: os campos que completam o que está sendo digitado; um clique completa.
+        let reais = &e.nomes[..e.nomes.len().saturating_sub(e.calculados.len())];
+        let sugestoes = pelicano::row(
+            campo_calculado::sugestoes(&e.nova_formula, reais).into_iter().take(12).map(|nome| {
+                button(text(nome).size(11)).padding([2, 8]).style(estilo_botao_secundario)
+                    .on_press(Msg::Dinamica(Evento::CompletarCalculado(nome.to_string()))).into()
+            }).collect::<Vec<Element<'a, Msg>>>(),
+        ).spacing(4).wrap();
         column![
             titulo(tr!("ORIGEM DOS DADOS")),
             row![
@@ -88,7 +114,9 @@ impl App {
             text_input(tr!("Nome do campo"), &e.novo_nome)
                 .on_input(|s| Msg::Dinamica(Evento::NomeCalculado(s))).padding(6).size(12),
             text_input(tr!("Fórmula: [Preço] * Quantidade"), &e.nova_formula)
+                .id(ID_FORMULA_CALCULADO)
                 .on_input(|s| Msg::Dinamica(Evento::FormulaCalculado(s))).padding(6).size(12),
+            sugestoes,
             row![
                 Space::new(Length::FILL, 0.0),
                 button(text(tr!("Prévia")).size(11.5)).style(estilo_botao_secundario)
@@ -97,6 +125,7 @@ impl App {
                     .on_press(Msg::Dinamica(Evento::AdicionarCalculado)),
             ].spacing(6),
             previa,
+            self.secao_itens_calculados(e),
         ].spacing(9).into()
     }
 }
@@ -143,5 +172,28 @@ mod testes {
         let e = app.dinamica.as_ref().unwrap();
         assert!(e.calculados.is_empty());
         assert!(!e.valores.iter().any(|v| v.coluna == 3));
+    }
+
+    /// DIN-7: digitar o começo do nome e clicar na sugestão monta `=Preço*Qtd`.
+    #[test]
+    fn sugestao_completa_o_campo_da_formula() {
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0,0,"Preço"); s.set_cell(0,1,"Qtd");
+            s.set_cell(1,0,"10"); s.set_cell(1,1,"2");
+        });
+        app.fim_selecao = (1,1);
+        app.evento_dinamica(Evento::Abrir);
+        crate::app::dinamica_ui::campos_de_antes(&mut app);
+        app.evento_dinamica(Evento::FormulaCalculado("=pr".into()));
+        let e = app.dinamica.as_ref().unwrap();
+        assert_eq!(campo_calculado::sugestoes(&e.nova_formula, &e.nomes), ["Preço"]);
+        let _ = app.evento_dinamica(Evento::CompletarCalculado("Preço".into()));
+        let f = format!("{}*q", app.dinamica.as_ref().unwrap().nova_formula);
+        app.evento_dinamica(Evento::FormulaCalculado(f));
+        let _ = app.evento_dinamica(Evento::CompletarCalculado("Qtd".into()));
+        assert_eq!(app.dinamica.as_ref().unwrap().nova_formula, "=Preço*Qtd");
+        app.evento_dinamica(Evento::PreviaCalculado);
+        assert_eq!(app.dinamica.as_ref().unwrap().previa_calculado, Some(vec![20.]));
     }
 }

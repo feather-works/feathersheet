@@ -19,6 +19,8 @@ mod detalhes;
 mod grafico_dinamico;
 mod segmentacao;
 mod faixa;
+mod agrupar_itens;
+mod itens_calculados;
 mod mcp;
 pub(in crate::app) mod fundo;
 #[cfg(test)]
@@ -68,11 +70,32 @@ pub enum Evento {
     LimparFiltro,
     NomeCalculado(String),
     FormulaCalculado(String),
+    /// Completa a palavra no fim da fórmula com este campo (DIN-7).
+    CompletarCalculado(String),
+    /// Itens calculados (DIN-6): o campo (coluna da origem), nome, fórmula, completar,
+    /// adicionar e remover.
+    ItemCampo(usize),
+    ItemNome(String),
+    ItemFormula(String),
+    CompletarItem(String),
+    AdicionarItem,
+    RemoverItem(usize),
     PreviaCalculado,
     AdicionarCalculado,
     RemoverCalculado(usize),
     Recolher(String),
     RecolherTodos(bool),
+    /// Um nível por clique (true = recolher o mais fundo aberto).
+    RecolherNivel(bool),
+    /// DIN-6: `true` agrupa os itens selecionados na grade; `false` desfaz o grupo.
+    AgruparItens(bool),
+    /// DIN-6: (nome de agora, nome novo) de um grupo feito à mão.
+    RenomearGrupo(String, String),
+    /// Uma aba por item do primeiro filtro de relatório (DIN-10).
+    MostrarPaginas,
+    /// Painel: liga/desliga "Adiar atualização" e aplica o que ficou pendente.
+    Adiar,
+    AtualizarPainel,
     RecolherNaGrade(u32,u32,String),
     Campo(usize),
     Remover(EixoDinamica,usize),
@@ -146,6 +169,10 @@ pub enum AreaDinamica { Filtros, Colunas, Linhas, Valores, Lista }
 pub(super) struct PainelUi {
     /// Vez da última conta adiada ([`Evento::AtualizarAgora`]).
     vez_adiada: u32,
+    /// "Adiar atualização" (DIN-18): mudanças só valem no botão Atualizar.
+    adiar: bool,
+    /// Há mudança no painel ainda não aplicada à tabela.
+    pendente: bool,
     busca_campo: String,
     arrasto: Option<Arrasto>,
     /// Área sob o mouse durante o arrasto.
@@ -168,6 +195,11 @@ pub(super) struct PainelUi {
     config_campo: Option<(AreaDinamica, usize)>,
     /// Itens do campo base de "% de"/"Diferença de" (lidos ao abrir).
     itens_base: Vec<String>,
+    /// Item calculado em edição: o campo (coluna da origem), os itens dele, nome e fórmula.
+    item_campo: Option<usize>,
+    itens_do_campo: Vec<String>,
+    item_nome: String,
+    item_formula: String,
     /// Início, fim e intervalo das faixas como digitados.
     faixa_txt: [String; 3],
 }
@@ -203,6 +235,8 @@ pub(super) struct Estado {
     layout: Layout,
     repetir_rotulos: bool,
     subtotais: bool,
+    /// Compacto: subtotal em linha própria embaixo do grupo (DIN-8).
+    subtotal_embaixo: bool,
     tema: String,
     recolhidos: Vec<String>,
     grupos: Vec<String>,
@@ -435,7 +469,14 @@ impl App {
     }
 
     pub(super) fn evento_dinamica(&mut self, evento: Evento) -> Task<Msg> {
-        let ao_vivo = Self::evento_atualiza_ao_vivo(&evento);
+        let (adiar, pendente) = self.dinamica.as_ref().map_or((false, false), |e| (e.ui.adiar, e.ui.pendente));
+        let mudou = Self::evento_atualiza_ao_vivo(&evento);
+        if mudou && adiar {
+            if let Some(e) = self.dinamica.as_mut() { e.ui.pendente = true; }
+        }
+        // Desligar o adiar com mudança pendente aplica, como o Excel.
+        let ao_vivo = (mudou && !adiar) || matches!(evento, Evento::AtualizarPainel)
+            || (matches!(evento, Evento::Adiar) && adiar && pendente);
         let medir = ao_vivo || matches!(evento, Evento::Criar | Evento::NaFaixa(..));
         let nome = format!("{evento:?}");
         let nome = nome.split(['(', ' ', '{']).next().unwrap_or("").to_owned();
@@ -462,6 +503,9 @@ impl App {
             return Task::batch([tarefa, adiada]);
         }
         if ao_vivo { self.atualizar_ao_vivo(); }
+        if ao_vivo {
+            if let Some(e) = self.dinamica.as_mut() { e.ui.pendente = false; }
+        }
         if medir {
             let ms = inicio.elapsed().as_millis();
             feathersheet_core::diario::anotar(trf!("[dinâmica] {nome}: {ms} ms no total"));
@@ -521,6 +565,7 @@ impl App {
                     layout: Layout::Tabular,
                     repetir_rotulos: true,
                     subtotais: false,
+                    subtotal_embaixo: false,
                     tema: "padrao".into(),
                     recolhidos: Vec::new(),
                     grupos: Vec::new(),
@@ -699,10 +744,17 @@ impl App {
                 e.repetir_rotulos = !e.repetir_rotulos;
             },
             Evento::Subtotais => if let Some(e) = &mut self.dinamica {
-                e.subtotais = !e.subtotais;
+                // Como o "Subtotais" do Excel: sem → em cima → embaixo → sem. No tabular
+                // o subtotal sempre vai embaixo: o "em cima" não existe lá.
+                let tabular = e.layout == Layout::Tabular;
+                (e.subtotais, e.subtotal_embaixo) = match (e.subtotais, e.subtotal_embaixo) {
+                    (false, _) => (true, tabular),
+                    (true, false) => (true, true),
+                    (true, true) => (false, false),
+                };
             },
             Evento::Tema => if let Some(e) = &mut self.dinamica {
-                const TEMAS: &[&str] = &["padrao","azul","verde","laranja","vermelho","roxo","cinza"];
+                use feathersheet_core::dinamica::exibicao::TEMAS_DA_DINAMICA as TEMAS;
                 let indice = TEMAS.iter().position(|&t| t == e.tema).unwrap_or(0);
                 e.tema = TEMAS[(indice+1)%TEMAS.len()].to_owned();
             },
@@ -770,6 +822,11 @@ impl App {
                 e.nova_formula = formula;
                 e.previa_calculado = None;
             },
+            Evento::CompletarCalculado(campo) => if let Some(e) = &mut self.dinamica {
+                e.nova_formula = feathersheet_core::dinamica::campo_calculado::completar(&e.nova_formula, &campo);
+                e.previa_calculado = None;
+                return Task::focus(painel_avancado::ID_FORMULA_CALCULADO);
+            },
             Evento::PreviaCalculado => {
                 let resultado = self.dinamica.as_ref().map(|e| {
                     campos::previa(e.origem.clone(), &e.nova_formula, 3,
@@ -797,6 +854,16 @@ impl App {
             Evento::RecolherTodos(recolher) => if let Some(e) = &mut self.dinamica {
                 e.recolhidos = if recolher { e.grupos.clone() } else { Vec::new() };
             },
+            Evento::RecolherNivel(recolher) => if let Some(e) = &mut self.dinamica {
+                feathersheet_core::dinamica::dinamica_layout::passo_de_nivel(&e.grupos, &mut e.recolhidos, recolher);
+            },
+            Evento::MostrarPaginas => self.mostrar_paginas_do_filtro(),
+            Evento::AgruparItens(agrupar) => self.agrupar_itens_selecionados(agrupar),
+            ev @ (Evento::ItemCampo(_) | Evento::ItemNome(_) | Evento::ItemFormula(_) | Evento::CompletarItem(_)
+                | Evento::AdicionarItem | Evento::RemoverItem(_)) => return self.evento_item_calculado(ev),
+            Evento::RenomearGrupo(antes, novo) => self.renomear_grupo(&antes, &novo),
+            Evento::Adiar => if let Some(e) = &mut self.dinamica { e.ui.adiar = !e.ui.adiar; },
+            Evento::AtualizarPainel => {}
             Evento::RecolherNaGrade(linha,coluna,caminho) =>
                 self.alternar_grupo_no_resultado(linha,coluna,caminho),
             Evento::Atualizar => self.atualizar_dinamica_nativa(),
@@ -1108,6 +1175,46 @@ impl App {
         self.status = trf!("Tabela dinâmica criada: {} linhas × {} colunas ({largura} campos na origem).", altura, colunas);
     }
 
+    /// "Mostrar páginas do filtro de relatório" do Excel: uma aba por item
+    /// do primeiro campo em Filtros (respeitando o que o filtro já tira),
+    /// cada uma com a mesma dinâmica só daquele item.
+    fn mostrar_paginas_do_filtro(&mut self) {
+        let Some(e) = self.dinamica.clone() else { return };
+        let Some(col) = e.filtros_de_relatorio().first().map(|f| f.coluna) else {
+            self.status = tr!("Ponha um campo em Filtros para mostrar as páginas.").into();
+            return;
+        };
+        let (itens, cortado) = avancado::opcoes_de_filtro(self, &e, col);
+        if cortado {
+            self.status = tr!("O campo do filtro tem itens demais para uma aba por item.").into();
+            return;
+        }
+        let atual = e.filtros.iter().find(|f| f.coluna == col && !f.valores.is_empty());
+        let mut criadas = 0;
+        for (chave, rotulo) in itens {
+            // `valores` são os que saem (excluir) ou os que ficam.
+            if atual.is_some_and(|f| f.valores.contains(&chave) == f.excluir) { continue; }
+            let mut p = e.clone();
+            p.nova_aba = true;
+            p.editando = None;
+            for f in p.filtros.iter_mut().filter(|f| f.coluna == col) {
+                f.valores = std::iter::once(chave.clone()).collect();
+                f.excluir = false;
+            }
+            self.dinamica = Some(p);
+            let antes = self.workbook.len();
+            self.criar_dinamica_nativa();
+            if self.workbook.len() > antes {
+                // Nome de aba não aceita estes caracteres; repetido fica "DinâmicaN".
+                let nome: String = rotulo.chars().filter(|c| !"[]:*?/\\!".contains(*c)).take(31).collect();
+                self.workbook.renomear_aba(antes, &nome);
+                criadas += 1;
+            }
+        }
+        self.dinamica = Some(e);
+        self.status = trf!("{} abas criadas, uma por item do filtro.", criadas);
+    }
+
     /// Recalcula a definição persistida com o mesmo caminho da edição nativa.
     fn atualizar_dinamica_nativa(&mut self) {
         self.atualizar_dinamica_existente();
@@ -1274,6 +1381,28 @@ mod testes {
         assert_eq!(app.workbook.valor(1,0,0), Value::Text("Região".into()));
         assert_eq!(app.workbook.valor(1,1,1), Value::Number(20.));
         assert!(app.workbook.aba(1).unwrap().sheet.dn.is_some());
+    }
+
+    #[test]
+    fn paginas_do_filtro_criam_uma_aba_por_item() {
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0,0,"Região"); s.set_cell(0,1,"Vendas");
+            s.set_cell(1,0,"Sul"); s.set_cell(1,1,"10");
+            s.set_cell(2,0,"Norte"); s.set_cell(2,1,"20");
+            s.set_cell(3,0,"Sul"); s.set_cell(3,1,"5");
+        });
+        app.fim_selecao = (3,1);
+        app.evento_dinamica(Evento::Abrir);
+        crate::app::dinamica_ui::campos_de_antes(&mut app);
+        let e = app.dinamica.as_mut().unwrap();
+        e.linhas.clear();
+        e.filtros.push(Filtro { coluna: 0, valores: Default::default(), excluir: false });
+        app.evento_dinamica(Evento::MostrarPaginas);
+        assert_eq!(app.workbook.nomes()[1..], ["Norte".to_string(), "Sul".to_string()]);
+        let total = |aba: usize| (0..4).find_map(|r| match app.workbook.valor(aba, r, 1) {
+            Value::Number(x) => Some(x), _ => None });
+        assert_eq!((total(1), total(2)), (Some(20.), Some(15.)));
     }
 
     #[test]

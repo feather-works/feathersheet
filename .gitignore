@@ -23,3 +23,6 @@ pacote/saida/
 .~lock.*#
 pacote/flatpak/build/
 pacote/flatpak/.flatpak-builder/
+
+# Pacotes snap gerados localmente
+*.snap

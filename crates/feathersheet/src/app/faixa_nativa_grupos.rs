@@ -102,6 +102,7 @@ impl App {
                     self.faixa_numero_botao("R$", tr!("Formato de moeda"),
                         Msg::EstiloMenu("format".into(), Campo::Texto("currency".into())),
                         estilo.format == feathersheet_core::celulas::style::NumberFormat::Currency),
+                    self.faixa_seta_moeda(),
                     self.faixa_numero_botao("%", tr!("Formato percentual"),
                         Msg::EstiloMenu("format".into(), Campo::Texto("percent".into())),
                         estilo.format == feathersheet_core::celulas::style::NumberFormat::Percent),
@@ -209,7 +210,8 @@ impl App {
                     self.faixa_grande(tr!("Ícones"), "icons", Some(Msg::Objetos(super::objetos::Evento::AlternarMenu(super::objetos::ModoMenu::Icones))),
                         self.objetos.menu == Some(super::objetos::ModoMenu::Icones)),
                     em_breve(self.faixa_grande_seta(tr!("Modelos 3D"), "cube", None, false), tr!("Em breve: modelos 3D")),
-                    em_breve(self.faixa_grande("SmartArt", "sitemap", None, false), tr!("Em breve: diagramas SmartArt")),
+                    self.faixa_grande("SmartArt", "sitemap", Some(Msg::Objetos(super::objetos::Evento::AlternarMenu(super::objetos::ModoMenu::Diagramas))),
+                        self.objetos.menu == Some(super::objetos::ModoMenu::Diagramas)),
                     em_breve(self.faixa_grande(tr!("Instantâneo"), "screenshot", None, false), tr!("Em breve: captura de outra janela")),
                     self.faixa_pilha(vec![
                         self.faixa_pequeno(tr!("Efeitos da imagem"), "photo", self.workbook.aba(self.folha).and_then(|aba| aba.sheet.im.as_ref()).map(|_| Msg::ImagemEfeitosAbrir), self.efeitos_imagem.aberto),
@@ -340,7 +342,7 @@ impl App {
                     ]),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Classificar e filtrar"), self.faixa_linha(vec![
-                    self.faixa_grande("AutoFiltro", "filter",
+                    self.faixa_grande(tr!("AutoFiltro"), "filter",
                         Some(Msg::TabelaAcao(tabelas::Acao::AlternarAutoFiltro)), false),
                     self.faixa_pilha(vec![
                         self.faixa_pequeno("A–Z", "sort-ascending", Some(Msg::Ordenar(true)), false),
@@ -362,6 +364,7 @@ impl App {
                     self.faixa_pilha(vec![
                         self.faixa_validacao(),
                         self.faixa_pequeno(tr!("Nomes"), "tag", Some(Msg::NomesAbrir(false)), self.nomes_modal.is_some()),
+                        self.faixa_pequeno(tr!("Consolidar"), "table", Some(Msg::Consolidar(consolidar_ui::Evento::Abrir)), self.consolidar.is_some()),
                     ]),
                     // Preenchimento relâmpago (Ctrl+E): rótulo curto para a
                     // faixa caber em 1280 px sem espremer o grupo seguinte.
@@ -603,6 +606,11 @@ impl App {
                     Nivel::Compacto=>self.faixa_inicio_compacto(indice),
                     Nivel::Recolhido=>self.faixa_inicio_recolhido(indice),
                 });
+            }
+        } else if let (Some((inteiros, _)), Some((titulos, _))) = (self.faixa_plano_abas(), self.faixa_recolhiveis()) {
+            // INT-1: os que não cabem inteiros viram um botão que abre o grupo.
+            for (indice, inteiro) in todos.into_iter().take(limite).enumerate() {
+                grupos.push(if inteiros[indice] { inteiro } else { self.faixa_grupo_recolhido(indice, titulos[indice]) });
             }
         } else {
             grupos.extend(todos.into_iter().take(limite));

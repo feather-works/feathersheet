@@ -46,6 +46,7 @@ pub(in crate::app) struct OpcoesFaixa {
     tabular: bool,
     repetir: bool,
     subtotais: bool,
+    subtotal_embaixo: bool,
     totais_linhas: bool,
     totais_colunas: bool,
     sozinha: bool,
@@ -79,6 +80,7 @@ impl App {
             let x = avancado::extras_vigentes(e);
             return Some(OpcoesFaixa {
                 tabular: e.layout == Layout::Tabular, repetir: e.repetir_rotulos, subtotais: e.subtotais,
+                subtotal_embaixo: e.subtotal_embaixo,
                 totais_linhas: x.totais_gerais_linhas, totais_colunas: x.totais_gerais_colunas,
                 sozinha: e.atualizar_sozinha, agrupar: e.agrupar_data, tema: e.tema.clone(), painel_aberto: true,
             });
@@ -92,6 +94,7 @@ impl App {
             tabular: meta["layout"].as_str() == Some("tabular"),
             repetir: meta["repetirRotulos"].as_bool().unwrap_or(true),
             subtotais: meta["subtotais"].as_bool().unwrap_or(false),
+            subtotal_embaixo: meta["subtotaisEmbaixo"].as_bool().unwrap_or(false),
             totais_linhas: extras.totais_gerais_linhas, totais_colunas: extras.totais_gerais_colunas,
             sozinha: meta["atualizarSozinha"].as_bool().unwrap_or(false),
             agrupar, tema: meta["tema"].as_str().unwrap_or("padrao").to_string(), painel_aberto: false,
@@ -138,8 +141,11 @@ impl App {
             ]),
             self.faixa_pequeno(tr!("Repetir rótulos"), if o.repetir { "checkbox" } else { "square" },
                 na(Evento::RepetirRotulos), o.repetir),
-            self.faixa_pequeno(tr!("Subtotais"), if o.subtotais { "checkbox" } else { "square" },
-                na(Evento::Subtotais), o.subtotais),
+            self.faixa_pequeno(&trf!("Subtotais: {}", match (o.subtotais, o.subtotal_embaixo) {
+                    (false, _) => tr!("Sem"),
+                    (true, false) if !o.tabular => tr!("Em cima"),
+                    (true, _) => tr!("Embaixo"),
+                }), "sum", na(Evento::Subtotais), o.subtotais),
         ])));
         grupos.push(self.faixa_grupo(tr!("Totais gerais"), self.faixa_pilha(vec![
             self.faixa_pequeno(tr!("Das linhas"), if o.totais_linhas { "checkbox" } else { "square" },
@@ -154,12 +160,22 @@ impl App {
                 self.faixa_pequeno(tr!("Recolher tudo"), "minus", na(Evento::RecolherTodos(true)), false),
                 self.faixa_pequeno(tr!("Expandir tudo"), "plus", na(Evento::RecolherTodos(false)), false),
             ]),
+            self.faixa_linha(vec![
+                self.faixa_pequeno(tr!("Recolher nível"), "indent-decrease", na(Evento::RecolherNivel(true)), false),
+                self.faixa_pequeno(tr!("Expandir nível"), "indent-increase", na(Evento::RecolherNivel(false)), false),
+            ]),
+        ])));
+        // DIN-6: selecionar itens de Linhas na grade e juntar num grupo (ou desfazer).
+        grupos.push(self.faixa_grupo(tr!("Agrupar seleção"), self.faixa_pilha(vec![
+            self.faixa_pequeno(tr!("Agrupar"), "link", na(Evento::AgruparItens(true)), false),
+            self.faixa_pequeno(tr!("Desagrupar"), "link-off", na(Evento::AgruparItens(false)), false),
         ])));
         grupos.push(self.faixa_grupo(tr!("Estilo"), self.faixa_grande(
             &trf!("Cores: {}", rotulo_tema(&o.tema)), "palette", na(Evento::Tema), false)));
         grupos.push(self.faixa_grupo(tr!("Ferramentas"), self.faixa_linha(vec![
             self.faixa_grande(tr!("Gráfico dinâmico"), "chart-bar", direto(Evento::GraficoDinamico), false),
             self.faixa_grande(tr!("Segmentação"), "filter", direto(Evento::SegmentacaoInserir), false),
+            self.faixa_grande(tr!("Páginas do filtro"), "copy-plus", na(Evento::MostrarPaginas), false),
         ])));
         grupos
     }
@@ -188,7 +204,7 @@ impl App {
         if let Some(e) = self.dinamica.as_mut() { e.ui.filtro_ancora = Some(ancora); }
     }
 
-    /// `FEATHERSHEET_CAPTURAR_DINAMICA=filtro|menu|resumir`: dinâmica de exemplo
+    /// `FEATHERSHEET_CAPTURAR_DINAMICA=filtro|menu|resumir|agrupar|calculado|item`: dinâmica de exemplo
     /// (FONTE e STATUS em Linhas, STATUS também em Filtros, somas por ano) com
     /// a lista do filtro aberta embaixo do funil de B1, ou o menu ▾ do campo
     /// STATUS (Linhas) com "Mover para ›" aberto, ou o de Valores com "Resumir por ›".
@@ -231,6 +247,37 @@ impl App {
                     let _ = self.evento_dinamica(Evento::FiltroNaGrade(af.r0, af.c0 + 1, x * z, y * z));
                 }
             }
+            // calculado: o painel avançado aberto com uma fórmula pela metade (DIN-7).
+            "calculado" => if let Some(e) = self.dinamica.as_mut() {
+                e.avancado = true;
+                e.novo_nome = "Total".into();
+                e.nova_formula = "=[2024] + [20".into();
+            },
+            // item: um item calculado já feito e outro pela metade (DIN-6).
+            "item" => {
+                let c0 = self.dinamica.as_ref().map_or(0, |e| e.origem.c0 as usize);
+                if let Some(e) = self.dinamica.as_mut() { e.avancado = true; }
+                for ev in [Evento::ItemCampo(c0), Evento::ItemNome("FECAM - TCA".into()),
+                    Evento::ItemFormula("FECAM - TCA".into()), Evento::AdicionarItem,
+                    Evento::ItemNome("Metade".into()), Evento::ItemFormula("[Compensação] / 2 + F".into())] {
+                    let _ = self.evento_dinamica(ev);
+                }
+            }
+            // agrupar: FECAM e TCA juntos em Grupo1 (DIN-6), painel fechado, aba Tabela Dinâmica.
+            "agrupar" => {
+                let _ = self.evento_dinamica(Evento::Fechar);
+                if let Some(d) = (0..self.workbook.len()).find(|&i| self.workbook.aba(i).is_some_and(|a| a.sheet.dn.is_some())) {
+                    self.folha = d;
+                    let linha = |app: &App, t: &str| (0..30u32).find(|&r| app.workbook.aba(d).is_some_and(|a| a.sheet.get_raw(r, 0) == t));
+                    if let (Some(a), Some(b)) = (linha(self, "FECAM"), linha(self, "TCA")) {
+                        self.trocar_selecao(a.min(b), 0);
+                        self.fim_selecao = (a.max(b), 0);
+                        let _ = self.evento_dinamica(Evento::NaFaixa(Box::new(Evento::AgruparItens(true))));
+                    }
+                    if let Some(g) = linha(self, &{ let n = 1; trf!("Grupo{n}") }) { self.trocar_selecao(g, 0); }
+                    self.selecionar_faixa(AbaFaixa::Dinamica);
+                }
+            }
             "menu" | "resumir" => if let Some(e) = self.dinamica.as_mut() {
                 let (area, i, dx) = if modo == "menu" { (AreaDinamica::Linhas, 1, 160.0) } else { (AreaDinamica::Valores, 0, 330.0) };
                 e.ui.ponteiro_menu = pelicano::Point::new(painel_x + dx, topo + 520.0);
@@ -240,5 +287,13 @@ impl App {
             },
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn todo_tema_da_dinamica_tem_nome_na_faixa() {
+    for tema in feathersheet_core::dinamica::exibicao::TEMAS_DA_DINAMICA.iter().skip(1) {
+        assert_ne!(rotulo_tema(tema), rotulo_tema("padrao"), "{tema} sem rótulo");
     }
 }

@@ -22,7 +22,7 @@ fn numeros_em_ingles_e_de_volta_ao_portugues() {
         (-1250.5, Some(com(NumberFormat::Currency, None)), "-$1,250.50"),
         (1234.5, Some(com(NumberFormat::Currency, Some(0))), "$1,235"),
         (0.1234, Some(com(NumberFormat::Percent, None)), "12.34%"),
-        (-1234.5, Some(com(NumberFormat::Accounting, None)), "(R$ 1,234.50)"),
+        (-1234.5, Some(com(NumberFormat::Accounting, None)), "($ 1,234.50)"), // o símbolo da língua (era "R$" fixo)
         (12345.678, Some(com(NumberFormat::Scientific, None)), "1.23E+04"),
         (2.5, Some(com(NumberFormat::Integer, None)), "3"),
         (1e21, None, "1,000,000,000,000,000,000,000"),
@@ -46,6 +46,9 @@ fn numeros_em_ingles_e_de_volta_ao_portugues() {
     });
     assert_eq!(format_number(1234567.891, None), "1.234.567,891");
     assert_eq!(format_number(-1250.5, Some(&com(NumberFormat::Currency, None))), "-1.250,50\u{a0}€");
+    // Em francês o espaço comum separa milhar ao digitar; em português não (é código).
+    set_locale_config(LocaleConfig::fr_fr());
+    assert_eq!(feathersheet_core::celulas::input::parse_literal("1 250,50").value, feathersheet_core::celulas::values::Value::Number(1250.5));
     set_locale_config(LocaleConfig::pt_br());
     assert_eq!(format_number(-1250.5, Some(&com(NumberFormat::Currency, None))), "-R$\u{a0}1.250,50");
 }

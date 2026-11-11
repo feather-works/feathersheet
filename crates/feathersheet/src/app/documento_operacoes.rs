@@ -404,6 +404,11 @@ impl App {
         self.editor_formula.encerrar();
         self.edicao_inline = None;
         self.multilinha = None;
+        // DIN-6: por cima do rótulo de um grupo da dinâmica, o texto renomeia o grupo.
+        if antes != canonica && self.renomear_grupo_na_celula(folha, linha, coluna, &antes, &canonica) {
+            self.alterado = true;
+            return true;
+        }
         if antes != canonica {
             // Digitar numa célula tira a marca do Ctrl+C, como no Excel.
             self.marca_copia = None;
@@ -483,6 +488,9 @@ impl App {
         if path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("xlsx") || e.eq_ignore_ascii_case("xlsm")) {
             // O leitor do Excel não conta bytes: barra sem porcentagem.
             feathersheet_io::progresso::fase(feathersheet_io::progresso::Fase::Montando);
+            if let Some(zip) = senha_abrir::decifrado(path) {
+                return feathersheet_io::xlsx_read::ler_xlsx_workbook(zip?);
+            }
             return feathersheet_io::xlsx_read::ler_xlsx_arquivo(path);
         }
         let bytes = std::fs::read(path)
@@ -525,6 +533,8 @@ impl App {
         self.tabela_editando = None;
         self.tabela_area = None;
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+        let tentada = self.senha_tentada.take();
+        self.senha_documento = tentada.filter(|_| (ext == "xlsx" || ext == "xlsm") && senha_abrir::tem_senha(&path));
         self.workbook = workbook;
         self.vinculos_novo_documento();
         self.vinculos_pedir_permissao();
@@ -547,6 +557,9 @@ impl App {
         // `.xlsx`/`.xlsm` também: Ctrl+S grava de volta no mesmo formato, como no Excel
         // (o salvamento automático continua só no `.fshz`).
         self.caminho = if matches!(ext.as_str(), "fshz" | "xlsx" | "xlsm") && !recuperacao { Some(path.clone()) } else { None };
+        // Lê agora, com a senha que abriu o arquivo: se a senha mudar antes de salvar, o
+        // aviso do que se perderia ainda sabe ler o original.
+        if self.senha_documento.is_some() { let _ = self.nao_convertidos_do_arquivo(); }
         self.origem = (ext != "fshz" && !recuperacao).then(|| path.clone());
         if recuperacao {
             // Planilha recuperada: o nome do documento original volta.
@@ -643,9 +656,10 @@ impl App {
         }
         self.status = tr!("Salvando…").into();
         let destino = path.clone();
+        let senha = self.senha_documento.clone();
         Task::perform(async move {
             let inicio = Instant::now();
-            let resultado = tokio::task::spawn_blocking(move || gravar_retrato(&pasta, &destino)).await.unwrap_or_else(|e| Err(trf!("Falha na tarefa de gravação: {e}")));
+            let resultado = tokio::task::spawn_blocking(move || gravar_retrato(&pasta, &destino, senha.as_deref())).await.unwrap_or_else(|e| Err(trf!("Falha na tarefa de gravação: {e}")));
             resultado.map(|()| inicio.elapsed().as_millis().min(u128::from(u64::MAX)) as u64)
         }, move |resultado| Msg::Gravado(path.clone(), copia, resultado))
     }
@@ -657,7 +671,7 @@ impl App {
     pub(super) fn concluir_gravacao_teste(&mut self, path: PathBuf, copia: bool) {
         assert!(self.salvando, "nenhuma gravação foi iniciada");
         let pasta = feathersheet_io::da_workbook::da_workbook(&self.workbook, self.folha as u32);
-        let resultado = gravar_retrato(&pasta, &path).map(|()| 1);
+        let resultado = gravar_retrato(&pasta, &path, self.senha_documento.as_deref()).map(|()| 1);
         let _ = self.gravacao_terminou(path, copia, resultado);
     }
 
@@ -676,10 +690,19 @@ impl App {
                 self.caminho = Some(path.clone());
                 self.registrar_arquivo_recente(&path);
                 let tamanho = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+                // O .xlsx cifrado acabou de sair daqui (nada do Excel ficou sem converter) e
+                // a senha pode mudar antes do próximo salvar: não precisa decifrar para conferir.
+                if self.senha_documento.is_some() && formato_excel(&path).is_some() {
+                    let data = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+                    *self.nao_convertidos.borrow_mut() = Some((path.clone(), data, Ok(Vec::new())));
+                }
                 self.status = trf!("Salvo: {:.1} MB em {:.1} s", tamanho as f64 / 1_048_576.0, ms as f64 / 1000.0);
                 // Como o Excel: o `.xlsx` não leva macros VBA.
                 if self.workbook.vba.is_some() && formato_excel(&path) == Some(false) {
                     self.status = tr!("Salvo como .xlsx: as macros VBA não vão neste formato (use .xlsm para mantê-las).").into();
+                }
+                if self.senha_documento.is_some() && formato_excel(&path).is_none() {
+                    self.status = tr!("Salvo em .fshz, que não leva a senha: para proteger, salve como .xlsx.").into();
                 }
                 self.avisar_textos_cortados(&path);
                 // O que foi digitado durante a gravação não está neste arquivo: `proteger` pergunta de novo.
@@ -915,6 +938,7 @@ impl App {
     pub(super) fn tarefa_abrir_recente(path: PathBuf, separador: Option<char>) -> Task<Msg> {
         // Usar a preferência persistida evita alterar os despachos antigos.
         let limite_gb = Configuracao::carregar().limite_memoria_gb;
+        let caminho = path.clone();
         Task::perform(async move {
             match tokio::task::spawn_blocking(move || {
                 let inicio = Instant::now();
@@ -935,7 +959,7 @@ impl App {
                 Ok(resultado) => resultado.map(Some),
                 Err(e) => Err(trf!("Falha ao carregar arquivo: {e}")),
             }
-        }, Msg::Aberto)
+        }, move |r| senha_abrir::resposta(&caminho, r))
     }
     pub(super) fn dialogo_salvar_copia(&self) -> Task<Msg> {
         let base = self.caminho.as_ref()
@@ -1022,7 +1046,7 @@ impl App {
             return;
         }
         if self.alterado {
-            if let Err(e) = gravar_retrato(&feathersheet_io::da_workbook::da_workbook(&self.workbook, self.folha as u32), &antigo) {
+            if let Err(e) = gravar_retrato(&feathersheet_io::da_workbook::da_workbook(&self.workbook, self.folha as u32), &antigo, self.senha_documento.as_deref()) {
                 self.status = trf!("Erro ao salvar antes de renomear: {e}");
                 return;
             }
@@ -1187,7 +1211,8 @@ pub(super) fn formato_excel(path: &std::path::Path) -> Option<bool> {
 
 /// Grava o retrato da pasta no formato do caminho: `.fshz`, ou `.xlsx`/`.xlsm` (o `.xlsm` com o
 /// projeto VBA que veio do arquivo). O Excel sai pelo mesmo caminho da exportação.
-pub(super) fn gravar_retrato(pasta: &feathersheet_io::fshz_write::PastaBruta, path: &std::path::Path) -> Result<(), String> {
+/// `senha`: o `.xlsx` sai cifrado (Agile, como o Excel); o `.fshz` não leva senha.
+pub(super) fn gravar_retrato(pasta: &feathersheet_io::fshz_write::PastaBruta, path: &std::path::Path, senha: Option<&str>) -> Result<(), String> {
     match formato_excel(path) {
         None => feathersheet_io::arquivo::gravar_atomico_com(path, |arquivo| {
             feathersheet_io::fshz_write::gravar_fshz_para(arquivo, pasta).map_err(std::io::Error::other)
@@ -1196,8 +1221,9 @@ pub(super) fn gravar_retrato(pasta: &feathersheet_io::fshz_write::PastaBruta, pa
             let bytes = feathersheet_io::fshz_write::gerar_fshz2(pasta)?;
             let wb = feathersheet_io::para_workbook::para_workbook_soltando(feathersheet_io::fshz_read::ler_fshz(&bytes)?);
             drop(bytes);
-            let (xlsx, _) = feathersheet_io::xlsx_write::gerar_excel_com_funcoes(&wb, macros)
+            let (mut xlsx, _) = feathersheet_io::xlsx_write::gerar_excel_com_funcoes(&wb, macros)
                 .map_err(|e| trf!("Erro ao gerar Excel: {e}"))?;
+            if let Some(senha) = senha { xlsx = feathersheet_io::xlsx_senha::cifrar(&xlsx, senha)?; }
             feathersheet_io::arquivo::gravar_atomico(path, &xlsx).map_err(|e| e.to_string())
         }
     }

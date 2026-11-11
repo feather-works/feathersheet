@@ -12,6 +12,7 @@ use std::sync::OnceLock;
 const JSON_PT: &str = include_str!("../../../../src/idiomas/pt-BR.json");
 const JSON_EN: &str = include_str!("../../../../src/idiomas/en-US.json");
 const JSON_ES: &str = include_str!("../../../../src/idiomas/es-ES.json");
+const JSON_FR: &str = include_str!("../../../../src/idiomas/fr-FR.json");
 const TOPICOS: &[&str] = &[
     "comecar", "formulas", "preencher", "abas", "formatar", "tabelas",
     "celulas", "auditoria", "previsao", "vinculos", "objetos", "graficos",
@@ -82,7 +83,8 @@ fn secao(json: &Value, id: &str, topicos: Vec<Topico>) -> Secao {
 }
 fn construir(idioma:&str) -> Catalogo {
     let origem = if idioma.starts_with("en") { JSON_EN }
-        else if idioma.starts_with("es") { JSON_ES } else { JSON_PT };
+        else if idioma.starts_with("es") { JSON_ES }
+        else if idioma.starts_with("fr") { JSON_FR } else { JSON_PT };
     let json:Value=serde_json::from_str(origem).expect("Ajuda de planilha inválida");
     Catalogo {
         titulo:tr(&json["ajuda"],"rotulos","titulo"),
@@ -110,6 +112,7 @@ pub fn definir_idioma(idioma: &str) {
     if cfg!(test) { return; }
     let i = match crate::idioma::Lingua::de_codigo(idioma) {
         crate::idioma::Lingua::Pt => 0, crate::idioma::Lingua::En => 1, crate::idioma::Lingua::Es => 2,
+        crate::idioma::Lingua::Fr => 3,
     };
     IDIOMA_AJUDA.store(i, std::sync::atomic::Ordering::Relaxed);
 }
@@ -117,9 +120,11 @@ pub fn modelo() -> &'static Catalogo {
     static PT:OnceLock<Catalogo>=OnceLock::new();
     static EN:OnceLock<Catalogo>=OnceLock::new();
     static ES:OnceLock<Catalogo>=OnceLock::new();
+    static FR:OnceLock<Catalogo>=OnceLock::new();
     match IDIOMA_AJUDA.load(std::sync::atomic::Ordering::Relaxed) {
         1 => EN.get_or_init(|| construir("en-US")),
         2 => ES.get_or_init(|| construir("es-ES")),
+        3 => FR.get_or_init(|| construir("fr-FR")),
         _ => PT.get_or_init(|| construir("pt-BR")),
     }
 }
@@ -193,7 +198,7 @@ mod tests {
         assert!(md.contains("```\n"), "exemplos em bloco de código");
     }
     #[test] fn ambos_os_idiomas_carregam_guia_completo() {
-        for idioma in ["pt-BR","en-US","es-ES"] {
+        for idioma in ["pt-BR","en-US","es-ES","fr-FR"] {
             let c=construir(idioma);
             assert_eq!(c.secoes.len(),4);
             // Todo tópico de "Como usar" existe no JSON do idioma (não cai no id).
@@ -230,7 +235,7 @@ mod tests {
         use feather_ui::ajuda::Evento;
         // Cada exemplo (sintaxe de função ou código de macro) vira a mensagem de copiar
         // com o mesmo texto exibido, nos dois idiomas.
-        for idioma in ["pt-BR","en-US","es-ES"] {
+        for idioma in ["pt-BR","en-US","es-ES","fr-FR"] {
             let cat=construir(idioma);
             let exemplos:Vec<&String>=cat.secoes.iter().flat_map(|s|&s.topicos)
                 .flat_map(|t|&t.linhas).filter_map(|l|match l {Linha::Exemplo(x)=>Some(x),_=>None}).collect();

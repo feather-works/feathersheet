@@ -345,6 +345,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### ROB-10. Arrastar fórmula para a planilha inteira (padrão por faixa)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. D11 continua aberta.
+**Situação (10/11):** 🟡 a parte de engenharia feita: a fórmula levada até o fim em todas as 16.384 colunas (100 milhões de linhas) cabe em 714 MB (MEM-2) e leva **2,7 s em release** (antes, 136 s só em debug). Cada coluna refazia a invalidação olhando todas as outras; dentro de uma transação de fora (colar, arrastar) as colunas agora se juntam em `Historico::invalidar_ao_fechar` e invalidam uma vez no `fechar_transacao`. Testes: `formulas_em_bloco_numa_transacao_invalidam_ao_fechar` e `formula_na_planilha_inteira_cabe_no_teto` (ignorado, release). Falta a D11 (o padrão por faixa para fórmula que não cabe em bloco) e o usuário conferir no app.
 - **Onde:** `planilha/sheet/edicao.rs` (`preencher_formula_faixa_vazia`), `planilha/modelo_padrao.rs`
   (`FaixaPadrao`), `crates/feathersheet/src/grade/alca.rs` (alça de preenchimento).
 - **Pronto:** arrastar a alça de uma fórmula até a linha 1.048.576 responde em ≤ 1 s (medido) e usa um
@@ -353,6 +354,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### ROB-11. Dar nome próprio ao teto de dimensões ocultas
 **Situação (08/11):** ❌ falta. Continua `const MAX_OPERACOES: u64 = 2_100_000` em `edicao.rs:1718`.
+**Situação (10/11):** ✅ feito: renomeada para `MAX_DIMENSOES_OCULTAS`.
 - **Onde:** `crates/feathersheet-core/src/planilha/sheet/edicao.rs:1659` (constante local `MAX_OPERACOES`
   = 2.100.000, teto de linhas/colunas ocultadas de uma vez; homônima de `formula/parser.rs:43`).
 - **Pronto:** renomeada para `MAX_DIMENSOES_OCULTAS`; `cargo test` do core verde.
@@ -364,6 +366,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### MEM-1. Alocador contador de teste que recusa pedido acima do teto
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Não há `#[global_allocator]` em nenhum crate.
+**Situação (10/11):** ✅ feito: `feathersheet-core/src/teste_memoria.rs` (`#[cfg(test)]`, `#[global_allocator]`). Conta por thread (o `cargo test` roda em paralelo); `Teto::novo("rótulo", bytes)` limita a thread e `pico()` diz o maior uso. Pedido acima do teto: escreve `[teto de memoria] rótulo: pedido de N bytes recusado (em uso X, teto Y)` sem alocar e aborta (conferido uma vez). Os 984 testes do motor passam com ele. Limite: trabalho mandado ao rayon não conta (comentário `shortcut:`). Só no core por ora; no `feathersheet-io` entra junto com o MEM-3.
 - **Onde:** novo módulo de teste (ex.: `crates/feathersheet-core/src/teste_memoria.rs`, `#[cfg(test)]`,
   com `#[global_allocator]`); replicado em `feathersheet-io` (a decidir: copiar ou um crate de teste
   comum, D20). Hoje não existe nenhum `global_allocator` no repositório.
@@ -373,6 +376,10 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### MEM-2. Tetos: arrastar/colar fórmula até o fim e tudo selecionado
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de MEM-1.
+**Situação (10/11):** ✅ feito, com dois bugs achados pelo teto:
+1. Levar uma fórmula até a linha 100 milhões numa coluna gastava **403 MB** (um bloco cru de 256 KB por bloco de 65.536 linhas, todos iguais). Novo `Bloco::Constante` em `column_store.rs` (bloco coberto inteiro, a ponta final e o bloco 0 que completa igual) e a máscara cheia comum (`mascara_cheia`): **43 KB** por coluna, pico 302 KB.
+2. O contador de fórmulas (`FormulaTable::count`, u32) dava a volta acima de 4,29 bilhões (fórmula em todas as colunas até o fim): agora u64.
+Testes em `feathersheet-core/src/teste_memoria.rs`: `formula_ate_o_fim_da_coluna_cabe_no_teto` (8 MB), `formula_em_mil_colunas_ate_o_fim_cabe_no_teto` (1.024 colunas, 64 MB, mede 44 MB) e, ignorado por ser lento, `formula_na_planilha_inteira_cabe_no_teto` (16.384 colunas: 711 MB, antes passava de 6 GB). Fica para o ROB-10: o tempo cresce mais que linear (136 s em debug) porque cada coluna refaz a invalidação olhando todas as outras.
 - **Onde:** testes sobre `preencher_formula_faixa_vazia` e `Sheet::colar`; caso: 16.384 colunas ×
   1.048.576 linhas com a linha de fórmula (o caso que o usuário testou).
 - **Pronto:** teste reprova se o pico passar do teto (MEM-1); medido pico exato.
@@ -380,6 +387,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### MEM-3. Tetos: abrir `.xlsx` e `.fshz` gerados no teste (muitas colunas curtas)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de MEM-1.
+**Situação (10/11):** ✅ feito, com um ganho achado pelo teto: cada bloco reservava 8 KB de máscara de presença logo na 1ª célula. Abrir um `.fshz` de 9 abas × 200 colunas × 30 linhas (54 mil células) montava **27 MB**; a máscara agora cresce como os valores (`mascara_ate`, `bit` em `column_store.rs`) e são **2,2 MB**. Testes em `feathersheet-io/src/tetos_de_memoria.rs` (o alocador vem do core por `#[path]`): `.fshz` e `.xlsx` de colunas curtas com teto de 8 MB. Limite: o `.xlsx` lê as abas em threads, que o alocador não conta.
 - **Onde:** `crates/feathersheet-io/examples/` (os `medir_*` existem); testes novos em
   `feathersheet-io/src/` com geração sintética pequena e teto.
 - **Pronto:** reprova o pico acima do teto; compara com o número medido no `2026_03.fshz` pelo usuário.
@@ -387,6 +395,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### MEM-4. Tetos: dinâmica e gráfico em muitas linhas
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de MEM-1.
+**Situação (10/11):** 🟡 dinâmica ✅: `dinamica_de_um_milhao_de_linhas_cabe_no_teto` (1 M linhas, 5 regiões × 12 meses, teto 1 MB): caminho antigo 46 KB, árvore de grupos 72 KB, ou seja, guarda por grupo e não por linha. Falta o gráfico: a leitura dos dados do gráfico mora no crate da interface, que ainda não tem o alocador de teste.
 - **Onde:** `feathersheet-core/src/dinamica/pivot.rs`, `dinamica_layout.rs`; `app/graficos/testes.rs`
   (bancada `medir_quadros_grafico_com_bloco`, ignorada).
 - **Pronto:** teste com teto; a bancada ignorada vira teste normal com teto.
@@ -394,6 +403,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### MEM-5. Tetos: compactar, salvar e reabrir
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de MEM-1.
+**Situação (10/11):** ✅ feito: `compactar_salvar_e_reabrir_cabe_no_teto` (200 mil linhas com número, texto e fórmula; compactar + salvar + reabrir com teto de 32 MB, mede 17 MB) e confere os valores e as fórmulas de volta.
 - **Onde:** `feathersheet-core/src/compactar` (a conferir: `ChunkedColumn::compactar`), `feathersheet-io/src/fshz_write.rs`,
   `fshz_read.rs`.
 - **Pronto:** ciclo compactar + salvar + reabrir dentro do teto, com resultado igual bit a bit.
@@ -486,6 +496,8 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### DIN-6. Itens agrupados à mão e itens calculados
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
+**Situação (10/11):** 🟡 a parte "itens agrupados à mão" feita: aba Tabela Dinâmica ▸ Agrupar seleção ▸ Agrupar / Desagrupar. Os itens de Linhas selecionados na grade viram um item só ("Grupo1"), que soma todos; no tabular o nível é o da coluna selecionada (como no Excel), no compacto o da linha; agrupar um grupo com outros itens junta tudo. Motor: `Extras::grupos_de_itens` (`GrupoDeItens { coluna, nome, itens }`, pela coluna da origem, gravado no `.fshz` com a dinâmica) e `Extras::juntar` nos quatro pontos que calculam a chave do item. Testes: `itens_agrupados_a_mao_somam_juntos_e_detalham` (core; o Detalhes do grupo acha as linhas dos dois), `agrupar_selecao_junta_itens_e_desagrupar_desfaz` e `agrupar_no_tabular_usa_o_nivel_da_coluna_selecionada` (GUI); foto `FEATHERSHEET_CAPTURAR_DINAMICA=agrupar`. Também em Colunas (seleção no cabeçalho; com dois campos vale o último nível) e renomear digitando por cima do rótulo (`renomear_grupo_na_celula`, chamado no `confirmar`); testes `agrupar_no_cabecalho_junta_itens_de_colunas` e o renomear dentro de `agrupar_selecao_junta_itens_e_desagrupar_desfaz`. Falta: itens calculados; o `.xlsx` não leva os grupos (o Excel mostra os itens soltos).
+**Situação (10/11, fim):** itens calculados feitos: painel ▸ Origem e campos calculados ▸ ITENS CALCULADOS — escolhe-se um campo de Linhas ou Colunas, nome e fórmula sobre os outros itens (`FECAM - TCA`, gramática do campo calculado, com as sugestões do DIN-7). Motor: `Extras::itens_calculados` (`ItemCalculado { coluna, nome, formula }`); em cada cruzamento a conta usa os valores já resumidos dos irmãos (`com_calculados` em `dinamica_layout.rs`), em Linhas, em Colunas e em qualquer nível (só aparece embaixo do pai que tem os itens usados), no fim da lista. Testes `item_calculado_faz_a_conta_sobre_os_irmaos` (core) e `item_calculado_pelo_painel_entra_e_sai` (GUI); foto `FEATHERSHEET_CAPTURAR_DINAMICA=item` conferida. Diferença do Excel (comentário `shortcut:`): totais e subtotais não somam o item calculado. Falta só o `.xlsx` (grupos e itens calculados não vão ao arquivo).
 - **Onde:** `dinamica/pivot.rs` (agrupar), `dinamica/exibicao.rs` (já tem agrupar em faixas numéricas e
   datas: reaproveitar), `app/dinamica_ui.rs` (seleção de itens → Agrupar).
 - **Pronto:** selecionar 2 itens → Agrupar cria um grupo; a soma do grupo confere com a soma manual;
@@ -494,6 +506,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### DIN-7. Campo calculado com editor de fórmula e autocompletar
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. O campo calculado existe no painel avançado, sem editor com autocompletar.
+**Situação (10/11):** ✅ feito. Embaixo do campo da fórmula aparecem os campos que completam a palavra em digitação (`campo_calculado::sugestoes`); um clique troca a palavra pelo nome, entre colchetes quando tem espaço ou começa por número (`completar`), e devolve o foco ao campo. A gramática já tinha `+ - * /` e parênteses. Testes `sugere_e_completa_o_nome_do_campo` e `sugestao_completa_o_campo_da_formula`; foto com `FEATHERSHEET_CAPTURAR_DINAMICA=calculado`. F1 nos três idiomas.
 - **Onde:** `feathersheet-core/src/dinamica/campo_calculado.rs` (hoje só soma, no painel avançado);
   `app/dinamica_ui/` (a conferir: onde mora o painel avançado).
 - **Pronto:** campo `=Preço*Quantidade` com autocompletar dos nomes dos campos; teste de resultado;
@@ -502,12 +515,14 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### DIN-8. Subtotais em cima, embaixo ou sem
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
+**Situação (10/11):** ✅ feito: botão da faixa "Subtotais: Sem / Em cima / Embaixo" (como o do Excel, para a dinâmica toda, não por campo); `Opcoes::subtotal_embaixo` no compacto põe a linha "a Total" depois dos itens (recolhido volta a contar na linha do grupo; o tabular já é sempre embaixo). Gravado como `subtotaisEmbaixo`; `.xlsx` lê e grava `subtotalTop="0"`. Teste `compacto_com_subtotal_embaixo_do_grupo`.
 - **Onde:** `dinamica/dinamica_layout.rs`, `dinamica/exibicao.rs` (Extras); hoje só liga/desliga.
 - **Pronto:** três opções por campo; teste do layout compacto e tabular com cada uma.
 - **Depende:** D6.  **Issue:** criar.  **Tamanho:** M.
 
 ### DIN-9. Estrutura de tópicos e recolher/expandir por nível (conferir)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. Já existem "Recolher tudo" e "Expandir tudo" (`dinamica_ui/faixa.rs:154`) e recolher por item; o "por nível" não encontrei.
+**Situação (10/11):** ✅ feito: "Recolher nível" e "Expandir nível" na faixa (um nível por clique, como os botões de tópicos: recolhe o mais fundo ainda aberto, expande o mais raso ainda fechado). `dinamica_layout::passo_de_nivel`, teste `nivel_recolhe_do_mais_fundo_e_expande_do_mais_raso`. Ajuda F1 nos três idiomas.
 - **Onde:** `dinamica/dinamica_layout.rs`; `recolhidos` em `app/dinamica_ui.rs`.
 - **Pronto:** o layout de tópicos tem recolher por nível e teste; hoje a memória diz que
   "recolher/expandir" existe: confirmar só a parte "por nível" (a conferir).
@@ -515,6 +530,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### DIN-10. Mostrar páginas de filtro (uma aba por item)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
+**Situação (10/11):** ✅ feito: botão "Páginas do filtro" na faixa da dinâmica; uma aba por item do primeiro campo em Filtros (pula os que o filtro já tira; recusa se a lista passa de 160 itens), cada aba com o nome do item. Teste `paginas_do_filtro_criam_uma_aba_por_item`.
 - **Onde:** `app/dinamica_ui.rs` (ação), `feathersheet-core/src/planilha/workbook.rs` (criar abas).
 - **Pronto:** a ação cria uma aba por item do campo de filtro, com o recorte de cada um; teste de
   quantas abas e conteúdo.
@@ -522,6 +538,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### DIN-11. Origem: intervalo, tabela, outra aba e outro arquivo aberto (conferir)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. Existe `dinamica_ui/origem.rs`; o quadro de conferência de cada origem não foi feito.
+**Situação (10/11):** 🟡 quase: intervalo (`A1:D9`, seleção ao abrir) ✅; outra aba (`Dados!A1:D9`, `'Minha aba'!A:D`) ✅; tabela ou nome definido (`Vendas`) ✅ — a caixa de origem resolve os três (`origem::resolver`, teste `origem_aceita_outra_aba_aspas_e_nome_de_tabela`). Falta: outro arquivo aberto (`[Arq.fshz]Aba!A1:D9`), que precisa ler pelo vínculo em vez de `workbook.valor`; vira atividade própria.
 - **Onde:** `app/dinamica_ui.rs` (criação); `planilha/vinculo.rs` (referência entre arquivos abertos,
   já existente desde a v0.1.0).
 - **Pronto:** quadro de confere: intervalo e outra aba (a conferir se já funcionam), tabela (`regiao_da_tabela`),
@@ -544,6 +561,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### DIN-14. Estilos da dinâmica que sobrevivem ao Atualizar
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
+**Situação (10/11):** ✅ feito. O tema e o formato posto à mão (moeda, negrito) já sobreviviam ao Atualizar — agora com teste (`tema_e_formato_a_mao_sobrevivem_ao_atualizar`). O `.fshz` grava o tema no JSON da dinâmica. O `.xlsx` gravava sempre `PivotStyleLight16`: agora o tema vai como `PivotStyle…` (`ESTILOS_DA_DINAMICA`, nos dois sentidos) e estilos de arquivos do Excel são lidos pela família de cor, como nas tabelas. Teste `tema_da_dinamica_vai_e_volta`. Limite: o tema padrão do Office não tem vermelho nem roxo; no Excel saem laranja e dourado (voltam certos no FeatherSheet).
 - **Onde:** `dinamica/` (configuração JSON na chave `extras`); `app/dinamica_visual.rs`.
 - **Pronto:** escolher um estilo, Atualizar, o estilo continua; ida e volta `.fshz` e `.xlsx`.
 - **Depende:** D6.  **Issue:** criar.  **Tamanho:** G.
@@ -574,6 +592,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### DIN-18. Adiar atualização do painel
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta.
+**Situação (10/11):** ✅ feito: "Adiar atualização" e "Atualizar" no pé do painel de campos; adiado, as mudanças ficam pendentes e o botão aplica tudo numa conta só; desligar com pendência aplica. Teste `adiar_atualizacao_so_aplica_no_botao`.
 - **Onde:** `app/dinamica_ui.rs` (arrumar campos e calcular no fim).
 - **Pronto:** com a opção ligada, arrastar 3 campos recalcula uma vez; teste de contagem de cálculos.
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** M.
@@ -622,6 +641,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### GRA-5. Trocar a categoria sem travar; contas da série pelo tipo
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta (a conferir; nenhum commit sobre isso).
+**Situação (10/11):** 🟡 conferido no código: o gráfico **não agrega** por categoria (`graficos/editor.rs`: "não agrega"; `dados_do_grafico` lê as células como estão, igual ao Excel). A regra "texto só Contar" era do gráfico antigo em TypeScript e não se aplica; quem quer conta por categoria usa o gráfico dinâmico. Resta só medir a troca de categoria com o relatório do usuário (`FEATHERSHEET_XLSX=… cargo test --profile medir --bin feathersheet medir_graficos_ao_abrir_e_trocar -- --ignored --nocapture`).
 - **Onde:** `app/graficos.rs`; `feather-charts` (a conferir).
 - **Pronto:** número: Soma, Média etc.; texto: só Contar e Contar distintos (regra do METAS v0.1.0); troca de
   categoria mede ≤ 16 ms na bancada `medir_graficos_ao_abrir_e_trocar`.
@@ -733,6 +753,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### WIN-3. Job de Windows no CI (compilar o app)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. `.github/workflows/` continua só com `macos.yml` e `testes.yml`.
+**Situação (10/11):** 🟡 escrito: `.github/workflows/windows.yml` compila `crates/feathersheet` no `windows-latest` a cada push no `main` (e à mão), com `--locked` e sem informação de depuração. A dependência do PUB-6 caiu (não há mais `[patch]`). Conferido aqui com `cargo check --locked --target x86_64-pc-windows-gnu`: compila, só avisos antigos. Falta ver o job verde no GitHub depois do próximo push.
 - **Onde:** `.github/workflows/` (novo `windows.yml`, ou job em `macos.yml`); o `testes.yml` continua
   sem a GUI (regra da memória).
 - **Pronto:** push em `main` compila `feathersheet` no `windows-latest` (sem rodar a suíte da GUI); job verde.
@@ -807,6 +828,8 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### GRI-3. Abrir `.xlsx` protegido por senha
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Não há `EncryptionInfo` no `feathersheet-io`.
+**Situação (10/11):** ✅ feito, falta o usuário abrir um arquivo cifrado pelo Excel. `feathersheet-io/src/xlsx_senha.rs` decifra as duas criptografias AES do Office: a Standard (3.2/4.2, LibreOffice e Excel 2007; conferida com `tests/arquivos/senha123_libreoffice.xlsx`, gravado pelo LibreOffice 26.8) e a Agile (4.4, Excel 2010+; conferida só com um cifrador de teste escrito pela especificação, porque não há no disco arquivo cifrado pelo Excel). Ao abrir, a leitura devolve `PEDE_SENHA` e a janela "Arquivo protegido por senha" (`app/senha_abrir.rs`) pede a senha; errada, pede de novo com aviso. A senha vai à thread da leitura e é tirada de lá ao usar. Custo (D14): `cfb`, `aes`, `cbc`, `sha1`, `sha2` no io; no app entram só `aes`, `cbc`, `cipher`, `inout` e `block-padding` (RustCrypto, Rust puro). Locks de io, app, macros, mcp e vba atualizados. Testes: 4 em `xlsx_senha` e `xlsx_com_senha_pede_a_senha_recusa_a_errada_e_abre_com_a_certa` (GUI); foto `FEATHERSHEET_CAPTURAR_DIALOGO=senha`. F1 nos três idiomas.
+**Gravar com senha (10/11):** `xlsx_senha::cifrar` grava Agile como o Excel 2010+ (SHA-512, AES-256, 100 mil voltas, sal e chave do `getrandom`, HMAC do `dataIntegrity`); `decifrar` agora confere esse HMAC e recusa arquivo adulterado. O app guarda a senha da pasta aberta (`senha_documento`) e o `.xlsx` sai cifrado com ela; Revisão › Proteger › "Criptografar com senha" define, troca ou tira (duas caixas que têm de conferir); o `.fshz` não leva senha (aviso no status). Prova de fora: o LibreOffice abriu com a senha um arquivo cifrado pelo FeatherSheet e leu os dados. Testes `agile_do_excel_abre_com_a_senha` (sal novo, adulteração) e `xlsx_com_senha_salva_cifrado_e_a_senha_troca_ou_sai`; foto `FEATHERSHEET_CAPTURAR_DIALOGO=criptografar`. Falta conferir no Excel (`~/fs_senha_teste/saida/cifrado_fs.xlsx`, senha `Açaí 2026`).
 - **Onde:** `feathersheet-io/src/` (leitor de `.xlsx`; a conferir se já há tratamento de `EncryptionInfo`).
 - **Pronto:** pede a senha e abre; sem crate com C; teste com arquivo de senha conhecida. Decisão D14
   (dependência pura Rust, custo medido).
@@ -818,6 +841,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### INT-1. Faixa recolhendo grupo a grupo em todas as abas
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Nada novo de recolher grupo a grupo nas outras abas.
+**Situação (10/11):** ✅ feito. Fora da Página Inicial, os grupos que não cabem viram um botão (ícone, seta e o nome do grupo) que abre o grupo inteiro num painel sob ele; o que nem recolhido cabe vai ao "Mais". Plano em `plano_recolhido` (`faixa_nativa.rs`): primeiro mostra o máximo de grupos recolhidos e, da esquerda para a direita, abre inteiro cada um que ainda cabe. Os títulos são anotados no `faixa_grupo` (`TITULOS_GRUPOS`); a Desenhar, que vem pronta da feather-ui, continua com o "Mais". Fotos a 900 px: Inserir (10 recolhidos + Mais, antes 1 grupo + Mais), Fórmulas e Dados (inteiros e recolhidos misturados). Testes `plano_recolhido_abre_o_que_cabe_e_manda_o_resto_ao_mais` e `dados_em_janela_estreita_recolhe_grupo_e_abre_o_painel`; Ajuda F1 nos três idiomas. Limite: o botão recolhido usa o mesmo ícone (`layout-grid`) em todos os grupos.
 - **Onde:** `crates/feathersheet/src/app/faixa_responsiva.rs`, `faixa_nativa.rs`, `faixa_nativa_grupos.rs`
   (hoje só a Início; as outras usam o "Mais", pendência de 28/10).
 - **Pronto:** foto de Inserir, Fórmulas e Dados recolhidas: cada grupo recolhe sozinho; teste de
@@ -870,6 +894,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### INT-8. Migração do idioma: mensagens do Rust e descrições das funções
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. Descrições, argumentos e categorias das funções já existem em en e es (`src/idiomas/funcoes.*.json`, desde 16/10). Faltam as mensagens do Rust (`explicar_erro`), a conferir.
+**Situação (10/11):** 🟡 medido. A interface está traduzida: dos 3.606 textos de `tr!`/`trf!` faltam só 4 (do próprio `idioma.rs`). O que sai em português é o que nasce no motor: 105 textos (46 motivos de erro `CellError::com_motivo`, as mensagens do leitor de fórmulas e ~40 da explicação de erro em `formula/explicar.rs`), lista em `scratchpad/motor_falta.json` da sessão. Os fixos dá para traduzir na tela com `tr!`; o resumo do diagnóstico é montado no motor encaixando pedaços variáveis (`{trecho}{arg}: {d}`) e não se traduz depois de pronto. Proposta para a D15: o motor passa a montar esses textos por um gancho de tradução (função que a tela registra; sem ela, português), com modelos de marcadores nomeados no lugar do `format!`. Assim o MCP continua recebendo português.
 - **Onde:** `function_help.rs` (a conferir o caminho no `feathersheet-core`); `explicar_erro` (mensagens
   de erro).
 - **Pronto:** mensagens e a ajuda das funções em pt, en e es, pelo mesmo arquivo de idioma; teste de
@@ -891,6 +916,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### INT-11. Menu Orientação do texto: ícones e posição
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. `menu_orientacao.rs` não muda desde 26/10.
+**Situação (10/11):** 🟡 conferido por foto (`FEATHERSHEET_CAPTURAR_JANELA=menu_orientacao`): abre junto ao grupo Alinhamento, ícones Tabler de traço coerentes. Corrigido: "Formatar células…" desalinhado (outra coluna de ícone e outro espaçamento) e a altura usada para não sair da tela (334 → 270, a real). Falta: "Girar texto para baixo" usa `arrow-down`, que no catálogo é um chevron antigo do FeatherSheet; a seta do Tabler (`arrow-narrow-up`/`arrow-narrow-down`) foi acrescentada ao `tabler-acoes.tsv` da feather-ui local, — entra com a próxima versão publicada da feather-ui (pede confirmação).
 - **Onde:** `app/menu_orientacao.rs`.
 - **Pronto:** ícones de orientação legíveis e o menu abre junto ao botão; foto.
 - **Depende:** nada.  **Issue:** criar.  **Tamanho:** P.
@@ -966,6 +992,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### MCP-6. Cobertura do MCP para o que a 0.3.0 entrega
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. `MCP-PENDENTE.md` não muda desde 17/10; D23 continua aberta.
+**Situação (10/11):** 🟡 a dinâmica coberta: `sheet_dinamica` criar/editar ganhou tema, subtotais, totais gerais, campos calculados, itens calculados, grupos, filtros, ordenação e "mostrar valores como", e o listar os descreve (teste `opcoes_da_dinamica_pelo_mcp`). O que falta na dinâmica, e por quê, está em `MCP-PENDENTE.md`. Gráfico e segmentação seguem com D23/GRA-9/DIN-15.
 - **Onde:** `crates/feathersheet-mcp/src/esquemas.rs`, `permissoes.rs`; `docs/planejamento/MCP-PENDENTE.md`
   (124 linhas, lista do que falta).
 - **Pronto:** cada feature nova da 0.3.0 (dinâmica, gráfico, segmentação) tem ferramenta ou o motivo
@@ -974,6 +1001,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### MCP-7. Ferramentas MCP do Gantt
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de GRA-1.
+**Situação (10/11):** ✅ já estava feito junto com o GRA-1: `sheet_grafico` aceita `gantt {hoje, situacao, concluida, andamento, futura, cor_hoje}` (`feathersheet-mcp/src/grafico.rs`, esquema em `esquemas.rs`).
 - **Onde:** `crates/feathersheet-mcp/src/esquemas.rs` (`sheet_grafico`).
 - **Pronto:** aceita as opções de GRA-1 (linha de hoje, cor por barra).
 - **Depende:** GRA-1.  **Issue:** #133 (item 4 da issue).  **Tamanho:** P.

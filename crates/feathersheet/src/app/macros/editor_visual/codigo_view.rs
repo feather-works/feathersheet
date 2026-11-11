@@ -65,7 +65,8 @@ pub(in crate::app) fn contador(achadas: &[Ocorrencia], atual: Option<(usize, usi
     }
 }
 
-/// Barra compacta no topo do código: Localizar e, com Ctrl+H, Substituir.
+/// Caixinha flutuante no canto do código (#154): Localizar e, com Ctrl+H,
+/// Substituir; não empurra o código para baixo.
 fn barra_busca<'a>(app: &'a App, achadas: &[Ocorrencia]) -> Element<'a, Msg> {
     let c = &app.macro_visual.codigo;
     let estilo_campo = feather_ui::tema::estilo_entrada_suspensa;
@@ -77,18 +78,11 @@ fn barra_busca<'a>(app: &'a App, achadas: &[Ocorrencia]) -> Element<'a, Msg> {
     let tem = !achadas.is_empty();
     let primeira = row![
         alternar,
-        feather_ui::icones::icone("search", 15.0),
         text_input(tr!("Localizar no código"), &c.consulta)
             .id(codigo::id_campo_busca())
             .on_input(|t| ev(EventoCodigo::Consulta(t)))
             .on_submit(ev(EventoCodigo::Enter))
-            .size(12).padding([4, 7]).width(Length::Fixed(240.0)).style(estilo_campo),
-        com_dica(botao(tr!("Maiúsculas"), Some(ev(EventoCodigo::AlternarMaiusculas)), c.maiusculas),
-            tr!("Diferenciar maiúsculas e minúsculas")),
-        com_dica(botao(tr!("Palavra inteira"), Some(ev(EventoCodigo::AlternarPalavra)), c.palavra),
-            tr!("Só a palavra inteira (não acha \"total\" dentro de \"subtotal\")")),
-        com_dica(botao(tr!("Todos os módulos"), Some(ev(EventoCodigo::AlternarTodos)), c.todos_modulos),
-            tr!("Listar as ocorrências em todos os módulos")),
+            .size(12).padding([4, 7]).width(Length::Fixed(220.0)).style(estilo_campo),
         text(contador(achadas, c.atual, &c.consulta)).size(11).color(COR_TEXTO_MUTED()),
         Space::new(Length::FILL, 0.0),
         com_dica(botao_icone_simples("chevron-up", tem.then(|| ev(EventoCodigo::Anterior))),
@@ -96,26 +90,39 @@ fn barra_busca<'a>(app: &'a App, achadas: &[Ocorrencia]) -> Element<'a, Msg> {
         com_dica(botao_icone_simples("chevron-down", tem.then(|| ev(EventoCodigo::Proximo))),
             tr!("Próxima  Enter / F3")),
         com_dica(botao_icone_simples("x", Some(ev(EventoCodigo::Fechar))), tr!("Fechar  Esc")),
-    ].spacing(5).align(pelicano::Align::Center);
-    let mut linhas = column![primeira].spacing(4);
+    ].spacing(4).align(pelicano::Align::Center);
+    let opcoes = row![
+        Space::new(Length::Fixed(29.0), 0.0),
+        com_dica(botao(tr!("Maiúsculas"), Some(ev(EventoCodigo::AlternarMaiusculas)), c.maiusculas),
+            tr!("Diferenciar maiúsculas e minúsculas")),
+        com_dica(botao(tr!("Palavra inteira"), Some(ev(EventoCodigo::AlternarPalavra)), c.palavra),
+            tr!("Só a palavra inteira (não acha \"total\" dentro de \"subtotal\")")),
+        com_dica(botao(tr!("Todos os módulos"), Some(ev(EventoCodigo::AlternarTodos)), c.todos_modulos),
+            tr!("Listar as ocorrências em todos os módulos")),
+    ].spacing(4).align(pelicano::Align::Center);
+    let mut linhas = column![primeira, opcoes].spacing(4);
     if c.substituir {
         linhas = linhas.push(row![
             Space::new(Length::Fixed(29.0), 0.0),
-            feather_ui::icones::icone("edit", 15.0),
             text_input(tr!("Substituir por"), &c.troca)
                 .id(codigo::id_campo_troca())
                 .on_input(|t| ev(EventoCodigo::Troca(t)))
                 .on_submit(ev(EventoCodigo::Substituir))
-                .size(12).padding([4, 7]).width(Length::Fixed(240.0)).style(estilo_campo),
+                .size(12).padding([4, 7]).width(Length::Fixed(220.0)).style(estilo_campo),
             com_dica(botao(tr!("Substituir"), tem.then(|| ev(EventoCodigo::Substituir)), false),
                 tr!("Substituir a ocorrência atual e ir para a próxima  Enter")),
-            com_dica(botao_icone(tr!("Substituir todos"), "checks", tem.then(|| ev(EventoCodigo::SubstituirTodos)), false),
+            com_dica(botao_icone_simples("checks", tem.then(|| ev(EventoCodigo::SubstituirTodos))),
                 tr!("Substituir todas de uma vez (um só Ctrl+Z desfaz)")),
-            text(c.aviso.clone()).size(11).color(COR_TEXTO_MUTED()),
-        ].spacing(5).align(pelicano::Align::Center));
+        ].spacing(4).align(pelicano::Align::Center));
+        if !c.aviso.is_empty() {
+            linhas = linhas.push(text(c.aviso.clone()).size(11).color(COR_TEXTO_MUTED()));
+        }
     }
-    container(linhas).padding([5, 8]).width(Length::FILL)
-        .style(estilo_cabecalho(app.config.escuro)).into()
+    if c.todos_modulos {
+        linhas = linhas.push(resultados_todos(app));
+    }
+    container(linhas).padding([6, 8]).width(Length::Fixed(470.0))
+        .style(estilo_area(app.config.escuro)).into()
 }
 
 /// Lista "em todos os módulos": módulo:linha clicável e o trecho da linha.
@@ -346,21 +353,24 @@ pub(super) fn edicao_codigo<'a>(app: &'a App) -> Element<'a, Msg> {
         botao_campo(tr!("(Declarações)")),
     ].spacing(6).align(pelicano::Align::Center).padding([7, 10]);
     let achadas = app.ocorrencias_atuais();
-    let mut corpo = column![container(linha).style(estilo_cabecalho(escuro))].spacing(3);
-    if app.macro_visual.codigo.busca_aberta {
-        corpo = corpo.push(barra_busca(app, &achadas));
-        if app.macro_visual.codigo.todos_modulos {
-            corpo = corpo.push(resultados_todos(app));
-        }
-    }
+    let corpo = column![container(linha).style(estilo_cabecalho(escuro))].spacing(3);
     let barra = row![
         text(tr!("JAVASCRIPT  ·  MÓDULO")).size(10).color(cor_secundaria(escuro)),
         Space::new(Length::FILL, 0.0),
         botao_icone(tr!("Guardar  Ctrl+S"), "device-floppy", Some(Msg::MacroGuardarModulo), false),
         botao_executar(Some(Msg::MacroExecutar)),
     ].spacing(8).align(pelicano::Align::Center).padding([6, 10]);
+    let codigo: Element<'a, Msg> = if app.macro_visual.codigo.busca_aberta {
+        // Flutua no canto de cima à direita, perto do botão Localizar.
+        let caixa = row![Space::new(Length::FILL, 0.0), pelicano::opaque(barra_busca(app, &achadas))]
+            .padding(pelicano::Padding { top: 4., right: 18., bottom: 0., left: 0. });
+        pelicano::stack![area_codigo(app, &achadas), caixa]
+            .height(Length::FILL).width(Length::FILL).into()
+    } else {
+        area_codigo(app, &achadas)
+    };
     container(corpo
-        .push(area_codigo(app, &achadas))
+        .push(codigo)
         .push(container(barra).style(estilo_cabecalho(escuro)))
         .padding(5))
     .height(Length::FILL).width(Length::FILL)

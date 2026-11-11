@@ -26,6 +26,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::dinamica::pivot::{chave_de, montar_dinamica_com_chaves, montar_dinamica_filtrada, parse_date_key, DinamicaConfig};
 use crate::dinamica::acumulador::{Acumulador, Medida};
+use crate::dinamica::campo_calculado::{self, Expr};
 use crate::dinamica::exibicao::{
     chave_agrupada, comparar_natural, mostrar_como, CampoExtra, Eixo, Extras, Grade, MostrarComo, Ordenacao,
 };
@@ -51,6 +52,9 @@ pub struct Opcoes {
     /// Subtotal por grupo: na linha do grupo (compacto) ou numa linha
     /// "a Total" depois dele (tabular).
     pub subtotais: bool,
+    /// Compacto com subtotais: a conta numa linha "a Total" embaixo do
+    /// grupo em vez de na linha dele (o tabular já é sempre embaixo).
+    pub subtotal_embaixo: bool,
     /// Os grupos recolhidos, pelo caminho (níveis unidos por [`SEPARADOR`]).
     pub recolhidos: HashSet<String>,
     /// Filtros de relatório. Coluna fora da lista = "(Tudo)".
@@ -75,6 +79,7 @@ impl Opcoes {
             layout: Layout::Tabular,
             repetir_rotulos: true,
             subtotais: false,
+            subtotal_embaixo: false,
             recolhidos: HashSet::new(),
             filtros: Vec::new(),
         }
@@ -139,7 +144,7 @@ pub struct Resultado {
 /// Um nó da árvore de grupos. `ordenados` é a ordem dos filhos depois de
 /// [`ordenar`]: por padrão o texto, como o `BTreeSet` das chaves do
 /// [`crate::dinamica::pivot`].
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct No {
     filhos: HashMap<String, No>,
     /// Ordem natural do item (faixa, mês...), quando o campo está agrupado.
@@ -389,12 +394,14 @@ pub fn linhas_do_caminho(
         }
         for (d, alvo) in alvo_linhas.iter().enumerate() {
             let (k, _) = chave_do_campo(&valor(r, rel(config.linhas[d])), d, &extras.linhas, config.agrupar_data);
+            let k = extras.juntar(config.linhas[d], k);
             if k != *alvo {
                 continue 'linhas;
             }
         }
         for (d, alvo) in alvo_colunas.iter().enumerate() {
             let (k, _) = chave_do_campo(&valor(r, rel(config.colunas[d])), d, &extras.colunas, config.agrupar_data);
+            let k = extras.juntar(config.colunas[d], k);
             if k != *alvo {
                 continue 'linhas;
             }
@@ -406,6 +413,108 @@ pub fn linhas_do_caminho(
 
 /// A dinâmica pela árvore de grupos (layouts, subtotais, extras), anotando
 /// de onde vem cada linha e cada coluna do resultado.
+/// Um item calculado já compilado: o nome e a fórmula sobre `nomes` (os itens do nível).
+struct Calculado {
+    nome: String,
+    expr: Expr,
+    nomes: Vec<String>,
+}
+
+/// Os itens que aparecem na profundidade `d` da árvore, de todos os pais.
+fn nomes_no_nivel(no: &No, d: usize, saida: &mut Vec<String>) {
+    for (n, f) in &no.filhos {
+        if d == 0 {
+            if !saida.contains(n) { saida.push(n.clone()); }
+        } else {
+            nomes_no_nivel(f, d - 1, saida);
+        }
+    }
+}
+
+/// Os itens calculados de cada nível do eixo (`campos` = as colunas da origem em Linhas
+/// ou em Colunas). Fórmula que não compila fica de fora.
+fn calculados_do_eixo(raiz: &No, campos: &[usize], extras: &Extras) -> Vec<Vec<Calculado>> {
+    if extras.itens_calculados.is_empty() { return Vec::new(); }
+    campos.iter().enumerate().map(|(d, &c)| {
+        let do_campo: Vec<_> = extras.itens_calculados.iter().filter(|i| i.coluna == c).collect();
+        if do_campo.is_empty() { return Vec::new(); }
+        let mut nomes = Vec::new();
+        nomes_no_nivel(raiz, d, &mut nomes);
+        nomes.sort();
+        do_campo.into_iter().filter(|i| !nomes.contains(&i.nome)).filter_map(|i| {
+            campo_calculado::compilar(&i.formula, &nomes).ok()
+                .map(|expr| Calculado { nome: i.nome.clone(), expr, nomes: nomes.clone() })
+        }).collect()
+    }).collect()
+}
+
+fn campos_da_expr(e: &Expr, saida: &mut Vec<usize>) {
+    match e {
+        Expr::Campo(k) => saida.push(*k),
+        Expr::Neg(a) => campos_da_expr(a, saida),
+        Expr::Bin(_, a, b) => { campos_da_expr(a, saida); campos_da_expr(b, saida); }
+        Expr::Numero(_) => {}
+    }
+}
+
+/// Junta a estrutura de `b` em `a` (os filhos que faltam), para o item calculado ter
+/// embaixo os subitens dos itens que ele usa.
+fn juntar_arvore(a: &mut No, b: &No) {
+    for n in &b.ordenados {
+        match a.filhos.get_mut(n) {
+            Some(f) => juntar_arvore(f, &b.filhos[n]),
+            None => {
+                a.filhos.insert(n.clone(), b.filhos[n].clone());
+                a.ordenados.push(n.clone());
+            }
+        }
+    }
+}
+
+/// Põe os itens calculados no fim de cada pai do nível deles, onde algum item usado existe.
+fn inserir_calculados(no: &mut No, d: usize, niveis: &[Vec<Calculado>]) {
+    if let Some(calc) = niveis.get(d).filter(|v| !v.is_empty()) {
+        for c in calc {
+            let mut usados = Vec::new();
+            campos_da_expr(&c.expr, &mut usados);
+            let mut novo: Option<No> = None;
+            for k in usados {
+                if let Some(f) = no.filhos.get(&c.nomes[k]) {
+                    juntar_arvore(novo.get_or_insert_with(No::default), f);
+                }
+            }
+            if let Some(novo) = novo.filter(|_| !no.filhos.contains_key(&c.nome)) {
+                no.filhos.insert(c.nome.clone(), novo);
+                no.ordenados.push(c.nome.clone());
+            }
+        }
+    }
+    if d + 1 < niveis.len() {
+        let nomes = no.ordenados.clone();
+        for n in nomes {
+            if let Some(f) = no.filhos.get_mut(&n) { inserir_calculados(f, d + 1, niveis); }
+        }
+    }
+}
+
+/// O valor da chave (caminho de Linhas ou chave de Colunas) com os itens calculados: o
+/// primeiro nível que for item calculado vira a conta sobre os irmãos.
+fn com_calculados(chave: &str, niveis: &[Vec<Calculado>], base: &dyn Fn(&str) -> f64) -> f64 {
+    if chave.is_empty() || niveis.iter().all(Vec::is_empty) {
+        return base(chave);
+    }
+    // Procura sem alocar: a maioria das chaves não tem item calculado.
+    let achado = chave.split(SEPARADOR).enumerate()
+        .find_map(|(d, s)| niveis.get(d)?.iter().find(|c| c.nome == s).map(|c| (d, c)));
+    let Some((d, c)) = achado else { return base(chave) };
+    let partes: Vec<&str> = chave.split(SEPARADOR).collect();
+    campo_calculado::avaliar(&c.expr, &|k| {
+        let mut outra = partes.clone();
+        outra[d] = &c.nomes[k];
+        com_calculados(&outra.join(&SEPARADOR.to_string()), niveis, base)
+    })
+}
+
 fn montar_estruturado(
     total_linhas: usize,
     valor: &impl Fn(usize, usize) -> Value,
@@ -458,6 +567,7 @@ fn montar_estruturado(
         let mut no_col = &mut raiz_col;
         for (d, &c) in config.colunas.iter().enumerate() {
             let (chave, ordem) = chave_do_valor(valor(r, rel(c)), d, &extras.colunas, config.agrupar_data);
+            let chave = extras.juntar(c, chave);
             if d > 0 {
                 chave_coluna.push(SEPARADOR);
             }
@@ -469,6 +579,7 @@ fn montar_estruturado(
         let mut no = &mut raiz;
         for (d, &c) in config.linhas.iter().enumerate() {
             let (chave, ordem) = chave_do_valor(valor(r, rel(c)), d, &extras.linhas, config.agrupar_data);
+            let chave = extras.juntar(c, chave);
             if d > 0 {
                 caminho.push(SEPARADOR);
             }
@@ -485,8 +596,10 @@ fn montar_estruturado(
     }
 
     let vazio: Numeros = acumuladores(config);
+    let calc_linhas = calculados_do_eixo(&raiz, &config.linhas, extras);
+    let calc_colunas = calculados_do_eixo(&raiz_col, &config.colunas, extras);
     // O valor cru de uma medida no cruzamento; "" = todos.
-    let cru = |caminho: &str, ck: &str, i: usize| -> f64 {
+    let cru_base = |caminho: &str, ck: &str, i: usize| -> f64 {
         let acc = match (caminho.is_empty(), ck.is_empty()) {
             (true, true) => &tudo,
             (true, false) => por_coluna.get(ck).unwrap_or(&vazio),
@@ -495,8 +608,14 @@ fn montar_estruturado(
         };
         acc[i].resultado()
     };
+    // shortcut: totais e subtotais não somam os itens calculados (o Excel soma); mudar se pedirem.
+    let cru = |caminho: &str, ck: &str, i: usize| -> f64 {
+        com_calculados(caminho, &calc_linhas, &|c| com_calculados(ck, &calc_colunas, &|k| cru_base(c, k, i)))
+    };
     ordenar(&mut raiz, 0, "", &extras.linhas, &|c, m| cru(c, "", m));
     ordenar(&mut raiz_col, 0, "", &extras.colunas, &|c, m| cru("", c, m));
+    inserir_calculados(&mut raiz, 0, &calc_linhas);
+    inserir_calculados(&mut raiz_col, 0, &calc_colunas);
 
     let com_colunas = !config.colunas.is_empty();
     let colunas: Vec<String> = if com_colunas {
@@ -616,7 +735,8 @@ fn emitir(ctx: &Contexto, saida: &mut Saida, nome: &str, no: &No, caminho: Strin
         Layout::Compacto => {
             let mut linha = vec![Value::Text(nome.to_string())];
             let mut info = InfoLinha::nova(if folha { TipoLinha::Item } else { TipoLinha::Grupo }, d);
-            if folha || ctx.opcoes.subtotais || recolhido {
+            let embaixo = ctx.opcoes.subtotais && ctx.opcoes.subtotal_embaixo && !folha && !recolhido;
+            if folha || recolhido || (ctx.opcoes.subtotais && !embaixo) {
                 linha.extend((ctx.do_caminho)(&caminho));
             } else {
                 linha.extend((ctx.brancos)());
@@ -631,6 +751,13 @@ fn emitir(ctx: &Contexto, saida: &mut Saida, nome: &str, no: &No, caminho: Strin
                 for n in &no.ordenados {
                     emitir(ctx, saida, n, &no.filhos[n], format!("{caminho}{SEPARADOR}{n}"), d + 1, anterior);
                 }
+            }
+            if embaixo {
+                let mut linha = vec![Value::Text(format!("{nome} Total"))];
+                linha.extend((ctx.do_caminho)(&caminho));
+                saida.linhas.push(linha);
+                saida.info.push(InfoLinha::nova(TipoLinha::Subtotal, d));
+                saida.caminhos.push(Some(caminho.clone()));
             }
         }
         Layout::Tabular => {
@@ -672,6 +799,19 @@ fn emitir(ctx: &Contexto, saida: &mut Saida, nome: &str, no: &No, caminho: Strin
                 }
             }
         }
+    }
+}
+
+/// Recolher/expandir por nível (DIN-9), um passo por clique, como os botões
+/// de tópicos: recolher fecha todos os grupos do nível mais fundo ainda
+/// aberto; expandir abre o nível mais raso ainda fechado.
+pub fn passo_de_nivel(grupos: &[String], recolhidos: &mut Vec<String>, recolher: bool) {
+    let nivel = |g: &String| g.matches(SEPARADOR).count();
+    if recolher {
+        let Some(d) = grupos.iter().filter(|g| !recolhidos.contains(g)).map(nivel).max() else { return };
+        recolhidos.extend(grupos.iter().filter(|g| nivel(g) == d && !recolhidos.contains(g)).cloned().collect::<Vec<_>>());
+    } else if let Some(d) = recolhidos.iter().map(nivel).min() {
+        recolhidos.retain(|g| nivel(g) != d);
     }
 }
 
@@ -730,6 +870,45 @@ mod testes {
 
     fn compacto() -> Opcoes {
         Opcoes { layout: Layout::Compacto, subtotais: true, ..Opcoes::antigas() }
+    }
+
+    #[test]
+    fn nivel_recolhe_do_mais_fundo_e_expande_do_mais_raso() {
+        let s = SEPARADOR;
+        let grupos: Vec<String> = vec!["a".into(), format!("a{s}x"), "b".into(), format!("b{s}y")];
+        let mut r = Vec::new();
+        passo_de_nivel(&grupos, &mut r, true);
+        assert_eq!(r, vec![format!("a{s}x"), format!("b{s}y")]);
+        passo_de_nivel(&grupos, &mut r, true);
+        assert_eq!(r.len(), 4);
+        passo_de_nivel(&grupos, &mut r, true);
+        assert_eq!(r.len(), 4, "nada mais a recolher");
+        passo_de_nivel(&grupos, &mut r, false);
+        assert_eq!(r, vec![format!("a{s}x"), format!("b{s}y")]);
+    }
+
+    #[test]
+    fn compacto_com_subtotal_embaixo_do_grupo() {
+        let r = rodar(&Opcoes { subtotal_embaixo: true, ..compacto() });
+        assert_eq!(
+            texto(&r),
+            vec![
+                vec!["Rótulos de Linha", "Valor"],
+                vec!["a", ""],
+                vec!["b", "3"],
+                vec!["c", "5"],
+                vec!["a Total", "8"],
+                vec!["d", ""],
+                vec!["e", "1"],
+                vec!["d Total", "1"],
+                vec!["Total Geral", "9"],
+            ]
+        );
+        assert_eq!(r.linhas[4].tipo, TipoLinha::Subtotal);
+        // Recolhido, o grupo volta a ter a conta na própria linha.
+        let mut o = Opcoes { subtotal_embaixo: true, ..compacto() };
+        o.recolhidos.insert("a".into());
+        assert_eq!(texto(&rodar(&o))[1], vec!["a", "8"]);
     }
 
     #[test]
@@ -907,6 +1086,57 @@ mod testes {
             "rótulo não detalha");
         assert!(linhas_da_celula(d.len(), valor, &config(), &compacto(), &Extras::default(), 0, 1).is_none(),
             "cabeçalho não detalha");
+    }
+
+    /// DIN-6: "b" e "c" agrupados à mão viram uma linha só, com a soma dos dois, e o
+    /// Detalhes do grupo acha as linhas de ambos.
+    #[test]
+    fn itens_agrupados_a_mao_somam_juntos_e_detalham() {
+        use crate::dinamica::exibicao::GrupoDeItens;
+        let d = dados();
+        let valor = |r: usize, c: usize| d[r].get(c).cloned().unwrap_or(Value::Empty);
+        let config = DinamicaConfig { linhas: vec![1], ..config() };
+        let extras = Extras { grupos_de_itens: vec![GrupoDeItens { coluna: 1, nome: "Grupo1".into(), itens: vec!["b".into(), "c".into()] }], ..Extras::default() };
+        assert!(!extras.eh_padrao());
+        let r = montar_com_extras(d.len(), valor, &config, &compacto(), &extras);
+        let t = texto(&r);
+        let linha = t.iter().position(|l| l[0] == "Grupo1").expect("a linha do grupo");
+        assert_eq!(t[linha][1], "8", "3 + 5");
+        assert!(!t.iter().any(|l| l[0] == "b" || l[0] == "c"), "os itens somem dentro do grupo");
+        assert!(t.iter().any(|l| l[0] == "e"), "o resto fica");
+        let (_, achadas) = linhas_da_celula(d.len(), valor, &config, &compacto(), &extras, linha, 1).unwrap();
+        assert_eq!(achadas, vec![1, 2]);
+        // Ida e volta pelo JSON da dinâmica gravada.
+        let json = serde_json::to_string(&extras).unwrap();
+        assert_eq!(serde_json::from_str::<Extras>(&json).unwrap(), extras);
+        assert!(!serde_json::to_string(&Extras::default()).unwrap().contains("grupos_de_itens"), "sem grupo, nada a mais no arquivo");
+    }
+
+    /// DIN-6: item calculado em Linhas, em Colunas e embaixo de outro nível.
+    #[test]
+    fn item_calculado_faz_a_conta_sobre_os_irmaos() {
+        use crate::dinamica::exibicao::ItemCalculado;
+        let d = dados();
+        let valor = |r: usize, c: usize| d[r].get(c).cloned().unwrap_or(Value::Empty);
+        let calc = |coluna: usize, nome: &str, formula: &str| Extras {
+            itens_calculados: vec![ItemCalculado { coluna, nome: nome.into(), formula: formula.into() }],
+            ..Extras::default()
+        };
+        // Em Linhas, com Status em Colunas: c - b em cada coluna; o total geral fica sem ele.
+        let config_lc = DinamicaConfig { linhas: vec![1], colunas: vec![3], ..config() };
+        let t = texto(&montar_com_extras(d.len(), valor, &config_lc, &compacto(), &calc(1, "c menos b", "c - b")));
+        let i = t.iter().position(|l| l[0] == "c menos b").expect("a linha do item");
+        assert_eq!(t[i - 1][0], "e", "no fim dos itens");
+        assert_eq!(&t[i][1..], ["0", "2", "2"], "novo, ok, total da linha");
+        assert_eq!(t.last().unwrap()[3], "9", "total geral sem o item calculado");
+        // Em Colunas.
+        let t = texto(&montar_com_extras(d.len(), valor, &config_lc, &compacto(), &calc(3, "Dif", "[ok] - novo")));
+        let b = t.iter().find(|l| l[0] == "b").unwrap();
+        assert_eq!(&b[1..4], ["0", "3", "3"], "novo, ok, ok - novo");
+        // No segundo nível: só embaixo do pai que tem os itens usados.
+        let t = texto(&montar_com_extras(d.len(), valor, &config(), &compacto(), &calc(1, "Dobro de b", "b * 2")));
+        assert_eq!(t.iter().filter(|l| l[0] == "Dobro de b").map(|l| l[1].as_str()).collect::<Vec<_>>(), ["6"]);
+        assert!(!calc(1, "x", "b").eh_padrao());
     }
 
     #[test]

@@ -611,7 +611,9 @@ impl App {
         let base = self.sobrepor_dimensao(base);
         let base = self.sobrepor_celulas(base);
         let base = self.sobrepor_subtotal(base);
+        let base = self.sobrepor_consolidar(base);
         let base = self.sobrepor_protecao(base);
+        let base = self.sobrepor_senha_arquivo(base);
         let base = self.sobrepor_novo_estilo(base);
         let base = self.sobrepor_colar_especial(base);
         let base = self.sobrepor_ir_para(base);
@@ -870,6 +872,8 @@ impl App {
                     Some((tr!("Renomear aba").into(), Msg::EditarNomeAba)),
                     Some((tr!("Cor da aba…").into(), Msg::AlternarPaletaAba)),
                     Some((tr!("Duplicar aba").into(), Msg::DuplicarAba)),
+                    Some((tr!("Copiar aba para outro arquivo…").into(), Msg::CopiarAba(copiar_aba::Evento::Escolher(false)))),
+                    Some((tr!("Copiar aba para arquivo novo…").into(), Msg::CopiarAba(copiar_aba::Evento::Escolher(true)))),
                 ]);
                 let visiveis = self.workbook.abas_visiveis().collect::<Vec<_>>();
                 let (esquerda, direita) = self.vizinhas_visiveis(i);

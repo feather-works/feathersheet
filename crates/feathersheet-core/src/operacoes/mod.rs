@@ -4,6 +4,7 @@ pub mod atingir_meta;
 pub mod autoajuste;
 pub mod cenarios;
 pub mod colagem;
+pub mod consolidar;
 pub mod fill;
 pub mod ir_para_especial;
 pub mod mesclagem;

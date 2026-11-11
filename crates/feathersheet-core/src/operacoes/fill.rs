@@ -94,6 +94,50 @@ fn trailing_number(text: &str) -> Option<TrailingNumber> {
     })
 }
 
+/// Série de uma lista pronta (`jan` → `fev`, `seg` → `ter`), como o Excel:
+/// todos os textos da origem na mesma lista, no mesmo passo, e a saída com a
+/// caixa de letra do último (`Jan` → `Fev`, `JAN` → `FEV`).
+struct SerieDeLista {
+    itens: Vec<String>,
+    ultimo: i64,
+    passo: i64,
+    maiusculas: bool,
+    capitular: bool,
+}
+
+impl SerieDeLista {
+    fn de(textos: &[&str]) -> Option<Self> {
+        let ultimo_texto = *textos.last()?;
+        super::ordenacao_ext::listas_prontas().into_iter().find_map(|(_, itens)| {
+            let indices: Vec<i64> = textos.iter()
+                .map(|t| itens.iter().position(|i| i.to_lowercase() == t.trim().to_lowercase()).map(|p| p as i64))
+                .collect::<Option<_>>()?;
+            let n = itens.len() as i64;
+            let passo = if indices.len() == 1 { 1 } else { (indices[1] - indices[0]).rem_euclid(n) };
+            if indices.windows(2).any(|w| (w[1] - w[0]).rem_euclid(n) != passo) { return None; }
+            let letras: Vec<char> = ultimo_texto.chars().filter(|c| c.is_alphabetic()).collect();
+            Some(SerieDeLista {
+                ultimo: *indices.last()?,
+                passo,
+                maiusculas: letras.len() > 1 && letras.iter().all(|c| c.is_uppercase()),
+                capitular: letras.first().is_some_and(|c| c.is_uppercase()),
+                itens,
+            })
+        })
+    }
+
+    fn item(&self, delta: u32) -> String {
+        let n = self.itens.len() as i64;
+        let t = &self.itens[(self.ultimo + self.passo * delta as i64).rem_euclid(n) as usize];
+        if self.maiusculas { return t.to_uppercase(); }
+        let mut c = t.chars();
+        match c.next() {
+            Some(p) if self.capitular => p.to_uppercase().chain(c).collect(),
+            _ => t.clone(),
+        }
+    }
+}
+
 fn step_of(values: &[f64]) -> Option<f64> {
     if values.len() < 2 {
         return None;
@@ -243,6 +287,12 @@ where
             0.0
         };
 
+        let lista = if !ctrl && pattern.iter().all(|p| !p.cell.raw.starts_with('=')) {
+            SerieDeLista::de(&pattern.iter().map(|p| p.cell.raw.as_str()).collect::<Vec<_>>())
+        } else {
+            None
+        };
+
         let single = if pattern.len() == 1 {
             Some(&pattern[0])
         } else {
@@ -288,6 +338,8 @@ where
                 )
             } else if let Some(st) = step {
                 format_series(last + st * (delta as f64))
+            } else if let Some(ref l) = lista {
+                l.item(delta)
             } else if let Some(ref sd) = seed {
                 // `String(v).padStart(digits, '0')`.
                 let n = to_js_string(sd.value + delta as f64);
@@ -439,7 +491,7 @@ mod testes {
     fn ler<'a>(celulas: &'a [((u32, u32), &'a str)]) -> impl Fn(u32, u32) -> SourceCell + 'a {
         move |r, c| {
             let raw = celulas.iter().find(|(k, _)| *k == (r, c)).map(|(_, v)| v.to_string()).unwrap_or_default();
-            let value = raw.parse::<f64>().map(Value::Number).unwrap_or(Value::Number(0.0));
+            let value = raw.parse::<f64>().map(Value::Number).unwrap_or_else(|_| Value::Text(raw.clone()));
             SourceCell { raw, value, style: None }
         }
     }
@@ -449,6 +501,22 @@ mod testes {
     }
 
     // Os casos do `test/core/workbook.test.ts`.
+    #[test]
+    fn meses_e_dias_continuam_a_lista_com_a_mesma_caixa() {
+        let col = |textos: &[&str], ate: u32| {
+            let celulas: Vec<((u32, u32), &str)> = textos.iter().enumerate().map(|(i, t)| ((i as u32, 0), *t)).collect();
+            let n = textos.len() as u32;
+            crus(&plan_fill(ler(&celulas), &Rect::new(0, 0, n - 1, 0), &Rect::new(0, 0, ate, 0)))
+                .into_iter().map(str::to_string).collect::<Vec<_>>()
+        };
+        assert_eq!(col(&["Jan"], 2), ["Fev", "Mar"]);
+        assert_eq!(col(&["nov"], 2), ["dez", "jan"], "dá a volta");
+        assert_eq!(col(&["jan", "mar"], 3), ["mai", "jul"], "passo 2");
+        assert_eq!(col(&["SEGUNDA-FEIRA"], 1), ["TERÇA-FEIRA"]);
+        assert_eq!(col(&["março", "abril"], 3), ["maio", "junho"]);
+        assert_eq!(col(&["jan", "abacaxi"], 3), ["jan", "abacaxi"], "fora da lista copia");
+    }
+
     #[test]
     fn sequencia_numerica_continua_a_progressao() {
         let cel = [((0, 0), "1"), ((1, 0), "3")];

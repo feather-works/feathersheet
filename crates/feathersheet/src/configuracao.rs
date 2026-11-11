@@ -106,11 +106,12 @@ pub struct Configuracao {
 fn csv_detectar_padrao() -> bool { true }
 
 /// O idioma da interface para o idioma do sistema ("pt-PT", "en_GB.UTF-8"…):
-/// português vira pt-BR, espanhol es-ES; qualquer outro, inglês.
+/// português vira pt-BR, espanhol es-ES, francês fr-FR; qualquer outro, inglês.
 pub fn idioma_suportado(sistema: Option<&str>) -> &'static str {
     match sistema.map(|s| s.to_ascii_lowercase()) {
         Some(s) if s.starts_with("pt") => "pt-BR",
         Some(s) if s.starts_with("es") => "es-ES",
+        Some(s) if s.starts_with("fr") => "fr-FR",
         Some(_) => "en-US",
         None => "pt-BR",
     }
@@ -230,7 +231,7 @@ impl Configuracao {
             ..Default::default()
         });
         c.existia = existia;
-        if !matches!(c.idioma.as_str(), "pt-BR" | "en-US" | "es-ES") { c.idioma = "pt-BR".into(); }
+        if !matches!(c.idioma.as_str(), "pt-BR" | "en-US" | "es-ES" | "fr-FR") { c.idioma = "pt-BR".into(); }
         c.acento = c.acento.min(feather_ui::tema::ACENTOS.len().saturating_sub(1));
         c.linhas_visiveis = c.linhas_visiveis.clamp(10, 50);
         c.colunas_visiveis = c.colunas_visiveis.clamp(6, 24);

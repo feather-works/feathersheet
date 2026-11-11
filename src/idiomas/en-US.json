@@ -43,7 +43,7 @@
           "• When you type text that only one cell in the same column starts with (\"Sup\" → \"Supermarket\"), the full value shows below: Enter, Tab or clicking away accepts it; deleting a letter drops the suggestion.",
           "• Ctrl + arrow jumps to the end of the data; with Shift, it selects up to there.",
           "• Ctrl+Z undoes and Ctrl+Y redoes — whole macros included. Inserting or deleting rows and columns can be undone too.",
-          "Commands live in the ribbon at the top. Ctrl+F1 swaps the ribbon for drop-down menus and a compact toolbar (and back)."
+          "Commands live in the ribbon at the top. Ctrl+F1 swaps the ribbon for drop-down menus and a compact toolbar (and back). In a narrow window, groups that do not fit become a button with the group name that opens the whole group; whatever still does not fit goes to More."
         ]
       },
       "formulas": {
@@ -75,13 +75,14 @@
         "titulo": "Sheets",
         "corpo": [
           "Sheets live in the bottom bar. \"+\" creates a new one (or Shift+F11); Ctrl+PageUp and Ctrl+PageDown switch sheets.",
-          "Right-click a sheet tab: rename, duplicate, change color, hide and unhide."
+          "Right-click a sheet tab: rename, duplicate, change color, hide and unhide.",
+          "Copy sheet to another file… adds a copy of the sheet at the end of an existing .fshz or .xlsx (if the name is taken, it becomes \"Name (2)\"); Copy sheet to a new file… creates a file with only that sheet. The open file does not change. Formulas that read other sheets now read the sheets with the same name in the destination. A .xlsx with a password, or with parts FeatherSheet does not convert, is not rewritten."
         ]
       },
       "formatar": {
         "titulo": "Formatting",
         "corpo": [
-          "Font, color, borders, alignment and number format (currency, %, decimals) are on the Home tab. The format painter copies formatting from one cell to others; Ctrl+1 opens Format Cells.",
+          "Font, color, borders, alignment and number format (currency, %, decimals) are on the Home tab. The format painter copies formatting from one cell to others; Ctrl+1 opens Format Cells. The arrow next to the currency button picks the cell currency (dollar, euro, Swiss franc, rupee and every other currency in circulation, 155 in all); in Format Cells, Currency lists them all with search by name, code or symbol. The Indian, Pakistani and Nepalese rupees and the taka group in lakh and crore (12,34,567), and a number typed that way (12,34,567 or 1.23.45.678) is read as a number; the decimal buttons also work on the chosen currency.",
           "• Conditional formatting (Home → Conditional): colors cells by rule — greater than, contains text, duplicates, custom formula, color scale and data bar.",
           "• Banded colors (Home → Styles) stripes the rows; Cell styles applies a ready-made style.",
           "• Freeze (View → Freeze) keeps the first rows or columns in place while you scroll."
@@ -92,8 +93,9 @@
         "corpo": [
           "• Ctrl+T turns the data into a table: header, stripes, total row and a filter on each column. The table grows by itself when you type right below it.",
           "• Ctrl+Shift+L turns the filter on or off. Sort is on the Home and Data tabs.",
-          "• Insert → PivotTable summarizes the data: drag fields to rows, columns and values (sum, count, average, distinct count, median, quartiles…). Recommended PivotTables suggests ready-made summaries from the selection.",
-          "• Slicer (Insert → Filters): buttons that filter a table or pivot with one click."
+          "• Insert → PivotTable summarizes the data: drag fields to rows, columns and values (sum, count, average, distinct count, median, quartiles…). Recommended PivotTables suggests ready-made summaries from the selection. The source accepts A1:D100, another sheet (Data!A1:D100) or a table name. Calculated field (in the panel): a formula such as [Price] * Quantity; type the start of a name and the matching fields appear below it, one click completes it. Calculated item (same place): choose a Rows or Columns field, give a name and a formula over its other items (North - South); the formula applies at each intersection, and totals do not add it.",
+          "• Slicer (Insert → Filters): buttons that filter a table or pivot with one click.",
+          "• On the PivotTable tab: Subtotals picks none, at top (on the group row) or at bottom (a \"Total\" row after the items); Collapse level and Expand level close or open one level of groups per click. Filter pages creates one sheet per item of the field in Filters. Group selection joins the Rows items (or, in the header, Columns items) selected in the grid into one item (Group1) that sums them all; typing over the label renames the group and Ungroup undoes it. Data → Consolidate combines ranges from several sheets (by position or by labels) at the active cell."
         ]
       },
       "celulas": {
@@ -136,7 +138,7 @@
       "objetos": {
         "titulo": "Objects and controls",
         "corpo": [
-          "• Insert → Illustrations: Pictures, Shapes and Icons float over the grid (drag to move, corners resize). Text group: Text box and WordArt; Symbols group: Equation and Symbol.",
+          "• Insert → Illustrations: Pictures, Shapes, Icons and SmartArt (14 diagram categories; each box is a shape with editable text) float over the grid (drag to move, corners resize). Text group: Text box and WordArt; Symbols group: Equation and Symbol.",
           "• Image in cell… puts the image inside the cell, so it follows rows and columns. In formulas: =IMAGE(address) and =IMAGE.BASE64(text).",
           "• Insert → Checkbox puts checkboxes in the selected cells; the cell is TRUE or FALSE.",
           "• Insert link (Links group) and Comment are also on the Insert tab."
@@ -208,6 +210,7 @@
         "corpo": [
           "The native format is .fshz. Ctrl+S saves and Ctrl+Shift+S (Save as…) saves under another name as .fshz, .xlsx or .xlsm. An open .xlsx or .xlsm is saved back in the same format by Ctrl+S. Open also reads .csv, .tsv and .parquet.",
           "Arquivo → Exportar writes the workbook as .xlsx or the current sheet as .csv.",
+          "A password-protected .xlsx (Excel or LibreOffice) opens: the app asks for the password, used only to decrypt the file on your machine. Review › Encrypt with password sets, changes or removes the password: the .xlsx is encrypted as in Excel (AES-256), and an opened file keeps its password when saved again. The .fshz does not keep a password.",
           "This help can become a file too: in the Help window (F1), Export as Markdown saves everything to a .md, in the app's language.",
           "Autosave works ONLY for .fshz files that were already saved: it writes over them at the interval chosen in Settings. An opened .xlsx, .csv or .parquet file, or a new spreadsheet, is never written automatically — to use autosave, choose Save as… and pick .fshz.",
           "Automatic recovery covers everything else: it keeps a copy of any changed spreadsheet (including .xlsx, .parquet and never-saved ones) in Documents/FeatherSheet/Temporarios/Recuperacao. If the computer shuts down, it shows up on the start screen to recover. It does not replace saving: the copy is removed when you save or discard. Very large workbooks (over 100 million cells) get no automatic copy, because each copy would freeze the window and double the memory: save them with Ctrl+S.",

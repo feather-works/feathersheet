@@ -221,11 +221,39 @@ impl<'a> Evaluator<'a> {
         filho.eval_array(&lambda.body)
     }
 
+    /// Referência 3D (`Jan:Dez!B5`): as abas da primeira à última, na ordem
+    /// das guias. `None`: aba comum (ou ponta que não existe, e a leitura
+    /// normal dá o `#REF!` dela).
+    fn abas_3d(&self, sheet: Option<&str>) -> Option<Vec<String>> {
+        let (a, b) = sheet?.split_once(':')?;
+        let (nomes, _) = self.ctx.abas();
+        let i = nomes.iter().position(|n| crate::planilha::sheet::mesmo_nome(n, a))?;
+        let j = nomes.iter().position(|n| crate::planilha::sheet::mesmo_nome(n, b))?;
+        Some(nomes[i.min(j)..=i.max(j)].to_vec())
+    }
+
+    /// O mesmo retângulo em cada aba de uma referência 3D, empilhado numa
+    /// matriz só: é o que SOMA, MÉDIA, CONT.NÚM, MÁXIMO… precisam (o Excel
+    /// só aceita 3D nessas contas).
+    fn matriz_3d(&self, rect: &Rect, abas: Vec<String>) -> Computed {
+        let mut linhas = Vec::new();
+        for aba in abas {
+            match self.matrix_of(&Rect { sheet: Some(aba), ..rect.clone() }) {
+                Computed::Matrix(m) => linhas.extend(m.rows().iter().cloned()),
+                Computed::Scalar(Value::Error(e)) => return Computed::Scalar(Value::Error(e)),
+                outro => linhas.push(vec![outro.scalar()]),
+            }
+        }
+        Computed::Matrix(Matrix::new(linhas))
+    }
+
     /// Avaliação escalar: uma matriz que chegue aqui vira o seu primeiro valor.
     pub fn eval(&self, node: &Node) -> Value {
         // O intervalo vira a primeira célula sem montar a matriz inteira.
         if let Node::Range { r0, c0, sheet, .. } = node {
-            return self.ctx.get_value(*r0, *c0, sheet.as_deref());
+            if !sheet.as_deref().is_some_and(|s| s.contains(':')) {
+                return self.ctx.get_value(*r0, *c0, sheet.as_deref());
+            }
         }
         self.eval_array(node).scalar()
     }
@@ -291,16 +319,17 @@ impl<'a> Evaluator<'a> {
                 ErrorCode::from_code(code).unwrap_or(ErrorCode::Error),
             ))),
             Node::Blank => Computed::Scalar(Value::Empty),
-            Node::Ref { row, col, sheet } => {
-                Computed::Scalar(self.ctx.get_value(*row, *col, sheet.as_deref()))
+            Node::Ref { row, col, sheet } => match self.abas_3d(sheet.as_deref()) {
+                Some(abas) => self.matriz_3d(&Rect { r0: *row, c0: *col, r1: *row, c1: *col, sheet: None }, abas),
+                None => Computed::Scalar(self.ctx.get_value(*row, *col, sheet.as_deref())),
+            },
+            Node::Range { r0, c0, r1, c1, sheet } => {
+                let rect = Rect { r0: *r0, c0: *c0, r1: *r1, c1: *c1, sheet: sheet.clone() };
+                match self.abas_3d(sheet.as_deref()) {
+                    Some(abas) => self.matriz_3d(&rect, abas),
+                    None => self.matrix_of(&rect),
+                }
             }
-            Node::Range { r0, c0, r1, c1, sheet } => self.matrix_of(&Rect {
-                r0: *r0,
-                c0: *c0,
-                r1: *r1,
-                c1: *c1,
-                sheet: sheet.clone(),
-            }),
             Node::Name(name) => {
                 let maiusculo = name.to_uppercase();
                 if let Some(v) = self.env.get(&maiusculo) {
@@ -690,16 +719,23 @@ impl<'a> Evaluator<'a> {
         };
 
         if let Some(rect) = rect {
+            // 3D: o mesmo retângulo em cada aba, uma depois da outra.
+            let rects: Vec<Rect> = match self.abas_3d(rect.sheet.as_deref()) {
+                Some(abas) => abas.into_iter().map(|a| Rect { sheet: Some(a), ..rect.clone() }).collect(),
+                None => vec![rect],
+            };
             let mut erro: Option<CellError> = None;
-            self.ctx.for_each_in_range(&rect, &mut |v, _r, _c| {
-                if erro.is_some() {
-                    return;
-                }
-                if let Value::Error(e) = v {
-                    erro = Some(e.clone());
-                }
-                visit(v, true);
-            });
+            for rect in &rects {
+                self.ctx.for_each_in_range(rect, &mut |v, _r, _c| {
+                    if erro.is_some() {
+                        return;
+                    }
+                    if let Value::Error(e) = v {
+                        erro = Some(e.clone());
+                    }
+                    visit(v, true);
+                });
+            }
             return erro;
         }
 

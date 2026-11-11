@@ -1,0 +1,29 @@
+# WIN-3: compila o aplicativo (crates/feathersheet) no Windows a cada push no
+# main, para pegar cedo o que só quebra lá (caminhos, `cfg(windows)`, a caneta,
+# a impressão). Não roda a suíte da interface — só compila; os testes do motor
+# e dos arquivos ficam no testes.yml.
+#
+# Como os outros jobs, só passa com o repositório compilando sozinho: um
+# `[patch]` para cópia local quebra este job.
+name: Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  compilar:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Compilar o FeatherSheet
+        working-directory: crates/feathersheet
+        # Sem informação de depuração: o binário de debug da interface passa de 1 GB com ela.
+        env:
+          CARGO_PROFILE_DEV_DEBUG: 0
+        run: cargo build --locked

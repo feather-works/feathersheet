@@ -121,12 +121,15 @@ mod ajuste_dimensoes;
 mod dimensao_dialogo;
 mod celulas_dialogo;
 pub(crate) mod topicos_ui;
+pub(crate) mod consolidar_ui;
 mod importar_vba;
 mod macro_dialogo;
 mod calculo_em_fundo;
 mod historico_macros;
 mod eventos_vba;
 mod protecao_ui;
+mod senha_abrir;
+mod copiar_aba;
 mod comentarios_ui;
 mod relampago_ui;
 pub use comentarios_ui::Evento as EventoComentario;
@@ -441,9 +444,11 @@ pub enum Msg {
     CondicionalAdicionar, CondicionalEditar(usize), CondicionalRemover(usize), CondicionalMover(usize, i32),
     CondicionalLimparSelecao, CondicionalLimparTudo, CondicionalCoresAlternadas,
     Limpar, Desfazer, Refazer, Mesclar, MesclarModo(mesclas::ModoMescla), InclinarTexto,
-    AjustarAltura, Dimensao(dimensao_dialogo::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento),
+    AjustarAltura, Dimensao(dimensao_dialogo::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento), Consolidar(consolidar_ui::Evento),
     /// Macros → Importar VBA (do .xlsm aberto ou escolhido) e o arquivo lido.
     Protecao(protecao_ui::Evento),
+    SenhaArquivo(senha_abrir::Evento),
+    CopiarAba(copiar_aba::Evento),
     /// Comentários das células (aba Revisão, Inserir, botão direito, Limpar).
     Comentario(comentarios_ui::Evento),
     VbaImportar, VbaLido(Result<Option<(String, Vec<u8>)>, String>), NovoEstilo(estilo_novo::Evento),
@@ -520,7 +525,7 @@ pub enum Msg {
     /// A macro em segundo plano: conferir se terminou / o botão Parar.
     MacroPulso, MacroParar,
     Busca, BuscaTexto(String), Substituicao(String), BuscaMaiusculas(bool),
-    BuscaInteira(bool), BuscaFormulas(bool), BuscaPasta(bool), Localizar, LocalizarAnterior,
+    BuscaInteira(bool), BuscaExaminar(u8), BuscaFormato(bool), BuscaPasta(bool), Localizar, LocalizarAnterior,
     LocalizarTodos, BuscaIrPara(usize), SubstituirAtual, SubstituirTudo, FecharBusca,
     /// Abre a janela de busca na aba Localizar (`false`) ou Substituir (`true`).
     BuscaAba(bool), BuscaMaisOpcoes, BuscaPorColunas(bool),
@@ -732,6 +737,7 @@ pub struct App {
     dimensao_modal: Option<dimensao_dialogo::Estado>,
     celulas_modal: Option<celulas_dialogo::Estado>,
     subtotal: Option<topicos_ui::EstadoSubtotal>,
+    consolidar: Option<consolidar_ui::EstadoConsolidar>,
     /// VBA do .xlsm aberto, convertido e esperando a importação.
     vba_pendente: Option<importar_vba::VbaPendente>,
     /// Pergunta Sim/Não de uma macro esperando a pessoa.
@@ -762,6 +768,12 @@ pub struct App {
     /// Profundidade de `update` (só a mais de fora dispara eventos).
     profundidade_update: u32,
     protecao_modal: Option<protecao_ui::Estado>,
+    senha_arquivo: Option<senha_abrir::Estado>,
+    /// A senha da pasta: o `.xlsx` sai cifrado com ela. Com senha não há cópia de recuperação
+    /// (iria decifrada para o disco).
+    senha_documento: Option<String>,
+    /// A senha digitada para abrir, até a leitura confirmar que o arquivo abriu.
+    senha_tentada: Option<String>,
     /// Editor de comentário aberto (Novo/Editar comentário).
     comentario_editor: Option<comentarios_ui::Estado>,
     /// Célula comentada sob o mouse (ou escolhida por Anterior/Próximo): balão à mostra.
@@ -1105,8 +1117,12 @@ impl Default for App {
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,
+            consolidar: None,
             vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), selecao_evento: (0, 0, 0, (0, 0)), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
+            senha_arquivo: None,
+            senha_documento: None,
+            senha_tentada: None,
             comentario_editor: None, comentario_sobre: None, comentarios_todos: false,
             novo_estilo: None,
             colar_especial: None,

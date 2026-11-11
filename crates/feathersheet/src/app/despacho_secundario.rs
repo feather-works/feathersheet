@@ -22,6 +22,7 @@ impl App {
             Msg::Dimensao(evento) => self.evento_dimensao(evento),
             Msg::Celulas(evento) => self.evento_celulas(evento),
             Msg::Topicos(evento) => self.evento_topicos(evento),
+            Msg::Consolidar(evento) => self.evento_consolidar(evento),
             Msg::VbaImportar => self.importar_vba(),
             Msg::MacroResponder(sim) => { self.responder_macro(sim); Task::none() }
             Msg::MacroEscolher(i) => { self.escolher_na_macro(i); Task::none() }
@@ -37,6 +38,8 @@ impl App {
                 Task::none()
             }
             Msg::Protecao(evento) => self.evento_protecao(evento),
+            Msg::SenhaArquivo(evento) => self.evento_senha_arquivo(evento),
+            Msg::CopiarAba(evento) => self.evento_copiar_aba(evento),
             Msg::Comentario(evento) => self.evento_comentario(evento),
             Msg::VbaLido(lido) => { self.vba_lido(lido); Task::none() }
             Msg::NovoEstilo(evento) => self.evento_novo_estilo(evento),
@@ -246,6 +249,22 @@ impl App {
                     Campo::Numero((atual + delta).clamp(6, 96) as f64)))
             }
             Msg::Decimais(delta) => {
+                // Moeda escolhida (código do catálogo): as casas moram no código, então ele é regravado.
+                let codigo = self.workbook.aba(self.folha)
+                    .and_then(|aba| aba.sheet.estilo_resolvido(self.linha, self.coluna))
+                    .and_then(|s| s.code);
+                // Só o código exato do catálogo: um código do Excel com seção de negativos
+                // (`…;[Red]-…`) perderia essa seção se fosse trocado pelo do catálogo.
+                let do_catalogo = codigo.as_deref().and_then(|c| {
+                    let m = feathersheet_core::celulas::moedas::do_codigo(c)?;
+                    let casas = feathersheet_core::celulas::moedas::casas_do_codigo(c);
+                    (m.codigo(casas) == c).then_some((m, c))
+                });
+                if let Some((m, codigo)) = do_catalogo {
+                    let casas = feathersheet_core::celulas::moedas::casas_do_codigo(codigo);
+                    let novas = (casas as i32 + delta as i32).clamp(0, 15) as u8;
+                    return self.update(Msg::EstiloMenu("numFmt".into(), Campo::Texto(m.codigo(novas))));
+                }
                 let atual = self.workbook.aba(self.folha)
                     .and_then(|aba|aba.sheet.estilo_resolvido(self.linha,self.coluna))
                     .and_then(|s|s.decimals).unwrap_or(2);
@@ -1351,6 +1370,29 @@ impl App {
                                     self.config_secao = (numero.max(1) - 1).min(configuracoes_ui::SECAO_SOBRE);
                                     return self.alternar(Auxiliar::Configuracoes);
                                 }
+                                // formatar_moeda: aba Número com Moeda e o franco suíço escolhidos.
+                                "formatar_moeda" => {
+                                    use super::formatar_celulas::{Aba, Evento as F, TextoCampo};
+                                    let tarefa = self.abrir_formatar_celulas(Aba::Numero);
+                                    let _ = self.update(Msg::FormatoCelula(F::Formato("currency")));
+                                    let chf = feathersheet_core::celulas::moedas::MOEDAS.iter().find(|m| m.iso == "CHF").unwrap();
+                                    let _ = self.update(Msg::FormatoCelula(F::Texto(TextoCampo::Customizado, chf.codigo(2))));
+                                    return tarefa;
+                                }
+                                // menu_orientacao: o menu Orientação do texto aberto sob o grupo Alinhamento.
+                                "menu_orientacao" => {
+                                    self.orientacao_menu_aberto = true;
+                                    self.orientacao_popup_x = 506.0;
+                                    self.orientacao_popup_y = 168.0;
+                                    return Task::none();
+                                }
+                                // menu_moeda: a seta ao lado do "R$" aberta, na aba Página Inicial.
+                                "menu_moeda" => {
+                                    self.edicao_menu = Some("moeda");
+                                    self.edicao_popup_x = 560.0;
+                                    self.edicao_popup_y = 150.0;
+                                    return Task::none();
+                                }
                                 "formatar" => {
                                     use super::formatar_celulas::Aba;
                                     let aba = [Aba::Numero, Aba::Alinhamento, Aba::Fonte, Aba::Borda,
@@ -1663,7 +1705,7 @@ impl App {
                 Task::none()
             }
             Msg::Idioma(codigo) => {
-                if matches!(codigo, "pt-BR" | "en-US" | "es-ES") {
+                if matches!(codigo, "pt-BR" | "en-US" | "es-ES" | "fr-FR") {
                     self.confirmar();
                     self.config.idioma = codigo.to_owned();
                     feathersheet_core::set_locale_config(self.regionalizacao());

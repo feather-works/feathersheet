@@ -75,12 +75,28 @@ impl LocaleConfig {
         }
     }
 
+    /// Francês: `1 250,50`, `1 250,50 €`, fórmulas com `;`.
+    pub fn fr_fr() -> Self {
+        LocaleConfig {
+            code: "fr-FR".into(),
+            name: "Français".into(),
+            decimal_separator: ',',
+            thousands_separator: ' ',
+            formula_arg_separator: ';',
+            currency_symbol: "€".into(),
+            currency_code: "EUR".into(),
+            currency_before: false,
+            currency_space: true,
+        }
+    }
+
     /// As que já vêm prontas, pelo código; as outras chegam do arquivo de língua.
     pub fn embutida(code: &str) -> Option<Self> {
         match code {
             "pt-BR" | "pt_BR" | "pt" => Some(Self::pt_br()),
             "en-US" | "en_US" | "en" => Some(Self::en_us()),
             "es-ES" | "es_ES" | "es" => Some(Self::es_es()),
+            "fr-FR" | "fr_FR" | "fr" => Some(Self::fr_fr()),
             _ => None,
         }
     }
@@ -234,6 +250,7 @@ mod testes {
         assert_eq!(LocaleConfig::embutida("pt-BR").unwrap().decimal_separator, ',');
         assert_eq!(LocaleConfig::embutida("en").unwrap().formula_arg_separator, ',');
         assert_eq!(LocaleConfig::embutida("es").unwrap().formula_arg_separator, ';');
+        assert_eq!(LocaleConfig::embutida("fr-FR").unwrap().thousands_separator, ' ');
         assert!(LocaleConfig::embutida("de-DE").is_none(), "as outras vêm do arquivo de língua");
     }
 

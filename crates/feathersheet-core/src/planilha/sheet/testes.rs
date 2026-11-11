@@ -526,6 +526,26 @@ fn preencher_faixa_vazia_atravessa_blocos_e_desfaz_num_passo() {
     assert_eq!(s.get_value(300_000, 0), Value::Number(7.0));
 }
 
+/// ROB-10: fórmulas em bloco em várias colunas dentro de uma transação de fora (o colar e
+/// o arrastar da tela) invalidam uma vez ao fechar, e quem lê as colunas recalcula.
+#[test]
+fn formulas_em_bloco_numa_transacao_invalidam_ao_fechar() {
+    let mut s = Sheet::new("Plan1");
+    s.set_cell(0, 0, "2");
+    s.set_cell(0, 9, "=SOMA(B:D)");
+    assert_eq!(s.get_value(0, 9), Value::Number(0.0));
+    s.abrir_transacao();
+    for c in 1..=3 {
+        assert!(s.preencher_formula_faixa_vazia(c, 0, 999, "=$A$1*2"));
+    }
+    s.fechar_transacao();
+    assert_eq!(s.get_value(0, 9), Value::Number(3.0 * 1000.0 * 4.0), "a soma vê as três colunas");
+    assert!(s.undo(), "um Ctrl+Z para as três");
+    assert_eq!(s.get_value(0, 9), Value::Number(0.0));
+    assert!(s.redo());
+    assert_eq!(s.get_value(0, 9), Value::Number(12_000.0));
+}
+
 /// Data colada até o fim: valor em blocos e o formato numa faixa de estilo
 /// só, num Ctrl+Z; onde já há estilo de célula, fica para o caminho de sempre.
 #[test]

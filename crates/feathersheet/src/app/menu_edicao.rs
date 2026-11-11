@@ -13,8 +13,13 @@ enum Item {
     Acao(&'static str, &'static str, Msg),
     /// Item com texto que vem da pasta ou das preferências (fontes recentes, conexões).
     Dinamico(String, &'static str, Msg),
+    /// Moeda: o símbolo numa coluna fixa e o nome ao lado.
+    Moeda(&'static str, String, Msg),
     Divisor,
 }
+
+/// Quantas moedas o menu da faixa mostra; as outras ficam em "Mais moedas…".
+const MOEDAS_NO_MENU: usize = 10;
 
 /// Inserir > Símbolo e Equação: grades de caracteres por seção.
 type Grade = &'static [(&'static str, &'static [&'static str])];
@@ -199,6 +204,7 @@ fn altura(tipo: &str, itens: &[Item]) -> f32 {
     20.0 + itens.iter().map(|item| match item {
         Item::Titulo(_) => 22.0,
         Item::Acao(..) | Item::Dinamico(..) => 37.0,
+        Item::Moeda(..) => 33.0,
         Item::Divisor => 9.0,
     }).sum::<f32>()
 }
@@ -214,6 +220,15 @@ impl App {
                 reabrir(EventoOpenQuery::AbrirRecente(f.clone())))).collect(),
             "conexoes" => self.conexoes_existentes().into_iter().map(|(id, nome)| Item::Dinamico(
                 nome, "table", reabrir(EventoOpenQuery::EditarSalva(id)))).collect(),
+            "moeda" => {
+                use feathersheet_core::celulas::moedas::MOEDAS;
+                let mut v = vec![Item::Titulo(tr!("MOEDA DA CÉLULA"))];
+                v.extend(MOEDAS.iter().take(MOEDAS_NO_MENU).map(|m| Item::Moeda(m.simbolo, tr!(m.nome).to_owned(),
+                    Msg::EstiloMenu("numFmt".into(), Campo::Texto(m.codigo_padrao())))));
+                v.push(Item::Divisor);
+                v.push(Item::Acao(tr!("Mais moedas…"), "currency-dollar", Msg::FormatarCelulasAbrir));
+                return v;
+            }
             _ => return itens(tipo),
         };
         let titulo = if tipo == "conexoes" { tr!("CONSULTAS DESTA PASTA") } else { tr!("FONTES RECENTES") };
@@ -260,6 +275,16 @@ impl App {
                     ].spacing(9).align(pelicano::Align::Center))
                         .width(Length::FILL)
                         .padding([8, 10])
+                        .style(estilo_botao_pequeno(false))
+                        .on_press(Msg::EdicaoMenuAcao(Box::new(msg))),
+                ),
+                Item::Moeda(simbolo, nome, msg) => coluna.push(
+                    button(row![
+                        text(simbolo).size(13).width(Length::Fixed(38.)),
+                        text(nome).size(12),
+                    ].spacing(6).align(pelicano::Align::Center))
+                        .width(Length::FILL)
+                        .padding([6, 10])
                         .style(estilo_botao_pequeno(false))
                         .on_press(Msg::EdicaoMenuAcao(Box::new(msg))),
                 ),
@@ -327,6 +352,38 @@ mod testes {
                 }
             }
         }
+    }
+
+    #[test]
+    fn moeda_da_seta_aplica_o_codigo_e_desfaz_num_passo() {
+        let mut app = App::default();
+        let _ = app.update(Msg::Colar("1234,5".into()));
+        app.update(Msg::AlternarMenuEdicao("moeda"));
+        let itens = app.itens_menu("moeda");
+        let chf = itens.into_iter().find_map(|i| match i { Item::Moeda("CHF", _, msg) => Some(msg), _ => None })
+            .expect("o franco suíço está no menu");
+        let _: Element<'_, Msg> = app.menu_edicao("moeda");
+        app.update(Msg::EdicaoMenuAcao(Box::new(chf)));
+        assert!(app.edicao_menu.is_none());
+        let na_tela = |app: &App| {
+            let sheet = &app.workbook.aba(0).unwrap().sheet;
+            feathersheet_core::planilha::bloco::texto_formatado(&sheet.get_value(0, 0), sheet.estilo_resolvido(0, 0).as_ref())
+        };
+        assert_eq!(na_tela(&app), "CHF 1.234,50");
+        let _ = app.update(Msg::Decimais(1));
+        assert_eq!(na_tela(&app), "CHF 1.234,500", "mais uma casa no código da moeda");
+        let _ = app.update(Msg::Decimais(-3));
+        assert_eq!(na_tela(&app), "CHF 1.235");
+        app.historico(false);
+        app.historico(false);
+        app.historico(false);
+        assert!(!na_tela(&app).contains("CHF"), "Ctrl+Z tira a moeda");
+        // Código do Excel com seção de negativos: as casas não trocam o código pelo do catálogo.
+        let excel = "[$CHF-807] #,##0.00;[Red]-[$CHF-807] #,##0.00";
+        let _ = app.update(Msg::EstiloMenu("numFmt".into(), Campo::Texto(excel.into())));
+        let _ = app.update(Msg::Decimais(1));
+        let codigo = app.workbook.aba(0).unwrap().sheet.estilo_resolvido(0, 0).and_then(|s| s.code).unwrap_or_default();
+        assert!(codigo.contains("[Red]"), "a seção dos negativos fica: {codigo}");
     }
 
     #[test]

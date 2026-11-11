@@ -490,6 +490,10 @@ pub struct Historico {
     /// Quantas transações novas (não desfazer/refazer) entraram: só sobe. O Ctrl+Y de
     /// inserir/excluir (#65) só vale se nada novo foi feito desde o Ctrl+Z dele.
     novas: u64,
+    /// Colunas preenchidas em bloco dentro de uma transação de fora (colar ou arrastar em
+    /// muitas colunas): a invalidação roda uma vez ao fechar. Uma por coluna olhava todas as
+    /// outras a cada vez, e 16.384 colunas levavam minutos (ROB-10, 10/11/2026).
+    invalidar_ao_fechar: HashSet<u32>,
 }
 
 /// O TypeScript guarda as últimas 200 transações.
@@ -1715,10 +1719,10 @@ impl Sheet {
         // Cada dimensão oculta é uma entrada no mapa e um passo de desfazer.
         // 200 mil não deixava ocultar metade de uma planilha de 1 milhão de
         // linhas (16/10); 2,1 milhões cobre a planilha inteira do Excel.
-        const MAX_OPERACOES: u64 = 2_100_000;
+        const MAX_DIMENSOES_OCULTAS: u64 = 2_100_000;
         let mapa = if coluna { &self.col_widths } else { &self.row_heights };
         let indices: Vec<u32> = if ocultar {
-            if u64::from(fim) - u64::from(inicio) + 1 > MAX_OPERACOES {
+            if u64::from(fim) - u64::from(inicio) + 1 > MAX_DIMENSOES_OCULTAS {
                 return Err("Seleção grande demais para ocultação individual; reduza o intervalo".into());
             }
             (inicio..=fim).filter(|i| mapa.get(i).copied() != Some(0)).collect()
@@ -1732,7 +1736,7 @@ impl Sheet {
             let mut ocultos: Vec<_> = mapa.iter()
                 .filter_map(|(&i, &v)| (v == 0 && i >= de && i <= ate).then_some(i))
                 .collect();
-            if ocultos.len() as u64 > MAX_OPERACOES {
+            if ocultos.len() as u64 > MAX_DIMENSOES_OCULTAS {
                 return Err("Muitas dimensões ocultas para reexibir numa operação".into());
             }
             ocultos.sort_unstable();
@@ -1825,6 +1829,11 @@ impl Sheet {
         self.hist.profundidade = self.hist.profundidade.saturating_sub(1);
         if self.hist.profundidade > 0 {
             return;
+        }
+        if !self.hist.invalidar_ao_fechar.is_empty() {
+            let colunas = std::mem::take(&mut self.hist.invalidar_ao_fechar);
+            let usos = self.formulas.columns_in_use();
+            self.invalidar_colunas_e_dependentes(colunas, &usos);
         }
         let feitas = self.hist.pendente.take().unwrap_or_default();
         self.hist.arquivo_divisao = None;
@@ -2614,9 +2623,14 @@ impl Sheet {
             s.cresce_limites(r1, col);
             s.rastro.borrow_mut().desconhecer();
             // Quem lê estas linhas (inclusive por intervalo) recalcula, por
-            // coluna: célula a célula seriam milhões de entradas.
-            let usos = s.formulas.columns_in_use();
-            s.invalidar_colunas_e_dependentes(std::iter::once(col).collect(), &usos);
+            // coluna: célula a célula seriam milhões de entradas. Dentro de uma
+            // transação de fora, junta para o fechar (ver `invalidar_ao_fechar`).
+            if s.hist.profundidade >= 2 {
+                s.hist.invalidar_ao_fechar.insert(col);
+            } else {
+                let usos = s.formulas.columns_in_use();
+                s.invalidar_colunas_e_dependentes(std::iter::once(col).collect(), &usos);
+            }
         }));
         self.abrir_transacao();
         if let Some(pendente) = self.hist.pendente.as_mut() {
@@ -3054,10 +3068,11 @@ impl Sheet {
                 let mut le = false;
                 n.walk(&mut |no| match no {
                     Node::Name(_) => le = true,
-                    Node::Ref { sheet: Some(s), col, .. } if super::mesmo_nome(s, aba) => {
+                    // `Jan:Dez` (3D) pode incluir qualquer aba: conta como lida.
+                    Node::Ref { sheet: Some(s), col, .. } if super::mesmo_nome(s, aba) || s.contains(':') => {
                         le |= toca(*col, *col);
                     }
-                    Node::Range { sheet: Some(s), c0, c1, .. } if super::mesmo_nome(s, aba) => {
+                    Node::Range { sheet: Some(s), c0, c1, .. } if super::mesmo_nome(s, aba) || s.contains(':') => {
                         le |= toca(*c0.min(c1), *c0.max(c1));
                     }
                     _ => {}
@@ -3072,7 +3087,7 @@ impl Sheet {
             for uso in &usos {
                 let le = uso.usos.iter().any(|p| {
                     let pontas: Vec<u32> = p.refs.iter()
-                        .filter(|r| r.sheet.as_deref().is_some_and(|s| super::mesmo_nome(s, aba)))
+                        .filter(|r| r.sheet.as_deref().is_some_and(|s| super::mesmo_nome(s, aba) || s.contains(':')))
                         .map(|r| if r.col_lock { r.col } else { uso.col as i32 + r.col }.max(0) as u32)
                         .collect();
                     match (pontas.iter().min(), pontas.iter().max()) {

@@ -103,6 +103,7 @@ fn calcular(wb: &Workbook, destino: usize, indice: usize, meta: &Json) -> Option
         layout: if meta["layout"] == "compacto" { Layout::Compacto } else { Layout::Tabular },
         repetir_rotulos: meta["repetirRotulos"].as_bool().unwrap_or(false),
         subtotais: meta["subtotais"].as_bool().unwrap_or(false),
+        subtotal_embaixo: meta["subtotaisEmbaixo"].as_bool().unwrap_or(false),
         recolhidos: meta["recolhidos"].as_array().into_iter().flatten()
             .filter_map(|v| v.as_str().map(str::to_string)).collect(),
         filtros,

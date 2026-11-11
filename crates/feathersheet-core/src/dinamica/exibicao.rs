@@ -181,6 +181,29 @@ fn verdadeiro() -> bool {
     true
 }
 
+/// Itens de um campo juntados à mão sob um nome ("Agrupar seleção" do Excel). A coluna é
+/// a da origem (absoluta, como em `linhas`): vale onde quer que o campo esteja.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GrupoDeItens {
+    pub coluna: usize,
+    pub nome: String,
+    /// As chaves dos itens, como a dinâmica as mostra (depois do agrupamento do campo).
+    pub itens: Vec<String>,
+}
+
+/// Os temas de cores da dinâmica (o valor gravado em `tema`), na ordem do botão Tema.
+pub const TEMAS_DA_DINAMICA: [&str; 7] = ["padrao", "azul", "verde", "laranja", "vermelho", "roxo", "cinza"];
+
+/// Item calculado do campo da `coluna` (o "Item calculado" do Excel): `Norte - Sul`,
+/// `[Em Espera] * 1,1`. A fórmula usa os outros itens do campo, na gramática do campo
+/// calculado; em cada cruzamento vale a conta sobre os valores já resumidos dos itens.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ItemCalculado {
+    pub coluna: usize,
+    pub nome: String,
+    pub formula: String,
+}
+
 /// Tudo que a dinâmica ganhou além de `DinamicaConfig` + `Opcoes`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Extras {
@@ -203,6 +226,12 @@ pub struct Extras {
     /// embaixo, com o total de cada coluna.
     #[serde(default = "verdadeiro")]
     pub totais_gerais_colunas: bool,
+    /// DIN-6: itens agrupados à mão.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub grupos_de_itens: Vec<GrupoDeItens>,
+    /// DIN-6: itens calculados (fórmula sobre os outros itens do campo).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub itens_calculados: Vec<ItemCalculado>,
 }
 
 impl Default for Extras {
@@ -213,6 +242,8 @@ impl Default for Extras {
             colunas: Vec::new(),
             totais_gerais_linhas: true,
             totais_gerais_colunas: true,
+            grupos_de_itens: Vec::new(),
+            itens_calculados: Vec::new(),
         }
     }
 }
@@ -224,6 +255,17 @@ impl Extras {
             && self.totais_gerais_colunas
             && self.valores.iter().all(|v| *v == MostrarComo::Normal)
             && self.linhas.iter().chain(self.colunas.iter()).all(|c| *c == CampoExtra::default())
+            && self.grupos_de_itens.is_empty()
+            && self.itens_calculados.is_empty()
+    }
+
+    /// A chave de um item do campo da `coluna` depois dos grupos feitos à mão: o nome do
+    /// grupo que contém o item, ou a própria chave.
+    pub fn juntar(&self, coluna: usize, chave: String) -> String {
+        match self.grupos_de_itens.iter().find(|g| g.coluna == coluna && g.itens.contains(&chave)) {
+            Some(g) => g.nome.clone(),
+            None => chave,
+        }
     }
 
     pub fn mostrar_como(&self, medida: usize) -> &MostrarComo {

@@ -160,7 +160,7 @@ impl App {
         // próprio arquivo é a cópia: gravar outra só dobraria o trabalho.
         let coberto_pelo_auto_salvar = self.config.auto_salvar && self.caminho.as_ref()
             .is_some_and(|p| p.extension().and_then(|e| e.to_str()) == Some("fshz"));
-        if capturando || !self.config.recuperacao_automatica || coberto_pelo_auto_salvar
+        if capturando || !self.config.recuperacao_automatica || coberto_pelo_auto_salvar || self.senha_documento.is_some()
             || self.recuperacao.gravando || self.salvando || self.carregando
             || self.editor_formula.ativo
             || self.assistente_divisao.as_ref().is_some_and(|e| e.conversao_em_andamento())

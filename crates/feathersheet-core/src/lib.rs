@@ -55,6 +55,10 @@ pub mod consulta;
 pub mod diario;
 pub mod paralelismo;
 pub mod modelos;
+#[cfg(test)]
+pub(crate) mod teste_memoria;
+#[cfg(test)]
+mod tetos_de_memoria;
 
 pub use formula::ast::{BinaryOp, Node, ParseError, UnaryOp};
 pub use planilha::data_table::DataTable;

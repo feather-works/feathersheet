@@ -27,6 +27,11 @@ pub(super) struct Busca {
     pub mais_opcoes: bool,
     /// Pesquisar por colunas: percorre A1, A2… antes de B1.
     pub por_colunas: bool,
+    /// Examinar: Comentários (o texto do comentário, não o da célula).
+    pub em_comentarios: bool,
+    /// Só as células com este formato (o da célula ativa, ao marcar a opção). Com o campo
+    /// vazio, acha toda célula com o formato.
+    pub formato: Option<feathersheet_core::celulas::style::Style>,
     /// Quanto a janela foi arrastada a partir do canto superior direito
     /// (x positivo = para a esquerda). Fica guardado entre aberturas.
     pub deslocamento: crate::compat::Vector,
@@ -41,7 +46,9 @@ pub(super) const ID_CAMPO_BUSCA: &str = "feathersheet.busca-localizar";
 /// Opções das listas da janela, na ordem do Excel.
 const DENTRO: [&str; 2] = ["Planilha", "Pasta de trabalho"];
 const PESQUISAR: [&str; 2] = ["Por linhas", "Por colunas"];
-const EXAMINAR: [&str; 2] = ["Fórmulas", "Valores"];
+const EXAMINAR: [&str; 3] = ["Fórmulas", "Valores", "Comentários"];
+/// Teto da busca só por formato (sem texto), que olha cada célula da área usada.
+const TETO_SO_FORMATO: u64 = 4_000_000;
 
 /// Corta o texto para caber na coluna da lista, sem quebrar linha.
 fn cortar(texto: &str, maximo: usize) -> String {
@@ -64,8 +71,24 @@ impl App {
     /// Reaproveita o mesmo motor Rust de busca indexada/colunar.
     fn achar_na_aba(&self, indice: usize) -> Vec<ops::SearchMatch> {
         let Some(aba) = self.workbook.aba(indice) else { return Vec::new() };
-        let mut achadas = ops::find_all_com(&aba.sheet, &self.busca.texto, self.busca.opcoes,
-            |r, c| self.workbook.valor(indice, r, c));
+        let s = &aba.sheet;
+        let estilo = |r, c| s.estilo_resolvido(r, c).unwrap_or_default();
+        let mut achadas = if self.busca.em_comentarios {
+            let tudo = feathersheet_core::celulas::refs::Rect::new(0, 0, u32::MAX, u32::MAX);
+            s.comentarios_na_area(&tudo).into_iter()
+                .filter(|&(r, c)| s.comentario(r, c).is_some_and(|k|
+                    self.busca.texto.is_empty() || ops::is_hit(&k.texto, &self.busca.texto, self.busca.opcoes)))
+                .map(|(row, col)| ops::SearchMatch { row, col }).collect()
+        } else if let (true, Some(f)) = (self.busca.texto.is_empty(), &self.busca.formato) {
+            // shortcut: olha célula a célula a área usada (até TETO_SO_FORMATO); se ficar lento, índice de estilos.
+            let area = u64::from(s.max_row.saturating_sub(s.min_row) + 1) * u64::from(s.max_col.saturating_sub(s.min_col) + 1);
+            if area > TETO_SO_FORMATO { return Vec::new(); }
+            (s.min_row..=s.max_row).flat_map(|row| (s.min_col..=s.max_col).map(move |col| ops::SearchMatch { row, col }))
+                .filter(|m| estilo(m.row, m.col) == *f).collect()
+        } else {
+            ops::find_all_com(s, &self.busca.texto, self.busca.opcoes, |r, c| self.workbook.valor(indice, r, c))
+        };
+        if let Some(f) = &self.busca.formato { achadas.retain(|m| estilo(m.row, m.col) == *f); }
         if self.busca.por_colunas { achadas.sort_unstable_by_key(|m| (m.col, m.row)); }
         achadas
     }
@@ -88,7 +111,7 @@ impl App {
     /// simultaneamente as correspondências da pasta inteira.
     pub(super) fn localizar_direcao(&mut self, reverso: bool) -> Task<Msg> {
         if !self.confirmar() { return Task::none(); }
-        if self.busca.texto.is_empty() {
+        if self.busca.texto.is_empty() && self.busca.formato.is_none() && !self.busca.em_comentarios {
             self.status = tr!("Digite o conteúdo que deseja localizar.").into();
             return Task::none();
         }
@@ -155,7 +178,7 @@ impl App {
         self.busca.resultados.clear();
         self.busca.total = 0;
         self.busca.mostrar_todos = true;
-        if self.busca.texto.is_empty() {
+        if self.busca.texto.is_empty() && self.busca.formato.is_none() && !self.busca.em_comentarios {
             self.status = tr!("Digite o conteúdo que deseja localizar.").into();
             return;
         }
@@ -176,6 +199,10 @@ impl App {
     /// A escrita/undo continua no motor Rust, em uma única transação.
     pub(super) fn substituir_atual(&mut self) -> Task<Msg> {
         if !self.confirmar() { return Task::none(); }
+        if self.busca.em_comentarios {
+            self.status = tr!("Substituir não vale em comentários: escolha Fórmulas em Examinar.").into();
+            return Task::none();
+        }
         if self.busca.texto.is_empty() {
             self.status = tr!("Digite o conteúdo que deseja substituir.").into();
             return Task::none();
@@ -221,6 +248,10 @@ impl App {
     /// Histórico permanece independente por aba, como no Workbook existente.
     pub(super) fn substituir_tudo(&mut self) {
         if !self.confirmar() { return; }
+        if self.busca.em_comentarios {
+            self.status = tr!("Substituir não vale em comentários: escolha Fórmulas em Examinar.").into();
+            return;
+        }
         if self.busca.texto.is_empty() {
             self.status = tr!("Digite o conteúdo que deseja substituir.").into();
             return;
@@ -484,14 +515,17 @@ impl App {
                     |s| Msg::BuscaPasta(s == tr!(DENTRO[1])))].align(pelicano::Align::Center),
                 row![rotulo(tr!("Pesquisar:")), lista(&PESQUISAR, PESQUISAR[b.por_colunas as usize],
                     |s| Msg::BuscaPorColunas(s == tr!(PESQUISAR[1])))].align(pelicano::Align::Center),
-                row![rotulo(tr!("Examinar:")), lista(&EXAMINAR, EXAMINAR[!b.opcoes.in_formulas as usize],
-                    |s| Msg::BuscaFormulas(s == tr!(EXAMINAR[0])))].align(pelicano::Align::Center),
+                row![rotulo(tr!("Examinar:")), lista(&EXAMINAR,
+                    EXAMINAR[if b.em_comentarios { 2 } else { !b.opcoes.in_formulas as usize }],
+                    |s| Msg::BuscaExaminar((0..3u8).find(|&i| s == tr!(EXAMINAR[i as usize])).unwrap_or(1)))].align(pelicano::Align::Center),
             ].spacing(8);
             let direita = column![
                 checkbox(tr!("Diferenciar maiúsculas"), b.opcoes.match_case)
                     .on_toggle(Msg::BuscaMaiusculas).size(12.5),
                 checkbox(tr!("Célula inteira"), b.opcoes.whole_cell)
                     .on_toggle(Msg::BuscaInteira).size(12.5),
+                checkbox(tr!("Mesmo formato da célula ativa"), b.formato.is_some())
+                    .on_toggle(Msg::BuscaFormato).size(12.5),
             ].spacing(10);
             corpo = corpo.push(row![esquerda, Space::new(Length::FILL, 0.0), direita]
                 .spacing(12));
@@ -656,6 +690,40 @@ mod testes {
         assert_eq!(app.busca.deslocamento, crate::compat::Vector::new(120.0, 60.0));
         let _ = app.update(Msg::BuscaArrastoMover(pelicano::Point::new(0.0, 0.0)));
         assert_eq!(app.busca.deslocamento, crate::compat::Vector::new(120.0, 60.0));
+    }
+
+    #[test]
+    fn localizar_em_comentarios_e_pelo_formato_da_celula_ativa() {
+        use feathersheet_core::celulas::{estilo_parcial::Campo, refs::Rect};
+        use feathersheet_core::planilha::sheet::comentarios::Comentario;
+        let mut app = App::default();
+        for (r, t) in [(0, "conferir"), (1, "x"), (2, "y"), (4, "conferir")] { app.workbook.escrever_celula(0, r, 0, t.into()); }
+        app.workbook.editar(0, |s| {
+            s.definir_comentario(3, 2, Some(Comentario { texto: "Conferir o total".into(), ..Default::default() }));
+            s.set_style(&Rect::new(1, 0, 2, 0), &[("bold".to_string(), Campo::Logico(true))].into());
+        });
+        let _ = app.update(Msg::BuscaExaminar(2));
+        app.busca.texto = "conferir".into();
+        app.localizar_todos();
+        assert_eq!(app.busca.resultados, vec![ResultadoBusca { aba: 0, linha: 3, coluna: 2 }], "só o comentário");
+        let _ = app.update(Msg::SubstituirTudo);
+        assert!(app.status.contains("comentários"), "{}", app.status);
+
+        // Só o formato (negrito de A2), sem texto: A2 e A3.
+        let _ = app.update(Msg::BuscaExaminar(1));
+        app.trocar_selecao(1, 0);
+        let _ = app.update(Msg::BuscaFormato(true));
+        app.busca.texto.clear();
+        app.localizar_todos();
+        let achadas: Vec<_> = app.busca.resultados.iter().map(|r| (r.linha, r.coluna)).collect();
+        assert_eq!(achadas, vec![(1, 0), (2, 0)]);
+        // Texto e formato juntos: "conferir" em negrito não há.
+        app.busca.texto = "conferir".into();
+        app.localizar_todos();
+        assert!(app.busca.resultados.is_empty());
+        let _ = app.update(Msg::BuscaFormato(false));
+        app.localizar_todos();
+        assert_eq!(app.busca.resultados.len(), 2);
     }
 
     #[test]

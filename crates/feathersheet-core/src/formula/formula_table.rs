@@ -169,7 +169,7 @@ pub struct FormulaTable {
     externas_em_uso: bool,
     errors: Vec<CellError>,
     error_ids: HashMap<String, i32>,
-    count: u32,
+    count: u64,
     /// [`Self::assinatura_vinculos`] guardada (0 = refazer): o pulso dos vínculos pergunta
     /// várias vezes por segundo e varrer as colunas custava 50 ms no arquivo do #136.
     assinatura: AtomicU64,
@@ -181,7 +181,7 @@ impl FormulaTable {
     }
 
     /// Quantas fórmulas moram aqui.
-    pub fn size(&self) -> u32 {
+    pub fn size(&self) -> u64 {
         self.count
     }
 
@@ -408,7 +408,7 @@ impl FormulaTable {
             let id = self.pattern_ids[&padrao];
             self.column(col).slot.preencher_faixa(r0 + 1, r1, (id << KIND_BITS) | KIND_DIRTY);
             self.assinatura.store(0, Ordering::Relaxed);
-            self.count += r1 - r0;
+            self.count += u64::from(r1 - r0);
         }
         true
     }
@@ -426,7 +426,7 @@ impl FormulaTable {
         }
         entry.slot.apagar_faixa(r0, r1);
         entry.payload.apagar_faixa(r0, r1);
-        self.count = self.count.saturating_sub(tinha);
+        self.count = self.count.saturating_sub(u64::from(tinha));
     }
 
     pub fn has(&self, row: u32, col: u32) -> bool {

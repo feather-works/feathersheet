@@ -36,7 +36,9 @@
 //!   branco). Sem essas linhas, o campo não vai para Filtros: os itens vão
 //!   ocultos no campo fora dos eixos — o FeatherSheet lê o filtro de volta,
 //!   o Excel mostra a dinâmica sem ele.
-//! - O tema de cores da dinâmica: vai o estilo padrão do Excel.
+//! - O tema de cores da dinâmica vai como o `PivotStyle` de [`ESTILOS_DA_DINAMICA`];
+//!   vermelho e roxo não existem nas ênfases do tema padrão do Office e saem
+//!   laranja e dourado no Excel (voltam certos no FeatherSheet).
 //! - **Campo em Filtros e em Linhas ao mesmo tempo** (`paginaTambem`): o
 //!   Excel não aceita o mesmo campo como página e linha. Vai só como linha,
 //!   com os itens que o filtro tira ocultos (`h="1"`): a tabela mostra o
@@ -124,10 +126,25 @@ struct Plano {
     tabular: bool,
     repetir: bool,
     subtotais: bool,
+    subtotal_embaixo: bool,
     recolhidos: HashSet<String>,
     totais_linhas: bool,
     totais_colunas: bool,
+    tema: String,
 }
+
+/// Tema da dinâmica ⇄ estilo embutido do Excel, nos dois sentidos (a leitura
+/// procura aqui primeiro). Medium 1–7 = escuro 1 e ênfases 1–6 do tema padrão.
+pub(crate) const ESTILOS_DA_DINAMICA: [(&str, &str); 7] = [
+    ("padrao", "PivotStyleLight16"),
+    ("cinza", "PivotStyleMedium1"),
+    ("azul", "PivotStyleMedium2"),
+    ("laranja", "PivotStyleMedium3"),
+    ("verde", "PivotStyleMedium7"),
+    // shortcut: sem ênfase vermelha/roxa no tema padrão; gravar um theme1.xml se pedirem a cor exata no Excel.
+    ("vermelho", "PivotStyleMedium10"),
+    ("roxo", "PivotStyleMedium12"),
+];
 
 fn retangulo(v: &Json) -> Option<(u32, u32, u32, u32)> {
     let n = |k: &str| v[k].as_u64().and_then(|x| u32::try_from(x).ok());
@@ -251,10 +268,12 @@ fn plano(pasta: &Workbook, destino: usize, meta: &Json) -> Option<Plano> {
         // Mesmo padrão do painel (`avancado::opcoes_de_json`).
         repetir: meta["repetirRotulos"].as_bool().unwrap_or(true),
         subtotais: meta["subtotais"].as_bool().unwrap_or(false),
+        subtotal_embaixo: meta["subtotaisEmbaixo"].as_bool().unwrap_or(false),
         recolhidos: meta["recolhidos"].as_array().into_iter().flatten()
             .filter_map(|v| v.as_str().map(str::to_string)).collect(),
         totais_linhas: extras.totais_gerais_linhas,
         totais_colunas: extras.totais_gerais_colunas,
+        tema: meta["tema"].as_str().unwrap_or("padrao").to_string(),
     })
 }
 
@@ -551,6 +570,8 @@ fn tabela_xml(p: &Plano, n: usize, nome: &str, nomes: &[String], itens: &[Option
         };
         if !subtotal {
             x.push_str(" defaultSubtotal=\"0\"");
+        } else if pos_linha.is_some() && !p.tabular && p.subtotal_embaixo {
+            x.push_str(" subtotalTop=\"0\"");
         }
         let ordem = pos_linha.and_then(|i| p.ordem_linhas.get(i))
             .or_else(|| pos_coluna.and_then(|i| p.ordem_colunas.get(i)))
@@ -697,9 +718,18 @@ fn tabela_xml(p: &Plano, n: usize, nome: &str, nomes: &[String], itens: &[Option
         }
     }
     x.push_str("</dataFields>");
-    x.push_str("<pivotTableStyleInfo name=\"PivotStyleLight16\" showRowHeaders=\"1\" showColHeaders=\"1\" showRowStripes=\"0\" showColStripes=\"0\" showLastColumn=\"1\"/>");
+    let estilo = ESTILOS_DA_DINAMICA.iter().find(|(tema, _)| *tema == p.tema).map_or("PivotStyleLight16", |(_, e)| e);
+    let _ = write!(x, "<pivotTableStyleInfo name=\"{estilo}\" showRowHeaders=\"1\" showColHeaders=\"1\" showRowStripes=\"0\" showColStripes=\"0\" showLastColumn=\"1\"/>");
     x.push_str("</pivotTableDefinition>");
     x
+}
+
+#[cfg(test)]
+#[test]
+fn todo_tema_da_dinamica_tem_estilo_do_excel() {
+    for tema in feathersheet_core::dinamica::exibicao::TEMAS_DA_DINAMICA {
+        assert!(ESTILOS_DA_DINAMICA.iter().any(|(t, _)| *t == tema), "{tema} sem PivotStyle");
+    }
 }
 
 // ------------------------------------------------------------ pacote

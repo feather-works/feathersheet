@@ -34,12 +34,8 @@ modules:
       - for t in 16 24 32 48 64 128 256 512; do install -Dm644 pacote/icones/feathersheet-$t.png /app/share/icons/hicolor/${t}x${t}/apps/${FLATPAK_ID}.png; done
       - install -Dm644 pacote/flatpak/${FLATPAK_ID}.metainfo.xml -t /app/share/metainfo
     sources:
-      # Teste local. Para o Flathub, trocar por:
-      #   - type: git
-      #     url: https://github.com/feather-works/feathersheet.git
-      #     tag: v0.2.9
-      #     commit: <hash da tag>
-      - type: dir
-        path: ../..
-        skip: [target, feathersheet_0.2.2_amd64.snap, feathersheet_0.2.8_amd64.snap, crates/feathersheet/0, crates/feathersheet/target, pacote/saida, pacote/flatpak/.flatpak-builder, pacote/flatpak/build]
+      # Na submissão ao Flathub: a tag da versão (tag: vX.Y.Z) com o commit dela.
+      - type: git
+        url: https://github.com/feather-works/feathersheet.git
+        commit: bf924a05d4f92992cbc09507fdff4af032b27e0b
       - cargo-sources.json

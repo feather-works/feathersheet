@@ -49,6 +49,8 @@ pub enum Evento {
     Mesclar(bool),
     /// Abre ou fecha o seletor completo (as abas mostram só a paleta).
     MaisCores,
+    /// Filtro da lista de moedas (nome, código ISO ou símbolo).
+    BuscaMoeda(String),
     Confirmar,
     Cancelar,
 }
@@ -73,6 +75,7 @@ pub(super) struct Estado {
     cor_hsva: [f32;4],
     cor_hex_picker: String,
     mais_cores: bool,
+    busca_moeda: String,
     erro: String,
 }
 impl Estado {
@@ -124,7 +127,7 @@ impl Estado {
             aba, folha, area, original, patch: EstiloParcial::new(),
             fonte, tamanho, cor_texto, cor_fundo, cor_borda, personalizado,
             decimais, recuo, angulo, mesclar, cor_alvo, cor_hsva, cor_hex_picker,
-            mais_cores: false, erro: String::new(),
+            mais_cores: false, busca_moeda: String::new(), erro: String::new(),
         }
     }
     fn campo(&self, chave: &str) -> Option<&Campo> {
@@ -403,6 +406,7 @@ impl App {
             // A paleta da aba vale para a cor dela (fundo, borda ou texto).
             Evento::CorPredefinida(valor) => e.cor_escolhida(valor.into()),
             Evento::MaisCores => e.mais_cores = !e.mais_cores,
+            Evento::BuscaMoeda(t) => e.busca_moeda = t,
             Evento::CorAlvo(alvo) => e.selecionar_alvo(alvo),
             Evento::CorSeletor(evento) => e.seletor_evento(evento),
             Evento::Grau(graus) => {

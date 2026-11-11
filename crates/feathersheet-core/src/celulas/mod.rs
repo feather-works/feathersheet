@@ -4,6 +4,7 @@ pub mod date_serial;
 pub mod estilo_parcial;
 pub mod estilos_celula;
 pub mod formato_personalizado;
+pub mod moedas;
 pub mod input;
 pub mod locale;
 pub mod number;

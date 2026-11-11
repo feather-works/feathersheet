@@ -218,6 +218,8 @@ impl App {
                 self.faixa_grande(tr!("Proteger pasta de trabalho"), "lock",
                     Some(Msg::Protecao(protecao_ui::Evento::AbrirPasta)),
                     self.workbook.propriedades.protecao_estrutura.is_some()),
+                self.faixa_grande(tr!("Criptografar com senha"), "shield-lock",
+                    Some(Msg::SenhaArquivo(senha_abrir::Evento::Definir)), self.senha_documento.is_some()),
             ])),
         ]
     }

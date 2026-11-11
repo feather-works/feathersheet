@@ -98,6 +98,12 @@ const MARCA_NUMERO: char = '\u{2}';
 /// pelo analisador do que se digita ("00123" não vira 123, "=x" não vira fórmula).
 const MARCA_TEXTO: char = '\u{3}';
 
+/// Dias a somar num número com formato de data de uma pasta na base 1904.
+fn dias_1904(xf: usize, xfs: &[styles::XfStyle]) -> f64 {
+    let xf = if xf >= xfs.len() && !xfs.is_empty() { xf - xfs.len() } else { xf };
+    match xfs.get(xf).map(|x| x.format) { Some("date1904" | "datetime1904") => 1462.0, _ => 0.0 }
+}
+
 /// O texto final da célula a partir do bruto que a leitura guardou.
 fn converter<'a>(bruto: &'a str, xf: usize, xfs: &[styles::XfStyle]) -> std::borrow::Cow<'a, str> {
     if let Some(f) = bruto.strip_prefix(MARCA_FORMULA) {
@@ -249,7 +255,7 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
             // a hora) é só aparência; lido de volta perdia casas e a hora (auditoria de 04/11/2026).
             if let (Some(n), Preparo::Literal(feathersheet_core::Value::Number(_))) =
                 (bruto.strip_prefix(MARCA_NUMERO).and_then(|t| t.trim().parse::<f64>().ok()), &pronta.preparo) {
-                if n.is_finite() { pronta.preparo = Preparo::Literal(feathersheet_core::Value::Number(n)); }
+                if n.is_finite() { pronta.preparo = Preparo::Literal(feathersheet_core::Value::Number(n + dias_1904(xf, xfs))); }
             }
             let pronta = pronta.com_ida_e_volta(&raw, estilo_de(xf));
             if com_chave {
@@ -644,7 +650,8 @@ fn propriedades(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> feath
 }
 
 /// Verifica o tamanho antes de reservar a memória do ZIP compactado.
-pub fn ler_xlsx_arquivo(path: &std::path::Path) -> Result<(Workbook, usize), String> {
+/// O arquivo cabe no limite de leitura do `.xlsx` (antes de ler os bytes).
+pub fn conferir_tamanho_xlsx(path: &std::path::Path) -> Result<(), String> {
     let tamanho = std::fs::metadata(path)
         .map_err(|e| format!("Não foi possível acessar {}: {e}", path.display()))?
         .len();
@@ -654,6 +661,11 @@ pub fn ler_xlsx_arquivo(path: &std::path::Path) -> Result<(Workbook, usize), Str
             tamanho / 1_048_576, LIMITE_XLSX_NATIVO / 1_048_576,
         ));
     }
+    Ok(())
+}
+
+pub fn ler_xlsx_arquivo(path: &std::path::Path) -> Result<(Workbook, usize), String> {
+    conferir_tamanho_xlsx(path)?;
     let bytes = std::fs::read(path)
         .map_err(|e| format!("Não foi possível ler {}: {e}", path.display()))?;
     ler_xlsx_workbook(bytes)
@@ -662,6 +674,9 @@ pub fn ler_xlsx_arquivo(path: &std::path::Path) -> Result<(Workbook, usize), Str
 /// Abre XLSX grande no Workbook nativo. Não há segunda cópia dos dados em JSON.
 /// Retorna a pasta pronta e a aba ativa, como os outros codecs da GUI.
 pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
+    if crate::xlsx_senha::eh_protegido(&bytes) {
+        return Err(crate::xlsx_senha::PEDE_SENHA.into());
+    }
     if bytes.len() as u64 > LIMITE_XLSX_NATIVO {
         return Err(format!("Arquivo XLSX excede {} MiB compactados", LIMITE_XLSX_NATIVO / 1_048_576));
     }
@@ -681,7 +696,16 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     // condicionais e gráficos também resolvem cor por tema).
     let tema_xml = entry_text(&mut arquivo, "xl/theme/theme1.xml").unwrap_or_default();
     let _paleta = super::cores::instalar(&tema_xml, &estilos_xml);
-    let xfs = styles::read_styles(&estilos_xml);
+    let mut xfs = styles::read_styles(&estilos_xml);
+    // Datas a partir de 1904 (Excel antigo do Mac): o motor só conhece a base
+    // 1900, então a data é lida com os 1462 dias de diferença somados.
+    // shortcut: só nas células com formato de data; um serial em formato Geral lido por
+    // fórmula de data continua 4 anos atrás. Base 1904 no motor se aparecer arquivo assim.
+    if book.child("workbookPr").and_then(|n| n.attr("date1904")).is_some_and(|v| v == "1" || v == "true") {
+        for x in &mut xfs {
+            x.format = match x.format { "date" => "date1904", "datetime" => "datetime1904", f => f };
+        }
+    }
     let estilos = estilos_parciais(&xfs);
     // Imagens "Colocar na célula" (vm → data URL), lidas uma vez para todas as abas.
     let imagens_vm = super::imagens_celula::ler(&mut arquivo);
@@ -871,15 +895,20 @@ mod tests {
     use zip::write::SimpleFileOptions;
 
     fn xlsx(linhas: &str, shared: Option<&str>) -> Vec<u8> {
+        xlsx_com(r#"<workbook><sheets><sheet name="Dados" r:id="rId1"/></sheets></workbook>"#, linhas, shared, None)
+    }
+
+    fn xlsx_com(book: &str, linhas: &str, shared: Option<&str>, estilos: Option<&str>) -> Vec<u8> {
         let mut saida = Cursor::new(Vec::new());
         {
             let mut zip = zip::ZipWriter::new(&mut saida);
             let mut partes = vec![
-                ("xl/workbook.xml", r#"<workbook><sheets><sheet name="Dados" r:id="rId1"/></sheets></workbook>"#),
+                ("xl/workbook.xml", book),
                 ("xl/_rels/workbook.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>"#),
                 ("xl/worksheets/sheet1.xml", linhas),
             ];
             if let Some(s) = shared { partes.push(("xl/sharedStrings.xml", s)); }
+            if let Some(s) = estilos { partes.push(("xl/styles.xml", s)); }
             for (path, data) in partes {
                 zip.start_file(path, SimpleFileOptions::default()).unwrap();
                 zip.write_all(data.as_bytes()).unwrap();
@@ -887,6 +916,21 @@ mod tests {
             zip.finish().unwrap();
         }
         saida.into_inner()
+    }
+
+    #[test]
+    fn data_da_base_1904_vira_a_mesma_data_na_base_1900() {
+        let estilos = r#"<styleSheet><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14" applyNumberFormat="1"/></cellXfs></styleSheet>"#;
+        let linhas = r#"<worksheet><sheetData><row r="1"><c r="A1" s="1"><v>1</v></c><c r="B1"><v>1</v></c></row></sheetData></worksheet>"#;
+        let ler = |pr: &str| {
+            let book = format!(r#"<workbook>{pr}<sheets><sheet name="Dados" r:id="rId1"/></sheets></workbook>"#);
+            let (wb, _) = ler_xlsx_workbook(xlsx_com(&book, linhas, None, Some(estilos))).unwrap();
+            let sh = &wb.aba(0).unwrap().sheet;
+            (sh.get_value(0, 0), sh.get_value(0, 1))
+        };
+        // 02/01/1904; o número sem formato de data não muda.
+        assert_eq!(ler(r#"<workbookPr date1904="1"/>"#), (Value::Number(1463.), Value::Number(1.)));
+        assert_eq!(ler(""), (Value::Number(1.), Value::Number(1.)));
     }
 
     #[test]

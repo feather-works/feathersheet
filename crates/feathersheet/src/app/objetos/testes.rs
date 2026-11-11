@@ -461,3 +461,21 @@ fn macro_cola_imagem_do_intervalo() {
     assert!(lidos(&app).objetos.is_empty(), "um Ctrl+Z tira a figura");
 }
 
+
+#[test]
+fn smartart_insere_todas_as_formas_do_modelo_num_desfazer_so() {
+    use feather_shapes::diagramas::{modelo, Categoria};
+    let mut app = app();
+    let _ = app.update(Msg::Objetos(Evento::AlternarMenu(ModoMenu::Diagramas)));
+    assert_eq!(app.objetos.menu, Some(ModoMenu::Diagramas));
+    let k = Categoria::TODAS.iter().position(|&c| c == Categoria::Processos).unwrap();
+    let _ = app.update(Msg::Objetos(Evento::InserirDiagrama(k)));
+    assert!(app.objetos.menu.is_none(), "inserir fecha o menu");
+    let esperado = modelo(Categoria::Processos, 0.0, 0.0, 480.0, 240.0);
+    let objs = lidos(&app).objetos.clone();
+    assert_eq!(objs.len(), esperado.len());
+    assert!(objs.iter().any(|o| o.texto.as_deref() == Some("Executar")), "texto do modelo vira texto da forma");
+    assert!(app.objetos.selecionado.is_some());
+    app.historico(false);
+    assert!(lidos(&app).objetos.is_empty(), "um Ctrl+Z tira o diagrama inteiro");
+}

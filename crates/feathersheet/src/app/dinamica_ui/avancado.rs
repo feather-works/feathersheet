@@ -20,6 +20,7 @@ pub(super) fn opcoes(e: &Estado) -> Opcoes {
         layout: e.layout,
         repetir_rotulos: e.repetir_rotulos,
         subtotais: e.subtotais,
+        subtotal_embaixo: e.subtotal_embaixo,
         recolhidos: e.recolhidos.iter().cloned().collect(),
         filtros: e.filtros.iter().filter(|f| !f.valores.is_empty()).cloned().collect(),
     }
@@ -136,9 +137,9 @@ pub(super) fn impressao_digital(app: &App, e: &Estado) -> String {
     let mut recolhidos = e.recolhidos.clone();
     recolhidos.sort();
     let versao = app.workbook.aba(e.folha_origem).map_or(0, |a| a.versao);
-    format!("{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{}|{}|{:?}|{:?}|{versao}",
+    format!("{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{}|{:?}|{:?}|{versao}",
         e.folha_origem, e.origem, e.linhas, e.colunas, e.valores, filtros, extras_vigentes(e),
-        e.agrupar_data, e.layout, e.subtotais, e.repetir_rotulos, recolhidos, e.calculados)
+        e.agrupar_data, e.layout, (e.subtotais, e.subtotal_embaixo), e.repetir_rotulos, recolhidos, e.calculados)
 }
 
 /// Também depois de gravar o resultado: a gravação na aba de destino sobe a
@@ -248,6 +249,9 @@ pub(super) fn extras_vigentes(e: &Estado) -> Extras {
         colunas: por_coluna(colunas, &e.colunas, &e.extras.colunas),
         totais_gerais_linhas: e.extras.totais_gerais_linhas,
         totais_gerais_colunas: e.extras.totais_gerais_colunas,
+        // Pela coluna da origem: seguem o campo para onde ele for.
+        grupos_de_itens: e.extras.grupos_de_itens.clone(),
+        itens_calculados: e.extras.itens_calculados.clone(),
     }
 }
 
@@ -311,6 +315,7 @@ pub(super) fn gravar_opcoes(meta: &mut Json, e: &Estado, mapa: Json) {
     meta["layout"] = json!(if e.layout == Layout::Compacto { "compacto" } else { "tabular" });
     meta["repetirRotulos"] = json!(e.repetir_rotulos);
     meta["subtotais"] = json!(e.subtotais);
+    meta["subtotaisEmbaixo"] = json!(e.subtotal_embaixo);
     meta["tema"] = json!(e.tema);
     meta["recolhidos"] = json!(e.recolhidos);
     meta["filtros"] = json!(e.filtros.iter().map(|f| {

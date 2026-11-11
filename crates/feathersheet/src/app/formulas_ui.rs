@@ -420,7 +420,7 @@ impl App {
             self.formulas_pequeno_menu(tr!(rotulo), icone, MenuFormulas::Categoria(indice_categoria(nome)))
         };
         let biblioteca = self.faixa_linha(vec![
-            self.faixa_grande("AutoSoma", "sum", Some(Msg::AutoSoma), false),
+            self.faixa_grande(tr!("AutoSoma"), "sum", Some(Msg::AutoSoma), false),
             self.faixa_grande_seta(tr!("Recentes"), "recentes", menu(MenuFormulas::Recentes),
                 aberto(MenuFormulas::Recentes)),
             self.faixa_pilha(vec![categoria(0), categoria(1), categoria(2)]),

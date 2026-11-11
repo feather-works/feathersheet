@@ -66,7 +66,9 @@ impl App {
                     if self.dimensao_modal.is_some() { return self.update(Msg::Dimensao(dimensao_dialogo::Evento::Fechar)); }
                     if self.celulas_modal.is_some() { return self.update(Msg::Celulas(celulas_dialogo::Evento::Fechar)); }
                     if self.subtotal.is_some() { return self.update(Msg::Topicos(topicos_ui::Evento::SubtotalFechar)); }
+                    if self.consolidar.is_some() { return self.update(Msg::Consolidar(consolidar_ui::Evento::Fechar)); }
                     if self.protecao_modal.is_some() { return self.update(Msg::Protecao(protecao_ui::Evento::Fechar)); }
+                    if self.senha_arquivo.is_some() { return self.update(Msg::SenhaArquivo(senha_abrir::Evento::Fechar)); }
                     if self.novo_estilo.is_some() { return self.update(Msg::NovoEstilo(estilo_novo::Evento::Fechar)); }
                     if self.colar_especial.is_some() { return self.update(Msg::ColarEspecialJanela(colar_especial::Evento::Fechar)); }
                     if self.ir_para.is_some() { return self.update(Msg::IrParaJanela(ir_para::Evento::Fechar)); }
@@ -123,6 +125,12 @@ impl App {
                         _ => Task::none(),
                     };
                 }
+                if self.consolidar.is_some() && self.janelas.principal == Some(id) {
+                    return match key {
+                        keyboard::Key::Named(keyboard::key::Named::Enter) => self.update(Msg::Consolidar(consolidar_ui::Evento::Aplicar)),
+                        _ => Task::none(),
+                    };
+                }
                 if self.subtotal.is_some() && self.janelas.principal == Some(id) {
                     return match key {
                         keyboard::Key::Named(keyboard::key::Named::Enter) => self.update(Msg::Topicos(topicos_ui::Evento::SubtotalAplicar)),
@@ -135,7 +143,7 @@ impl App {
                         _ => Task::none(),
                     };
                 }
-                if (self.link_modal.is_some() || self.comentario_editor.is_some() || self.dimensao_modal.is_some() || self.novo_estilo.is_some() || self.protecao_modal.is_some())
+                if (self.link_modal.is_some() || self.comentario_editor.is_some() || self.dimensao_modal.is_some() || self.novo_estilo.is_some() || self.protecao_modal.is_some() || self.senha_arquivo.is_some())
                     && self.janelas.principal == Some(id) {
                     return Task::none();
                 }

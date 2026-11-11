@@ -33,6 +33,15 @@ fn bloco<T: Copy>(v: T, n: usize) -> Arc<Vec<T>> {
 enum Bloco<T> {
     Cru(Arc<Vec<T>>),
     Compacto(Arc<Compacto>),
+    /// O mesmo valor nas 65.536 linhas: a fórmula levada até o fim da coluna (MEM-2).
+    Constante(T),
+}
+
+/// A máscara de um bloco com as 65.536 linhas presentes, uma só para todas as colunas;
+/// quem apagar uma linha copia a sua (`Arc::make_mut`).
+fn mascara_cheia() -> Arc<Vec<u8>> {
+    static CHEIA: std::sync::OnceLock<Arc<Vec<u8>>> = std::sync::OnceLock::new();
+    CHEIA.get_or_init(|| bloco(0xffu8, CHUNK_SIZE >> 3)).clone()
 }
 
 impl<T: Valor> Bloco<T> {
@@ -40,17 +49,20 @@ impl<T: Valor> Bloco<T> {
         match self {
             Bloco::Cru(v) => v[o],
             Bloco::Compacto(c) => T::ler(c, o),
+            Bloco::Constante(v) => *v,
         }
     }
 
     /// Os valores para escrever: o compacto volta a cru (só este bloco) antes.
     fn cru_mut(&mut self) -> &mut Vec<T> {
-        if let Bloco::Compacto(c) = self {
-            *self = Bloco::Cru(Arc::new((0..CHUNK_SIZE).map(|o| T::ler(c, o)).collect()));
+        match self {
+            Bloco::Compacto(c) => *self = Bloco::Cru(Arc::new((0..CHUNK_SIZE).map(|o| T::ler(c, o)).collect())),
+            Bloco::Constante(v) => *self = Bloco::Cru(bloco(*v, CHUNK_SIZE)),
+            Bloco::Cru(_) => {}
         }
         match self {
             Bloco::Cru(v) => Arc::make_mut(v),
-            Bloco::Compacto(_) => unreachable!("acabou de virar cru"),
+            _ => unreachable!("acabou de virar cru"),
         }
     }
 
@@ -102,6 +114,23 @@ impl Compacto {
     }
 }
 
+/// A linha `o` está ligada na máscara? A máscara cresce conforme o uso ([`mascara_ate`]):
+/// byte que não existe é linha vazia.
+fn bit(mascara: &[u8], o: usize) -> bool {
+    mascara.get(o >> 3).is_some_and(|b| b & (1 << (o & 7)) != 0)
+}
+
+/// A máscara do bloco para escrever até a linha `o`. Cresce como os valores (8, 16… até
+/// 8 KB): 1.800 colunas curtas reservavam 8 KB cada, 15 MB num relatório de 54 mil
+/// células (MEM-3, 10/11/2026).
+fn mascara_ate(slot: &mut Option<Arc<Vec<u8>>>, o: usize) -> &mut Vec<u8> {
+    let m = Arc::make_mut(slot.get_or_insert_with(Arc::default));
+    if m.len() <= o >> 3 {
+        m.resize(((o >> 3) + 1).next_power_of_two().clamp(8, CHUNK_SIZE >> 3), 0);
+    }
+    m
+}
+
 /// As posições com o bit ligado na máscara.
 fn presentes(mascara: &[u8]) -> impl Iterator<Item = usize> + '_ {
     mascara.iter().enumerate().filter(|(_, &b)| b != 0)
@@ -109,7 +138,7 @@ fn presentes(mascara: &[u8]) -> impl Iterator<Item = usize> + '_ {
 }
 
 /// O que pode ir numa coluna e como vira inteiro sem perda.
-pub trait Valor: Copy + Default + Send + Sync {
+pub trait Valor: Copy + Default + PartialEq + Send + Sync {
     /// O bloco compacto, ou `None` se algum valor presente não volta igual.
     fn compactar(valores: &[Self], mascara: &[u8]) -> Option<Compacto>;
     fn ler(c: &Compacto, o: usize) -> Self;
@@ -174,8 +203,7 @@ impl<T: Valor> RetratoColuna<T> {
     pub fn get(&self, row: u32) -> Option<T> {
         let i = (row >> CHUNK_SHIFT) as usize;
         let o = (row & CHUNK_MASK) as usize;
-        let mask = self.presence.get(i)?.as_ref()?;
-        if mask[o >> 3] & (1 << (o & 7)) == 0 { return None; }
+        if !bit(self.presence.get(i)?.as_ref()?, o) { return None; }
         self.chunks[i].as_ref().map(|c| c.get(o))
     }
 
@@ -187,8 +215,8 @@ impl<T: Valor> RetratoColuna<T> {
             let base = (i as u64) << CHUNK_SHIFT;
             if base >= linhas as u64 { break; }
             let ate = ((linhas as u64 - base).min(CHUNK_SIZE as u64)) as usize;
-            n += m[..ate >> 3].iter().map(|b| b.count_ones() as usize).sum::<usize>();
-            if ate & 7 != 0 { n += (m[ate >> 3] & ((1u8 << (ate & 7)) - 1)).count_ones() as usize; }
+            n += m[..(ate >> 3).min(m.len())].iter().map(|b| b.count_ones() as usize).sum::<usize>();
+            if ate & 7 != 0 { n += (m.get(ate >> 3).copied().unwrap_or(0) & ((1u8 << (ate & 7)) - 1)).count_ones() as usize; }
         }
         n
     }
@@ -230,8 +258,7 @@ impl<T: Valor> ChunkedColumn<T> {
         self.ensure_chunk(chunk_idx);
         let chunk = self.chunks[chunk_idx].get_or_insert_with(|| Bloco::Cru(Arc::default()));
         chunk.ate(offset)[offset] = val;
-        let mask = self.presence[chunk_idx].get_or_insert_with(|| bloco(0u8, CHUNK_SIZE >> 3));
-        Arc::make_mut(mask)[offset >> 3] |= 1 << (offset & 7);
+        mascara_ate(&mut self.presence[chunk_idx], offset)[offset >> 3] |= 1 << (offset & 7);
         if row < self.min_row {
             self.min_row = row;
         }
@@ -242,9 +269,8 @@ impl<T: Valor> ChunkedColumn<T> {
 
     pub fn get(&self, row: u32) -> Option<T> {
         let chunk_idx = (row >> CHUNK_SHIFT) as usize;
-        let mask = self.presence.get(chunk_idx)?.as_ref()?;
         let offset = (row & CHUNK_MASK) as usize;
-        if mask[offset >> 3] & (1 << (offset & 7)) == 0 {
+        if !bit(self.presence.get(chunk_idx)?.as_ref()?, offset) {
             return None;
         }
         self.chunks[chunk_idx].as_ref().map(|c| c.get(offset))
@@ -255,8 +281,7 @@ impl<T: Valor> ChunkedColumn<T> {
         let Some(Some(mask)) = self.presence.get(chunk_idx) else {
             return false;
         };
-        let offset = (row & CHUNK_MASK) as usize;
-        mask[offset >> 3] & (1 << (offset & 7)) != 0
+        bit(mask, (row & CHUNK_MASK) as usize)
     }
 
     /// A máscara de presença do bloco `idx` (`None` quando o bloco não tem
@@ -295,11 +320,13 @@ impl<T: Valor> ChunkedColumn<T> {
                 Bloco::Compacto(c) => {
                     for (o, v) in values[inicio..inicio + quantos].iter_mut().enumerate() { *v = T::ler(c, o); }
                 }
+                Bloco::Constante(x) => values[inicio..inicio + quantos].fill(*x),
             }
             // A máscara copia byte a byte porque o bloco começa sempre em
             // múltiplo de 65.536, que é múltiplo de 8 — os bits nunca ficam
             // desalinhados.
             let bytes = (quantos + 7) >> 3;
+            let bytes = bytes.min(mask.len()); // a máscara cresce conforme o uso; o resto é zero
             bitmap[(inicio >> 3)..(inicio >> 3) + bytes].copy_from_slice(&mask[..bytes]);
         }
         (values, bitmap)
@@ -392,7 +419,7 @@ impl<T: Valor> ChunkedColumn<T> {
             return;
         };
         let offset = (row & CHUNK_MASK) as usize;
-        Arc::make_mut(mask)[offset >> 3] &= !(1 << (offset & 7));
+        if let Some(b) = Arc::make_mut(mask).get_mut(offset >> 3) { *b &= !(1 << (offset & 7)); }
         // O compacto fica como está: sem o bit, o valor dali não é lido.
         if let Some(Some(Bloco::Cru(chunk))) = self.chunks.get_mut(chunk_idx) {
             if let Some(v) = Arc::make_mut(chunk).get_mut(offset) { *v = T::default(); }
@@ -419,7 +446,7 @@ impl<T: Valor> ChunkedColumn<T> {
                 let ultimo_byte = fim >> 3;
                 let mut byte = if inverso { ultimo_byte } else { primeiro_byte };
                 loop {
-                    let mut bits = mascara[byte];
+                    let mut bits = mascara.get(byte).copied().unwrap_or(0);
                     if byte == primeiro_byte {
                         bits &= (0xffu16 << (inicio & 7)) as u8;
                     }
@@ -472,17 +499,34 @@ impl<T: Valor> ChunkedColumn<T> {
         if r0 > r1 { return; }
         let (b0, b1) = ((r0 >> CHUNK_SHIFT) as usize, (r1 >> CHUNK_SHIFT) as usize);
         self.ensure_chunk(b1);
+        // Bloco coberto inteiro vira `Constante` com a máscara cheia comum: um bloco cru por
+        // bloco eram 400 MB para levar uma fórmula até a linha 100 milhões (MEM-2, 10/11/2026).
         for b in b0..=b1 {
             let base = (b as u32) << CHUNK_SHIFT;
             let (de, ate) = ((r0.max(base) - base) as usize, (r1.min(base + CHUNK_MASK) - base) as usize);
             if de == 0 && ate == CHUNK_MASK as usize {
-                self.chunks[b] = Some(Bloco::Cru(bloco(val, CHUNK_SIZE)));
-                self.presence[b] = Some(bloco(0xff, CHUNK_SIZE >> 3));
+                self.chunks[b] = Some(Bloco::Constante(val));
+                self.presence[b] = Some(mascara_cheia());
                 continue;
             }
-            self.chunks[b].get_or_insert_with(|| Bloco::Cru(Arc::default())).ate(ate)[de..=ate].fill(val);
-            let mask = Arc::make_mut(self.presence[b].get_or_insert_with(|| bloco(0u8, CHUNK_SIZE >> 3)));
+            // Bloco vazio (ou já constante com o mesmo valor): continua constante, e a máscara
+            // diz quais linhas existem. É a ponta final da coluna levada até o fim.
+            if matches!(self.chunks[b], None | Some(Bloco::Constante(_))) && self.chunks[b].as_ref().is_none_or(|k| k.get(0) == val) {
+                self.chunks[b] = Some(Bloco::Constante(val));
+                let mask = mascara_ate(&mut self.presence[b], ate);
+                for o in de..=ate { mask[o >> 3] |= 1 << (o & 7); }
+                continue;
+            }
+            let v = self.chunks[b].get_or_insert_with(|| Bloco::Cru(Arc::default())).ate(ate);
+            v[de..=ate].fill(val);
+            let todos_iguais = v.len() == CHUNK_SIZE && v.iter().all(|x| *x == val);
+            let mask = mascara_ate(&mut self.presence[b], ate);
             for o in de..=ate { mask[o >> 3] |= 1 << (o & 7); }
+            // A fórmula da 1ª linha e o resto levado por ela: o bloco 0 completa e fica igual.
+            if todos_iguais && mask.len() == CHUNK_SIZE >> 3 && mask.iter().all(|&m| m == 0xff) {
+                self.chunks[b] = Some(Bloco::Constante(val));
+                self.presence[b] = Some(mascara_cheia());
+            }
         }
         self.min_row = self.min_row.min(r0);
         self.max_row = self.max_row.max(r1 as i64);
@@ -504,7 +548,7 @@ impl<T: Valor> ChunkedColumn<T> {
                 continue;
             }
             if let Some(mask) = self.presence[b].as_mut().map(Arc::make_mut) {
-                for o in de..=ate { mask[o >> 3] &= !(1 << (o & 7)); }
+                for o in de..=ate.min((mask.len() << 3).saturating_sub(1)) { mask[o >> 3] &= !(1 << (o & 7)); }
             }
             if let Some(Bloco::Cru(chunk)) = self.chunks[b].as_mut() {
                 let v = Arc::make_mut(chunk);

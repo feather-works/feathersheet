@@ -384,11 +384,13 @@ pub fn format_number(n: f64, style: Option<&Style>) -> String {
         NumberFormat::Accounting => {
             // O negativo vai entre parênteses, sem o menos — é a convenção
             // contábil, e é o que o `style.ts` faz.
+            // O símbolo vem da língua, como na Moeda: em inglês era "R$" fixo.
             let texto = format_decimal(n.abs(), casas, false);
+            let simbolo = crate::celulas::locale::get_locale_config().currency_symbol.clone();
             if n < 0.0 {
-                format!("(R$ {texto})")
+                format!("({simbolo} {texto})")
             } else {
-                format!("R$ {texto}")
+                format!("{simbolo} {texto}")
             }
         }
         NumberFormat::Duration => {

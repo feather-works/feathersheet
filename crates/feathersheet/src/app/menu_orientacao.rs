@@ -2,7 +2,7 @@
 use super::*;
 
 const LARGURA: f32 = 306.0;
-const ALTURA: f32 = 334.0;
+const ALTURA: f32 = 270.0;
 pub(super) const OPCOES: &[(&str, &str)] = &[
     ("Horário", "Inclinar texto no sentido horário"),
     ("Anti-horário", "Inclinar texto no sentido anti-horário"),
@@ -60,11 +60,12 @@ impl App {
                 .on_press(Msg::OrientacaoEscolher(acao)));
         }
         items = items.push(
+            // A mesma coluna de ícone e o mesmo espaçamento das opções de cima: o texto alinha.
             button(pelicano::row![
-                feather_ui::icones::icone("settings", 17.0),
+                container(feather_ui::icones::icone_traco("settings", 17.0)).width(Length::Fixed(24.0)),
                 text(tr!("Formatar células…")).size(12),
-            ].spacing(10).align(pelicano::Align::Center))
-                .width(Length::FILL).padding([9, 10])
+            ].spacing(7).align(pelicano::Align::Center))
+                .width(Length::FILL).padding([7, 9])
                 .style(estilo_item_menu(false, true))
                 .on_press(Msg::OrientacaoEscolher("Formatar células…"))
         );

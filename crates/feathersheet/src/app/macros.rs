@@ -20,6 +20,10 @@ pub(super) struct EstadoVisual {
     pub(super) explorador: bool,
     pub(super) propriedades: bool,
     pub(super) console: bool,
+    /// Grupos recolhidos do Explorador (bit = `editor_visual::GRUPO_*`).
+    pub(super) recolhidos: u8,
+    /// Grupo com o menu do botão direito aberto.
+    pub(super) menu_grupo: Option<u8>,
     /// Busca no projeto, Localizar/Substituir, desfazer e rolagem do código.
     pub(super) codigo: codigo::EstadoCodigo,
     /// Evento escolhido no código de eventos da planilha ("aoMudar"…).
@@ -62,6 +66,8 @@ impl Default for EstadoVisual {
             explorador: true,
             propriedades: true,
             console: true,
+            recolhidos: 0,
+            menu_grupo: None,
             codigo: Default::default(),
             evento_planilha: "aoMudar",
             renomeando: None,
@@ -112,6 +118,9 @@ pub enum EventoVisual {
     DivisoriaFim,
     /// O desenho dos formulários (`designer_formulario.rs`).
     Designer(designer_formulario::EventoDesigner),
+    /// Explorador: setinha do grupo (recolher/abrir) e botão direito nele.
+    RecolherGrupo(u8),
+    MenuGrupo(u8),
 }
 
 impl App {
@@ -318,7 +327,13 @@ impl App {
     }
 
     pub(super) fn evento_macro_visual(&mut self, evento: EventoVisual) {
+        // Qualquer outro clique no editor fecha o menu do botão direito do grupo.
+        if !matches!(evento, EventoVisual::MenuGrupo(_)) { self.macro_visual.menu_grupo = None; }
         match evento {
+            EventoVisual::RecolherGrupo(g) => self.macro_visual.recolhidos ^= 1 << g,
+            EventoVisual::MenuGrupo(g) => {
+                self.macro_visual.menu_grupo = (self.macro_visual.menu_grupo != Some(g)).then_some(g);
+            }
             EventoVisual::Menu(id) => {
                 self.macro_visual.menu = (self.macro_visual.menu != Some(id)).then_some(id);
             }

@@ -364,6 +364,7 @@ impl App {
                 Task::none()
             },
             Msg::MacroNovoModulo => {
+                self.macro_visual.menu_grupo = None;
                 self.criar_modulo_macro();
                 // Quando invocado pela Ribbon da planilha, abrir o editor.
                 // Não alternar uma janela que já esteja aberta.
@@ -374,6 +375,7 @@ impl App {
                 }
             },
             Msg::MacroNovoFormulario => {
+                self.macro_visual.menu_grupo = None;
                 self.evento_designer(super::macros::designer_formulario::EventoDesigner::Novo);
                 self.update(Msg::MacroComponentes)
             }
@@ -610,8 +612,16 @@ impl App {
                 self.busca.mostrar_todos = false;
                 Task::none()
             },
-            Msg::BuscaFormulas(v) => {
-                self.busca.opcoes.in_formulas = v;
+            Msg::BuscaExaminar(i) => {
+                self.busca.opcoes.in_formulas = i == 0;
+                self.busca.em_comentarios = i == 2;
+                self.busca.resultados.clear();
+                self.busca.mostrar_todos = false;
+                Task::none()
+            },
+            Msg::BuscaFormato(ligar) => {
+                self.busca.formato = ligar.then(|| self.workbook.aba(self.folha)
+                    .and_then(|a| a.sheet.estilo_resolvido(self.linha, self.coluna)).unwrap_or_default());
                 self.busca.resultados.clear();
                 self.busca.mostrar_todos = false;
                 Task::none()

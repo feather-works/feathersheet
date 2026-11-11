@@ -22,26 +22,33 @@ use std::sync::OnceLock;
 
 const JSON_INTERFACE_EN: &str = include_str!("../../../src/idiomas/interface.en-US.json");
 const JSON_INTERFACE_ES: &str = include_str!("../../../src/idiomas/interface.es-ES.json");
+const JSON_INTERFACE_FR: &str = include_str!("../../../src/idiomas/interface.fr-FR.json");
 const JSON_FUNCOES_PT: &str = include_str!("../../../src/idiomas/funcoes.pt-BR.json");
 const JSON_FUNCOES_EN: &str = include_str!("../../../src/idiomas/funcoes.en-US.json");
 const JSON_FUNCOES_ES: &str = include_str!("../../../src/idiomas/funcoes.es-ES.json");
+const JSON_FUNCOES_FR: &str = include_str!("../../../src/idiomas/funcoes.fr-FR.json");
 
 /// Os idiomas da interface. O português é a fonte (as chaves).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Lingua { Pt, En, Es }
+pub enum Lingua { Pt, En, Es, Fr }
 
 impl Lingua {
     pub fn de_codigo(codigo: &str) -> Self {
         if codigo.starts_with("en") { Lingua::En }
         else if codigo.starts_with("es") { Lingua::Es }
+        else if codigo.starts_with("fr") { Lingua::Fr }
         else { Lingua::Pt }
     }
     pub fn codigo(self) -> &'static str {
-        match self { Lingua::Pt => "pt-BR", Lingua::En => "en-US", Lingua::Es => "es-ES" }
+        match self { Lingua::Pt => "pt-BR", Lingua::En => "en-US", Lingua::Es => "es-ES", Lingua::Fr => "fr-FR" }
     }
     fn indice(self) -> u8 { self as u8 }
+    /// Os idiomas com nomes de função próprios, que o motor não entende (ele lê português e
+    /// inglês): a fórmula digitada passa pelo de-para antes de ir ao motor.
+    pub fn nomes_proprios(self) -> bool { matches!(self, Lingua::Es | Lingua::Fr) }
+    pub const TODAS: [Lingua; 4] = [Lingua::Pt, Lingua::En, Lingua::Es, Lingua::Fr];
     fn de_indice(i: u8) -> Self {
-        match i { 1 => Lingua::En, 2 => Lingua::Es, _ => Lingua::Pt }
+        match i { 1 => Lingua::En, 2 => Lingua::Es, 3 => Lingua::Fr, _ => Lingua::Pt }
     }
 }
 
@@ -88,6 +95,7 @@ pub fn dicionario() -> &'static HashMap<String, String> {
 pub fn dicionario_de(l: Lingua) -> &'static HashMap<String, String> {
     static EN: OnceLock<HashMap<String, String>> = OnceLock::new();
     static ES: OnceLock<HashMap<String, String>> = OnceLock::new();
+    static FR: OnceLock<HashMap<String, String>> = OnceLock::new();
     static PT: OnceLock<HashMap<String, String>> = OnceLock::new();
     let ler = |json: &str| -> HashMap<String, String> {
         let mapa: HashMap<String, String> = serde_json::from_str(json)
@@ -98,6 +106,7 @@ pub fn dicionario_de(l: Lingua) -> &'static HashMap<String, String> {
         Lingua::Pt => PT.get_or_init(HashMap::new),
         Lingua::En => EN.get_or_init(|| ler(JSON_INTERFACE_EN)),
         Lingua::Es => ES.get_or_init(|| ler(JSON_INTERFACE_ES)),
+        Lingua::Fr => FR.get_or_init(|| ler(JSON_INTERFACE_FR)),
     }
 }
 
@@ -132,10 +141,10 @@ pub fn tirar_faltas() -> std::collections::BTreeSet<String> {
 /// sem correspondência, devolve o próprio texto. Serve a quem decide algo
 /// pelo rótulo exibido (ícone do item de menu, por exemplo).
 pub fn original(mostrado: &str) -> &str {
-    static INVERSOS: OnceLock<[HashMap<&'static str, &'static str>; 3]> = OnceLock::new();
+    static INVERSOS: OnceLock<[HashMap<&'static str, &'static str>; 4]> = OnceLock::new();
     let l = lingua();
     if l == Lingua::Pt { return mostrado; }
-    let inv = INVERSOS.get_or_init(|| [Lingua::Pt, Lingua::En, Lingua::Es].map(|l| {
+    let inv = INVERSOS.get_or_init(|| Lingua::TODAS.map(|l| {
         let mut m = HashMap::new();
         for (pt, t) in dicionario_de(l) { m.entry(t.as_str()).or_insert(pt.as_str()); }
         m
@@ -345,8 +354,8 @@ pub struct FuncoesIdioma {
 }
 
 pub fn funcoes_de(l: Lingua) -> &'static FuncoesIdioma {
-    static F: OnceLock<[FuncoesIdioma; 3]> = OnceLock::new();
-    let todos = F.get_or_init(|| [JSON_FUNCOES_PT, JSON_FUNCOES_EN, JSON_FUNCOES_ES].map(|json| {
+    static F: OnceLock<[FuncoesIdioma; 4]> = OnceLock::new();
+    let todos = F.get_or_init(|| [JSON_FUNCOES_PT, JSON_FUNCOES_EN, JSON_FUNCOES_ES, JSON_FUNCOES_FR].map(|json| {
         let mut f: FuncoesIdioma = serde_json::from_str(json).expect("funcoes.<idioma>.json inválido");
         f.canonicos = f.nomes.iter().map(|(c, n)| (n.to_uppercase(), c.clone())).collect();
         f
@@ -372,7 +381,7 @@ pub fn canonico_funcao(nome: &str) -> Option<String> {
     let maiusculo = nome.to_uppercase();
     if funcoes_de(Lingua::En).nomes.contains_key(&maiusculo) { return Some(maiusculo); }
     if let Some(c) = feathersheet_core::funcoes::functions::canonical(&maiusculo) { return Some(c.to_owned()); }
-    [Lingua::Pt, Lingua::Es].iter().find_map(|l| funcoes_de(*l).canonicos.get(&maiusculo).cloned())
+    [Lingua::Pt, Lingua::Es, Lingua::Fr].iter().find_map(|l| funcoes_de(*l).canonicos.get(&maiusculo).cloned())
 }
 
 /// Fórmula para mostrar: os nomes das funções no idioma da interface.
@@ -386,16 +395,17 @@ pub fn mostrar_formula(raw: &str) -> String {
     })
 }
 
-/// Fórmula digitada para o motor: nomes em espanhol viram o canônico (o
-/// motor entende português e inglês, não espanhol).
+/// Fórmula digitada para o motor: nomes em espanhol ou francês viram o canônico (o
+/// motor entende português e inglês).
 pub fn formula_para_motor(raw: &str) -> String {
-    if lingua() != Lingua::Es || !raw.starts_with('=') { return raw.to_owned(); }
+    let l = lingua();
+    if !l.nomes_proprios() || !raw.starts_with('=') { return raw.to_owned(); }
     feathersheet_core::celulas::locale::traduzir_funcoes(raw, &|n| {
         let m = n.to_uppercase();
         // Nome que o motor já entende (pt ou en) fica como está.
         if funcoes_de(Lingua::En).nomes.contains_key(&m)
             || feathersheet_core::funcoes::functions::canonical(&m).is_some() { return None; }
-        funcoes_de(Lingua::Es).canonicos.get(&m).cloned()
+        funcoes_de(l).canonicos.get(&m).cloned()
     })
 }
 
@@ -560,7 +570,7 @@ mod tests {
         let usadas = chaves_usadas();
         assert!(usadas.len() > 2000, "a varredura achou só {} chaves", usadas.len());
         // Inglês e espanhol, cada um com o seu arquivo.
-        let faltam: Vec<_> = [Lingua::En, Lingua::Es].iter().flat_map(|l| usadas.iter()
+        let faltam: Vec<_> = [Lingua::En, Lingua::Es, Lingua::Fr].iter().flat_map(|l| usadas.iter()
             .filter(|(k, _)| !dicionario_de(*l).contains_key(k))
             .map(move |(k, onde)| format!("{}: {onde}: {k:?}", l.codigo()))).collect();
         assert!(faltam.is_empty(), "{} chave(s) sem tradução:\n{}", faltam.len(), faltam.join("\n"));
@@ -589,6 +599,31 @@ mod tests {
         assert_eq!(tr("Salvar"), "Guardar");
         definir_na_thread("pt-BR");
         assert!(iguais.is_empty(), "continuam em português:\n{}", iguais.join("\n"));
+    }
+
+    /// Francês: nada com ã, ç ou õ sai igual; nomes de função do Excel francês, que o
+    /// motor recebe em inglês; nenhum nome francês é o nome português de outra função.
+    #[test]
+    fn com_frances_a_interface_e_as_funcoes_saem_em_frances() {
+        definir_na_thread("fr-FR");
+        let iguais: Vec<_> = chaves_usadas().into_iter()
+            .filter(|(k, _)| tr(k) == k && (k.contains('ã') || k.contains('õ')))
+            .map(|(k, onde)| format!("{onde}: {k:?}")).collect();
+        assert_eq!(tr("Salvar"), "Enregistrer");
+        assert_eq!(mostrar_formula("=SE(A1>0;SOMA(B1:B2);0)"), "=SI(A1>0;SOMME(B1:B2);0)");
+        assert_eq!(formula_para_motor("=SI(A1>0;SOMME(B1:B2);0)"), "=IF(A1>0;SUM(B1:B2);0)");
+        definir_na_thread("pt-BR");
+        assert!(iguais.is_empty(), "continuam em português:\n{}", iguais.join("\n"));
+        let fr = funcoes_de(Lingua::Fr);
+        let faltam: Vec<&str> = feathersheet_core::funcoes::function_help::all().iter().map(|(n, _)| *n)
+            .filter(|n| !fr.descricoes.contains_key(*n) || !fr.nomes.contains_key(*n)).collect();
+        assert!(faltam.is_empty(), "sem descrição/nome em francês: {faltam:?}");
+        // Um nome francês que o motor já lê como outra função (português) daria a conta errada.
+        let trocados: Vec<String> = fr.nomes.iter()
+            .filter_map(|(c, n)| feathersheet_core::funcoes::functions::canonical(&n.to_uppercase())
+                .filter(|outro| !outro.eq_ignore_ascii_case(c)).map(|outro| format!("{c} → {n} (motor lê {outro})")))
+            .collect();
+        assert!(trocados.is_empty(), "{trocados:?}");
     }
 
     #[test]

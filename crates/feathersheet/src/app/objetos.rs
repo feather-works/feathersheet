@@ -149,6 +149,8 @@ pub enum ModoMenu {
     /// Inserir > WordArt: estilos prontos (inserem, ou trocam o do WordArt
     /// selecionado) e a deformação do selecionado.
     WordArt,
+    /// Inserir > SmartArt: as categorias de diagrama do `feather-shapes`.
+    Diagramas,
 }
 
 /// Menus ▾ da aba Editar forma.
@@ -205,6 +207,8 @@ pub enum Evento {
     RolarIcones(f32),
     /// Ícone escolhido na galeria: entra perto da célula ativa, selecionado.
     InserirIcone(&'static str),
+    /// SmartArt: índice em `feather_shapes::diagramas::Categoria::TODAS`.
+    InserirDiagrama(usize),
     /// Estilo pronto escolhido na galeria do WordArt (índice em
     /// `feather_shapes::wordart::ESTILOS`): troca o do WordArt selecionado
     /// ou insere um novo perto da célula ativa.
@@ -367,6 +371,8 @@ pub(super) struct EstadoObjetos {
 
 /// Lado do ícone inserido, em px lógicos.
 const LADO_ICONE: f32 = 64.0;
+/// Largura do SmartArt inserido (a altura é metade, a proporção dos modelos).
+const LARGURA_DIAGRAMA: f32 = 480.0;
 
 /// Número com vírgula decimal (pt-BR), sem zeros à toa.
 pub(super) fn decimal(v: f32) -> String {
@@ -514,6 +520,7 @@ impl App {
             }
             Evento::RolarIcones(y) => self.objetos.rolagem_icones = y.max(0.0),
             Evento::InserirIcone(nome) => self.inserir_icone(nome),
+            Evento::InserirDiagrama(i) => self.inserir_diagrama(i),
             Evento::EstiloWordArt(i) => self.estilo_wordart(i),
             Evento::DeformarWordArt(modo, k) => {
                 if self.wordart_selecionado().is_some() && k.is_finite() {
@@ -934,6 +941,38 @@ impl App {
         };
         self.objetos.selecionado = Some((aba_id, id));
         self.gravar_objetos(&objetos, trf!("Ícone {} inserido (Ctrl+Z desfaz).", nome.replace('-', " ")));
+    }
+
+    /// Inserir > SmartArt: o modelo da categoria vira formas comuns (texto editável, cores do
+    /// modelo) e linhas, perto da célula ativa, num Ctrl+Z só, como o Slide faz.
+    fn inserir_diagrama(&mut self, indice: usize) {
+        use feather_shapes::diagramas::{modelo, Categoria};
+        self.objetos.menu = None;
+        let Some(&categoria) = Categoria::TODAS.get(indice) else { return };
+        let Some(aba) = self.workbook.aba(self.folha) else { return };
+        let Some((aba_id, lidos)) = self.objetos_da_aba() else { return };
+        let regua = ReguaAba(&aba.sheet);
+        let (x, y) = (regua.inicio_coluna(self.coluna) + 8.0, regua.inicio_linha(self.linha) + 8.0);
+        let mut objetos = (*lidos).clone();
+        let mut primeiro = None;
+        for item in modelo(categoria, x, y, LARGURA_DIAGRAMA, LARGURA_DIAGRAMA / 2.0) {
+            // A linha vem com largura/altura negativas quando vai para trás ou para cima.
+            let (x0, w) = if item.largura < 0.0 { (item.x + item.largura, -item.largura) } else { (item.x, item.largura) };
+            let (y0, h) = if item.altura < 0.0 { (item.y + item.altura, -item.altura) } else { (item.y, item.altura) };
+            let mut novo = ObjetoSolto::nova_forma(objetos.proximo_id(), item.tipo.id(), Retangulo::novo(x0, y0, w.max(1.0), h.max(1.0)), &regua);
+            novo.espelhar_h = item.largura < 0.0;
+            novo.espelhar_v = item.altura < 0.0;
+            let cor = |c: &str| (!c.is_empty()).then(|| c.to_owned());
+            novo.aparencia = modelo::Aparencia { preenchimento: cor(&item.preenchimento), contorno: cor(&item.contorno), espessura: item.espessura, transparencia: 0.0 };
+            novo.texto = (!item.texto.is_empty()).then_some(item.texto);
+            novo.fonte = item.rotulo.map(|r| modelo::FonteTexto { tamanho: Some(r.tamanho), negrito: r.negrito, cor: Some(r.cor), ..Default::default() });
+            match objetos.adicionar(novo) {
+                Some(id) => { primeiro.get_or_insert(id); }
+                None => { self.status = trf!("Limite de {} objetos por aba.", modelo::MAX_OBJETOS); return; }
+            }
+        }
+        self.objetos.selecionado = primeiro.map(|id| (aba_id, id));
+        self.gravar_objetos(&objetos, trf!("SmartArt {} inserido (Ctrl+Z desfaz).", tr!(categoria.rotulo())));
     }
 
     /// O objeto selecionado, se for WordArt.

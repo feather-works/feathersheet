@@ -5,6 +5,6 @@ pub mod campos;
 pub mod dinamica_layout;
 pub mod exibicao;
 pub mod pivot;
-mod acumulador;
+pub(crate) mod acumulador;
 #[cfg(test)]
 mod testes_exibicao;

@@ -1146,7 +1146,7 @@ mod testes {
     #[test]
     fn painel_aceita_corpo_fill_sem_panic() {
         let corpo: Element<'_, Msg> = pelicano::column![
-            text("Colunas")
+            text(tr!("Colunas"))
         ].height(Length::FILL).into();
         let _: Element<'_, Msg> = painel(
             "Consultas", "table", corpo, Length::FILL, false,

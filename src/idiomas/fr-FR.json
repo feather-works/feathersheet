@@ -1,0 +1,465 @@
+{
+  "idioma": {
+    "codigo": "fr-FR",
+    "nome": "Français",
+    "decimal": ",",
+    "milhar": " ",
+    "separadorDeArgumentos": ";",
+    "moeda": "€",
+    "codigoDaMoeda": "EUR",
+    "moedaAntes": false,
+    "espacoNaMoeda": true
+  },
+  "ajuda": {
+    "rotulos": {
+      "titulo": "Aide de FeatherSheet",
+      "busca": "Rechercher dans l'aide (fonction, commande, sujet)…",
+      "uso": "Mode d'emploi",
+      "funcoes": "Fonctions de la feuille de calcul",
+      "macros": "Macros",
+      "atalhos": "Raccourcis",
+      "apelidos": "Aussi",
+      "semResultado": "Aucun résultat pour cette recherche.",
+      "configuraveis": "Configurables (à modifier dans les Paramètres)",
+      "fixos": "Fixes",
+      "categorias": "Catégories",
+      "todas": "Toutes",
+      "anterior": "Précédent",
+      "proximo": "Suivant",
+      "nestaSecao": "Dans cette section"
+    },
+    "introducoes": {
+      "uso": "FeatherSheet est un tableur qui fonctionne entièrement sur votre machine : pas de compte, pas de connexion, aucun de vos contenus n'en sort. Voici comment utiliser chaque partie, des bases (saisir et écrire des formules) aux fonctions avancées (tableaux croisés dynamiques, OpenQuery et macros). Suivez les flèches ou choisissez un sujet dans le menu latéral.",
+      "funcoes": "Toutes les fonctions utilisables dans une formule, par catégorie, avec leurs arguments et ce qu'elles font. Les arguments entre crochets sont facultatifs. Chaque fonction accepte son nom en français, en portugais ou en anglais. Astuce : appuyer sur F1 pendant la saisie d'une formule ouvre directement la fonction sous le curseur.",
+      "macros": "Les macros sont en JavaScript et automatisent ce que vous feriez à la main : remplir, mettre en forme, changer de feuille, créer de nouvelles fonctions pour les cellules. Ouvrez-les dans Outils → Macros. La feuille de calcul est l'objet sheet ; Ctrl+Enter exécute et Ctrl+Z annule toute la macro. Les adresses utilisent la notation A1 (\"B2\", \"A1:D10\") ; les lignes et colonnes numériques commencent à 1.",
+      "atalhos": "Des touches pour travailler plus vite. Les raccourcis fixes s'appliquent toujours ; les configurables se modifient dans Paramètres → Raccourcis, et la touche affichée ici est celle en vigueur."
+    },
+    "comoUsar": {
+      "comecar": {
+        "titulo": "Premiers pas",
+        "corpo": [
+          "Cliquez sur une cellule et tapez. Entrée valide et descend ; Tab valide et va à droite ; Échap annule.",
+          "• F2 ou un double-clic modifie la cellule sans l'effacer.",
+          "• Quand vous tapez un texte par lequel commence une seule cellule de la même colonne (\"Sup\" → \"Supermarché\"), la valeur complète s'affiche en dessous : Entrée, Tab ou un clic ailleurs l'accepte ; effacer une lettre abandonne la suggestion.",
+          "• Ctrl + flèche saute à la fin des données ; avec Maj, sélectionne jusque-là.",
+          "• Ctrl+Z annule et Ctrl+Y rétablit — macros entières comprises. L'insertion ou la suppression de lignes et de colonnes peut aussi être annulée.",
+          "Les commandes se trouvent dans le ruban en haut. Ctrl+F1 remplace le ruban par des menus déroulants et une barre d'outils compacte (et inversement). Dans une fenêtre étroite, les groupes qui ne tiennent pas deviennent un bouton portant le nom du groupe qui ouvre tout le groupe ; ce qui ne tient toujours pas passe dans Plus."
+        ]
+      },
+      "formulas": {
+        "titulo": "Formules",
+        "corpo": [
+          "Toute formule commence par \"=\". Les arguments sont séparés par le séparateur d'arguments de la langue (en français, le point-virgule) et la virgule est le séparateur décimal. Exemple : =SOMME(A1:A10; 0,5).",
+          "• A1 est une cellule ; A1:B10 est une plage ; $A$1 reste fixe quand la formule est copiée.",
+          "• Autre feuille : 'Ma feuille'!A1 (les guillemets ne sont nécessaires que si le nom contient un espace).",
+          "• Les fonctions acceptent leur nom en français, en portugais ou en anglais (SOMME, SOMA ou SUM). La liste complète se trouve dans \"Fonctions de la feuille de calcul\".",
+          "Pendant la saisie, des suggestions et des aides sur les arguments apparaissent. Cliquer ou faire glisser sur la grille insère la référence ; chaque cadre de référence coloré peut être déplacé (glisser) ou étiré par son coin (redimensionner).",
+          "Les fonctions qui renvoient plusieurs cellules (FILTRE, UNIQUE, TRIER, SEQUENCE…) étendent le résultat vers le bas et vers la droite. Si quelque chose gêne, la cellule affiche #SPILL!.",
+          "Formule en erreur : clic droit sur la cellule → \"Expliquer cette erreur\" montre la partie qui échoue et comment la corriger.",
+          "• Noms (Formules → Noms définis) : Définir un nom, Gestionnaire, Créer à partir de la sélection et Utiliser dans la formule. Un nom fonctionne dans n'importe quelle formule : =SOMME(Ventes). Formules → Calcul propose les Options de calcul et Calculer maintenant."
+        ]
+      },
+      "preencher": {
+        "titulo": "Remplir, copier et déplacer",
+        "corpo": [
+          "• Faites glisser le petit carré au coin de la sélection (la poignée de recopie) pour prolonger une série : 1, 2, 3…, dates, \"Article 1, Article 2…\" et formules.",
+          "• Un double-clic sur la poignée remplit jusqu'à la fin des données de la colonne voisine.",
+          "• Un nombre seul est copié ; maintenez Ctrl en faisant glisser pour incrémenter (7, 8, 9). Avec une série, Ctrl fait l'inverse et copie.",
+          "• Ctrl+D recopie la cellule du dessus vers le bas ; Ctrl+R recopie la cellule de gauche vers la droite.",
+          "• Faire glisser la bordure de la sélection déplace les cellules ; les formules qui lisent le bloc suivent.",
+          "• Ctrl+Maj+V colle uniquement les valeurs.",
+          "• Accueil → Remplissage : Série… (linéaire, géométrique ou chronologique, avec pas et limite) et Remplissage instantané (Ctrl+E), qui complète la colonne d'après l'exemple saisi."
+        ]
+      },
+      "abas": {
+        "titulo": "Feuilles",
+        "corpo": [
+          "Les feuilles se trouvent dans la barre du bas. \"+\" en crée une nouvelle (ou Maj+F11) ; Ctrl+PageUp et Ctrl+PageDown changent de feuille.",
+          "Clic droit sur un onglet : renommer, dupliquer, changer la couleur, masquer et afficher.",
+          "Copier la feuille dans un autre fichier… ajoute une copie de la feuille à la fin d'un .fshz ou .xlsx existant (si le nom est déjà pris, il devient \"Nom (2)\") ; Copier la feuille dans un nouveau fichier… crée un fichier contenant uniquement cette feuille. Le fichier ouvert ne change pas. Les formules qui lisent d'autres feuilles lisent alors les feuilles du même nom dans la destination. Un .xlsx protégé par mot de passe, ou contenant des parties que FeatherSheet ne convertit pas, n'est pas réécrit."
+        ]
+      },
+      "formatar": {
+        "titulo": "Mise en forme",
+        "corpo": [
+          "Police, couleur, bordures, alignement et format de nombre (monétaire, %, décimales) se trouvent dans l'onglet Accueil. Le pinceau copie la mise en forme d'une cellule vers d'autres ; Ctrl+1 ouvre Format de cellule. La flèche à côté du bouton monétaire choisit la devise de la cellule (dollar, euro, franc suisse, roupie et toutes les autres devises en circulation, 155 au total) ; dans Format de cellule, Monétaire les liste toutes avec recherche par nom, code ou symbole. Les roupies indienne, pakistanaise et népalaise et le taka regroupent en lakh et crore (12,34,567), et un nombre saisi ainsi (12,34,567 ou 1.23.45.678) est lu comme un nombre ; les boutons de décimales fonctionnent aussi sur la devise choisie.",
+          "• Mise en forme conditionnelle (Accueil → Conditionnelle) : colore les cellules selon une règle — supérieur à, texte qui contient, doublons, formule personnalisée, échelle de couleurs et barre de données.",
+          "• Lignes à bandes (Accueil → Styles) alterne les couleurs des lignes ; Styles de cellules applique un style prêt à l'emploi.",
+          "• Figer les volets (Affichage → Figer) maintient les premières lignes ou colonnes en place pendant le défilement."
+        ]
+      },
+      "tabelas": {
+        "titulo": "Tableaux, filtres et tableaux croisés",
+        "corpo": [
+          "• Ctrl+T transforme les données en tableau : en-tête, bandes, ligne de total et un filtre sur chaque colonne. Le tableau s'agrandit tout seul quand vous tapez juste en dessous.",
+          "• Ctrl+Maj+L active ou désactive le filtre. Le tri se trouve dans les onglets Accueil et Données.",
+          "• Insertion → Tableau croisé dynamique résume les données : faites glisser les champs vers les lignes, les colonnes et les valeurs (somme, nombre, moyenne, nombre distinct, médiane, quartiles…). Tableaux croisés dynamiques recommandés propose des résumés prêts à partir de la sélection. La source accepte A1:D100, une autre feuille (Données!A1:D100) ou un nom de tableau. Champ calculé (dans le volet) : une formule comme [Prix] * Quantité ; tapez le début d'un nom et les champs correspondants apparaissent en dessous, un clic complète. Élément calculé (même endroit) : choisissez un champ Lignes ou Colonnes, donnez un nom et une formule sur ses autres éléments (Nord - Sud) ; la formule s'applique à chaque intersection, et les totaux ne l'ajoutent pas.",
+          "• Segment (Insertion → Filtres) : des boutons qui filtrent un tableau ou un tableau croisé en un clic.",
+          "• Dans l'onglet Tableau croisé dynamique : Sous-totaux choisit aucun, en haut (sur la ligne du groupe) ou en bas (une ligne \"Total\" après les éléments) ; Réduire le niveau et Développer le niveau ferment ou ouvrent un niveau de groupes par clic. Pages de filtre de rapport crée une feuille par élément du champ placé dans Filtres. Grouper la sélection réunit les éléments de Lignes (ou, dans l'en-tête, de Colonnes) sélectionnés dans la grille en un seul élément (Groupe1) qui les additionne tous ; taper sur l'étiquette renomme le groupe et Dissocier l'annule. Données → Consolider combine des plages de plusieurs feuilles (par position ou par étiquettes) dans la cellule active."
+        ]
+      },
+      "celulas": {
+        "titulo": "Lignes, colonnes et cellules",
+        "corpo": [
+          "• Accueil → Cellules : Insérer, Supprimer et Format (hauteur de ligne, largeur de colonne, ajustement automatique, masquer et afficher, protection).",
+          "• Un clic droit sur un en-tête permet aussi de masquer et d'afficher. Une colonne ou ligne masquée apparaît comme un trait plus épais entre ses voisines.",
+          "• Fusionner se trouve dans le groupe Alignement ; sa flèche ouvre Fusionner et centrer et Fusionner horizontalement.",
+          "• Collage spécial (Ctrl+Alt+V ou la flèche sous Coller) : valeurs uniquement, formats uniquement, transposer et plus.",
+          "• Atteindre (F5 ou Ctrl+G) : saute vers une cellule ou un nom, ou sélectionne par type — formules, constantes, cellules vides, erreurs, cellules visibles seulement.", "• Clic droit sur la sélection → Copier comme image : la plage part dans le presse-papiers sous forme d'image, telle qu'elle apparaît à l'écran (bordures, couleurs, formats de nombre). Ctrl+V la colle comme image ici ou dans un autre programme."
+        ]
+      },
+      "auditoria": {
+        "titulo": "Vérifier les formules",
+        "corpo": [
+          "Formules → Audit de formules :",
+          "• Repérer les antécédents (ce que la cellule lit) et Repérer les dépendants (ce qui lit la cellule) tracent des flèches ; Supprimer les flèches les efface.",
+          "• Afficher les formules montre le texte de la formule au lieu du résultat.",
+          "• Évaluation de formule calcule la formule morceau par morceau, pour trouver où le résultat se trompe.",
+          "• Fenêtre Espion suit les cellules choisies, même sur d'autres feuilles, pendant que vous travaillez.",
+          "• Expliquer l'erreur montre la partie qui a échoué et comment la corriger."
+        ]
+      },
+      "previsao": {
+        "titulo": "Analyse de scénarios",
+        "corpo": [
+          "Données → Prévision :",
+          "• Valeur cible… trouve la valeur d'une cellule qui amène une formule au résultat voulu.",
+          "• Gestionnaire de scénarios enregistre des ensembles de valeurs nommés pour passer de l'un à l'autre et les comparer.",
+          "• Table de données… calcule une formule pour une liste de valeurs (une ou deux variables) ; Actualiser la table la recalcule."
+        ]
+      },
+      "vinculos": {
+        "titulo": "Lier des classeurs",
+        "corpo": [
+          "Une formule peut lire un autre classeur : =[Ventes.fshz]Données!A1 ou =SOMME([Ventes.fshz]Données!A1:A10). La valeur est enregistrée dans le fichier et passe aussi dans le .xlsx.",
+          "Données → Requêtes → Actualiser les liaisons rapporte les nouvelles valeurs ; Modifier les liaisons change ou supprime la source. Par sécurité, un fichier ouvert depuis le disque ne lit l'autre qu'après actualisation."
+        ]
+      },
+      "objetos": {
+        "titulo": "Objets et contrôles",
+        "corpo": [
+          "• Insertion → Illustrations : Images, Formes, Icônes et SmartArt (14 catégories de diagrammes ; chaque case est une forme au texte modifiable) flottent au-dessus de la grille (faire glisser pour déplacer, les coins redimensionnent). Groupe Texte : Zone de texte et WordArt ; groupe Symboles : Équation et Symbole.",
+          "• Image dans la cellule… place l'image à l'intérieur de la cellule, qui suit ainsi les lignes et colonnes. Dans les formules : =IMAGE(adresse) et =IMAGE.BASE64(texte).",
+          "• Insertion → Case à cocher place des cases à cocher dans les cellules sélectionnées ; la cellule vaut VRAI ou FAUX.",
+          "• Insérer un lien (groupe Liens) et Commentaire se trouvent aussi dans l'onglet Insertion."
+        ]
+      },
+      "graficos": {
+        "titulo": "Graphiques et images",
+        "corpo": [
+          "Sélectionnez les données et utilisez Insertion → Graphiques : Recommandés, ou directement un type (histogramme, courbes, secteurs, nuage de points, cascade…). Il y a plus de 25 types. Le graphique flotte au-dessus de la grille : faites-le glisser pour le déplacer, tirez le coin pour le redimensionner, et l'éditeur latéral change le type, les séries et les couleurs. Il suit les données quand elles changent.",
+          "Gantt (planning de tâches avec Début et Fin) : dans le volet, Séries ▸ Planning active la ligne d'aujourd'hui et colore chaque tâche selon son état (terminée, en cours, à venir), déduit de la date du jour ; les trois couleurs se règlent là, et Points colore une barre à la main.",
+          "Graphiques sparkline : Insertion → Graphiques sparkline (Courbe, Histogramme ou Positif/Négatif) dessine un petit graphique dans la cellule. Indiquez la plage de données et l'emplacement (une ligne ou colonne de cellules ; chacune reçoit une ligne ou colonne des données). La cellule sélectionnée, l'onglet Sparkline change le type, met en évidence les points haut, bas, négatifs, premier et dernier, change le style, utilise le même axe pour le groupe ou l'efface.",
+          "Images : Insertion → Image, coller (Ctrl+V) ou déposer le fichier sur la grille."
+        ]
+      },
+      "comentarios": {
+        "titulo": "Commentaires et protection",
+        "corpo": [
+          "• Révision → Nouveau commentaire annote la cellule ; le survol affiche la bulle. Précédent et Suivant parcourent les commentaires ; Afficher tous les commentaires les garde tous visibles.",
+          "• Accueil → Effacer → Effacer les commentaires supprime ceux de la sélection.",
+          "• Révision → Protéger la feuille (ou Protéger le classeur) bloque les modifications ; dans Accueil → Format, vous pouvez d'abord verrouiller ou déverrouiller des cellules."
+        ]
+      },
+      "desenhar": {
+        "titulo": "Dessin",
+        "corpo": [
+          "L'onglet Dessin écrit par-dessus la feuille de calcul : stylos et surligneur, Gomme de trait ou Gomme de point, et Lasso pour sélectionner des traits. Échap revient à la sélection normale.",
+          "• Entrée manuscrite en forme transforme le trait en rectangle, ellipse ou flèche.",
+          "• Avec une tablette graphique, l'épaisseur suit la pression du stylet (Paramètres → Feuille de calcul). Sans tablette, un trait rapide sort plus fin.",
+          "• Chaque trait est un Ctrl+Z, et les dessins sont enregistrés dans le .fshz et le .xlsx."
+        ]
+      },
+      "impressao": {
+        "titulo": "Mise en page et impression",
+        "corpo": [
+          "Mise en page : Marges, Orientation, Taille du papier, Zone d'impression, Sauts de page, Mise à l'échelle (pages en largeur et en hauteur, ou une échelle) et Imprimer le quadrillage.",
+          "Aperçu montre les pages avant l'impression. Insertion → En-tête et pied de page ajoute du texte en haut et en bas de chaque page.", "Tout cela est conservé dans la feuille et enregistré avec le fichier (.fshz et .xlsx) : ouvrir un .xlsx rapporte les marges, le papier, la zone d'impression et l'en-tête enregistrés par Excel."
+        ]
+      },
+      "dados": {
+        "titulo": "Outils de données",
+        "corpo": [
+          "• Rechercher et remplacer : Ctrl+H.",
+          "• Dans l'onglet Données : Doublons, Supprimer les espaces, Convertir le texte (séparateur et type de chaque colonne, avec aperçu), Statistiques et Profil de colonne (distribution, cellules vides, valeurs distinctes et valeurs aberrantes).",
+          "• Dans Convertir le texte, l'aperçu montre toutes les colonnes (défilement horizontal). Cliquez sur le nom d'une colonne pour la choisir ; Ctrl+clic en ajoute une autre et Maj+clic sélectionne la plage. Le type choisi s'applique à toutes les colonnes sélectionnées.",
+          "• Validation des données (ruban, onglet Données) : liste déroulante, nombre entre des limites, date, texte — avec avertissement ou refus à la saisie.",
+          "• OpenQuery (Données → OpenQuery…) : importe et transforme des données — filtrer, regrouper, fusionner des tables, sources web — et garde les étapes pour actualiser plus tard. Dans la liste des requêtes, l'horloge active \"Actualiser à l'ouverture du fichier\" : la requête est recalculée à chaque ouverture du fichier (les sources fichier et Web utilisent la copie enregistrée). Transformer propose Remplacer les valeurs/erreurs, Remplir vers le bas/le haut, Format du texte (supprimer les espaces, MAJUSCULES, Majuscule À Chaque Mot, préfixe…), Transposer, Fractionner par position et Extraire de la date ; Accueil propose Supprimer des lignes (premières, dernières, vides) et Inverser les lignes ; Ajouter une colonne propose Colonne personnalisée (une formule de feuille de calcul avec [Colonne] : =[Prix]*[Qté]) et Colonne conditionnelle. Regrouper par accepte plusieurs agrégations à la fois, et Fusionner des requêtes propose la correspondance approximative (noms similaires, en ignorant accents et ponctuation). Ctrl+Z et Ctrl+Y annulent et rétablissent les étapes. Dupliquer la requête copie la requête ouverte comme connexion ; Référencer la requête en crée une nouvelle qui part de son résultat (et la recalcule à l'actualisation). Chaque commande est une étape. Lors d'un changement de type, ce qui ne se convertit pas devient #VALUE!, et une barre jaune les compte et propose de supprimer ces lignes ou de les remplacer par 0. À partir d'un fichier accepte aussi .fshz, .xlsm et .parquet ; À partir d'un dossier réunit tous les fichiers d'un dossier en une seule table (la colonne Fichier indique d'où vient chaque ligne ; Relire le dossier prend en compte les nouveaux). Affichage ▸ Dépendances montre d'où chaque requête lit et où elle écrit. Un fichier .xlsx ou .fshz à plusieurs feuilles ouvre le Navigateur : choisissez la feuille ou le tableau (Ctrl+T) à importer, avec un aperçu ; les lignes de titre au-dessus de l'en-tête sont ignorées. Le script de la requête se trouve dans l'Éditeur avancé (Accueil ▸ Requête ou Affichage) : numéros de ligne, couleurs, une liste de méthodes qui écrit l'étape au curseur, et l'erreur soulignée sur sa ligne. La feuille choisie dans le Navigateur devient la deuxième ligne du script, fonte.planilha(\"Dados\"); (ou fonte.tabela(\"Ventes\");) : changez-y le nom et Appliquer relit le fichier avec cette feuille, si elle a les mêmes colonnes. Accueil ▸ Obtenir des données ▾ rassemble toutes les connexions : Fichier (Excel, FeatherSheet, Texte/CSV, JSON, Parquet ou un dossier entier), Web, un tableau ou une feuille de ce classeur, la sélection, Entrer des données (dans une boîte de dialogue), une autre requête comme référence et les sources récentes. Filtrer accepte des conditions sur plusieurs colonnes (toutes, ET, ou l'une, OU, avec contient, commence par, est vide…) ou la liste de valeurs avec cases à cocher, comme dans Excel. Extraire du texte prend ce qui vient avant, après ou entre des délimiteurs, les premiers ou derniers caractères ou la longueur (Transformer remplace la colonne ; Ajouter une colonne en crée une autre). Déplacer (gauche, droite, début, fin) et Dupliquer la colonne se trouvent dans le ruban et dans le menu de la colonne ; renommer ou déplacer plusieurs fois de suite devient une seule étape. Power Query d'Excel : collez le M (le texte de l'Éditeur avancé d'Excel) dans l'Éditeur avancé et cliquez sur Appliquer — les étapes qu'Excel écrit avec ses boutons (filtrer, modifier le type, regrouper, fusionner, fractionner, colonne personnalisée…) deviennent des étapes OpenQuery, et ce qui n'a pas d'équivalent reste en commentaire \"// M not converted:\" à vérifier. Vous avez ouvert un .xlsx avec Power Query ? Accueil ▸ Obtenir des données ▾ ▸ Requêtes Power Query de ce fichier liste les requêtes enregistrées par Excel dans le fichier ; celle que vous choisissez s'ouvre dans l'Éditeur avancé déjà convertie. Le bouton Copier comme Power Query fait le chemin inverse : il place le M des étapes dans le presse-papiers, prêt à coller dans Excel."
+        ]
+      },
+      "macros": {
+        "titulo": "Macros et boutons",
+        "corpo": [
+          "Les macros sont en JavaScript (Macros → Éditeur de macros, ou Alt+F11). Ctrl+Enter exécute, et Ctrl+Z annule toute la macro. \"Exécuter à l'ouverture\" lance la macro à chaque ouverture du classeur — c'est ainsi que les fonctions personnalisées continuent de fonctionner.",
+          "Chaque classeur garde ses propres macros dans le fichier .fshz (comme le .xlsm d'Excel) : un nouveau classeur commence sans macro, et ouvrir un .xlsm apporte son VBA converti. Pour transférer des macros entre fichiers, utilisez Exporter et Importer dans l'éditeur.",
+          "Insertion → Bouton de macro crée sur la grille un bouton qui exécute une macro au clic. Faites-le glisser pour le déplacer ; clic droit pour le modifier ou le supprimer.",
+          "Toutes les fonctions utilisables par une macro se trouvent dans la section \"Macros\" de cette Aide."
+        ]
+      },
+      "vba": {
+        "titulo": "Excel, VBA et formulaires",
+        "corpo": [
+          "Ouvrir un .xlsm convertit ses macros VBA en JavaScript. Avant qu'une macro du fichier s'exécute, l'application demande \"Activer les macros ?\" — n'acceptez que si vous faites confiance à la source. Enregistrer en .xlsm (ou en .fshz) conserve le projet VBA d'origine intact, avec ses formulaires et le lien vers chaque feuille, et Excel exécute les macros comme avant ; le .xlsx ne contient pas de macros, comme dans Excel.",
+          "Le convertisseur comprend les fonctions VBA de texte, de nombre et de date, la famille Format (FormatNumber, FormatCurrency, FormatDateTime…), Choose, Switch, StrComp et les fonctions financières (Pmt, PV, FV, NPV, IRR, Rate…). Shell devient app.shell, qui montre la commande et demande avant de l'exécuter. Un paramètre ByRef modifié par la Sub ou la Function renvoie la nouvelle valeur à l'appelant, comme dans Excel. CreateObject(\"WScript.Shell\").Run devient aussi app.shell, et Range.AutoFilter (avec Criteria1, xlFilterValues, xlOr de deux valeurs et top 10), ShowAllData et AutoFilterMode = False utilisent le filtre automatique de la feuille. MsgBox a tous les jeux de boutons (Abandonner/Réessayer/Ignorer, Oui/Non/Annuler…), les icônes et le bouton par défaut ; Rnd et Randomize donnent la même séquence qu'Excel ; CallByName avec un nom fixe, CCur avec 4 décimales, les formats nommés de Format (Scientific, Yes/No, Medium Time…) et la largeur et le kana de StrConv se convertissent aussi. Worksheet_SelectionChange devient l'événement À la sélection de cellules : il s'exécute quand la sélection change sur la feuille (en faisant glisser, au relâchement de la souris), avec l'adresse dans valores.intervalo. Ce qui n'a pas d'équivalent reste dans le code en commentaire \"VBA não convertido\". Également convertis : SpecialCells (les cellules visibles du filtre, vides, constantes, formules, la dernière cellule utilisée), qui donne une plage à plusieurs zones à copier, compter, parcourir ou dont supprimer les lignes ; AutoFilter avec deux conditions (xlAnd/xlOr) ; AdvancedFilter (copie et sur place, avec Unique) ; InputBox et Application.InputBox (Type 1, 2, 4 et 8), avec une zone de saisie ; l'instruction Mid(s, i, n) = x ; Dictionary avec CompareMode et Key ; la lecture de Left/Top/Width/Height d'une forme. Les nombres deviennent du texte comme dans Excel, avec le séparateur décimal de la langue de l'application et jusqu'à 15 chiffres.",
+          "Formulaires (UserForm de VBA) : dans l'éditeur de macros (Alt+F11), dessinez la fenêtre avec des zones de texte, des listes, des options et des boutons, et liez chaque bouton à une macro. Dans une macro, sheet.showComponent(\"nom\") ouvre le formulaire. Tab et Maj+Tab parcourent les champs de saisie dans l'ordre TabIndex venu d'Excel (ou celui de la propriété \"Ordre de tabulation\" du contrôle, dans l'éditeur ; sans elle, l'ordre du dessin), et le formulaire s'ouvre avec le premier champ prêt pour la saisie.",
+          "Une macro longue s'exécute en arrière-plan : l'application indique qu'elle est en cours, avec le temps écoulé et un bouton Arrêter."
+        ]
+      },
+      "arquivos": {
+        "titulo": "Fichiers",
+        "corpo": [
+          "Le format natif est .fshz. Ctrl+S enregistre et Ctrl+Maj+S (Enregistrer sous…) enregistre sous un autre nom en .fshz, .xlsx ou .xlsm. Un .xlsx ou .xlsm ouvert est réenregistré dans le même format par Ctrl+S. Ouvrir lit aussi les .csv, .tsv et .parquet.",
+          "Fichier → Exporter écrit le classeur en .xlsx ou la feuille active en .csv.",
+          "Un .xlsx protégé par mot de passe (Excel ou LibreOffice) s'ouvre : l'application demande le mot de passe, utilisé uniquement pour déchiffrer le fichier sur votre machine. Révision › Chiffrer avec mot de passe définit, change ou supprime le mot de passe : le .xlsx est chiffré comme dans Excel (AES-256), et un fichier ouvert garde son mot de passe quand il est réenregistré. Le .fshz ne garde pas de mot de passe.",
+          "Cette aide peut aussi devenir un fichier : dans la fenêtre d'Aide (F1), Exporter en Markdown enregistre tout dans un .md, dans la langue de l'application.",
+          "L'enregistrement automatique fonctionne UNIQUEMENT pour les fichiers .fshz déjà enregistrés : il les écrase à l'intervalle choisi dans les Paramètres. Un fichier .xlsx, .csv ou .parquet ouvert, ou un nouveau classeur, n'est jamais écrit automatiquement — pour utiliser l'enregistrement automatique, choisissez Enregistrer sous… et prenez .fshz.",
+          "La récupération automatique couvre tout le reste : elle garde une copie de tout classeur modifié (y compris .xlsx, .parquet et ceux jamais enregistrés) dans Documents/FeatherSheet/Temporarios/Recuperacao. Si l'ordinateur s'éteint, elle apparaît sur l'écran d'accueil pour être récupérée. Elle ne remplace pas l'enregistrement : la copie est supprimée quand vous enregistrez ou abandonnez. Les très gros classeurs (plus de 100 millions de cellules) n'ont pas de copie automatique, car chaque copie figerait la fenêtre et doublerait la mémoire : enregistrez-les avec Ctrl+S.",
+          "Tout s'exécute sur votre machine : pas de compte, pas de connexion, aucun de vos contenus n'en sort.", "Paramètres ▸ Enregistrer les nouveaux classeurs en .xlsx : Enregistrer sous… propose le format Excel.", "☰ Menu ▸ Informations ▸ Propriétés : titre, sujet, auteur, responsable, société, catégorie, mots-clés et commentaires du classeur, comme dans Excel. Enregistrés dans le .fshz et le .xlsx ; la création, la dernière modification et le dernier auteur de la modification sont remplis automatiquement."
+        ]
+      },
+      "config": {
+        "titulo": "Paramètres",
+        "corpo": [
+          "Dans les Paramètres : thème clair ou sombre, jeu de couleurs et accent, police et taille de la grille, zoom, enregistrement automatique, langue (qui détermine aussi le séparateur des formules) et raccourcis clavier.",
+          "Affichage → Moniteur (ou F12) montre la mémoire, le processeur et la Console avec ce que l'application a journalisé — utile à joindre à un rapport de bogue.",
+          "Mises à jour : au démarrage, FeatherSheet vérifie sur GitHub s'il existe une nouvelle version (au plus une fois par jour) et, s'il y en a une, affiche une carte dans le coin avec Nouveautés, Plus tard et Mettre à jour. Désactivez-la dans Paramètres → À propos → Signaler les nouvelles versions ; le bouton Rechercher des mises à jour vérifie immédiatement.", "Paramètres ▸ Vos informations : nom, initiales et organisation, enregistrés comme auteur des fichiers, \"dernière modification par\" et société, et utilisés pour signer les commentaires (comme dans Premiers pas)."
+        ]
+      }
+    },
+    "atalhosFixos": {
+      "ajuda": "Aide",
+      "faixa": "Afficher ou masquer le ruban",
+      "editar": "Modifier la cellule",
+      "confirmar": "Valider et descendre / aller à droite",
+      "fimDosDados": "Aller à la fin des données",
+      "zoomRoda": "Zoom au pointeur de la souris",
+      "selecionarAteOFim": "Sélectionner jusqu'à la fin",
+      "desfazer": "Annuler / rétablir",
+      "copiar": "Copier / couper / coller",
+      "negrito": "Gras / italique / souligné",
+      "formatarCelulas": "Format de cellule",
+      "imprimir": "Imprimer",
+      "monitor": "Moniteur (mémoire, console, mesures)",
+      "executarMacro": "Exécuter la macro (dans le volet Macros)"
+    }
+  },
+  "atalhos": {
+    "createTable": "Créer un tableau",
+    "toggleFilter": "Créer / basculer le filtre",
+    "findReplace": "Rechercher et remplacer",
+    "memoryProfiler": "Moniteur de mémoire et de processus",
+    "save": "Enregistrer",
+    "saveAs": "Enregistrer sous…",
+    "toggleFormulas": "Afficher les formules",
+    "selecionarColuna": "Sélectionner toute la colonne",
+    "selecionarLinha": "Sélectionner toute la ligne",
+    "preencherBaixo": "Recopier vers le bas",
+    "preencherDireita": "Recopier vers la droite",
+    "dataDeHoje": "Insérer la date du jour",
+    "horaAgora": "Insérer l'heure actuelle",
+    "autoSoma": "Somme automatique",
+    "ocultarLinha": "Masquer les lignes",
+    "ocultarColuna": "Masquer les colonnes",
+    "reexibirLinhas": "Afficher les lignes",
+    "reexibirColunas": "Afficher les colonnes",
+    "formatoMoeda": "Format monétaire",
+    "formatoPorcentagem": "Format pourcentage",
+    "proximaAba": "Feuille suivante",
+    "abaAnterior": "Feuille précédente",
+    "novaAba": "Nouvelle feuille",
+    "colarValores": "Coller uniquement les valeurs"
+  },
+  "funcoes": {
+    "categorias": {
+      "Matemática": "Mathématiques",
+      "Estatística": "Statistiques",
+      "Matriz dinâmica": "Matrices dynamiques",
+      "Lógica": "Logique",
+      "Texto": "Texte",
+      "Pesquisa e referência": "Recherche et référence",
+      "Data e hora": "Date et heure",
+      "Fonte de dados": "Sources de données"
+    }
+  },
+  "macros": {
+    "introducao": "Les macros sont en JavaScript. La feuille de calcul est l'objet sheet. Ctrl+Enter exécute, et tout ce que fait la macro s'annule d'un coup avec Ctrl+Z. Les adresses utilisent la notation A1 (\"B2\", \"A1:D10\") ; les lignes et colonnes numériques commencent à 1.",
+    "secoes": {
+      "celulas": "Cellules",
+      "intervalos": "Plages",
+      "formatacao": "Mise en forme",
+      "selecao": "Sélection et taille",
+      "abas": "Feuilles",
+      "funcoes": "Fonctions personnalisées",
+      "saida": "Sortie",
+      "excel-valores": "Valeurs, formules et copie",
+      "excel-formato": "Police, couleur et bordures",
+      "excel-estrutura": "Lignes et colonnes",
+      "excel-navegacao": "Trouver des données et passer d'une plage à l'autre",
+      "excel-dados": "Trier, valider et mettre en évidence",
+      "excel-pasta": "Feuilles et classeur (wb)",
+      "excel-app": "Application (app)",
+      "excel-fn": "Fonctions de feuille de calcul (app.fn)"
+    },
+    "funcoes": {
+      "cell": "Comme en VBA : cell, cells et range sans feuille utilisent la feuille active (celle où la macro s'exécute). Une autre feuille seulement si elle est écrite : sheets(\"Ventes\").cell(\"A1\") ou sheets(2).",
+      "value": "La valeur calculée de la cellule.",
+      "formula": "Le texte saisi dans la cellule, commençant par \"=\" quand c'est une formule.",
+      "set": "Écrit une valeur ou une formule dans la cellule. Renvoie `sheet`, donc les appels s'enchaînent : `sheet.set(\"A1\", 1).set(\"A2\", 2)`.",
+      "clear": "Efface le contenu et la mise en forme de la cellule ou de la plage (le `Range.Clear` de VBA). Pour n'effacer que l'un des deux : `clearContents` et `clearFormats`.",
+      "style": "Met en forme la cellule ou la plage avec un objet. Renvoie `sheet`, pour enchaîner. Les clés se trouvent dans \"Mise en forme\", plus bas.",
+      "range": "Une plage, avec les fonctions ci-dessous. Elles peuvent s'enchaîner.",
+      "Range.values": "values() renvoie la matrice des valeurs calculées ; value lit la valeur calculée de la première cellule et permet d'écrire dans la plage.",
+      "Range.formulas": "formulas() renvoie la matrice du texte saisi (formules comprises) ; text lit le texte brut de la première cellule et permet d'écrire dans la plage.",
+      "Range.set": "Une valeur seule remplit toute la plage ; une matrice est collée à partir du coin.",
+      "Range.forEach": "Parcourt les cellules. La ligne et la colonne commencent à 0, à l'intérieur de la plage.",
+      "Range.map": "Écrit dans chaque cellule ce que renvoie la fonction (undefined la laisse inchangée).",
+      "Range.style": "Met en forme toute la plage.",
+      "Range.clear": "Efface le contenu de la plage.",
+      "Range.address": "L'adresse de la plage (\"A1:D10\").",
+      "Range.rows": "Le nombre de lignes et de colonnes de la plage.",
+      "style-keys": "Texte : bold, italic, underline, strikethrough ; couleur du texte et du remplissage en \"#rrggbb\" ; size et font.",
+      "style-layout": "align : \"left\" | \"center\" | \"right\" ; vAlign : \"top\" | \"middle\" | \"bottom\" ; wrap : renvoyer à la ligne ; rotation : degrés de -90 à 90.",
+      "style-number": "format : \"auto\", \"number\", \"integer\", \"currency\", \"accounting\", \"percent\", \"scientific\", \"date\", \"datetime\", \"time\", \"duration\" ou \"text\" ; decimals : nombre fixe de décimales.",
+      "selection": "La plage sélectionnée dans la grille.",
+      "select": "Sélectionne une cellule ou une plage et fait défiler jusqu'à elle. Renvoie `sheet`.",
+      "lastRow": "Numéro (à partir de 1) de la dernière ligne et de la dernière colonne contenant des données.",
+      "address": "L'adresse A1 d'une ligne et d'une colonne numériques (à partir de 1).",
+      "sheets": "sheets() liste les noms de toutes les feuilles, dans l'ordre des onglets. sheets(name) et worksheets(name) renvoient l'API de la feuille indiquée par son nom.",
+      "name": "Le nom de la feuille où la macro a commencé à s'exécuter.",
+      "goToSheet": "Va sur une autre feuille, comme un clic sur son onglet. Pratique pour un bouton de macro qui navigue. Le reste de la macro continue d'écrire dans la feuille où elle a commencé.",
+      "showComponent": "Ouvre un composant (un écran HTML et CSS créé dans l'éditeur de macros, Alt+F11) dans une petite fenêtre. À l'intérieur, un élément avec data-macro=\"module\" exécute ce module au clic (les champs ayant un name arrivent dans la variable valores) et data-fechar ferme la fenêtre.",
+      "defineFunction": "Crée une fonction à utiliser dans les cellules (=TAXE(D2)). Les plages arrivent sous forme de liste. Cochez \"Exécuter à l'ouverture\" pour qu'elle continue de fonctionner.",
+      "log": "Écrit dans la zone de sortie du volet.",
+      "status": "Affiche un court message dans la barre d'état.",
+      "get": "La valeur calculée de la cellule (pour une plage, celle du coin supérieur gauche). Le `Range.Value` de VBA.",
+      "setFormula": "Écrit une formule. Sur une plage, les références relatives s'ajustent cellule par cellule, comme dans Excel. Renvoie `sheet` pour enchaîner.",
+      "setFormulaR1C1": "Écrit une formule en notation R1C1 (`R[0]C[-2]` est relative, `R3C4` est absolue).",
+      "getText": "Le texte exactement tel qu'il apparaît à l'écran, avec le format appliqué (`Range.Text`).",
+      "setNumberFormat": "Applique un masque de nombre Excel : `\"#,##0.00\"`, `\"0%\"`, `\"dd/mm/yyyy\"`, `\"R$ #,##0.00\"`, `\"@\"`. Accepte aussi un code personnalisé, comme `\"dd\"`, `\"mmmm/yyyy\"` ou `\"0 \\\"kWh\\\"\"`. Un code que l'application ne comprend pas lève une erreur.",
+      "clearContents": "Efface uniquement les valeurs et les formules ; la mise en forme reste (`ClearContents`).",
+      "clearFormats": "Efface uniquement la mise en forme ; les valeurs restent (`ClearFormats`).",
+      "copy": "Copie et colle. `paste` : `\"all\"` (par défaut), `\"values\"`, `\"formulas\"` ou `\"formats\"`. Les formules s'ajustent au nouvel emplacement. `to` est le coin supérieur gauche de la destination.",
+      "move": "Déplace le contenu et la mise en forme ailleurs. Les formules qui faisaient référence à la source suivent (`Range.Cut`).",
+      "find": "L'adresse de la première cellule (la plus haute, la plus à gauche) contenant le texte, ou `null`. `range` restreint la recherche ; `inFormulas` cherche dans ce qui a été saisi.",
+      "replace": "Remplace du texte dans la plage ; renvoie le nombre de cellules modifiées.",
+      "getAddress": "L'adresse A1 d'une plage.",
+      "autoFill": "Remplit une série, comme en faisant glisser la poignée : 1, 2, 3…, dates, texte numéroté, formules. Renvoie le nombre de cellules remplies.",
+      "setFontFamily": "Nom de la police.",
+      "setFontSize": "Taille de police en **pixels** (la valeur par défaut de la feuille est 13).",
+      "setBold": "Gras.",
+      "setItalic": "Italique.",
+      "setUnderline": "Souligné : `\"single\"`/`true` activé, `\"none\"`/`false` désactivé. Le double devient simple.",
+      "setStrikethrough": "Barré.",
+      "setFontColor": "Couleur du texte : `\"#RRGGBB\"` ou le nombre VBA (`app.rgb(r, g, b)`).",
+      "setBackground": "Couleur de fond de la cellule.",
+      "setAlignHorizontal": "`\"left\"`, `\"center\"`, `\"right\"` ou `\"general\"` (automatique : nombres à droite, texte à gauche).",
+      "setAlignVertical": "`\"top\"`, `\"middle\"` ou `\"bottom\"`.",
+      "setWrapText": "Renvoie le texte sur plusieurs lignes dans la cellule.",
+      "setTextRotation": "Rotation du texte, de -90 à 90 degrés.",
+      "setHyperlink": "Place un lien sur la cellule ; `text` (facultatif) est ce qui s'affiche.",
+      "setBorder": "Bordures, fusionnées avec celles existantes : `top`, `bottom`, `left`, `right`, `insideH`, `insideV`, `all`, `none` et `color`. Seul le trait plein fin existe ; un autre `style` ou `width` lève une erreur.",
+      "setOutline": "Le contour extérieur de la plage en un seul appel (`BorderAround`).",
+      "setShowGridlines": "Affiche ou masque le quadrillage.",
+      "setRowHeight": "Hauteur de ligne (la première est 1), en **pixels**.",
+      "setColumnWidth": "Largeur de colonne (lettre ou numéro), en **pixels**.",
+      "autoFitColumns": "Ajuste la largeur de la colonne au contenu, comme un double-clic sur la bordure (`\"A:F\"`, `\"B\"`).",
+      "autoFitColumn": "Ajuste la largeur de la colonne à son contenu. Uniquement sur la feuille à l'écran.",
+      "hideRow": "Masque la ligne (ou l'affiche de nouveau avec `false`).",
+      "hideColumn": "Masque la colonne (ou l'affiche de nouveau avec `false`).",
+      "insertRow": "Insère des lignes avant la ligne, en poussant le reste vers le bas. Uniquement sur la feuille à l'écran ; entre dans le Ctrl+Z de structure.",
+      "insertColumn": "Insère des colonnes avant la colonne, en poussant le reste vers la droite. Uniquement sur la feuille à l'écran.",
+      "deleteRow": "Supprime des lignes. Uniquement sur la feuille à l'écran.",
+      "deleteColumn": "Supprime des colonnes. Uniquement sur la feuille à l'écran.",
+      "deleteCells": "Supprime les cellules et ramène à leur place les cellules du dessous (\"up\") ou de droite (\"left\"), comme Supprimer des cellules… d'Excel.",
+      "insertCells": "Insère des cellules vides et pousse la sélection vers le bas (\"down\") ou vers la droite (\"right\").",
+      "rowCount": "Le nombre de lignes de la plage.",
+      "columnCount": "Le nombre de colonnes de la plage.",
+      "cell": "cell(row, col) et cells(row, col) renvoient la cellule à la ligne et à la colonne (la première est 1), sous forme de plage.",
+      "getLastRow": "Numéro de la dernière ligne contenant des données dans la colonne ; 0 si la colonne est vide. Le `Cells(Rows.Count, 1).End(xlUp).Row`.",
+      "getLastColumn": "Numéro de la dernière colonne contenant des données dans la ligne ; 0 si la ligne est vide.",
+      "getDataRange": "Le plus petit rectangle contenant tout ce qui est utilisé (`UsedRange`), ou `null` si la feuille est vide.",
+      "getRegion": "Le bloc contigu de données autour de la cellule (`CurrentRegion`, Ctrl+Maj+*).",
+      "offset": "Décale la plage de lignes et de colonnes (négatif va vers le haut/la gauche).",
+      "resize": "Une plage de `rows` × `cols` à partir de la cellule en haut à gauche.",
+      "columnOf": "La colonne `n` (la première est 1) à l'intérieur de la plage.",
+      "rowOf": "La ligne `n` (la première est 1) à l'intérieur de la plage.",
+      "merge": "Fusionne les cellules ; seul le contenu en haut à gauche reste.",
+      "unmerge": "Annule les fusions touchées par la plage.",
+      "isMerged": "La cellule fait-elle partie d'une zone fusionnée ?",
+      "specialCells": "Les adresses des cellules de la plage d'un type donné : `\"blanks\"`, `\"formulas\"`, `\"constants\"`, `\"errors\"` ou `\"visible\"` (celles qui ne sont pas dans une ligne ou colonne masquée ; un filtre automatique demandé plus tôt dans la même macro compte aussi).",
+      "specialAreas": "Les mêmes cellules que `specialCells`, réunies en zones : `\"A1:C2,A4:C4\"` (vide s'il n'y en a pas ; le `SpecialCells` de VBA). Une plage à plusieurs zones fonctionne dans l'API : écrire, effacer et mettre en forme touchent toutes les zones ; `copy` colle les zones ensemble, sans les trous (les lignes visibles d'un filtre, l'une sous l'autre) ; `value` et `rows` lisent la première zone, comme dans Excel ; trier, déplacer et fusionner refusent.",
+      "activeCell": "La cellule active : le coin supérieur gauche de la sélection.",
+      "intersect": "L'intersection de deux plages, ou `null` si elles ne se touchent pas.",
+      "union": "La plus petite plage couvrant les deux.",
+      "sort": "Trie par une ou plusieurs colonnes (`order` : `\"asc\"` ou `\"desc\"`). `header: true` garde la première ligne en place.",
+      "removeDuplicates": "Supprime les lignes en double (selon les colonnes données, ou toutes) ; renvoie le nombre de lignes supprimées.",
+      "setDataValidation": "Validation des données : `{ type: \"list\", values }` ou `source: \"A1:A5\"` ; `\"number\"` (`operator` between/greaterThan/lessThan/equal, `min`, `max`, `value`) ; `\"date\"` ; `\"text\"` ; `\"checkbox\"`. `errorMessage` et `mode: \"warn\"` (par défaut, la saisie est refusée).",
+      "clearDataValidation": "Supprime la validation de la plage.",
+      "addConditionalFormat": "Mise en forme conditionnelle : `{ type: \"cellValue\", operator, value, value2, fill, color, bold, italic }` ou `{ type: \"formula\", formula, fill }`. Opérateurs du volet : greaterThan, between, textContains, duplicate, aboveAverage…",
+      "addColorScale": "Une échelle de couleurs de la plus petite à la plus grande valeur.",
+      "addDataBar": "Barres de données dans les cellules.",
+      "clearConditionalFormats": "Supprime les règles de mise en forme conditionnelle qui touchent la plage.",
+      "wb.sheet": "L'API (`sheet`) d'une autre feuille, par nom ou par position (la première est 1). Insérer/supprimer des lignes et colonnes ne fonctionne que sur la feuille à l'écran.",
+      "wb.addSheet": "Crée une nouvelle feuille et renvoie son API.",
+      "wb.deleteSheet": "Supprime la feuille (le classeur en a besoin d'au moins une).",
+      "wb.renameSheet": "Renomme la feuille.",
+      "wb.copySheet": "Duplique la feuille et renvoie l'API de la copie.",
+      "wb.moveSheet": "Déplace la feuille à la position (la première est 1).",
+      "wb.setTabColor": "Couleur de l'onglet de la feuille ; `null` la supprime.",
+      "wb.setSheetVisible": "Affiche ou masque la feuille (le classeur en a besoin d'une visible).",
+      "wb.activate": "Amène la feuille au premier plan.",
+      "wb.freezePanes": "Fige les lignes du haut et les colonnes de gauche.",
+      "wb.addName": "Nomme une plage (sur la feuille active, ou écrite sous la forme `\"Plan1!A1:A10\"`).",
+      "wb.sheetCount": "Le nombre de feuilles du classeur (une propriété, sans parenthèses).",
+      "wb.addSheet": "Crée une feuille (nom facultatif : Planilha4…) avant ou après une autre (feuille ou nom) ; sans position, avant la feuille active. La nouvelle feuille devient active et est renvoyée.",
+      "wb.deleteSheet": "Supprime la feuille (objet ou nom). Le classeur garde toujours au moins une feuille visible ; si la macro échoue, la feuille revient.",
+      "wb.renameSheet": "Renomme la feuille (objet ou nom) ; les formules qui y font référence suivent. Refuse un nom vide, contenant !, ou déjà utilisé.",
+      "wb.name": "Le nom du document ouvert (une propriété, sans parenthèses).",
+      "sheet.exportPdf": "Exporte cette feuille en PDF, en utilisant la zone d'impression. Le chemin est relatif au dossier du fichier ouvert (`\\` devient `/`). Renvoie `sheet`.",
+      "sheet.saveAs": "Enregistre uniquement cette feuille dans un nouveau fichier, `.xlsx` ou `.fshz` (selon l'extension). Le chemin est relatif au dossier du fichier ouvert (`\\` devient `/`). Renvoie `sheet`.",
+      "sheet.protect": "Protège la feuille, comme Format › Protéger la feuille (le Protect de VBA). Mot de passe facultatif ; les autorisations utilisent les noms du .xlsx (formatCells, formatColumns, formatRows, insertColumns, insertRows, insertHyperlinks, deleteColumns, deleteRows, sort, autoFilter, pivotTables, objects, scenarios). Appliqué quand la macro se termine avec succès.",
+      "sheet.unprotect": "Supprime la protection de la feuille (le Unprotect de VBA). Avec un mauvais mot de passe, la feuille reste protégée et un message s'affiche. Appliqué quand la macro se termine avec succès ; la macro elle-même peut déjà écrire dans la feuille protégée.",
+      "sheet.showGridlines": "Affiche ou masque le quadrillage de cette feuille (le ActiveWindow.DisplayGridlines de VBA).",
+      "sheet.autoFilter": "Active le filtre automatique sur la plage et, avec la colonne (1 = première de la plage), filtre selon elle : texte comme dans NB.SI (\">100\", \"SP\", \"<>\"), une liste de valeurs ([\"SP\", \"RJ\"]) ou { op: \"top10\", n: 10 } ; sans critère, efface la colonne. Les lignes se masquent à la fin de la macro, et Ctrl+Z l'annule (le AutoFilter de VBA). Deux conditions : { op: \"e\", val: [\">=10\", \"<=20\"] } (ET ; op: \"ou\" pour OU). La macro elle-même voit déjà les lignes filtrées via specialCells(…, \"visible\").",
+      "sheet.showAllData": "showAllData() supprime les critères et garde les flèches de filtre ; autoFilterOff() supprime le filtre automatique de la feuille (les ShowAllData et AutoFilterMode = False de VBA).",
+      "sheet.advancedFilter": "Le Filtre avancé d'Excel : la liste (la première ligne contient les en-têtes) et la plage de critères, avec les mêmes en-têtes ; chaque ligne de critères est une alternative (OU) et tout ce qu'elle contient doit être vrai (ET). Le critère est celui de NB.SI (\">100\", \"<>x\", \"a*\") ; un texte sans opérateur correspond à ce qui commence par lui, et \"=SP\" uniquement à l'égal. Avec { copyTo: \"F4\" }, il copie l'en-tête et les lignes correspondantes à cet endroit (sheet: \"Feuille\" pour une autre feuille) ; sans copyTo, il masque les lignes qui ne correspondent pas, et showAllData() les affiche de nouveau. unique: true supprime les répétitions (le AdvancedFilter de VBA).",
+      "sheet.pastePicture": "Colle l'apparence d'une plage sous forme d'image (le CopyPicture de VBA) : l'image se pose au-dessus de la grille avec son coin sur la cellule, telle qu'elle apparaît à l'écran (bordures, couleurs, formats de nombre, quadrillage s'il est affiché). { sheet: \"Feuille\" } prend l'image d'une autre feuille. L'objet renvoyé accepte .width et .height (en points ; n'en définir qu'un garde les proportions). Fait partie du Ctrl+Z de la macro.",
+      "sheet.shape": "La forme ou la zone de texte par le nom qu'elle avait dans Excel (\"TextBox 1\") : `text` lit et change le texte, `font({…})` change le gras, l'italique, la taille et la couleur (\"#RRGGBB\" ou app.rgb) et `font()` les lit ; `exists` indique si la feuille a la forme. C'est le Shapes(\"…\").TextFrame2.TextRange de VBA. `visible` masque ou affiche la forme, `onAction` change la macro exécutée par un clic, et `left`, `top`, `width`, `height` (en points, comme en VBA) ou `move({…})` changent la position et la taille à la fin de la macro. Lire `left`, `top`, `width` et `height` donne la position actuelle en points (ou celle que la macro a déjà demandée).",
+      "wb.saveSheetsAs": "Enregistre un nouveau classeur contenant uniquement les feuilles indiquées (liste de noms ou de numéros), en `.xlsx` ou `.fshz`. Le chemin est relatif au dossier du fichier ouvert (`\\` devient `/`).",
+      "app.batch": "Exécute le bloc. La macro s'exécute déjà en une seule transaction (un Ctrl+Z annule tout) ; elle existe pour que le code converti depuis VBA (`ScreenUpdating`) reste identique.",
+      "app.calculate": "Recalcule la feuille.",
+      "app.status": "Message dans la barre du bas.",
+      "app.shell": "Exécute un programme ou une commande du système (le Shell de VBA). Ne s'exécute qu'après la réussite de la macro, quand l'utilisateur voit la commande et clique sur Exécuter ; si le code contient un binaire stocké en texte (Base64, liste d'octets, certutil…), un avertissement s'affiche en rouge ; ce n'est pas un antivirus. Renvoie 0.",
+      "app.choose": "Pose une question avec jusqu'à 3 boutons et renvoie l'indice du bouton choisi. Les boutons sont les codes MsgBox de VBA (1 OK, 2 Annuler, 3 Abandonner, 4 Réessayer, 5 Ignorer, 6 Oui, 7 Non) ; l'icône est 16 critique, 32 question, 48 avertissement ou 64 information ; la valeur par défaut est l'indice du bouton d'Entrée. Comme avec confirm, la macro s'exécute de nouveau après la réponse.",
+      "prompt": "Le texte saisi par la personne, ou null si elle annule (le InputBox de VBA). Le deuxième texte arrive prérempli dans le champ. Comme avec confirm, la macro s'exécute de nouveau après la réponse.",
+      "app.openUrl": "Ouvre un lien web dans le navigateur (le ShellExecute \"open\" de VBA) après la réussite de la macro. Uniquement http, https, mailto et www., comme un lien hypertexte de cellule ; un fichier ou un programme n'est pas ouvert et un message s'affiche. Renvoie true.",
+      "app.setEventsEnabled": "Active ou désactive les macros d'événement (à l'ouverture, à l'activation, à la modification, à la sélection). Se réactive toute seule à la fin de la macro.",
+      "app.rgb": "Le `RGB(r, g, b)` de VBA : la couleur sous forme de nombre (ordre BGR). Les fonctions de couleur acceptent le nombre ou `\"#RRGGBB\"`.",
+      "app.vbaColorToHex": "Une couleur numérique VBA (BGR) en `\"#RRGGBB\"`.",
+      "app.isError": "La valeur est-elle une erreur de feuille de calcul (`#N/A`, `#DIV/0!`…) ?",
+      "app.error": "Crée une erreur de feuille de calcul à écrire dans une cellule.",
+      "app.fn.sum": "Somme des nombres ; le texte et les cellules vides sont ignorés. Accepte une liste ou une matrice (`range.values()`).",
+      "app.fn.average": "Moyenne des nombres ; `#DIV/0!` s'il n'y en a aucun.",
+      "app.fn.count": "Le nombre de nombres.",
+      "app.fn.countA": "Le nombre de cellules non vides.",
+      "app.fn.max": "Le plus grand nombre.",
+      "app.fn.min": "Le plus petit nombre.",
+      "app.fn.median": "La médiane.",
+      "app.fn.countIf": "Compte les valeurs qui répondent au critère Excel : `\">5\"`, `\"<>x\"`, texte sans distinction de casse, caractères génériques `*` et `?`.",
+      "app.fn.sumIf": "Somme conditionnelle : additionne `sumValues` (ou les valeurs elles-mêmes) là où `values` répond au critère.",
+      "app.fn.averageIf": "Moyenne conditionnelle.",
+      "app.fn.vlookup": "Recherche verticale : trouve la clé dans la 1re colonne et renvoie la colonne `col` (la première est 1) de la même ligne. `#N/A` si introuvable. Correspondance exacte par défaut (`exact = false` accepte la plus grande valeur qui ne la dépasse pas).",
+      "app.fn.hlookup": "Recherche horizontale : comme `vlookup`, en cherchant dans la 1re ligne.",
+      "app.fn.match": "La position (la première est 1) de la valeur dans la liste : `0` exacte, `1` la plus grande qui ne dépasse pas (ordre croissant), `-1` la plus petite qui n'est pas inférieure (ordre décroissant). `#N/A` si introuvable.",
+      "app.fn.index": "La valeur à la position : `index(list, n)` ou `index(matrix, row, col)` (la première est 1)."
+    },
+    "guia": {
+      "titulo": "Guide des macros",
+      "busca": "Rechercher une fonction…",
+      "fechar": "Fermer",
+      "inserir": "Cliquer pour insérer dans l'éditeur",
+      "vazio": "Aucune fonction de ce nom."
+    },
+    "exemplo": "// La feuille de calcul est `sheet`. Ctrl+Enter exécute ; Ctrl+Z annule toute la macro.\n// Toutes les fonctions, avec des exemples : bouton \"Guide\".\n\n// 1) Lire et écrire\nsheet.set(\"F1\", \"Rapport\");\nsheet.log(\"A1 vaut :\", sheet.value(\"A1\"));\n\n// 2) Travailler avec une plage\nsheet.range(\"A1:D1\").style({ bold: true });\n\n// 3) Remplir avec une boucle\nfor (let row = 2; row <= 6; row++) {\n  sheet.set(\"F\" + row, \"=D\" + row + \"*0.1\");\n}\n\n// 4) Créer une fonction à utiliser dans les cellules : =TAXE(D2)\nsheet.defineFunction(\"TAXE\", (value) => value * 0.15);\n\n// 5) Aller sur une autre feuille (pratique pour un bouton de macro)\n// sheet.goToSheet(\"Résumé\");\n"
+  }
+}

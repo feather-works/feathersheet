@@ -1,7 +1,8 @@
 //! Formato personalizado de número, no código do Excel (`#.##0,00`,
 //! `0" kWp"`, `dd/mm/aaaa`, `;;;`…). O código é guardado como o `.xlsx`
 //! grava, em inglês: `,` separa milhar e `.` separa decimal. A saída segue
-//! o pt-BR: `1.234,56`.
+//! a língua do app (`1.234,56` em pt-BR, `1,234.56` em inglês); `#,##,##0` agrupa
+//! como na Índia (`12,34,567`).
 //!
 //! Até quatro seções separadas por `;`: positivo; negativo; zero; texto.
 //! Seção vazia não mostra nada — `;;;` esconde a célula. Cada seção aceita
@@ -439,6 +440,13 @@ fn formatar_digitos(n: f64, secao: &[Peca], com_sinal: bool) -> String {
         (Some(&a), Some(&b)) => secao[a..=b].contains(&Peca::Codigo(',')),
         _ => false,
     };
+    // `#,##,##0`: o agrupamento indiano (lakh, crore), três dígitos e depois de dois em dois.
+    let lakh = match (pos_int.first(), pos_int.last()) {
+        (Some(&a), Some(&b)) => secao[a..=b].iter().map(|p| match p { Peca::Codigo(c) => *c, _ => ' ' })
+            .collect::<String>().contains(",##,"),
+        _ => false,
+    };
+    let (sep_milhar, sep_decimal) = (crate::celulas::locale::thousands_separator(), crate::celulas::locale::decimal_separator());
     // Empate arredonda para longe do zero, como o Excel (o `{:.N}` do Rust vai ao par).
     let casas = pos_dec.len();
     let fator = 10f64.powi(casas as i32);
@@ -455,7 +463,9 @@ fn formatar_digitos(n: f64, secao: &[Peca], com_sinal: bool) -> String {
         while t.len() < minimo { t.insert(0, '0'); }
         let mut agrupado = String::new();
         for (i, ch) in t.chars().enumerate() {
-            if i > 0 && (t.len() - i) % 3 == 0 { agrupado.push('.'); }
+            let falta = t.len() - i;
+            let separa = if lakh { falta == 3 || (falta > 3 && (falta - 3) % 2 == 0) } else { falta % 3 == 0 };
+            if i > 0 && separa { agrupado.push(sep_milhar); }
             agrupado.push(ch);
         }
         if let Some(&p) = pos_int.first() { cheio.insert(p, agrupado); }
@@ -483,7 +493,7 @@ fn formatar_digitos(n: f64, secao: &[Peca], com_sinal: bool) -> String {
     for (i, p) in secao.iter().enumerate() {
         match p {
             Peca::Texto(t) => saida.push_str(t),
-            Peca::Codigo('.') => if tem_decimal { saida.push(',') },
+            Peca::Codigo('.') => if tem_decimal { saida.push(sep_decimal) },
             Peca::Codigo('%') => saida.push('%'),
             Peca::Codigo('/') => saida.push('/'),
             Peca::Codigo(_) => if let Some(v) = cheio.get(&i) { saida.push_str(v) },
@@ -587,6 +597,9 @@ mod testes {
     #[test]
     fn digitos_milhar_casas_e_texto_fixo() {
         assert_eq!(f(1234.5, "#,##0.00"), "1.234,50");
+        assert_eq!(f(12_345_678.0, "#,##,##0"), "1.23.45.678", "lakh e crore");
+        assert_eq!(f(999.0, "#,##,##0"), "999");
+        assert_eq!(f(100_000.0, "#,##,##0.00"), "1.00.000,00");
         assert_eq!(f(1234.5, "0"), "1235");
         assert_eq!(f(0.5, "0.0#"), "0,5");
         assert_eq!(f(7.25, "0.00\" kWp\""), "7,25 kWp");

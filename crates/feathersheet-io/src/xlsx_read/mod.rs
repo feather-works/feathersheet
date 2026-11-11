@@ -38,7 +38,7 @@ mod vistas;
 pub use vistas::{ler_vistas_arquivo, ler_vistas_bytes, VistaAba};
 mod xml;
 
-pub use native::{ler_xlsx_arquivo, ler_xlsx_workbook};
+pub use native::{conferir_tamanho_xlsx, ler_xlsx_arquivo, ler_xlsx_workbook};
 
 use serde::Serialize;
 use std::io::{Cursor, Read};
@@ -508,6 +508,9 @@ fn anexar_elementos(
                     // (o padrão) em algum campo de linha que não o último.
                     let subtotais = linhas.len() > 1 && linhas[..linhas.len() - 1].iter()
                         .any(|&x| p_fields.get(x as usize).is_none_or(|f| !desligado(f, "defaultSubtotal")));
+                    // Compacto com `subtotalTop="0"`: o subtotal vai embaixo do grupo.
+                    let subtotais_embaixo = subtotais && !tabular && linhas[..linhas.len() - 1].iter()
+                        .any(|&x| p_fields.get(x as usize).is_some_and(|f| desligado(f, "subtotalTop")));
                     // "Repetir rótulos dos itens" (x14 `fillDownLabels`) só
                     // existe no tabular.
                     let repetir = tabular && linhas.iter()
@@ -563,7 +566,11 @@ fn anexar_elementos(
                         "layout": if tabular { "tabular" } else { "compacto" },
                         "repetirRotulos": repetir,
                         "subtotais": subtotais,
-                        "tema": "padrao",
+                        "subtotaisEmbaixo": subtotais_embaixo,
+                        "tema": p_node.child("pivotTableStyleInfo").and_then(|s| s.attr("name")).map_or("padrao", |nome| {
+                            crate::xlsx_write_dinamica::ESTILOS_DA_DINAMICA.iter().find(|(_, e)| *e == nome).map(|(t, _)| *t)
+                                .or_else(|| cores::tema_de_tabela(nome)).unwrap_or("padrao")
+                        }),
                         "recolhidos": recolhidos,
                         "filtros": filtros,
                         "atualizarAoAbrir": matches!(p_node.attr("refreshOnLoad"), Some("1") | Some("true")),

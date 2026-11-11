@@ -96,11 +96,11 @@ pub(super) fn opcoes_tema(app: &App) -> Element<'_, Msg> {
 /// Idioma da interface e das fórmulas (Configurações e Primeiros passos).
 pub(super) fn lista_idioma(app: &App) -> Element<'_, Msg> {
     feather_ui::componentes::lista_suspensa(
-        tr!("Idioma"), &["Português (Brasil)", "English (United States)", "Español"],
+        tr!("Idioma"), &["Português (Brasil)", "English (United States)", "Español", "Français"],
         Some(match app.config.idioma.as_str() {
-            "en-US" => "English (United States)", "es-ES" => "Español", _ => "Português (Brasil)",
+            "en-US" => "English (United States)", "es-ES" => "Español", "fr-FR" => "Français", _ => "Português (Brasil)",
         }),
-        |v| Msg::Idioma(match v { "English (United States)" => "en-US", "Español" => "es-ES", _ => "pt-BR" }),
+        |v| Msg::Idioma(match v { "English (United States)" => "en-US", "Español" => "es-ES", "Français" => "fr-FR", _ => "pt-BR" }),
         210.0,
     ).into()
 }

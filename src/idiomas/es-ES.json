@@ -43,7 +43,7 @@
      "• Al escribir un texto con el que solo empieza una celda de la misma columna (\"Sup\" → \"Supermercado\"), el valor completo aparece debajo: Enter, Tab o hacer clic fuera lo acepta; borrar una letra quita la sugerencia.",
      "• Ctrl + flecha salta hasta el final de los datos; con Mayús, selecciona hasta allí.",
      "• Ctrl+Z deshace y Ctrl+Y rehace — incluidas las macros completas. Insertar o eliminar filas y columnas también se deshace.",
-     "Los comandos están en la cinta superior. Ctrl+F1 cambia la cinta por menús desplegables y una barra compacta (y viceversa)."
+     "Los comandos están en la cinta superior. Ctrl+F1 cambia la cinta por menús desplegables y una barra compacta (y viceversa). En una ventana estrecha, los grupos que no caben se vuelven un botón con el nombre del grupo que abre el grupo entero; lo que aun así no cabe queda en Más."
     ]
    },
    "formulas": {
@@ -75,13 +75,14 @@
     "titulo": "Hojas",
     "corpo": [
      "Las hojas están en la barra inferior. \"+\" crea una nueva (o Mayús+F11); Ctrl+RePág y Ctrl+AvPág cambian de hoja.",
-     "Haga clic derecho en la pestaña de una hoja: cambiar nombre, duplicar, cambiar color, ocultar y mostrar."
+     "Haga clic derecho en la pestaña de una hoja: cambiar nombre, duplicar, cambiar color, ocultar y mostrar.",
+     "Copiar hoja a otro archivo… agrega una copia de la hoja al final de un .fshz o .xlsx existente (si el nombre está ocupado, pasa a \"Nombre (2)\"); Copiar hoja a un archivo nuevo… crea un archivo solo con ella. El archivo abierto no cambia. Las fórmulas que leen otras hojas pasan a leer las hojas del mismo nombre en el destino. Un .xlsx con contraseña o con partes que FeatherSheet no convierte no se vuelve a grabar."
     ]
    },
    "formatar": {
     "titulo": "Formato",
     "corpo": [
-     "Fuente, color, bordes, alineación y formato de número (moneda, %, decimales) están en la pestaña Inicio. La herramienta de copiar formato lo copia de una celda a otras; Ctrl+1 abre Formato de celdas.",
+     "Fuente, color, bordes, alineación y formato de número (moneda, %, decimales) están en la pestaña Inicio. La herramienta de copiar formato lo copia de una celda a otras; Ctrl+1 abre Formato de celdas. La flecha junto al botón de moneda elige la moneda de la celda (dólar, euro, franco suizo, rupia y las demás monedas en circulación, 155 en total); en Formato de celdas, Moneda las muestra todas con búsqueda por nombre, código o símbolo. Las rupias de India, Pakistán y Nepal y el taka agrupan en lakh y crore (12,34,567), y un número escrito así (12,34,567 o 1.23.45.678) entra como número; los botones de decimales también valen para la moneda elegida.",
      "• Formato condicional (Inicio → Condicional): colorea celdas según una regla — mayor que, contiene texto, duplicados, fórmula personalizada, escala de color y barra de datos.",
      "• Colores alternados (Inicio → Estilos) rayan las filas; Estilos de celda aplica un estilo listo.",
      "• Inmovilizar (Mostrar → Inmovilizar) mantiene las primeras filas o columnas fijas mientras se desplaza."
@@ -92,8 +93,9 @@
     "corpo": [
      "• Ctrl+T convierte los datos en una tabla: encabezado, franjas, fila de totales y un filtro en cada columna. La tabla crece sola cuando escribe justo debajo.",
      "• Ctrl+Mayús+L activa o desactiva el filtro. Ordenar está en las pestañas Inicio y Datos.",
-     "• Insertar → Tabla dinámica resume los datos: arrastre campos a filas, columnas y valores (suma, cuenta, promedio, recuento distinto, mediana, cuartiles…). Tablas dinámicas recomendadas sugiere resúmenes listos a partir de la selección.",
-     "• Segmentación de datos (Insertar → Filtros): botones para filtrar una tabla o dinámica con un clic."
+     "• Insertar → Tabla dinámica resume los datos: arrastre campos a filas, columnas y valores (suma, cuenta, promedio, recuento distinto, mediana, cuartiles…). Tablas dinámicas recomendadas sugiere resúmenes listos a partir de la selección. El origen acepta A1:D100, otra hoja (Datos!A1:D100) o el nombre de una tabla. Campo calculado (en el panel): fórmula como [Precio] * Cantidad; al escribir el comienzo de un nombre, los campos que sirven aparecen debajo y un clic lo completa. Elemento calculado (en el mismo lugar): elija un campo de Filas o Columnas, dé un nombre y una fórmula sobre sus otros elementos (Norte - Sur); la cuenta vale en cada cruce y los totales no lo suman.",
+     "• Segmentación de datos (Insertar → Filtros): botones para filtrar una tabla o dinámica con un clic.",
+     "• En la pestaña Tabla dinámica: Subtotales elige sin, arriba (en la fila del grupo) o abajo (fila \"Total\" después de los elementos); Contraer nivel y Expandir nivel cierran o abren un nivel de grupos por clic. Páginas del filtro crea una hoja por elemento del campo en Filtros. Agrupar selección une los elementos de Filas (o, en el encabezado, de Columnas) seleccionados en la cuadrícula en uno solo (Grupo1), que los suma todos; escribir sobre el rótulo renombra el grupo y Desagrupar lo deshace. Datos → Consolidar combina rangos de varias hojas (por posición o por rótulos) en la celda activa."
     ]
    },
    "celulas": {
@@ -136,7 +138,7 @@
    "objetos": {
     "titulo": "Objetos y controles",
     "corpo": [
-     "• Insertar → Ilustraciones: Imágenes, Formas e Iconos flotan sobre la cuadrícula (arrastrar mueve, las esquinas cambian el tamaño). Grupo Texto: Cuadro de texto y WordArt; grupo Símbolos: Ecuación y Símbolo.",
+     "• Insertar → Ilustraciones: Imágenes, Formas, Iconos y SmartArt (14 categorías de diagrama; cada cuadro es una forma con texto editable) flotan sobre la cuadrícula (arrastrar mueve, las esquinas cambian el tamaño). Grupo Texto: Cuadro de texto y WordArt; grupo Símbolos: Ecuación y Símbolo.",
      "• Imagen en la celda… pone la imagen dentro de la celda, y sigue a filas y columnas. En fórmulas: =IMAGEN(dirección) e =IMAGEN.BASE64(texto).",
      "• Insertar → Casilla pone casillas de verificación en las celdas seleccionadas; la celda vale VERDADERO o FALSO.",
      "• Insertar vínculo (grupo Vínculos) y Comentario también están en la pestaña Insertar."
@@ -208,6 +210,7 @@
     "corpo": [
      "El formato nativo es .fshz. Ctrl+S guarda y Ctrl+Mayús+S (Guardar como…) guarda con otro nombre en .fshz, .xlsx o .xlsm. Un .xlsx o .xlsm abierto se guarda de vuelta en el mismo formato con Ctrl+S. Abrir también lee .csv, .tsv y .parquet.",
      "Archivo → Exportar guarda el libro como .xlsx o la hoja actual como .csv.",
+     "Un .xlsx protegido con contraseña (Excel o LibreOffice) se abre: la aplicación pide la contraseña, que solo se usa para descifrar el archivo en su equipo. Revisar › Cifrar con contraseña define, cambia o quita la contraseña: el .xlsx se cifra como en Excel (AES-256) y un archivo abierto mantiene su contraseña al guardarlo de nuevo. El .fshz no lleva contraseña.",
      "Esta ayuda también se puede guardar: en la ventana de Ayuda (F1), Exportar como Markdown guarda todo en un .md, en el idioma de la app.",
      "El guardado automático funciona SOLO para archivos .fshz que ya se guardaron: sobrescribe en el intervalo elegido en Configuración. Un archivo .xlsx, .csv o .parquet abierto, o una hoja nueva, nunca se escribe automáticamente — para usar el guardado automático, elija Guardar como… y seleccione .fshz.",
      "La recuperación automática cubre todo lo demás: guarda una copia de cualquier hoja modificada (incluidos .xlsx, .parquet y las que nunca se guardaron) en Documents/FeatherSheet/Temporarios/Recuperacao. Si el equipo se apaga, aparece en la pantalla de inicio para recuperarla. No reemplaza guardar: la copia se elimina al guardar o descartar. Los libros muy grandes (más de 100 millones de celdas) no reciben copia automática, porque cada copia congelaría la ventana y duplicaría la memoria: guárdelos con Ctrl+S.",

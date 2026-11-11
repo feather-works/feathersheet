@@ -46,6 +46,8 @@ impl App {
             Some(tr!("O nome não pode ficar vazio."))
         } else if nome.contains('!') {
             Some(tr!("O nome não pode conter \"!\"."))
+        } else if nome.contains(':') {
+            Some(tr!("O nome não pode conter \":\"."))
         } else if self
             .workbook
             .nomes()

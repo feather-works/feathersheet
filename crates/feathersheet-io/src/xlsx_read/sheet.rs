@@ -340,6 +340,9 @@ pub(super) fn numero_da_celula(text: &str, xf: Option<&XfStyle>) -> String {
     match xf.map(|x| x.format) {
         Some("date") => format_date_serial(n, false, false),
         Some("datetime") => format_date_serial(n, true, false),
+        // Pasta na base 1904: mesma data na base 1900 do motor.
+        Some("date1904") => format_date_serial(n + 1462.0, false, false),
+        Some("datetime1904") => format_date_serial(n + 1462.0, true, false),
         Some("time") => format_date_serial(n, false, true),
         Some("percent") => format!("{}%", format_num(round2(n * 100.0))).replace('.', ","),
         _ => format_num(n),

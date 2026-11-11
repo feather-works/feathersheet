@@ -487,6 +487,7 @@ impl App {
             || self.celulas_modal.is_some()
             || self.macro_pergunta.is_some()
             || self.protecao_modal.is_some()
+            || self.senha_arquivo.is_some()
             || self.congelar_menu_aberto
             || self.condicional_menu_aberto
             || self.tabelas_menu_aberto
@@ -499,6 +500,7 @@ impl App {
             || self.estatisticas.is_some()
             || self.perfil_coluna.is_some()
             || self.subtotal.is_some()
+            || self.consolidar.is_some()
             || self.novo_estilo.is_some()
             || self.colar_especial.is_some()
             || self.ir_para.is_some()

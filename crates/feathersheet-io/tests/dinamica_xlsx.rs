@@ -167,6 +167,7 @@ fn colunas_filtro_percentual_e_sem_totais_vao_e_voltam() {
         colunas: vec![CampoExtra::default()],
         totais_gerais_linhas: false,
         totais_gerais_colunas: false,
+        ..Extras::default()
     };
     // A dinâmica começa na linha 4: há espaço acima para o filtro de relatório.
     let original = meta(json!({
@@ -335,4 +336,14 @@ fn arquivo_sem_dinamica_continua_igual() {
     let mut so_calculado = pasta();
     so_calculado.aba_mut(1).unwrap().sheet.dn = Some(json!([meta(json!({"linhas": [-1]}))]).to_string());
     assert_eq!(partes(&so_calculado), sem);
+}
+
+/// DIN-14: o tema de cores da dinâmica vai como `PivotStyle…` e volta o mesmo.
+#[test]
+fn tema_da_dinamica_vai_e_volta() {
+    for tema in ["padrao", "azul", "verde", "laranja", "vermelho", "roxo", "cinza"] {
+        let w = com_dinamica(&meta(json!({"tema": tema})));
+        let (_, d) = ida_e_volta(&w);
+        assert_eq!(d["tema"], tema);
+    }
 }

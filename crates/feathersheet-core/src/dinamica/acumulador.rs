@@ -52,7 +52,7 @@ impl Medida {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct Acumulador {
+pub(crate) struct Acumulador {
     op: AgregacaoOp,
     quantidade: usize,
     soma: f64,

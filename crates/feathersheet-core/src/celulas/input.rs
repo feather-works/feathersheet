@@ -98,17 +98,16 @@ fn numero_simples(s: &str) -> bool {
     } else { so_digitos(s) }
 }
 
+/// Milhar de três em três (`1.234.567`) ou como na Índia, lakh e crore: o último grupo
+/// com três e os do meio com dois (`12,34,567`).
 fn grupos_de_milhar(s: &str, sep: char) -> bool {
     let s = s.strip_prefix('-').unwrap_or(s);
-    let mut partes = s.split(sep);
-    let Some(primeiro) = partes.next() else { return false };
-    if primeiro.len() > 3 || !so_digitos(primeiro) { return false; }
-    let mut contagem = 0;
-    for parte in partes {
-        if parte.len() != 3 || !so_digitos(parte) { return false; }
-        contagem += 1;
-    }
-    contagem > 0
+    let partes: Vec<&str> = s.split(sep).collect();
+    let [primeiro, meio @ .., ultimo] = partes.as_slice() else { return false };
+    if !partes.iter().all(|p| so_digitos(p)) || ultimo.len() != 3 { return false; }
+    let ocidental = primeiro.len() <= 3 && meio.iter().all(|p| p.len() == 3);
+    let lakh = primeiro.len() <= 2 && meio.iter().all(|p| p.len() == 2);
+    ocidental || lakh
 }
 
 fn cientifico(s: &str) -> bool {
@@ -148,6 +147,16 @@ pub fn parse_number_str(t: &str) -> Option<f64> {
     })
     .or_else(|| {
         if grupos_de_milhar(t, ',') { Some(t.replace(',', "")) } else { None }
+    })
+    .or_else(|| {
+        // Milhar com espaço, como em francês: `1 250,50`. O espaço comum só vale na língua
+        // que separa milhar assim: em português "01 310" é código e fica texto. O espaço
+        // que não quebra (colado de um número formatado) vale sempre.
+        if t.contains(' ') && super::locale::thousands_separator() != ' ' { return None; }
+        let t = t.replace(['\u{a0}', '\u{202f}'], " ");
+        let (inteiro, decimal) = t.rsplit_once(',').unwrap_or((&t, ""));
+        (grupos_de_milhar(inteiro, ' ') && (decimal.is_empty() || so_digitos(decimal)) && !t.ends_with(','))
+            .then(|| t.replace(' ', "").replace(',', "."))
     })
     .or_else(|| {
         if cientifico(t) { Some(t.to_owned()) } else { None }
@@ -259,6 +268,16 @@ mod testes_entrada {
         numero("1,234,567.89", 1_234_567.89, None);
         numero("2e3", 2000.0, None);
         numero(".5", 0.5, None);
+        // Lakh e crore, como o formato de ₹ mostra: em português e em inglês.
+        numero("1.23.45.678,90", 12_345_678.9, None);
+        numero("12,34,567.5", 1_234_567.5, None);
+        numero("-1,00,000", -100_000.0, None);
+        numero("1\u{202f}250,50", 1250.5, None);
+        assert_eq!(parse_literal("01 310").value, Value::Text("01 310".into()), "código com espaço não é milhar em português");
+        numero("12\u{a0}345\u{a0}678", 12_345_678.0, None);
+        assert_eq!(parse_literal("1 25").value, Value::Text("1 25".into()), "grupo curto");
+        assert_eq!(parse_literal("1,2,345").value, Value::Text("1,2,345".into()), "grupo do meio com um dígito");
+        assert_eq!(parse_literal("123,45,678").value, Value::Text("123,45,678".into()), "três antes do lakh");
         assert_eq!(parse_literal("1.23.4").value, Value::Text("1.23.4".into()));
         assert_eq!(parse_literal("+12").value, Value::Text("+12".into()));
         assert_eq!(parse_literal("NaN").value, Value::Text("NaN".into()));

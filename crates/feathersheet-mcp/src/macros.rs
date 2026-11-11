@@ -95,9 +95,63 @@ pub fn macro_(h: &mut dyn Hospede, args: &Json) -> Saida {
             }
             s.trim_start().to_string()
         }
-        outra => return Err(format!("Ação desconhecida: {outra}. Use listar, ler, escrever, excluir ou executar.")),
+        "converter_vba" => converter_vba(h, &mut catalogo, args)?,
+        outra => return Err(format!("Ação desconhecida: {outra}. Use listar, ler, escrever, excluir, executar ou converter_vba.")),
     };
     Ok(conteudo(texto))
+}
+
+/// O código de cada macro sai inteiro até este total; depois, só os nomes.
+const MAX_CODIGO: usize = 30_000;
+
+/// `converter_vba`: o VBA de um `.xlsm` (`arquivo`) ou colado (`vba`, módulo `nome`) vira as
+/// macros JavaScript, com a lista do que não converteu. `guardar` põe as macros na pasta.
+fn converter_vba(h: &mut dyn Hospede, catalogo: &mut Catalogo, args: &Json) -> Result<String, String> {
+    let conversao = match (arg_texto(args, "arquivo"), arg_texto(args, "vba")) {
+        (Some(caminho), _) => {
+            let bytes = std::fs::read(caminho).map_err(|e| format!("Não consegui ler {caminho}: {e}"))?;
+            let nome = std::path::Path::new(caminho).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            feathersheet_vba::converter_xlsm(&bytes, &nome)?
+        }
+        (None, Some(vba)) => feathersheet_vba::converter_texto(&[(arg_texto(args, "nome").unwrap_or("Module1"), vba)], &[]),
+        _ => return Err("Informe `arquivo` (um .xlsm) ou `vba` (o código VBA).".into()),
+    };
+    let mut s = format!("{} linha(s) de VBA, {} instrução(ões) convertida(s), {} macro(s).\n",
+        conversao.linhas_vba, conversao.instrucoes_convertidas, conversao.macros.len());
+    let mut usado = 0;
+    for m in &conversao.macros {
+        if usado + m.codigo.len() <= MAX_CODIGO {
+            s.push_str(&format!("\n// ===== {} (módulo {}) =====\n{}\n", m.nome, m.modulo, m.codigo));
+            usado += m.codigo.len();
+        } else {
+            s.push_str(&format!("\n// ===== {} (módulo {}): código longo, leia com acao ler depois de guardar =====\n", m.nome, m.modulo));
+        }
+    }
+    for e in &conversao.eventos {
+        s.push_str(&format!("\nEvento {} {} (de {}) — o app liga pelo Importar VBA.", e.evento, e.aba.as_deref().unwrap_or("da pasta"), e.origem));
+    }
+    let (avisos, faltas): (Vec<_>, Vec<_>) = conversao.pendencias.iter().partition(|p| p.aviso);
+    if !faltas.is_empty() {
+        s.push_str(&format!("\n\nNão convertido ({}):", faltas.len()));
+        for p in faltas.iter().take(40) { s.push_str(&format!("\n- {} linha {}: {} — {}", p.modulo, p.linha, p.vba.trim(), p.motivo)); }
+    }
+    if !avisos.is_empty() {
+        s.push_str(&format!("\n\nConvertido, mas pode agir diferente ({}):", avisos.len()));
+        for p in avisos.iter().take(20) { s.push_str(&format!("\n- {} linha {}: {} — {}", p.modulo, p.linha, p.vba.trim(), p.motivo)); }
+    }
+    if args.get("guardar").and_then(Json::as_bool).unwrap_or(false) {
+        for m in &conversao.macros {
+            match catalogo.macros.iter_mut().find(|x| x.name == m.nome) {
+                Some(x) => x.code = m.codigo.clone(),
+                None => catalogo.macros.push(Macro { name: m.nome.clone(), code: m.codigo.clone(), auto: false }),
+            }
+        }
+        let validado = Catalogo::importar_json(&catalogo.exportar_json()?)?;
+        gravar(h, &validado)?;
+        h.macros_mudaram();
+        s.push_str(&format!("\n\n{} macro(s) guardada(s) na pasta (não rodam sozinhas).", conversao.macros.len()));
+    }
+    Ok(s)
 }
 
 #[cfg(test)]
@@ -119,5 +173,20 @@ mod testes {
         assert_eq!(crate::texto::valor_texto(&h.pasta.valor(0, 0, 1)), "42");
         texto(macro_(&mut h, &json!({ "acao": "excluir", "nome": "Dobro" })));
         assert!(h.pasta.macros.is_none());
+    }
+
+    #[test]
+    fn converter_vba_devolve_o_js_e_guarda() {
+        let mut h = Avulso::default();
+        let vba = "Sub Preencher()\n    Range(\"A1\").Value = 7\n    Set o = CreateObject(\"Outlook.Application\")\nEnd Sub\n";
+        let r = macro_(&mut h, &json!({ "acao": "converter_vba", "vba": vba, "guardar": true })).unwrap();
+        let r = r[0]["text"].as_str().unwrap();
+        assert!(r.contains("Preencher") && r.contains("sheet."), "{r}");
+        assert!(r.contains("Não convertido") && r.contains("CreateObject"), "o que não converte aparece: {r}");
+        assert!(h.pasta.macros.as_deref().is_some_and(|t| t.contains("Preencher")), "guardada na pasta");
+        let r = macro_(&mut h, &json!({ "acao": "executar", "nome": "Preencher" })).unwrap();
+        assert!(r[0]["text"].as_str().unwrap().contains("concluída"), "{r:?}");
+        assert_eq!(crate::texto::valor_texto(&h.pasta.valor(0, 0, 0)), "7");
+        assert!(macro_(&mut h, &json!({ "acao": "converter_vba" })).is_err());
     }
 }

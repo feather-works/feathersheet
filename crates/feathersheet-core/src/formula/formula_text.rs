@@ -177,6 +177,17 @@ fn match_sheet_prefix(chars: &[char], at: usize) -> Option<SheetPrefix> {
         name.push(chars[i]);
         i += 1;
     }
+    // `Jan:Dez!B5` (3D): as duas abas são o nome, senão sobrava só `Dez`.
+    if i < chars.len() && chars[i] == ':' {
+        let mut k = i + 1;
+        while k < chars.len() && (is_name_char(chars[k]) || chars[k].is_ascii_digit() || chars[k] == '.') {
+            k += 1;
+        }
+        if k > i + 1 && k < chars.len() && chars[k] == '!' {
+            name.extend(&chars[i..k]);
+            i = k;
+        }
+    }
 
     if i < chars.len() && chars[i] == '!' {
         Some(SheetPrefix {

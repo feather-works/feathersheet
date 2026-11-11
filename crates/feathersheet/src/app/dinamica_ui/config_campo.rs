@@ -21,8 +21,8 @@ pub(super) const OPERACOES: [AgregacaoOp; 12] = [
 
 /// Até quantas linhas da origem a lista de itens base olha (a mesma conta
 /// do filtro: não trava a tela em origem de milhões de linhas).
-const LINHAS_DOS_ITENS: u32 = 20_000;
-const MAX_ITENS: usize = 160;
+pub(super) const LINHAS_DOS_ITENS: u32 = 20_000;
+pub(super) const MAX_ITENS: usize = 160;
 
 /// Uma opção de lista suspensa: o valor e o texto que aparece.
 #[derive(Debug, Clone, PartialEq)]
@@ -140,7 +140,7 @@ fn faixas_redondas(min: f64, max: f64) -> Faixas {
 
 /// Os extras valendo para os campos de agora, prontos para mudar: daqui em
 /// diante valem para estes campos.
-fn extras_editaveis(e: &mut Estado) -> &mut Extras {
+pub(super) fn extras_editaveis(e: &mut Estado) -> &mut Extras {
     let mut extras = avancado::extras_vigentes(e);
     extras.valores.resize(e.valores.len(), MostrarComo::Normal);
     extras.linhas.resize(e.linhas.len(), CampoExtra::default());
@@ -276,28 +276,12 @@ impl App {
         }
     }
 
-    /// Lê os itens do campo base (com o agrupamento dele), na ordem natural,
-    /// para a lista "Item base".
+    /// Lê os itens do campo base para a lista "Item base" (os mesmos que a dinâmica mostra).
     fn ler_itens_base(&mut self, campo: CampoBase) {
         let Some(e) = &self.dinamica else { return };
         let Some(coluna) = e.coluna_do_eixo(campo.eixo, campo.posicao) else { return };
-        let extra = avancado::extras_vigentes(e).campo(campo.eixo, campo.posicao);
-        let ultima = e.origem.r1.min(e.origem.r0.saturating_add(LINHAS_DOS_ITENS));
-        let mut vistos: std::collections::HashMap<String, Option<f64>> = std::collections::HashMap::new();
-        for r in (e.origem.r0 + 1)..=ultima {
-            if vistos.len() >= MAX_ITENS { break; }
-            let v = self.workbook.valor(e.folha_origem, r, coluna as u32);
-            let (rotulo, ordem) = dinamica_layout::rotulo_do_item(&v, &extra, e.agrupar_data);
-            vistos.entry(rotulo).or_insert(ordem);
-        }
-        let mut itens: Vec<(String, Option<f64>)> = vistos.into_iter().collect();
-        itens.sort_by(|(a, oa), (b, ob)| match (oa, ob) {
-            (Some(x), Some(y)) => x.total_cmp(y),
-            _ => feathersheet_core::dinamica::exibicao::comparar_natural(a, b),
-        });
-        if let Some(e) = &mut self.dinamica {
-            e.ui.itens_base = itens.into_iter().map(|(n, _)| n).collect();
-        }
+        let itens = self.itens_do_campo(e, coluna);
+        if let Some(e) = &mut self.dinamica { e.ui.itens_base = itens; }
     }
 
     /// Faixas sugeridas pelo mínimo e o máximo numéricos do campo.

@@ -89,6 +89,36 @@ impl App {
                 .style(estilo_item_menu(e.personalizado==codigo, true))
                 .on_press(Msg::FormatoCelula(Evento::Texto(TextoCampo::Customizado, codigo.into()))));
         }
+        // Moeda e Contábil: o símbolo, de todas as moedas do catálogo comum do motor.
+        let moedas: Element<'_, Msg> = if matches!(escolhido, "currency" | "accounting") {
+            use feathersheet_core::celulas::moedas::do_codigo;
+            let atual = do_codigo(&e.personalizado);
+            let casas = e.decimais.trim().parse::<u8>().ok().filter(|c| *c <= 15);
+            let mut lista_moedas = pelicano::column![].spacing(1);
+            for m in feathersheet_core::celulas::moedas::buscar(&e.busca_moeda, |n| tr!(n)) {
+                lista_moedas = lista_moedas.push(button(pelicano::row![
+                        text(m.simbolo).size(12).width(Length::Fixed(44.)),
+                        text(tr!(m.nome)).size(12),
+                        Space::new(Length::FILL, 0.0),
+                        text(m.iso).size(11).color(COR_TEXTO_MUTED()),
+                    ].spacing(6).align(pelicano::Align::Center))
+                    .width(Length::FILL).padding([4, 8])
+                    .style(estilo_item_menu(atual == Some(m), true))
+                    .on_press(Msg::FormatoCelula(Evento::Texto(TextoCampo::Customizado, m.codigo(casas.unwrap_or(m.casas))))));
+            }
+            pelicano::column![
+                pelicano::row![
+                    Self::formato_secao(tr!("Símbolo")),
+                    Space::new(Length::FILL, 0.0),
+                    text_input(tr!("Buscar por nome, código ou símbolo…").to_owned(), e.busca_moeda.clone())
+                        .on_input(|t| Msg::FormatoCelula(Evento::BuscaMoeda(t)))
+                        .padding([5, 8]).size(12).width(Length::Fixed(220.)),
+                ].align(pelicano::Align::Center),
+                container(pelicano::scrollable(lista_moedas).height(Length::Fixed(150.))
+                    .direction(pelicano::Direction::Vertical).scrollbar_width(8))
+                    .padding(4).style(estilo_painel_faixa),
+            ].spacing(8).into()
+        } else { Space::new(0.0, 0.0).into() };
         let mut exemplo = text(exemplo).size(15);
         if let Some(cor) = cor_exemplo { exemplo = exemplo.color(cor); }
         let exemplo = container(exemplo)
@@ -102,17 +132,24 @@ impl App {
                 text(tr!("Exemplo")).size(12).color(COR_TEXTO_MUTED()),
                 exemplo,
                 self.formato_editar(tr!("Casas decimais"),TextoCampo::Decimais,&e.decimais),
+                moedas,
                 Self::formato_secao(tr!("Código personalizado")),
                 self.formato_editar(tr!("Tipo"),TextoCampo::Customizado,&e.personalizado),
-                container(pelicano::scrollable(prontos).height(Length::Fixed(150.))
-                    .direction(pelicano::Direction::Vertical).scrollbar_width(8))
-                    .padding(4).style(estilo_painel_faixa),
+                // Com Moeda/Contábil a lista de símbolos toma o lugar dos códigos prontos:
+                // as duas juntas passavam da altura da janela.
+                if matches!(escolhido, "currency" | "accounting") { Element::from(Space::new(0.0, 0.0)) } else {
+                    container(pelicano::scrollable(prontos).height(Length::Fixed(150.))
+                        .direction(pelicano::Direction::Vertical).scrollbar_width(8))
+                        .padding(4).style(estilo_painel_faixa).into()
+                },
+                if matches!(escolhido, "currency" | "accounting") { Element::from(Space::new(0.0, 0.0)) } else {
                 text(tr!("Como no Excel: 0, # e ? são dígitos, \",\" separa milhar (no fim divide por mil), \".\" as casas, \
                     \"texto\" entre aspas, @ o texto da célula; seções por \";\" (positivo;negativo;zero;texto). \
                     [Vermelho] ou [Red] e [Cor1] a [Cor56] dão cor; [>=1000] é condição; * repete o caractere \
                     seguinte até encher a célula; _ reserva um espaço; # ?/? é fração; 0.00E+00 é científica. \
                     \";;;\" deixa a célula em branco.")).size(11)
-                    .color(COR_TEXTO_MUTED()),
+                    .color(COR_TEXTO_MUTED()).into()
+                },
             ].spacing(8).width(Length::FILL),
         ].spacing(16).into()
     }
@@ -262,7 +299,7 @@ impl App {
             titulo(tr!("Orientação")),
             super::orientacao_visual::controle(graus, e.booleano("textVertical")),
             pelicano::row![
-                text("Graus:").size(12).color(COR_TEXTO_MUTED()),
+                text(tr!("Graus:")).size(12).color(COR_TEXTO_MUTED()),
                 text_input("0", e.angulo.clone())
                     .on_input(|v| Msg::FormatoCelula(Evento::Texto(TextoCampo::Angulo, v)))
                     .padding([6, 8]).size(12).width(Length::Fixed(62.)),

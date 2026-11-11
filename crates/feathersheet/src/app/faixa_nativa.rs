@@ -11,6 +11,12 @@ pub(super) const ALTURA_FAIXA_NATIVA: f32 = 112.0;
 pub(super) const ALTURA_CONTROLES_FAIXA: f32 = 100.0;
 pub(super) const RESERVA_BOTAO_MAIS: f32 = 108.0;
 
+thread_local! {
+    /// Enquanto `Some`, `faixa_grupo` anota o título de cada grupo montado (INT-1: as abas
+    /// fora da Página Inicial recolhem grupo a grupo e o botão recolhido mostra o nome).
+    static TITULOS_GRUPOS: std::cell::RefCell<Option<Vec<&'static str>>> = const { std::cell::RefCell::new(None) };
+}
+
 pub(super) const FONTES: &[&str] = &["Padrão", "Serifada", "Monoespaçada", "Arial", "Georgia", "Courier New", "Verdana", "Times New Roman"];
 pub(super) const TAMANHOS: &[&str] = &["6", "8", "9", "10", "11", "12", "13", "14", "16", "18", "20", "24", "28", "32", "36", "48", "72", "96"];
 pub(super) const FORMATOS: &[&str] = &["Geral", "1.234,56", "1.235", "R$ 1.234,56", "12,34%", "Data", "Data e hora", "Hora", "Texto", "Mais formatos de número…"];
@@ -305,6 +311,7 @@ impl App {
     }
 
     pub(super) fn faixa_grupo<'a>(&self, titulo: &'static str, elementos: Element<'a, Msg>) -> Element<'a, Msg> {
+        TITULOS_GRUPOS.with_borrow_mut(|t| if let Some(t) = t { t.push(titulo) });
         // Todos os grupos, não apenas Fonte: mesmo espaço para legenda.
         // O antigo grupo_faixa com Height::Fill deixava os títulos invadirem
         // a rolagem horizontal no rodapé (ex.: "Alinhamento").
@@ -313,6 +320,7 @@ impl App {
 
     /// Grupo com a setinha ↘ do Office, que abre Formatar células (Ctrl+1) na `aba`.
     pub(super) fn faixa_grupo_com_janela<'a>(&self, titulo: &'static str, aba: super::formatar_celulas::Aba, elementos: Element<'a, Msg>) -> Element<'a, Msg> {
+        TITULOS_GRUPOS.with_borrow_mut(|t| if let Some(t) = t { t.push(titulo) });
         ui::grupo_faixa_com_janela(elementos, crate::idioma::tr(titulo),
             Some((tr!("Formatar células (Ctrl+1)"), Msg::FormatarCelulasNa(aba))))
     }
@@ -343,13 +351,20 @@ impl App {
         self.faixa_icone(dica, icone, Some(evento), ativo)
     }
 
+    /// A seta ao lado do "R$": as moedas do mundo (`feathersheet_core::celulas::moedas`), como
+    /// o botão dividido de moeda do Excel. O "R$" sozinho continua usando a moeda da língua.
+    pub(super) fn faixa_seta_moeda(&self) -> Element<'_, Msg> {
+        ui::botao_icone(feather_ui::icones::icone("chevron-down", 10.), tr!("Escolher a moeda"),
+            Some(Msg::AlternarMenuEdicao("moeda")), self.edicao_menu == Some("moeda"))
+    }
+
     /// AutoSoma usa botão dividido: a área Σ executa a soma e a seta abre
     /// um menu flutuante de funções. Nenhuma PickList sobrepõe o ícone.
     pub(super) fn faixa_autosoma_compacto(&self) -> Element<'_, Msg> {
         row![
             button(row![
                 feather_ui::icones::icone_colorido("sum", 18., "#21865c"),
-                text("AutoSoma").size(12),
+                text(tr!("AutoSoma")).size(12),
             ].spacing(5).align(pelicano::Align::Center))
                 .padding([6, 4])
                 .style(estilo_botao_pequeno(false))
@@ -608,6 +623,56 @@ impl App {
         })
     }
 
+    /// INT-1: os títulos dos grupos da aba ativa e a largura de cada um recolhido, ou `None`
+    /// quando algum grupo não passou por `faixa_grupo` (a Desenhar vem pronta da feather-ui):
+    /// aí a aba fica com o "Mais" de antes. Guardado como `faixa_larguras`.
+    pub(super) fn faixa_recolhiveis(&self) -> Option<(Vec<&'static str>, Vec<f32>)> {
+        thread_local! {
+            static GUARDADOS: std::cell::RefCell<std::collections::HashMap<(u8, u8), Option<(Vec<&'static str>, Vec<f32>)>>> =
+                std::cell::RefCell::new(std::collections::HashMap::new());
+        }
+        if self.faixa_ativa == AbaFaixa::Inicio { return None; }
+        // Por aba e língua: se o número de grupos mudar, `faixa_plano_abas` vê a diferença e cai no "Mais".
+        let chave = (self.faixa_ativa as u8, crate::idioma::lingua() as u8);
+        GUARDADOS.with_borrow_mut(|g| g.entry(chave).or_insert_with(|| {
+            TITULOS_GRUPOS.with_borrow_mut(|t| *t = Some(Vec::new()));
+            let grupos = self.montar_grupos_faixa().len();
+            let titulos = TITULOS_GRUPOS.with_borrow_mut(Option::take).unwrap_or_default();
+            if titulos.len() != grupos { return None; }
+            let mut r = pelicano::Renderer::new();
+            let estados = pelicano::States::default();
+            let tela = Size::new(5000.0, ALTURA_CONTROLES_FAIXA);
+            let larguras = titulos.iter().enumerate().map(|(i, t)| {
+                let el = self.faixa_grupo_recolhido(i, t);
+                pelicano::layout(&el, tela, &mut r, &estados, &pelicano::Theme::light()).rect.width.ceil()
+            }).collect();
+            Some((titulos, larguras))
+        }).clone())
+    }
+
+    /// Botão de um grupo recolhido de qualquer aba: abre o grupo inteiro num painel.
+    pub(super) fn faixa_grupo_recolhido(&self, indice: usize, titulo: &'static str) -> Element<'_, Msg> {
+        let botao = button(pelicano::column![
+            feather_ui::icones::icone("layout-grid", 21.),
+            feather_ui::icones::icone("chevron-down", 11.),
+        ].spacing(7).align(pelicano::Align::Center))
+            .padding([10, 16])
+            .style(estilo_botao_grande(self.faixa_grupo_aberto == Some(indice)))
+            .on_press(Msg::AlternarGrupoFaixa(indice));
+        ui::grupo_faixa_compacto(botao.into(), crate::idioma::tr(titulo))
+    }
+
+    /// INT-1, fora da Página Inicial: quais grupos ficam inteiros (`true`) e quantos aparecem.
+    /// Primeiro todos recolhidos, quantos couberem (o resto vai ao "Mais"); depois, da
+    /// esquerda para a direita, abre inteiro cada um que ainda couber. `None`: a aba não
+    /// recolhe (ver `faixa_recolhiveis`).
+    pub(super) fn faixa_plano_abas(&self) -> Option<(Vec<bool>, usize)> {
+        let (_, recolhidos) = self.faixa_recolhiveis()?;
+        let cheios = self.faixa_larguras();
+        if cheios.len() != recolhidos.len() || cheios.is_empty() { return None; }
+        Some(plano_recolhido(&cheios, &recolhidos, (self.tamanho_principal.width - 18.0).max(0.0)))
+    }
+
     /// Abre só os comandos adicionais de UMA seção da Ribbon.
     /// Não existe o painel enorme "Mais ferramentas" em largura de desktop.
     pub(super) fn faixa_abrir_grupo(&self, indice:usize) -> Element<'_,Msg> {
@@ -720,6 +785,7 @@ impl App {
                 self.faixa_linha(vec![
                     self.faixa_numero_botao("R$",tr!("Moeda"),
                         Msg::EstiloMenu("format".into(),Campo::Texto("currency".into())),false),
+                    self.faixa_seta_moeda(),
                     self.faixa_numero_botao("%",tr!("Percentual"),
                         Msg::EstiloMenu("format".into(),Campo::Texto("percent".into())),false),
                     self.faixa_icone(tr!("Mais decimais"),"decimal-increase",Some(Msg::Decimais(1)),false),
@@ -751,7 +817,7 @@ impl App {
             ]),
             _ => self.faixa_linha(vec![
                 self.faixa_pilha(vec![
-                    self.faixa_pequeno("AutoSoma","sum",Some(Msg::AutoSoma),false),
+                    self.faixa_pequeno(tr!("AutoSoma"),"sum",Some(Msg::AutoSoma),false),
                     self.faixa_pequeno(tr!("Classificar"),"filter",
                         Some(Msg::AlternarMenuEdicao("classificar")),false),
                     self.faixa_pequeno(tr!("Localizar"),"search",Some(Msg::BuscaAba(false)),false),
@@ -770,7 +836,7 @@ impl App {
     /// âncora perto do respectivo botão, sem duplicar todo o conteúdo da Ribbon.
     pub(super) fn sobrepor_faixa_grupo<'a>(&'a self,base:Element<'a,Msg>)->Element<'a,Msg> {
         let Some(indice)=self.faixa_grupo_aberto else{return base};
-        if self.faixa_ativa!=AbaFaixa::Inicio {return base;}
+        if self.faixa_ativa!=AbaFaixa::Inicio {return self.sobrepor_grupo_recolhido(base, indice);}
         let plano=faixa_responsiva::planejar(self.tamanho_principal.width);
         if indice>=plano.visiveis||plano.niveis[indice]==Nivel::Completo {return base;}
         let Some(grupo)=self.montar_grupos_faixa().into_iter().nth(indice) else{return base};
@@ -810,6 +876,34 @@ impl App {
         ].height(Length::FILL).into()
     }
 
+    /// INT-1: o painel de um grupo recolhido fora da Página Inicial, sob o botão dele.
+    fn sobrepor_grupo_recolhido<'a>(&'a self, base: Element<'a, Msg>, indice: usize) -> Element<'a, Msg> {
+        let (Some((inteiros, visiveis)), Some((_, recolhidos))) = (self.faixa_plano_abas(), self.faixa_recolhiveis()) else { return base };
+        if indice >= visiveis || inteiros[indice] { return base; }
+        let Some(grupo) = self.montar_grupos_faixa().into_iter().nth(indice) else { return base };
+        let larguras = self.faixa_larguras();
+        let antes: f32 = (0..indice).map(|j| if inteiros[j] { larguras[j] } else { recolhidos[j] } + 2.0).sum();
+        let largura = (larguras[indice] + 24.0).min(self.tamanho_principal.width - 16.0).max(160.0);
+        let x = (8.0 + antes).min((self.tamanho_principal.width - largura - 8.0).max(8.0));
+        let y = (43. + 52. + ALTURA_FAIXA_NATIVA).min((self.tamanho_principal.height - 160.).max(8.));
+        let painel = container(pelicano::column![
+            pelicano::row![
+                Space::new(Length::FILL, 0.0),
+                button(feather_ui::icones::icone("x", 14.)).padding([4, 5])
+                    .style(estilo_botao_pequeno(false)).on_press(Msg::FecharGrupoFaixa),
+            ].align(pelicano::Align::Center),
+            grupo,
+        ].spacing(6).padding(10)).width(Length::Fixed(largura)).style(estilo_popup_menu);
+        let fora = pelicano::mouse_area(Space::new(Length::FILL, Length::FILL)).on_press(Msg::FecharGrupoFaixa);
+        stack![
+            base, fora,
+            pelicano::column![
+                Space::new(0.0, Length::Fixed(y)),
+                pelicano::row![Space::new(Length::Fixed(x), 0.0), painel],
+            ],
+        ].height(Length::FILL).into()
+    }
+
     /// Quantos grupos inteiros cabem na largura real da janela.
     /// A reserva para o botão Mais só é aplicada quando há grupos ocultos.
     /// Em janelas muito estreitas preservamos ao menos o primeiro grupo.
@@ -817,6 +911,7 @@ impl App {
         if self.faixa_ativa==AbaFaixa::Inicio {
             return faixa_responsiva::planejar(self.tamanho_principal.width).visiveis;
         }
+        if let Some((_, visiveis)) = self.faixa_plano_abas() { return visiveis; }
         let larguras = self.faixa_larguras();
         let disponivel = (self.tamanho_principal.width - 18.0).max(0.0);
         let tudo = larguras.iter().sum::<f32>() + (larguras.len().saturating_sub(1) as f32 * 2.0);
@@ -836,9 +931,55 @@ impl App {
 
 }
 
+/// O plano da faixa recolhida (ver `App::faixa_plano_abas`): larguras inteiras e
+/// recolhidas de cada grupo e o espaço da janela.
+fn plano_recolhido(cheios: &[f32], recolhidos: &[f32], disponivel: f32) -> (Vec<bool>, usize) {
+    let n = cheios.len();
+    let total = |inteiros: &[bool], v: usize| (0..v).map(|i| if inteiros[i] { cheios[i] } else { recolhidos[i] }).sum::<f32>()
+        + v.saturating_sub(1) as f32 * 2.0 + if v < n { RESERVA_BOTAO_MAIS } else { 0.0 };
+    let mut inteiros = vec![false; n];
+    let visiveis = (1..=n).rev().find(|&v| total(&inteiros, v) <= disponivel).unwrap_or(1);
+    for i in 0..visiveis {
+        inteiros[i] = true;
+        if total(&inteiros, visiveis) > disponivel { inteiros[i] = false; }
+    }
+    (inteiros, visiveis)
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    /// INT-1: fora da Página Inicial a faixa recolhe grupo a grupo, e o recolhido abre num painel.
+    #[test]
+    fn dados_em_janela_estreita_recolhe_grupo_e_abre_o_painel() {
+        let mut app = App::default();
+        let id = crate::compat::window::novo_id();
+        app.janelas.principal = Some(id);
+        app.tamanho_principal = Size::new(900.0, 560.0);
+        app.selecionar_faixa(AbaFaixa::Dados);
+        let (inteiros, visiveis) = app.faixa_plano_abas().expect("Dados recolhe");
+        assert_eq!(visiveis, app.montar_grupos_faixa().len(), "a 900 px os 6 grupos aparecem");
+        let recolhido = inteiros.iter().position(|i| !i).expect("algum grupo recolhido");
+        assert!(inteiros.iter().any(|i| *i), "e algum inteiro");
+        let _ = app.update(Msg::AlternarGrupoFaixa(recolhido));
+        let _: Element<'_, Msg> = app.view(id);
+        let soma: f32 = app.faixa_larguras().iter().sum();
+        app.tamanho_principal = Size::new(soma + 200.0, 900.0);
+        assert!(app.faixa_plano_abas().unwrap().0.iter().all(|i| *i), "cabendo tudo: tudo inteiro");
+    }
+
+    #[test]
+    fn plano_recolhido_abre_o_que_cabe_e_manda_o_resto_ao_mais() {
+        // Cabe tudo inteiro.
+        assert_eq!(plano_recolhido(&[100., 100.], &[60., 60.], 300.), (vec![true, true], 2));
+        // O primeiro é largo demais: fica recolhido e os seguintes abrem (sem buraco à direita).
+        assert_eq!(plano_recolhido(&[400., 100., 100.], &[80., 60., 60.], 300.), (vec![false, true, true], 3));
+        // Nem recolhidos cabem todos: o resto vai ao "Mais", que tem a sua reserva.
+        let (inteiros, v) = plano_recolhido(&[200.; 6], &[80.; 6], 400.);
+        assert!(v < 6 && inteiros.iter().all(|i| !i));
+        assert!(v as f32 * 82. + RESERVA_BOTAO_MAIS <= 400. + 2.);
+    }
     #[test]
     pub(super) fn inserir_apresenta_icones_existentes_sem_fallback() {
         for nome in [

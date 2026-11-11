@@ -78,7 +78,12 @@ impl App {
         let mut cache = self.nao_convertidos.borrow_mut();
         if cache.as_ref().map(|(p, d, _)| (p, *d)) != Some((c, data)) {
             // shortcut: lê o arquivo de novo (F12 ou Ctrl+S); se ficar lento em arquivo grande, guardar na importação.
+            use feathersheet_io::xlsx_senha::{decifrar, eh_protegido};
             let lista = std::fs::read(c).map_err(|e| e.to_string())
+                .and_then(|b| match &self.senha_documento {
+                    Some(senha) if eh_protegido(&b) => decifrar(&b, senha).map_err(|e| format!("{e:?}")),
+                    _ => Ok(b),
+                })
                 .and_then(feathersheet_io::xlsx_read::nao_convertidos::nao_convertidos);
             *cache = Some((c.clone(), data, lista));
         }

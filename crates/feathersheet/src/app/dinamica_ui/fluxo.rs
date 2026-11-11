@@ -24,14 +24,15 @@ impl App {
             | Evento::Valor(_) | Evento::Operacao(_) | Evento::Agrupar | Evento::Layout
             | Evento::RepetirRotulos | Evento::Subtotais | Evento::Tema | Evento::FiltroValor(_)
             | Evento::FiltroModo | Evento::LimparFiltro | Evento::AdicionarCalculado
-            | Evento::RemoverCalculado(_) | Evento::Recolher(_) | Evento::RecolherTodos(_)
+            | Evento::RemoverCalculado(_) | Evento::Recolher(_) | Evento::RecolherTodos(_) | Evento::RecolherNivel(_)
             | Evento::Campo(_) | Evento::Remover(..) | Evento::RemoverFiltro(_)
             | Evento::ArrastoSoltar | Evento::MoverPara(..) | Evento::Reordenar(..)
             | Evento::FiltroTudo | Evento::FiltroCancelar | Evento::LayoutEscolher(_)
             | Evento::AgruparEscolher(_) | Evento::TemaEscolher(_)
             | Evento::OperacaoEscolher(..) | Evento::MostrarComo(..) | Evento::Ordenar(..)
             | Evento::AgruparCampo(..) | Evento::FaixaTexto(..) | Evento::TotaisGerais { .. }
-            | Evento::AtualizarSozinha(_))
+            | Evento::AtualizarSozinha(_) | Evento::AgruparItens(_) | Evento::RenomearGrupo(..)
+            | Evento::AdicionarItem | Evento::RemoverItem(_))
     }
 
     /// Recalcula a dinâmica aberta no painel sem fechá-lo.
@@ -69,9 +70,9 @@ impl App {
                 .style(estilo_botao_pequeno(ativo))
                 .on_press(Msg::Dinamica(Evento::DestinoNova(nova))).into()
         };
-        let invalido = !e.origem_texto.trim().is_empty() && !origem::texto_valido(&e.origem_texto);
+        let invalido = !e.origem_texto.trim().is_empty() && !origem::texto_valido(&self.workbook, &e.origem_texto, e.folha_origem);
         let erro: Element<'a, Msg> = if invalido {
-            text(tr!("Intervalo inválido. Use um formato como A1:D10.")).size(11).color(COR_TEXTO_MUTED()).into()
+            text(tr!("Origem inválida. Use, por exemplo, A1:D100, Dados!A1:D100 ou o nome de uma tabela.")).size(11).color(COR_TEXTO_MUTED()).into()
         } else { Space::new(0.0, 0).into() };
         let painel = column![
             row![
@@ -287,6 +288,14 @@ impl App {
             ].align(pelicano::Align::Center).spacing(8),
             scrollable(container(corpo).padding(pelicano::Padding { right: 10.0, ..Default::default() }))
                 .height(Length::FILL),
+            // Como o pé do painel do Excel: adiar e aplicar de uma vez.
+            row![
+                button(item(if e.ui.adiar { "checkbox" } else { "square" }, tr!("Adiar atualização").into(), 12.0))
+                    .style(estilo_botao_pequeno(e.ui.adiar)).on_press(Msg::Dinamica(Evento::Adiar)),
+                Space::new(Length::FILL, 0.0),
+                button(text(tr!("Atualizar")).size(12)).style(estilo_botao_primario)
+                    .on_press_maybe(e.ui.pendente.then_some(Msg::Dinamica(Evento::AtualizarPainel))),
+            ].align(pelicano::Align::Center).spacing(8),
         ].spacing(10);
         let topo = 43.0 + 52.0 + if self.config.faixa_recolhida { 0.0 }
             else { super::super::faixa_nativa::ALTURA_FAIXA_NATIVA };

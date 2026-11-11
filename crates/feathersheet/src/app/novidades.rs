@@ -530,7 +530,7 @@ mod testes {
             std::iter::once(v.resumo)
                 .chain(v.destaques.iter().flat_map(|(_, t, d)| [*t, *d]))
                 .chain(v.tambem.iter().copied())
-                .flat_map(move |k| [Lingua::En, Lingua::Es].into_iter()
+                .flat_map(move |k| [Lingua::En, Lingua::Es, Lingua::Fr].into_iter()
                     .filter(move |l| !dicionario_de(*l).contains_key(k))
                     .map(move |l| format!("{} {}: {k:?}", v.numero, l.codigo())))
         }).collect();
