@@ -157,10 +157,10 @@ pub(super) fn painel<'a>(app: &'a App) -> Element<'a, Msg> {
         vazio(tr!("Nenhuma execução com estes filtros"), tr!("Mude o gatilho, o nome ou desligue \"Só erros\"."))
     } else {
         let cabecalho = row![
-            text("HORA").size(10.5).width(Length::Fixed(66.0)),
-            text("RESULTADO").size(10.5).width(Length::Fill(5)),
-            text("MACRO").size(10.5).width(Length::Fill(3)),
-            text("GATILHO").size(10.5).width(Length::Fill(5)),
+            text(tr!("HORA")).size(10.5).width(Length::Fixed(66.0)),
+            text(tr!("RESULTADO")).size(10.5).width(Length::Fill(5)),
+            text(tr!("MACRO")).size(10.5).width(Length::Fill(3)),
+            text(tr!("GATILHO")).size(10.5).width(Length::Fill(5)),
             text(tr!("DURAÇÃO")).size(10.5).width(Length::Fixed(62.0)).align_x(pelicano::Align::End),
         ].spacing(10).padding([0, 8]);
         let cabecalho = pelicano::container(cabecalho).style(|_| pelicano::Style {

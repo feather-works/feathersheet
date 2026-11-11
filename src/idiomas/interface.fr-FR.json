@@ -5882,5 +5882,19 @@
  "O arquivo baixado não confere com o publicado.": "Le fichier téléchargé ne correspond pas à celui publié.",
  "COLAR": "COLLER",
  "ESPECIAL": "SPÉCIAL",
- "PERSONALIZADOS": "PERSONNALISÉS"
+ "PERSONALIZADOS": "PERSONNALISÉS",
+ "VALORES": "VALEURS",
+ "HORA": "HEURE",
+ "RESULTADO": "RÉSULTAT",
+ "MACRO": "MACRO",
+ "GATILHO": "DÉCLENCHEUR",
+ "(Geral)": "(Général)",
+ "LINHAS": "LIGNES",
+ "ORDENAR": "TRIER",
+ "CONSULTAS": "REQUÊTES",
+ "FECHAR": "FERMER",
+ "CONSULTA": "REQUÊTE",
+ "COLUNAS": "COLONNES",
+ "COMBINAR": "COMBINER",
+ "A aba não tem a forma \"{}\"": "La feuille n'a pas la forme \"{}\""
 }

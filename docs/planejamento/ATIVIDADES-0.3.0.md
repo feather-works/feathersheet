@@ -903,6 +903,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### INT-9. Nomes das funções por idioma
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial (a conferir). O README diz que os nomes em português ou inglês seguem o idioma da interface. Faltam o espanhol e a D15.
+**Situação (11/11):** ✅ feito. Os textos prontos do motor (core, io, macros, vba) passam pelo dicionário da interface (`feathersheet_core::tr!`/`trf!`), com teste de guarda; as 875 traduções foram lidas uma a uma (34 corrigidas). Varredura da interface atrás de literal fora do `tr!`: 21 títulos e 1 mensagem corrigidos (painel da dinâmica, Colar especial, Ir para, estilos de tabela, cenários, histórico de macros, faixa do FeatherQuery, editor de macros). Ficam em português de propósito os itens listados no `CLAUDE.md`.
 - **Onde:** `feathersheet-core` (o motor reconhece os nomes); o de-para em JSON (pt, en, es, já existe).
 - **Pronto:** D15 decide. Se entrar: nomes localizados sem quebrar arquivos antigos (teste com `.fshz`
   antigo).

@@ -68,7 +68,7 @@ pub(super) fn aplicar_formas_da_macro(w: &mut Workbook, pedidos: &[feathersheet_
         let json: serde_json::Value = aba.sheet.ob.as_deref().and_then(|t| serde_json::from_str(t).ok()).unwrap_or_default();
         let mut lidos = modelo::ler_da_aba(&aba.sheet);
         let Some(o) = feathersheet_macros::achar_forma(&json, &p.nome).and_then(|i| lidos.objetos.get_mut(i)) else {
-            falhas.push(format!("A aba não tem a forma \"{}\"", p.nome));
+            falhas.push(trf!("A aba não tem a forma \"{}\"", p.nome));
             continue;
         };
         let regua = ReguaAba(&aba.sheet);

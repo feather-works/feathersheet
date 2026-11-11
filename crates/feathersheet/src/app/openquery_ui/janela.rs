@@ -749,7 +749,7 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
     let p = botao_pequeno;
     let grupos = match e.aba_faixa {
         AbaFaixa::Inicio => vec![
-            grupo_ribbon("FECHAR", vec![
+            grupo_ribbon(tr!("FECHAR"), vec![
                 botao_ribbon(tr!("Salvar e\ncarregar"), "device-floppy", VERDE, Evento::Carregar, false),
                 pilha(vec![
                     p(tr!("Carregar em…"), "file-export", AZUL, Evento::AbrirDestino),
@@ -768,7 +768,7 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("Digitar dados"), "edit", ROXO, Evento::AbaCentro(2)),
                 ]),
             ], escuro),
-            grupo_ribbon("CONSULTA", vec![
+            grupo_ribbon(tr!("CONSULTA"), vec![
                 botao_ribbon("Atualizar\nfonte", "refresh", VERDE, Evento::AtualizarFonte, false),
                 pilha(vec![
                     p(tr!("Editor avançado"), "code", ROXO, Evento::AbrirEditorAvancado),
@@ -780,12 +780,12 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("Referenciar"), "link", ROXO, Evento::Referenciar),
                 ]),
             ], escuro),
-            grupo_ribbon("COLUNAS", vec![pilha(vec![
+            grupo_ribbon(tr!("COLUNAS"), vec![pilha(vec![
                 p(tr!("Renomear…"), "edit", AZUL, Evento::Adicionar("renomear")),
                 p(tr!("Remover colunas"), "trash", VERMELHO, Evento::Adicionar("remover_coluna")),
                 p(tr!("Remover outras colunas"), "columns", AZUL, Evento::Adicionar("manter_colunas")),
             ])], escuro),
-            grupo_ribbon("LINHAS", vec![
+            grupo_ribbon(tr!("LINHAS"), vec![
                 botao_ribbon(tr!("Filtrar"), "filter", ROXO, Evento::Adicionar("filtrar"), false),
                 pilha(vec![
                     p(tr!("Manter primeiras linhas…"), "list-numbers", VERDE, Evento::Adicionar("limite")),
@@ -793,7 +793,7 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("Remover duplicatas"), "list-select", AZUL, Evento::Adicionar("distintas")),
                 ]),
             ], escuro),
-            grupo_ribbon("COMBINAR", vec![pilha(vec![
+            grupo_ribbon(tr!("COMBINAR"), vec![pilha(vec![
                 p(tr!("Mesclar consultas"), "sitemap", AZUL,
                     Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Juntar))),
                 p(tr!("Acrescentar consultas"), "list", VERDE,
@@ -845,12 +845,12 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("Fim"), "chevron-right", AZUL, Evento::Adicionar("mover_fim")),
                 ]),
             ], escuro),
-            grupo_ribbon("LINHAS", vec![pilha(vec![
+            grupo_ribbon(tr!("LINHAS"), vec![pilha(vec![
                 p(tr!("Filtrar…"), "filter", ROXO, Evento::Adicionar("filtrar")),
                 p(tr!("Remover erros"), "eraser", VERMELHO, Evento::Adicionar("remover_erros")),
                 p(tr!("Inverter linhas"), "arrows-vertical", AZUL, Evento::Adicionar("inverter")),
             ])], escuro),
-            grupo_ribbon("ORDENAR", vec![pilha(vec![
+            grupo_ribbon(tr!("ORDENAR"), vec![pilha(vec![
                 p(tr!("Crescente"), "sort-ascending", AZUL, Evento::Adicionar("ordenar")),
                 p(tr!("Decrescente"), "sort-descending", AZUL, Evento::Adicionar("decrescente")),
             ])], escuro),
@@ -869,7 +869,7 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
                     p(tr!("Duplicar coluna"), "copy", VERDE, Evento::Adicionar("duplicar")),
                 ]),
             ], escuro),
-            grupo_ribbon("CONSULTAS", vec![pilha(vec![
+            grupo_ribbon(tr!("CONSULTAS"), vec![pilha(vec![
                 p(tr!("Juntar"), "arrow-step", ROXO, Evento::Adicionar("juntar")),
                 p(tr!("Acrescentar consultas"), "list", AZUL,
                     Evento::Assistente(assistentes::Evento::Abrir(assistentes::Tipo::Acrescentar))),

@@ -5882,5 +5882,19 @@
  "O arquivo baixado não confere com o publicado.": "El archivo descargado no coincide con el publicado.",
  "COLAR": "PEGAR",
  "ESPECIAL": "ESPECIAL",
- "PERSONALIZADOS": "PERSONALIZADOS"
+ "PERSONALIZADOS": "PERSONALIZADOS",
+ "VALORES": "VALORES",
+ "HORA": "HORA",
+ "RESULTADO": "RESULTADO",
+ "MACRO": "MACRO",
+ "GATILHO": "DESENCADENADOR",
+ "(Geral)": "(General)",
+ "LINHAS": "FILAS",
+ "ORDENAR": "ORDENAR",
+ "CONSULTAS": "CONSULTAS",
+ "FECHAR": "CERRAR",
+ "CONSULTA": "CONSULTA",
+ "COLUNAS": "COLUMNAS",
+ "COMBINAR": "COMBINAR",
+ "A aba não tem a forma \"{}\"": "La hoja no tiene la forma \"{}\""
 }

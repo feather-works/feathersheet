@@ -5882,5 +5882,19 @@
  "O arquivo baixado não confere com o publicado.": "The downloaded file does not match the published one.",
  "COLAR": "PASTE",
  "ESPECIAL": "SPECIAL",
- "PERSONALIZADOS": "CUSTOM"
+ "PERSONALIZADOS": "CUSTOM",
+ "VALORES": "VALUES",
+ "HORA": "TIME",
+ "RESULTADO": "RESULT",
+ "MACRO": "MACRO",
+ "GATILHO": "TRIGGER",
+ "(Geral)": "(General)",
+ "LINHAS": "ROWS",
+ "ORDENAR": "SORT",
+ "CONSULTAS": "QUERIES",
+ "FECHAR": "CLOSE",
+ "CONSULTA": "QUERY",
+ "COLUNAS": "COLUMNS",
+ "COMBINAR": "COMBINE",
+ "A aba não tem a forma \"{}\"": "The sheet has no shape \"{}\""
 }

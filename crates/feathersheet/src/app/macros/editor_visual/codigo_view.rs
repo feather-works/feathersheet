@@ -346,7 +346,7 @@ fn area_codigo<'a>(app: &'a App, achadas: &[Ocorrencia]) -> Element<'a, Msg> {
 pub(super) fn edicao_codigo<'a>(app: &'a App) -> Element<'a, Msg> {
     let escuro = app.config.escuro;
     let linha = row![
-        botao_campo("(Geral)"),
+        botao_campo(tr!("(Geral)")),
         Space::new(Length::FILL, 0.0),
         com_dica(botao_icone(tr!("Localizar"), "search", Some(ev(EventoCodigo::Abrir(false))),
             app.macro_visual.codigo.busca_aberta), tr!("Localizar  Ctrl+F · Substituir  Ctrl+H")),

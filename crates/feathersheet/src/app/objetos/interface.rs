@@ -344,7 +344,7 @@ impl App {
         let rotulo = |t: &'static str| text(t).size(10.5).color(COR_TEXTO_MUTED());
         let mut corpo = column![
             text(titulo).size(13),
-            rotulo("COR"),
+            rotulo(tr!("COR")),
             cores,
             button(text(sem).size(12))
                 .width(Length::FILL)
@@ -378,7 +378,7 @@ impl App {
                     .on_press(ev(Evento::Espessura(e))),
                 );
             }
-            corpo = corpo.push(rotulo("ESPESSURA")).push(grossuras);
+            corpo = corpo.push(rotulo(tr!("ESPESSURA"))).push(grossuras);
         }
         // Botões com o valor escrito (o controle deslizante saía vazio).
         let transparencias = row(TRANSPARENCIAS.iter().map(|&t| {

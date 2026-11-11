@@ -327,7 +327,7 @@ impl App {
                         .on_input(|t| Msg::Cenarios(Evento::Celulas(t))).size(13).padding([5, 8])
                         .style(destaque(e.campo == Campo::Celulas))]
                         .spacing(8).align(pelicano::Align::Center),
-                    text("VALORES").size(10.5).color(COR_TEXTO_MUTED()),
+                    text(tr!("VALORES")).size(10.5).color(COR_TEXTO_MUTED()),
                     container(rolagem(valores)).max_height(150.0),
                     row![rotulo(tr!("Comentário:")), text_input("opcional", &c.comentario)
                         .on_input(|t| Msg::Cenarios(Evento::Comentario(t))).size(13).padding([5, 8])]

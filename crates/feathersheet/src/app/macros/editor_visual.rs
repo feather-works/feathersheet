@@ -349,7 +349,7 @@ fn evento_planilha<'a>(app: &'a App) -> Element<'a, Msg> {
     container(column![
         titulo(tr!("CÓDIGO DE EVENTOS"), app.config.escuro),
         row![
-            botao_campo("(Geral)"),
+            botao_campo(tr!("(Geral)")),
             botao_campo(seletor),
             Space::new(Length::FILL, 0.0),
             botao_icone(tr!("Eventos"), "bolt", None, false),
