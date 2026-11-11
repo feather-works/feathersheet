@@ -547,7 +547,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                         } else if familia.contains("serif") || familia.contains("Georgia") ||
                             familia.contains("Times New Roman") {
                             Some("serif")
-                        } else { None },
+                        } else { Some("sans-serif") }, // a do sistema: a Feather Sans é só da interface
                         weight: if projetado.comum.basico.negrito || cabecalho_tabela || destaque_dinamica {
                             700
                         } else { 400 },
