@@ -76,7 +76,7 @@ pub fn fonte_da_celula(visual: &EstiloVisualSheet, padrao: &str) -> pelicano::Fo
             Some("monospace")
         } else if familia.contains("serif") || familia.contains("Georgia") || familia.contains("Times New Roman") {
             Some("serif")
-        } else { None },
+        } else { Some("sans-serif") }, // a do sistema: a Feather Sans é só da interface
         weight: if visual.comum.basico.negrito { 700 } else { 400 },
         italic: visual.comum.basico.italico,
         ..pelicano::Font::DEFAULT

@@ -218,6 +218,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### PUB-4. Publicar pelicano `v0.1.21` (Feather Sans)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. A Feather Sans não chegou ao pelicano publicado: nem a 0.1.30 nem a 0.1.31 do crates.io têm `set_default_family`/`Font::SYSTEM_SANS`. O número `v0.1.21` já passou: agora seria uma 0.1.3x no crates.io (ver D3).
+**Situação (11/11):** ✅ feito. pelicano **0.1.33** no crates.io (tag `v0.1.33`), com `set_default_family` e `Font::SYSTEM_SANS`; suíte do pelicano verde.
 - **Onde:** repositório do pelicano, ramo `fonte-padrao`, commit `60b80f6` (`set_default_family`,
   `Font::SYSTEM_SANS`). Cópia de trabalho: `/run/media/maragon/Arquivos/GitHub/pelicano`.
 - **Pronto:** tag `v0.1.21` no remoto; o teste `clique_na_caixinha_marca_e_o_cursor_fica` (quebrado pela
@@ -227,6 +228,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### PUB-5. Publicar feather-ui `v0.3.10` (módulo `fonte`)
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. O ramo `feather-sans` continua só local na feather-ui; a v0.3.15 (usada hoje) não tem o módulo `fonte`. A próxima seria a v0.3.16.
+**Situação (11/11):** ✅ feito. feather-ui **v0.3.16** (tag), módulo `fonte`, com o D redesenhado a pedido do usuário; 105 testes.
 - **Onde:** repositório da feather-ui, ramo `feather-sans`, commit `0fa32b0` (`fonte::usar_na_interface`).
   Cópias: `/run/media/maragon/Arquivos/GitHub/.wt/feather-ui-038`.
 - **Pronto:** tag `v0.3.10` no remoto. Conferir a base do ramo (a conferir: é descendente de `v0.3.9`,
@@ -246,6 +248,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### PUB-7. Conferir a fonte na tela e nas células
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. O `main.rs` não chama `usar_na_interface` e as células não usam `"sans-serif"` (essa mudança ficou no stash `e7a5c3e`).
+**Situação (11/11):** ✅ feito no Linux, por foto: interface em Feather Sans, células com a letra do sistema (`Some("sans-serif")`). Falta o Windows (WIN-2).
 - **Onde:** `crates/feathersheet/src/main.rs` (chamada de `usar_na_interface`); `src/grade.rs` e
   `src/estilos_comuns.rs` (`Some("sans-serif")` nas células, mudança não commitada).
 - **Pronto:** foto da janela principal e de uma célula com texto (`FEATHERSHEET_CAPTURAR`, antes e
@@ -255,6 +258,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 
 ### PUB-8. Commitar a Feather Sans no FeatherSheet
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — ❌ falta. Depende de PUB-4 e PUB-5.
+**Situação (11/11):** ✅ feito. No `main`, com pelicano 0.1.33 e feather-ui v0.3.16, sem `[patch]`; 1059 testes.
 - **Onde:** os arquivos de PUB-6 e PUB-7; `CLAUDE.md` (nota na seção da 0.3.0).
 - **Pronto:** commit `claude: Feather Sans como fonte da interface (pelicano v0.1.21, feather-ui v0.3.10)`;
   `cargo` sem `[patch]`.

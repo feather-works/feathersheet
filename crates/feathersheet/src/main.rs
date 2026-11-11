@@ -94,5 +94,6 @@ fn main() -> Result<(), pelicano::Error> {
     let rt = tokio::runtime::Runtime::new().expect("falha ao iniciar o tokio");
     let _guarda = rt.enter();
     // Várias janelas; a principal abre pelo `App::novo`, com a moldura que a configuração pede.
+    feather_ui::fonte::usar_na_interface();
     pelicano::run(pelicano::Settings { start_hidden: true, ..Default::default() }, App::novo)
 }
