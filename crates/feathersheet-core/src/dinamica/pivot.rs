@@ -343,7 +343,7 @@ pub(crate) fn montar_dinamica_com_chaves(
 
     let mut cabecalho = Vec::new();
     if linhas.is_empty() {
-        cabecalho.push(Value::Text("Rótulos de Linha".to_owned()));
+        cabecalho.push(Value::Text(crate::tr!("Rótulos de Linha")));
     }
     for &col in linhas {
         cabecalho.push(Value::Text(cabecalhos
@@ -365,7 +365,7 @@ pub(crate) fn montar_dinamica_com_chaves(
         for medida in valores {
             let nome = cabecalhos.get(medida.coluna.saturating_sub(c0))
                 .cloned().unwrap_or_else(|| format!("Val {}",medida.coluna+1));
-            cabecalho.push(Value::Text(format!("Total Geral ({nome})")));
+            cabecalho.push(Value::Text(crate::trf!("Total Geral ({nome})")));
         }
     }
     let mut linhas_saida = vec![cabecalho];
@@ -384,7 +384,7 @@ pub(crate) fn montar_dinamica_com_chaves(
         linhas_saida.push(saida);
     }
     let mut total = vec![Value::Text(String::new()); linhas.len().max(1)];
-    total[0] = Value::Text("Total Geral".to_owned());
+    total[0] = Value::Text(super::total_geral());
     for (_, ci) in &chaves_colunas {
         let acumulados = por_coluna.get(*ci).unwrap_or(&vazio);
         total.extend(acumulados.iter().map(|acc| Value::Number(acc.resultado())));

@@ -622,7 +622,7 @@ pub(super) fn dados_para_desenho(
 /// Gráfico numa aba com dinâmica: a linha "Total Geral" e a coluna "Total Geral (…)"
 /// ficam de fora, como no gráfico dinâmico do Excel (o total achataria as barras).
 fn sem_total_geral(mut d: feathersheet_core::grafico::chart::ChartData) -> feathersheet_core::grafico::chart::ChartData {
-    let total = |t: &str| t == "Total Geral" || t.starts_with("Total Geral (");
+    let total = |t: &str| feathersheet_core::dinamica::e_total_geral(t);
     let manter: Vec<bool> = d.categories.iter().map(|c| !total(c)).collect();
     if manter.contains(&false) {
         let filtrar = |v: &mut Vec<f64>| {

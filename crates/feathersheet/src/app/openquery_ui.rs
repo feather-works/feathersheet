@@ -733,7 +733,7 @@ impl App {
                 e.esquecer_historico();
                 e.fontes.clear();
                 e.edicao = None;
-                e.nome = format!("Consulta_{nome}");
+                e.nome = trf!("Consulta_{nome}");
                 e.mostrar_tabelas = false;
                 e.mostrar_web = false;
                 e.mostrar_manual = false;

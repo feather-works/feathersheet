@@ -338,7 +338,9 @@ pub fn fn_getpivotdata(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         let mut fundo = topo;
         while fundo + 1 < MAX_ROWS && (esq..=dir).any(|x| !ler(fundo + 1, x).is_empty()) {
             fundo += 1;
-            if txt(fundo, esq) == "total geral" || txt(fundo, esq) == "grand total" {
+            // O rótulo na língua do app, além das formas de sempre.
+            let rotulo_total = txt(fundo, esq);
+            if rotulo_total == "total geral" || rotulo_total == "grand total" || rotulo_total == crate::dinamica::total_geral().to_lowercase() {
                 break;
             }
         }
@@ -371,10 +373,13 @@ pub fn fn_getpivotdata(args: &[Node], ev: &Evaluator<'_>) -> Computed {
                     Some((itens, m)) => (itens, m.trim_end_matches(')')),
                     None => ("", h.as_str()),
                 };
-                let medida = medida.strip_prefix("total geral (").unwrap_or(medida);
+                let total_na_lingua = crate::dinamica::total_geral().to_lowercase();
+                let medida = medida.strip_prefix("total geral (")
+                    .or_else(|| medida.strip_prefix(&format!("{total_na_lingua} (")))
+                    .unwrap_or(medida);
                 let bate_medida = medida == campo || medida.ends_with(&format!(" {campo}"));
                 let itens: Vec<&str> = rotulo.split(" | ").filter(|s| !s.is_empty()).collect();
-                let total = h.starts_with("total geral");
+                let total = h.starts_with("total geral") || h.starts_with(&total_na_lingua);
                 bate_medida && if itens_coluna.is_empty() { total || itens.is_empty() } else { itens == itens_coluna }
             })
             .ok_or_else(nao_achou)?;

@@ -35,17 +35,32 @@ pub struct OpcoesSubtotal {
     pub colunas: Vec<u32>,
 }
 
-/// O rótulo do total, como o Excel em português: "Brasil Total", "Total Geral".
-fn rotulo(funcao: u8) -> &'static str {
+/// O rótulo do total de um grupo ("Brasil Total") na língua do app: uma frase inteira por
+/// função, porque a ordem das palavras muda de língua para língua.
+fn rotulo_do_grupo(funcao: u8, grupo: &str) -> String {
     match funcao {
-        9 => "Total",
-        2 | 3 => "Contagem",
-        1 => "Média",
-        4 => "Máx",
-        5 => "Mín",
-        6 => "Produto",
-        7 | 8 => "DesvPad",
-        _ => "Var",
+        9 => crate::trf!("{grupo} Total"),
+        2 | 3 => crate::trf!("{grupo} Contagem"),
+        1 => crate::trf!("{grupo} Média"),
+        4 => crate::trf!("{grupo} Máx"),
+        5 => crate::trf!("{grupo} Mín"),
+        6 => crate::trf!("{grupo} Produto"),
+        7 | 8 => crate::trf!("{grupo} DesvPad"),
+        _ => crate::trf!("{grupo} Var"),
+    }
+}
+
+/// O rótulo do total geral ("Total Geral", "Contagem Geral") na língua do app.
+fn rotulo_geral(funcao: u8) -> String {
+    match funcao {
+        9 => crate::tr!("Total Geral"),
+        2 | 3 => crate::tr!("Contagem Geral"),
+        1 => crate::tr!("Média Geral"),
+        4 => crate::tr!("Máx Geral"),
+        5 => crate::tr!("Mín Geral"),
+        6 => crate::tr!("Produto Geral"),
+        7 | 8 => crate::tr!("DesvPad Geral"),
+        _ => crate::tr!("Var Geral"),
     }
 }
 
@@ -145,7 +160,6 @@ impl Workbook {
         }
 
         // Escrever os totais e os níveis.
-        let nome = rotulo(op.funcao);
         let funcao = op.funcao;
         let primeira = area.r0 + 1;
         let ultima_total = fim + g;
@@ -159,7 +173,7 @@ impl Workbook {
         for (k, (a, b, rotulo_grupo)) in grupos.iter().enumerate() {
             let (a, b) = (a + k as u32, b + k as u32);
             let total = b + 1;
-            sheet.set_cell(total, op.coluna_grupo, &format!("{rotulo_grupo} {nome}"));
+            sheet.set_cell(total, op.coluna_grupo, &rotulo_do_grupo(funcao, rotulo_grupo));
             for &c in &op.colunas {
                 let col = col_name(c);
                 sheet.set_cell(total, c, &format!("=SUBTOTAL({funcao};{col}{}:{col}{})", a + 1, b + 1));
@@ -167,7 +181,7 @@ impl Workbook {
             for r in a..=b { linhas.niveis.insert(r, 2); }
             linhas.niveis.insert(total, 1);
         }
-        sheet.set_cell(geral, op.coluna_grupo, &format!("{nome} Geral"));
+        sheet.set_cell(geral, op.coluna_grupo, &rotulo_geral(funcao));
         for &c in &op.colunas {
             let col = col_name(c);
             sheet.set_cell(geral, c, &format!("=SUBTOTAL({funcao};{col}{}:{col}{})", primeira + 1, ultima_total + 1));

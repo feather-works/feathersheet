@@ -301,7 +301,7 @@ fn dica_de_escrita(ch: Option<char>, mensagem: &str) -> String {
     if matches!(ch, Some('[') | Some(']')) {
         return crate::tr!("Colchetes em referências de tabela devem ser fechados corretamente.");
     }
-    if (crate::idioma::veio_de(mensagem, "Matriz vazia") || crate::idioma::veio_de(mensagem, "Matriz com linhas de tamanhos diferentes")) {
+    if crate::idioma::veio_de(mensagem, "Matriz vazia") || crate::idioma::veio_de(mensagem, "Matriz com linhas de tamanhos diferentes") {
         return crate::tr!("Dentro de { }, \";\" separa linhas e \"\\\" separa colunas, e todas as linhas precisam do mesmo tamanho.");
     }
     if crate::idioma::veio_de(mensagem, "Texto sem aspas de fechamento") {

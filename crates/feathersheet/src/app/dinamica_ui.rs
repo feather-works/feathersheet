@@ -1129,7 +1129,7 @@ impl App {
             .map(|a| a.sheet.name.clone()).unwrap_or_default();
         let indice = if e.nova_aba {
             let nomes = self.workbook.nomes();
-            let nome = (1..).map(|n| format!("Dinâmica{n}"))
+            let nome = (1..).map(|n| trf!("Dinâmica{n}"))
                 .find(|n| !nomes.iter().any(|x| x.eq_ignore_ascii_case(n)))
                 .expect("um nome livre sempre existe");
             self.workbook.criar_aba(nome)

@@ -19,13 +19,13 @@ pub(super) fn area_do_grafico(app: &App, destino: usize, meta: &Json) -> Option<
     while r1 > area.r0 {
         let total = match tipos.get((r1 - area.r0) as usize) {
             Some(t) => t == "t",
-            None => sheet.get_raw(r1, area.c0).starts_with("Total Geral"),
+            None => feathersheet_core::dinamica::e_total_geral(&sheet.get_raw(r1, area.c0)),
         };
         if !total { break; }
         r1 -= 1;
     }
     let mut c1 = area.c1;
-    while c1 > area.c0 && sheet.get_raw(area.r0, c1).starts_with("Total Geral") {
+    while c1 > area.c0 && feathersheet_core::dinamica::e_total_geral(&sheet.get_raw(area.r0, c1)) {
         c1 -= 1;
     }
     (r1 > area.r0).then(|| Rect::new(area.r0, area.c0, r1, c1))

@@ -659,7 +659,7 @@ fn montar_estruturado(
     // O cabeçalho: os rótulos e, para cada coluna × medida, o nome.
     let largura_rotulo = if opcoes.layout == Layout::Compacto { 1 } else { n.max(1) };
     let mut cab: Vec<Value> = if opcoes.layout == Layout::Compacto || n == 0 {
-        vec![Value::Text("Rótulos de Linha".into())]
+        vec![Value::Text(crate::tr!("Rótulos de Linha"))]
     } else {
         config.linhas.iter().map(|&c| Value::Text(cabecalho(c))).collect()
     };
@@ -671,7 +671,7 @@ fn montar_estruturado(
     }
     if total_linha_direita {
         for m in &config.valores {
-            cab.push(Value::Text(format!("Total Geral ({})", cabecalho(m.coluna))));
+            cab.push(Value::Text(crate::trf!("Total Geral ({})", cabecalho(m.coluna))));
         }
     }
 
@@ -685,7 +685,7 @@ fn montar_estruturado(
     // O total geral (sem campo em Linhas, é a única linha de dados).
     if extras.totais_gerais_colunas || n == 0 {
         let mut ultima = vec![Value::Text(String::new()); largura_rotulo];
-        ultima[0] = Value::Text("Total Geral".into());
+        ultima[0] = Value::Text(super::total_geral());
         ultima.extend(contas(""));
         saida.linhas.push(ultima);
         saida.info.push(InfoLinha::nova(TipoLinha::Total, 0));
@@ -789,7 +789,7 @@ fn emitir(ctx: &Contexto, saida: &mut Saida, nome: &str, no: &No, caminho: Strin
                 }
                 if ctx.opcoes.subtotais {
                     let mut linha = vec![Value::Text(String::new()); ctx.largura_rotulo];
-                    linha[d] = Value::Text(format!("{nome} Total"));
+                    linha[d] = Value::Text(crate::trf!("{nome} Total"));
                     linha.extend((ctx.do_caminho)(&caminho));
                     saida.linhas.push(linha);
                     saida.info.push(InfoLinha::nova(TipoLinha::Subtotal, d));
