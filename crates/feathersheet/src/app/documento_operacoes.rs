@@ -265,7 +265,7 @@ impl App {
             feathersheet_core::Value::Text(t) => t,
             feathersheet_core::Value::Bool(true) => "VERDADEIRO".into(),
             feathersheet_core::Value::Bool(false) => "FALSO".into(),
-            feathersheet_core::Value::Error(e) => e.code.as_str().into(),
+            feathersheet_core::Value::Error(e) => e.code.na_lingua(),
         };
         // Vizinha de matriz derramada, sem a âncora na cópia: vai o valor,
         // como no Excel. Com a âncora junto, vai só a fórmula, que derrama

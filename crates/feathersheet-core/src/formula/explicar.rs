@@ -29,7 +29,7 @@ pub struct Passo {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Explicacao {
-    pub code: &'static str,
+    pub code: String,
     pub meaning: String,
     pub summary: String,
     /// Do topo até a origem; o último passo é onde o erro nasceu.
@@ -195,7 +195,7 @@ pub fn explicar_erro(pasta: &Workbook, aba: usize, row: u32, col: u32) -> Option
             passos.push(Passo { cell: nome, formula: raw, culprit: escrita.trecho.clone(), onde: Some(escrita.onde.clone()), blame_cell: None });
             let (meaning, _) = significado(ErrorCode::Error);
             return Some(Explicacao {
-                code: ErrorCode::Error.as_str(),
+                code: ErrorCode::Error.na_lingua(),
                 meaning,
                 summary: format!("{}, {}: {}", escrita.mensagem, escrita.onde, escrita.trecho),
                 steps: passos,
@@ -240,7 +240,7 @@ pub fn explicar_erro(pasta: &Workbook, aba: usize, row: u32, col: u32) -> Option
 
     let (meaning, _) = significado(ultimo.code);
     Some(Explicacao {
-        code: ultimo.code.as_str(),
+        code: ultimo.code.na_lingua(),
         meaning,
         summary: resumir(&ultimo, &passos),
         hint: dica(&ultimo, &passos),
@@ -347,7 +347,7 @@ fn resumir(erro: &CellError, passos: &[Passo]) -> String {
         return erro.detail.clone().unwrap_or_else(|| significado(erro.code).0.to_string());
     };
     let la = if passos.len() > 1 { crate::trf!(", lá em {}", fundo.cell) } else { String::new() };
-    let trecho = crate::trf!("{} nasce em `{}`{la}", erro.code.as_str(), fundo.culprit);
+    let trecho = crate::trf!("{} nasce em `{}`{la}", erro.code.na_lingua(), fundo.culprit);
     let arg = fundo.onde.as_ref().map(|o| format!(" ({o})")).unwrap_or_default();
     // Quando o "onde" já cita o valor culpado, repetir o detalhe só cansa.
     let citado = erro.detail.as_deref().and_then(entre_aspas);
@@ -470,7 +470,7 @@ fn descrever(v: &Value, raw: &str) -> String {
         Value::Text(t) => crate::trf!("o texto \"{t}\""),
         Value::Number(n) => crate::trf!("o número {}", to_js_string(*n).replace('.', ",")),
         Value::Bool(b) => crate::celulas::locale::texto_logico(*b),
-        Value::Error(e) => e.code.as_str().to_string(),
+        Value::Error(e) => e.code.na_lingua(),
         Value::Empty => crate::tr!("está vazia"),
     }
 }

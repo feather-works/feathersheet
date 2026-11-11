@@ -437,6 +437,7 @@ pub fn format_value(valor: &crate::celulas::values::Value, estilo: Option<&Style
         crate::celulas::values::Value::Number(n) => format_number(*n, estilo),
         // Só a exibição segue a língua (TRUE, VRAI…); `to_text` continua em português.
         crate::celulas::values::Value::Bool(b) => crate::celulas::locale::texto_logico(*b),
+        crate::celulas::values::Value::Error(e) => e.code.na_lingua(),
         _ => crate::celulas::values::to_text(valor),
     }
 }

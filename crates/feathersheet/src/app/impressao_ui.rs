@@ -807,7 +807,7 @@ impl App {
                         Value::Empty => String::new(),
                         Value::Text(s) => s.clone(),
                         Value::Bool(b) => feathersheet_core::celulas::locale::texto_logico(*b),
-                        Value::Error(err) => err.code.as_str().into(),
+                        Value::Error(err) => err.code.na_lingua(),
                     };
                     let v = crate::estilos_comuns::projetar_estilo(estilo.as_ref(), None);
                     let cor = |c: [u8; 4]| pelicano::Color::rgb8(c[0], c[1], c[2]).alpha(c[3] as f32 / 255.0);

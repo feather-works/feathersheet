@@ -1,5 +1,18 @@
 {
  "//": "De-para dos nomes das funções em português: nome canônico (inglês) → nome mostrado e digitado. O motor também entende as grafias sem acento.",
+ "erros": {
+  "#DIV/0!": "#DIV/0!",
+  "#VALUE!": "#VALOR!",
+  "#REF!": "#REF!",
+  "#NAME?": "#NOME?",
+  "#ERROR!": "#ERRO!",
+  "#NUM!": "#NÚM!",
+  "#N/A": "#N/D",
+  "#SPILL!": "#DESPEJAR!",
+  "#CIRCULAR!": "#CIRCULAR!",
+  "#CALCULANDO!": "#CALCULANDO!",
+  "#NULL!": "#NULO!"
+ },
  "nomes": {
   "ABS": "ABS",
   "ACCRINT": "JUROSACUM",

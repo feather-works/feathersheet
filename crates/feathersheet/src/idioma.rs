@@ -68,6 +68,9 @@ pub fn definir(idioma: &str) {
     // A célula mostra o lógico com o nome de TRUE/FALSE no dicionário de funções da língua.
     let (verdadeiro, falso) = logicos_de(Lingua::de_codigo(idioma));
     feathersheet_core::celulas::locale::definir_logicos(verdadeiro, falso);
+    // Os códigos de erro também saem do dicionário de funções (`erros`).
+    feathersheet_core::celulas::locale::definir_codigos_de_erro(
+        funcoes_de(Lingua::de_codigo(idioma)).erros.iter().map(|(c, t)| (c.clone(), t.clone())).collect());
     // Os textos prontos do motor (erros, rótulos) usam o mesmo dicionário da interface.
     feathersheet_core::idioma::definir_tradutor(
         |pt| if lingua() == Lingua::Pt { None } else { dicionario().get(pt).cloned() },
@@ -352,6 +355,9 @@ pub struct FuncoesIdioma {
     pub argumentos: HashMap<String, String>,
     #[serde(default)]
     pub descricoes: HashMap<String, String>,
+    /// Códigos de erro: canônico (`#VALUE!`) → como aparece no idioma (`#VALOR!`).
+    #[serde(default)]
+    pub erros: HashMap<String, String>,
     /// De-para dos nomes: canônico (inglês) → nome no idioma.
     #[serde(default)]
     pub nomes: HashMap<String, String>,
@@ -563,6 +569,9 @@ mod tests {
         let esperado = [("VERDADEIRO", "FALSO"), ("TRUE", "FALSE"), ("VERDADERO", "FALSO"), ("VRAI", "FAUX")];
         for (l, par) in Lingua::TODAS.into_iter().zip(esperado) {
             assert_eq!(logicos_de(l), par, "{}", l.codigo());
+            // Os 11 códigos de erro do motor, todos com a forma da língua.
+            assert_eq!(funcoes_de(l).erros.len(), 11, "erros de {}", l.codigo());
+            assert!(funcoes_de(l).erros.contains_key("#VALUE!"), "{}", l.codigo());
         }
     }
 

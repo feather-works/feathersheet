@@ -41,6 +41,11 @@ impl ErrorCode {
         }
     }
 
+    /// O código como a pessoa vê, na língua do app (`#VALOR!` em português).
+    pub fn na_lingua(self) -> String {
+        crate::celulas::locale::texto_do_erro(self.as_str())
+    }
+
     /// O caminho de volta: `"#DIV/0!"` vira [`ErrorCode::Div0`]. Serve para
     /// ler o literal de erro que veio da fórmula ou do arquivo.
     pub fn from_code(texto: &str) -> Option<ErrorCode> {
@@ -61,7 +66,10 @@ impl ErrorCode {
             "#VALOR!" => ErrorCode::Value,
             "#NOME?" => ErrorCode::Name,
             "#NÚM!" => ErrorCode::Num,
-            _ => return None,
+            // O código como aparece na língua do app (`#VALEUR!`, `#¡VALOR!`).
+            outro => return crate::celulas::locale::erro_digitado(outro)
+                .filter(|canonico| canonico != outro)
+                .and_then(|canonico| ErrorCode::from_code(&canonico)),
         })
     }
 }
@@ -410,6 +418,7 @@ pub fn to_number(v: &Value) -> Result<f64, CellError> {
 pub fn to_text_formula(v: &Value) -> String {
     match v {
         Value::Bool(b) => crate::celulas::locale::texto_logico(*b),
+        Value::Error(e) => e.code.na_lingua(),
         outro => to_text(outro),
     }
 }

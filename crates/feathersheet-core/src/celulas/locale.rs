@@ -110,6 +110,28 @@ fn atual() -> &'static RwLock<LocaleConfig> {
 
 static DECIMAL: AtomicU32 = AtomicU32::new(',' as u32);
 static MILHAR: AtomicU32 = AtomicU32::new('.' as u32);
+/// Os códigos de erro na língua do app: (canônico, na língua), vindos de `erros` no dicionário
+/// de funções (`#VALUE!` → `#VALOR!`). Vazio: os canônicos.
+static CODIGOS_DE_ERRO: RwLock<Vec<(String, String)>> = RwLock::new(Vec::new());
+
+/// Define como os códigos de erro aparecem. O valor guardado e o arquivo continuam com o canônico.
+pub fn definir_codigos_de_erro(pares: Vec<(String, String)>) {
+    *CODIGOS_DE_ERRO.write().unwrap_or_else(|e| e.into_inner()) = pares;
+}
+
+/// O código de erro como a célula mostra na língua em uso.
+pub fn texto_do_erro(canonico: &str) -> String {
+    CODIGOS_DE_ERRO.read().unwrap_or_else(|e| e.into_inner()).iter()
+        .find(|(c, _)| c == canonico).map_or_else(|| canonico.to_owned(), |(_, t)| t.clone())
+}
+
+/// O canônico de um código digitado na língua em uso (`#VALOR!` → `#VALUE!`).
+pub fn erro_digitado(texto: &str) -> Option<String> {
+    let t = texto.to_uppercase();
+    CODIGOS_DE_ERRO.read().unwrap_or_else(|e| e.into_inner()).iter()
+        .find(|(_, na_lingua)| na_lingua.to_uppercase() == t).map(|(c, _)| c.clone())
+}
+
 /// As palavras do valor lógico na língua do app, vindas do dicionário de funções dela
 /// (`TRUE` → `VRAI`): quem carrega o dicionário chama [`definir_logicos`]. `None`: português.
 static LOGICOS: RwLock<Option<(String, String)>> = RwLock::new(None);

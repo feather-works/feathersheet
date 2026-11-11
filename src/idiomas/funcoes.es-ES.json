@@ -847,6 +847,19 @@
   "YIELDMAT": "Rendimiento anual de un valor que paga intereses al vencimiento.",
   "Z.TEST": "Valor P de una cola de la prueba z. Sin sigma usa la desviación estándar muestral. Ej.: =Z.TEST(A1:A10,4)."
  },
+ "erros": {
+  "#DIV/0!": "#¡DIV/0!",
+  "#VALUE!": "#¡VALOR!",
+  "#REF!": "#¡REF!",
+  "#NAME?": "#¿NOMBRE?",
+  "#ERROR!": "#¡ERROR!",
+  "#NUM!": "#¡NUM!",
+  "#N/A": "#N/D",
+  "#SPILL!": "#¡DESBORDAMIENTO!",
+  "#CIRCULAR!": "#¡CIRCULAR!",
+  "#CALCULANDO!": "#¡CALCULANDO!",
+  "#NULL!": "#¡NULO!"
+ },
  "nomes": {
   "ABS": "ABS",
   "ACCRINT": "INT.ACUM",

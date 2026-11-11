@@ -847,6 +847,19 @@
   "YIELDMAT": "Annual yield of a security that pays interest at maturity.",
   "Z.TEST": "One-tailed P-value of the z-test. Without sigma it uses the sample standard deviation. E.g. =Z.TEST(A1:A10,4)."
  },
+ "erros": {
+  "#DIV/0!": "#DIV/0!",
+  "#VALUE!": "#VALUE!",
+  "#REF!": "#REF!",
+  "#NAME?": "#NAME?",
+  "#ERROR!": "#ERROR!",
+  "#NUM!": "#NUM!",
+  "#N/A": "#N/A",
+  "#SPILL!": "#SPILL!",
+  "#CIRCULAR!": "#CIRCULAR!",
+  "#CALCULANDO!": "#CALCULATING!",
+  "#NULL!": "#NULL!"
+ },
  "nomes": {
   "ABS": "ABS",
   "ACCRINT": "ACCRINT",
