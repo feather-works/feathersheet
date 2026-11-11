@@ -3,7 +3,7 @@
 //! O Excel põe num `customXml/itemN.xml` um `<DataMashup>` com base64. Dentro: versão (u32),
 //! o tamanho (u32) e um zip (OPC) com `Formulas/Section1.m`, o documento
 //! `section Section1; shared Nome = let … in …;` com todas as consultas. Aqui só sai esse texto;
-//! quem lê o M é o OpenQuery.
+//! quem lê o M é o FeatherQuery.
 use std::io::{Cursor, Read};
 
 /// Teto de cada parte lida (o arquivo pode vir de qualquer lugar).

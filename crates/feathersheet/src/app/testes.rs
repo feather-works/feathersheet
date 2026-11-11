@@ -1142,7 +1142,7 @@ fn com_ingles_as_telas_principais_nao_pedem_texto_sem_traducao() {
         app.preparar_captura_dialogo(nome);
         let _: Element<'_, Msg> = app.view(id);
     }
-    // Barra de status com números selecionados, Configurações (cada seção), Formatar células e OpenQuery.
+    // Barra de status com números selecionados, Configurações (cada seção), Formatar células e FeatherQuery.
     let mut app = App::default();
     app.janelas.principal = Some(id);
     for (r, v) in ["Mês\tValor", "Jan\t10", "Fev\t30"].iter().enumerate() {

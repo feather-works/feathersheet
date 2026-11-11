@@ -22,7 +22,7 @@ impl App {
         }
         // Consultas em edição podem armazenar índices físicos na origem.
         if self.openquery.is_some() {
-            self.status = tr!("Conclua ou feche o OpenQuery antes de mover as abas.").into();
+            self.status = tr!("Conclua ou feche o FeatherQuery antes de mover as abas.").into();
             return Task::none();
         }
         if !self.confirmar() { return Task::none(); }

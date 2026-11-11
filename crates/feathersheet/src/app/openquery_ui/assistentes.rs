@@ -1,4 +1,4 @@
-//! Assistentes nativos OpenQuery: Junção, Acrescentar e Pivotar.
+//! Assistentes nativos FeatherQuery: Junção, Acrescentar e Pivotar.
 //! Os assistentes produzem exclusivamente Passo do motor Rust existente.
 use super::*;
 

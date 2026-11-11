@@ -1,4 +1,4 @@
-//! Registro OpenQuery no campo legado Sheet.oq, já persistido pelo FSHZ.
+//! Registro FeatherQuery no campo legado Sheet.oq, já persistido pelo FSHZ.
 //! Compatível com ConsultaItem do TypeScript. O campo adicional _feather
 //! registra proveniência e área gerada para atualização segura in-place.
 use super::*;
@@ -16,7 +16,7 @@ fn registros(w: &Workbook, aba: usize) -> Result<Vec<Json>, String> {
         .sheet.oq.as_deref();
     match raw {
         Some(raw) => serde_json::from_str::<Vec<Json>>(raw)
-            .map_err(|_| trf!("Metadados OpenQuery da aba {} estão inválidos; nada foi alterado", aba + 1)),
+            .map_err(|_| trf!("Metadados FeatherQuery da aba {} estão inválidos; nada foi alterado", aba + 1)),
         None => Ok(Vec::new()),
     }
 }

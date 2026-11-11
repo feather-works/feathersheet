@@ -229,7 +229,7 @@ const AUXILIARES: [(Auxiliar, &str); 12] = [
     (Auxiliar::Configuracoes, "Configurações"), (Auxiliar::Ajuda, "Ajuda"), (Auxiliar::Monitor, "Monitor"),
     (Auxiliar::Macros, "Editor de macros"), (Auxiliar::FormatarCelulas, "Formatar células"),
     (Auxiliar::DividirTexto, "Dividir texto"), (Auxiliar::RemoverDuplicados, "Remover duplicados"),
-    (Auxiliar::Imprimir, "Imprimir"), (Auxiliar::OpenQuery, "OpenQuery"), (Auxiliar::Inspecao, "Janela de inspeção"),
+    (Auxiliar::Imprimir, "Imprimir"), (Auxiliar::OpenQuery, "FeatherQuery"), (Auxiliar::Inspecao, "Janela de inspeção"),
     (Auxiliar::Condicional, "Formatação condicional"), (Auxiliar::Formulario, "Formulário da macro"),
 ];
 

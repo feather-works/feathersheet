@@ -1,4 +1,4 @@
-//! Janela própria do OpenQuery, no mesmo desenho do editor de macros (Alt+F11):
+//! Janela própria do FeatherQuery, no mesmo desenho do editor de macros (Alt+F11):
 //! Ribbon com ícones cromáticos, explorador à esquerda e etapas à direita,
 //! sem o painel permanente de propriedades. Opções aparecem sob demanda;
 //! o log inferior fica recolhido. Só o desenho mora aqui; os dados
@@ -695,7 +695,7 @@ fn barra_menus<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
         linha = linha.push(ide::botao_menu(rotulo, Some(om(Evento::Aba(aba))), e.aba_faixa == aba));
     }
     linha = linha.push(Space::new(Length::FILL, 0.0));
-    linha = linha.push(text("OPENQUERY").size(10).color(ide::cor_secundaria(escuro)));
+    linha = linha.push(text("FEATHERQUERY").size(10).color(ide::cor_secundaria(escuro)));
     container(linha).padding([4, 8]).style(ide::estilo_area(escuro)).width(Length::FILL).into()
 }
 
@@ -994,7 +994,7 @@ fn menu_da_coluna(e: &Estado, c: usize) -> Vec<crate::app::menu_contexto::ItemMe
 }
 
 impl App {
-    /// Obter dados ▾: todas as conexões do OpenQuery num lugar, como o "Obter Dados" do Excel.
+    /// Obter dados ▾: todas as conexões do FeatherQuery num lugar, como o "Obter Dados" do Excel.
     fn menu_obter_dados(&self, e: &Estado) -> Vec<crate::app::menu_contexto::ItemMenu> {
         use crate::app::menu_contexto::ItemMenu;
         let item = |rotulo: &str, icone: &'static str, ev: Evento| ItemMenu::acao(rotulo, icone, om(Evento::DoMenuObter(Box::new(ev))));
@@ -1067,7 +1067,7 @@ fn painel_consultas_pq<'a>(lista: &'a [(String, String)]) -> Element<'a, Msg> {
     }
     feather_ui::dialogo::Dialogo::new(tr!("Consultas do Power Query deste arquivo"), scrollable(corpo).height(Length::Fixed(320.0)))
         .icone("file-import")
-        .subtitulo(tr!("O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do OpenQuery."))
+        .subtitulo(tr!("O Excel guardou estas consultas no arquivo. A escolhida abre no Editor avançado, convertida em etapas do FeatherQuery."))
         .largura(560.0)
         .ao_fechar(om(Evento::FecharConsultasPowerQuery))
         .secundario(tr!("Cancelar"), Some(om(Evento::FecharConsultasPowerQuery)))

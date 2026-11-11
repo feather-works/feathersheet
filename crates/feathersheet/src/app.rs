@@ -1373,7 +1373,7 @@ impl App {
             Some(Auxiliar::DividirTexto) => tr!("Converter texto em colunas — FeatherSheet").into(),
             Some(Auxiliar::RemoverDuplicados) => tr!("Remover duplicados — FeatherSheet").into(),
             Some(Auxiliar::Imprimir) => tr!("Imprimir — FeatherSheet").into(),
-            Some(Auxiliar::OpenQuery) => tr!("OpenQuery — Editor de consultas · FeatherWorks").into(),
+            Some(Auxiliar::OpenQuery) => tr!("FeatherQuery — Editor de consultas · FeatherWorks").into(),
             Some(Auxiliar::Inspecao) => tr!("Janela de inspeção — FeatherSheet").into(),
             Some(Auxiliar::PrimeirosPassos) => tr!("Primeiros passos — FeatherSheet").into(),
             Some(Auxiliar::Novidades) => tr!("O que há de novo — FeatherSheet").into(),
@@ -1726,7 +1726,7 @@ impl App {
             // o campo só avisa "Enter", então o Shift é lembrado aqui.
             Event::ModifiersChanged(m) => {
                 msgs.push(Msg::MacroVisual(macros::EventoVisual::Codigo(macros::EventoCodigo::Modificadores(*m))));
-                // Ctrl/Shift+clique nas colunas da prévia do OpenQuery.
+                // Ctrl/Shift+clique nas colunas da prévia do FeatherQuery.
                 if self.openquery.is_some() { msgs.push(Msg::OpenQuery(openquery_ui::Evento::Modificadores(*m))); }
                 if self.assistente_divisao.is_some() { msgs.push(Msg::AssistenteDivisao(assistente_divisao::Evento::Modificadores(*m))); }
             }

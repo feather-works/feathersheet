@@ -1,4 +1,4 @@
-//! O OpenQuery: os passos de uma consulta.
+//! O FeatherQuery: os passos de uma consulta.
 
 pub mod query;
 

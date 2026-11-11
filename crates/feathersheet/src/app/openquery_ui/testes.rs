@@ -1,4 +1,4 @@
-//! Testes do editor nativo OpenQuery — separados para manter o modulo UI pequeno.
+//! Testes do editor nativo FeatherQuery — separados para manter o modulo UI pequeno.
 use super::*;
     #[test]
     fn ler_intervalo_com_cabecalho_sem_alterar_dados() {
@@ -392,7 +392,7 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         let _ = app.update(Msg::Colar("Cidade\tMWh\nVitória\t42\nSerra\t7".into()));
         let _ = app.update(Msg::IrPara("B2".into()));
         let _ = app.update(Msg::OpenQuery(Evento::AbrirCom(Box::new(Evento::CarregarSelecao))));
-        let e = app.openquery.as_ref().expect("OpenQuery aberto");
+        let e = app.openquery.as_ref().expect("FeatherQuery aberto");
         assert_eq!(e.fonte.cabecalho, ["Cidade", "MWh"]);
         assert_eq!(e.fonte.linhas.len(), 2);
     }
@@ -437,7 +437,7 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         app.evento_openquery(Evento::Desfazer(true));
         assert!(app.openquery.as_ref().unwrap().passos.is_empty());
         app.evento_openquery(Evento::Desfazer(true));
-        assert_eq!(app.status, "OpenQuery: nada a desfazer");
+        assert_eq!(app.status, "FeatherQuery: nada a desfazer");
         app.evento_openquery(Evento::Desfazer(false));
         app.evento_openquery(Evento::Desfazer(false));
         assert_eq!(app.openquery.as_ref().unwrap().passos.len(), 2, "Ctrl+Y refaz as duas");
@@ -445,7 +445,7 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         app.evento_openquery(Evento::Desfazer(true));
         app.evento_openquery(Evento::Adicionar("inverter"));
         app.evento_openquery(Evento::Desfazer(false));
-        assert_eq!(app.status, "OpenQuery: nada a refazer");
+        assert_eq!(app.status, "FeatherQuery: nada a refazer");
     }
 
     #[test]

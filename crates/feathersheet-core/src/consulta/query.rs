@@ -1,4 +1,4 @@
-//! OpenQuery Motor de ETL — Transformação, filtragem, agregação, junção e pivotação de dados em Rust.
+//! FeatherQuery Motor de ETL — Transformação, filtragem, agregação, junção e pivotação de dados em Rust.
 //!
 //! Tradução direta e otimizada de `src/core/query.ts` para execução nativa ultra-rápida.
 
@@ -222,7 +222,7 @@ static MESES: [&str; 12] = [
 static DIAS: [&str; 7] = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 
-/// Executor protegido usado pelo editor interativo OpenQuery. O executor
+/// Executor protegido usado pelo editor interativo FeatherQuery. O executor
 /// histórico permanece sem limite para consumidores que gerenciam memória.
 pub fn executar_query_limitado(
     fonte: Tabela,
@@ -234,7 +234,7 @@ pub fn executar_query_limitado(
     let inicial = (atual.cabecalho.len() as u64)
         .saturating_mul(atual.linhas.len() as u64);
     if inicial > max_celulas {
-        return Err("Fonte OpenQuery excede o orçamento de memória".into());
+        return Err("Fonte FeatherQuery excede o orçamento de memória".into());
     }
     for passo in passos {
         limites::verificar(&atual, passo, fontes, max_celulas)?;
@@ -243,7 +243,7 @@ pub fn executar_query_limitado(
     Ok(atual)
 }
 
-/// Executa uma sequência de passos do OpenQuery sobre a tabela fonte.
+/// Executa uma sequência de passos do FeatherQuery sobre a tabela fonte.
 ///
 /// Tradução passo a passo do `executar` do `query.ts` (refeita em
 /// 24/09/2026: a primeira versão divergia em ordem de grupos, contagem, dia

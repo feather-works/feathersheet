@@ -1,5 +1,5 @@
 //! Dados agregados pelo motor, nunca a planilha inteira: perfil de coluna,
-//! amostra, busca e consulta (os passos do OpenQuery).
+//! amostra, busca e consulta (os passos do FeatherQuery).
 use std::collections::HashMap;
 
 use feathersheet_core::celulas::refs::{cell_name, col_name, Rect};
@@ -13,7 +13,7 @@ use crate::ferramentas::Saida;
 use crate::hospede::Hospede;
 use crate::texto::*;
 
-/// Teto de células que uma consulta lê ou produz (o mesmo do OpenQuery).
+/// Teto de células que uma consulta lê ou produz (o mesmo do FeatherQuery).
 const MAX_CONSULTA: u64 = 20_000_000;
 const MAX_AMOSTRA: u64 = 50;
 
@@ -111,7 +111,7 @@ pub fn localizar(h: &dyn Hospede, args: &Json) -> Saida {
     }))
 }
 
-/// Passos do OpenQuery sobre um intervalo: devolve a prévia e, com
+/// Passos do FeatherQuery sobre um intervalo: devolve a prévia e, com
 /// `destino`, grava o resultado numa aba (nova ou existente, a partir de A1).
 pub fn consulta(h: &mut dyn Hospede, args: &Json) -> Saida {
     let (aba, area) = intervalo(h, args, "fonte")?;

@@ -41,7 +41,7 @@ pub struct Configuracao {
     pub calculo_manual: bool,
     /// Fórmulas → Usadas recentemente, a mais nova primeiro.
     pub funcoes_recentes: Vec<String>,
-    /// Dados → Fontes recentes do OpenQuery (caminho ou URL), a mais nova primeiro.
+    /// Dados → Fontes recentes do FeatherQuery (caminho ou URL), a mais nova primeiro.
     pub fontes_recentes: Vec<String>,
     /// Gravação periódica apenas de documentos .fshz já salvos.
     pub auto_salvar: bool,

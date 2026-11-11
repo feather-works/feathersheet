@@ -1,4 +1,4 @@
-//! Liga a saída OpenQuery a uma tabela real (Sheet.tb) e a um nome
+//! Liga a saída FeatherQuery a uma tabela real (Sheet.tb) e a um nome
 //! estruturado. Compatível com os campos openQueryId/openQueryNome do TS.
 use super::*;
 use serde_json::{json, Value as Json};
@@ -44,7 +44,7 @@ pub(super) fn preparar(
     area: Rect,
 ) -> Result<Plano, String> {
     if area.r0 > area.r1 || area.c0 > area.c1 || area.r1 >= MAX_ROWS || area.c1 >= MAX_COLS {
-        return Err(tr!("Área inválida para vínculo OpenQuery").into());
+        return Err(tr!("Área inválida para vínculo FeatherQuery").into());
     }
     let mut lista = tabelas(w, destino)?;
     let vinculada = lista.iter().position(|t|

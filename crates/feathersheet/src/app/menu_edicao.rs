@@ -156,7 +156,7 @@ fn itens(tipo: &str) -> Vec<Item> {
                 Acao(tr!("De Tabela/Intervalo"), "table", abrir(EventoOpenQuery::CarregarSelecao)),
                 Acao(tr!("De uma tabela da pasta…"), "table", abrir(EventoOpenQuery::MostrarTabelas)),
                 Divisor,
-                Acao(tr!("Abrir o OpenQuery"), "table", Msg::OpenQuery(EventoOpenQuery::Abrir)),
+                Acao(tr!("Abrir o FeatherQuery"), "table", Msg::OpenQuery(EventoOpenQuery::Abrir)),
             ]
         }
         "pg_largura" | "pg_altura" => {

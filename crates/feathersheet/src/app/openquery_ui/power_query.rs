@@ -1,8 +1,8 @@
-//! Power Query (linguagem M) ↔ script do OpenQuery.
+//! Power Query (linguagem M) ↔ script do FeatherQuery.
 //!
 //! As duas pontas são texto. O M vira as linhas do script (`fonte.metodo(…);`, colunas pelo
 //! nome), e o `script::ler` de sempre confere coluna por coluna e monta as etapas. O que o M
-//! tem e o OpenQuery não faz vira `// M não convertido:` com o texto original, como no
+//! tem e o FeatherQuery não faz vira `// M não convertido:` com o texto original, como no
 //! conversor de VBA: nada some calado. Na volta, cada etapa vira um `#"Nome" = Table.X(…)`
 //! para colar no Editor Avançado do Excel.
 use super::*;
@@ -440,13 +440,13 @@ fn ligacoes(src: &str) -> R<Vec<Ligacao>> {
     Ok(saida)
 }
 
-/// Texto colado parece M (e não o script do OpenQuery)?
+/// Texto colado parece M (e não o script do FeatherQuery)?
 pub(super) fn parece_m(texto: &str) -> bool {
     let t = texto.trim_start();
     let comeca = t.starts_with("let") && t[3..].starts_with(|c: char| c.is_whitespace());
     let m = ["Table.", "Excel.", "Csv.Document", "File.Contents", "Folder.Files", "Web.Contents", " in\n", "\nin"]
         .iter().any(|x| t.contains(x));
-    // O script do OpenQuery também começa com `let fonte = …;` e nunca tem `Table.`.
+    // O script do FeatherQuery também começa com `let fonte = …;` e nunca tem `Table.`.
     (comeca || t.starts_with("section ")) && m && !t.contains("fonte.")
 }
 
@@ -578,7 +578,7 @@ fn tipo(e: &E) -> Option<&'static str> {
     })
 }
 
-/// `contagem` do OpenQuery conta só números (o CONT.NÚM): vai como
+/// `contagem` do FeatherQuery conta só números (o CONT.NÚM): vai como
 /// `List.Count(List.Select([c], each _ is number))`, tratado à parte.
 const AGREGACOES_M: &[(&str, &str)] = &[
     ("List.Sum", "soma"), ("List.Average", "media"), ("List.Max", "maximo"), ("List.Min", "minimo"),
@@ -963,7 +963,7 @@ impl Conversor {
                 let coluna = txt(arg(1)?)?;
                 let i = self.juncoes.iter().position(|j| *j == coluna)?;
                 self.juncoes.remove(i);
-                um(format!("// {}", tr!("(Expandir: a mesclagem do OpenQuery já traz as colunas da outra consulta.)")))
+                um(format!("// {}", tr!("(Expandir: a mesclagem do FeatherQuery já traz as colunas da outra consulta.)")))
             }
             "Table.Combine" => {
                 let E::Lista(v) = arg(0)? else { return None };

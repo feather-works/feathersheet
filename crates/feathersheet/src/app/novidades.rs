@@ -15,13 +15,13 @@ pub const VERSOES: &[Versao] = &[
         resumo: "Power Query, dinâmica mais esperta e arquivos mais leves",
         ilustracao: Ilustracao::Atualizacao,
         destaques: &[
-            ("file-export", "Power Query no OpenQuery", "Cole o M do Excel e as etapas aparecem; Copiar como Power Query leva de volta."),
+            ("file-export", "Power Query no FeatherQuery", "Cole o M do Excel e as etapas aparecem; Copiar como Power Query leva de volta."),
             ("table", "Dinâmica mais esperta", "Dinâmicas recomendadas, contagem de distintos, mediana, quartis e datas como data."),
             ("timeline", "Gantt com o dia de hoje", "Linha de hoje e tarefas pintadas como concluídas, em andamento ou futuras."),
             ("printer", "Página e propriedades no arquivo", "Margens, papel e área de impressão salvos; título, autor e empresa no .xlsx."),
         ],
         tambem: &[
-            "OpenQuery com os passos do Power Query que faltavam: substituir, preencher, formatar texto, remover linhas, transpor, dividir por posição, coluna personalizada com fórmula, agrupar com várias contas.",
+            "FeatherQuery com os passos do Power Query que faltavam: substituir, preencher, formatar texto, remover linhas, transpor, dividir por posição, coluna personalizada com fórmula, agrupar com várias contas.",
             "Consultas: Ctrl+Z nas etapas, duplicar e referenciar, juntar arquivos de uma pasta e nomes parecidos, atualizar ao abrir o arquivo.",
             "Abra as consultas do Power Query que o Excel guardou no .xlsx.",
             "Ctrl+Z desfaz inserir e excluir linhas e colunas, com as fórmulas que liam a área.",
@@ -183,7 +183,7 @@ pub const VERSOES: &[Versao] = &[
         destaques: &[
             ("bolt", "Abrir .xlsx muito mais rápido", "Leitor próprio das linhas, vários núcleos e nada calculado durante a leitura."),
             ("chart-bar", "Gráficos com painel por tipo", "Campos de cada tipo, rosca de verdade e o intervalo ajustado arrastando na grade."),
-            ("table", "OpenQuery como o Power Query", "Etapas num script editável, CSV em qualquer codificação e fonte sem limite."),
+            ("table", "FeatherQuery como o Power Query", "Etapas num script editável, CSV em qualquer codificação e fonte sem limite."),
             ("math-function", "Fórmulas em milhões de linhas", "Calculam em fundo, com Parar; CORREL e afins certos quando há células vazias."),
             ("device-floppy", "Salvar sem dobrar a memória", "As colunas de números vão para o arquivo sem serem copiadas antes."),
             ("palette", "Tema escuro no Ubuntu", "O automático segue o sistema; células claras como no Excel e cantos arredondados."),

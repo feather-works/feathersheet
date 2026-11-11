@@ -14,7 +14,7 @@ pub enum Evento {
     Modo(Modo), Separador(&'static str), Outro(String),
     Consecutivos(bool), Qualificador(&'static str), Largura(String),
     Coluna(usize), Tipo(&'static str), TipoNaColuna(usize, &'static str),
-    /// Ctrl/Shift lembrados para o clique no cabeçalho (como na prévia do OpenQuery).
+    /// Ctrl/Shift lembrados para o clique no cabeçalho (como na prévia do FeatherQuery).
     Modificadores(pelicano::Modifiers), SelecionarTodas(usize),
     Avancado, UsarCelulaAtual, NovaAba(bool),
     Destino(String), NomeAba(String),
@@ -218,7 +218,7 @@ impl Estado {
         self.tipos.get(i).cloned().unwrap_or(TipoColunaDivisao::Geral)
     }
     /// Clique no cabeçalho: sozinho escolhe uma; Ctrl soma/tira; Shift pega o intervalo
-    /// desde a última clicada (como no Excel e na prévia do OpenQuery).
+    /// desde a última clicada (como no Excel e na prévia do FeatherQuery).
     fn clicar_coluna(&mut self,i:usize) {
         if self.modificadores.shift() {
             let (a,b)=(self.selecionada.min(i),self.selecionada.max(i));

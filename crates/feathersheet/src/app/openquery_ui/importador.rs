@@ -1,4 +1,4 @@
-//! Importadores locais do OpenQuery, isolados da thread do Iced.
+//! Importadores locais do FeatherQuery, isolados da thread do Iced.
 //! O parser CSV/TSV e o XLSX são os mesmos do FeatherSheet; JSON e HTML
 //! seguem o extrator Web do TypeScript sem executar scripts. Limites explícitos.
 use super::*;
@@ -278,7 +278,7 @@ pub(super) fn ler_itens(path: &Path) -> Result<(Vec<Item>, String), String> {
             unico(t, f)
         }
         // Lido como o app abre o arquivo (fórmulas calculadas, sem teto próprio de tamanho:
-        // o que o app abre, o OpenQuery importa).
+        // o que o app abre, o FeatherQuery importa).
         _ => {
             let (workbook, folha) = crate::app::App::decodificar_caminho(path, None)?;
             itens_da_pasta(workbook, folha)

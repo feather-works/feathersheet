@@ -57,7 +57,7 @@ pub fn ler_intervalo(
     let total = altura.saturating_mul(largura);
     if total > max_celulas {
         return Err(format!(
-            "Intervalo efetivo de {total} células: OpenQuery aceita até {max_celulas} por fonte. Reduza a seleção."
+            "Intervalo efetivo de {total} células: FeatherQuery aceita até {max_celulas} por fonte. Reduza a seleção."
         ));
     }
     let mut cabecalho = Vec::with_capacity(largura as usize);
@@ -99,7 +99,7 @@ pub fn area_saida(
         || u64::from(coluna0) + largura > u64::from(MAX_COLS)
         || u64::from(linha0) + altura > u64::from(MAX_ROWS)
     {
-        return Err("Resultado OpenQuery excede os limites da planilha ou de memória".into());
+        return Err("Resultado FeatherQuery excede os limites da planilha ou de memória".into());
     }
     Ok(Rect::new(linha0, coluna0,
         (u64::from(linha0) + altura - 1) as u32,
@@ -124,7 +124,7 @@ pub fn escrever_tabela(
         if area.r1 >= MAX_ROWS || area.c1 >= MAX_COLS
             || area.area() > max_celulas
         {
-            return Err("Área anterior inválida ou acima do orçamento OpenQuery".into());
+            return Err("Área anterior inválida ou acima do orçamento FeatherQuery".into());
         }
     }
 

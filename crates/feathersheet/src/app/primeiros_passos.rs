@@ -243,7 +243,7 @@ impl App {
                     consulta::cartao("lock", tr!("Privado por padrão"),
                         tr!("Tudo roda no computador; nada das suas planilhas é enviado."), None),
                     consulta::cartao("code", tr!("Macros e consultas"),
-                        tr!("Macros em JavaScript (Alt+F11) e o OpenQuery para juntar dados."), None),
+                        tr!("Macros em JavaScript (Alt+F11) e o FeatherQuery para juntar dados."), None),
                     consulta::cartao("chart-bar", tr!("Gráficos completos"),
                         tr!("25 tipos, com dica do mouse, legenda clicável e elementos analíticos."), None),
                     consulta::cartao("history", tr!("Recuperação automática"),

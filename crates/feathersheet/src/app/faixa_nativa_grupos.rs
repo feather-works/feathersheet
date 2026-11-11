@@ -324,7 +324,7 @@ impl App {
             AbaFaixa::EditarForma => grupos.extend(self.grupos_editar_forma()),
             AbaFaixa::Minigrafico => grupos.extend(self.grupos_faixa_minigrafico()),
             AbaFaixa::Dados => {
-                // Obter e Transformar Dados do Excel: tudo passa pelo OpenQuery.
+                // Obter e Transformar Dados do Excel: tudo passa pelo FeatherQuery.
                 let abrir = |e: EventoOpenQuery| Some(Msg::OpenQuery(EventoOpenQuery::AbrirCom(Box::new(e))));
                 let menu = |rotulo: &str, icone: &str, tipo: &'static str| self.faixa_pequeno(
                     rotulo, icone, Some(Msg::AlternarMenuEdicao(tipo)), self.edicao_menu == Some(tipo));
@@ -390,7 +390,7 @@ impl App {
                 ])));
                 // Design na aba contextual; filtros/ordenação na seta do cabeçalho.
                 grupos.push(self.faixa_grupo(tr!("Consultas"), self.faixa_linha(vec![
-                    self.faixa_grande("OpenQuery", "table", Some(Msg::OpenQuery(EventoOpenQuery::Abrir)), self.openquery.is_some()),
+                    self.faixa_grande("FeatherQuery", "table", Some(Msg::OpenQuery(EventoOpenQuery::Abrir)), self.openquery.is_some()),
                     self.faixa_grande(tr!("Tabela dinâmica"), "pivot-table", Some(Msg::Dinamica(dinamica_ui::Evento::Abrir)), self.dinamica.is_some()),
                     // Referências a outros arquivos (`=[Vendas.fshz]Dados!A1`, vinculos.rs).
                     self.faixa_pilha(vec![

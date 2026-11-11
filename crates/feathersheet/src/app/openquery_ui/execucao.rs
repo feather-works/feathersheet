@@ -102,7 +102,7 @@ impl App {
                 self.openquery = Some(estado);
                 self.contexto = None;
                 self.menu_aberto = false;
-                self.status = tr!("OpenQuery: consulta carregada para edição").into();
+                self.status = tr!("FeatherQuery: consulta carregada para edição").into();
                 true
             }
             Err(erro) => {
@@ -200,7 +200,7 @@ impl App {
                         registro::aplicar_gravacao(&mut self.workbook, plano);
                         self.alterado = true;
                         self.openquery = None;
-                        self.status = trf!("OpenQuery '{id}': conexão salva sem escrever células");
+                        self.status = trf!("FeatherQuery '{id}': conexão salva sem escrever células");
                     }
                     Err(erro) => {
                         if let Some(e) = &mut self.openquery { e.erro = erro.clone(); }
@@ -231,7 +231,7 @@ impl App {
             let colunas = tabela.linhas.iter().map(Vec::len)
                 .max().unwrap_or(0).max(tabela.cabecalho.len()) as u64;
             if linhas > MAX_ROWS as u64 || colunas > MAX_COLS as u64 {
-                return Err(tr!("Resultado acima do orçamento OpenQuery").into());
+                return Err(tr!("Resultado acima do orçamento FeatherQuery").into());
             }
             let id = match &editor.edicao {
                 Some(id) => id.clone(),
@@ -395,7 +395,7 @@ impl App {
         self.nome_aba = nome_aba.clone();
         self.endereco = "A1".into();
         self.alterado = true;
-        self.status = trf!("OpenQuery '{id}': {linhas_geradas} linhas em {nome_aba}; consulta salva no FSHZ");
+        self.status = trf!("FeatherQuery '{id}': {linhas_geradas} linhas em {nome_aba}; consulta salva no FSHZ");
     }
 
     /// Ao abrir o arquivo: recalcula as consultas com "Atualizar ao abrir". As fontes são
@@ -425,8 +425,8 @@ impl App {
             if let Some(e) = self.openquery.take() { falhas.push(if e.erro.is_empty() { id.clone() } else { e.erro }); }
         }
         (self.folha, self.linha, self.coluna, self.fim_selecao, self.nome_aba, self.endereco) = vista;
-        self.status = if falhas.is_empty() { trf!("OpenQuery: {} consulta(s) atualizada(s) ao abrir", ids.len()) }
-            else { trf!("OpenQuery: falhou ao atualizar ao abrir: {}", falhas.join("; ")) };
+        self.status = if falhas.is_empty() { trf!("FeatherQuery: {} consulta(s) atualizada(s) ao abrir", ids.len()) }
+            else { trf!("FeatherQuery: falhou ao atualizar ao abrir: {}", falhas.join("; ")) };
     }
 
     pub(super) fn atualizar_consulta_salva(&mut self, id: &str) {

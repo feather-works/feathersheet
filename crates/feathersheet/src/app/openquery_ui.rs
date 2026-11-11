@@ -1,4 +1,4 @@
-//! Editor nativo OpenQuery. O motor de transformação fica no feathersheet-core.
+//! Editor nativo FeatherQuery. O motor de transformação fica no feathersheet-core.
 //! Não copia a grade inteira: só materializa o intervalo escolhido, com limite
 //! explícito antes de ler qualquer célula. Nunca carrega automaticamente fontes
 //! adicionais nem reinterpreta valores como fórmulas ao escrever o resultado.
@@ -49,7 +49,7 @@ const PREVIA_LINHAS: usize = 1000;
 /// Largura de cada coluna da prévia (rola para o lado, como no Power Query).
 const LARGURA_COLUNA_PREVIA: f32 = 150.0;
 
-// Escala visual do OpenQuery: janela e assistentes usam só estes valores.
+// Escala visual do FeatherQuery: janela e assistentes usam só estes valores.
 const TAM_TITULO: f32 = 17.0;
 const TAM_SECAO: f32 = 13.0;
 const TAM_TEXTO: f32 = 12.0;
@@ -59,7 +59,7 @@ const ESPACO_MEDIO: f32 = 8.0;
 const ESPACO_GRANDE: f32 = 12.0;
 const PADDING_PAINEL: f32 = 12.0;
 
-/// Abas da faixa de opções do OpenQuery (mesma divisão do Power Query).
+/// Abas da faixa de opções do FeatherQuery (mesma divisão do Power Query).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AbaFaixa { Inicio, Transformar, Adicionar, Exibir }
 
@@ -112,7 +112,7 @@ pub enum Evento {
     ConfirmarTabelaWeb,
     CancelarSelecaoWeb,
     MostrarTabelas,
-    /// Abre o OpenQuery (se fechado) e segue com o evento: os botões da aba Dados.
+    /// Abre o FeatherQuery (se fechado) e segue com o evento: os botões da aba Dados.
     AbrirCom(Box<Evento>),
     /// De Tabela/Intervalo: a seleção (ou a região em volta da célula) vira a fonte.
     CarregarSelecao,
@@ -717,7 +717,7 @@ impl Estado {
 }
 
 impl App {
-    /// Roteia o evento e mantém a janela própria do OpenQuery em sincronia
+    /// Roteia o evento e mantém a janela própria do FeatherQuery em sincronia
     /// com o estado: abre quando a consulta nasce, fecha quando termina.
     /// Põe a área `area` da aba `aba` como fonte da consulta aberta (tabela ou intervalo).
     fn carregar_fonte_openquery(&mut self, aba: usize, area: Rect, nome: &str) {
@@ -739,7 +739,7 @@ impl App {
                 e.mostrar_manual = false;
                 e.assistente = None;
                 e.registrar_passos();
-                self.status = trf!("OpenQuery: tabela '{nome}' carregada");
+                self.status = trf!("FeatherQuery: tabela '{nome}' carregada");
             },
             Err(erro) => if let Some(e) = &mut self.openquery { e.erro = erro; }
         }
@@ -790,7 +790,7 @@ impl App {
                     Ok(consultas) => consultas,
                     Err(erro) => { self.status = erro; return Task::none(); }
                 };
-                // O OpenQuery não importa a seleção/aba corrente por padrão.
+                // O FeatherQuery não importa a seleção/aba corrente por padrão.
                 // A pessoa escolhe explicitamente Arquivo, Web ou Tabela existente.
                 let vazio = Tabela { cabecalho: Vec::new(), linhas: Vec::new() };
                 let mut editor = Estado::novo(vazio, String::new(), Rect::new(0, 0, 0, 0));
@@ -801,7 +801,7 @@ impl App {
                 self.openquery = Some(editor);
                 self.menu_aberto = false;
                 self.contexto = None;
-                self.status = tr!("OpenQuery: escolha um arquivo, uma URL ou uma tabela existente").into();
+                self.status = tr!("FeatherQuery: escolha um arquivo, uma URL ou uma tabela existente").into();
             }
             Evento::Fechar => self.openquery = None,
             Evento::Nome(v) => if let Some(e) = &mut self.openquery { e.nome = v; },
@@ -916,7 +916,7 @@ impl App {
                     .zip(reqwest::Url::parse(url.trim()).ok())
                     .is_some_and(|(antiga, nova)| antiga == nova);
                 e.importacao_preservar = mesma_url && !e.fonte.cabecalho.is_empty();
-                self.status = tr!("OpenQuery: baixando dados Web em tarefa separada").into();
+                self.status = tr!("FeatherQuery: baixando dados Web em tarefa separada").into();
                 return Task::perform(async move {
                     tokio::task::spawn_blocking(move || importador::ler_web(&url))
                         .await.unwrap_or_else(|erro| Err(trf!("Falha no download Web: {erro}")))
@@ -941,7 +941,7 @@ impl App {
                             e.mostrar_web = true;
                             e.erro.clear();
                             self.status = trf!(
-                                "OpenQuery: {} tabelas encontradas; selecione qual importar",
+                                "FeatherQuery: {} tabelas encontradas; selecione qual importar",
                                 e.tabelas_web.len(),
                             );
                         }
@@ -1087,9 +1087,9 @@ impl App {
                     return Task::none();
                 };
                 let feito = if matches!(evento, Evento::Duplicar) {
-                    self.duplicar_consulta(&id).map(|nome| trf!("OpenQuery: '{nome}' criada como conexão; use Carregar em… para escolher o destino"))
+                    self.duplicar_consulta(&id).map(|nome| trf!("FeatherQuery: '{nome}' criada como conexão; use Carregar em… para escolher o destino"))
                 } else {
-                    self.referenciar_consulta(&id).map(|()| tr!("OpenQuery: consulta nova sobre o resultado da outra; acrescente as etapas e salve").to_string())
+                    self.referenciar_consulta(&id).map(|()| tr!("FeatherQuery: consulta nova sobre o resultado da outra; acrescente as etapas e salve").to_string())
                 };
                 match feito {
                     Ok(msg) => {
@@ -1102,7 +1102,7 @@ impl App {
             }
             Evento::Desfazer(para_tras) => if let Some(e) = &mut self.openquery {
                 if !e.desfazer_etapas(para_tras) {
-                    self.status = if para_tras { tr!("OpenQuery: nada a desfazer").into() } else { tr!("OpenQuery: nada a refazer").into() };
+                    self.status = if para_tras { tr!("FeatherQuery: nada a desfazer").into() } else { tr!("FeatherQuery: nada a refazer").into() };
                 }
             },
             Evento::EtapaSenao(t) => if let Some(m) = self.openquery.as_mut().and_then(|e| e.modal.as_mut()) {
@@ -1354,7 +1354,7 @@ impl App {
                         e.registrar_passos();
                         e.esquecer_historico();
                         e.mostrar_manual = false;
-                        self.status = trf!("OpenQuery: tabela manual importada ({linhas} linhas)");
+                        self.status = trf!("FeatherQuery: tabela manual importada ({linhas} linhas)");
                     }
                     Err(erro) => e.erro = erro,
                 }
@@ -1377,7 +1377,7 @@ impl App {
                     if let Some(e) = &mut self.openquery { e.importacao_pendente = None; }
                     return Task::none();
                 };
-                self.status = tr!("OpenQuery: lendo os arquivos da pasta em tarefa separada").into();
+                self.status = tr!("FeatherQuery: lendo os arquivos da pasta em tarefa separada").into();
                 return Task::perform(async move {
                     tokio::task::spawn_blocking(move || importador::ler_pasta(&pasta))
                         .await.unwrap_or_else(|e| Err(trf!("Falha no importador: {e}")))
@@ -1410,9 +1410,9 @@ impl App {
                 let tipo = editor.filtro_arquivo.take().and_then(|i| importador::TIPOS.get(i));
                 return Task::perform(async move {
                     let mut caixa = rfd::AsyncFileDialog::new();
-                    // O tipo pedido no menu vem primeiro; "Fontes OpenQuery" segue como opção.
+                    // O tipo pedido no menu vem primeiro; "Fontes FeatherQuery" segue como opção.
                     if let Some((nome, extensoes)) = tipo { caixa = caixa.add_filter(crate::idioma::tr(nome), extensoes); }
-                    caixa.add_filter(tr!("Fontes OpenQuery"), &importador::EXTENSOES)
+                    caixa.add_filter(tr!("Fontes FeatherQuery"), &importador::EXTENSOES)
                         .pick_file().await.map(|arquivo| arquivo.path().to_path_buf())
                 }, move |arquivo| Msg::OpenQuery(Evento::ArquivoEscolhido(ticket, arquivo)));
             }
@@ -1426,7 +1426,7 @@ impl App {
                 };
                 self.lembrar_fonte(caminho.display().to_string());
                 if let Some(e) = &mut self.openquery { e.caminho_arquivo = Some(caminho.clone()); }
-                self.status = tr!("OpenQuery: importando fonte em tarefa separada").into();
+                self.status = tr!("FeatherQuery: importando fonte em tarefa separada").into();
                 return Task::perform(async move {
                     tokio::task::spawn_blocking(move || importador::ler_itens(&caminho))
                         .await.unwrap_or_else(|e| Err(trf!("Falha no importador: {e}")))
@@ -1466,7 +1466,7 @@ impl App {
                 e.indice_tabela_web = 0;
                 e.mostrar_web = true;
                 e.erro.clear();
-                self.status = trf!("OpenQuery: {} planilhas e tabelas no arquivo; escolha qual importar", e.tabelas_web.len());
+                self.status = trf!("FeatherQuery: {} planilhas e tabelas no arquivo; escolha qual importar", e.tabelas_web.len());
             }
             Evento::ItemLido(ticket, resultado, origem) => {
                 let (resultado, formatos) = match resultado {
@@ -1484,7 +1484,7 @@ impl App {
                 match resultado {
                     Err(erro) => {
                         editor.erro = erro.clone();
-                        self.status = trf!("OpenQuery: {erro}");
+                        self.status = trf!("FeatherQuery: {erro}");
                     }
                     Ok((fonte, origem)) => {
                         let preservar = editor.importacao_preservar;
@@ -1519,9 +1519,9 @@ impl App {
                         }
                         editor.registrar_passos();
                         self.status = if preservar {
-                            trf!("OpenQuery: reimportadas {linhas} linhas; salve para atualizar o resultado")
+                            trf!("FeatherQuery: reimportadas {linhas} linhas; salve para atualizar o resultado")
                         } else {
-                            trf!("OpenQuery: {origem} carregado ({linhas} linhas)")
+                            trf!("FeatherQuery: {origem} carregado ({linhas} linhas)")
                         };
                     }
                 }
@@ -1533,8 +1533,8 @@ impl App {
                 match registro::marcar_ao_abrir(&mut self.workbook, &id, ligado) {
                     Ok(()) => {
                         self.alterado = true;
-                        self.status = if ligado { tr!("OpenQuery: a consulta será atualizada ao abrir o arquivo").into() }
-                            else { tr!("OpenQuery: a consulta não será mais atualizada ao abrir o arquivo").into() };
+                        self.status = if ligado { tr!("FeatherQuery: a consulta será atualizada ao abrir o arquivo").into() }
+                            else { tr!("FeatherQuery: a consulta não será mais atualizada ao abrir o arquivo").into() };
                     }
                     Err(e) => self.status = e,
                 }
@@ -1613,7 +1613,7 @@ impl App {
     }
 }
 
-/// Mensagem do OpenQuery: abrevia a construção repetida em cada botão.
+/// Mensagem do FeatherQuery: abrevia a construção repetida em cada botão.
 fn om(evento: Evento) -> Msg {
     Msg::OpenQuery(evento)
 }
@@ -1622,7 +1622,7 @@ fn negrito() -> pelicano::Font {
     pelicano::Font { weight: 600, ..pelicano::Font::DEFAULT }
 }
 
-/// Vermelho de erro do OpenQuery (uma só definição).
+/// Vermelho de erro do FeatherQuery (uma só definição).
 fn cor_erro() -> pelicano::Color {
     pelicano::Color::rgb8(200, 68, 68)
 }

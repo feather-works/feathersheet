@@ -154,7 +154,7 @@ fn minutos_do_rotulo(r: &str) -> i32 {
 }
 
 pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
-    let secoes = [tr!("Aparência"), tr!("Seus dados"), tr!("Salvamento"), tr!("Planilha"), tr!("Sistema"), tr!("Mesa digitalizadora"), "OpenQuery", tr!("Atalhos"), tr!("IA (MCP)"), tr!("Sobre")];
+    let secoes = [tr!("Aparência"), tr!("Seus dados"), tr!("Salvamento"), tr!("Planilha"), tr!("Sistema"), tr!("Mesa digitalizadora"), "FeatherQuery", tr!("Atalhos"), tr!("IA (MCP)"), tr!("Sobre")];
     let menu = feather_ui::configuracoes::menu(
         tr!("Configurações"),
         secoes.iter().enumerate().map(|(i, nome)|
@@ -350,7 +350,7 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                     .on_toggle(|v| Msg::Caneta(super::desenhar::AjusteCaneta::AutoDesenhar(v))).color(COR_AZUL_ACENTO())),
         ].spacing(0).into(),
         6 => pelicano::column![
-            text("OpenQuery").size(16).color(COR_TEXTO()),
+            text("FeatherQuery").size(16).color(COR_TEXTO()),
             text(tr!("O editor de consultas ainda não foi integrado às Configurações."))
                 .size(12).color(COR_TEXTO_MUTED()),
             text(tr!("O limite padrão de pré-visualização será configurável quando o executor de consultas estiver disponível. Nenhuma consulta será modificada por esta tela."))
