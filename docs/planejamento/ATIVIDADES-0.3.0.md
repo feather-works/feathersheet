@@ -895,6 +895,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 ### INT-8. Migração do idioma: mensagens do Rust e descrições das funções
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial. Descrições, argumentos e categorias das funções já existem em en e es (`src/idiomas/funcoes.*.json`, desde 16/10). Faltam as mensagens do Rust (`explicar_erro`), a conferir.
 **Situação (10/11):** 🟡 medido. A interface está traduzida: dos 3.606 textos de `tr!`/`trf!` faltam só 4 (do próprio `idioma.rs`). O que sai em português é o que nasce no motor: 105 textos (46 motivos de erro `CellError::com_motivo`, as mensagens do leitor de fórmulas e ~40 da explicação de erro em `formula/explicar.rs`), lista em `scratchpad/motor_falta.json` da sessão. Os fixos dá para traduzir na tela com `tr!`; o resumo do diagnóstico é montado no motor encaixando pedaços variáveis (`{trecho}{arg}: {d}`) e não se traduz depois de pronto. Proposta para a D15: o motor passa a montar esses textos por um gancho de tradução (função que a tela registra; sem ela, português), com modelos de marcadores nomeados no lugar do `format!`. Assim o MCP continua recebendo português.
+**Situação (11/11):** ✅ feito. Os textos prontos do motor (core, io, macros, vba) passam pelo dicionário da interface (`feathersheet_core::tr!`/`trf!`), com teste de guarda; as 875 traduções foram lidas uma a uma (34 corrigidas). Varredura da interface atrás de literal fora do `tr!`: 21 títulos e 1 mensagem corrigidos (painel da dinâmica, Colar especial, Ir para, estilos de tabela, cenários, histórico de macros, faixa do FeatherQuery, editor de macros). Ficam em português de propósito os itens listados no `CLAUDE.md`.
 - **Onde:** `function_help.rs` (a conferir o caminho no `feathersheet-core`); `explicar_erro` (mensagens
   de erro).
 - **Pronto:** mensagens e a ajuda das funções em pt, en e es, pelo mesmo arquivo de idioma; teste de
@@ -903,7 +904,7 @@ O editor de célula com formatação (#90) está em PUB-9, por depender da cadei
 
 ### INT-9. Nomes das funções por idioma
 **Situação (08/11):**  ⏭️ 0.4.0 (corte de 08/11) — 🟡 parcial (a conferir). O README diz que os nomes em português ou inglês seguem o idioma da interface. Faltam o espanhol e a D15.
-**Situação (11/11):** ✅ feito. Os textos prontos do motor (core, io, macros, vba) passam pelo dicionário da interface (`feathersheet_core::tr!`/`trf!`), com teste de guarda; as 875 traduções foram lidas uma a uma (34 corrigidas). Varredura da interface atrás de literal fora do `tr!`: 21 títulos e 1 mensagem corrigidos (painel da dinâmica, Colar especial, Ir para, estilos de tabela, cenários, histórico de macros, faixa do FeatherQuery, editor de macros). Ficam em português de propósito os itens listados no `CLAUDE.md`.
+**Situação (11/11):** 🟡 quase. O de-para de nomes existe em espanhol e francês (`funcoes.es-ES.json` e `funcoes.fr-FR.json`, 527 nomes cada) e as mensagens do motor citam a função pelo nome da língua. Não conferido nesta data: o teste com `.fshz` antigo pedido no "Pronto".
 - **Onde:** `feathersheet-core` (o motor reconhece os nomes); o de-para em JSON (pt, en, es, já existe).
 - **Pronto:** D15 decide. Se entrar: nomes localizados sem quebrar arquivos antigos (teste com `.fshz`
   antigo).
