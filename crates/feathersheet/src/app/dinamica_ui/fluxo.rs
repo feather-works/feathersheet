@@ -181,7 +181,7 @@ impl App {
             .on_exit(Msg::Dinamica(Evento::ArrastoSair(AreaDinamica::Lista)));
 
         // ---- As quatro áreas
-        let area = |titulo: &'static str, area: AreaDinamica, itens: Vec<(usize, String)>| -> Element<'a, Msg> {
+        let area = |titulo: String, area: AreaDinamica, itens: Vec<(usize, String)>| -> Element<'a, Msg> {
             let destacada = arrastando && e.ui.sob == Some(area);
             let mut col = column![text(titulo).size(10.5).color(COR_TEXTO_MUTED())].spacing(3);
             if itens.is_empty() {
@@ -251,10 +251,10 @@ impl App {
         let valores = e.valores.iter()
             .map(|v| (v.coluna, trf!("{} de {}", nome_operacao(v.op), rotulo(v.coluna)))).collect();
         let grade = column![
-            row![area("FILTROS", AreaDinamica::Filtros, filtros),
-                area("COLUNAS", AreaDinamica::Colunas, colunas)].spacing(8),
-            row![area("LINHAS", AreaDinamica::Linhas, linhas),
-                area("VALORES", AreaDinamica::Valores, valores)].spacing(8),
+            row![area(tr!("Filtros").to_uppercase(), AreaDinamica::Filtros, filtros),
+                area(tr!("Colunas").to_uppercase(), AreaDinamica::Colunas, colunas)].spacing(8),
+            row![area(tr!("Linhas").to_uppercase(), AreaDinamica::Linhas, linhas),
+                area(tr!("Valores").to_uppercase(), AreaDinamica::Valores, valores)].spacing(8),
         ].spacing(8);
 
         let opcoes: Element<'a, Msg> = if e.avancado { self.controles_avancados(e) }

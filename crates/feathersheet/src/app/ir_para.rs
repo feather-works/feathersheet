@@ -234,7 +234,7 @@ impl App {
                     .size(13).padding([5, 8]).width(Length::FILL),
             ].spacing(8).align(pelicano::Align::Center),
             column![
-                grupo("ESPECIAL"),
+                grupo(tr!("ESPECIAL")),
                 duas(opcao(tr!("Em branco"), Opcao::EmBranco),
                     opcao(tr!("Diferenças na linha"), Opcao::DiferencasNaLinha)),
                 duas(opcao(tr!("Constantes"), Opcao::Constantes),

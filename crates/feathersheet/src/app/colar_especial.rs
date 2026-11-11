@@ -233,7 +233,7 @@ impl App {
         }
         let corpo = column![
             column![
-                grupo("COLAR"),
+                grupo(tr!("COLAR")),
                 duas(opcao(tr!("Tudo"), QueColar::Tudo).into(),
                     opcao(tr!("Valores e formatos"), QueColar::ValoresEFormatos).into()),
                 duas(opcao(tr!("Fórmulas"), QueColar::Formulas).into(),

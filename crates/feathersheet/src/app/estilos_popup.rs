@@ -304,7 +304,7 @@ impl App {
             }
             grade = grade.push(linha);
         }
-        pelicano::column![secao("PERSONALIZADOS"), grade, separador()].spacing(5).into()
+        pelicano::column![secao(tr!("PERSONALIZADOS")), grade, separador()].spacing(5).into()
     }
 
     fn menu_estilos_celula(&self, largura: f32, altura: f32) -> Element<'_, Msg> {

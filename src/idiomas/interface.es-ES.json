@@ -5879,5 +5879,8 @@
  "Feche o FeatherSheet e abra de novo para usar a versão nova.": "Cierre FeatherSheet y ábralo de nuevo para usar la versión nueva.",
  "Pronto: FeatherSheet {versao} instalado.": "Listo: FeatherSheet {versao} instalado.",
  "Pressione Enter para fechar esta janela.": "Pulse Intro para cerrar esta ventana.",
- "O arquivo baixado não confere com o publicado.": "El archivo descargado no coincide con el publicado."
+ "O arquivo baixado não confere com o publicado.": "El archivo descargado no coincide con el publicado.",
+ "COLAR": "PEGAR",
+ "ESPECIAL": "ESPECIAL",
+ "PERSONALIZADOS": "PERSONALIZADOS"
 }
