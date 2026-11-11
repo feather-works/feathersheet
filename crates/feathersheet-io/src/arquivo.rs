@@ -15,7 +15,7 @@ pub fn gravar_atomico_com(
     destino: &Path,
     escrever: impl FnOnce(&mut fs::File) -> io::Result<()>,
 ) -> io::Result<()> {
-    let nome = destino.file_name().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "Arquivo sem nome"))?;
+    let nome = destino.file_name().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, feathersheet_core::tr!("Arquivo sem nome")))?;
     apagar_parciais_velhos(destino);
     let mut tentativa = 0;
     let (temporario, mut arquivo) = loop {

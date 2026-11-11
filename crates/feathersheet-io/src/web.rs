@@ -33,7 +33,7 @@ fn dados(texto: &str, separador: Option<char>) -> Resposta {
     let sep = separador.unwrap_or_else(|| crate::csv::detectar_separador(texto));
     let linhas = crate::csv::dividir_csv(texto, sep);
     if linhas.is_empty() {
-        return erro(ErrorCode::Na, "O endereço não devolveu nenhuma linha");
+        return erro(ErrorCode::Na, &feathersheet_core::tr!("O endereço não devolveu nenhuma linha"));
     }
     let largura = linhas.iter().map(Vec::len).max().unwrap_or(0);
     Resposta::Matriz(
@@ -47,7 +47,7 @@ fn dados(texto: &str, separador: Option<char>) -> Resposta {
 /// `IMPORTARJSON`: segue o caminho (`dados.itens[0].nome`) e traz o pedaço.
 fn json(texto: &str, caminho: &str) -> Resposta {
     let Ok(dado) = serde_json::from_str::<Json>(texto) else {
-        return erro(ErrorCode::Value, "O endereço não devolveu um JSON válido");
+        return erro(ErrorCode::Value, &feathersheet_core::tr!("O endereço não devolveu um JSON válido"));
     };
     match seguir_caminho(&dado, caminho) {
         Some(alvo) => como_valor(alvo),
@@ -103,7 +103,7 @@ pub fn como_valor(no: &Json) -> Resposta {
     match no {
         Json::Array(itens) => {
             if itens.is_empty() {
-                return erro(ErrorCode::Na, "A lista está vazia");
+                return erro(ErrorCode::Na, &feathersheet_core::tr!("A lista está vazia"));
             }
             if itens.iter().all(Json::is_object) {
                 let mut campos: Vec<&String> = Vec::new();
@@ -133,7 +133,7 @@ pub fn como_valor(no: &Json) -> Resposta {
         }
         Json::Object(o) => {
             if o.is_empty() {
-                return erro(ErrorCode::Na, "O objeto está vazio");
+                return erro(ErrorCode::Na, &feathersheet_core::tr!("O objeto está vazio"));
             }
             Resposta::Matriz(o.iter().map(|(c, v)| vec![Value::Text(c.clone()), escalar(Some(v))]).collect())
         }

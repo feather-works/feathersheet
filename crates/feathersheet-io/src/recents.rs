@@ -92,41 +92,41 @@ pub fn da_json(texto: Option<&str>) -> Vec<Recente> {
 /// Retorna descrição amigável de tempo decorrido ("agora", "há 5 minutos", "ontem", etc).
 pub fn quando(aberto: u64, agora: u64) -> String {
     if agora <= aberto {
-        return "agora".to_string();
+        return feathersheet_core::tr!("agora");
     }
 
     let diff_ms = agora - aberto;
     let s = diff_ms / 1000;
 
     if s < 60 {
-        return "agora".to_string();
+        return feathersheet_core::tr!("agora");
     }
 
     let min = s / 60;
     if min < 60 {
         return if min == 1 {
-            "há 1 minuto".to_string()
+            feathersheet_core::tr!("há 1 minuto")
         } else {
-            format!("há {} minutos", min)
+            feathersheet_core::trf!("há {} minutos", min)
         };
     }
 
     let h = min / 60;
     if h < 24 {
         return if h == 1 {
-            "há 1 hora".to_string()
+            feathersheet_core::tr!("há 1 hora")
         } else {
-            format!("há {} horas", h)
+            feathersheet_core::trf!("há {} horas", h)
         };
     }
 
     let d = h / 24;
     if d == 1 {
-        return "ontem".to_string();
+        return feathersheet_core::tr!("ontem");
     }
 
     if d < 7 {
-        return format!("há {} dias", d);
+        return feathersheet_core::trf!("há {} dias", d);
     }
 
     // O TypeScript exibia a data local em pt-BR para entradas com 7 dias

@@ -220,7 +220,7 @@ impl Computed {
             Computed::Matrix(m) => m.first().clone(),
             Computed::Lambda(_) => Value::Error(CellError::com_motivo(
                 ErrorCode::Value,
-                "uma função não é um valor de célula",
+                &crate::tr!("uma função não é um valor de célula"),
             )),
         }
     }

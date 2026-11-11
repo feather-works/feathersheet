@@ -53,7 +53,7 @@ pub fn zipar(entradas: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, String> {
         crc.update(&cru);
         let soma = crc.sum();
         let deslocamento = cabe(out.len(), "o arquivo")?;
-        let tam_cru = cabe(cru.len(), "uma parte")?;
+        let tam_cru = cabe(cru.len(), &feathersheet_core::tr!("uma parte"))?;
         let tam_nome = u16::try_from(nome.len()).map_err(|_| feathersheet_core::tr!("nome de entrada comprido demais"))?;
 
         // O cabeçalho vai antes do corpo, mas o método e o tamanho
@@ -86,7 +86,7 @@ pub fn zipar(entradas: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, String> {
             0
         };
         drop(cru);
-        let tam_corpo = cabe(out.len() - inicio, "uma parte")?;
+        let tam_corpo = cabe(out.len() - inicio, &feathersheet_core::tr!("uma parte"))?;
         out[pos_metodo..pos_metodo + 2].copy_from_slice(&metodo.to_le_bytes());
         out[pos_tamanho..pos_tamanho + 4].copy_from_slice(&tam_corpo.to_le_bytes());
 
@@ -111,7 +111,7 @@ pub fn zipar(entradas: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, String> {
     }
 
     let inicio_central = cabe(out.len(), "o arquivo")?;
-    let tam_central = cabe(central.len(), "o diretório do ZIP")?;
+    let tam_central = cabe(central.len(), &feathersheet_core::tr!("o diretório do ZIP"))?;
     out.extend_from_slice(&central);
     u32le(&mut out, SIG_EOCD);
     u16le(&mut out, 0);

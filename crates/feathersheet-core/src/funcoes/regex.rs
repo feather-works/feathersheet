@@ -88,7 +88,7 @@ struct Analisador {
 }
 
 fn erro<T>(msg: &str) -> Result<T, ErroRegex> {
-    Err(ErroRegex::Sintaxe(msg.to_string()))
+    Err(ErroRegex::Sintaxe(crate::tr!(msg)))
 }
 
 impl Analisador {

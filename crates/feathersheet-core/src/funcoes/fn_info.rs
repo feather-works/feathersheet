@@ -339,7 +339,7 @@ pub fn fn_importdata(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         if separador.chars().count() != 1 {
             return Computed::Scalar(Value::Error(CellError::com_motivo(
                 ErrorCode::Value,
-                "O separador é um caractere só (\";\" ou \",\")",
+                &crate::tr!("O separador é um caractere só (\";\" ou \",\")"),
             )));
         }
     }

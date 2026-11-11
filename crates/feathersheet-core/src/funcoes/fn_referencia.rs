@@ -62,7 +62,7 @@ fn deslocar(args: &[Node], ev: &Evaluator<'_>) -> Res<Node> {
     if let Some(e) = arity(args, 3, 5) {
         return Err(e);
     }
-    let base = node_rect(&args[0], ev).ok_or_else(|| erro_motivo(ErrorCode::Value, "O primeiro argumento de DESLOC precisa ser uma referência"))?;
+    let base = node_rect(&args[0], ev).ok_or_else(|| erro_motivo(ErrorCode::Value, &crate::tr!("O primeiro argumento de DESLOC precisa ser uma referência")))?;
     let (lins, cols) = (arg_int(args, ev, 1)?, arg_int(args, ev, 2)?);
     let altura = if has(args, 3) { arg_int(args, ev, 3)? } else { (base.r1 - base.r0 + 1) as i64 };
     let largura = if has(args, 4) { arg_int(args, ev, 4)? } else { (base.c1 - base.c0 + 1) as i64 };
@@ -73,7 +73,7 @@ fn deslocar(args: &[Node], ev: &Evaluator<'_>) -> Res<Node> {
     let c0 = base.c0 as i64 + cols;
     let (r1, c1) = (r0 + altura - 1, c0 + largura - 1);
     if r0 < 0 || c0 < 0 || r1 >= MAX_ROWS as i64 || c1 >= MAX_COLS as i64 {
-        return Err(erro_motivo(ErrorCode::Ref, "DESLOC saiu da planilha"));
+        return Err(erro_motivo(ErrorCode::Ref, &crate::tr!("DESLOC saiu da planilha")));
     }
     Ok(no_de(Rect { r0: r0 as u32, c0: c0 as u32, r1: r1 as u32, c1: c1 as u32, sheet: base.sheet }))
 }
@@ -202,7 +202,7 @@ pub fn fn_formulatext(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         let (r, c, aba) = celula_do_arg(args, 0, ev)?;
         match ev.ctx.formula_de(r, c, aba.as_deref()) {
             Some(f) => texto(f),
-            None => Err(erro_motivo(ErrorCode::Na, "A célula não tem fórmula")),
+            None => Err(erro_motivo(ErrorCode::Na, &crate::tr!("A célula não tem fórmula"))),
         }
     })
 }

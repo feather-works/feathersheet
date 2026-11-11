@@ -45,7 +45,8 @@ pub struct ChaveOrdem {
 
 /// Listas personalizadas que o Excel traz em pt-BR: (nome, itens).
 pub fn listas_prontas() -> Vec<(&'static str, Vec<String>)> {
-    let l = |v: &[&str]| v.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
+    // Os itens saem na língua do app (jan → Jan, janv.); o nome da lista é só o rótulo.
+    let l = |v: &[&str]| v.iter().map(|s| crate::tr!(s)).collect::<Vec<_>>();
     vec![
         ("dom, seg, ter, qua, qui, sex, sáb", l(&["dom", "seg", "ter", "qua", "qui", "sex", "sáb"])),
         ("domingo, segunda-feira, terça-feira, quarta-feira, quinta-feira, sexta-feira, sábado",

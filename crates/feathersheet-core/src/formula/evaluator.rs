@@ -101,7 +101,7 @@ pub trait EvalContext {
     fn request_async(&self, _task_key: &str, _cell: (u32, u32), _start: AsyncTask) -> Computed {
         Computed::Scalar(Value::Error(CellError::com_motivo(
             ErrorCode::Value,
-            "este valor só pode ser pedido de dentro de uma célula",
+            &crate::tr!("este valor só pode ser pedido de dentro de uma célula"),
         )))
     }
 
@@ -269,7 +269,7 @@ impl<'a> Evaluator<'a> {
             Some(cell) => self.ctx.request_async(task_key, cell, start),
             None => Computed::Scalar(Value::Error(CellError::com_motivo(
                 ErrorCode::Value,
-                "este valor só pode ser pedido de dentro de uma célula",
+                &crate::tr!("este valor só pode ser pedido de dentro de uma célula"),
             ))),
         }
     }
@@ -388,7 +388,7 @@ impl<'a> Evaluator<'a> {
         if args.len() < 3 || args.len() % 2 == 0 {
             return Computed::Scalar(Value::Error(CellError::com_motivo(
                 ErrorCode::Value,
-                "LET exige número ímpar de argumentos (pelo menos 3)",
+                &crate::tr!("LET exige número ímpar de argumentos (pelo menos 3)"),
             )));
         }
         let expr_idx = args.len() - 1;
@@ -404,7 +404,7 @@ impl<'a> Evaluator<'a> {
                 _ => {
                     return Computed::Scalar(Value::Error(CellError::com_motivo(
                         ErrorCode::Value,
-                        "Nome de variável inválido no LET",
+                        &crate::tr!("Nome de variável inválido no LET"),
                     )))
                 }
             };
@@ -418,7 +418,7 @@ impl<'a> Evaluator<'a> {
         if args.is_empty() {
             return Computed::Scalar(Value::Error(CellError::com_motivo(
                 ErrorCode::Value,
-                "LAMBDA exige pelo menos o corpo da função",
+                &crate::tr!("LAMBDA exige pelo menos o corpo da função"),
             )));
         }
         let body_idx = args.len() - 1;
@@ -430,7 +430,7 @@ impl<'a> Evaluator<'a> {
                 _ => {
                     return Computed::Scalar(Value::Error(CellError::com_motivo(
                         ErrorCode::Value,
-                        "Nome de parâmetro inválido na LAMBDA",
+                        &crate::tr!("Nome de parâmetro inválido na LAMBDA"),
                     )))
                 }
             };
@@ -458,7 +458,7 @@ impl<'a> Evaluator<'a> {
             _ => {
                 return Computed::Scalar(Value::Error(CellError::com_motivo(
                     ErrorCode::Value,
-                    "O segundo argumento de MAP deve ser uma LAMBDA",
+                    &crate::tr!("O segundo argumento de MAP deve ser uma LAMBDA"),
                 )))
             }
         };
@@ -501,7 +501,7 @@ impl<'a> Evaluator<'a> {
             _ => {
                 return Computed::Scalar(Value::Error(CellError::com_motivo(
                     ErrorCode::Value,
-                    "O terceiro argumento de REDUCE deve ser uma LAMBDA",
+                    &crate::tr!("O terceiro argumento de REDUCE deve ser uma LAMBDA"),
                 )))
             }
         };

@@ -36,7 +36,7 @@ fn imagem_ou_erro(args: &[Node], ev: &Evaluator<'_>, f: fn(&str) -> Option<Strin
         Some(t) => Computed::Scalar(Value::Text(t)),
         None => Computed::Scalar(Value::Error(crate::celulas::values::CellError::com_motivo(
             crate::celulas::values::ErrorCode::Value,
-            "não parece uma imagem (PNG, JPEG, GIF, WebP, SVG ou BMP) em base64",
+            &crate::tr!("não parece uma imagem (PNG, JPEG, GIF, WebP, SVG ou BMP) em base64"),
         ))),
     }
 }

@@ -425,10 +425,10 @@ where
                 NumeroOp::Fora | NumeroOp::Diferente | NumeroOp::MaiorIgual | NumeroOp::MenorIgual => {
                     let (min_val, max_val) = (a.min(b.unwrap_or(*a)), a.max(b.unwrap_or(*a)));
                     let (ok, regra) = match op {
-                        NumeroOp::Fora => (num < min_val || num > max_val, format!("fora de {min_val} a {max_val}")),
-                        NumeroOp::Diferente => (num != *a, format!("diferente de {a}")),
-                        NumeroOp::MaiorIgual => (num >= *a, format!("maior ou igual a {a}")),
-                        _ => (num <= *a, format!("menor ou igual a {a}")),
+                        NumeroOp::Fora => (num < min_val || num > max_val, crate::trf!("fora de {min_val} a {max_val}")),
+                        NumeroOp::Diferente => (num != *a, crate::trf!("diferente de {a}")),
+                        NumeroOp::MaiorIgual => (num >= *a, crate::trf!("maior ou igual a {a}")),
+                        _ => (num <= *a, crate::trf!("menor ou igual a {a}")),
                     };
                     ResultadoValidacao { ok, motivo: (!ok).then(|| crate::trf!("O número {num} deve ser {regra}.")) }
                 }
@@ -549,13 +549,13 @@ where
             let (lo, hi) = (ta.min(tb), ta.max(tb));
             let (ok, exige) = match op {
                 NumeroOp::Entre => (t >= lo && t <= hi, format!("entre {} e {}", formatar_hora(lo), formatar_hora(hi))),
-                NumeroOp::Fora => (t < lo || t > hi, format!("fora de {} a {}", formatar_hora(lo), formatar_hora(hi))),
+                NumeroOp::Fora => (t < lo || t > hi, crate::trf!("fora de {} a {}", formatar_hora(lo), formatar_hora(hi))),
                 NumeroOp::Igual => (t == ta, format!("igual a {}", formatar_hora(ta))),
-                NumeroOp::Diferente => (t != ta, format!("diferente de {}", formatar_hora(ta))),
-                NumeroOp::Maior => (t > ta, format!("depois de {}", formatar_hora(ta))),
-                NumeroOp::Menor => (t < ta, format!("antes de {}", formatar_hora(ta))),
-                NumeroOp::MaiorIgual => (t >= ta, format!("{} ou depois", formatar_hora(ta))),
-                NumeroOp::MenorIgual => (t <= ta, format!("{} ou antes", formatar_hora(ta))),
+                NumeroOp::Diferente => (t != ta, crate::trf!("diferente de {}", formatar_hora(ta))),
+                NumeroOp::Maior => (t > ta, crate::trf!("depois de {}", formatar_hora(ta))),
+                NumeroOp::Menor => (t < ta, crate::trf!("antes de {}", formatar_hora(ta))),
+                NumeroOp::MaiorIgual => (t >= ta, crate::trf!("{} ou depois", formatar_hora(ta))),
+                NumeroOp::MenorIgual => (t <= ta, crate::trf!("{} ou antes", formatar_hora(ta))),
             };
             ResultadoValidacao { ok, motivo: (!ok).then(|| format!("A hora {} deve estar {exige}.", formatar_hora(t))) }
         }

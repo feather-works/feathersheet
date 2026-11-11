@@ -161,7 +161,7 @@ impl ArquivoHistorico {
             }
         }
         Err(io::Error::new(io::ErrorKind::AlreadyExists,
-            "não foi possível criar arquivo exclusivo de undo"))
+            crate::tr!("não foi possível criar arquivo exclusivo de undo")))
     }
     /// Disco de verdade: em muitos Linux o `/tmp` é tmpfs, ou seja, RAM —
     /// "mandar para o disco" lá não soltava memória nenhuma (13/10/2026:
@@ -215,7 +215,7 @@ impl ArquivoHistorico {
         }
         registro.extend_from_slice(&bloco.textos);
         let mut arquivo = self.arquivo.lock().map_err(|_| io::Error::other(
-            "arquivo de undo indisponível"
+            crate::tr!("arquivo de undo indisponível")
         ))?;
         let offset = arquivo.seek(SeekFrom::End(0))?;
         arquivo.write_all(&registro)?;
@@ -246,7 +246,7 @@ impl BlocoNoDisco {
         let mut bytes = vec![0u8; self.tamanho];
         {
             let mut arquivo = self.origem.arquivo.lock().map_err(|_| io::Error::other(
-                "arquivo de undo indisponível"
+                crate::tr!("arquivo de undo indisponível")
             ))?;
             arquivo.seek(SeekFrom::Start(self.offset))?;
             arquivo.read_exact(&mut bytes)?;
@@ -263,7 +263,7 @@ impl BlocoNoDisco {
             .saturating_add(tamanho_textos) != self.tamanho
         {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "histórico temporário inconsistente"));
+                crate::tr!("histórico temporário inconsistente")));
         }
         let mut alteracoes = Vec::with_capacity(quantidade);
         for _ in 0..quantidade {

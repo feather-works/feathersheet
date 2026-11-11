@@ -141,7 +141,7 @@ impl Sheet {
             }
             (Some((area, _)), Some(motivo)) => {
                 d.areas.insert(k, area);
-                (Value::Error(CellError::com_motivo(ErrorCode::Spill, motivo)), None)
+                (Value::Error(CellError::com_motivo(ErrorCode::Spill, crate::tr!(motivo))), None)
             }
             (None, _) => (valor, None),
         };

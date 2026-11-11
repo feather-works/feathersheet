@@ -437,7 +437,7 @@ macro_rules! sem_servico {
         $(
             $(#[$m])*
             pub fn $nome(_args: &[Node], _ev: &Evaluator<'_>) -> Computed {
-                Computed::Scalar(Value::Error(CellError::com_motivo(ErrorCode::Na, $motivo)))
+                Computed::Scalar(Value::Error(CellError::com_motivo(ErrorCode::Na, crate::tr!($motivo))))
             }
         )*
     };

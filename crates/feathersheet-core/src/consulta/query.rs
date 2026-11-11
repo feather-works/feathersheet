@@ -934,11 +934,11 @@ fn pedaco_da_data(v: &Value, parte: &str) -> Value {
     match parte {
         "ano" => Value::Number(ano as f64),
         "trimestre" => Value::Text(format!("{ano} T{}", mes0 / 3 + 1)),
-        "mes" => MESES.get(mes0).map(|m| Value::Text(m.to_string())).unwrap_or(Value::Empty),
+        "mes" => MESES.get(mes0).map(|m| Value::Text(crate::tr!(m))).unwrap_or(Value::Empty),
         "anoMes" => Value::Text(format!("{ano}-{:02}", mes0 + 1)),
         "dia" => Value::Number(dia as f64),
         // 01/01/1970 (serial 25569) foi quinta-feira; o domingo é 0.
-        "diaSemana" => Value::Text(DIAS[((serial - 25569).rem_euclid(7) as usize + 4) % 7].to_string()),
+        "diaSemana" => Value::Text(crate::tr!(DIAS[((serial - 25569).rem_euclid(7) as usize + 4) % 7])),
         _ => Value::Empty,
     }
 }

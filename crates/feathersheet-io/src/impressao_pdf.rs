@@ -224,7 +224,7 @@ fn rodape_pagina(p: &mut PaginaPdf, cfg: &ConfigPagina, n: usize, total: usize, 
     p.linha(x, y, x + l, y, Cor::rgb(0xcc, 0xcc, 0xcc), 0.75, true);
     let esq = if cfg.rodape.trim().is_empty() { "FeatherSheet Document" } else { cfg.rodape.as_str() };
     p.texto(x, y + 14.0, esq, FontePdf::Helvetica, 9.0, CINZA_RODAPE);
-    let dir = format!("Página {n} de {total}");
+    let dir = feathersheet_core::trf!("Página {n} de {total}");
     let w = largura_texto(&dir, FontePdf::Helvetica, 9.0);
     p.texto(x + l - w, y + 14.0, &dir, FontePdf::Helvetica, 9.0, CINZA_RODAPE);
 }

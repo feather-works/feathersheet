@@ -100,7 +100,7 @@ pub(super) fn ler(root: &XmlNode, xfs: &[XfStyle]) -> Lidas {
     let mut n = 0usize;
     for b in &brutas {
         if b.ranges.is_empty() {
-            fora.push(format!("{}: sem intervalo", b.regra.attr("type").unwrap_or("?")));
+            fora.push(feathersheet_core::trf!("{}: sem intervalo", b.regra.attr("type").unwrap_or("?")));
             continue;
         }
         let estilo = match (b.dxf, b.regra.attr("dxfId").and_then(|s| s.parse::<usize>().ok())) {

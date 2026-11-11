@@ -561,7 +561,7 @@ impl App {
             return text(tr!("Nenhum modelo disponível neste build.")).size(12).color(COR_TEXTO_MUTED()).into();
         }
         let cartoes: Vec<Element<'_, Msg>> = modelos_lista.iter().map(|m|
-            self.inicio_cartao(m.id, m.nome, m.descricao, Msg::NovoDeModelo(m.id))
+            self.inicio_cartao(m.id, tr!(m.nome), tr!(m.descricao), Msg::NovoDeModelo(m.id))
         ).collect();
         let passo = CARTAO_LARGURA + CARTAO_ESPACO;
         let cabem = ((largura + CARTAO_ESPACO) / passo).floor().max(1.0) as usize;

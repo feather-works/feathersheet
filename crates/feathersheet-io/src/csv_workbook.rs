@@ -137,7 +137,7 @@ pub fn exportar_com_separador<W: std::io::Write>(
 ) -> std::io::Result<()> {
     use feathersheet_core::Value;
     let sheet = &workbook.aba(indice).ok_or_else(|| std::io::Error::new(
-        std::io::ErrorKind::NotFound, "Aba para exportação não encontrada",
+        std::io::ErrorKind::NotFound, feathersheet_core::tr!("Aba para exportação não encontrada"),
     ))?.sheet;
     if sheet.is_empty() { return Ok(()); }
     // Sem o BOM o Excel lê o arquivo como ANSI e estraga os acentos.

@@ -510,6 +510,8 @@ fn formatar_digitos(n: f64, secao: &[Peca], com_sinal: bool) -> String {
     saida
 }
 
+const MESES_CURTOS: [&str; 12] = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const DIAS_CURTOS: [&str; 7] = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const MESES: [&str; 12] = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
     "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const DIAS: [&str; 7] = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
@@ -561,13 +563,14 @@ fn formatar_data(serial: f64, secao: &[Peca]) -> Option<String> {
             ('m', _) if minuto => if *n >= 2 { dois(mm) } else { mm.to_string() },
             ('m', 1) => mes.to_string(),
             ('m', 2) => dois(i64::from(mes)),
-            ('m', 3) => MESES[(mes as usize - 1) % 12][..3].to_string(),
-            ('m', 4) => MESES[(mes as usize - 1) % 12].to_string(),
-            ('m', _) => MESES[(mes as usize - 1) % 12][..1].to_string(),
+            // Os nomes saem do dicionário da língua do app (`tr!`); a chave é o nome em português.
+            ('m', 3) => crate::tr!(MESES_CURTOS[(mes as usize - 1) % 12]),
+            ('m', 4) => crate::tr!(MESES[(mes as usize - 1) % 12]),
+            ('m', _) => crate::tr!(MESES[(mes as usize - 1) % 12]).chars().take(1).collect(),
             ('d', 1) => dia.to_string(),
             ('d', 2) => dois(i64::from(dia)),
-            ('d', 3) => DIAS[(dia_int + 6).rem_euclid(7) as usize][..3].to_string(),
-            ('d', _) => DIAS[(dia_int + 6).rem_euclid(7) as usize].to_string(),
+            ('d', 3) => crate::tr!(DIAS_CURTOS[(dia_int + 6).rem_euclid(7) as usize]),
+            ('d', _) => crate::tr!(DIAS[(dia_int + 6).rem_euclid(7) as usize]),
             ('H', _) => (segundos / 3600 + dia_int * 24).to_string(),
             ('h', _) => {
                 let h = if ampm { (hh + 11) % 12 + 1 } else { hh };

@@ -121,7 +121,7 @@ impl<'de> Deserialize<'de> for Avulsas {
         impl<'de> Visitor<'de> for V {
             type Value = Avulsas;
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("a lista de células avulsas")
+                f.write_str(&feathersheet_core::tr!("a lista de células avulsas"))
             }
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Avulsas, A::Error> {
                 let mut fora = Avulsas::default();

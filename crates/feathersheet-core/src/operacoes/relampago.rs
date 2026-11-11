@@ -305,8 +305,8 @@ pub enum ErroRelampago {
 }
 
 impl ErroRelampago {
-    pub fn mensagem(&self) -> &'static str {
-        match self {
+    pub fn mensagem(&self) -> String {
+        crate::tr!(match self {
             ErroRelampago::SemDados =>
                 "Preenchimento relâmpago: não há dados nas colunas ao lado desta.",
             ErroRelampago::SemExemplo =>
@@ -317,7 +317,7 @@ impl ErroRelampago {
                 "Preenchimento relâmpago: o padrão é ambíguo. Digite mais um exemplo e tente de novo.",
             ErroRelampago::NadaAPreencher =>
                 "Preenchimento relâmpago: não há células vazias para preencher nesta coluna.",
-        }
+        })
     }
 }
 

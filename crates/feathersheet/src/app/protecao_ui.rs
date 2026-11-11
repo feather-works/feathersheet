@@ -328,7 +328,7 @@ impl App {
         } else {
             let mut lista = pelicano::column(Vec::<Element<_>>::new()).spacing(7);
             for (p, rotulo, _) in Permissao::TODAS {
-                lista = lista.push(pelicano::checkbox(rotulo, e.permitidas.contains(&p))
+                lista = lista.push(pelicano::checkbox(tr!(rotulo), e.permitidas.contains(&p))
                     .on_toggle(move |v| Msg::Protecao(Evento::Permitir(p, v))).size(12.5));
             }
             painel = painel

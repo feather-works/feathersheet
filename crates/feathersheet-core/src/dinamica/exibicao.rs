@@ -340,7 +340,7 @@ pub fn chave_agrupada(valor: &Value, agrupamento: &Agrupamento) -> (String, f64)
                     let q = m.div_ceil(3);
                     (format!("T{q}"), q as f64)
                 }
-                ParteData::Mes => (MESES[(m - 1) as usize].to_string(), m as f64),
+                ParteData::Mes => (crate::tr!(MESES[(m - 1) as usize]), m as f64),
                 ParteData::Dia => (d.to_string(), d as f64),
             },
         },
