@@ -5901,5 +5901,22 @@
  "Fórmula que depende dela mesma repete a conta em vez de mostrar #CIRCULAR!. Cada F9 repete as iterações.": "Une formule qui dépend d'elle-même répète le calcul au lieu d'afficher #CIRCULAIRE!. Chaque F9 répète les itérations.",
  "Iterações": "Itérations",
  "Para no máximo de iterações ou quando o valor muda menos que a diferença.": "S'arrête au nombre maximal d'itérations ou quand la valeur change de moins que l'écart.",
- "Diferença": "Écart"
+ "Diferença": "Écart",
+ "Abre em placa de vídeo antiga, cálculo iterativo e números como no Excel": "S'ouvre sur les anciennes cartes graphiques, calcul itératif et nombres comme dans Excel",
+ "Abre em placa de vídeo antiga": "S'ouvre sur les anciennes cartes graphiques",
+ "Sem Vulkan nem OpenGL que sirva (Intel HD 4000), a janela é desenhada pelo processador.": "Sans Vulkan ni OpenGL utilisable (Intel HD 4000), la fenêtre est dessinée par le processeur.",
+ "Fórmula que depende dela mesma repete a conta em vez de dar #CIRCULAR!.": "Une formule qui dépend d'elle-même répète le calcul au lieu d'afficher #CIRCULAR!.",
+ "Milhar como no Excel": "Séparateur de milliers comme dans Excel",
+ "1,234 em inglês e 1.234 em português entram como mil duzentos e trinta e quatro.": "1,234 en anglais et 1 234 en français sont saisis comme mille deux cent trente-quatre.",
+ "Tudo na língua do aplicativo": "Tout dans la langue de l'application",
+ "Mensagens de erro, códigos como #VALOR!, meses e rótulos da tabela dinâmica.": "Messages d'erreur, codes comme #VALEUR!, mois et étiquettes du tableau croisé dynamique.",
+ "Se a placa de vídeo falha com o aplicativo aberto, as janelas passam a ser desenhadas pelo processador em vez de o aplicativo fechar.": "Si la carte graphique tombe en panne pendant que l'application est ouverte, les fenêtres sont dessinées par le processeur au lieu que l'application se ferme.",
+ "Cálculo iterativo fica em Configurações ▸ Planilha, com o máximo de iterações e a diferença.": "Le calcul itératif se trouve dans Paramètres ▸ Feuille, avec le nombre maximal d'itérations et l'écart.",
+ "Dados colados ou abertos de CSV em formato americano (1,234.50) ou brasileiro (1.234,50) são lidos certo, coluna por coluna, em qualquer língua do app.": "Les données collées ou ouvertes depuis un CSV au format américain (1,234.50) ou brésilien (1.234,50) sont lues correctement, colonne par colonne, quelle que soit la langue de l'application.",
+ "A barra de fórmulas mostra o número com o decimal da língua.": "La barre de formule affiche le nombre avec le séparateur décimal de la langue.",
+ "15.5% digitado é 15,5%, não mais 155%.": "15.5% saisi donne 15,5 %, et non plus 155 %.",
+ "VERDADEIRO e FALSO aparecem na língua da interface (TRUE, VRAI…).": "VRAI et FAUX apparaissent dans la langue de l'interface (TRUE, VERDADEIRO…).",
+ "Gráficos, listas de filtro, Subtotal e o atualizador também saem na língua do app.": "Les graphiques, les listes de filtre, Sous-total et la mise à jour suivent aussi la langue de l'application.",
+ "Em inglês, espanhol e francês a alça de preenchimento continua os meses e os dias da língua.": "En anglais, espagnol et français, la poignée de recopie continue les mois et les jours de la langue.",
+ "Letra nova na interface: Feather Sans.": "Nouvelle police de l'interface : Feather Sans."
 }

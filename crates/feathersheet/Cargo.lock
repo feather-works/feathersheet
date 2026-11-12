@@ -1967,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "feathersheet"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "arboard",
  "base64 0.22.1",
@@ -3982,9 +3982,9 @@ checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "pelicano"
-version = "0.1.33"
+version = "0.1.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bedf7f99e1e93b288d537b818a80ee65506ebf357b374fa41cb41ef33a06465a"
+checksum = "f18d999e05c8fe33aa1b5cab966d5e0637b0e254b33803880617140c1c9a02c7"
 dependencies = [
  "accesskit",
  "accesskit_winit",

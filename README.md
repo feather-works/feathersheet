@@ -55,6 +55,15 @@ macro took 25 s.
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
 
+### New in v0.3.2
+
+- **Opens on old graphics cards:** on a card with no usable Vulkan or OpenGL (Intel HD 4000 / Ivy Bridge) the app no longer closes at startup; the window is drawn by the processor. If the card fails while the app is open, the windows switch to the processor too.
+- **Iterative calculation:** a formula that depends on itself repeats the calculation instead of showing `#CIRCULAR!` (*Settings ▸ Sheet*).
+- **Thousands separator like in Excel:** `1,234` typed or pasted in English and `1.234` in Portuguese or Spanish are one thousand two hundred thirty-four. Pasted data and CSV files in American (`1,234.50`) or Brazilian (`1.234,50`) format are read column by column, in any app language.
+- **Everything in the app's language:** error messages, error codes (`#VALOR!`, `#¡VALOR!`, `#VALEUR!`), `TRUE`/`FALSE`, month and weekday names, PivotTable and Subtotal labels, charts and filter lists.
+- **Feather Sans**, the new interface typeface.
+- **Fixes:** the formula bar shows the number with the language's decimal separator; `15.5%` typed is 15.5%, not 155%.
+
 ### New in v0.3.1
 
 - **Password-protected Excel files:** open an encrypted `.xlsx` (Excel or LibreOffice) and save it encrypted with *Review ▸ Encrypt with password* (AES-256, like Excel).

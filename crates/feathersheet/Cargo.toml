@@ -1,6 +1,6 @@
 [package]
 name = "feathersheet"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "FeatherSheet: planilha nativa em Rust (interface no pelicano)"
 
@@ -9,8 +9,9 @@ name = "feathersheet"
 path = "src/main.rs"
 
 [dependencies]
-# pelicano do crates.io; a 0.1.30 trouxe o align_x do campo de texto (#90), a 0.1.33 a letra padrão (Feather Sans).
-pelicano = { version = "0.1.33", features = ["highlighter"] }
+# pelicano do crates.io; a 0.1.30 trouxe o align_x do campo de texto (#90), a 0.1.33 a letra padrão (Feather Sans),
+# a 0.1.34 a janela desenhada pela CPU em placa sem Vulkan/OpenGL utilizável (#163).
+pelicano = { version = "0.1.34", features = ["highlighter"] }
 # Idioma do sistema na primeira abertura (já vinha como dependência indireta).
 sys-locale = "0.3"
 feather-charts = { git = "https://github.com/feather-works/feather-charts", tag = "v0.3.5" }

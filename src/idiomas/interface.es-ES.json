@@ -5901,5 +5901,22 @@
  "Fórmula que depende dela mesma repete a conta em vez de mostrar #CIRCULAR!. Cada F9 repete as iterações.": "Una fórmula que depende de sí misma repite el cálculo en lugar de mostrar #¡CIRCULAR!. Cada F9 repite las iteraciones.",
  "Iterações": "Iteraciones",
  "Para no máximo de iterações ou quando o valor muda menos que a diferença.": "Se detiene al llegar al máximo de iteraciones o cuando el valor cambia menos que la diferencia.",
- "Diferença": "Diferencia"
+ "Diferença": "Diferencia",
+ "Abre em placa de vídeo antiga, cálculo iterativo e números como no Excel": "Abre en tarjetas gráficas antiguas, cálculo iterativo y números como en Excel",
+ "Abre em placa de vídeo antiga": "Abre en tarjetas gráficas antiguas",
+ "Sem Vulkan nem OpenGL que sirva (Intel HD 4000), a janela é desenhada pelo processador.": "Sin Vulkan ni OpenGL utilizable (Intel HD 4000), la ventana la dibuja el procesador.",
+ "Fórmula que depende dela mesma repete a conta em vez de dar #CIRCULAR!.": "Una fórmula que depende de sí misma repite el cálculo en vez de dar #CIRCULAR!.",
+ "Milhar como no Excel": "Separador de miles como en Excel",
+ "1,234 em inglês e 1.234 em português entram como mil duzentos e trinta e quatro.": "1,234 en inglés y 1.234 en portugués o español entran como mil doscientos treinta y cuatro.",
+ "Tudo na língua do aplicativo": "Todo en el idioma de la aplicación",
+ "Mensagens de erro, códigos como #VALOR!, meses e rótulos da tabela dinâmica.": "Mensajes de error, códigos como #¡VALOR!, meses y rótulos de la tabla dinámica.",
+ "Se a placa de vídeo falha com o aplicativo aberto, as janelas passam a ser desenhadas pelo processador em vez de o aplicativo fechar.": "Si la tarjeta gráfica falla con la aplicación abierta, las ventanas pasan a dibujarse con el procesador en vez de cerrarse la aplicación.",
+ "Cálculo iterativo fica em Configurações ▸ Planilha, com o máximo de iterações e a diferença.": "El cálculo iterativo está en Configuración ▸ Hoja, con el máximo de iteraciones y la diferencia.",
+ "Dados colados ou abertos de CSV em formato americano (1,234.50) ou brasileiro (1.234,50) são lidos certo, coluna por coluna, em qualquer língua do app.": "Los datos pegados o abiertos de CSV en formato americano (1,234.50) o brasileño (1.234,50) se leen bien, columna por columna, en cualquier idioma de la aplicación.",
+ "A barra de fórmulas mostra o número com o decimal da língua.": "La barra de fórmulas muestra el número con el decimal del idioma.",
+ "15.5% digitado é 15,5%, não mais 155%.": "15.5% escrito es 15,5%, ya no 155%.",
+ "VERDADEIRO e FALSO aparecem na língua da interface (TRUE, VRAI…).": "VERDADERO y FALSO aparecen en el idioma de la interfaz (TRUE, VRAI…).",
+ "Gráficos, listas de filtro, Subtotal e o atualizador também saem na língua do app.": "Los gráficos, las listas de filtro, Subtotal y el actualizador también salen en el idioma de la aplicación.",
+ "Em inglês, espanhol e francês a alça de preenchimento continua os meses e os dias da língua.": "En inglés, español y francés el controlador de relleno continúa los meses y los días del idioma.",
+ "Letra nova na interface: Feather Sans.": "Letra nueva en la interfaz: Feather Sans."
 }

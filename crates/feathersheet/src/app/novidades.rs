@@ -10,6 +10,29 @@ pub use feather_ui::novidades::Versao;
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.3.2",
+        data: "12/11/2026",
+        resumo: "Abre em placa de vídeo antiga, cálculo iterativo e números como no Excel",
+        ilustracao: Ilustracao::Atualizacao,
+        destaques: &[
+            ("device-desktop", "Abre em placa de vídeo antiga", "Sem Vulkan nem OpenGL que sirva (Intel HD 4000), a janela é desenhada pelo processador."),
+            ("math-function", "Cálculo iterativo", "Fórmula que depende dela mesma repete a conta em vez de dar #CIRCULAR!."),
+            ("table", "Milhar como no Excel", "1,234 em inglês e 1.234 em português entram como mil duzentos e trinta e quatro."),
+            ("world", "Tudo na língua do aplicativo", "Mensagens de erro, códigos como #VALOR!, meses e rótulos da tabela dinâmica."),
+        ],
+        tambem: &[
+            "Se a placa de vídeo falha com o aplicativo aberto, as janelas passam a ser desenhadas pelo processador em vez de o aplicativo fechar.",
+            "Cálculo iterativo fica em Configurações ▸ Planilha, com o máximo de iterações e a diferença.",
+            "Dados colados ou abertos de CSV em formato americano (1,234.50) ou brasileiro (1.234,50) são lidos certo, coluna por coluna, em qualquer língua do app.",
+            "A barra de fórmulas mostra o número com o decimal da língua.",
+            "15.5% digitado é 15,5%, não mais 155%.",
+            "VERDADEIRO e FALSO aparecem na língua da interface (TRUE, VRAI…).",
+            "Gráficos, listas de filtro, Subtotal e o atualizador também saem na língua do app.",
+            "Em inglês, espanhol e francês a alça de preenchimento continua os meses e os dias da língua.",
+            "Letra nova na interface: Feather Sans.",
+        ],
+    },
+    Versao {
         numero: "0.3.1",
         data: "11/11/2026",
         resumo: "Excel com senha, dinâmica mais completa, francês e FeatherQuery",

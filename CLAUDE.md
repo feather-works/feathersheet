@@ -2,6 +2,15 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## v0.3.2 — 12/11/2026: abre em placa de vídeo antiga, cálculo iterativo, números como no Excel
+
+Junta o que entrou depois da v0.3.1 (itens de 11/11 e 12/11 da "Fila de trabalho" abaixo): cálculo iterativo, milhar
+digitado e colagem/CSV por coluna, textos do motor e códigos de erro na língua do app, Feather Sans. **pelicano 0.1.34**
+(crates.io; feather-ui continua na v0.3.16): o app não fecha mais ao iniciar em placa sem Vulkan/OpenGL utilizável pelo
+wgpu (Intel HD 4000 / Ivy Bridge, #163, relato de quem instalou pelo Snap): a janela abre desenhada pela CPU; e se a
+placa falha com o app aberto, as janelas passam para a CPU. Conferido numa máquina real com HD 4000 rodando o binário
+do `main` com o pelicano novo (abriu e desenhou a tela inicial). **Sem conferir:** o Snap naquela máquina e o Windows.
+
 ## v0.3.1 — 11/11/2026: Excel com senha, dinâmica mais completa, francês, FeatherQuery
 
 Junta o "Lote de 10/11/2026" e as entregas de 11/11 (seção "Fila de trabalho" abaixo, item a item). Destaques no
