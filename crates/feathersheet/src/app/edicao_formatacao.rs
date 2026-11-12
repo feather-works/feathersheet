@@ -418,7 +418,13 @@ impl App {
             && matches!(modo, ModoColagem::Completa | ModoColagem::Transposta
                 | ModoColagem::ValoresComFormato);
         let externas = if internas.is_none() {
-            Some(feathersheet_io::csv::dividir_csv(&dados, '\t'))
+            // Texto de fora chega como foi escrito na língua de quem copiou: mesma regra de digitar.
+            let cfg = self.regionalizacao();
+            let mut linhas = feathersheet_io::csv::dividir_csv(&dados, '\t');
+            for celula in linhas.iter_mut().flatten() {
+                if let Some(n) = feathersheet_core::celulas::input::sem_milhar_digitado(celula, &cfg) { *celula = n; }
+            }
+            Some(linhas)
         } else { None };
         let (origem_altura, origem_largura) = if let Some(linhas) = internas {
             (linhas.len(), linhas.iter().map(Vec::len).max().unwrap_or(0))

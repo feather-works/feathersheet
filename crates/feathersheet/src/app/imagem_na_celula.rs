@@ -295,6 +295,17 @@ mod testes {
         assert!(aba.sheet.im.is_none(), "e deixa de ser imagem solta");
     }
 
+    /// PR #162: em inglês a vírgula digitada é milhar; em português continua decimal.
+    #[test]
+    fn numero_digitado_em_ingles_trata_virgula_como_milhar() {
+        let mut app = App::default();
+        assert_eq!(app.formula_para_gravar("1,234", ""), "1,234");
+        app.config.idioma = "en-US".into();
+        assert_eq!(app.formula_para_gravar("1,234", ""), "1234");
+        assert_eq!(app.formula_para_gravar("$1,234.50", ""), "$1234.50");
+        assert_eq!(app.formula_para_gravar("12,34", ""), "12,34");
+    }
+
     #[test]
     fn barra_de_formulas_nao_mostra_nem_apaga_o_base64() {
         let mut app = App::default();

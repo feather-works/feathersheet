@@ -15,6 +15,9 @@ impl App {
     /// mostrou, fica o original (trocar SUM por SOMA na tela não é edição).
     pub(super) fn formula_para_gravar(&self, editado: &str, antes: &str) -> String {
         if !antes.is_empty() && self.formula_para_mostrar(antes) == editado { return antes.to_owned(); }
+        if let Some(numero) = feathersheet_core::celulas::input::sem_milhar_digitado(editado, &self.regionalizacao()) {
+            return numero;
+        }
         let motor = crate::idioma::formula_para_motor(editado);
         feathersheet_core::celulas::locale::normalizar_formula(&motor, &self.regionalizacao())
     }

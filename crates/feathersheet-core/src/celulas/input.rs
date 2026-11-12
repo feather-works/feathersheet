@@ -42,7 +42,9 @@ pub fn parse_literal(raw: &str) -> Literal {
         if !sem_sinal.is_empty()
             && sem_sinal.bytes().all(|b| b.is_ascii_digit() || b == b'.' || b == b',')
         {
-            let num = s.replace('.', "").replacen(',', ".", 1);
+            // Ponto sozinho que não é milhar é decimal: "15.5%" é 15,5%, não 155%.
+            let num = if !s.contains(',') && !grupos_de_milhar(s, '.') { s.to_owned() }
+                else { s.replace('.', "").replacen(',', ".", 1) };
             if let Ok(n) = num.parse::<f64>() {
                 if n.is_finite() {
                     return Literal { value: Value::Number(n / 100.0), format: Some(NumberFormat::Percent) };
@@ -63,6 +65,17 @@ pub fn parse_literal(raw: &str) -> Literal {
         }
     }
     Literal { value: Value::Text(raw.to_owned()), format: None }
+}
+
+/// Número digitado ou colado na língua de ponto decimal: a vírgula é milhar (`1,234` é 1234,
+/// `$1,234.50`) e sai antes de o texto chegar ao analisador. O analisador não muda com a
+/// língua: o arquivo guarda o texto digitado e é lido por ele (ideia do PR #162).
+pub fn sem_milhar_digitado(texto: &str, cfg: &super::locale::LocaleConfig) -> Option<String> {
+    if cfg.decimal_separator != '.' || cfg.thousands_separator != ',' || !texto.contains(',') { return None; }
+    let nucleo = texto.trim().trim_end_matches(['%', ')', ' ']).trim_start_matches(['-', '(']);
+    let nucleo = nucleo.strip_prefix(cfg.currency_symbol.as_str()).unwrap_or(nucleo).trim_start();
+    let (inteiro, fracao) = nucleo.split_once('.').unwrap_or((nucleo, "0"));
+    (grupos_de_milhar(inteiro, ',') && so_digitos(fracao)).then(|| texto.replace(',', ""))
 }
 
 /// Identifica somente a funcao na raiz da formula, sem falsos positivos
@@ -292,6 +305,31 @@ mod testes_entrada {
         numero("$50.25", 50.25, Some(NumberFormat::Currency));
         numero("15,5%", 0.155, Some(NumberFormat::Percent));
         assert_eq!(parse_literal("50 R$").value, Value::Text("50 R$".into()));
+    }
+
+    /// Casos do PR #162 (ash-171): em inglês a vírgula é milhar ao digitar.
+    #[test]
+    fn virgula_de_milhar_sai_so_na_lingua_de_ponto_decimal() {
+        use crate::celulas::locale::LocaleConfig;
+        let en = LocaleConfig::en_us();
+        let lido = |t: &str| parse_literal(&sem_milhar_digitado(t, &en).unwrap_or_else(|| t.to_owned()));
+        for (t, n, f) in [
+            ("1,234", 1234.0, None), ("12,345", 12345.0, None), ("-1,234", -1234.0, None),
+            ("1,234.50", 1234.5, None), ("12,34,567.50", 1_234_567.5, None), ("12.34", 12.34, None),
+            ("$1,234.50", 1234.5, Some(NumberFormat::Currency)), ("-$1,234.50", -1234.5, Some(NumberFormat::Currency)),
+            ("($1,234.50)", -1234.5, Some(NumberFormat::Currency)), ("$-1,234.50", -1234.5, Some(NumberFormat::Currency)),
+            ("1,234.50%", 12.345, Some(NumberFormat::Percent)), ("15.5%", 0.155, Some(NumberFormat::Percent)),
+        ] {
+            assert_eq!(lido(t), Literal { value: Value::Number(n), format: f }, "{t}");
+        }
+        // Grupo errado, texto comum e fórmula passam como vieram.
+        for t in ["12,34", "1,2,345", "1,234 itens", "=SUM(1,234)", "a,b"] {
+            assert_eq!(sem_milhar_digitado(t, &en), None, "{t}");
+        }
+        // Em português nada muda: 1,234 continua 1,234.
+        assert_eq!(sem_milhar_digitado("1,234", &LocaleConfig::pt_br()), None);
+        numero("1.234,5%", 12.345, Some(NumberFormat::Percent));
+        numero("1.234%", 12.34, Some(NumberFormat::Percent));
     }
 
     #[test]
