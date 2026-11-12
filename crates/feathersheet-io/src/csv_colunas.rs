@@ -17,7 +17,8 @@ use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::io::{BufRead, Read};
 
-use feathersheet_core::celulas::input::parse_literal;
+use feathersheet_core::celulas::input::{parse_literal, sem_milhar_digitado};
+use feathersheet_core::LocaleConfig;
 use feathersheet_core::celulas::refs::{MAX_COLS, MAX_ROWS};
 use feathersheet_core::celulas::values::Value;
 use feathersheet_core::planilha::column_store::{CHUNK_SHIFT, CHUNK_SIZE};
@@ -309,12 +310,14 @@ struct Construtor<'a> {
     dict: HashMap<&'a str, i32, BuildHasherDefault<HashRapido>>,
     bools: [i32; 2],
     avulsas: Vec<(u32, u32, u32)>,
+    /// A língua em que a coluna foi escrita ([`linguas_da_amostra`]); `None`: como sempre foi.
+    lingua: Option<&'a LocaleConfig>,
 }
 
 impl<'a> Construtor<'a> {
-    fn novo() -> Self {
+    fn novo(lingua: Option<&'a LocaleConfig>) -> Self {
         Construtor { numeros: None, textos: None, verbetes: Vec::new(), dict: HashMap::default(),
-            bools: [-1; 2], avulsas: Vec::new() }
+            bools: [-1; 2], avulsas: Vec::new(), lingua }
     }
 
     /// O campo `ini..fim` de `texto` na linha `r` do bloco.
@@ -324,7 +327,12 @@ impl<'a> Construtor<'a> {
             return;
         }
         let bit = 1u8 << (r & 7);
-        let classe = if t.starts_with('=') { Classe::Outra } else { classificar(t) };
+        let classe = if t.starts_with('=') { Classe::Outra }
+            else if let Some(sem) = self.lingua.and_then(|l| sem_milhar_digitado(t, l)) {
+                // Milhar da língua da coluna tirado: o número vai direto; moeda e percentual
+                // seguem como avulsa, e quem grava tira o milhar de novo.
+                match classificar(&sem) { Classe::Numero(n) => Classe::Numero(n), _ => Classe::Outra }
+            } else { classificar(t) };
         let id = match classe {
             Classe::Numero(n) => {
                 let (valores, mascara) = self.numeros.get_or_insert_with(|| (
@@ -374,8 +382,8 @@ impl<'a> Construtor<'a> {
 /// guardado (linha a linha): coluna a coluna, cada campo lido ficava longe
 /// do anterior na memória e o processador esperava a RAM (6,1 s em 70
 /// milhões de células, 16/10/2026).
-fn montar_grupo(de: usize, ate: usize, bloco: &BlocoLinhas, texto: &str) -> Vec<BlocoColuna> {
-    let mut construtores: Vec<Construtor> = (de..ate).map(|_| Construtor::novo()).collect();
+fn montar_grupo<'a>(de: usize, ate: usize, bloco: &BlocoLinhas, texto: &'a str, linguas: &'a [Option<LocaleConfig>]) -> Vec<BlocoColuna> {
+    let mut construtores: Vec<Construtor> = (de..ate).map(|c| Construtor::novo(linguas.get(c).and_then(Option::as_ref))).collect();
     for r in 0..bloco.quantas_linhas() {
         let primeiro = bloco.linhas[r] as usize;
         let campos = bloco.linhas[r + 1] as usize - primeiro;
@@ -389,24 +397,25 @@ fn montar_grupo(de: usize, ate: usize, bloco: &BlocoLinhas, texto: &str) -> Vec<
 
 /// Classifica as colunas do bloco em `nucleos` threads (cada uma com a sua
 /// faixa de colunas); com um núcleo, aqui mesmo.
-fn montar_colunas(bloco: &BlocoLinhas, texto: &str, nucleos: usize) -> Vec<BlocoColuna> {
+fn montar_colunas(bloco: &BlocoLinhas, texto: &str, nucleos: usize, linguas: &[Option<LocaleConfig>]) -> Vec<BlocoColuna> {
     let colunas = (0..bloco.quantas_linhas())
         .map(|r| (bloco.linhas[r + 1] - bloco.linhas[r]) as usize).max().unwrap_or(0);
     if nucleos <= 1 || colunas <= 1 {
-        return montar_grupo(0, colunas, bloco, texto);
+        return montar_grupo(0, colunas, bloco, texto, linguas);
     }
     let por_thread = colunas.div_ceil(nucleos.min(colunas));
     std::thread::scope(|escopo| {
         let tarefas: Vec<_> = (0..colunas).step_by(por_thread).map(|de| escopo.spawn(move || {
-            montar_grupo(de, (de + por_thread).min(colunas), bloco, texto)
+            montar_grupo(de, (de + por_thread).min(colunas), bloco, texto, linguas)
         })).collect();
         tarefas.into_iter().flat_map(|t| t.join().expect("classificar colunas")).collect()
     })
 }
 
 /// Lê `leitor` (o arquivo inteiro) para dentro de `aba`, vazia. `delim`
-/// já escolhido (ASCII). Devolve as células gravadas.
-pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, aba: &mut Sheet) -> Result<u64, String> {
+/// já escolhido (ASCII). `linguas`: a língua de cada coluna, de [`linguas_da_amostra`].
+/// Devolve as células gravadas.
+pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, linguas: &[Option<LocaleConfig>], aba: &mut Sheet) -> Result<u64, String> {
     use std::time::{Duration, Instant};
     let nucleos = feathersheet_core::paralelismo::nucleos();
     let (para_montar, a_montar) = std::sync::mpsc::sync_channel::<BlocoLinhas>(2);
@@ -440,7 +449,7 @@ pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, aba: &mut Sheet) 
             for bloco in a_montar {
                 let t0 = Instant::now();
                 let texto = std::str::from_utf8(&bloco.texto).map_err(|e| e.to_string())?;
-                let colunas = montar_colunas(&bloco, texto, nucleos);
+                let colunas = montar_colunas(&bloco, texto, nucleos, linguas);
                 gasto += t0.elapsed();
                 if para_gravar.send((bloco, colunas)).is_err() {
                     break;
@@ -474,6 +483,8 @@ pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, aba: &mut Sheet) 
                 }
                 for (r, a, b) in coluna.avulsas {
                     let raw = &texto[a as usize..b as usize];
+                    let sem = sem_milhar_da_coluna(raw, linguas, coluna.col as usize);
+                    let raw = sem.as_deref().unwrap_or(raw);
                     let row = linha0 + r;
                     let pronta = CelulaPreparada::preparar(row, coluna.col, raw, (0, raw.len() as u32), 0, None, &mut padroes);
                     let estilo = formato_do_literal(parse_literal(raw.trim()).format).map(|f| {
@@ -504,24 +515,42 @@ pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, aba: &mut Sheet) 
     })
 }
 
+/// A língua em que cada coluna do CSV foi escrita, pelo decimal que os valores da amostra
+/// mostram (`3.14` e `1,234.50` são ponto decimal; `3,14` e `1.234,56`, vírgula). Com ela o
+/// milhar sai antes do analisador: `"12,345"` numa coluna de ponto decimal é 12345, e `1.234`
+/// numa de vírgula é 1234. Coluna sem sinal (`None`) é lida como sempre foi.
+// shortcut: só a amostra (64 KiB) decide; coluna cujo sinal aparece depois dela fica como era.
+pub(crate) fn linguas_da_amostra(texto: &str, delim: char, cortada: bool) -> Vec<Option<LocaleConfig>> {
+    let mut linhas = crate::csv::dividir_csv(texto, delim);
+    if cortada { linhas.pop(); }
+    feathersheet_core::celulas::input::decimais_das_colunas(&linhas).into_iter()
+        .map(|d| feathersheet_core::celulas::input::lingua_da_coluna(d, None)).collect()
+}
+
+/// O campo `raw` da coluna `col` sem o milhar da língua dela; `None`: fica como veio.
+pub(crate) fn sem_milhar_da_coluna(raw: &str, linguas: &[Option<LocaleConfig>], col: usize) -> Option<String> {
+    let lingua = linguas.get(col)?.as_ref()?;
+    let t = raw.trim();
+    if t.starts_with('=') { return None; }
+    sem_milhar_digitado(t, lingua)
+}
+
 /// Escolhe o separador como o `feather_io::csv_lotes` (numa amostra de
 /// 64 KiB) e devolve o leitor com a amostra de volta na frente, sempre em
 /// UTF-8: UTF-16 com BOM (o "Texto Unicode" do Excel) e Windows-1252 (o
 /// "ANSI" do Excel e dos dados do governo, como os do TSE) são convertidos ao ler.
 // shortcut: só a amostra decide a codificação; byte inválido depois dela ainda dá erro.
 pub(crate) fn separador_e_leitor<R: BufRead + Send + 'static>(mut leitor: R, tsv: bool, preferido: Option<char>)
-    -> std::io::Result<(char, Box<dyn BufRead + Send>)> {
+    -> std::io::Result<(char, Vec<Option<LocaleConfig>>, Box<dyn BufRead + Send>)> {
     let mut amostra = Vec::new();
     leitor.by_ref().take(64 * 1024).read_to_end(&mut amostra)?;
-    let cod = Codificacao::da_amostra(&amostra, amostra.len() == 64 * 1024);
-    let delim = if tsv {
-        '\t'
-    } else {
-        let (texto, _) = cod.converter(&amostra);
-        feather_io::csv_lotes::escolher_separador(&texto, preferido)
-    };
+    let cortada = amostra.len() == 64 * 1024;
+    let cod = Codificacao::da_amostra(&amostra, cortada);
+    let (texto, _) = cod.converter(&amostra);
+    let delim = if tsv { '\t' } else { feather_io::csv_lotes::escolher_separador(&texto, preferido) };
+    let linguas = linguas_da_amostra(&texto, delim, cortada);
     let junto = std::io::Cursor::new(amostra).chain(leitor);
-    Ok((delim, match cod {
+    Ok((delim, linguas, match cod {
         Codificacao::Utf8 => Box::new(std::io::BufReader::with_capacity(1 << 20, junto)),
         _ => Box::new(Convertido { dentro: junto, cod, resto: Vec::new(), saida: Vec::new(), pos: 0 }),
     }))
@@ -648,9 +677,12 @@ mod testes {
         let mut w = Workbook::new();
         let aba = &mut w.aba_mut(0).unwrap().sheet;
         let mut linha = 0u32;
+        // A língua de cada coluna vem da mesma amostra; o que se compara é a montagem por colunas.
+        let (_, linguas, _) = super::separador_e_leitor(std::io::Cursor::new(bytes.to_vec()), tsv, separador).unwrap();
         let entregar = |lote: &mut Vec<Vec<String>>| {
             for campos in lote.drain(..) {
                 for (c, v) in campos.into_iter().enumerate() {
+                    let v = super::sem_milhar_da_coluna(&v, &linguas, c).unwrap_or(v);
                     if v.is_empty() {
                     } else if !v.starts_with('=') && super::formato_do_literal(super::parse_literal(v.trim()).format).is_some() {
                         aba.set_cell_divisao(linha, c as u32, v.trim());
@@ -673,8 +705,8 @@ mod testes {
     fn por_colunas(bytes: &[u8], tsv: bool, separador: Option<char>) -> Workbook {
         let mut w = Workbook::new();
         let aba = &mut w.aba_mut(0).unwrap().sheet;
-        let (delim, leitor) = super::separador_e_leitor(std::io::Cursor::new(bytes.to_vec()), tsv, separador).unwrap();
-        super::importar(leitor, delim as u8, aba).unwrap();
+        let (delim, linguas, leitor) = super::separador_e_leitor(std::io::Cursor::new(bytes.to_vec()), tsv, separador).unwrap();
+        super::importar(leitor, delim as u8, &linguas, aba).unwrap();
         w
     }
 
@@ -800,13 +832,13 @@ mod testes {
         longe.extend_from_slice(b"\xff,1\n");
         let mut w = Workbook::new();
         let aba = &mut w.aba_mut(0).unwrap().sheet;
-        let (d, l) = super::separador_e_leitor(std::io::Cursor::new(longe), false, None).unwrap();
-        assert!(super::importar(l, d as u8, aba).is_err());
+        let (d, g, l) = super::separador_e_leitor(std::io::Cursor::new(longe), false, None).unwrap();
+        assert!(super::importar(l, d as u8, &g, aba).is_err());
         let mut w = Workbook::new();
         let aba = &mut w.aba_mut(0).unwrap().sheet;
         let muitas = "1\n".repeat(feathersheet_core::celulas::refs::MAX_ROWS as usize + 1);
-        let (d, l) = super::separador_e_leitor(std::io::Cursor::new(muitas.into_bytes()), false, None).unwrap();
-        assert!(super::importar(l, d as u8, aba).is_err());
+        let (d, g, l) = super::separador_e_leitor(std::io::Cursor::new(muitas.into_bytes()), false, None).unwrap();
+        assert!(super::importar(l, d as u8, &g, aba).is_err());
     }
 
     #[test]
@@ -916,7 +948,7 @@ mod medicao {
         eprintln!("[só classificar] {:.2} s · número rápido {num_rapido} · sem dígito {sem_digito} · parse_literal {completo} · vazio {vazio}",
             t.elapsed().as_secs_f64());
         let t = Instant::now();
-        let colunas: Vec<_> = blocos.iter().map(|b| super::montar_colunas(b, std::str::from_utf8(&b.texto).unwrap(), 1)).collect();
+        let colunas: Vec<_> = blocos.iter().map(|b| super::montar_colunas(b, std::str::from_utf8(&b.texto).unwrap(), 1, &[])).collect();
         eprintln!("[classificar, 1 núcleo] {:.2} s", t.elapsed().as_secs_f64());
         let t = Instant::now();
         let mut w = feathersheet_core::planilha::workbook::Workbook::new();

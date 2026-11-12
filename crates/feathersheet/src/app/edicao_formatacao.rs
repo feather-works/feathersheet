@@ -418,11 +418,18 @@ impl App {
             && matches!(modo, ModoColagem::Completa | ModoColagem::Transposta
                 | ModoColagem::ValoresComFormato);
         let externas = if internas.is_none() {
-            // Texto de fora chega como foi escrito na língua de quem copiou: mesma regra de digitar.
-            let cfg = self.regionalizacao();
+            // Texto de fora chega como foi escrito na língua de quem copiou: cada coluna é lida
+            // pelo decimal que ela mesma mostra (`3.14` ao lado de `3.142` é ponto decimal nas
+            // duas); sem sinal, vale a língua do app, como ao digitar.
+            use feathersheet_core::celulas::input::{decimais_das_colunas, lingua_da_coluna, sem_milhar_digitado};
+            let padrao = self.regionalizacao();
             let mut linhas = feathersheet_io::csv::dividir_csv(&dados, '\t');
-            for celula in linhas.iter_mut().flatten() {
-                if let Some(n) = feathersheet_core::celulas::input::sem_milhar_digitado(celula, &cfg) { *celula = n; }
+            let linguas: Vec<_> = decimais_das_colunas(&linhas).into_iter()
+                .map(|d| lingua_da_coluna(d, Some(&padrao)).unwrap_or_else(|| padrao.clone())).collect();
+            for linha in linhas.iter_mut() {
+                for (celula, cfg) in linha.iter_mut().zip(&linguas) {
+                    if let Some(n) = sem_milhar_digitado(celula, cfg) { *celula = n; }
+                }
             }
             Some(linhas)
         } else { None };

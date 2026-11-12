@@ -309,6 +309,36 @@ mod testes {
     }
 
     #[test]
+    fn editar_numero_existente_e_colar_coluna_nao_multiplicam_por_mil() {
+        use feathersheet_core::Value;
+        let mut app = App::default();
+        let valor = |app: &App, r: u32, c: u32| app.workbook.aba(0).unwrap().sheet.get_value(r, c);
+        // A barra mostra o número na língua; editar um dígito mantém a grandeza.
+        for (lingua, raw, barra, editado, esperado) in [
+            ("pt-BR", "1234.5", "1234,5", "1234,567", 1234.567),
+            ("pt-BR", "2.575", "2,575", "2,576", 2.576),
+            ("en-US", "2,575", "2.575", "2.576", 2.576),
+        ] {
+            app.config.idioma = lingua.into();
+            app.workbook.escrever_celula(0, 0, 0, raw.to_string());
+            app.trocar_selecao(0, 1);
+            app.trocar_selecao(0, 0);
+            assert_eq!(app.edicao, barra, "{lingua} {raw}");
+            assert_eq!(app.formula_para_gravar(barra, raw), raw, "sem edição fica o original");
+            let gravar = app.formula_para_gravar(editado, raw);
+            app.workbook.escrever_celula(0, 0, 0, gravar);
+            assert_eq!(valor(&app, 0, 0), Value::Number(esperado), "{lingua} {raw}");
+        }
+        // Colagem de fora: cada coluna pelo decimal que ela mostra, com o app em português.
+        app.config.idioma = "pt-BR".into();
+        app.trocar_selecao(2, 0);
+        app.colar("3.14\t1.234\t1.234\n3.142\t2,5\t5.678\n12,345.5\t7\t9".into());
+        let lido: Vec<Value> = (2..5).flat_map(|r| (0..3).map(move |c| (r, c))).map(|(r, c)| valor(&app, r, c)).collect();
+        let esperado = [3.14, 1234.0, 1234.0, 3.142, 2.5, 5678.0, 12345.5, 7.0, 9.0].map(Value::Number);
+        assert_eq!(lido, esperado);
+    }
+
+    #[test]
     fn barra_de_formulas_nao_mostra_nem_apaga_o_base64() {
         let mut app = App::default();
         let url = format!("data:image/png;base64,{PNG}");

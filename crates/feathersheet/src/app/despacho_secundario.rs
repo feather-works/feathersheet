@@ -1883,7 +1883,7 @@ impl App {
                 self.pendente = None; self.menu_aberto = false;
                 self.recente_destino = None;
                 self.editando_nome_aba = false;
-                self.edicao = self.workbook.aba(self.folha).map(|a| feathersheet_core::celulas::locale::apresentar_formula(&a.sheet.get_raw(self.linha,self.coluna), &self.regionalizacao())).unwrap_or_default();
+                self.recarregar_barra_fx();
                 Task::none()
             }
             Msg::Descartar => if let Some(tipo) = self.pendente.take() {

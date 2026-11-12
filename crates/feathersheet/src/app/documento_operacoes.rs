@@ -14,7 +14,9 @@ impl App {
     /// O texto editado para gravar. Sem mudança em relação ao que a barra
     /// mostrou, fica o original (trocar SUM por SOMA na tela não é edição).
     pub(super) fn formula_para_gravar(&self, editado: &str, antes: &str) -> String {
-        if !antes.is_empty() && self.formula_para_mostrar(antes) == editado { return antes.to_owned(); }
+        if !antes.is_empty() && (self.formula_para_mostrar(antes) == editado
+            || feathersheet_core::celulas::input::numero_na_lingua(antes, &self.regionalizacao()).as_deref() == Some(editado))
+        { return antes.to_owned(); }
         if let Some(numero) = feathersheet_core::celulas::input::sem_milhar_digitado(editado, &self.regionalizacao()) {
             return numero;
         }
@@ -51,6 +53,11 @@ impl App {
                 match a.sheet.get_value(self.linha, self.coluna) {
                     feathersheet_core::Value::Bool(b) if !raw.starts_with('=') =>
                         feathersheet_core::celulas::locale::texto_logico(b),
+                    // Número: a barra mostra o decimal da língua. O texto editado passa pela regra
+                    // de milhar, e "1234.567" mostrado com ponto em português gravava 1234567.
+                    feathersheet_core::Value::Number(_) if !raw.starts_with('=') =>
+                        feathersheet_core::celulas::input::numero_na_lingua(&raw, &self.regionalizacao())
+                            .unwrap_or_else(|| self.formula_para_mostrar(&raw)),
                     _ => self.formula_para_mostrar(&raw),
                 }
             }).unwrap_or_default();

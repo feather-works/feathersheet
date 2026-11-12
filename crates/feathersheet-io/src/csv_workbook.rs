@@ -23,13 +23,13 @@ pub fn importar_csv_tsv_arquivo(
     let aba = &mut workbook.aba_mut(0).unwrap().sheet;
     let inicio = std::time::Instant::now();
     let leitor = std::io::BufReader::with_capacity(64 * 1024, crate::progresso::Contador(arquivo));
-    let (delim, leitor) = crate::csv_colunas::separador_e_leitor(leitor, tsv, separador)
+    let (delim, linguas, leitor) = crate::csv_colunas::separador_e_leitor(leitor, tsv, separador)
         .map_err(|e| feathersheet_core::trf!("Não consegui ler CSV/TSV UTF-8: {e}"))?;
     if !delim.is_ascii() {
         importar_celula_a_celula(leitor, delim, aba)?;
         return Ok(workbook);
     }
-    let celulas = crate::csv_colunas::importar(leitor, delim as u8, aba)?;
+    let celulas = crate::csv_colunas::importar(leitor, delim as u8, &linguas, aba)?;
     feathersheet_core::anotar!(
         "[abrir] CSV: {celulas} células em {:.1} s · {} núcleos · por colunas",
         inicio.elapsed().as_secs_f64(), feathersheet_core::paralelismo::nucleos());
@@ -96,6 +96,10 @@ pub fn importar_csv_tsv_com_separador(
         .sheet;
     let mut linha: u32 = 0;
     let mut excedeu = false;
+    // A mesma amostra do caminho do disco decide a língua de cada coluna.
+    let mut corte = conteudo.len().min(64 * 1024);
+    while !conteudo.is_char_boundary(corte) { corte -= 1; }
+    let linguas = crate::csv_colunas::linguas_da_amostra(&conteudo[..corte], separador, corte < conteudo.len());
 
     // O parser comum retira BOM e entrega linhas completas mesmo quando
     // um campo citado contém CRLF. O motor nativo armazena só não vazios.
@@ -107,6 +111,7 @@ pub fn importar_csv_tsv_com_separador(
             }
             for (coluna, valor) in campos.into_iter().enumerate() {
                 if !valor.is_empty() {
+                    let valor = crate::csv_colunas::sem_milhar_da_coluna(&valor, &linguas, coluna).unwrap_or(valor);
                     aba.set_cell_raw(linha, coluna as u32, valor, None);
                 }
             }
@@ -216,6 +221,25 @@ mod testes {
         assert_eq!(aba.get_raw(1, 2), "Primeira\r\nSegunda");
         assert_eq!(aba.get_value(2, 1), feathersheet_core::Value::Number(-0.25));
         assert_eq!(aba.get_raw(2, 2), "");
+    }
+
+    #[test]
+    fn csv_le_cada_coluna_pelo_decimal_que_ela_mostra() {
+        use feathersheet_core::Value;
+        // Coluna A: formato americano (ponto decimal, vírgula de milhar entre aspas).
+        // Coluna B: formato brasileiro. Coluna C: sem sinal, lida como sempre foi.
+        let dados = "a,b,c\n\"12,345\",\"3,14\",\"1,234\"\n3.14,1.234,5\n\"$1,234.50\",\"1.234,56\",1.234\n";
+        let caminho = std::env::temp_dir().join(format!("fs-csv-decimal-{}.csv", std::process::id()));
+        std::fs::write(&caminho, dados).unwrap();
+        let disco = importar_csv_tsv_arquivo(&caminho, false, None).unwrap();
+        std::fs::remove_file(&caminho).ok();
+        let memoria = importar_csv_tsv(dados.as_bytes().to_vec(), false).unwrap();
+        for pasta in [&disco, &memoria] {
+            let aba = &pasta.aba(0).unwrap().sheet;
+            let lido: Vec<Value> = (1..4).flat_map(|r| (0..3).map(move |c| (r, c))).map(|(r, c)| aba.get_value(r, c)).collect();
+            let esperado = [12345.0, 3.14, 1.234, 3.14, 1234.0, 5.0, 1234.5, 1234.56, 1.234].map(Value::Number);
+            assert_eq!(lido, esperado);
+        }
     }
 
     #[test]

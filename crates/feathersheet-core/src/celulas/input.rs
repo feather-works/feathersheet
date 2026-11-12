@@ -35,21 +35,10 @@ pub fn parse_literal(raw: &str) -> Literal {
     if let Some(n) = parse_number_str(t) {
         return Literal { value: Value::Number(n), format: None };
     }
-    // O TS interpreta o percentual removendo os pontos e trocando a
-    // primeira virgula por ponto; mantemos a regra do formato original.
     if let Some(s) = t.strip_suffix('%') {
-        let sem_sinal = s.strip_prefix('-').unwrap_or(s);
-        if !sem_sinal.is_empty()
-            && sem_sinal.bytes().all(|b| b.is_ascii_digit() || b == b'.' || b == b',')
-        {
-            // Ponto sozinho que não é milhar é decimal: "15.5%" é 15,5%, não 155%.
-            let num = if !s.contains(',') && !grupos_de_milhar(s, '.') { s.to_owned() }
-                else { s.replace('.', "").replacen(',', ".", 1) };
-            if let Ok(n) = num.parse::<f64>() {
-                if n.is_finite() {
-                    return Literal { value: Value::Number(n / 100.0), format: Some(NumberFormat::Percent) };
-                }
-            }
+        // O percentual lê o número como o número puro lê: "1.234%" é 1,234%, como "1.234" é 1,234.
+        if let Some(n) = parse_number_str(s) {
+            return Literal { value: Value::Number(n / 100.0), format: Some(NumberFormat::Percent) };
         }
     }
     if let Some((data, hora)) = t.split_once(' ') {
@@ -86,6 +75,59 @@ pub fn sem_milhar_digitado(texto: &str, cfg: &super::locale::LocaleConfig) -> Op
     let tres_ou_mais = so_digitos(primeiro) && grupos.all(|g| g.len() >= 3 && so_digitos(g));
     // "0.169" é decimal de quem digita com ponto (e de dado colado), nunca milhar.
     ((tres_ou_mais || grupos_de_milhar(inteiro, mil)) && primeiro != "0" && so_digitos(fracao)).then(|| texto.replace(mil, ""))
+}
+
+/// O número guardado (`1234.5`, ou `1234,5` digitado em português) como a língua o escreve, para
+/// a barra de edição: o texto editado passa pelo [`sem_milhar_digitado`], que lê `1234.567` em
+/// português como milhar. `None`: não é um número simples (fórmula, texto, data, milhar junto).
+pub fn numero_na_lingua(raw: &str, cfg: &super::locale::LocaleConfig) -> Option<String> {
+    let num = raw.strip_suffix('%').unwrap_or(raw);
+    (numero_simples(num) && num.contains(['.', ','])).then(|| raw.replace(['.', ','], &cfg.decimal_separator.to_string()))
+}
+
+/// O separador decimal que uma coluna de texto vindo de fora mostra (colagem, CSV): `Some('.')`
+/// ou `Some(',')` quando algum valor só faz sentido de um jeito (`3.14`, `0.5`, `1,234.50`,
+/// `1.234.567`); `None` sem sinal nenhum ou com sinal dos dois.
+pub fn decimal_da_coluna<'a>(valores: impl Iterator<Item = &'a str>) -> Option<char> {
+    let (mut ponto, mut virgula) = (false, false);
+    for v in valores {
+        let v = v.trim().trim_end_matches('%').trim_start_matches('-');
+        let Some(i) = v.rfind(['.', ',']) else { continue };
+        let (antes, depois) = (&v[..i], &v[i + 1..]);
+        if !so_digitos(depois) || !antes.bytes().all(|b| b.is_ascii_digit() || b == b'.' || b == b',') { continue; }
+        let sep = v.as_bytes()[i] as char;
+        let outro = if sep == '.' { ',' } else { '.' };
+        let decimal = if antes.contains(sep) {
+            // Dois separadores iguais são milhar: o decimal é o outro.
+            if !grupos_de_milhar(v, sep) { continue; }
+            outro
+        } else if antes.contains(outro) {
+            if !grupos_de_milhar(antes, outro) { continue; }
+            sep
+        } else if so_digitos(antes) && (depois.len() != 3 || antes == "0" || antes.len() > 3) {
+            sep
+        } else { continue };
+        if decimal == '.' { ponto = true } else { virgula = true }
+    }
+    match (ponto, virgula) { (true, false) => Some('.'), (false, true) => Some(','), _ => None }
+}
+
+/// O decimal de cada coluna de `linhas` ([`decimal_da_coluna`]).
+pub fn decimais_das_colunas(linhas: &[Vec<String>]) -> Vec<Option<char>> {
+    let colunas = linhas.iter().map(Vec::len).max().unwrap_or(0);
+    (0..colunas).map(|c| decimal_da_coluna(linhas.iter().filter_map(|l| l.get(c)).map(String::as_str))).collect()
+}
+
+/// A língua para ler uma coluna cujo decimal é `decimal`: a `padrao` se ela usa esse decimal,
+/// senão a de ponto (inglês) ou a de vírgula (português). Sem decimal decidido, a `padrao`.
+pub fn lingua_da_coluna(decimal: Option<char>, padrao: Option<&super::locale::LocaleConfig>) -> Option<super::locale::LocaleConfig> {
+    use super::locale::LocaleConfig;
+    match (decimal, padrao) {
+        (Some(d), Some(p)) if p.decimal_separator == d => Some(p.clone()),
+        (Some('.'), _) => Some(LocaleConfig::en_us()),
+        (Some(_), _) => Some(LocaleConfig::pt_br()),
+        (None, p) => p.cloned(),
+    }
 }
 
 /// Identifica somente a funcao na raiz da formula, sem falsos positivos
@@ -171,10 +213,10 @@ pub fn parse_number_str(t: &str) -> Option<f64> {
         if grupos_de_milhar(t, ',') { Some(t.replace(',', "")) } else { None }
     })
     .or_else(|| {
-        // Milhar com espaço, como em francês: `1 250,50`. O espaço comum só vale na língua
-        // que separa milhar assim: em português "01 310" é código e fica texto. O espaço
-        // que não quebra (colado de um número formatado) vale sempre.
-        if t.contains(' ') && super::locale::thousands_separator() != ' ' { return None; }
+        // Milhar com o espaço que não quebra (número formatado em francês, colado ou de CSV).
+        // O espaço comum não vale aqui: "01 310" é código, e o analisador não pode mudar com
+        // a língua de quem abre o arquivo. Em francês, a digitação tira o espaço antes.
+        if t.contains(' ') { return None; }
         let t = t.replace(['\u{a0}', '\u{202f}'], " ");
         let (inteiro, decimal) = t.rsplit_once(',').unwrap_or((&t, ""));
         (grupos_de_milhar(inteiro, ' ') && (decimal.is_empty() || so_digitos(decimal)) && !t.ends_with(','))
@@ -355,7 +397,58 @@ mod testes_entrada {
             assert_eq!(sem_milhar_digitado(t, &fr), None, "{t}");
         }
         numero("1.234,5%", 12.345, Some(NumberFormat::Percent));
-        numero("1.234%", 12.34, Some(NumberFormat::Percent));
+        // No analisador o percentual lê como o número puro: quem digita em português passa antes pela regra acima.
+        numero("1.234%", 0.01234, Some(NumberFormat::Percent));
+    }
+
+    #[test]
+    fn barra_mostra_o_numero_na_lingua_e_a_coluna_diz_o_decimal() {
+        use crate::celulas::locale::LocaleConfig;
+        let (pt, en) = (LocaleConfig::pt_br(), LocaleConfig::en_us());
+        assert_eq!(numero_na_lingua("1234.5", &pt).as_deref(), Some("1234,5"));
+        assert_eq!(numero_na_lingua("2,575", &en).as_deref(), Some("2.575"));
+        assert_eq!(numero_na_lingua("-12.5%", &pt).as_deref(), Some("-12,5%"));
+        for t in ["1234", "=1.5+2", "1.234.567", "1.234,5", "12/11/2026", "v1.5", "1e3"] {
+            assert_eq!(numero_na_lingua(t, &pt), None, "{t}");
+        }
+        // Ida e volta: o que a barra mostra, com um dígito a mais, não vira milhar.
+        let mostrado = numero_na_lingua("1234.56", &pt).unwrap() + "7";
+        assert_eq!(sem_milhar_digitado(&mostrado, &pt), None);
+        assert_eq!(parse_literal(&mostrado).value, Value::Number(1234.567));
+
+        let dec = |v: &[&str]| decimal_da_coluna(v.iter().copied());
+        assert_eq!(dec(&["3.142", "3.14"]), Some('.'));
+        assert_eq!(dec(&["12,345", "0.5"]), Some('.'));
+        assert_eq!(dec(&["1,234.50"]), Some('.'));
+        assert_eq!(dec(&["1,234,567"]), Some('.'));
+        assert_eq!(dec(&["12345.678"]), Some('.'));
+        assert_eq!(dec(&["3,142", "3,14"]), Some(','));
+        assert_eq!(dec(&["1.234", "1.234,56"]), Some(','));
+        assert_eq!(dec(&["1.234.567"]), Some(','));
+        for v in [&["1.234", "5.678"][..], &["1,234"], &["3.14", "3,14"], &["01.02.2025", "192.168.0.7", "abc"], &[]] {
+            assert_eq!(dec(v), None, "{v:?}");
+        }
+        // A coluna com ponto decimal é lida como inglês mesmo com o app em português, e ao contrário.
+        let ler = |t: &str, d, padrao: &LocaleConfig| {
+            let cfg = lingua_da_coluna(d, Some(padrao)).unwrap();
+            parse_literal(&sem_milhar_digitado(t, &cfg).unwrap_or_else(|| t.to_owned())).value
+        };
+        assert_eq!(ler("3.142", Some('.'), &pt), Value::Number(3.142));
+        assert_eq!(ler("12,345", Some('.'), &pt), Value::Number(12345.0));
+        assert_eq!(ler("3,142", Some(','), &en), Value::Number(3.142));
+        assert_eq!(ler("1.234", Some(','), &en), Value::Number(1234.0));
+        assert_eq!(ler("1.234", None, &pt), Value::Number(1234.0));
+        assert_eq!(lingua_da_coluna(Some(','), Some(&LocaleConfig::fr_fr())).unwrap().thousands_separator, ' ');
+        assert_eq!(lingua_da_coluna(None, None), None);
+    }
+
+    #[test]
+    fn espaco_comum_nao_e_milhar_no_analisador_em_nenhuma_lingua() {
+        // "01 310" de um arquivo em português não vira 1310 quando o app está em francês.
+        crate::celulas::locale::set_locale_config(crate::celulas::locale::LocaleConfig::fr_fr());
+        let lido = (parse_literal("01 310").value, parse_literal("1 250,50").value, parse_literal("1\u{202f}250,50").value);
+        crate::celulas::locale::set_locale_config(crate::celulas::locale::LocaleConfig::pt_br());
+        assert_eq!(lido, (Value::Text("01 310".into()), Value::Text("1 250,50".into()), Value::Number(1250.5)));
     }
 
     #[test]

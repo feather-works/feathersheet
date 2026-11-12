@@ -298,7 +298,7 @@ impl App {
         if let Some(plano) = plano {
             self.workbook.editar(self.folha, |sheet| ops::aplicar_ordenacao(sheet,area.c0,area.c1,&plano));
             self.alterado = true;
-            self.edicao = self.workbook.aba(self.folha).unwrap().sheet.get_raw(self.linha,self.coluna);
+            self.recarregar_barra_fx();
             self.status = tr!("Seleção ordenada pela coluna da célula ativa").into();
         } else { self.status = tr!("Seleção já ordenada ou sem linhas suficientes").into(); }
     }
@@ -417,7 +417,7 @@ impl App {
         let mut quantidade = 0;
         self.workbook.editar(self.folha, |sheet| quantidade = ops::trim_spaces(sheet,area));
         if quantidade > 0 { self.alterado = true; }
-        self.edicao = self.workbook.aba(self.folha).unwrap().sheet.get_raw(self.linha,self.coluna);
+        self.recarregar_barra_fx();
         self.status = trf!("Espaços aparados em {quantidade} célula(s)");
     }
 
@@ -435,7 +435,7 @@ impl App {
         let formula = formula.replacen("=SOMA(", &format!("={funcao}("), 1);
         let (folha, linha, coluna) = (self.folha, self.linha, self.coluna);
         self.workbook.escrever_celula(folha, linha, coluna, formula);
-        self.edicao = self.workbook.aba(folha).map(|a| a.sheet.get_raw(linha, coluna)).unwrap_or_default();
+        self.recarregar_barra_fx();
         self.alterado = true;
         self.status = trf!("{} atualizado", cell_name(linha, coluna));
         self.atualizar_circulos();
