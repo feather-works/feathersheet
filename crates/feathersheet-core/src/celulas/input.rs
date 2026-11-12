@@ -74,6 +74,9 @@ pub fn parse_literal(raw: &str) -> Literal {
 /// (ideia do PR #162).
 pub fn sem_milhar_digitado(texto: &str, cfg: &super::locale::LocaleConfig) -> Option<String> {
     let (mil, dec) = (cfg.thousands_separator, cfg.decimal_separator);
+    // Francês: o milhar é espaço, e o texto copiado de outro programa traz o espaço que não quebra.
+    let troca;
+    let texto = if mil == ' ' { troca = texto.replace(['\u{a0}', '\u{202f}'], " "); troca.as_str() } else { texto };
     if !texto.contains(mil) { return None; }
     let nucleo = texto.trim().trim_end_matches(['%', ')', ' ']).trim_start_matches(['-', '(']);
     let nucleo = nucleo.strip_prefix(cfg.currency_symbol.as_str()).unwrap_or(nucleo).trim_start();
@@ -340,6 +343,16 @@ mod testes_entrada {
         }
         for t in ["1,234", "1.5", "12.34", "0.169", "01.02.2025", "192.168.0.7", "=1.234"] {
             assert_eq!(sem_milhar_digitado(t, &pt), None, "{t}");
+        }
+        // Espanhol é como o português; em francês o milhar é espaço (comum ou o que não quebra).
+        assert_eq!(sem_milhar_digitado("1.234,5", &LocaleConfig::es_es()).as_deref(), Some("1234,5"));
+        let fr = LocaleConfig::fr_fr();
+        for (t, sai) in [("1 234", "1234"), ("1\u{202f}234\u{a0}567,89", "1234567,89"), ("-12 345,5", "-12345,5")] {
+            assert_eq!(sem_milhar_digitado(t, &fr).as_deref(), Some(sai), "{t}");
+            assert!(matches!(parse_literal(sai).value, Value::Number(_)), "{sai}");
+        }
+        for t in ["1 23", "12 345 itens", "1.234", "bonjour le monde", "12/11/2026 10:30"] {
+            assert_eq!(sem_milhar_digitado(t, &fr), None, "{t}");
         }
         numero("1.234,5%", 12.345, Some(NumberFormat::Percent));
         numero("1.234%", 12.34, Some(NumberFormat::Percent));
