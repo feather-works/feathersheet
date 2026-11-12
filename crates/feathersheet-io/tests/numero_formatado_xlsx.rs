@@ -8,8 +8,10 @@ use feathersheet_core::planilha::workbook::Workbook;
 #[test]
 fn data_com_hora_porcentagem_e_duracao_voltam_inteiras() {
     let mut w = Workbook::new();
-    for (c, (valor, formato)) in [("45000.75", "date"), ("0.169123", "percent"), ("1.5", "time")].iter().enumerate() {
-        w.escrever_celula(0, 0, c as u32, valor.to_string());
+    for (c, (valor, formato)) in [(45000.75, "date"), (0.169123, "percent"), (1.5, "time")].iter().enumerate() {
+        w.aba_mut(0).unwrap().sheet.set_cell_valor(
+            0, c as u32, Value::Number(*valor)
+        );
         let mut e = EstiloParcial::new();
         e.insert("format".into(), Campo::Texto(formato.to_string()));
         w.aba_mut(0).unwrap().sheet.set_style(&Rect::cell(0, c as u32), &e);
