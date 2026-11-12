@@ -1,7 +1,7 @@
 name: feathersheet
 title: FeatherSheet
 base: core26 # o binário pede glibc 2.43 (Ubuntu 26.04)
-version: '0.3.1' # trocar junto com a tag em `source:` a cada versão
+version: '0.3.2' # trocar junto com a tag em `source:` a cada versão
 summary: Fast local spreadsheet, no account needed
 description: |
   A spreadsheet written in Rust with a native interface. It opens huge
@@ -54,7 +54,7 @@ parts:
   feathersheet:
     # Reaproveita o .deb da release (feito pelo pacote/gerar.sh), sem recompilar.
     plugin: dump
-    source: https://github.com/feather-works/feathersheet/releases/download/v0.3.1/feathersheet-linux-amd64.deb
+    source: https://github.com/feather-works/feathersheet/releases/download/v0.3.2/feathersheet-linux-amd64.deb
     source-type: deb
     # Bibliotecas que o winit/wgpu abrem por dlopen.
     stage-packages:

@@ -10,6 +10,9 @@ digitado e colagem/CSV por coluna, textos do motor e códigos de erro na língua
 wgpu (Intel HD 4000 / Ivy Bridge, #163, relato de quem instalou pelo Snap): a janela abre desenhada pela CPU; e se a
 placa falha com o app aberto, as janelas passam para a CPU. Conferido numa máquina real com HD 4000 rodando o binário
 do `main` com o pelicano novo (abriu e desenhou a tela inicial). **Sem conferir:** o Snap naquela máquina e o Windows.
+Release publicada em 12/11 (`.deb`, `.tar.gz`, `.exe`, `SHA256SUMS`); o `.exe` de novo **sem VirusTotal** (mesma decisão
+da 0.3.1). Snap 0.3.2 publicado no canal estável da Snap Store (revisão 6), com o mesmo binário do `.deb`, sem o teste de
+instalar aqui (pede `sudo`). O binário do `.deb` abriu nesta máquina (foto pelo `FEATHERSHEET_CAPTURAR`).
 
 ## v0.3.1 — 11/11/2026: Excel com senha, dinâmica mais completa, francês, FeatherQuery
 
