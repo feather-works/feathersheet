@@ -300,6 +300,8 @@ mod testes {
     fn numero_digitado_em_ingles_trata_virgula_como_milhar() {
         let mut app = App::default();
         assert_eq!(app.formula_para_gravar("1,234", ""), "1,234");
+        assert_eq!(app.formula_para_gravar("1.234", ""), "1234");
+        assert_eq!(app.formula_para_gravar("1.5", ""), "1.5");
         app.config.idioma = "en-US".into();
         assert_eq!(app.formula_para_gravar("1,234", ""), "1234");
         assert_eq!(app.formula_para_gravar("$1,234.50", ""), "$1234.50");

@@ -67,15 +67,22 @@ pub fn parse_literal(raw: &str) -> Literal {
     Literal { value: Value::Text(raw.to_owned()), format: None }
 }
 
-/// Número digitado ou colado na língua de ponto decimal: a vírgula é milhar (`1,234` é 1234,
-/// `$1,234.50`) e sai antes de o texto chegar ao analisador. O analisador não muda com a
-/// língua: o arquivo guarda o texto digitado e é lido por ele (ideia do PR #162).
+/// Número digitado ou colado: o separador de milhar da língua sai antes de o texto chegar ao
+/// analisador (`1,234` em inglês e `1.234` em português são 1234). Como no Excel, cada separador
+/// pede ao menos três dígitos depois dele (`1,2345` é 12345; `12,34` e `1.5` passam como vieram).
+/// O analisador não muda com a língua: o arquivo guarda o texto digitado e é lido por ele
+/// (ideia do PR #162).
 pub fn sem_milhar_digitado(texto: &str, cfg: &super::locale::LocaleConfig) -> Option<String> {
-    if cfg.decimal_separator != '.' || cfg.thousands_separator != ',' || !texto.contains(',') { return None; }
+    let (mil, dec) = (cfg.thousands_separator, cfg.decimal_separator);
+    if !texto.contains(mil) { return None; }
     let nucleo = texto.trim().trim_end_matches(['%', ')', ' ']).trim_start_matches(['-', '(']);
     let nucleo = nucleo.strip_prefix(cfg.currency_symbol.as_str()).unwrap_or(nucleo).trim_start();
-    let (inteiro, fracao) = nucleo.split_once('.').unwrap_or((nucleo, "0"));
-    (grupos_de_milhar(inteiro, ',') && so_digitos(fracao)).then(|| texto.replace(',', ""))
+    let (inteiro, fracao) = nucleo.split_once(dec).unwrap_or((nucleo, "0"));
+    let mut grupos = inteiro.split(mil);
+    let primeiro = grupos.next()?;
+    let tres_ou_mais = so_digitos(primeiro) && grupos.all(|g| g.len() >= 3 && so_digitos(g));
+    // "0.169" é decimal de quem digita com ponto (e de dado colado), nunca milhar.
+    ((tres_ou_mais || grupos_de_milhar(inteiro, mil)) && primeiro != "0" && so_digitos(fracao)).then(|| texto.replace(mil, ""))
 }
 
 /// Identifica somente a funcao na raiz da formula, sem falsos positivos
@@ -315,7 +322,7 @@ mod testes_entrada {
         let lido = |t: &str| parse_literal(&sem_milhar_digitado(t, &en).unwrap_or_else(|| t.to_owned()));
         for (t, n, f) in [
             ("1,234", 1234.0, None), ("12,345", 12345.0, None), ("-1,234", -1234.0, None),
-            ("1,234.50", 1234.5, None), ("12,34,567.50", 1_234_567.5, None), ("12.34", 12.34, None),
+            ("1,234.50", 1234.5, None), ("12,34,567.50", 1_234_567.5, None), ("12.34", 12.34, None), ("1,2345", 12345.0, None),
             ("$1,234.50", 1234.5, Some(NumberFormat::Currency)), ("-$1,234.50", -1234.5, Some(NumberFormat::Currency)),
             ("($1,234.50)", -1234.5, Some(NumberFormat::Currency)), ("$-1,234.50", -1234.5, Some(NumberFormat::Currency)),
             ("1,234.50%", 12.345, Some(NumberFormat::Percent)), ("15.5%", 0.155, Some(NumberFormat::Percent)),
@@ -326,8 +333,14 @@ mod testes_entrada {
         for t in ["12,34", "1,2,345", "1,234 itens", "=SUM(1,234)", "a,b"] {
             assert_eq!(sem_milhar_digitado(t, &en), None, "{t}");
         }
-        // Em português nada muda: 1,234 continua 1,234.
-        assert_eq!(sem_milhar_digitado("1,234", &LocaleConfig::pt_br()), None);
+        // Em português a vírgula é decimal e o milhar é o ponto.
+        let pt = LocaleConfig::pt_br();
+        for (t, sai) in [("1.234", "1234"), ("-1.234,56", "-1234,56"), ("R$ 1.234.567", "R$ 1234567"), ("1.234%", "1234%")] {
+            assert_eq!(sem_milhar_digitado(t, &pt).as_deref(), Some(sai), "{t}");
+        }
+        for t in ["1,234", "1.5", "12.34", "0.169", "01.02.2025", "192.168.0.7", "=1.234"] {
+            assert_eq!(sem_milhar_digitado(t, &pt), None, "{t}");
+        }
         numero("1.234,5%", 12.345, Some(NumberFormat::Percent));
         numero("1.234%", 12.34, Some(NumberFormat::Percent));
     }
