@@ -478,7 +478,7 @@ fn laco_acima_de_cem_mil_voltas_roda() {
 #[test]
 fn get_text_retorna_valor_formatado_e_formula_calculada() {
     let mut wb=Workbook::new();
-    wb.escrever_celula(0,0,0,"12.5".into());
+    wb.escrever_celula(0,0,0,"12,5".into());
     wb.escrever_celula(0,0,1,"=A1*2".into());
     let res=executar(&mut wb,0,
         "sheet.setNumberFormat('A1','0.00'); log(sheet.getText('A1')); log(sheet.getText('B1')); log(sheet.range('A1').getText()); log(sheet.range('A1').text);");
@@ -487,7 +487,7 @@ fn get_text_retorna_valor_formatado_e_formula_calculada() {
     assert!(res.saida[0].contains("12,50"),"{:?}",res.saida);
     assert_eq!(res.saida[1],"25");
     assert_eq!(res.saida[2],res.saida[0]);
-    assert_eq!(res.saida[3],"12.5");
+    assert_eq!(res.saida[3],"12,5");
 }
 #[test]
 fn get_text_booleano_erro_e_vazio_nao_altera_planilha() {

@@ -114,6 +114,7 @@ pub fn duplicados(h: &mut dyn Hospede, args: &Json) -> Saida {
 /// escreve sem histórico e só o valor achado entra no Ctrl+Z, como na janela do app.
 pub fn atingir_meta(h: &mut dyn Hospede, args: &Json) -> Saida {
     use feathersheet_core::celulas::number::to_js_string;
+    use feathersheet_core::celulas::input::numero_para_entrada;
     use feathersheet_core::celulas::values::Value;
     use feathersheet_core::operacoes::atingir_meta::{buscar, ITERACOES, TOLERANCIA};
     use feathersheet_core::planilha::sheet::edicao::Snap;
@@ -134,7 +135,7 @@ pub fn atingir_meta(h: &mut dyn Hospede, args: &Json) -> Saida {
     };
     let pasta = h.pasta_mut();
     let busca = buscar(|x| {
-        let snap = Snap { raw: to_js_string(x), style: estilo.clone() };
+        let snap = Snap { raw: numero_para_entrada(x), style: estilo.clone() };
         pasta.editar(aba, |s| { s.apply(ar, ac, Some(snap), false); });
         match pasta.valor(aba, dr, dc) { Value::Number(n) => Some(n), _ => None }
     }, inicio, alvo, ITERACOES, TOLERANCIA);
@@ -147,7 +148,7 @@ pub fn atingir_meta(h: &mut dyn Hospede, args: &Json) -> Saida {
         return Ok(conteudo(format!("Não achei em {} tentativas: o melhor foi {} = {} (com {} = {}). Nada mudou.",
             b.tentativas, cell_name(ar, ac), to_js_string(b.x), cell_name(dr, dc), to_js_string(b.y))));
     }
-    pasta.escrever_celula(aba, ar, ac, to_js_string(b.x));
+    pasta.escrever_celula(aba, ar, ac, numero_para_entrada(b.x));
     h.marcar_alterado();
     Ok(conteudo(format!("{} = {} faz {} dar {} ({} tentativa(s)). Um Ctrl+Z volta ao valor de antes.",
         cell_name(ar, ac), to_js_string(b.x), cell_name(dr, dc), to_js_string(b.y), b.tentativas)))

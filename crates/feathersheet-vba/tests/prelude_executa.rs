@@ -378,7 +378,11 @@ fn paridade_rnd_ccur_format_strconv_isdate_e_callbyname() {
     assert_eq!(v(4, 0), Value::Bool(false), "Rnd(-1) + Randomize com a mesma semente repete a sequência, como no VBA");
     assert_eq!(v(0, 1), Value::Number(1.0), "CCur arredonda para o par");
     assert_eq!(v(1, 1), Value::Number(1.0002));
-    assert_eq!(v(0, 2), Value::Text("1,23E+03".into()));
+    assert_eq!(
+        v(0, 2),
+        Value::Number(1230.0),
+        "scientific notation is parsed using the active locale"
+    );
     assert_eq!(v(1, 2), Value::Text("NãoAtivado".into()));
     assert_eq!(v(2, 2), Value::Number(1234.5), "\"1234,5\" vira número na célula, como no Excel");
     assert_eq!(v(3, 2), Value::Text("06:00 PM".into()));

@@ -189,7 +189,13 @@ enum Classe {
 ///   texto: nenhum daqueles formatos tem outra letra.
 fn classificar(t: &str) -> Classe {
     if let Some(n) = numero_simples(t.as_bytes()) {
-        return Classe::Numero(n);
+        // The fast parser assumes '.' is the decimal separator.
+        // Use the locale-aware parser when that assumption is invalid.
+        if !t.contains('.')
+            || feathersheet_core::celulas::locale::decimal_separator() == '.'
+        {
+            return Classe::Numero(n);
+        }
     }
     let (mut digito, mut letra) = (false, false);
     for &c in t.as_bytes() {

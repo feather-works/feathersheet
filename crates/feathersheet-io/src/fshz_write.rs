@@ -718,6 +718,30 @@ pub(crate) fn dicionario_local<'a>(indices: &mut [i32], bitmap: &[u8], texto: im
     dict
 }
 
+/// Serializa um número sem separador decimal ambíguo.
+/// Ex.: 0.169 -> 0169e-3; válido em qualquer locale.
+/// Mantém o formato FSHZ existente.
+fn numero_sem_separador_decimal(n: f64) -> String {
+    let raw = feathersheet_core::celulas::number::to_js_string(n);
+
+    let (mantissa, expoente) = match raw.find(['e', 'E']) {
+        Some(i) => (
+            &raw[..i],
+            raw[i + 1..].parse::<i32>().unwrap_or(0),
+        ),
+        None => (raw.as_str(), 0),
+    };
+
+    let Some((inteiro, fracao)) = mantissa.split_once('.') else {
+        return raw;
+    };
+
+    format!(
+        "{inteiro}{fracao}e{}",
+        expoente - fracao.len() as i32
+    )
+}
+
 fn derramar_numerica(col: &ColunaNumBruta, linhas: u32, avulsas: &mut Vec<CelulaAvulsaMeta<'_>>) {
     for r in 0..linhas {
         let Some(v) = col.get(r) else { continue };
@@ -725,7 +749,7 @@ fn derramar_numerica(col: &ColunaNumBruta, linhas: u32, avulsas: &mut Vec<Celula
         // `to_js_string`: a mesma regra do `Number(n)` do JavaScript. Vale
         // porque só entra na coluna quem passou no `roundTrips()` — o texto
         // digitado é sempre `String(valor)` para essas células.
-        avulsas.push(CelulaAvulsaMeta { k, v: Cow::Owned(feathersheet_core::celulas::number::to_js_string(v)), s: None });
+        avulsas.push(CelulaAvulsaMeta { k, v: Cow::Owned(numero_sem_separador_decimal(v)), s: None });
     }
 }
 

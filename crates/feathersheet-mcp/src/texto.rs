@@ -82,7 +82,9 @@ pub fn conteudo_da_ia(v: &Json) -> String {
     match v {
         Json::Null => String::new(),
         Json::Bool(b) => if *b { "VERDADEIRO" } else { "FALSO" }.into(),
-        Json::Number(n) => n.as_f64().map(to_js_string).unwrap_or_default(),
+        Json::Number(n) => n.as_f64()
+            .map(feathersheet_core::celulas::input::numero_para_entrada)
+            .unwrap_or_default(),
         Json::String(s) if s.starts_with('=') => normalizar_formula(s, &get_locale_config()),
         Json::String(s) => s.clone(),
         outro => outro.to_string(),

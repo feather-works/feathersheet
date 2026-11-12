@@ -253,9 +253,17 @@ fn preparar_em_paralelo_com(lote: LoteBruto, nucleos: usize, xfs: &[styles::XfSt
             let mut pronta = CelulaPreparada::preparar(r, c, &raw, (inicio, saida.len() as u32), xf, v, &mut padroes);
             // Número do Excel: o valor é o `<v>` inteiro. O texto formatado ("16,91%", a data sem
             // a hora) é só aparência; lido de volta perdia casas e a hora (auditoria de 04/11/2026).
-            if let (Some(n), Preparo::Literal(feathersheet_core::Value::Number(_))) =
-                (bruto.strip_prefix(MARCA_NUMERO).and_then(|t| t.trim().parse::<f64>().ok()), &pronta.preparo) {
-                if n.is_finite() { pronta.preparo = Preparo::Literal(feathersheet_core::Value::Number(n + dias_1904(xf, xfs))); }
+            // XLSX numeric values use '.' independently of the UI locale.
+            // Restore the numeric value even when the locale parser classified
+            // the converted display text as text.
+            if let Some(n) = bruto
+                .strip_prefix(MARCA_NUMERO)
+                .and_then(|t| t.trim().parse::<f64>().ok())
+                .filter(|n| n.is_finite())
+            {
+                pronta.preparo = Preparo::Literal(
+                    feathersheet_core::Value::Number(n + dias_1904(xf, xfs))
+                );
             }
             let pronta = pronta.com_ida_e_volta(&raw, estilo_de(xf));
             if com_chave {

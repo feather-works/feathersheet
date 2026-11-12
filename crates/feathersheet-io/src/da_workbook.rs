@@ -540,7 +540,7 @@ mod testes {
         let mut wb = Workbook::new();
         wb.editar(0, |s| {
             s.carregar_coluna_textos(0, &[0, 1], &[0b11], &["TOTAL ".into(), " FILTRADOS".into()]);
-            s.set_cell_raw(0, 1, "0.169".into(), None);
+            s.set_cell_valor(0, 1, feathersheet_core::Value::Number(0.169));
             s.textos.insert(Sheet::cell_key(0, 1), "16,9%");
         });
         let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
