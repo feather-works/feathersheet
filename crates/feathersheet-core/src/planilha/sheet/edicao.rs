@@ -620,7 +620,7 @@ impl Sheet {
             let v = self.data.get_cell_value(row, col, &self.pool);
             let raw = match (&v, self.textos.get(&k)) {
                 (Value::Number(n), Some(t)) if crate::celulas::input::parse_literal(t.trim()).value == Value::Number(*n) => t.to_owned(),
-                (Value::Number(n), _) => to_js_string(*n),
+                (Value::Number(n), _) => crate::celulas::input::numero_para_entrada(*n),
                 (_, Some(t)) => t.to_owned(),
                 (Value::Text(t), None) if texto_ambiguo(t) => format!("{}{t}", crate::planilha::data_table::MARCA_TEXTO),
                 _ => display_raw(&v, style.as_ref()).unwrap_or_default(),

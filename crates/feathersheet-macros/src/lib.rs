@@ -204,7 +204,8 @@ fn bruto(v: &Json) -> String {
         // Conta do JS chega como 9980.0: a célula guarda "9980", como o número digitado.
         Json::Number(n) => match n.as_f64() {
             Some(x) if x.fract() == 0.0 && x.abs() < 1e15 => format!("{}", x as i64),
-            _ => n.to_string(),
+            Some(x) => feathersheet_core::celulas::input::numero_para_entrada(x),
+            None => n.to_string(),
         },
         // `app.error(…)`/`CVErr`: o literal do erro, que a célula lê de volta como erro (não o JSON do objeto).
         Json::Object(m) => match m.get("__ftCellError").and_then(Json::as_str) {

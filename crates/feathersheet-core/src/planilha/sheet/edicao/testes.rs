@@ -226,9 +226,9 @@ fn escrita_divisao_invalida_formula_dependente() {
 fn o_texto_digitado_que_nao_volta_do_valor_fica_guardado() {
     let mut s = Sheet::new("A");
     s.set_cell(0, 0, "007");
-    s.set_cell(1, 0, "1.50");
+    s.set_cell(1, 0, "1,50");
     assert_eq!(s.get_raw(0, 0), "007");
-    assert_eq!(s.get_raw(1, 0), "1.50");
+    assert_eq!(s.get_raw(1, 0), "1,50");
     assert_eq!(s.get_value(0, 0), Value::Number(7.0));
 }
 
@@ -237,23 +237,23 @@ fn o_texto_digitado_que_nao_volta_do_valor_fica_guardado() {
 #[test]
 fn texto_digitado_sobrevive_a_set_cell_e_a_desfazer_refazer() {
     let mut s = Sheet::new("A");
-    s.set_cell(0, 0, "15.0");
+    s.set_cell(0, 0, "15,0");
     s.set_cell(1, 0, "True");
-    s.set_cell(2, 0, "15.0");
-    assert_eq!(s.get_raw(0, 0), "15.0");
+    s.set_cell(2, 0, "15,0");
+    assert_eq!(s.get_raw(0, 0), "15,0");
     assert_eq!(s.get_raw(1, 0), "True");
     assert_eq!(s.textos.len(), 3, "as três células guardam o texto digitado");
-    assert_eq!(s.textos.formas_distintas(), 2, "\"15.0\" repetido não cria forma nova");
+    assert_eq!(s.textos.formas_distintas(), 2, "\"15,0\" repetido não cria forma nova");
 
     s.set_cell(0, 0, "x");
     assert_eq!(s.get_raw(0, 0), "x");
     assert!(s.undo());
-    assert_eq!(s.get_raw(0, 0), "15.0");
+    assert_eq!(s.get_raw(0, 0), "15,0");
     assert!(s.redo());
     assert_eq!(s.get_raw(0, 0), "x");
     assert!(s.undo());
     assert_eq!(s.get_raw(1, 0), "True");
-    assert_eq!(s.get_raw(2, 0), "15.0");
+    assert_eq!(s.get_raw(2, 0), "15,0");
 }
 
 /// Achado em 23/09/2026 (teste do Ctrl+; no motor Rust): a data digitada

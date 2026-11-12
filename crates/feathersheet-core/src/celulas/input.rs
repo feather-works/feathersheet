@@ -1,4 +1,4 @@
-use crate::celulas::values::Value;
+use crate::celulas::{locale::LocaleConfig, values::Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NumberFormat {
@@ -21,6 +21,12 @@ pub struct Literal {
 /// Converte texto digitado em literal (port de core/input.ts).
 /// Nao aceita numeros invalidos nem perde espacos de texto puro.
 pub fn parse_literal(raw: &str) -> Literal {
+    let locale = super::locale::get_locale_config();
+    parse_literal_com_locale(raw, &locale)
+}
+
+/// Variante determinística de [`parse_literal`] para entrada numérica.
+pub fn parse_literal_com_locale(raw: &str, locale: &LocaleConfig) -> Literal {
     if raw.is_empty() { return Literal { value: Value::Empty, format: None }; }
     let t = raw.trim();
 
@@ -29,25 +35,15 @@ pub fn parse_literal(raw: &str) -> Literal {
     if let Some(logico) = super::locale::logico_digitado(t) {
         return Literal { value: Value::Bool(logico), format: None };
     }
-    if let Some(n) = moeda(t) {
+    if let Some(n) = moeda(t, locale) {
         return Literal { value: Value::Number(n), format: Some(NumberFormat::Currency) };
     }
-    if let Some(n) = parse_number_str(t) {
+    if let Some(n) = parse_number_str_com_locale(t, locale) {
         return Literal { value: Value::Number(n), format: None };
     }
-    // O TS interpreta o percentual removendo os pontos e trocando a
-    // primeira virgula por ponto; mantemos a regra do formato original.
     if let Some(s) = t.strip_suffix('%') {
-        let sem_sinal = s.strip_prefix('-').unwrap_or(s);
-        if !sem_sinal.is_empty()
-            && sem_sinal.bytes().all(|b| b.is_ascii_digit() || b == b'.' || b == b',')
-        {
-            let num = s.replace('.', "").replacen(',', ".", 1);
-            if let Ok(n) = num.parse::<f64>() {
-                if n.is_finite() {
-                    return Literal { value: Value::Number(n / 100.0), format: Some(NumberFormat::Percent) };
-                }
-            }
+        if let Some(n) = parse_number_str_com_locale(s, locale) {
+            return Literal { value: Value::Number(n / 100.0), format: Some(NumberFormat::Percent) };
         }
     }
     if let Some((data, hora)) = t.split_once(' ') {
@@ -90,17 +86,9 @@ fn so_digitos(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
 }
 
-fn numero_simples(s: &str) -> bool {
-    let s = s.strip_prefix('-').unwrap_or(s);
-    if let Some(i) = s.find(|c| c == '.' || c == ',') {
-        so_digitos(&s[..i]) && so_digitos(&s[i + 1..])
-    } else { so_digitos(s) }
-}
-
 /// Milhar de três em três (`1.234.567`) ou como na Índia, lakh e crore: o último grupo
 /// com três e os do meio com dois (`12,34,567`).
 fn grupos_de_milhar(s: &str, sep: char) -> bool {
-    let s = s.strip_prefix('-').unwrap_or(s);
     let partes: Vec<&str> = s.split(sep).collect();
     let [primeiro, meio @ .., ultimo] = partes.as_slice() else { return false };
     if !partes.iter().all(|p| so_digitos(p)) || ultimo.len() != 3 { return false; }
@@ -109,63 +97,97 @@ fn grupos_de_milhar(s: &str, sep: char) -> bool {
     ocidental || lakh
 }
 
-fn cientifico(s: &str) -> bool {
-    let s = s.strip_prefix('-').unwrap_or(s);
-    let (base, expoente) = if let Some(pos) = s.find(|c| c == 'e' || c == 'E') {
-        (&s[..pos], Some(&s[pos + 1..]))
-    } else { (s, None) };
-    let base_ok = if let Some((inteiro, decimal)) = base.split_once('.') {
-        (inteiro.is_empty() || so_digitos(inteiro)) && so_digitos(decimal)
-    } else { so_digitos(base) };
-    if !base_ok { return false; }
-    match expoente {
-        Some(e) => so_digitos(e.strip_prefix('+').or_else(|| e.strip_prefix('-')).unwrap_or(e)),
-        None => base.contains('.'),
-    }
+/// Reconhece um número segundo a configuração regional em uso.
+pub fn parse_number_str(t: &str) -> Option<f64> {
+    let locale = super::locale::get_locale_config();
+    parse_number_str_com_locale(t, &locale)
 }
 
-/// Reconhece os padroes numericos do TS, na mesma ordem.
-pub fn parse_number_str(t: &str) -> Option<f64> {
-    let normalizado = (if numero_simples(t) {
-        Some(t.replace(',', "."))
-    } else if let Some((inteiro, decimal)) = t.rsplit_once(',') {
-        if grupos_de_milhar(inteiro, '.') && so_digitos(decimal) {
-            Some(t.replace('.', "").replace(',', "."))
-        } else { None }
-    } else { None })
-    .or_else(|| {
-        if grupos_de_milhar(t, '.') { Some(t.replace('.', "")) } else { None }
-    })
-    .or_else(|| {
-        if let Some((inteiro, decimal)) = t.rsplit_once('.') {
-            if grupos_de_milhar(inteiro, ',') && so_digitos(decimal) {
-                return Some(t.replace(',', ""));
-            }
+/// Texto numérico canônico para caminhos internos que voltam pelo analisador de entrada.
+pub fn numero_para_entrada(n: f64) -> String {
+    let raw = crate::celulas::number::to_js_string(n);
+    let decimal = super::locale::decimal_separator();
+    if decimal == '.' { raw } else { raw.replace('.', &decimal.to_string()) }
+}
+
+/// Analisa separadores decimais e de milhar sem consultar estado global.
+pub fn parse_number_str_com_locale(t: &str, locale: &LocaleConfig) -> Option<f64> {
+    let tem_espaco_nao_separavel = t.contains('\u{a0}') || t.contains('\u{202f}');
+    let espacos_normalizados = tem_espaco_nao_separavel.then(|| t.replace(['\u{a0}', '\u{202f}'], " "));
+    let principal = if locale.thousands_separator == ' ' {
+        numero_com_separadores(espacos_normalizados.as_deref().unwrap_or(t), locale.decimal_separator, Some(' '))
+    } else {
+        numero_com_separadores(t, locale.decimal_separator, Some(locale.thousands_separator))
+    };
+    principal
+        .or_else(|| espacos_normalizados.as_deref()
+            .and_then(|s| numero_com_separadores(s, locale.decimal_separator, Some(' '))))
+        .or_else(|| {
+            // Com os dois sinais, ou com mais de um decimal, o formato alternativo
+            // é inequívoco e mantém dados colados de outra língua compatíveis.
+            let alternativo = (t.contains('.') && t.contains(','))
+                || t.matches(locale.decimal_separator).count() > 1;
+            (alternativo && separadores_ponto_virgula(locale))
+                .then(|| numero_com_separadores(t, locale.thousands_separator, Some(locale.decimal_separator)))
+                .flatten()
+        })
+        // A notação científica histórica usa ponto mesmo numa interface com vírgula.
+        .or_else(|| (locale.decimal_separator != '.' && (t.contains('e') || t.contains('E')))
+            .then(|| numero_com_separadores(t, '.', None)).flatten())
+        // `.5` não pode ser agrupamento e já era aceito antes da regionalização.
+        .or_else(|| (locale.decimal_separator != '.' && (t.starts_with('.') || t.starts_with("-.")))
+            .then(|| numero_com_separadores(t, '.', None)).flatten())
+}
+
+fn separadores_ponto_virgula(locale: &LocaleConfig) -> bool {
+    matches!((locale.decimal_separator, locale.thousands_separator), ('.', ',') | (',', '.'))
+}
+
+fn numero_com_separadores(t: &str, decimal: char, milhar: Option<char>) -> Option<f64> {
+    if milhar == Some(decimal) { return None; }
+    let (negativo, t) = t.strip_prefix('-').map_or((false, t), |resto| (true, resto));
+    if t.is_empty() || t.starts_with('+') { return None; }
+    let pos_expoente = t.char_indices().find(|(_, c)| matches!(c, 'e' | 'E')).map(|(i, _)| i);
+    let (mantissa, expoente) = match pos_expoente {
+        Some(i) => {
+            let expoente = &t[i + 1..];
+            if expoente.contains(['e', 'E']) { return None; }
+            let digitos = expoente.strip_prefix(['+', '-']).unwrap_or(expoente);
+            if !so_digitos(digitos) { return None; }
+            (&t[..i], Some(expoente))
         }
-        None
-    })
-    .or_else(|| {
-        if grupos_de_milhar(t, ',') { Some(t.replace(',', "")) } else { None }
-    })
-    .or_else(|| {
-        // Milhar com espaço, como em francês: `1 250,50`. O espaço comum só vale na língua
-        // que separa milhar assim: em português "01 310" é código e fica texto. O espaço
-        // que não quebra (colado de um número formatado) vale sempre.
-        if t.contains(' ') && super::locale::thousands_separator() != ' ' { return None; }
-        let t = t.replace(['\u{a0}', '\u{202f}'], " ");
-        let (inteiro, decimal) = t.rsplit_once(',').unwrap_or((&t, ""));
-        (grupos_de_milhar(inteiro, ' ') && (decimal.is_empty() || so_digitos(decimal)) && !t.ends_with(','))
-            .then(|| t.replace(' ', "").replace(',', "."))
-    })
-    .or_else(|| {
-        if cientifico(t) { Some(t.to_owned()) } else { None }
-    })?;
+        None => (t, None),
+    };
+    let mut partes = mantissa.split(decimal);
+    let inteiro = partes.next()?;
+    let fracao = partes.next();
+    if partes.next().is_some() || fracao.is_some_and(|f| !so_digitos(f)) { return None; }
+    if inteiro.is_empty() {
+        fracao?;
+    } else if let Some(sep) = milhar.filter(|sep| inteiro.contains(*sep)) {
+        if expoente.is_some() || !grupos_de_milhar(inteiro, sep) { return None; }
+    } else if !so_digitos(inteiro) { return None; }
+
+    let mut normalizado = String::with_capacity(t.len() + usize::from(negativo));
+    if negativo { normalizado.push('-'); }
+    if inteiro.is_empty() {
+        normalizado.push('0');
+    } else if let Some(sep) = milhar {
+        normalizado.extend(inteiro.chars().filter(|c| *c != sep));
+    } else { normalizado.push_str(inteiro); }
+    if let Some(fracao) = fracao {
+        normalizado.push('.');
+        normalizado.push_str(fracao);
+    }
+    if let Some(expoente) = expoente {
+        normalizado.push('e');
+        normalizado.push_str(expoente);
+    }
     normalizado.parse::<f64>().ok().filter(|n| n.is_finite())
 }
 
-/// Moeda conforme parseCurrencyLiteral: R$ ou $, sinal ou parenteses antes
-/// ou depois do simbolo. Preserva negativo e evita aceitar sufixos invalidos.
-fn moeda(raw: &str) -> Option<f64> {
+/// Moeda com posição, espaço e símbolo definidos pela configuração regional.
+fn moeda(raw: &str, locale: &LocaleConfig) -> Option<f64> {
     let mut texto = raw.trim();
     let mut negativo = false;
     if let Some(resto) = texto.strip_prefix('-') {
@@ -175,26 +197,53 @@ fn moeda(raw: &str) -> Option<f64> {
         negativo = true;
         texto = resto.trim();
     }
-    if texto.starts_with("R$") || texto.starts_with("r$") {
-        texto = texto.get(2..)?.trim();
-    } else if let Some(resto) = texto.strip_prefix('$') {
-        texto = resto.trim();
-    } else { return None; }
+    texto = tirar_simbolo_moeda(texto, locale)?;
     if let Some(resto) = texto.strip_prefix('-') {
-        negativo = !negativo;
-        texto = resto.trim();
+        if negativo { return None; }
+        negativo = true;
+        texto = resto;
     } else if let Some(resto) = texto.strip_prefix('(').and_then(|v| v.strip_suffix(')')) {
-        negativo = !negativo;
-        texto = resto.trim();
+        if negativo { return None; }
+        negativo = true;
+        texto = resto;
     }
     if texto.is_empty() { return None; }
-    let normalizado = if texto.contains(',') {
-        texto.replace('.', "").replacen(',', ".", 1)
-    } else if grupos_de_milhar(texto, '.') {
-        texto.replace('.', "")
-    } else { texto.to_owned() };
-    let n = normalizado.parse::<f64>().ok().filter(|n| n.is_finite())?;
+    let n = parse_number_str_com_locale(texto, locale)?;
     Some(if negativo { -n } else { n })
+}
+
+fn tirar_simbolo_moeda<'a>(texto: &'a str, locale: &LocaleConfig) -> Option<&'a str> {
+    let simbolo = &locale.currency_symbol;
+    if simbolo.is_empty() { return None; }
+    let resto = if locale.currency_before {
+        tirar_prefixo_sem_caixa(texto, simbolo)?
+    } else { tirar_sufixo_sem_caixa(texto, simbolo)? };
+    if locale.currency_space {
+        if locale.currency_before { tirar_espaco_inicio(resto) } else { tirar_espaco_fim(resto) }
+    } else {
+        let vizinho = if locale.currency_before { resto.chars().next() } else { resto.chars().next_back() };
+        (!vizinho.is_some_and(char::is_whitespace)).then_some(resto)
+    }
+}
+
+fn tirar_prefixo_sem_caixa<'a>(texto: &'a str, prefixo: &str) -> Option<&'a str> {
+    let encontrado = texto.get(..prefixo.len())?;
+    encontrado.eq_ignore_ascii_case(prefixo).then(|| &texto[prefixo.len()..])
+}
+
+fn tirar_sufixo_sem_caixa<'a>(texto: &'a str, sufixo: &str) -> Option<&'a str> {
+    let inicio = texto.len().checked_sub(sufixo.len())?;
+    texto.get(inicio..)?.eq_ignore_ascii_case(sufixo).then(|| &texto[..inicio])
+}
+
+fn espaco_de_moeda(c: char) -> bool { matches!(c, ' ' | '\u{a0}' | '\u{202f}') }
+
+fn tirar_espaco_inicio(texto: &str) -> Option<&str> {
+    espaco_de_moeda(texto.chars().next()?).then(|| texto.trim_start_matches(espaco_de_moeda))
+}
+
+fn tirar_espaco_fim(texto: &str) -> Option<&str> {
+    espaco_de_moeda(texto.chars().next_back()?).then(|| texto.trim_end_matches(espaco_de_moeda))
 }
 
 pub fn parse_date_text(texto: &str) -> Option<f64> {
@@ -253,11 +302,121 @@ pub(crate) fn date_to_serial(year: i32, month: i32, day: i32) -> f64 {
 #[cfg(test)]
 mod testes_entrada {
     use super::*;
+    use crate::celulas::locale::LocaleConfig;
 
     fn numero(raw: &str, n: f64, formato: Option<NumberFormat>) {
         let lido = parse_literal(raw);
         assert_eq!(lido.value, Value::Number(n), "{raw}");
         assert_eq!(lido.format, formato, "{raw}");
+    }
+
+    fn numero_na_locale(cfg: &LocaleConfig, raw: &str, n: f64, formato: Option<NumberFormat>) {
+        let lido = parse_literal_com_locale(raw, cfg);
+        assert_eq!(lido.value, Value::Number(n), "{}: {raw}", cfg.code);
+        assert_eq!(lido.format, formato, "{}: {raw}", cfg.code);
+    }
+
+    fn texto_na_locale(cfg: &LocaleConfig, raw: &str) {
+        assert_eq!(parse_literal_com_locale(raw, cfg).value, Value::Text(raw.to_owned()), "{}: {raw}", cfg.code);
+    }
+
+    #[test]
+    fn numeros_moedas_e_porcentagens_respeitam_locale() {
+        let en = LocaleConfig::en_us();
+        texto_na_locale(&en, "12,34");
+        texto_na_locale(&en, "1,23");
+        numero_na_locale(&en, "1,234", 1234.0, None);
+        numero_na_locale(&en, "12,345", 12345.0, None);
+        numero_na_locale(&en, "1,234.50", 1234.5, None);
+        numero_na_locale(&en, "12.34", 12.34, None);
+        numero_na_locale(&en, "$1,234.50", 1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&en, "1,234.50%", 12.345, Some(NumberFormat::Percent));
+        numero_na_locale(&en, "15.5%", 0.155, Some(NumberFormat::Percent));
+        numero_na_locale(&en, "12,34,567", 1_234_567.0, None);
+        numero_na_locale(&en, "12,34,567.50", 1_234_567.5, None);
+        numero_na_locale(&en, "1.234", 1.234, None);
+
+        let pt = LocaleConfig::pt_br();
+        numero_na_locale(&pt, "12,34", 12.34, None);
+        numero_na_locale(&pt, "1.234", 1234.0, None);
+        numero_na_locale(&pt, "1,234", 1.234, None);
+        numero_na_locale(&pt, "1.234,50", 1234.5, None);
+        numero_na_locale(&pt, "R$ 12,34", 12.34, Some(NumberFormat::Currency));
+        numero_na_locale(&pt, "R$ 1.234,50", 1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&pt, "12,34%", 0.1234, Some(NumberFormat::Percent));
+        numero_na_locale(&pt, "15,5%", 0.155, Some(NumberFormat::Percent));
+
+        let es = LocaleConfig::es_es();
+        numero_na_locale(&es, "1.234,50", 1234.5, None);
+        numero_na_locale(&es, "1.234,50 €", 1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&es, "1.234,50%", 12.345, Some(NumberFormat::Percent));
+        numero_na_locale(&es, "15,5%", 0.155, Some(NumberFormat::Percent));
+
+        let fr = LocaleConfig::fr_fr();
+        numero_na_locale(&fr, "1 234,50", 1234.5, None);
+        numero_na_locale(&fr, "1\u{202f}234,50", 1234.5, None);
+        numero_na_locale(&fr, "1 234,50 €", 1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&fr, "1 234,50%", 12.345, Some(NumberFormat::Percent));
+        numero_na_locale(&fr, "15,5%", 0.155, Some(NumberFormat::Percent));
+    }
+
+    #[test]
+    fn parser_localizado_valida_formato_inteiro() {
+        let en = LocaleConfig::en_us();
+        numero_na_locale(&en, "-$1,234.50", -1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&en, "($1,234.50)", -1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&en, "$-1,234.50", -1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&en, "1,234.567890123", 1234.567890123, None);
+        numero_na_locale(&en, "-1.25e-3", -0.00125, None);
+        numero_na_locale(&en, "2E+3", 2000.0, None);
+        texto_na_locale(&en, "12,34");
+        texto_na_locale(&en, "1,2,345");
+        texto_na_locale(&en, "1,234.5.0");
+        texto_na_locale(&en, "$ 1,234.50");
+        texto_na_locale(&en, "€1,234.50");
+        texto_na_locale(&en, "1,234.50$");
+        texto_na_locale(&en, "1,2,3%");
+        texto_na_locale(&en, "1e");
+
+        let pt = LocaleConfig::pt_br();
+        numero_na_locale(&pt, "-R$ 1.234,50", -1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&pt, "R$ -1.234,50", -1234.5, Some(NumberFormat::Currency));
+        numero_na_locale(&pt, "1,5e2", 150.0, None);
+        numero_na_locale(&pt, "1,234,567.89", 1_234_567.89, None);
+        texto_na_locale(&pt, "R$1.234,50");
+        texto_na_locale(&pt, "$ 1.234,50");
+
+        let es = LocaleConfig::es_es();
+        numero_na_locale(&es, "-1.234,50 €", -1234.5, Some(NumberFormat::Currency));
+        texto_na_locale(&es, "€ 1.234,50");
+
+        let fr = LocaleConfig::fr_fr();
+        numero_na_locale(&fr, "(1\u{a0}234,50 €)", -1234.5, Some(NumberFormat::Currency));
+        texto_na_locale(&fr, "1 23,50");
+        texto_na_locale(&fr, "1.234,50");
+    }
+
+    #[test]
+    fn agrupamento_invalido_nao_vira_decimal_em_numeros_moedas_e_porcentagens() {
+        let en = LocaleConfig::en_us();
+        for raw in ["1,23", "12,34", "1,23.45", "$1,23", "$12,34", "$1,23.45", "1,23%", "12,34%", "1,23.45%"] {
+            texto_na_locale(&en, raw);
+        }
+
+        let pt = LocaleConfig::pt_br();
+        for raw in ["1.23", "12.34", "1.23,45", "R$ 1.23", "R$ 12.34", "R$ 1.23,45", "1.23%", "12.34%", "1.23,45%"] {
+            texto_na_locale(&pt, raw);
+        }
+
+        let es = LocaleConfig::es_es();
+        for raw in ["1.23", "12.34", "1.23,45", "1.23 €", "12.34 €", "1.23,45 €", "1.23%", "12.34%", "1.23,45%"] {
+            texto_na_locale(&es, raw);
+        }
+
+        let fr = LocaleConfig::fr_fr();
+        for raw in ["1 23", "12 34", "1.234,50", "1 23 €", "12 34 €", "1.234,50 €", "1 23%", "12 34%", "1.234,50%"] {
+            texto_na_locale(&fr, raw);
+        }
     }
 
     #[test]
@@ -289,7 +448,7 @@ mod testes_entrada {
         numero("-R$ 1.234,50", -1234.5, Some(NumberFormat::Currency));
         numero("(R$ 1.234,50)", -1234.5, Some(NumberFormat::Currency));
         numero("R$ -1.234,50", -1234.5, Some(NumberFormat::Currency));
-        numero("$50.25", 50.25, Some(NumberFormat::Currency));
+        numero_na_locale(&LocaleConfig::en_us(), "$50.25", 50.25, Some(NumberFormat::Currency));
         numero("15,5%", 0.155, Some(NumberFormat::Percent));
         assert_eq!(parse_literal("50 R$").value, Value::Text("50 R$".into()));
     }

@@ -7,7 +7,7 @@
 //! A janela não bloqueia a planilha: com o cursor num campo de célula,
 //! clicar na grade escreve o endereço nele.
 use super::*;
-use feathersheet_core::celulas::{input::parse_literal, number::to_js_string,
+use feathersheet_core::celulas::{input::{numero_para_entrada, parse_literal}, number::to_js_string,
     refs::parse_cell_ref, values::Value};
 use feathersheet_core::operacoes::atingir_meta::{buscar, ITERACOES, TOLERANCIA};
 use pelicano::column;
@@ -83,7 +83,7 @@ impl App {
                     // Volta ao original sem histórico e grava o novo COM
                     // histórico: o Ctrl+Z leva de volta ao valor de antes.
                     self.restaurar_meta(aba, &r);
-                    self.workbook.escrever_celula(aba, r.celula.0, r.celula.1, to_js_string(r.x));
+                    self.workbook.escrever_celula(aba, r.celula.0, r.celula.1, numero_para_entrada(r.x));
                     self.alterado = true;
                     self.status = trf!("{} = {} mantido", cell_name(r.celula.0, r.celula.1),
                         to_js_string(r.x));
@@ -144,7 +144,7 @@ impl App {
         let indice = e.aba;
         // Cada tentativa escreve sem histórico; o motor recalcula a fórmula.
         let busca = buscar(|x| {
-            let snap = Snap { raw: to_js_string(x), style: estilo.clone() };
+            let snap = Snap { raw: numero_para_entrada(x), style: estilo.clone() };
             workbook.editar(indice, |s| { s.apply(ar, ac, Some(snap), false); });
             match workbook.valor(indice, dr, dc) { Value::Number(n) => Some(n), _ => None }
         }, inicio, alvo, ITERACOES, TOLERANCIA);
@@ -153,7 +153,7 @@ impl App {
             return Err(trf!("{} dá erro com o valor atual de {}.", cell_name(dr, dc), cell_name(ar, ac)));
         };
         // A planilha mostra a solução enquanto a pessoa decide.
-        let snap = Snap { raw: to_js_string(b.x), style: estilo };
+        let snap = Snap { raw: numero_para_entrada(b.x), style: estilo };
         self.workbook.editar(indice, |s| { s.apply(ar, ac, Some(snap), false); });
         if let Some(e) = &mut self.atingir_meta {
             e.resultado = Some(Resultado { celula: (ar, ac), original, x: b.x, y: b.y,

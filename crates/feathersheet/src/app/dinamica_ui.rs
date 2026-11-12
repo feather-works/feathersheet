@@ -446,6 +446,7 @@ fn marcar(campo: &mut Vec<usize>, coluna: usize) {
 
 fn texto_celula(valor: &Value) -> String {
     match valor {
+        Value::Number(n) => feathersheet_core::celulas::input::numero_para_entrada(*n),
         // Rótulos da origem são dados, nunca fórmulas executáveis no destino.
         Value::Text(s) if s.starts_with('=') => format!("'{s}"),
         _ => to_text(valor),

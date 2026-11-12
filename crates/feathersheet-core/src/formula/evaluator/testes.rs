@@ -383,8 +383,8 @@ fn teste_qui_quadrado_exemplo_do_excel() {
     let reais = [[58.0, 35.0], [11.0, 25.0], [10.0, 23.0]];
     let esp = [[45.35, 47.65], [17.56, 18.44], [16.09, 16.91]];
     for r in 0..3 { for c in 0..2 {
-        s.set_cell_raw(r, c, reais[r as usize][c as usize].to_string(), None);
-        s.set_cell_raw(r, c + 2, esp[r as usize][c as usize].to_string(), None);
+        s.set_cell_valor(r, c, Value::Number(reais[r as usize][c as usize]));
+        s.set_cell_valor(r, c + 2, Value::Number(esp[r as usize][c as usize]));
     }}
     s.set_cell_raw(5, 0, "=CHISQ.TEST(A1:B3;C1:D3)".into(), None);
     match s.get_value(5, 0) {
