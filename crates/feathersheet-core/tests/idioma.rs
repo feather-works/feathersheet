@@ -73,9 +73,11 @@ fn numeros_em_ingles_e_de_volta_ao_portugues() {
     assert_eq!(parse_literal("VRAI").value, Value::Text("VRAI".into()), "em português VRAI é texto");
     definir_logicos("", "");
     assert_eq!(format_value(&Value::Bool(true), None), "VERDADEIRO", "sem dicionário, português");
-    // Em francês o espaço comum separa milhar ao digitar; em português não (é código).
+    // O espaço comum não é milhar no analisador em língua nenhuma (código "01 310"; em francês a
+    // digitação tira o espaço antes, no app); o espaço que não quebra continua valendo.
     set_locale_config(LocaleConfig::fr_fr());
-    assert_eq!(feathersheet_core::celulas::input::parse_literal("1 250,50").value, feathersheet_core::celulas::values::Value::Number(1250.5));
+    assert_eq!(feathersheet_core::celulas::input::parse_literal("1 250,50").value, feathersheet_core::celulas::values::Value::Text("1 250,50".into()));
+    assert_eq!(feathersheet_core::celulas::input::parse_literal("1\u{a0}250,50").value, feathersheet_core::celulas::values::Value::Number(1250.5));
     set_locale_config(LocaleConfig::pt_br());
     assert_eq!(format_number(-1250.5, Some(&com(NumberFormat::Currency, None))), "-R$\u{a0}1.250,50");
 }
