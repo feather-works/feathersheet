@@ -40,6 +40,7 @@ pub mod minigraficos_aba;
 pub mod pagina_aba;
 pub mod impressao_pdf;
 pub mod parquet_read;
+pub mod sqlite_read;
 pub mod recents;
 pub mod web;
 

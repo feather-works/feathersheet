@@ -108,13 +108,16 @@ fn json_tabela_caminho(bytes: &[u8], caminho: &str) -> Result<Tabela, String> {
 /// O que o "De arquivo" e o "Da pasta" leem.
 pub(super) const EXTENSOES: [&str; 8] = ["csv", "tsv", "txt", "json", "xlsx", "xlsm", "fshz", "parquet"];
 /// Os tipos do menu Obter dados ▸ Arquivo: (nome, extensões).
-pub(super) const TIPOS: [(&str, &[&str]); 6] = [
+/// Banco SQLite: só pelo "De arquivo" (fora do "Da pasta": o `Thumbs.db` do Windows também é `.db`).
+const SQLITE: [&str; 3] = ["sqlite", "sqlite3", "db"];
+pub(super) const TIPOS: [(&str, &[&str]); 7] = [
     ("Pasta de trabalho do Excel", &["xlsx", "xlsm"]),
     ("Pasta de trabalho do FeatherSheet", &["fshz"]),
     ("Texto/CSV", &["csv", "tsv", "txt"]),
     ("JSON", &["json"]),
     ("Parquet", &["parquet"]),
     ("Consulta Web do Excel", &["iqy"]),
+    ("Banco de dados SQLite", &SQLITE),
 ];
 
 /// O `.iqy` do Excel (consulta Web): `WEB`, versão, endereço; uma linha logo depois
@@ -218,6 +221,7 @@ enum FonteItem {
     Pronta(Tabela, super::Formatos),
     /// A pasta lida fica guardada até a escolha (o `Workbook` não atravessa thread sem trava).
     Pasta(std::sync::Arc<std::sync::Mutex<Workbook>>, usize, Rect),
+    Sqlite(std::sync::Arc<feathersheet_io::sqlite_read::BancoSqlite>, feathersheet_io::sqlite_read::TabelaSqlite),
 }
 
 impl std::fmt::Debug for Item {
@@ -242,8 +246,24 @@ impl Item {
                 let f = super::formatos_da_fonte(&wb, aba, &area, &t.cabecalho);
                 Ok((t, f))
             }
+            FonteItem::Sqlite(banco, tabela) => {
+                let linhas = banco.linhas(&tabela, None)?;
+                Ok((Tabela { cabecalho: tabela.colunas, linhas }, super::Formatos::new()))
+            }
         }
     }
+}
+
+/// Uma opção do Navegador por tabela do banco, com a prévia e a contagem de linhas.
+fn itens_do_sqlite(path: &Path) -> Result<Vec<Item>, String> {
+    let banco = std::sync::Arc::new(feathersheet_io::sqlite_read::BancoSqlite::abrir(path)?);
+    let mut itens = Vec::new();
+    for t in banco.tabelas()? {
+        if t.colunas.is_empty() { continue; }
+        let previa = Tabela { cabecalho: t.colunas.clone(), linhas: banco.linhas(&t, Some(LINHAS_PREVIA as usize))? };
+        itens.push(Item { nome: t.nome.clone(), previa, linhas: banco.contar(&t)?, fonte: FonteItem::Sqlite(banco.clone(), t) });
+    }
+    Ok(itens)
 }
 
 /// A primeira linha "de verdade" da área: pula o título acima da tabela ("Painel de
@@ -297,12 +317,13 @@ fn itens_da_pasta(wb: Workbook, ativa: usize) -> Vec<Item> {
 pub(super) fn ler_itens(path: &Path) -> Result<(Vec<Item>, String), String> {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("")
         .to_ascii_lowercase();
-    if !EXTENSOES.contains(&ext.as_str()) {
-        return Err(tr!("Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ ou PARQUET neste importador").into());
+    if !EXTENSOES.contains(&ext.as_str()) && !SQLITE.contains(&ext.as_str()) {
+        return Err(tr!("Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ, PARQUET ou SQLite neste importador").into());
     }
     let nome = path.file_name().and_then(|n| n.to_str()).unwrap_or(tr!("Arquivo"));
     let unico = |t: Tabela, f| vec![Item::pronto(nome.to_owned(), t, f)];
     let itens = match ext.as_str() {
+        e if SQLITE.contains(&e) => itens_do_sqlite(path)?,
         "json" => unico(json_tabela(&std::fs::read(path)
             .map_err(|e| trf!("Falha de leitura: {e}"))?)?, super::Formatos::new()),
         "csv" | "tsv" | "txt" => {
@@ -521,6 +542,17 @@ mod testes {
         assert!(itens[1].nome.ends_with("Clientes"));
         let (t, _) = itens.into_iter().next().unwrap().ler().unwrap();
         assert_eq!(t.cabecalho, ["Produto", "Valor", "UF"]);
+    }
+
+    #[test]
+    fn sqlite_lista_as_tabelas_no_navegador_e_le_a_escolhida() {
+        let caminho = Path::new(env!("CARGO_MANIFEST_DIR")).join("../feathersheet-io/tests/arquivos/vendas.sqlite");
+        let (itens, origem) = ler_itens(&caminho).unwrap();
+        assert_eq!(origem, "Arquivo: vendas.sqlite");
+        assert_eq!(itens.iter().map(|i| (i.nome.as_str(), i.linhas)).collect::<Vec<_>>(), [("vendas", 300), ("Itens do pedido", 3)]);
+        assert_eq!(itens[0].previa.linhas.len(), LINHAS_PREVIA as usize);
+        let (t, _) = itens.into_iter().next().unwrap().ler().unwrap();
+        assert_eq!((t.cabecalho[1].as_str(), t.linhas.len()), ("produto", 300));
     }
 
     #[test]

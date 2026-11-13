@@ -46,6 +46,15 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**SQLite no FeatherQuery (#70, 13/11).** `feathersheet-io/src/sqlite_read.rs`: leitor próprio, só leitura, sem C (o
+`rusqlite` traz C): cabeçalho, B-tree de tabela (folha 0x0d, interior 0x05), transbordo, registro (tipos 0–9, texto,
+blob vira "[binário, N bytes]", inteiro acima de 2^53 vira texto), UTF-16, `INTEGER PRIMARY KEY` pelo rowid, colunas do
+`CREATE TABLE` (`colunas_do_create`). Fora: views, `WITHOUT ROWID`, o que está só no `-wal`; lê o arquivo inteiro na memória
+(`shortcut:`). No importador é "De arquivo" (`.sqlite`, `.sqlite3`, `.db`; fora do "Da pasta" por causa do `Thumbs.db`),
+uma opção do Navegador por tabela (`FonteItem::Sqlite`). M exportado: `Odbc.DataSource` com o SQLite3 ODBC Driver.
+Arquivo de teste `feathersheet-io/tests/arquivos/vendas.sqlite` (feito com o `sqlite3` do Python, páginas de 1 KB).
+Novidade: "FeatherQuery lê bancos SQLite: escolha a tabela no Navegador." Parquet já estava no importador.
+
 **Mostrar alterações (#82, 13/11).** O motor registra, ao fechar cada transação (`Historico::alteracoes`,
 `Sheet::alteracoes`), o texto antes/depois das células que mudaram (estilo sozinho não conta); transação com mais de 50
 células vira um registro com a área e a contagem; teto de 5000 (`shortcut:`). Desfazer/refazer, inserir/excluir linhas e

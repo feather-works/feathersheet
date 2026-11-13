@@ -1,4 +1,10 @@
 {
+ "Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ, PARQUET ou SQLite neste importador": "Use CSV, TSV, TXT, JSON, XLSX, XLSM, FSHZ, PARQUET or SQLite in this importer",
+ "O Excel lê SQLite pelo ODBC: instale o SQLite3 ODBC Driver.": "Excel reads SQLite through ODBC: install the SQLite3 ODBC Driver.",
+ "Banco de dados SQLite": "SQLite database",
+ "O arquivo SQLite está corrompido ou num formato que o FeatherSheet não lê.": "The SQLite file is corrupt or in a format FeatherSheet cannot read.",
+ "O arquivo não é um banco SQLite.": "The file is not an SQLite database.",
+ "[binário, {len} bytes]": "[binary, {len} bytes]",
  "(vazia)": "(empty)",
  "{} células alteradas": "{} cells changed",
  "Nenhuma alteração na seleção.": "No changes in the selection.",

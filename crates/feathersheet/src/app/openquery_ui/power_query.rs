@@ -1464,6 +1464,14 @@ impl Escritor<'_> {
                 promover(self);
             }
             "lerArquivo" if a0.to_lowercase().ends_with(".parquet") => self.por("Fonte", format!("Parquet.Document({})", arquivo(a0))),
+            // O Excel só lê SQLite pelo ODBC (driver "SQLite3 ODBC Driver" instalado à parte).
+            "lerArquivo" if [".sqlite", ".sqlite3", ".db"].iter().any(|e| a0.to_lowercase().ends_with(e)) => {
+                self.comentarios.push(tr!("O Excel lê SQLite pelo ODBC: instale o SQLite3 ODBC Driver.").into());
+                self.por("Fonte", format!("Odbc.DataSource({}, [HierarchicalNavigation = true])", m_txt(&format!("Driver={{SQLite3 ODBC Driver}};Database={a0}"))));
+                if let Some((_, t)) = navegacao {
+                    self.por(&format!("{t}_Table"), format!("Fonte{{[Name = {}, Kind = \"Table\"]}}[Data]", m_txt(&t)));
+                }
+            }
             "lerArquivo" => {
                 if !a0.to_lowercase().contains(".xls") {
                     self.comentarios.push(tr!("O Excel não lê .fshz: salve o arquivo como .xlsx e troque o caminho.").into());
