@@ -36,6 +36,16 @@ fn pela_parte(nome: &str) -> Option<&'static str> {
     else { return None })
 }
 
+/// `../drawings/drawing1.xml` visto de `xl/worksheets` vira `xl/drawings/drawing1.xml`.
+fn caminho_relativo(pasta: &str, alvo: &str) -> String {
+    if let Some(abs) = alvo.strip_prefix('/') { return abs.to_owned(); }
+    let mut partes: Vec<&str> = pasta.split('/').filter(|p| !p.is_empty()).collect();
+    for p in alvo.split('/') {
+        match p { ".." => { partes.pop(); } "." | "" => {} outro => partes.push(outro) }
+    }
+    partes.join("/")
+}
+
 pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
     let mut z = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes))).map_err(|e| feathersheet_core::trf!("Não parece um arquivo ZIP: {e}"))?;
     let mut saida: Vec<NaoConvertido> = Vec::new();
@@ -55,6 +65,15 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         let (pasta, arquivo) = caminho.rsplit_once('/').unwrap_or(("", &caminho));
         for alvo in sheet::read_rels(&entry_text(&mut z, &format!("{pasta}/_rels/{arquivo}.rels")).unwrap_or_default()).values() {
             if let Some(o) = pelo_alvo(alvo) { somar(Some(nome), o, 1); }
+            // Desenho da aba: imagem e forma o FeatherSheet lê, mas o .xlsx gravado não leva
+            // (os gráficos levam). Contar aqui faz o Ctrl+S pedir "Salvar como" em vez de sumir com o logotipo.
+            let a = alvo.to_ascii_lowercase();
+            if a.contains("drawings/") && !a.contains("vmldrawing") && a.ends_with(".xml") {
+                let desenho = caminho_relativo(pasta, alvo);
+                let texto = entry_text(&mut z, &desenho).unwrap_or_default();
+                somar(Some(nome), "Imagem", texto.matches("<xdr:pic>").count() + texto.matches("<xdr:pic ").count());
+                somar(Some(nome), "Forma ou caixa de texto", texto.matches("<xdr:sp>").count() + texto.matches("<xdr:sp ").count());
+            }
         }
     }
     let partes: Vec<String> = z.file_names().map(str::to_owned).collect();
@@ -80,6 +99,7 @@ mod testes {
             f("xl/_rels/workbook.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Target="chartsheets/sheet1.xml"/></Relationships>"#);
             f("xl/worksheets/sheet1.xml", "<worksheet><extLst><x14:sparkline></x14:sparkline><x14:sparkline></x14:sparkline></extLst></worksheet>");
             f("xl/worksheets/_rels/sheet1.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="../activeX/activeX1.xml"/><Relationship Id="rId2" Target="../activeX/activeX2.xml"/><Relationship Id="rId3" Target="../drawings/drawing1.xml"/></Relationships>"#);
+            f("xl/drawings/drawing1.xml", "<xdr:wsDr><xdr:twoCellAnchor><xdr:pic><xdr:nvPicPr/></xdr:pic></xdr:twoCellAnchor><xdr:twoCellAnchor><xdr:graphicFrame/></xdr:twoCellAnchor></xdr:wsDr>");
             f("xl/chartsheets/sheet1.xml", "<chartsheet/>");
             f("xl/connections.xml", "<connections/>");
             zw.finish().unwrap();
@@ -90,6 +110,7 @@ mod testes {
         assert_eq!(v, vec![
             (None, "Conexão de dados externos", 1),
             (Some("Vendas"), "Controle ActiveX", 2),
+            (Some("Vendas"), "Imagem", 1),
             (None, "Planilha de gráfico", 1),
         ]);
     }

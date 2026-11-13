@@ -1,4 +1,5 @@
 {
+ "Forma ou caixa de texto": "Shape or text box",
  "O nome não pode conter [ ] * ? / \\.": "The name cannot contain [ ] * ? / \\.",
  "O nome não pode começar nem terminar com apóstrofo.": "The name cannot begin or end with an apostrophe.",
  "O nome pode ter no máximo 31 caracteres (limite do Excel).": "The name can have at most 31 characters (Excel's limit).",

@@ -758,6 +758,9 @@ struct Escritor<'a> {
     memo_textos: Vec<Option<MemoTexto>>,
     /// A aba tem matriz derramada (SEQUÊNCIA, FILTRO...)?
     ha_derrame: bool,
+    /// A aba tem estilo de coluna, linha ou da aba inteira: cada célula leva o estilo combinado
+    /// (no Excel o `s` da célula substitui o da coluna), sem os atalhos do estilo direto.
+    externo: bool,
 }
 
 /// O padrão da fórmula em inglês, em pedaços, se ele reconstrói a tradução
@@ -818,7 +821,7 @@ impl Escritor<'_> {
         // A mesma ordem do `snapshot`: `Map`, literal colunar, fórmula
         // empacotada. O literal sem estilo e a fórmula empacotada vão por
         // atalho; o resto, pelo `snapshot`.
-        if matriz.is_none() && !sheet.cells.contains_key(&k) {
+        if matriz.is_none() && !sheet.cells.contains_key(&k) && !self.externo {
             match sheet.data.cru_em(row, col) {
                 Some(cru) if !sheet.styles.contains_key(&k) && !sheet.textos.contains_key(&k) => {
                     if self.literal_sem_estilo(row, col, cru, out) {
@@ -846,7 +849,8 @@ impl Escritor<'_> {
         let formula = raw.starts_with('=');
         let valor = if formula { self.pasta.valor(self.indice, row, col) } else { parse_literal(raw).value };
         let implicito = implied_format(raw);
-        let (xf, link) = self.xf(sheet.get_style_idx(row, col), implicito, snap.style.as_ref());
+        let (xf, link) = if self.externo { self.xf_combinado(row, col, implicito) }
+            else { self.xf(sheet.get_style_idx(row, col), implicito, snap.style.as_ref()) };
 
         if matches!(valor, Value::Empty) && !formula && xf == 0 {
             return None;
@@ -888,6 +892,17 @@ impl Escritor<'_> {
         let par = (self.estilos.add(estilo, implicito), link);
         self.xfs.insert((idx, implicito), par.clone());
         par
+    }
+
+    /// O `xf` do estilo combinado da célula (direto + linha + coluna + aba). Sem cache por índice:
+    /// a mesma célula sem estilo direto muda de estilo conforme a coluna; a tabela já junta os iguais.
+    fn xf_combinado(&mut self, row: u32, col: u32, implicito: Option<&'static str>) -> (usize, Option<String>) {
+        let mut estilo = self.sheet.estilo_mesclado(row, col).unwrap_or_default();
+        let link = match estilo.remove("link") {
+            Some(Campo::Texto(t)) if !t.is_empty() => Some(t),
+            _ => None,
+        };
+        (self.estilos.add(estilo, implicito), link)
     }
 
     /// O atalho do literal colunar sem estilo direto e sem texto digitado
@@ -1396,13 +1411,20 @@ fn aba_xml(
     }
     let mut links: Vec<(String, String)> = Vec::new();
     let mut escritor =
-        Escritor { pasta, indice, sheet, estilos, textos, padroes: Vec::new(), xfs: HashMap::new(), memo_textos: Vec::new(), ha_derrame };
+        Escritor { pasta, indice, sheet, estilos, textos, padroes: Vec::new(), xfs: HashMap::new(), memo_textos: Vec::new(), ha_derrame,
+            externo: !(sheet.col_styles.is_empty() && sheet.row_styles.is_empty() && sheet.sheet_style.is_none()) };
 
     // Em ordem: o formato pede, e o Excel "repara" o arquivo que vem fora dela.
     let mut larguras: BTreeMap<u32, Option<u32>> = sheet.col_widths.iter().map(|(&c, &w)| (c, Some(w))).collect();
-    for &c in topicos.colunas.niveis.keys().chain(topicos.colunas.recolhidas.iter()) {
+    for &c in topicos.colunas.niveis.keys().chain(topicos.colunas.recolhidas.iter()).chain(sheet.col_styles.keys()) {
         larguras.entry(c).or_insert(None);
     }
+    // Formato da coluna inteira (`<col style>`): vale nas células vazias dela, como no Excel.
+    let estilo_coluna: HashMap<u32, usize> = sheet.col_styles.iter().map(|(&c, e)| {
+        let mut e = e.clone();
+        e.remove("link");
+        (c, escritor.estilos.add(e, None))
+    }).collect();
     // Colunas ocultas até o fim: um `<col>` só, de N até XFD, no fim da lista.
     let colunas_desde = sheet.colunas_ocultas_desde.filter(|&n| n < MAX_COLS_XLSX);
     if let Some(n) = colunas_desde { larguras.retain(|&c, _| c < n); }
@@ -1417,6 +1439,7 @@ fn aba_xml(
                     Some(w) => { let _ = write!(col, " width=\"{}\" customWidth=\"1\"", to_js_string(arredondar(px_para_largura(*w)))); }
                     None => { let _ = write!(col, " width=\"{}\"", to_js_string(arredondar(px_para_largura(sheet.largura_padrao.unwrap_or(LARGURA_PADRAO_PX))))); }
                 }
+                if let Some(xf) = estilo_coluna.get(&c).filter(|&&x| x != 0) { let _ = write!(col, " style=\"{xf}\""); }
                 col.push_str(&atributos_topico(&topicos.colunas, c));
                 col.push_str("/>");
                 col
@@ -1441,7 +1464,8 @@ fn aba_xml(
         "<sheetFormatPr baseColWidth=\"8\" defaultColWidth=\"{}\" defaultRowHeight=\"15\"{}/>",
         to_js_string(arredondar(px_para_largura(sheet.largura_padrao.unwrap_or(LARGURA_PADRAO_PX)))),
         if linhas_desde.is_some() { " zeroHeight=\"1\"" } else { "" });
-    let mut xml = format!("{XML_DECL}<worksheet xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\">{formato}{cols}<sheetData>");
+    let vista = vista_xml(indice);
+    let mut xml = format!("{XML_DECL}<worksheet xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\">{vista}{formato}{cols}<sheetData>");
     let corpo = &mut xml;
     let mut celulas = String::new();
     let mut i = 0;
@@ -1957,10 +1981,37 @@ fn cabe_no_excel(pasta: &Workbook) -> Result<(), String> {
 }
 
 thread_local! {
+    /// Painéis congelados e linhas de grade de cada aba, só enquanto [`com_vistas`] roda: moram na
+    /// tela do app, não na pasta.
+    static VISTAS: std::cell::RefCell<Vec<crate::xlsx_read::VistaAba>> = const { std::cell::RefCell::new(Vec::new()) };
     /// Funções chamadas nas fórmulas exportadas (nome internacional), só
     /// enquanto [`gerar_xlsx_com_funcoes`] está montando o arquivo.
     static FUNCOES_USADAS: std::cell::RefCell<Option<std::collections::BTreeSet<String>>> =
         const { std::cell::RefCell::new(None) };
+}
+
+/// Roda `gerar` com a vista de cada aba (pela ordem das abas): o `.xlsx` sai com os painéis
+/// congelados e as linhas de grade como estão na tela. Sem isto o Ctrl+S de um `.xlsx` os perdia.
+pub fn com_vistas<R>(vistas: Vec<crate::xlsx_read::VistaAba>, gerar: impl FnOnce() -> R) -> R {
+    VISTAS.with(|v| *v.borrow_mut() = vistas);
+    let r = gerar();
+    VISTAS.with(|v| v.borrow_mut().clear());
+    r
+}
+
+/// `<sheetViews>` da aba `indice` (vazio quando é o padrão: grade ligada, nada congelado).
+fn vista_xml(indice: usize) -> String {
+    let Some(v) = VISTAS.with(|v| v.borrow().get(indice).copied()) else { return String::new() };
+    let (linhas, colunas) = v.congelar;
+    if v.linhas_grade && linhas == 0 && colunas == 0 { return String::new(); }
+    let grade = if v.linhas_grade { "" } else { " showGridLines=\"0\"" };
+    let painel = if linhas == 0 && colunas == 0 { String::new() } else {
+        let ativo = match (linhas > 0, colunas > 0) { (true, true) => "bottomRight", (true, false) => "bottomLeft", _ => "topRight" };
+        let x = if colunas > 0 { format!(" xSplit=\"{colunas}\"") } else { String::new() };
+        let y = if linhas > 0 { format!(" ySplit=\"{linhas}\"") } else { String::new() };
+        format!("<pane{x}{y} topLeftCell=\"{}\" activePane=\"{ativo}\" state=\"frozen\"/>", cell_name(linhas, colunas))
+    };
+    format!("<sheetViews><sheetView workbookViewId=\"0\"{grade}>{painel}</sheetView></sheetViews>")
 }
 
 /// Como [`gerar_xlsx`], devolvendo também as funções usadas nas fórmulas
@@ -2046,6 +2097,17 @@ pub fn gerar_delimitado(pasta: &mut Workbook, indice: usize, separador: char) ->
 #[cfg(test)]
 mod testes {
     #[test]
+    fn paineis_congelados_e_grade_vao_e_voltam_no_xlsx() {
+        use crate::xlsx_read::VistaAba;
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 0, "Título".into());
+        pasta.criar_aba("Outra");
+        let vistas = vec![VistaAba { linhas_grade: false, congelar: (1, 2) }, VistaAba { linhas_grade: true, congelar: (0, 0) }];
+        let bytes = super::com_vistas(vistas.clone(), || gerar_xlsx(&pasta)).unwrap();
+        assert_eq!(crate::xlsx_read::ler_vistas_bytes(bytes), vistas);
+    }
+
+    #[test]
     fn texto_longo_e_numero_enorme_nao_estragam_o_arquivo_para_o_excel() {
         assert_eq!(super::no_limite_do_excel(&"a".repeat(40_000)).len(), 32_767);
         assert_eq!(super::no_limite_do_excel("curto"), "curto");
@@ -2100,6 +2162,23 @@ mod testes {
             lida.aba(0).unwrap().sheet.estilo_resolvido(r, 0).as_ref());
         assert_eq!(texto(0), "");
         assert_eq!(texto(1), "7,25 kWp");
+    }
+
+    #[test]
+    fn estilo_da_coluna_inteira_vai_para_o_xlsx() {
+        // Negrito na coluna B (o que o app faz ao formatar a coluna inteira): a célula com valor e a
+        // vazia voltam em negrito. Antes o .xlsx saía sem nada.
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 1, "1234,5".into());
+        pasta.escrever_celula(0, 0, 0, "x".into());
+        let mut e = EstiloParcial::new();
+        e.insert("bold".into(), Campo::Logico(true));
+        pasta.editar(0, |s| { s.col_styles.insert(1, e.clone()); });
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(gerar_xlsx(&pasta).unwrap()).unwrap();
+        let s = &lida.aba(0).unwrap().sheet;
+        assert!(s.estilo_resolvido(0, 1).is_some_and(|e| e.bold), "célula da coluna");
+        assert!(s.estilo_resolvido(5, 1).is_some_and(|e| e.bold), "vazia da coluna (pelo <col style>)");
+        assert!(s.estilo_resolvido(0, 0).is_none_or(|e| !e.bold), "outra coluna sem negrito");
     }
 
     #[test]

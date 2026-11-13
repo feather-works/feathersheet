@@ -37,10 +37,14 @@ Testes: `planilha/workbook/tests_auditoria.rs` (um por item, com o resultado do 
 
 O Ctrl+S de um `.xlsx` grava por cima do próprio `.xlsx`: cada perda abaixo cai no arquivo original.
 
-- ⏳ A1. Formato de coluna, linha e aba inteira não vai para o `.xlsx` (moeda e negrito na coluna somem).
-- ⏳ A2. Imagens, formas e caixas de texto lidas do `.xlsx` não são gravadas (o logotipo some).
-  Mínimo: contar em `nao_convertidos` para o Ctrl+S pedir "Salvar como".
-- ⏳ A3. Painéis congelados e linhas de grade ocultas não vão para o `.xlsx`.
+- ✅ A1. Formato de coluna inteira não ia para o `.xlsx` (moeda e negrito na coluna sumiam). Agora
+  cada célula leva o estilo combinado e o `<col style>` vale nas vazias. Falta: estilo de linha
+  inteira (`<row s>`) e da aba inteira nas células vazias.
+- ✅ A2 (mínimo). Imagens, formas e caixas de texto lidas do `.xlsx` não são gravadas: agora contam
+  no aviso, e o Ctrl+S pede "Salvar como" dizendo o que se perderia. Falta: gravar de verdade
+  (`xl/media` e o desenho), e imagem colada no app também some ao gravar `.xlsx`.
+- ✅ A3. Painéis congelados e linhas de grade ocultas agora vão para o `.xlsx` (`<sheetViews>`), no
+  Ctrl+S e no Exportar. No `.fshz` eles continuam não sendo guardados (só na sessão).
 - ✅ A4. Intervalo de coluna inteira saía com a linha 100.000.000 (formatação condicional, validação,
   nomes): agora para em 1.048.576 × XFD, o limite do Excel.
 - ✅ A5. Nome de aba que o Excel recusa (`[ ] * ? / \`, apóstrofo na ponta, mais de 31 letras)

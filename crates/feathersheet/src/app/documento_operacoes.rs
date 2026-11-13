@@ -635,6 +635,14 @@ impl App {
 
     /// Linhas de grade e painéis congelados de cada aba, como o Excel
     /// mostrava (`<sheetView>`). Só estado da janela: o arquivo não muda.
+    /// Linhas de grade e painéis congelados de cada aba, na ordem das abas, para o `.xlsx` gravado.
+    pub(super) fn vistas_das_abas(&self) -> Vec<feathersheet_io::xlsx_read::VistaAba> {
+        (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i)).map(|a| feathersheet_io::xlsx_read::VistaAba {
+            linhas_grade: !self.grade_oculta.contains(&a.id),
+            congelar: self.congelados.get(&a.id).copied().unwrap_or((0, 0)),
+        }).collect()
+    }
+
     fn aplicar_vistas_excel(&mut self, path: &Path) {
         for (i, v) in feathersheet_io::xlsx_read::ler_vistas_arquivo(path).into_iter().enumerate() {
             let Some(id) = self.workbook.aba(i).map(|a| a.id) else { break };
@@ -682,9 +690,10 @@ impl App {
         self.status = tr!("Salvando…").into();
         let destino = path.clone();
         let senha = self.senha_documento.clone();
+        let vistas = self.vistas_das_abas();
         Task::perform(async move {
             let inicio = Instant::now();
-            let resultado = tokio::task::spawn_blocking(move || gravar_retrato(&pasta, &destino, senha.as_deref())).await.unwrap_or_else(|e| Err(trf!("Falha na tarefa de gravação: {e}")));
+            let resultado = tokio::task::spawn_blocking(move || feathersheet_io::xlsx_write::com_vistas(vistas, || gravar_retrato(&pasta, &destino, senha.as_deref()))).await.unwrap_or_else(|e| Err(trf!("Falha na tarefa de gravação: {e}")));
             resultado.map(|()| inicio.elapsed().as_millis().min(u128::from(u64::MAX)) as u64)
         }, move |resultado| Msg::Gravado(path.clone(), copia, resultado))
     }
@@ -1074,7 +1083,8 @@ impl App {
             return;
         }
         if self.alterado {
-            if let Err(e) = gravar_retrato(&feathersheet_io::da_workbook::da_workbook(&self.workbook, self.folha as u32), &antigo, self.senha_documento.as_deref()) {
+            let pasta = feathersheet_io::da_workbook::da_workbook(&self.workbook, self.folha as u32);
+            if let Err(e) = feathersheet_io::xlsx_write::com_vistas(self.vistas_das_abas(), || gravar_retrato(&pasta, &antigo, self.senha_documento.as_deref())) {
                 self.status = trf!("Erro ao salvar antes de renomear: {e}");
                 return;
             }
@@ -1154,8 +1164,9 @@ impl App {
         let pasta = feathersheet_io::da_workbook::da_workbook(&self.workbook, folha as u32);
         self.salvando = true;
         self.status = tr!("Exportando…").into();
+        let vistas = self.vistas_das_abas();
         Task::perform(async move {
-            tokio::task::spawn_blocking(move || exportar_retrato(&pasta, folha, &path, tipo))
+            tokio::task::spawn_blocking(move || feathersheet_io::xlsx_write::com_vistas(vistas, || exportar_retrato(&pasta, folha, &path, tipo)))
                 .await.unwrap_or_else(|e| Err(trf!("Falha na tarefa de exportação: {e}")))
         }, Msg::Exportado)
     }
