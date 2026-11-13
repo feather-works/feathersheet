@@ -42,6 +42,13 @@ Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e cri
 `Consulta: nome` em todo registro que lê a renomeada (origem, fontes extras, `fonte` das etapas). Pastas
 (grupos) para organizar ainda não. Novidade: "FeatherQuery: renomeie consultas salvas; as que dependem dela continuam funcionando."
 
+**Autocompletar no editor de macros (#8, 13/11).** `app/macros/autocompletar.rs`: o catálogo sai das assinaturas do
+`ajuda_macros::GUIA` (o objeto antes do ponto: `sheet`, `range`, `wb`, `app`; solto a partir de 2 letras; depois de `)` vale
+o intervalo; variável desconhecida mostra intervalo e aba). Lista abaixo do cursor (acima, sem espaço), 8 à vista, com a
+assinatura e o exemplo; ↑/↓, Tab/Enter, Esc pelo `on_key` do editor. Não abre dentro de aspas nem de `//`. Foto:
+`FEATHERSHEET_CAPTURAR_JANELA=busca_macros FEATHERSHEET_CAPTURAR_COMPLETAR=sheet.se`. Novidade: "Editor de macros com
+autocompletar: digite sheet. e escolha o método, com a forma de usar e um exemplo."
+
 **`.iqy` do Excel no FeatherQuery (13/11).** Obter dados ▾ ▸ Arquivo ▸ Consulta Web do Excel (`importador::ler_iqy`):
 o endereço vira a fonte Web de sempre e o `Selection=N` escolhe a tabela sozinho (`Estado::selecao_iqy`). Recusa com aviso
 o `.iqy` com POST e com parâmetros (`["Cidade","…"]`); formatação da página não vem. Não abre pelo Abrir do app, só pelo

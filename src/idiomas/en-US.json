@@ -192,7 +192,7 @@
       "macros": {
         "titulo": "Macros and buttons",
         "corpo": [
-          "Macros are JavaScript (Macros → Macro editor, or Alt+F11). Ctrl+Enter runs, and Ctrl+Z undoes the whole macro. \"Run on open\" runs the macro every time the spreadsheet opens — that is how custom functions keep working.",
+          "Macros are JavaScript (Macros → Macro editor, or Alt+F11). Ctrl+Enter runs, and Ctrl+Z undoes the whole macro. When you type sheet. (or the start of a name), a list shows the methods with how to use them and an example: ↑/↓ choose, Tab or Enter write it, Esc closes. \"Run on open\" runs the macro every time the spreadsheet opens — that is how custom functions keep working.",
           "Each spreadsheet keeps its own macros inside the .fshz file (like Excel's .xlsm): a new spreadsheet starts with none, and opening an .xlsm brings its VBA converted. To move macros between files, use Export and Import in the editor.",
           "Inserir → Botão de macro creates a button on the grid that runs a macro when clicked. Drag to move; right-click to edit or delete.",
           "Every function a macro can use is in the \"Macros\" section of this Help."

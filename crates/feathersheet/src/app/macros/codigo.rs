@@ -56,6 +56,10 @@ pub(in crate::app) struct EstadoCodigo {
     pub janela: pelicano::Size,
     /// Aviso curto da barra (ex.: "5 substituições").
     pub aviso: String,
+    /// Autocompletar (#8): a lista aberta, a escolhida e quantas letras já foram digitadas.
+    pub sugestoes: Vec<super::autocompletar::Sugestao>,
+    pub sugestao: usize,
+    pub parcial: usize,
 }
 
 impl Default for EstadoCodigo {
@@ -66,12 +70,17 @@ impl Default for EstadoCodigo {
             palavra: false, todos_modulos: false, atual: None, origem: (0, 0),
             shift: false, campo_focado: false, rolagem_v: None, rolagem_h: None,
             janela: pelicano::Size::new(1180.0, 760.0), aviso: String::new(),
+            sugestoes: Vec::new(), sugestao: 0, parcial: 0,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum EventoCodigo {
+    /// Autocompletar: ↑/↓ andam na lista, Tab/Enter (ou o clique, com o índice) escrevem, Esc fecha.
+    SugestaoMover(i32),
+    SugestaoAceitar(Option<usize>),
+    SugestaoFechar,
     FiltroProjeto(String),
     /// Enter na busca do Explorador: abre o primeiro resultado.
     FiltroAbrirPrimeiro,
@@ -283,7 +292,20 @@ impl App {
     // busca e apertar Ctrl+Z sem digitar não desfaz. Melhorar se o editor ganhar `on_focus`.
     pub(in crate::app) fn editar_codigo_macro(&mut self) -> Task<Msg> {
         self.macro_visual.codigo.campo_focado = false;
+        self.atualizar_sugestoes();
         self.rolar_ate_cursor()
+    }
+
+    /// Refaz a lista do autocompletar pelo que está antes do cursor.
+    fn atualizar_sugestoes(&mut self) {
+        let (l, c) = linha_coluna(&self.macro_codigo);
+        let antes: String = self.macro_codigo.line(l).unwrap_or_default().chars().take(c.saturating_sub(1)).collect();
+        let estado = &mut self.macro_visual.codigo;
+        let (lista, parcial) = super::autocompletar::contexto(&antes)
+            .map(|(objeto, parcial)| (super::autocompletar::sugestoes(&objeto, &parcial), parcial.chars().count()))
+            .unwrap_or_default();
+        estado.sugestao = if lista == estado.sugestoes { estado.sugestao.min(lista.len().saturating_sub(1)) } else { 0 };
+        (estado.sugestoes, estado.parcial) = (lista, parcial);
     }
 
     /// Rola o código até a linha/coluna do cursor, se estiver fora da vista.
@@ -503,11 +525,38 @@ impl App {
         estado.origem = (8, 0);
         let _ = self.reprocurar();
         self.macro_visual.console = false;
+        // FEATHERSHEET_CAPTURAR_COMPLETAR=sheet.se: digita isso numa linha nova e abre o autocompletar.
+        if let Ok(digitado) = std::env::var("FEATHERSHEET_CAPTURAR_COMPLETAR") {
+            self.macro_codigo = Content::with_text(&format!("{exemplo}\n{digitado}"));
+            let ultima = self.macro_codigo.line_count();
+            self.macro_codigo.set_cursor(ultima, digitado.chars().count() + 1);
+            // Antes do primeiro desenho o editor só guarda a linha do cursor: a lista vem do texto.
+            let c = &mut self.macro_visual.codigo;
+            c.busca_aberta = false;
+            if let Some((objeto, parcial)) = super::autocompletar::contexto(&digitado) {
+                (c.sugestoes, c.parcial) = (super::autocompletar::sugestoes(&objeto, &parcial), parcial.chars().count());
+            }
+        }
         self.alternar(Auxiliar::Macros)
     }
 
     pub(in crate::app) fn evento_codigo_macro(&mut self, evento: EventoCodigo) -> Task<Msg> {
         match evento {
+            EventoCodigo::SugestaoMover(d) => {
+                let c = &mut self.macro_visual.codigo;
+                let n = c.sugestoes.len() as i32;
+                if n > 0 { c.sugestao = (c.sugestao as i32 + d).rem_euclid(n) as usize; }
+                Task::none()
+            }
+            EventoCodigo::SugestaoFechar => { self.macro_visual.codigo.sugestoes.clear(); Task::none() }
+            EventoCodigo::SugestaoAceitar(i) => {
+                let c = &mut self.macro_visual.codigo;
+                let Some(s) = c.sugestoes.get(i.unwrap_or(c.sugestao)).copied() else { return Task::none() };
+                let resto: String = s.nome.chars().skip(c.parcial).collect();
+                c.sugestoes.clear();
+                self.macro_codigo.insert(&format!("{resto}{}", if s.chamada { "(" } else { "" }));
+                Task::batch([focar_codigo(), self.rolar_ate_cursor()])
+            }
             EventoCodigo::FiltroProjeto(t) => { self.macro_visual.codigo.filtro_projeto = t; Task::none() }
             EventoCodigo::FocarProjeto => Task::focus(id_campo_projeto()),
             EventoCodigo::FiltroAbrirPrimeiro => {

@@ -192,7 +192,7 @@
       "macros": {
         "titulo": "Macros e botões",
         "corpo": [
-          "Macros são JavaScript (Macros → Editor de macros, ou Alt+F11). Ctrl+Enter executa, e Ctrl+Z desfaz a macro inteira. \"Executar ao abrir\" roda a macro sempre que a planilha abre — é assim que funções personalizadas continuam valendo.",
+          "Macros são JavaScript (Macros → Editor de macros, ou Alt+F11). Ctrl+Enter executa, e Ctrl+Z desfaz a macro inteira. Ao digitar sheet. (ou o começo de um nome), a lista mostra os métodos com a forma de usar e um exemplo: ↑/↓ escolhem, Tab ou Enter escrevem, Esc fecha. \"Executar ao abrir\" roda a macro sempre que a planilha abre — é assim que funções personalizadas continuam valendo.",
           "Cada planilha guarda as próprias macros dentro do arquivo .fshz (como o .xlsm do Excel): uma planilha nova começa sem nenhuma, e abrir um .xlsm traz o VBA dele convertido. Para levar macros de um arquivo a outro, use Exportar e Importar no editor.",
           "Inserir → Botão de macro cria um botão na grade que roda uma macro ao clicar. Arraste para mover; botão direito para editar ou excluir.",
           "Todas as funções que uma macro pode usar estão na seção \"Macros\" desta Ajuda."

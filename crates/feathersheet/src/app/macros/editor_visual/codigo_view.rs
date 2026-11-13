@@ -290,13 +290,25 @@ fn area_codigo<'a>(app: &'a App, achadas: &[Ocorrencia]) -> Element<'a, Msg> {
     let visivel_y = c.janela.height - 380.0 - console - busca;
     let altura_texto = total as f32 * ALTURA_LINHA + 2.0 * MARGEM_V;
     let altura = altura_texto.max(visivel_y);
+    let lista_aberta = !c.sugestoes.is_empty();
     let editor = text_editor(&app.macro_codigo)
         .id(codigo::ID_AREA_CODIGO)
         .on_change(Msg::MacroEditar)
         // Ctrl+Z/Ctrl+Y: o atalho da janela (atalhos.rs) já desfaz no `Content`;
         // o editor não desfaz de novo por conta própria.
-        .on_key(|key, mods| {
+        .on_key(move |key, mods| {
             use crate::compat::keyboard::Modificadores as _;
+            use keyboard::key::Named;
+            // Com a lista do autocompletar aberta, as setas, Tab, Enter e Esc são dela.
+            if lista_aberta && !mods.command() && !mods.alt() {
+                match key {
+                    keyboard::Key::Named(Named::ArrowDown) => return Some(ev(EventoCodigo::SugestaoMover(1))),
+                    keyboard::Key::Named(Named::ArrowUp) => return Some(ev(EventoCodigo::SugestaoMover(-1))),
+                    keyboard::Key::Named(Named::Tab | Named::Enter) => return Some(ev(EventoCodigo::SugestaoAceitar(None))),
+                    keyboard::Key::Named(Named::Escape) => return Some(ev(EventoCodigo::SugestaoFechar)),
+                    _ => {}
+                }
+            }
             let tecla = match key { keyboard::Key::Character(c) => c.to_lowercase(), _ => String::new() };
             (mods.command() && matches!(tecla.as_str(), "z" | "y")).then(|| Msg::Lote(Vec::new()))
         })
@@ -326,6 +338,9 @@ fn area_codigo<'a>(app: &'a App, achadas: &[Ocorrencia]) -> Element<'a, Msg> {
         let colunas = colunas_visiveis(c.rolagem_h, largura);
         camadas = camadas.push(destaques(&texto, achadas, c.atual, visiveis, colunas));
     }
+    if lista_aberta {
+        camadas = camadas.push(lista_sugestoes(app, escuro, altura));
+    }
     // O Id do editor deixa o foco voltar a ele ao fechar a busca.
     let editor = camadas;
     // Both (não Horizontal): a rolagem só horizontal do pelicano gasta a roda
@@ -340,6 +355,58 @@ fn area_codigo<'a>(app: &'a App, achadas: &[Ocorrencia]) -> Element<'a, Msg> {
         .id(codigo::id_rolagem())
         .on_scroll(|v| ev(EventoCodigo::Rolou(v)))
         .height(Length::FILL).width(Length::FILL).into()
+}
+
+/// A lista do autocompletar logo abaixo do começo da palavra digitada (coordenadas do texto:
+/// a camada rola junto com o editor). Embaixo, a assinatura e o exemplo da escolhida.
+fn lista_sugestoes<'a>(app: &'a App, escuro: bool, altura_area: f32) -> Element<'a, Msg> {
+    const MAX_VISIVEIS: usize = 8;
+    const ALTURA_ITEM: f32 = 25.0;
+    let c = &app.macro_visual.codigo;
+    let (l, col) = codigo::linha_coluna(&app.macro_codigo);
+    let x = MARGEM_H + (col.saturating_sub(1 + c.parcial)) as f32 * LARGURA_CARACTERE;
+    // Janela de 8 itens que acompanha a escolhida.
+    let inicio = c.sugestao.saturating_sub(MAX_VISIVEIS - 1);
+    let mostrados = c.sugestoes.len().min(MAX_VISIVEIS);
+    let altura_caixa = mostrados as f32 * ALTURA_ITEM + 58.0;
+    // Abaixo da linha; sem espaço até o fim da área (ou da parte à vista), acima dela.
+    let fim_visivel = c.rolagem_v.map_or(altura_area, |(d, a)| (d + a).min(altura_area));
+    let abaixo = MARGEM_V + l as f32 * ALTURA_LINHA + 2.0;
+    let y = if abaixo + altura_caixa > fim_visivel {
+        (MARGEM_V + (l - 1) as f32 * ALTURA_LINHA - altura_caixa - 2.0).max(0.0)
+    } else { abaixo };
+    let mut itens = column(Vec::<Element<'a, Msg>>::new()).spacing(1);
+    for (i, s) in c.sugestoes.iter().enumerate().skip(inicio).take(MAX_VISIVEIS) {
+        let atual = i == c.sugestao;
+        itens = itens.push(button(row![
+            text(s.nome).font(Font::MONO).size(12).color(if atual { COR_AZUL_ACENTO() } else { COR_TEXTO() }),
+            Space::new(Length::FILL, 0.0),
+            text(if s.chamada { "ƒ" } else { "" }).size(11).color(COR_TEXTO_MUTED()),
+        ].spacing(8).align(pelicano::Align::Center))
+            .width(Length::FILL).height(Length::Fixed(ALTURA_ITEM - 1.0)).padding([3, 8])
+            .style(move |_, _| pelicano::Style {
+                background: atual.then(|| Background::Color(COR_AZUL_FUNDO())),
+                border: Border { radius: [4.0; 4], ..Default::default() },
+                ..Default::default()
+            })
+            .on_press(ev(EventoCodigo::SugestaoAceitar(Some(i)))));
+    }
+    if let Some(s) = c.sugestoes.get(c.sugestao) {
+        itens = itens.push(container(column![
+            text(s.assinatura).font(Font::MONO).size(11).color(COR_TEXTO()),
+            text(s.exemplo).font(Font::MONO).size(10).color(COR_TEXTO_MUTED()),
+        ].spacing(3)).padding([6, 8]));
+    }
+    let caixa = container(itens).width(Length::Fixed(380.0)).padding(4)
+        .style(move |_| pelicano::Style {
+            background: Some(Background::Color(if escuro { COR_PAINEL_FAIXA() } else { Color::WHITE })),
+            border: Border { color: COR_AZUL_ACENTO(), width: 1.0, radius: [6.0; 4] },
+            ..Default::default()
+        });
+    column![
+        Space::new(0.0, Length::Fixed(y)),
+        row![Space::new(Length::Fixed(x), 0.0), pelicano::opaque(caixa)],
+    ].into()
 }
 
 /// Área central do módulo: cabeçalho, busca, código e barra de ações.

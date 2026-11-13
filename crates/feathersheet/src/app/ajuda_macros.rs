@@ -3,7 +3,7 @@
 use feather_ui::ajuda::{Topico, Linha};
 use serde_json::Value;
 
-const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
+pub(crate) const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
     ("celulas", &[
         ("cell", "cell(address) · cells(row, col) · range(address)", "cell(\"A1\").value = 10;\ncells(2, 1).value = cell(\"A1\").value * 2;\nsheets(\"Vendas\").cell(\"C1\").value = \"Total\";"),
         ("value", "sheet.value(address)", "sheet.log(sheet.value(\"A1\"));"),

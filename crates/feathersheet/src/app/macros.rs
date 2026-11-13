@@ -3,6 +3,7 @@ use super::*;
 pub(in crate::app) mod editor_visual;
 pub(super) mod atalhos;
 pub(in crate::app) mod codigo;
+pub(in crate::app) mod autocompletar;
 pub(in crate::app) mod organizacao;
 pub(in crate::app) mod designer_formulario;
 pub use codigo::EventoCodigo;
