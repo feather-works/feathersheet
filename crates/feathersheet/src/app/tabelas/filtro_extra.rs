@@ -683,6 +683,23 @@ mod testes {
         app
     }
 
+    #[test]
+    fn delete_na_tabela_filtrada_nao_apaga_as_linhas_escondidas() {
+        let mut app = app_com_coluna(&["5", "20", "7", "30"]);
+        super::super::migracao::filtrar(&mut app.workbook, 0, "tab_Tabela1", 0,
+            Some(serde_json::json!({"op":"gt","val":10}))).unwrap();
+        assert_eq!(escondidas(&app), [1, 3]);
+        app.linha = 1; app.coluna = 0; app.fim_selecao = (4, 0);
+        app.limpar_celula();
+        assert_eq!(coluna(&app, 4), ["5", "", "7", ""]);
+        // Sem filtro ativo, linha oculta à mão é apagada (como no Excel).
+        let mut app = app_com_coluna(&["1", "2"]);
+        app.workbook.editar(0, |s| { s.registrar_dimensao(false, 1, Some(0)); });
+        app.linha = 1; app.coluna = 0; app.fim_selecao = (2, 0);
+        app.limpar_celula();
+        assert_eq!(coluna(&app, 2), ["", ""]);
+    }
+
     fn pintar(app: &mut App, r: u32, campo: &str, cor: &str) {
         let mut e = EstiloParcial::new();
         e.insert(campo.into(), Campo::Texto(cor.into()));

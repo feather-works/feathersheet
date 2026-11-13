@@ -36,6 +36,8 @@ pub fn shift_formula(raw: &str, dr: i32, dc: i32) -> String {
     if !raw.starts_with('=') || (dr == 0 && dc == 0) {
         return raw.to_string();
     }
+    // Colunas e linhas inteiras primeiro (o `map_references` só vê célula: `B:B` ficava `B:B`).
+    let raw = &crate::formula::formula_text::deslocar_inteiras(raw, dr, dc);
     map_references(raw, |r| {
         use crate::celulas::refs::{MAX_COLS, MAX_ROWS};
         let col=i64::from(r.col) + if r.col_lock {0} else {i64::from(dc)};
@@ -65,6 +67,11 @@ mod testes_limites_do_shift {
         assert_eq!(shift_formula("=$A$1+XFD1",0,1),"=$A$1+#REF!");
         assert_eq!(shift_formula("=A1+$B2+C$3",1,2),"=C2+$B3+E$3");
         assert_eq!(shift_formula("A1",1,0),"A1");
+        // M7 da auditoria de 13/11: coluna e linha inteiras andam junto.
+        assert_eq!(shift_formula("=SOMA(B:B)+SOMA($B:C)",0,1),"=SOMA(C:C)+SOMA($B:D)");
+        assert_eq!(shift_formula("=SOMA(Dados!5:7)+CONT.SE(B:B;\"B:B\")",1,1),"=SOMA(Dados!6:8)+CONT.SE(C:C;\"B:B\")");
+        assert_eq!(shift_formula("=SOMA(XFD:XFD)",0,1),"=SOMA(#REF!)");
+        assert_eq!(shift_formula("=SOMA(B:B)",5,0),"=SOMA(B:B)");
     }
 }
 

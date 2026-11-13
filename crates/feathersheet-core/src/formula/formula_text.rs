@@ -369,6 +369,40 @@ pub fn adjust_for_structure(raw: &str, options: StructureAdjustOptions) -> Strin
 /// Mesma regra do intervalo de células: anda junto, encolhe quando parte
 /// some, `#REF!` quando some inteiro.
 fn ajustar_inteiras(raw: &str, options: &StructureAdjustOptions, same: &dyn Fn(Option<&str>) -> bool) -> String {
+    let fim_do_corte = options.at + options.count;
+    mapear_inteiras(raw, |eixo, aba, (_, a), (_, b)| {
+        if eixo != options.axis || !same(aba) { return None; }
+        let (a, b) = (a.min(b) as i32, a.max(b) as i32);
+        if !options.removing {
+            let mover = |x: i32| if x >= options.at { x + options.count } else { x };
+            return Some(Some((mover(a), mover(b))));
+        }
+        if a >= options.at && b < fim_do_corte {
+            return Some(None);
+        }
+        let na = if a >= fim_do_corte { a - options.count } else if a >= options.at { options.at } else { a };
+        let nb = if b >= fim_do_corte { b - options.count } else if b >= options.at { options.at - 1 } else { b };
+        Some(Some((na, nb)))
+    })
+}
+
+/// Desloca colunas e linhas inteiras (`B:B` → `C:C`, `5:7` → `6:8`) ao copiar ou
+/// arrastar uma fórmula, respeitando o `$` de cada ponta; fora da folha vira `#REF!`.
+pub fn deslocar_inteiras(raw: &str, dr: i32, dc: i32) -> String {
+    mapear_inteiras(raw, |eixo, _, (lock_a, a), (lock_b, b)| {
+        let (d, max) = if eixo == Axis::Col { (dc, crate::celulas::refs::MAX_COLS) } else { (dr, crate::celulas::refs::MAX_ROWS) };
+        let mover = |lock: bool, x: u32| -> Option<i32> {
+            let n = i64::from(x) + if lock { 0 } else { i64::from(d) };
+            (0..i64::from(max)).contains(&n).then_some(n as i32)
+        };
+        Some(mover(lock_a, a).zip(mover(lock_b, b)))
+    })
+}
+
+/// Percorre as colunas e linhas inteiras (`B:B`, `Dados!$C:$I`, `5:7`) fora de aspas.
+/// `f(eixo, aba, (trava, ponta), (trava, ponta))` devolve as pontas novas, `Some(None)`
+/// para `#REF!`; o `$` de cada ponta é mantido.
+fn mapear_inteiras(raw: &str, mut f: impl FnMut(Axis, Option<&str>, (bool, u32), (bool, u32)) -> Option<Option<(i32, i32)>>) -> String {
     let chars: Vec<char> = raw.chars().collect();
     let letras = |at: usize| -> Option<(bool, u32, usize)> {
         let lock = chars.get(at) == Some(&'$');
@@ -386,53 +420,10 @@ fn ajustar_inteiras(raw: &str, options: &StructureAdjustOptions, same: &dyn Fn(O
         let n: u32 = chars[ini..fim].iter().collect::<String>().parse().ok().filter(|n| *n >= 1)?;
         Some((lock, n - 1, fim))
     };
-    let fim_do_corte = options.at + options.count;
-    // As duas pontas novas, ou `None` (#REF!) se o intervalo some inteiro.
-    let ajustar = |a: u32, b: u32| -> Option<(i32, i32)> {
-        let (a, b) = (a.min(b) as i32, a.max(b) as i32);
-        if !options.removing {
-            let mover = |x: i32| if x >= options.at { x + options.count } else { x };
-            return Some((mover(a), mover(b)));
-        }
-        if a >= options.at && b < fim_do_corte {
-            return None;
-        }
-        let na = if a >= fim_do_corte { a - options.count } else if a >= options.at { options.at } else { a };
-        let nb = if b >= fim_do_corte { b - options.count } else if b >= options.at { options.at - 1 } else { b };
-        Some((na, nb))
-    };
-    // A coluna/linha inteira que começa em `i`: o texto reescrito e onde
-    // ela termina.
-    let inteira_em = |i: usize| -> Option<(String, usize)> {
-        let prefixo = match_sheet_prefix(&chars, i);
-        let ini = i + prefixo.as_ref().map_or(0, |p| p.len);
-        let aba = prefixo.as_ref().map(|p| p.name.as_str());
-        for eixo in [Axis::Col, Axis::Row] {
-            let ler = |at: usize| if eixo == Axis::Col { letras(at) } else { digitos(at) };
-            let Some((lock_a, a, fim_a)) = ler(ini) else { continue };
-            if chars.get(fim_a) != Some(&':') { continue; }
-            let Some((lock_b, b, fim_b)) = ler(fim_a + 1) else { continue };
-            let depois = chars.get(fim_b).copied().unwrap_or('\0');
-            if is_glued_char(depois) || depois == '(' || depois == '!' { continue; }
-            if eixo != options.axis || !same(aba) {
-                return Some((chars[i..fim_b].iter().collect(), fim_b));
-            }
-            let prefixo_txt: String = chars[i..ini].iter().collect();
-            let escrever = |lock: bool, n: i32| {
-                let n = if eixo == Axis::Col { col_name(n as u32) } else { (n + 1).to_string() };
-                format!("{}{n}", if lock { "$" } else { "" })
-            };
-            return Some((match ajustar(a, b) {
-                None => "#REF!".to_string(),
-                Some((na, nb)) => format!("{prefixo_txt}{}:{}", escrever(lock_a, na), escrever(lock_b, nb)),
-            }, fim_b));
-        }
-        None
-    };
     let mut out = String::with_capacity(raw.len());
     let mut i = 0;
     let mut in_string = false;
-    while i < chars.len() {
+    'fora: while i < chars.len() {
         let c = chars[i];
         if in_string || c == '"' {
             if c == '"' { in_string = !in_string; }
@@ -442,10 +433,28 @@ fn ajustar_inteiras(raw: &str, options: &StructureAdjustOptions, same: &dyn Fn(O
         }
         let colada = i > 0 && (is_glued_char(chars[i - 1]) || chars[i - 1] == ':');
         if !colada {
-            if let Some((texto, fim)) = inteira_em(i) {
-                out.push_str(&texto);
-                i = fim;
-                continue;
+            let prefixo = match_sheet_prefix(&chars, i);
+            let ini = i + prefixo.as_ref().map_or(0, |p| p.len);
+            let aba = prefixo.as_ref().map(|p| p.name.as_str());
+            for eixo in [Axis::Col, Axis::Row] {
+                let ler = |at: usize| if eixo == Axis::Col { letras(at) } else { digitos(at) };
+                let Some((lock_a, a, fim_a)) = ler(ini) else { continue };
+                if chars.get(fim_a) != Some(&':') { continue; }
+                let Some((lock_b, b, fim_b)) = ler(fim_a + 1) else { continue };
+                let depois = chars.get(fim_b).copied().unwrap_or('\0');
+                if is_glued_char(depois) || depois == '(' || depois == '!' { continue; }
+                let prefixo_txt: String = chars[i..ini].iter().collect();
+                let escrever = |lock: bool, n: i32| {
+                    let n = if eixo == Axis::Col { col_name(n as u32) } else { (n + 1).to_string() };
+                    format!("{}{n}", if lock { "$" } else { "" })
+                };
+                match f(eixo, aba, (lock_a, a), (lock_b, b)) {
+                    None => out.extend(&chars[i..fim_b]),
+                    Some(None) => out.push_str("#REF!"),
+                    Some(Some((na, nb))) => out.push_str(&format!("{prefixo_txt}{}:{}", escrever(lock_a, na), escrever(lock_b, nb))),
+                }
+                i = fim_b;
+                continue 'fora;
             }
         }
         out.push(c);

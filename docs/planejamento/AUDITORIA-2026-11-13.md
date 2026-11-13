@@ -25,9 +25,11 @@ Testes: `planilha/workbook/tests_auditoria.rs` (um por item, com o resultado do 
   `NÚMSEMANA` ignorava o tipo (2 = semana começa na segunda; 21 = ISO).
 - ✅ M12. `TEXTO` sem seções (`"0,00;(0,00)"` dava "-000.005)") e sem os 15 algarismos
   (`TEXTO(2,675;"0,00")` dava "2,67").
-- ⏳ M7. Copiar ou arrastar fórmula não desloca coluna/linha inteira (`B:B` fica `B:B` em vez de `C:C`).
-- ⏳ M9. `PROCX` devolve só a primeira coluna do retorno, ignora o modo de pesquisa (-1 = do fim)
-  e o modo 2 (curinga). `posicao_xmatch` já sabe as duas coisas.
+- ✅ M7. Copiar ou arrastar fórmula desloca coluna/linha inteira (`B:B` → `C:C`, `5:7` → `6:8`, com `$`):
+  `formula_text::deslocar_inteiras`, no mesmo varredor do inserir/excluir (`mapear_inteiras`).
+- ✅ M9. `PROCX` devolve a linha inteira do retorno de várias colunas (derrama; só essa forma de PROCX
+  deixa de ir para a coluna empacotada), procura do fim (-1/-2) e com curinga (modo 2), pelo
+  `posicao_xmatch`; modo inválido dá #VALOR!.
 - Fica (anotado): `ANO(vazia)` dá 1899 e os seriais 1 a 60 diferem do Excel, porque o motor não
   tem o 29/02/1900 que não existiu. Mudar a numeração mexe na compatibilidade dos arquivos.
 - Menores, não feitos: `DATA(24;1;1)` (o Excel lê 1924), `=""+1` (o Excel dá #VALOR!), critério
@@ -73,8 +75,8 @@ O Ctrl+S de um `.xlsx` grava por cima do próprio `.xlsx`: cada perda abaixo cai
 - ✅ P6. Ctrl+Z de inserir linha levava embora macro salva depois (e formulários, estilos, propriedades).
 - ⏳ P7. Renomear aba põe a reescrita das fórmulas no Ctrl+Z de cada aba (desfazer ali quebra as fórmulas).
 - ✅ P8. Excluir aba com fórmula em edição fazia o Enter gravar na aba errada: agora pede para terminar antes.
-- ⏳ P9. Delete numa faixa filtrada apaga também as linhas escondidas (o Excel só apaga as visíveis).
-  Falta saber, no motor, quais linhas o filtro escondeu (as ocultas à mão o Excel apaga).
+- ✅ P9. Delete numa tabela ou AutoFiltro com filtro ativo pula as linhas escondidas
+  (`tabelas::puladas_pelo_filtro`). Sem filtro ativo, linha oculta à mão é apagada, como no Excel.
 
 Não lidos pelas auditorias: gráficos, dinâmica (além do fundo), editor de macros, FeatherQuery,
 vínculos entre janelas, impressão, o formato `.fshz` em detalhe, estilos do leitor de `.xlsx`.

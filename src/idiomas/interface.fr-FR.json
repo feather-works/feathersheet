@@ -1,4 +1,6 @@
 {
+ "Cursor da IA na tela": "Curseur de l'IA à l'écran",
+ "Ligado: a IA pode mover o mouse e clicar na janela, com o cursor \"Claude\" à vista. Desligado: ela só usa as ferramentas, sem mexer no mouse.": "Activé : l'IA peut déplacer la souris et cliquer dans la fenêtre, avec le curseur « Claude » visible. Désactivé : elle utilise seulement les outils, sans toucher à la souris.",
  "O nome da consulta não pode ficar vazio": "Le nom de la requête ne peut pas être vide",
  "Já existe uma consulta chamada '{novo}'": "Une requête nommée « {novo} » existe déjà",
  "Renomear consulta": "Renommer la requête",

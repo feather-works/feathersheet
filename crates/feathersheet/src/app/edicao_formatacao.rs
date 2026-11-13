@@ -358,11 +358,16 @@ impl App {
         let sem_caixas = todas_desmarcadas.then(|| caixas.sem_caixas_nas(&selecao)).flatten();
         if areas.is_empty() && sem_caixas.is_none() { return; }
         let principal = self.area_selecionada();
+        // Linhas que o filtro escondeu ficam como estão (P9 da auditoria de 13/11).
+        let puladas: std::collections::HashSet<u32> = {
+            let pular = super::tabelas::puladas_pelo_filtro(&aba.sheet);
+            areas.iter().flat_map(|a| a.r0..=a.r1).filter(|&r| pular(r)).collect()
+        };
         // Todas as áreas numa transação: um Ctrl+Z desfaz tudo.
         self.workbook.editar(self.folha, |sheet| {
             sheet.abrir_transacao();
             for area in &areas {
-                for r in area.r0..=area.r1 {
+                for r in (area.r0..=area.r1).filter(|r| !puladas.contains(r)) {
                     for c in area.c0..=area.c1 {
                         match caixas.caixa_em(r, c) {
                             Some((_, d)) if sem_caixas.is_none() => {

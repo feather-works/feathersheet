@@ -1,4 +1,6 @@
 {
+ "Cursor da IA na tela": "AI cursor on screen",
+ "Ligado: a IA pode mover o mouse e clicar na janela, com o cursor \"Claude\" à vista. Desligado: ela só usa as ferramentas, sem mexer no mouse.": "On: the AI can move the mouse and click in the window, with the \"Claude\" cursor visible. Off: it only uses the tools, without touching the mouse.",
  "O nome da consulta não pode ficar vazio": "The query name cannot be empty",
  "Já existe uma consulta chamada '{novo}'": "A query named '{novo}' already exists",
  "Renomear consulta": "Rename query",

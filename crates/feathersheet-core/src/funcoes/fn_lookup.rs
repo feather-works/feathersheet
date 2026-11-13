@@ -341,14 +341,16 @@ pub fn fn_xlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         None => return err_value(),
     };
 
-    let mode = if has(args, 4) {
-        match ev.number(&args[4]) {
-            Ok(n) => n.trunc() as i32,
-            Err(e) => return Computed::Scalar(Value::Error(e)),
-        }
-    } else {
-        0
+    let inteiro = |i: usize, padrao: i64| -> Result<i64, CellError> {
+        if has(args, i) { ev.number(&args[i]).map(|n| n.trunc() as i64) } else { Ok(padrao) }
     };
+    let (mode, pesquisa) = match (inteiro(4, 0), inteiro(5, 1)) {
+        (Ok(m), Ok(p)) => (m, p),
+        (Err(e), _) | (_, Err(e)) => return Computed::Scalar(Value::Error(e)),
+    };
+    if !(-1..=2).contains(&mode) || !matches!(pesquisa, -2 | -1 | 1 | 2) {
+        return err_value();
+    }
 
     let is_row_vector = from_rect.r0 == from_rect.r1;
     let count = if is_row_vector {
@@ -369,11 +371,18 @@ pub fn fn_xlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         }
     };
 
-    let to_cell = |idx: u32| {
+    // O achado: a célula, ou a linha (coluna) inteira do retorno quando ele tem
+    // várias colunas (linhas), como no Excel (`=PROCX(A2;Base!A:A;Base!B:D)`).
+    let to_cell = |idx: u32| -> Computed {
+        let ler = |r: u32, c: u32| para.valor(ev, r, c).into_owned();
         if is_row_vector {
-            para.valor(ev, to_rect.r0, to_rect.c0 + idx).into_owned()
+            let c = to_rect.c0 + idx;
+            if to_rect.r0 == to_rect.r1 { return Computed::Scalar(ler(to_rect.r0, c)); }
+            Computed::Matrix(Matrix::new((to_rect.r0..=to_rect.r1).map(|r| vec![ler(r, c)]).collect()))
         } else {
-            para.valor(ev, to_rect.r0 + idx, to_rect.c0).into_owned()
+            let r = to_rect.r0 + idx;
+            if to_rect.c0 == to_rect.c1 { return Computed::Scalar(ler(r, to_rect.c0)); }
+            Computed::Matrix(Matrix::new(vec![(to_rect.c0..=to_rect.c1).map(|c| ler(r, c)).collect()]))
         }
     };
 
@@ -381,58 +390,22 @@ pub fn fn_xlookup(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     // sem varrer (1 milhão de `PROCX` × 200 produtos eram 200 milhões de
     // comparações). Onde o índice não se aplica, varre como sempre. Só com
     // vetor: numa área de 2D cortada na borda usada o índice contaria
-    // posições pela outra direção.
-    if mode == 0 && (from_rect.r0 == from_rect.r1 || from_rect.c0 == from_rect.c1) {
+    // posições pela outra direção. Do fim para o começo, o índice daria o primeiro.
+    if mode == 0 && pesquisa > 0 && (from_rect.r0 == from_rect.r1 || from_rect.c0 == from_rect.c1) {
         if let Some(achado) = de.lida().and_then(|f| f.posicao_exata(&lookup_val)) {
             return match achado {
-                Some(idx) if idx < count => Computed::Scalar(to_cell(idx)),
+                Some(idx) if idx < count => to_cell(idx),
                 _ if has(args, 3) => ev.eval_array(&args[3]),
                 _ => err_na(),
             };
         }
     }
 
-    let mut fallback_idx = None;
-
-    for idx in 0..count {
-        let v = from_cell(idx);
-        let v: &Value = &v;
-        if mode == 0 || mode == 2 {
-            if valores_iguais(v, &lookup_val) {
-                return Computed::Scalar(to_cell(idx));
-            }
-        } else {
-            if compare(v, &lookup_val) == Ok(std::cmp::Ordering::Equal) {
-                return Computed::Scalar(to_cell(idx));
-            }
-            if mode == -1 && compare(v, &lookup_val) == Ok(std::cmp::Ordering::Less) {
-                if let Some(fb) = fallback_idx {
-                    if compare(v, &from_cell(fb)) == Ok(std::cmp::Ordering::Greater) {
-                        fallback_idx = Some(idx);
-                    }
-                } else {
-                    fallback_idx = Some(idx);
-                }
-            } else if mode == 1 && compare(v, &lookup_val) == Ok(std::cmp::Ordering::Greater) {
-                if let Some(fb) = fallback_idx {
-                    if compare(v, &from_cell(fb)) == Ok(std::cmp::Ordering::Less) {
-                        fallback_idx = Some(idx);
-                    }
-                } else {
-                    fallback_idx = Some(idx);
-                }
-            }
-        }
-    }
-
-    if let Some(fb) = fallback_idx {
-        return Computed::Scalar(to_cell(fb));
-    }
-
-    if has(args, 3) {
-        ev.eval_array(&args[3])
-    } else {
-        err_na()
+    // O mesmo miolo do CORRESPX: curinga (modo 2), aproximado (-1/1) e do fim (-1/-2).
+    match posicao_xmatch(count as usize, |i| from_cell(i as u32).into_owned(), &lookup_val, mode, pesquisa) {
+        Ok(idx) => to_cell(idx as u32),
+        Err(_) if has(args, 3) => ev.eval_array(&args[3]),
+        Err(e) => Computed::Scalar(Value::Error(e)),
     }
 }
 

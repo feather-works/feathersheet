@@ -105,6 +105,8 @@ pub struct Configuracao {
     pub mcp_ativo: bool,
     /// Com o MCP ligado, a IA só lê (não escreve, não formata, não salva).
     pub mcp_so_leitura: bool,
+    /// O cursor "Claude" (`sheet_mouse`): a IA move o mouse e clica na janela. Desligado de fábrica.
+    pub mcp_cursor: bool,
     /// O arquivo de preferências já existia ao abrir (não é instalação nova).
     /// Não é gravado.
     #[serde(skip)]
@@ -187,6 +189,7 @@ impl Default for Configuracao {
             barra_status: barra_status_padrao(),
             mcp_ativo: false,
             mcp_so_leitura: false,
+            mcp_cursor: false,
             existia: false,
         }
     }

@@ -344,7 +344,7 @@ pub enum Msg {
     /// Arquivo escolhido no diálogo Abrir (a leitura começa depois).
     ArquivoEscolhido(Option<PathBuf>),
     /// Configurações → IA (MCP): ligar o canal e somente leitura.
-    McpAtivo(bool), McpSoLeitura(bool),
+    McpAtivo(bool), McpSoLeitura(bool), McpCursor(bool),
     /// Referências a outros arquivos: canal entre janelas, faixa e Editar links.
     Vinculos(vinculos::Evento),
     /// Copia um texto da tela (comando de conexão do MCP…).

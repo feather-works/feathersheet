@@ -438,7 +438,8 @@ fn secao_mcp(app: &App) -> Element<'_, Msg> {
     for f in feathersheet_mcp::esquemas::todas() {
         let nome = f["name"].as_str().unwrap_or("").to_owned();
         let le = feathersheet_mcp::permissoes::so_le(&nome, &serde_json::json!({ "acao": "listar" }));
-        let pode = app.config.mcp_ativo && (le || !app.config.mcp_so_leitura);
+        let pode = app.config.mcp_ativo && (le || !app.config.mcp_so_leitura)
+            && (nome != "sheet_mouse" || app.config.mcp_cursor);
         ferramentas = ferramentas.push(row![
             feather_ui::icones::icone(if pode { "check" } else { "x" }, 13.0),
             text(nome).size(12).font(pelicano::Font::MONO).width(Length::Fixed(170.0)),
@@ -452,6 +453,9 @@ fn secao_mcp(app: &App) -> Element<'_, Msg> {
         linha(tr!("Somente leitura"),
             tr!("A IA pode ler, resumir, procurar e conferir, mas não escreve, não formata, não salva nem aperta botões."),
             toggler("", app.config.mcp_so_leitura).on_toggle(Msg::McpSoLeitura).color(COR_AZUL_ACENTO())),
+        linha(tr!("Cursor da IA na tela"),
+            tr!("Ligado: a IA pode mover o mouse e clicar na janela, com o cursor \"Claude\" à vista. Desligado: ela só usa as ferramentas, sem mexer no mouse."),
+            toggler("", app.config.mcp_cursor).on_toggle(Msg::McpCursor).color(COR_AZUL_ACENTO())),
         linha(tr!("Estado"), tr!("O canal só aceita programas desta máquina que conhecem a chave da sessão."),
             text(estado).size(12)),
         text(tr!("Conectar ao Claude Code (terminal)")).size(13),

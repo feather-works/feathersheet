@@ -139,6 +139,11 @@ impl App {
                 mcp_vivo::somente_leitura(sim);
                 Task::none()
             }
+            Msg::McpCursor(sim) => {
+                self.config.mcp_cursor = sim;
+                self.config.gravar();
+                Task::none()
+            }
             Msg::CopiarTexto(texto) => {
                 self.status = tr!("Copiado para a área de transferência.").into();
                 Task::write_clipboard(texto)

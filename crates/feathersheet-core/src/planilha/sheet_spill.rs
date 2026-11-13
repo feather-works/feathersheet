@@ -50,6 +50,9 @@ pub fn maybe_matrix(ast: &Node) -> bool {
     let mut dynamic = false;
     ast.walk(&mut |n| match n {
         Node::Call { name, .. } if functions::is_dynamic(name) => dynamic = true,
+        // PROCX com retorno de várias colunas (ou linhas) devolve a linha inteira.
+        Node::Call { name, args } if functions::canonical(name) == Some("XLOOKUP")
+            && matches!(args.get(2), Some(Node::Range { r0, c0, r1, c1, .. }) if r1 > r0 && c1 > c0) => dynamic = true,
         Node::Array { .. } => dynamic = true,
         _ => {}
     });

@@ -605,6 +605,8 @@ impl App {
             let roteiro = args["roteiro"].as_str().unwrap_or("");
             let erro = match alvo {
                 None => Some(format!("A janela \"{janela}\" não está aberta.")),
+                Some(_) if !self.config.mcp_cursor =>
+                    Some("O cursor da IA está desligado (Configurações ▸ IA (MCP) ▸ Cursor da IA na tela); só a pessoa pode ligá-lo.".to_string()),
                 // O cursor do agente não clica em diálogo de segurança (macros, programas externos):
                 // essa decisão é da pessoa na frente da tela.
                 Some(_) if self.aviso_macros || self.macro_programas.is_some() =>

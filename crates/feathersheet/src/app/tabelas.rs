@@ -297,6 +297,15 @@ pub(crate) fn e_celula_de_total(visuais: &[Visual], r: u32, c: u32) -> bool {
     visuais.iter().any(|v|!v.so_filtro && v.mostrar_totais &&
         r==v.area.r1+1 && c>=v.area.c0 && c<=v.area.c1)
 }
+/// Linhas de dados escondidas dentro de uma tabela ou AutoFiltro com filtro ativo: o Delete
+/// do Excel não as apaga. (Com filtro ativo, o Excel pula também as ocultas à mão ali dentro.)
+pub(crate) fn puladas_pelo_filtro(sheet: &Sheet) -> impl Fn(u32) -> bool + '_ {
+    let faixas: Vec<(u32, u32)> = if sheet.tem_linhas_ocultas() {
+        visuais(sheet).into_iter().filter(|v| !v.filtros.is_empty())
+            .map(|v| (v.area.r0 + u32::from(v.cabecalho || v.so_filtro), v.area.r1)).collect()
+    } else { Vec::new() };
+    move |r| faixas.iter().any(|&(a, b)| r >= a && r <= b) && sheet.linha_oculta(r)
+}
 pub(crate) fn tem_filtro_cabecalho(sheet: &Sheet, r: u32, c: u32) -> bool {
     icone_filtro(&visuais(sheet),r,c).is_some()
 }

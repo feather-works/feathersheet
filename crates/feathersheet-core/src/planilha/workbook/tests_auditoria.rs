@@ -76,3 +76,24 @@ fn a12_texto_com_secoes_e_arredondamento() {
     assert_eq!(num(&w, 0, 0), Value::Text("(5,00)".into()));
     assert_eq!(num(&w, 0, 1), Value::Text("2,68".into()));
 }
+
+#[test]
+fn a09_procx_linha_inteira_do_fim_e_curinga() {
+    // A:A chave, B:C retorno; "x" aparece duas vezes.
+    let w = pasta(&[
+        (0, 0, "x"), (0, 1, "1"), (0, 2, "10"),
+        (1, 0, "maçã"), (1, 1, "2"), (1, 2, "20"),
+        (2, 0, "x"), (2, 1, "3"), (2, 2, "30"),
+        (0, 4, "=PROCX(\"x\";A1:A3;B1:C3)"),
+        (1, 4, "=PROCX(\"x\";A1:A3;B1:B3;;0;-1)"),
+        (2, 4, "=PROCX(\"ma*\";A1:A3;B1:B3;\"nada\";2)"),
+        (3, 4, "=PROCX(\"ma*\";A1:A3;B1:B3;\"nada\")"),
+        (4, 4, "=PROCX(\"x\";A1:A3;B1:B3;;0;3)"),
+    ]);
+    assert_eq!(num(&w, 0, 4), Value::Number(1.0));
+    assert_eq!(num(&w, 0, 5), Value::Number(10.0), "a linha inteira derrama para F1");
+    assert_eq!(num(&w, 1, 4), Value::Number(3.0), "do fim para o começo");
+    assert_eq!(num(&w, 2, 4), Value::Number(2.0), "curinga no modo 2");
+    assert_eq!(num(&w, 3, 4), Value::Text("nada".into()), "sem o modo 2, * é letra");
+    assert!(matches!(num(&w, 4, 4), Value::Error(_)), "modo de pesquisa inválido");
+}

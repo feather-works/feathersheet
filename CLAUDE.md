@@ -23,11 +23,17 @@ falta, está em `docs/planejamento/AUDITORIA-2026-11-13.md`. Feitos e testados (
 - **Ctrl+S de `.xlsx` sem perder:** formato de coluna inteira (cada célula com o estilo combinado,
   `<col style>` nas vazias), painéis congelados e linhas de grade (`xlsx_write::com_vistas`, a vista
   mora no app); imagens e formas do arquivo entram no aviso de "Salvar como" (`nao_convertidos`).
+Depois (mesmo dia): M7 (copiar fórmula desloca `B:B`), M9 (PROCX com linha inteira, do fim e curinga) e
+P9 (Delete na tabela filtrada não apaga as escondidas); e o cursor do Claude (`sheet_mouse`) agora tem
+liga/desliga em Configurações ▸ IA (MCP) ▸ "Cursor da IA na tela" (`config.mcp_cursor`, desligado de fábrica).
 Ficou de fora (anotado): `ANO(vazia)` dá 1899 porque o motor não tem o 29/02/1900 falso do Excel.
 Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e critério 0 nos CONT.SE e SOMASE, ÍNDICE com linha 0, TEXTO com seções."
 "Ctrl+Z depois de abrir outro arquivo não traz mais o anterior; excluir aba com dados pede confirmação."
 "CSV exportado com datas e porcentagens como aparecem na célula; .xlsx com coluna inteira abre no Excel sem reparo."
 "Salvar .xlsx mantém o formato da coluna inteira, os painéis congelados e as linhas de grade; imagem do arquivo pede Salvar como."
+"PROCX traz a linha inteira, procura do fim e aceita curinga; copiar fórmula com B:B anda para C:C."
+"Delete numa tabela filtrada só apaga as linhas visíveis, como no Excel."
+"Cursor da IA na tela: liga e desliga em Configurações ▸ IA (MCP)."
 
 **FeatherQuery: renomear consulta (#93, 13/11).** Lápis na lista de consultas abre o campo do nome
 (`Evento::PedirRenomear`, `Estado::renomeando`); `registro::renomear` recusa vazio e repetido e troca o
