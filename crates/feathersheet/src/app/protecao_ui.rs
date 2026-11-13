@@ -140,7 +140,13 @@ impl App {
     /// Processa a mensagem com a aba protegida vigiada: a metade "depois"
     /// desfaz o que a ação fez e a proteção não deixa.
     pub(super) fn processar_protegido(&mut self, msg: Msg) -> Task<Msg> {
+        // Intervalos liberados (Permitir edição de intervalos) valem antes de conferir.
+        self.liberar_areas();
         if let Some(recusa) = self.recusa_antes(&msg) {
+            // Célula de intervalo com senha: pede a senha em vez de só recusar.
+            if recusa == Recusa::celula_bloqueada() && self.pedir_senha_do_intervalo() {
+                return Task::none();
+            }
             self.status = recusa.0;
             return Task::none();
         }

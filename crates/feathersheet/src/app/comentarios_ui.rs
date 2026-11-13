@@ -215,6 +215,8 @@ impl App {
             self.faixa_grupo(tr!("Proteger"), self.faixa_linha(vec![
                 self.faixa_grande(tr!("Proteger planilha"), "lock", Some(Msg::Protecao(protecao_ui::Evento::Abrir)),
                     self.workbook.aba(self.folha).is_some_and(|a| a.sheet.protegida())),
+                self.faixa_grande(tr!("Permitir edição de intervalos"), "lock-open",
+                    Some(Msg::Intervalos(intervalos_ui::Evento::Abrir)), self.intervalos_dialogo.is_some()),
                 self.faixa_grande(tr!("Proteger pasta de trabalho"), "lock",
                     Some(Msg::Protecao(protecao_ui::Evento::AbrirPasta)),
                     self.workbook.propriedades.protecao_estrutura.is_some()),

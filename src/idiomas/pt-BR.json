@@ -160,7 +160,7 @@
         "corpo": [
           "• Revisão → Novo comentário anota a célula; passar o mouse mostra o balão. Anterior e Próximo percorrem os comentários; Mostrar todos os comentários deixa todos à vista.",
           "• Página Inicial → Limpar → Limpar comentários apaga os da seleção.",
-          "• Revisão → Proteger planilha (ou Proteger pasta de trabalho) impede mudanças; em Página Inicial → Formatar dá para bloquear ou desbloquear células antes."
+          "• Revisão → Proteger planilha (ou Proteger pasta de trabalho) impede mudanças; em Página Inicial → Formatar dá para bloquear ou desbloquear células antes. Revisão → Permitir edição de intervalos deixa intervalos editáveis com a planilha protegida, com senha opcional (pedida ao digitar no intervalo)."
         ]
       },
       "desenhar": {

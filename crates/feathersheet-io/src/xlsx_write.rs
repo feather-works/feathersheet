@@ -1374,6 +1374,27 @@ fn protecao_xml(p: &feathersheet_core::planilha::sheet::protecao::ProtecaoPlanil
     s
 }
 
+/// `<protectedRanges>` (Permitir edição de intervalos) a partir do `pr` da aba. Intervalo com
+/// senha de outro formato (o PBKDF2 do app antigo) não tem como ir para o Excel e fica de fora.
+fn intervalos_xml(pr: Option<&str>) -> String {
+    let lista: Vec<serde_json::Value> = pr.and_then(|t| serde_json::from_str(t).ok()).unwrap_or_default();
+    let itens: String = lista.iter().filter_map(|i| {
+        let a = &i["area"];
+        let n = |k: &str| a[k].as_u64().map(|v| v as u32);
+        let (r0, c0, r1, c1) = (n("r0")?, n("c0")?, n("r1")?, n("c1")?);
+        let nome = i["descricao"].as_str().filter(|d| !d.is_empty()).unwrap_or("Intervalo");
+        let s = &i["senha"];
+        let senha = match (s["alg"].as_str(), s["hash"].as_str(), s["sal"].as_str(), s["giros"].as_u64()) {
+            _ if s.is_null() => String::new(),
+            (Some(alg), Some(hash), Some(sal), Some(giros)) => format!(" algorithmName=\"{}\" hashValue=\"{}\" saltValue=\"{}\" spinCount=\"{giros}\"",
+                escape_xml(alg), escape_xml(hash), escape_xml(sal)),
+            _ => return None,
+        };
+        Some(format!("<protectedRange name=\"{}\" sqref=\"{}:{}\"{senha}/>", escape_xml(nome), cell_name(r0.min(1_048_575), c0.min(16_383)), cell_name(r1.min(1_048_575), c1.min(16_383))))
+    }).collect();
+    if itens.is_empty() { String::new() } else { format!("<protectedRanges>{itens}</protectedRanges>") }
+}
+
 /// O `sheetN.xml` de uma aba e as relações dela (só quando há link).
 fn aba_xml(
     pasta: &Workbook,
@@ -1603,7 +1624,8 @@ fn aba_xml(
         )
     };
 
-    let protecao = sheet.protecao.as_ref().map(protecao_xml).unwrap_or_default();
+    // `protectedRanges` vem logo depois de `sheetProtection` no CT_Worksheet.
+    let protecao = sheet.protecao.as_ref().map(protecao_xml).unwrap_or_default() + &intervalos_xml(sheet.pr.as_deref());
     // Ordem do CT_Worksheet: ... mergeCells, conditionalFormatting,
     // dataValidations, hyperlinks, printOptions, pageMargins ...
     let condicional = crate::xlsx_write_condicional::condicional_xml(sheet, &mut |e| estilos.dxf(e));
@@ -2234,6 +2256,27 @@ mod testes {
         assert!(s.estilo_resolvido(0, 1).is_some_and(|e| e.bold), "célula da coluna");
         assert!(s.estilo_resolvido(5, 1).is_some_and(|e| e.bold), "vazia da coluna (pelo <col style>)");
         assert!(s.estilo_resolvido(0, 0).is_none_or(|e| !e.bold), "outra coluna sem negrito");
+    }
+
+    #[test]
+    fn intervalos_liberados_vao_e_voltam_no_xlsx() {
+        let pr = serde_json::json!([
+            {"id": "a", "descricao": "Metas", "area": {"r0": 1, "c0": 1, "r1": 3, "c1": 2}, "senha": null},
+            {"id": "b", "descricao": "Custos", "area": {"r0": 5, "c0": 0, "r1": 5, "c1": 0},
+             "senha": {"alg": "SHA-512", "hash": "aGFzaA==", "sal": "c2Fs", "giros": 100000}},
+            {"id": "c", "descricao": "Antigo", "area": {"r0": 0, "c0": 0, "r1": 0, "c1": 0},
+             "senha": {"alg": "PBKDF2-SHA256", "iteracoes": 600000, "sal": "c2Fs", "hash": "aGFzaA=="}},
+        ]);
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 0, "x".into());
+        pasta.editar(0, |s| s.pr = Some(pr.to_string()));
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(gerar_xlsx(&pasta).unwrap()).unwrap();
+        let volta: serde_json::Value = serde_json::from_str(lida.aba(0).unwrap().sheet.pr.as_deref().unwrap()).unwrap();
+        assert_eq!(volta.as_array().unwrap().len(), 2, "o de senha antiga não vai para o Excel");
+        assert_eq!(volta[0]["descricao"], "Metas");
+        assert_eq!(volta[0]["area"], pr[0]["area"]);
+        assert!(volta[0]["senha"].is_null());
+        assert_eq!(volta[1]["senha"], pr[1]["senha"]);
     }
 
     #[test]

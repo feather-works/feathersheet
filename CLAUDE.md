@@ -46,6 +46,14 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**Permitir edição de intervalos (#82, 13/11).** Revisão ▸ Proteger: `app/intervalos_ui.rs` guarda os intervalos no `pr`
+da aba (o campo antigo do TS, agora com a senha no formato do Excel: `{alg,hash,sal,giros}`), `.xlsx` em `<protectedRanges>`.
+O motor só vê `Sheet::areas_liberadas` (não vai para o arquivo), posto por `App::liberar_areas` antes de cada ação conferida;
+`celula_travada` = bloqueada no estilo e fora delas. Digitar em célula travada de intervalo com senha abre a caixa da senha
+(`senha_intervalo`); a certa vale até fechar o arquivo (`intervalos_abertos`). Mudar a lista só com a aba desprotegida. Senha
+PBKDF2 do app antigo não confere e não vai para o `.xlsx`. Novidade: "Revisão ▸ Permitir edição de intervalos: partes da
+planilha protegida continuam editáveis, com senha se quiser; vai e volta do Excel."
+
 **Organizar e Painel de Seleção (#79, 13/11).** `App::grupo_organizar` (Formato da forma e Layout da Página): trazer/
 enviar, alinhar e girar o objeto selecionado (sem seleção ficam apagados) e o Painel de Seleção (`objetos.painel_selecao`,
 encostado à direita): lista os objetos da aba (o da frente em cima), clique seleciona, olho oculta (`extras.oculto`, o

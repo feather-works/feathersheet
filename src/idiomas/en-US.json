@@ -160,7 +160,7 @@
         "corpo": [
           "• Review → New comment annotates the cell; hovering shows the balloon. Previous and Next go through comments; Show all comments keeps them all visible.",
           "• Home → Clear → Clear comments removes the ones in the selection.",
-          "• Review → Protect Sheet (or Protect Workbook) blocks changes; in Home → Format you can lock or unlock cells first."
+          "• Review → Protect Sheet (or Protect Workbook) blocks changes; in Home → Format you can lock or unlock cells first. Review → Allow Edit Ranges keeps ranges editable with the sheet protected, with an optional password (asked when you type in the range)."
         ]
       },
       "desenhar": {

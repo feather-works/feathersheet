@@ -110,6 +110,9 @@ pub struct SheetJson {
     /// `<sheetProtection sheet="1">`.
     #[serde(skip)]
     pub protecao: Option<feathersheet_core::planilha::sheet::protecao::ProtecaoPlanilha>,
+    /// `<protectedRanges>` no JSON do `pr` (Permitir edição de intervalos).
+    #[serde(skip)]
+    pub intervalos: Option<String>,
     /// Validação de dados (`<dataValidations>` e `x14`), já no formato do motor.
     #[serde(skip)]
     pub validacoes: Vec<feathersheet_core::operacoes::validation::Validacao>,
@@ -150,6 +153,22 @@ fn ler_protecao(no: &XmlNode) -> Option<feathersheet_core::planilha::sheet::prot
         giros: no.attr("spinCount")?.parse().ok()?,
     }))();
     Some(ProtecaoPlanilha { senha, permitidas })
+}
+
+/// `<protectedRanges>` → `[{id, descricao, area, senha?}]` (o `pr` da aba). Só a primeira área do `sqref`.
+fn ler_intervalos(no: &XmlNode) -> String {
+    let lista: Vec<serde_json::Value> = no.children_named("protectedRange").enumerate().filter_map(|(i, r)| {
+        let sqref = r.attr("sqref")?.split_whitespace().next()?.replace('$', "");
+        let mut partes = sqref.split(':');
+        let a = parse_cell_ref(partes.next()?)?;
+        let b = partes.next().and_then(parse_cell_ref).unwrap_or(a);
+        let senha = (|| Some(serde_json::json!({ "alg": r.attr("algorithmName")?, "hash": r.attr("hashValue")?,
+            "sal": r.attr("saltValue")?, "giros": r.attr("spinCount")?.parse::<u64>().ok()? })))();
+        Some(serde_json::json!({ "id": format!("x{}", i + 1), "descricao": r.attr("name").unwrap_or(""),
+            "area": { "r0": a.row.min(b.row), "c0": a.col.min(b.col), "r1": a.row.max(b.row), "c1": a.col.max(b.col) },
+            "senha": senha }))
+    }).collect();
+    serde_json::to_string(&lista).unwrap_or_default()
 }
 
 pub fn read_rels(xml: &str) -> HashMap<String, String> {
@@ -540,6 +559,7 @@ fn aplicar_metadados(
         .unwrap_or(15.0);
 
     sheet.protecao = root.child("sheetProtection").and_then(ler_protecao);
+    sheet.intervalos = root.child("protectedRanges").map(ler_intervalos).filter(|t| t != "[]");
     let (validacoes, fora) = super::validacoes::ler(root);
     if fora > 0 {
         feathersheet_core::anotar!("[abrir] {fora} validação(ões) de tipo ainda sem regra no FeatherSheet (tamanho do texto, hora ou personalizada) ficaram de fora");

@@ -262,9 +262,12 @@ pub struct Sheet {
     pub max_col: u32,
     /// Blocos opacos de metadados preservados sem alteração.
     pub g: Option<String>,
-    /// Intervalos protegidos por senha (só o hash; ver `ui/protecao/protecao.ts`),
-    /// em JSON opaco: o Rust só os carrega de volta para o arquivo.
+    /// "Permitir edição de intervalos" (Revisão, como no Excel): lista JSON
+    /// `[{id, descricao, area:{r0,c0,r1,c1}, senha?}]`, lida pelo app (`app/intervalos_ui.rs`).
     pub pr: Option<String>,
+    /// Áreas que a proteção da aba deixa editar agora (intervalos sem senha ou com a senha
+    /// já digitada nesta sessão). Posto pelo app a partir do `pr`; não vai para o arquivo.
+    pub areas_liberadas: Vec<Rect>,
     pub r: Option<String>,
     pub tb: Option<String>,
     pub oq: Option<String>,
@@ -391,6 +394,7 @@ impl Sheet {
             max_col: 0,
             g: None,
             pr: None,
+            areas_liberadas: Vec::new(),
             r: None,
             tb: None,
             oq: None,

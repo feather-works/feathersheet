@@ -607,6 +607,7 @@ impl App {
         let base = self.sobrepor_criar_nomes(base);
         let base = self.sobrepor_avaliar(base);
         let base = self.sobrepor_link(base);
+        let base = self.sobrepor_intervalos(base);
         let base = self.sobrepor_comentario(base);
         let base = self.sobrepor_dimensao(base);
         let base = self.sobrepor_celulas(base);

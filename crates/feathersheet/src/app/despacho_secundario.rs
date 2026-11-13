@@ -38,6 +38,7 @@ impl App {
                 Task::none()
             }
             Msg::Protecao(evento) => self.evento_protecao(evento),
+            Msg::Intervalos(evento) => self.evento_intervalos(evento),
             Msg::SenhaArquivo(evento) => self.evento_senha_arquivo(evento),
             Msg::CopiarAba(evento) => self.evento_copiar_aba(evento),
             Msg::Comentario(evento) => self.evento_comentario(evento),

@@ -160,7 +160,7 @@
         "corpo": [
           "• Révision → Nouveau commentaire annote la cellule ; le survol affiche la bulle. Précédent et Suivant parcourent les commentaires ; Afficher tous les commentaires les garde tous visibles.",
           "• Accueil → Effacer → Effacer les commentaires supprime ceux de la sélection.",
-          "• Révision → Protéger la feuille (ou Protéger le classeur) bloque les modifications ; dans Accueil → Format, vous pouvez d'abord verrouiller ou déverrouiller des cellules."
+          "• Révision → Protéger la feuille (ou Protéger le classeur) bloque les modifications ; dans Accueil → Format, vous pouvez d'abord verrouiller ou déverrouiller des cellules. Révision → Permettre la modification des plages garde des plages modifiables avec la feuille protégée, avec un mot de passe facultatif (demandé quand vous tapez dans la plage)."
         ]
       },
       "desenhar": {

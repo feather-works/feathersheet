@@ -2906,7 +2906,7 @@ impl Sheet {
             Passo::Celula(ch) => {
                 let raw = |s: &Option<Snap>| s.as_ref().map_or("", |s| s.raw.as_str()).to_string();
                 let estilo = |s: &Option<Snap>| s.as_ref().and_then(|s| s.style.clone());
-                if raw(&ch.antes) != raw(&ch.depois) && self.celula_marcada_bloqueada(key_row(ch.k), key_col(ch.k)) {
+                if raw(&ch.antes) != raw(&ch.depois) && self.celula_travada(key_row(ch.k), key_col(ch.k)) {
                     return Some(Recusa::celula_bloqueada());
                 }
                 (estilo(&ch.antes) != estilo(&ch.depois)).then(|| pede(P::FormatarCelulas)).flatten()
@@ -2914,7 +2914,7 @@ impl Sheet {
             Passo::Compacto(bloco) => bloco.alteracoes.iter().find_map(|ch| {
                 let (a, d) = (bloco.reconstruir(ch.antes), bloco.reconstruir(ch.depois));
                 let raw = |s: &Option<Snap>| s.as_ref().map_or(String::new(), |s| s.raw.clone());
-                if raw(&a) != raw(&d) && self.celula_marcada_bloqueada(key_row(ch.k), key_col(ch.k)) {
+                if raw(&a) != raw(&d) && self.celula_travada(key_row(ch.k), key_col(ch.k)) {
                     return Some(Recusa::celula_bloqueada());
                 }
                 (a.and_then(|s| s.style) != d.and_then(|s| s.style)).then(|| pede(P::FormatarCelulas)).flatten()

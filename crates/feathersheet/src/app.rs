@@ -129,6 +129,7 @@ mod calculo_em_fundo;
 mod historico_macros;
 mod eventos_vba;
 mod protecao_ui;
+mod intervalos_ui;
 mod senha_abrir;
 mod copiar_aba;
 mod comentarios_ui;
@@ -448,6 +449,7 @@ pub enum Msg {
     AjustarAltura, Dimensao(dimensao_dialogo::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento), Consolidar(consolidar_ui::Evento),
     /// Macros → Importar VBA (do .xlsm aberto ou escolhido) e o arquivo lido.
     Protecao(protecao_ui::Evento),
+    Intervalos(intervalos_ui::Evento),
     SenhaArquivo(senha_abrir::Evento),
     CopiarAba(copiar_aba::Evento),
     /// Comentários das células (aba Revisão, Inserir, botão direito, Limpar).
@@ -735,6 +737,11 @@ pub struct App {
     openquery: Option<openquery_ui::Estado>,
     nomes_modal: Option<nomes_ui::Estado>,
     link_modal: Option<link_ui::Estado>,
+    /// Revisão ▸ Permitir edição de intervalos: o diálogo, a senha pedida e os intervalos
+    /// com senha já liberados nesta sessão (id da aba, id do intervalo).
+    intervalos_dialogo: Option<intervalos_ui::Estado>,
+    senha_intervalo: Option<intervalos_ui::Pedido>,
+    intervalos_abertos: std::collections::HashSet<(u32, String)>,
     dimensao_modal: Option<dimensao_dialogo::Estado>,
     celulas_modal: Option<celulas_dialogo::Estado>,
     subtotal: Option<topicos_ui::EstadoSubtotal>,
@@ -1117,6 +1124,7 @@ impl Default for App {
             openquery: None,
             nomes_modal: None,
             link_modal: None,
+            intervalos_dialogo: None, senha_intervalo: None, intervalos_abertos: Default::default(),
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,

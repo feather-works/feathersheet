@@ -138,9 +138,13 @@ impl Sheet {
         trava(self.estilo_mesclado(row, col).as_ref(), "locked").unwrap_or(true)
     }
 
-    /// A célula não pode mudar agora: aba protegida e célula bloqueada.
+    /// Bloqueada no estilo e fora das [`Sheet::areas_liberadas`] (Permitir edição de intervalos).
+    pub fn celula_travada(&self, row: u32, col: u32) -> bool {
+        self.celula_marcada_bloqueada(row, col) && !self.areas_liberadas.iter().any(|a| a.contains(row, col))
+    }
+    /// A célula não pode mudar agora: aba protegida e célula travada.
     pub fn celula_bloqueada(&self, row: u32, col: u32) -> bool {
-        self.protegida() && self.celula_marcada_bloqueada(row, col)
+        self.protegida() && self.celula_travada(row, col)
     }
 
     /// Com a aba protegida, a fórmula desta célula não aparece na barra.
@@ -154,14 +158,16 @@ impl Sheet {
         let a = area.normalized();
         let celulas = (a.r1 - a.r0 + 1) as u64 * (a.c1 - a.c0 + 1) as u64;
         if celulas <= AREA_CELULA_A_CELULA {
-            return (a.r0..=a.r1).any(|r| (a.c0..=a.c1).any(|c| self.celula_marcada_bloqueada(r, c)));
+            return (a.r0..=a.r1).any(|r| (a.c0..=a.c1).any(|c| self.celula_travada(r, c)));
         }
+        // Área inteira dentro de um intervalo liberado.
+        if self.areas_liberadas.iter().any(|l| l.contains(a.r0, a.c0) && l.contains(a.r1, a.c1)) { return false; }
         // Área enorme: livre só se a aba inteira, ou cada coluna da área, foi
         // desbloqueada — e nenhuma célula com estilo próprio voltou a travar.
         let livre_por_camada = trava(self.sheet_style.as_ref(), "locked") == Some(false)
             || (a.c1 - a.c0 < 16_384 && (a.c0..=a.c1).all(|c| trava(self.col_styles.get(&c), "locked") == Some(false)));
         if !livre_por_camada { return true; }
-        self.styles.alguma_no_retangulo(a.r0, a.c0, a.r1, a.c1, |r, c, _| self.celula_marcada_bloqueada(r, c))
+        self.styles.alguma_no_retangulo(a.r0, a.c0, a.r1, a.c1, |r, c, _| self.celula_travada(r, c))
     }
 
     /// Protege a aba (sem desfazer, como no Excel). Falso se já estava.
@@ -189,6 +195,26 @@ mod testes {
         let mut e = EstiloParcial::new();
         e.insert("locked".into(), Campo::Logico(false));
         e
+    }
+
+    #[test]
+    fn area_liberada_deixa_editar_com_a_aba_protegida() {
+        let mut s = Sheet::new("A");
+        s.proteger(ProtecaoPlanilha { senha: None, permitidas: Permissao::padrao() });
+        s.areas_liberadas.push(Rect::new(1, 1, 3, 2));
+        assert!(!s.celula_bloqueada(2, 2));
+        assert!(s.celula_bloqueada(4, 2));
+        assert!(!s.area_bloqueada(&Rect::new(1, 1, 3, 2)));
+        assert!(s.area_bloqueada(&Rect::new(1, 1, 4, 2)));
+        // Área grande inteira dentro da liberada (caminho sem olhar célula a célula).
+        s.areas_liberadas.push(Rect::new(0, 5, 999_999, 5));
+        assert!(!s.area_bloqueada(&Rect::new(0, 5, 999_999, 5)));
+        // Escrever dentro passa no exame; fora, não.
+        let marca = s.profundidade_do_historico();
+        s.set_cell(2, 1, "ok");
+        assert!(s.examinar_protecao(marca).is_none());
+        s.set_cell(9, 9, "x");
+        assert!(s.examinar_protecao(marca).is_some());
     }
 
     #[test]
