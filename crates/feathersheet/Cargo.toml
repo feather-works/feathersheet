@@ -71,8 +71,9 @@ incremental = true
 strip = false
 
 # Só a ligação com a libc do sistema (que o Rust já usa): `malloc_trim`
-# devolve ao sistema a memória que uma operação grande já soltou.
-[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
+# devolve ao sistema a memória que uma operação grande já soltou, e o fuso
+# de AGORA()/HOJE() vem do `localtime_r` (Linux e macOS; sem ela o macOS não compilava).
+[target.'cfg(any(all(target_os = "linux", target_env = "gnu"), target_os = "macos"))'.dependencies]
 libc = "0.2"
 
 [profile.dev]
