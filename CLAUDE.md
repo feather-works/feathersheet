@@ -2,6 +2,15 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## Depois da v0.3.2 (13/11/2026): o .dmg do macOS volta
+
+O job `macos.yml` não gerava `.dmg` desde a v0.2.0: as máquinas `macos-13` e `macos-14` do GitHub foram
+aposentadas (o job ficava na fila ou era cancelado sem rodar) e o `libc` só estava declarado para Linux,
+mas o `app/fuso.rs` o usa também no macOS. Agora as duas entradas rodam em `macos-latest` (a Intel sai
+dela com o alvo `x86_64-apple-darwin`) e o `libc` vale para Linux e macOS. Rodado à mão em 13/11: os dois
+`.dmg` saíram (Intel 22 MB, Apple Silicon 20 MB), **sem abrir num Mac**. Na próxima tag eles anexam à
+release sozinhos. Novidade: "Instalador para macOS de volta (Intel e Apple Silicon)."
+
 ## v0.3.2 — 12/11/2026: abre em placa de vídeo antiga, cálculo iterativo, números como no Excel
 
 Junta o que entrou depois da v0.3.1 (itens de 11/11 e 12/11 da "Fila de trabalho" abaixo): cálculo iterativo, milhar
