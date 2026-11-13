@@ -1,4 +1,10 @@
 {
+ "Consulta Web do Excel": "Requête Web Excel",
+ "O arquivo .iqy não é uma consulta Web do Excel": "Le fichier .iqy n'est pas une requête Web Excel",
+ "O arquivo .iqy não tem o endereço da consulta": "Le fichier .iqy n'a pas l'adresse de la requête",
+ "Esta consulta .iqy pede parâmetros ao abrir; o FeatherQuery ainda não pergunta.": "Cette requête .iqy demande des paramètres à l'ouverture ; FeatherQuery ne les demande pas encore.",
+ "Esta consulta .iqy envia dados ao site (POST); o FeatherQuery só lê o endereço.": "Cette requête .iqy envoie des données au site (POST) ; FeatherQuery lit seulement l'adresse.",
+ "Não consegui ler o arquivo .iqy": "Impossible de lire le fichier .iqy",
  "Imagem {}": "Image {}",
  "Use http://, https://, mailto:, www. (sem espaços) ou #Aba!A1 para um lugar desta pasta.": "Utilisez http://, https://, mailto:, www. (sans espaces) ou #Feuille!A1 pour un emplacement de ce classeur.",
  "Cursor da IA na tela": "Curseur de l'IA à l'écran",

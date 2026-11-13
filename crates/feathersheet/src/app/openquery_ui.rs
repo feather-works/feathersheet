@@ -212,6 +212,8 @@ pub(super) struct Estado {
     quantidade: String,
     separador: String,
     url_web: String,
+    /// `Selection=` do `.iqy` aberto: a tabela da página (a partir de 1) escolhida sozinha.
+    selecao_iqy: Option<usize>,
     /// Fontes extraídas de uma única requisição, aguardando seleção explícita.
     tabelas_web: Vec<Tabela>,
     /// Navegador de arquivo: as opções (a prévia de cada uma vai em `tabelas_web`);
@@ -389,7 +391,7 @@ impl Estado {
             filtro: String::new(),
             renomear: String::new(), quantidade: "100".into(),
             separador: ";".into(),
-            url_web: String::new(), tabelas_web: Vec::new(), itens_arquivo: Vec::new(), item_pedido: None, caminho_arquivo: None,
+            url_web: String::new(), selecao_iqy: None, tabelas_web: Vec::new(), itens_arquivo: Vec::new(), item_pedido: None, caminho_arquivo: None,
             origem_web_pendente: String::new(), indice_tabela_web: 0,
             mostrar_web: false, mostrar_tabelas: false,
             passos: Vec::new(), resultado,
@@ -933,6 +935,7 @@ impl App {
                 if self.openquery.as_ref().and_then(|e| e.importacao_pendente) != Some(ticket) {
                     return Task::none();
                 }
+                let selecao_iqy = self.openquery.as_mut().and_then(|e| e.selecao_iqy.take());
                 match resultado {
                     Err(erro) => return self.evento_openquery(Evento::ArquivoLido(ticket, Err(erro))),
                     Ok((mut tabelas, origem)) if tabelas.len() == 1 => {
@@ -942,9 +945,12 @@ impl App {
                     }
                     Ok((tabelas, origem)) if !tabelas.is_empty() => {
                         if let Some(e) = &mut self.openquery {
+                            // O `.iqy` já disse qual tabela: escolhe sem perguntar.
+                            let do_iqy = selecao_iqy.filter(|&n| n <= tabelas.len());
                             e.tabelas_web = tabelas;
                             e.origem_web_pendente = origem;
-                            e.indice_tabela_web = 0;
+                            e.indice_tabela_web = do_iqy.map_or(0, |n| n - 1);
+                            if do_iqy.is_some() { return self.evento_openquery(Evento::ConfirmarTabelaWeb); }
                             e.mostrar_web = true;
                             e.erro.clear();
                             self.status = trf!(
@@ -1431,6 +1437,22 @@ impl App {
                     if let Some(e) = &mut self.openquery { e.importacao_pendente = None; e.item_pedido = None; }
                     return Task::none();
                 };
+                // `.iqy` do Excel: é uma consulta Web; o arquivo só diz o endereço e a tabela.
+                if caminho.extension().is_some_and(|x| x.eq_ignore_ascii_case("iqy")) {
+                    let lido = std::fs::metadata(&caminho).ok().filter(|m| m.len() <= 64 * 1024)
+                        .and_then(|_| std::fs::read(&caminho).ok())
+                        .ok_or_else(|| tr!("Não consegui ler o arquivo .iqy").to_owned())
+                        .and_then(|b| importador::ler_iqy(&String::from_utf8_lossy(&b)));
+                    let Some(e) = &mut self.openquery else { return Task::none() };
+                    e.importacao_pendente = None;
+                    return match lido {
+                        Ok((url, selecao)) => {
+                            (e.url_web, e.selecao_iqy, e.mostrar_web) = (url, selecao, true);
+                            self.evento_openquery(Evento::ImportarWeb)
+                        }
+                        Err(erro) => { e.erro = erro; Task::none() }
+                    };
+                }
                 self.lembrar_fonte(caminho.display().to_string());
                 if let Some(e) = &mut self.openquery { e.caminho_arquivo = Some(caminho.clone()); }
                 self.status = tr!("FeatherQuery: importando fonte em tarefa separada").into();

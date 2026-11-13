@@ -108,13 +108,50 @@ fn json_tabela_caminho(bytes: &[u8], caminho: &str) -> Result<Tabela, String> {
 /// O que o "De arquivo" e o "Da pasta" leem.
 pub(super) const EXTENSOES: [&str; 8] = ["csv", "tsv", "txt", "json", "xlsx", "xlsm", "fshz", "parquet"];
 /// Os tipos do menu Obter dados ▸ Arquivo: (nome, extensões).
-pub(super) const TIPOS: [(&str, &[&str]); 5] = [
+pub(super) const TIPOS: [(&str, &[&str]); 6] = [
     ("Pasta de trabalho do Excel", &["xlsx", "xlsm"]),
     ("Pasta de trabalho do FeatherSheet", &["fshz"]),
     ("Texto/CSV", &["csv", "tsv", "txt"]),
     ("JSON", &["json"]),
     ("Parquet", &["parquet"]),
+    ("Consulta Web do Excel", &["iqy"]),
 ];
+
+/// O `.iqy` do Excel (consulta Web): `WEB`, versão, endereço; uma linha logo depois
+/// do endereço é o corpo do POST; depois da linha em branco, `Selection=` diz qual tabela
+/// da página (o número, a partir de 1). Devolve (endereço, tabela).
+pub(super) fn ler_iqy(texto: &str) -> Result<(String, Option<usize>), String> {
+    let mut linhas = texto.lines().map(str::trim);
+    let mut proxima = || linhas.by_ref().find(|l| !l.is_empty());
+    if !proxima().is_some_and(|l| l.eq_ignore_ascii_case("WEB")) {
+        return Err(tr!("O arquivo .iqy não é uma consulta Web do Excel").into());
+    }
+    let url = match proxima() {
+        Some(v) if v.chars().all(|c| c.is_ascii_digit()) => proxima(),
+        outra => outra,
+    }.ok_or(tr!("O arquivo .iqy não tem o endereço da consulta"))?.to_owned();
+    if url.contains("[\"") {
+        return Err(tr!("Esta consulta .iqy pede parâmetros ao abrir; o FeatherQuery ainda não pergunta.").into());
+    }
+    let resto: Vec<&str> = texto.lines().map(str::trim).skip_while(|l| *l != url).skip(1).collect();
+    if resto.first().is_some_and(|l| !l.is_empty()) {
+        return Err(tr!("Esta consulta .iqy envia dados ao site (POST); o FeatherQuery só lê o endereço.").into());
+    }
+    let selecao = resto.iter().find_map(|l| l.strip_prefix("Selection="))
+        .and_then(|v| v.split(',').next()?.trim().parse::<usize>().ok()).filter(|&n| n >= 1);
+    Ok((url, selecao))
+}
+#[cfg(test)]
+#[test]
+fn iqy_le_endereco_tabela_e_recusa_post_e_parametros() {
+    let iqy = "WEB\r\n1\r\nhttps://exemplo.org/cotacoes\r\n\r\nSelection=2,3\r\nFormatting=None\r\n";
+    assert_eq!(ler_iqy(iqy).unwrap(), ("https://exemplo.org/cotacoes".into(), Some(2)));
+    assert_eq!(ler_iqy("WEB\n1\nhttps://a.org/x\n\nSelection=EntirePage").unwrap().1, None);
+    assert!(ler_iqy("WEB\n1\nhttps://a.org/x\nnome=1&b=2\n").is_err(), "POST");
+    assert!(ler_iqy("WEB\n1\nhttps://a.org/?c=[\"Cidade\",\"Digite\"]\n").is_err(), "parâmetro");
+    assert!(ler_iqy("<html>").is_err());
+}
+
 /// Teto do "Da pasta": arquivos e células somadas.
 const MAX_ARQUIVOS_PASTA: usize = 500;
 const MAX_CELULAS_PASTA: usize = 50_000_000;

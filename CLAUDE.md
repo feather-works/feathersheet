@@ -42,6 +42,11 @@ Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e cri
 `Consulta: nome` em todo registro que lê a renomeada (origem, fontes extras, `fonte` das etapas). Pastas
 (grupos) para organizar ainda não. Novidade: "FeatherQuery: renomeie consultas salvas; as que dependem dela continuam funcionando."
 
+**`.iqy` do Excel no FeatherQuery (13/11).** Obter dados ▾ ▸ Arquivo ▸ Consulta Web do Excel (`importador::ler_iqy`):
+o endereço vira a fonte Web de sempre e o `Selection=N` escolhe a tabela sozinho (`Estado::selecao_iqy`). Recusa com aviso
+o `.iqy` com POST e com parâmetros (`["Cidade","…"]`); formatação da página não vem. Não abre pelo Abrir do app, só pelo
+FeatherQuery. Novidade: "Abra no FeatherQuery as consultas Web (.iqy) salvas pelo Excel."
+
 ## Depois da v0.3.2 (13/11/2026): o .dmg do macOS volta
 
 O job `macos.yml` não gerava `.dmg` desde a v0.2.0: as máquinas `macos-13` e `macos-14` do GitHub foram
