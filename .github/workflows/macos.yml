@@ -22,13 +22,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # A imagem macos-13 (Intel) foi aposentada pelo GitHub: o job ficava na fila para
-          # sempre. O .dmg da Intel é compilado na máquina Apple Silicon, com o alvo x86_64.
+          # macos-13 e macos-14 foram aposentadas pelo GitHub (o job ficava na fila ou era
+          # cancelado sem rodar). macos-latest acompanha a imagem atual (Apple Silicon); o .dmg
+          # da Intel sai dela com o alvo x86_64.
           - alvo: x86_64-apple-darwin
-            maquina: macos-14
+            maquina: macos-latest
             nome: intel
           - alvo: aarch64-apple-darwin
-            maquina: macos-14
+            maquina: macos-latest
             nome: apple-silicon
     runs-on: ${{ matrix.maquina }}
     steps:
