@@ -67,6 +67,7 @@ impl App {
         }
         if e.modal.take().is_some() || e.dependencias.take().is_some() || e.consultas_pq.take().is_some() { return true; }
         if e.mostrar_manual { e.mostrar_manual = false; return true; }
+        if e.banco.take().is_some() { return true; }
         if e.menu_obter { e.menu_obter = false; return true; }
         if e.parametros_abertos { e.parametros_abertos = false; e.acao_parametros = None; return true; }
         e.assistente.take().is_some()
@@ -108,6 +109,9 @@ impl App {
             Some(painel_destino(e))
         } else if e.mostrar_manual {
             Some(painel_manual(e))
+        } else if let (Some(f), true) = (&e.banco, e.itens_arquivo.is_empty()) {
+            // Configurar a conexão é modal: o centro continua com os dados (o Navegador vem depois).
+            Some(painel_banco(f, &e.erro, e.importacao_pendente.is_some()))
         } else if let Some(lista) = &e.consultas_pq {
             Some(painel_consultas_pq(lista))
         } else {
@@ -353,63 +357,10 @@ impl App {
     }
 
     /// Tela de entrada: nenhuma aba é importada automaticamente.
-    /// Obter dados ▸ Banco de dados PostgreSQL: servidor, porta, banco, usuário, senha, SSL e SQL opcional.
-    fn formulario_banco<'a>(&'a self, f: &'a banco::Formulario, escuro: bool) -> Element<'a, Msg> {
-        use banco::Campo;
-        let campo = |rotulo: &str, valor: &'a str, dica_campo: &'static str, c: Campo, largura: f32, secreto: bool| -> Element<'a, Msg> {
-            column![
-                legenda_oq(rotulo.to_owned()),
-                text_input(dica_campo, valor).secure(secreto)
-                    .on_input(move |v| om(Evento::CampoBanco(c.clone(), v)))
-                    .on_submit(om(Evento::ConectarBanco))
-                    .size(12).padding([5.0, 7.0]).style(estilo_entrada_suspensa).width(Length::Fixed(largura)),
-            ].spacing(3).into()
-        };
-        let c = &f.conexao;
-        let mut corpo = column![
-            row![
-                feather_ui::icones::icone("banco_dados", 20.0),
-                text(tr!("Banco de dados")).size(14).font(negrito()),
-                pelicano::pick_list(&banco::Tipo::TODOS[..], Some(c.tipo), |t| om(Evento::BancoTipo(t))).size(12.5),
-            ].spacing(8).align(pelicano::Align::Center),
-            row![
-                campo(tr!("Servidor"), &c.servidor, "localhost", Campo::Servidor, 220.0, false),
-                campo(tr!("Porta"), &c.porta, c.tipo.porta_padrao(), Campo::Porta, 70.0, false),
-                campo(tr!("Banco"), &c.banco, "", Campo::Banco, 160.0, false),
-            ].spacing(10),
-            row![
-                campo(tr!("Usuário"), &c.usuario, c.tipo.usuario_padrao(), Campo::Usuario, 220.0, false),
-                campo(tr!("Senha"), &f.senha, "", Campo::Senha, 240.0, true),
-            ].spacing(10),
-            row![
-                pelicano::checkbox(tr!("Usar SSL (criptografar)"), c.ssl).on_toggle(|v| om(Evento::BancoSsl(v))).size(12),
-                pelicano::checkbox(tr!("Lembrar a senha no cofre do sistema"), f.lembrar).on_toggle(|v| om(Evento::BancoLembrar(v))).size(12),
-            ].spacing(18),
-            column![
-                legenda_oq(tr!("SQL (opcional): em branco, o Navegador lista as tabelas e views.")),
-                text_input("SELECT * FROM pedidos WHERE ano = 2026", &f.sql)
-                    .on_input(|v| om(Evento::CampoBanco(Campo::Sql, v)))
-                    .on_submit(om(Evento::ConectarBanco))
-                    .size(12).padding([5.0, 7.0]).style(estilo_entrada_suspensa),
-            ].spacing(3),
-            row![
-                ide::botao_primario(tr!("Conectar"), "link", Some(om(Evento::ConectarBanco))),
-                legenda_oq(tr!("Só leitura: nada é gravado no banco. A senha não vai para o arquivo.")),
-            ].spacing(10).align(pelicano::Align::Center),
-        ].spacing(10);
-        if !f.aviso.is_empty() {
-            corpo = corpo.push(text(f.aviso.clone()).size(12).color(COR_ERRO()));
-        }
-        container(corpo.padding(16)).width(Length::FILL).style(ide::estilo_cabecalho(escuro)).into()
-    }
-
     fn selecionar_fonte_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
         // Sem fonte, o centro fica em branco: as fontes estão na faixa (OBTER DADOS).
         let mut conteudo = column(Vec::<Element<Msg>>::new()).spacing(16).padding(24).width(Length::FILL);
         let navegador = !e.itens_arquivo.is_empty();
-        if let (Some(f), false) = (&e.banco, navegador) {
-            conteudo = conteudo.push(self.formulario_banco(f, escuro));
-        }
         if e.mostrar_web && !navegador {
             conteudo = conteudo.push(container(column![
                 text(tr!("Endereço Web / API")).size(13).font(negrito()),
@@ -541,7 +492,7 @@ impl App {
 
     /// Centro: JavaScript editável acima da prévia, sem ocultar a tabela.
     fn centro_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
-        if e.fonte.cabecalho.is_empty() || e.mostrar_web || e.mostrar_tabelas || e.banco.is_some() {
+        if e.fonte.cabecalho.is_empty() || e.mostrar_web || e.mostrar_tabelas {
             return self.selecionar_fonte_openquery(e, escuro);
         }
         // O script mora no Editor avançado e Digitar dados é um modal: o centro é só a prévia.
@@ -1185,6 +1136,59 @@ fn painel_manual<'a>(e: &'a Estado) -> Element<'a, Msg> {
         .ao_fechar(om(Evento::AbaCentro(0)))
         .secundario(tr!("Cancelar"), Some(om(Evento::AbaCentro(0))))
         .primario(tr!("OK"), Some(om(Evento::AplicarManual)))
+        .painel()
+}
+
+/// Obter dados ▸ Banco de dados: o tipo, servidor, porta, banco, usuário, senha, SSL e SQL opcional.
+fn painel_banco<'a>(f: &'a banco::Formulario, erro: &'a str, conectando: bool) -> Element<'a, Msg> {
+    use banco::Campo;
+    let campo = |rotulo: &str, valor: &'a str, dica_campo: &'static str, c: Campo, largura: Length, secreto: bool| -> Element<'a, Msg> {
+        column![
+            legenda_oq(rotulo.to_owned()),
+            text_input(dica_campo, valor).secure(secreto)
+                .on_input(move |v| om(Evento::CampoBanco(c.clone(), v)))
+                .on_submit(om(Evento::ConectarBanco))
+                .size(12).padding([5.0, 7.0]).style(estilo_entrada_suspensa).width(largura),
+        ].spacing(3).width(largura).into()
+    };
+    let c = &f.conexao;
+    let mut corpo = column![
+        row![
+            legenda_oq(tr!("Tipo")),
+            pelicano::pick_list(&banco::Tipo::TODOS[..], Some(c.tipo), |t| om(Evento::BancoTipo(t))).size(12.5),
+        ].spacing(8).align(pelicano::Align::Center),
+        row![
+            campo(tr!("Servidor"), &c.servidor, "localhost", Campo::Servidor, Length::FILL, false),
+            campo(tr!("Porta"), &c.porta, c.tipo.porta_padrao(), Campo::Porta, Length::Fixed(80.0), false),
+        ].spacing(10),
+        row![
+            campo(tr!("Banco"), &c.banco, "", Campo::Banco, Length::FILL, false),
+            campo(tr!("Usuário"), &c.usuario, c.tipo.usuario_padrao(), Campo::Usuario, Length::FILL, false),
+        ].spacing(10),
+        campo(tr!("Senha"), &f.senha, "", Campo::Senha, Length::FILL, true),
+        row![
+            pelicano::checkbox(tr!("Usar SSL (criptografar)"), c.ssl).on_toggle(|v| om(Evento::BancoSsl(v))).size(12),
+            pelicano::checkbox(tr!("Lembrar a senha no cofre do sistema"), f.lembrar).on_toggle(|v| om(Evento::BancoLembrar(v))).size(12),
+        ].spacing(18),
+        column![
+            legenda_oq(tr!("SQL (opcional): em branco, o Navegador lista as tabelas e views.")),
+            text_input("SELECT * FROM pedidos WHERE ano = 2026", &f.sql)
+                .on_input(|v| om(Evento::CampoBanco(Campo::Sql, v)))
+                .on_submit(om(Evento::ConectarBanco))
+                .size(12).padding([5.0, 7.0]).style(estilo_entrada_suspensa),
+        ].spacing(3),
+    ].spacing(ESPACO_MEDIO);
+    for aviso in [f.aviso.as_str(), erro] {
+        if !aviso.is_empty() { corpo = corpo.push(text(aviso.to_owned()).size(TAM_TEXTO).color(cor_erro())); }
+    }
+    if conectando { corpo = corpo.push(legenda_oq(tr!("Conectando…"))); }
+    feather_ui::dialogo::Dialogo::new(tr!("Banco de dados"), corpo)
+        .icone("banco_dados")
+        .subtitulo(tr!("Só leitura: nada é gravado no banco. A senha não vai para o arquivo."))
+        .largura(520.0)
+        .ao_fechar(om(Evento::FecharBanco))
+        .secundario(tr!("Cancelar"), Some(om(Evento::FecharBanco)))
+        .primario(tr!("Conectar"), (!conectando).then(|| om(Evento::ConectarBanco)))
         .painel()
 }
 

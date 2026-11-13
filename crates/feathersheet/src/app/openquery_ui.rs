@@ -107,6 +107,7 @@ pub enum Evento {
     MostrarBanco,
     CampoBanco(banco::Campo, String),
     BancoSsl(bool),
+    FecharBanco,
     BancoTipo(banco::Tipo),
     BancoLembrar(bool),
     ConectarBanco,
@@ -884,6 +885,11 @@ impl App {
                 if banco::Tipo::TODOS.iter().any(|o| o.porta_padrao() == c.porta.trim()) { c.porta = t.porta_padrao().into(); }
                 if banco::Tipo::TODOS.iter().any(|o| o.usuario_padrao() == c.usuario.trim()) { c.usuario = t.usuario_padrao().into(); }
                 c.tipo = t;
+            },
+            Evento::FecharBanco => if let Some(e) = &mut self.openquery {
+                e.banco = None;
+                e.importacao_pendente = None;
+                e.importacao_preservar = false;
             },
             Evento::BancoSsl(v) => if let Some(f) = self.openquery.as_mut().and_then(|e| e.banco.as_mut()) { f.conexao.ssl = v; },
             Evento::BancoLembrar(v) => if let Some(f) = self.openquery.as_mut().and_then(|e| e.banco.as_mut()) { f.lembrar = v; },

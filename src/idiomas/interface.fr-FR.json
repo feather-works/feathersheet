@@ -1,4 +1,5 @@
 {
+ "Conectando…": "Connexion…",
  "Banco de dados (PostgreSQL, MySQL)…": "Base de données (PostgreSQL, MySQL)…",
  "Escreva um comando SQL só (sem ; no meio).": "Écrivez une seule commande SQL (sans ; au milieu).",
  "FeatherQuery: conectando ao banco em segundo plano": "FeatherQuery : connexion à la base de données en arrière-plan",

@@ -55,7 +55,7 @@ bancos só com um comando (`um_comando`; um `COMMIT; DROP` escaparia do modo lei
 Novidade: "FeatherQuery também conecta no MySQL e no MariaDB."
 
 **PostgreSQL no FeatherQuery (#70, 13/11).** `app/openquery_ui/banco.rs`, Obter dados ▸ Banco de dados PostgreSQL…
-(`Evento::MostrarBanco`, formulário `Estado::banco`). Conexão igual à do FeatherDB (`featherdb-core/src/postgres_banco.rs`):
+(`Evento::MostrarBanco`, formulário `Estado::banco`, num modal `janela::painel_banco`: configurar nunca vai para o centro onde ficam os dados, pedido do usuário). Conexão igual à do FeatherDB (`featherdb-core/src/postgres_banco.rs`):
 crate `postgres`, protocolo simples, tipo pela `prepare` (números, lógico; inteiro acima de 2^53 e datas como texto), SSL =
 `sslmode=require` com `rustls` (criptografa, não confere o servidor). Copiado, não dependência: o `featherdb-core` traz
 `rusqlite` com C, MySQL, Mongo e SSH. Tudo em `BEGIN TRANSACTION READ ONLY` … `ROLLBACK`. Navegador: até 200 tabelas/views
