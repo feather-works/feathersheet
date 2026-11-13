@@ -140,7 +140,7 @@
       "objetos": {
         "titulo": "Objects and controls",
         "corpo": [
-          "• Insert → Illustrations: Pictures, Shapes, Icons and SmartArt (14 diagram categories; each box is a shape with editable text) float over the grid (drag to move, corners resize). Text group: Text box and WordArt; Symbols group: Equation and Symbol.",
+          "• Insert → Illustrations: Pictures, Shapes, Icons and SmartArt (14 diagram categories; each box is a shape with editable text) float over the grid (drag to move, corners resize). Text group: Text box and WordArt; Symbols group: Equation and Symbol. Page Layout ▸ Arrange brings forward, sends backward, aligns and rotates the selected object; the Selection Pane lists the sheet objects (click selects, the eye hides, the arrows change the order).",
           "• Image in cell… puts the image inside the cell, so it follows rows and columns. In formulas: =IMAGE(address) and =IMAGE.BASE64(text).",
           "• Insert → Checkbox puts checkboxes in the selected cells; the cell is TRUE or FALSE.",
           "• Insert link (Links group) and Comment are also on the Insert tab."

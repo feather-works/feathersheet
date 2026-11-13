@@ -46,6 +46,12 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**Organizar e Painel de Seleção (#79, 13/11).** `App::grupo_organizar` (Formato da forma e Layout da Página): trazer/
+enviar, alinhar e girar o objeto selecionado (sem seleção ficam apagados) e o Painel de Seleção (`objetos.painel_selecao`,
+encostado à direita): lista os objetos da aba (o da frente em cima), clique seleciona, olho oculta (`extras.oculto`, o
+mesmo da macro), setas mudam a ordem (`Evento::OrdemDe`). Agrupar não entrou: pede seleção de vários objetos. Novidade:
+"Layout da Página ▸ Organizar e Painel de Seleção: veja, oculte e reordene as formas e imagens da aba."
+
 **Autocompletar no editor de macros (#8, 13/11).** `app/macros/autocompletar.rs`: o catálogo sai das assinaturas do
 `ajuda_macros::GUIA` (o objeto antes do ponto: `sheet`, `range`, `wb`, `app`; solto a partir de 2 letras; depois de `)` vale
 o intervalo; variável desconhecida mostra intervalo e aba). Lista abaixo do cursor (acima, sem espaço), 8 à vista, com a

@@ -140,7 +140,7 @@
    "objetos": {
     "titulo": "Objetos y controles",
     "corpo": [
-     "• Insertar → Ilustraciones: Imágenes, Formas, Iconos y SmartArt (14 categorías de diagrama; cada cuadro es una forma con texto editable) flotan sobre la cuadrícula (arrastrar mueve, las esquinas cambian el tamaño). Grupo Texto: Cuadro de texto y WordArt; grupo Símbolos: Ecuación y Símbolo.",
+     "• Insertar → Ilustraciones: Imágenes, Formas, Iconos y SmartArt (14 categorías de diagrama; cada cuadro es una forma con texto editable) flotan sobre la cuadrícula (arrastrar mueve, las esquinas cambian el tamaño). Grupo Texto: Cuadro de texto y WordArt; grupo Símbolos: Ecuación y Símbolo. Disposición de página ▸ Organizar trae adelante, envía atrás, alinea y gira el objeto seleccionado; el Panel de selección lista los objetos de la hoja (clic selecciona, el ojo oculta, las flechas cambian el orden).",
      "• Imagen en la celda… pone la imagen dentro de la celda, y sigue a filas y columnas. En fórmulas: =IMAGEN(dirección) e =IMAGEN.BASE64(texto).",
      "• Insertar → Casilla pone casillas de verificación en las celdas seleccionadas; la celda vale VERDADERO o FALSO.",
      "• Insertar vínculo (grupo Vínculos) y Comentario también están en la pestaña Insertar."

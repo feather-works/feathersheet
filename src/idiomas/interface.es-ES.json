@@ -1,4 +1,10 @@
 {
+ "Objeto mostrado (Ctrl+Z desfaz).": "Objeto mostrado (Ctrl+Z deshace).",
+ "Objeto oculto (Ctrl+Z desfaz).": "Objeto oculto (Ctrl+Z deshace).",
+ "Painel de Seleção": "Panel de selección",
+ "Forma": "Forma",
+ "Ícone": "Icono",
+ "Esta aba não tem formas nem imagens.": "Esta hoja no tiene formas ni imágenes.",
  "Renomear ou mover para pasta": "Cambiar nombre o mover a carpeta",
  "Mover para pasta": "Mover a carpeta",
  "Sem pasta": "Sin carpeta",

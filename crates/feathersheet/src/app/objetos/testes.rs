@@ -479,3 +479,24 @@ fn smartart_insere_todas_as_formas_do_modelo_num_desfazer_so() {
     app.historico(false);
     assert!(lidos(&app).objetos.is_empty(), "um Ctrl+Z tira o diagrama inteiro");
 }
+
+#[test]
+fn painel_de_selecao_oculta_e_muda_a_ordem() {
+    let mut app = app();
+    let a = criar(&mut app, "retangulo", Retangulo::novo(130.0, 45.0, 100.0, 60.0));
+    let b = criar(&mut app, "elipse", Retangulo::novo(300.0, 45.0, 100.0, 60.0));
+    let _ = app.update(Msg::Objetos(Evento::PainelSelecao));
+    assert!(app.objetos.painel_selecao);
+    // Ocultar o selecionado tira a seleção; mostrar volta.
+    let _ = app.update(Msg::Objetos(Evento::AlternarOculto(b)));
+    assert_eq!(lidos(&app).obter(b).unwrap().extras.get("oculto"), Some(&serde_json::Value::Bool(true)));
+    assert!(app.objeto_selecionado().is_none());
+    let _ = app.update(Msg::Objetos(Evento::AlternarOculto(b)));
+    assert!(lidos(&app).obter(b).unwrap().extras.get("oculto").is_none());
+    // Avançar o de trás (a) o leva para a frente de b.
+    let _ = app.update(Msg::Objetos(Evento::OrdemDe(a, Ordem::Avancar)));
+    let ordem: Vec<u64> = lidos(&app).objetos.iter().map(|o| o.id).collect();
+    assert_eq!(ordem, [b, a]);
+    // O grupo Organizar aparece na aba Layout da Página.
+    let _ = app.grupos_layout_pagina();
+}

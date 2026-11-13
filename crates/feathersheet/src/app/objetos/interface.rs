@@ -750,6 +750,11 @@ impl App {
             column![Space::new(0.0, y), row![Space::new(x, 0.0), opaque(el)]].into()
         };
         let mut base = base;
+        if self.objetos.painel_selecao {
+            // Encostado à direita, abaixo da faixa, como o painel do Excel.
+            let x = (janela.width - 268.0).max(8.0);
+            base = stack![base, em(x, 200.0, self.painel_selecao())].width(Length::FILL).height(Length::FILL).into();
+        }
         if self.objetos.menu.is_some() {
             let (x, y) = self.objetos.menu_pos;
             let alto = (janela.height - 16.0).min(480.0);
@@ -856,6 +861,66 @@ impl App {
     }
 
     /// Os grupos da aba contextual "Editar forma".
+    /// O grupo Organizar (Formato da forma e Layout da Página, #79): ordem, Painel de Seleção,
+    /// alinhar e girar. Sem objeto selecionado, só o Painel de Seleção responde.
+    pub(in crate::app) fn grupo_organizar(&self) -> Element<'_, Msg> {
+        let aberto = |m: MenuFaixa| self.objetos.menu_faixa.is_some_and(|(a, ..)| a == m);
+        let com = |m: MenuFaixa| self.objeto_selecionado().is_some().then(|| ev(Evento::MenuFaixa(m)));
+        self.faixa_grupo(tr!("Organizar"), self.faixa_linha(vec![
+            self.faixa_pilha(vec![
+                self.faixa_pequeno(tr!("Trazer para frente"), "arrow-up", com(MenuFaixa::Frente), aberto(MenuFaixa::Frente)),
+                self.faixa_pequeno(tr!("Enviar para trás"), "arrow-down", com(MenuFaixa::Tras), aberto(MenuFaixa::Tras)),
+                self.faixa_pequeno(tr!("Painel de Seleção"), "list-details", Some(ev(Evento::PainelSelecao)), self.objetos.painel_selecao),
+            ]),
+            self.faixa_pilha(vec![
+                self.faixa_pequeno(tr!("Alinhar"), "layout-grid", com(MenuFaixa::Alinhar), aberto(MenuFaixa::Alinhar)),
+                self.faixa_pequeno(tr!("Girar"), "refresh", com(MenuFaixa::Girar), aberto(MenuFaixa::Girar)),
+            ]),
+        ]))
+    }
+
+    /// Painel de Seleção do Excel: os objetos da aba, o da frente em cima. Clique seleciona,
+    /// o olho mostra/oculta, as setas mudam a ordem.
+    fn painel_selecao(&self) -> Element<'_, Msg> {
+        let so_icone = |icone: &'static str, msg: Msg| -> Element<'_, Msg> {
+            button(feather_ui::icones::icone(icone, 15.0)).padding(5).style(estilo_botao_pequeno(false)).on_press(msg).into()
+        };
+        let lidos = self.objetos_da_aba().map(|(_, l)| l).unwrap_or_default();
+        let selecionado = self.objetos.selecionado.map(|(_, id)| id);
+        let tipo = |t: modelo::TipoObjeto| match t {
+            modelo::TipoObjeto::Forma => tr!("Forma"), modelo::TipoObjeto::Icone => tr!("Ícone"),
+            modelo::TipoObjeto::Wordart => "WordArt", modelo::TipoObjeto::Smartart => "SmartArt",
+            modelo::TipoObjeto::Imagem => tr!("Imagem"), modelo::TipoObjeto::Controle => tr!("Controle"),
+        };
+        let mut lista = column(Vec::<Element<'_, Msg>>::new()).spacing(2);
+        for o in lidos.objetos.iter().rev() {
+            let nome = o.extras.get("nome").and_then(|v| v.as_str()).map(str::to_owned)
+                .unwrap_or_else(|| format!("{} {}", tipo(o.tipo), o.id));
+            let oculto = o.extras.get("oculto") == Some(&serde_json::Value::Bool(true));
+            let ativo = selecionado == Some(o.id);
+            lista = lista.push(row![
+                button(text(nome).size(12).color(if oculto { COR_TEXTO_MUTED() } else { COR_TEXTO() }))
+                    .width(Length::FILL).padding([4, 6]).style(estilo_botao_pequeno(ativo))
+                    .on_press_maybe((!oculto).then(|| ev(Evento::Selecionar(o.id)))),
+                dica(so_icone("arrow-up", ev(Evento::OrdemDe(o.id, Ordem::Avancar))), tr!("Avançar um nível")),
+                dica(so_icone("arrow-down", ev(Evento::OrdemDe(o.id, Ordem::Recuar))), tr!("Recuar um nível")),
+                dica(so_icone(if oculto { "eye-off" } else { "eye" }, ev(Evento::AlternarOculto(o.id))),
+                    if oculto { tr!("Mostrar") } else { tr!("Ocultar") }),
+            ].spacing(2).align(pelicano::Align::Center));
+        }
+        if lidos.objetos.is_empty() {
+            lista = lista.push(text(tr!("Esta aba não tem formas nem imagens.")).size(12).color(COR_TEXTO_MUTED()));
+        }
+        container(column![
+            row![
+                text(tr!("Seleção")).size(13),
+                Space::new(Length::FILL, 0.0),
+                so_icone("x", ev(Evento::PainelSelecao)),
+            ].align(pelicano::Align::Center),
+            scrollable(lista).height(Length::Shrink),
+        ].spacing(8).padding(10)).width(Length::Fixed(260.0)).style(estilo_painel_faixa).into()
+    }
+
     pub(in crate::app) fn grupos_editar_forma(&self) -> Vec<Element<'_, Msg>> {
         let Some(o) = self.objeto_selecionado() else {
             return vec![self.faixa_grupo(
@@ -865,7 +930,6 @@ impl App {
                     .into(),
             )];
         };
-        let aberto = |m: MenuFaixa| self.objetos.menu_faixa.is_some_and(|(a, ..)| a == m);
         let linha = o.tipo == modelo::TipoObjeto::Forma && (geometria::so_traco(&o.forma) || modelo::e_linha(&o.forma));
         let cantos = o.tipo == modelo::TipoObjeto::Forma && geometria::raios(&o.forma, &o.ajustes).is_some();
         let c = &self.objetos.campos;
@@ -936,17 +1000,7 @@ impl App {
                     self.objetos.painel == Some(Painel::Contorno)),
                 dica(self.faixa_grande(tr!("Efeitos"), "wand", Some(ev(Evento::SombraForma)), o.sombra.is_some()), tr!("Liga ou desliga a sombra da forma")),
             ])),
-            self.faixa_grupo(tr!("Organizar"), self.faixa_linha(vec![
-                self.faixa_pilha(vec![
-                    self.faixa_pequeno(tr!("Trazer para frente"), "arrow-up", Some(ev(Evento::MenuFaixa(MenuFaixa::Frente))), aberto(MenuFaixa::Frente)),
-                    self.faixa_pequeno(tr!("Enviar para trás"), "arrow-down", Some(ev(Evento::MenuFaixa(MenuFaixa::Tras))), aberto(MenuFaixa::Tras)),
-                    dica(self.faixa_pequeno(tr!("Agrupar"), "object", None, false), tr!("Em breve: agrupar várias formas selecionadas")),
-                ]),
-                self.faixa_pilha(vec![
-                    self.faixa_pequeno(tr!("Alinhar"), "layout-grid", Some(ev(Evento::MenuFaixa(MenuFaixa::Alinhar))), aberto(MenuFaixa::Alinhar)),
-                    self.faixa_pequeno(tr!("Girar"), "refresh", Some(ev(Evento::MenuFaixa(MenuFaixa::Girar))), aberto(MenuFaixa::Girar)),
-                ]),
-            ])),
+            self.grupo_organizar(),
             self.faixa_grupo(tr!("Arredondar cantos"), grupo_cantos),
             self.faixa_grupo(tr!("Tamanho"), column![
                 row![rotulo(tr!("Largura")), campo_num(&c.largura, 64.0, true, |t| ev(Evento::CampoLargura(t)), ev(Evento::AplicarTamanho)), px()]

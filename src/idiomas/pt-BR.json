@@ -140,7 +140,7 @@
       "objetos": {
         "titulo": "Objetos e controles",
         "corpo": [
-          "• Inserir → Ilustrações: Imagens, Formas, Ícones e SmartArt (14 categorias de diagrama; cada caixa é uma forma com texto editável) flutuam sobre a grade (arrastar move, os cantos redimensionam). Grupo Texto: Caixa de texto e WordArt; grupo Símbolos: Equação e Símbolo.",
+          "• Inserir → Ilustrações: Imagens, Formas, Ícones e SmartArt (14 categorias de diagrama; cada caixa é uma forma com texto editável) flutuam sobre a grade (arrastar move, os cantos redimensionam). Grupo Texto: Caixa de texto e WordArt; grupo Símbolos: Equação e Símbolo. Layout da Página ▸ Organizar traz para frente, envia para trás, alinha e gira o objeto selecionado; o Painel de Seleção lista os objetos da aba (clique seleciona, o olho oculta, as setas mudam a ordem).",
           "• Imagem na célula… põe a imagem dentro da célula, e ela acompanha linhas e colunas. Nas fórmulas: =IMAGEM(endereço) e =IMAGEM.BASE64(texto).",
           "• Inserir → Checkbox põe caixas de seleção nas células selecionadas; a célula vale VERDADEIRO ou FALSO.",
           "• Inserir link (grupo Links) e Comentário também ficam na aba Inserir."

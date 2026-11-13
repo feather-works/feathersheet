@@ -140,7 +140,7 @@
       "objetos": {
         "titulo": "Objets et contrôles",
         "corpo": [
-          "• Insertion → Illustrations : Images, Formes, Icônes et SmartArt (14 catégories de diagrammes ; chaque case est une forme au texte modifiable) flottent au-dessus de la grille (faire glisser pour déplacer, les coins redimensionnent). Groupe Texte : Zone de texte et WordArt ; groupe Symboles : Équation et Symbole.",
+          "• Insertion → Illustrations : Images, Formes, Icônes et SmartArt (14 catégories de diagrammes ; chaque case est une forme au texte modifiable) flottent au-dessus de la grille (faire glisser pour déplacer, les coins redimensionnent). Groupe Texte : Zone de texte et WordArt ; groupe Symboles : Équation et Symbole. Mise en page ▸ Organiser avance, recule, aligne et fait pivoter l'objet sélectionné ; le Volet Sélection liste les objets de la feuille (clic sélectionne, l'œil masque, les flèches changent l'ordre).",
           "• Image dans la cellule… place l'image à l'intérieur de la cellule, qui suit ainsi les lignes et colonnes. Dans les formules : =IMAGE(adresse) et =IMAGE.BASE64(texte).",
           "• Insertion → Case à cocher place des cases à cocher dans les cellules sélectionnées ; la cellule vaut VRAI ou FAUX.",
           "• Insérer un lien (groupe Liens) et Commentaire se trouvent aussi dans l'onglet Insertion."

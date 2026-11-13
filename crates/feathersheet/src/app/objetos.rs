@@ -243,6 +243,10 @@ pub enum Evento {
     Espessura(f32),
     Transparencia(f32),
     Ordem(Ordem),
+    /// Painel de Seleção: abre/fecha, mostra/oculta um objeto, muda a ordem de um.
+    PainelSelecao,
+    AlternarOculto(u64),
+    OrdemDe(u64, Ordem),
     Girar(Giro),
     Alinhar(Alinhar),
     MenuFaixa(MenuFaixa),
@@ -324,6 +328,8 @@ pub(super) struct Campos {
 
 #[derive(Debug, Default)]
 pub(super) struct EstadoObjetos {
+    /// Painel de Seleção aberto (#79): lista os objetos da aba.
+    pub painel_selecao: bool,
     /// Aba e id do objeto selecionado.
     pub selecionado: Option<(u32, u64)>,
     /// Forma escolhida no menu, à espera do arraste que a cria.
@@ -676,6 +682,21 @@ impl App {
                 self.objetos.painel = None;
                 self.objetos.mais_cores = false;
                 self.mudar_selecionado(tr!("Transparência alterada"), |o, _| o.aparencia.transparencia = t.clamp(0.0, 1.0));
+            }
+            Evento::PainelSelecao => self.objetos.painel_selecao = !self.objetos.painel_selecao,
+            Evento::AlternarOculto(id) => {
+                let Some((_, lidos)) = self.objetos_da_aba() else { return Task::none() };
+                let mut objetos = (*lidos).clone();
+                let Some(o) = objetos.obter_mut(id) else { return Task::none() };
+                let oculto = o.extras.get("oculto") == Some(&serde_json::Value::Bool(true));
+                if oculto { o.extras.remove("oculto"); } else { o.extras.insert("oculto".into(), serde_json::Value::Bool(true)); }
+                if !oculto && self.objetos.selecionado.is_some_and(|(_, s)| s == id) { self.objetos.selecionado = None; }
+                self.gravar_objetos(&objetos, if oculto { tr!("Objeto mostrado (Ctrl+Z desfaz).") } else { tr!("Objeto oculto (Ctrl+Z desfaz).") }.into());
+            }
+            Evento::OrdemDe(id, ordem) => {
+                let aba = self.workbook.aba(self.folha).map_or(0, |a| a.id);
+                self.objetos.selecionado = Some((aba, id));
+                return self.evento_objetos(Evento::Ordem(ordem));
             }
             Evento::Ordem(ordem) => {
                 self.objetos.menu_faixa = None;

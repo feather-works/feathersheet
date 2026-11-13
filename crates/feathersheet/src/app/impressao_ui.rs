@@ -455,6 +455,8 @@ impl App {
                 self.faixa_grande(tr!("Visualizar"), "imprimir", Some(Msg::Impressao(Evento::Abrir)),
                     self.janelas.aberta(Auxiliar::Imprimir)),
             ])),
+            // Organizar do Excel (#79): age na forma ou imagem selecionada.
+            self.grupo_organizar(),
         ]
     }
 

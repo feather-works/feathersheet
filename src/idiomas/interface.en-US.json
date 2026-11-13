@@ -1,4 +1,10 @@
 {
+ "Objeto mostrado (Ctrl+Z desfaz).": "Object shown (Ctrl+Z undoes).",
+ "Objeto oculto (Ctrl+Z desfaz).": "Object hidden (Ctrl+Z undoes).",
+ "Painel de Seleção": "Selection Pane",
+ "Forma": "Shape",
+ "Ícone": "Icon",
+ "Esta aba não tem formas nem imagens.": "This sheet has no shapes or pictures.",
  "Renomear ou mover para pasta": "Rename or move to folder",
  "Mover para pasta": "Move to folder",
  "Sem pasta": "No folder",
