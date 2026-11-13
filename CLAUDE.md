@@ -24,7 +24,7 @@ falta, está em `docs/planejamento/AUDITORIA-2026-11-13.md`. Feitos e testados (
   `<col style>` nas vazias), painéis congelados e linhas de grade (`xlsx_write::com_vistas`, a vista
   mora no app); imagens e formas do arquivo entram no aviso de "Salvar como" (`nao_convertidos`).
 Depois (mesmo dia): M7 (copiar fórmula desloca `B:B`), M9 (PROCX com linha inteira, do fim e curinga) e
-P9 (Delete na tabela filtrada não apaga as escondidas), P7 (renomear aba esquece o Ctrl+Z das abas
+P9 (Delete na tabela filtrada não apaga as escondidas), A1 (formato da linha e da aba inteira no `.xlsx`), P7 (renomear aba esquece o Ctrl+Z das abas
 reescritas) e A10 (link para dentro da pasta, `#Aba!A1`, lido, gravado e seguido pelo clique); e o cursor do Claude (`sheet_mouse`) agora tem
 liga/desliga em Configurações ▸ IA (MCP) ▸ "Cursor da IA na tela" (`config.mcp_cursor`, desligado de fábrica).
 Ficou de fora (anotado): `ANO(vazia)` dá 1899 porque o motor não tem o 29/02/1900 falso do Excel.

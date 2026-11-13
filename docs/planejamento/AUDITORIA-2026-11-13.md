@@ -40,8 +40,9 @@ Testes: `planilha/workbook/tests_auditoria.rs` (um por item, com o resultado do 
 O Ctrl+S de um `.xlsx` grava por cima do próprio `.xlsx`: cada perda abaixo cai no arquivo original.
 
 - ✅ A1. Formato de coluna inteira não ia para o `.xlsx` (moeda e negrito na coluna sumiam). Agora
-  cada célula leva o estilo combinado e o `<col style>` vale nas vazias. Falta: estilo de linha
-  inteira (`<row s>`) e da aba inteira nas células vazias.
+  cada célula leva o estilo combinado e o `<col style>` vale nas vazias. Também a linha inteira
+  (`<row s customFormat>`, mesmo sem células) e a aba inteira (`<col style>` em todas as colunas, só
+  quando não há formato de coluna: com ele, a aba fica só nas células com valor).
 - ✅ A2 (mínimo). Imagens, formas e caixas de texto lidas do `.xlsx` não são gravadas: agora contam
   no aviso, e o Ctrl+S pede "Salvar como" dizendo o que se perderia. Falta: gravar de verdade
   (`xl/media` e o desenho), e imagem colada no app também some ao gravar `.xlsx`.

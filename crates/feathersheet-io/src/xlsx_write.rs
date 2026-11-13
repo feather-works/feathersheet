@@ -1406,7 +1406,7 @@ fn aba_xml(
     // Altura (`None` = padrão) e tópico de cada linha que tem algo além das células.
     let topicos = &sheet.topicos;
     let mut alturas: BTreeMap<u32, Option<u32>> = sheet.row_heights.iter().map(|(&r, &h)| (r, Some(h))).collect();
-    for &r in topicos.linhas.niveis.keys().chain(topicos.linhas.recolhidas.iter()) {
+    for &r in topicos.linhas.niveis.keys().chain(topicos.linhas.recolhidas.iter()).chain(sheet.row_styles.keys()) {
         alturas.entry(r).or_insert(None);
     }
     let mut links: Vec<(String, String)> = Vec::new();
@@ -1425,29 +1425,50 @@ fn aba_xml(
         e.remove("link");
         (c, escritor.estilos.add(e, None))
     }).collect();
+    // Formato da linha inteira (`<row s customFormat>`) e da aba inteira. A aba vai como
+    // `<col style>` em todas as colunas, mas só sem formato de coluna: o leitor reconhece
+    // "todas iguais até XFD" como estilo da aba (com colunas próprias no meio, viraria
+    // uma cópia por coluna).
+    let sem_link = |e: &EstiloParcial| { let mut e = e.clone(); e.remove("link"); e };
+    let estilo_linha: HashMap<u32, usize> = sheet.row_styles.iter()
+        .map(|(&r, e)| (r, escritor.estilos.add(sem_link(e), None))).collect();
+    let estilo_aba = sheet.sheet_style.as_ref().filter(|_| sheet.col_styles.is_empty())
+        .map(|e| escritor.estilos.add(sem_link(e), None)).filter(|&x| x != 0);
     // Colunas ocultas até o fim: um `<col>` só, de N até XFD, no fim da lista.
     let colunas_desde = sheet.colunas_ocultas_desde.filter(|&n| n < MAX_COLS_XLSX);
     if let Some(n) = colunas_desde { larguras.retain(|&c, _| c < n); }
-    let cols = if larguras.is_empty() && colunas_desde.is_none() {
+    let largura_padrao = to_js_string(arredondar(px_para_largura(sheet.largura_padrao.unwrap_or(LARGURA_PADRAO_PX))));
+    // As faixas sem `<col>` própria, com o estilo da aba (do fim da anterior até a próxima).
+    let faixa_da_aba = |de: u32, ate: u32| -> String {
+        match estilo_aba {
+            Some(xf) if de <= ate => format!("<col min=\"{}\" max=\"{}\" width=\"{largura_padrao}\" style=\"{xf}\"/>", de + 1, ate + 1),
+            _ => String::new(),
+        }
+    };
+    let cols = if larguras.is_empty() && colunas_desde.is_none() && estilo_aba.is_none() {
         String::new()
     } else {
-        let itens: String = larguras
+        let mut proxima = 0u32;
+        let mut itens: String = larguras
             .iter()
             .map(|(&c, w)| {
-                let mut col = format!("<col min=\"{0}\" max=\"{0}\"", c + 1);
+                let mut col = faixa_da_aba(proxima, c.saturating_sub(1)).to_string();
+                proxima = c + 1;
+                let _ = write!(col, "<col min=\"{0}\" max=\"{0}\"", c + 1);
                 match w {
                     Some(w) => { let _ = write!(col, " width=\"{}\" customWidth=\"1\"", to_js_string(arredondar(px_para_largura(*w)))); }
                     None => { let _ = write!(col, " width=\"{}\"", to_js_string(arredondar(px_para_largura(sheet.largura_padrao.unwrap_or(LARGURA_PADRAO_PX))))); }
                 }
-                if let Some(xf) = estilo_coluna.get(&c).filter(|&&x| x != 0) { let _ = write!(col, " style=\"{xf}\""); }
+                if let Some(xf) = estilo_coluna.get(&c).copied().or(estilo_aba).filter(|&x| x != 0) { let _ = write!(col, " style=\"{xf}\""); }
                 col.push_str(&atributos_topico(&topicos.colunas, c));
                 col.push_str("/>");
                 col
             })
             .collect();
+        itens.push_str(&faixa_da_aba(proxima, colunas_desde.unwrap_or(MAX_COLS_XLSX).saturating_sub(1)));
         let resto = colunas_desde.map_or(String::new(), |n| format!(
-            "<col min=\"{}\" max=\"{MAX_COLS_XLSX}\" width=\"{}\" hidden=\"1\"/>", n + 1,
-            to_js_string(arredondar(px_para_largura(sheet.largura_padrao.unwrap_or(LARGURA_PADRAO_PX))))));
+            "<col min=\"{}\" max=\"{MAX_COLS_XLSX}\" width=\"{largura_padrao}\" hidden=\"1\"{}/>", n + 1,
+            estilo_aba.map_or(String::new(), |xf| format!(" style=\"{xf}\""))));
         format!("<cols>{itens}{resto}</cols>")
     };
     // Linhas ocultas até o fim: `zeroHeight` oculta toda linha não listada,
@@ -1520,6 +1541,9 @@ fn aba_xml(
                 let _ = write!(corpo, " ht=\"{}\" customHeight=\"1\"", to_js_string(arredondar(h as f64 * PX_PARA_PT)));
             }
             None => {}
+        }
+        if let Some(xf) = estilo_linha.get(&linha).filter(|&&x| x != 0) {
+            let _ = write!(corpo, " s=\"{xf}\" customFormat=\"1\"");
         }
         corpo.push_str(&atributos_topico(&topicos.linhas, linha));
         corpo.push('>');
@@ -2207,6 +2231,29 @@ mod testes {
         assert!(s.estilo_resolvido(0, 1).is_some_and(|e| e.bold), "célula da coluna");
         assert!(s.estilo_resolvido(5, 1).is_some_and(|e| e.bold), "vazia da coluna (pelo <col style>)");
         assert!(s.estilo_resolvido(0, 0).is_none_or(|e| !e.bold), "outra coluna sem negrito");
+    }
+
+    #[test]
+    fn estilo_da_linha_e_da_aba_inteira_vao_para_o_xlsx() {
+        let negrito = || { let mut e = EstiloParcial::new(); e.insert("bold".into(), Campo::Logico(true)); e };
+        let italico = || { let mut e = EstiloParcial::new(); e.insert("italic".into(), Campo::Logico(true)); e };
+        // Linha 3 em negrito, sem nenhuma célula nela.
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 0, "x".into());
+        pasta.editar(0, |s| { s.row_styles.insert(2, negrito()); });
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(gerar_xlsx(&pasta).unwrap()).unwrap();
+        let s = &lida.aba(0).unwrap().sheet;
+        assert!(s.row_styles.get(&2).is_some_and(|e| e.contains_key("bold")), "linha 3 volta formatada");
+        assert!(s.estilo_resolvido(0, 0).is_none_or(|e| !e.bold));
+        // Aba inteira em itálico, com uma largura própria no meio: volta como estilo da aba.
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 0, "x".into());
+        pasta.editar(0, |s| { s.sheet_style = Some(italico()); s.col_widths.insert(3, 150); });
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(gerar_xlsx(&pasta).unwrap()).unwrap();
+        let s = &lida.aba(0).unwrap().sheet;
+        assert!(s.sheet_style.as_ref().is_some_and(|e| e.contains_key("italic")), "estilo da aba volta");
+        assert!(s.col_styles.is_empty(), "sem uma cópia por coluna");
+        assert!(s.estilo_resolvido(500, 9000).is_some_and(|e| e.italic));
     }
 
     #[test]
