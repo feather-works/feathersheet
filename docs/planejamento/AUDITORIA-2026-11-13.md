@@ -41,14 +41,18 @@ O Ctrl+S de um `.xlsx` grava por cima do próprio `.xlsx`: cada perda abaixo cai
 - ⏳ A2. Imagens, formas e caixas de texto lidas do `.xlsx` não são gravadas (o logotipo some).
   Mínimo: contar em `nao_convertidos` para o Ctrl+S pedir "Salvar como".
 - ⏳ A3. Painéis congelados e linhas de grade ocultas não vão para o `.xlsx`.
-- ⏳ A4. Intervalo de coluna inteira sai com a linha 100.000.000 (formatação condicional, validação,
-  nomes): o Excel recusa e "conserta" o arquivo.
+- ✅ A4. Intervalo de coluna inteira saía com a linha 100.000.000 (formatação condicional, validação,
+  nomes): agora para em 1.048.576 × XFD, o limite do Excel.
 - ✅ A5. Nome de aba que o Excel recusa (`[ ] * ? / \`, apóstrofo na ponta, mais de 31 letras)
   agora é recusado ao renomear. Falta: arquivos antigos com esses nomes ao gravar.
-- ⏳ A6. Erros que o Excel não conhece (`#CIRCULAR!`, `#ERROR!`, `#CALCULANDO!`) gravados como erro.
-- ⏳ A7. CSV exportado com o valor cru (data vira 46327, 15% vira 0.15), não com o que a célula mostra.
-- ⏳ A8. `_xHHHH_` do Excel (o `_x000D_` do Windows) não é lido nem escrito.
-- ⏳ A9. Linha ou célula sem o atributo `r` (permitido pela norma) é pulada ao abrir.
+- ✅ A6. Erros que o Excel não conhece (`#CIRCULAR!`, `#ERROR!`, `#CALCULANDO!`): vai só a fórmula,
+  sem valor guardado (o Excel recalcula). Falta: fórmula que o leitor não entende ainda vai como texto.
+- ✅ A7. CSV exportado com o valor cru (data virava 46327): número com formato escolhido sai como a
+  célula mostra; sem formato, o número cru (reabre igual).
+- ✅ A8. `_xHHHH_` do Excel (o `_x000D_` do Windows) agora é lido. Falta escrever (`_x005F_` antes de
+  um `_x…_` literal e caractere de controle), raro.
+- ✅ A9. Linha ou célula sem o atributo `r` (permitido pela norma) era pulada; agora segue a anterior
+  (nos dois leitores).
 - ⏳ A10. Link para dentro da pasta (`location=`) some sem aviso.
 
 ## App (`feathersheet`)
@@ -66,6 +70,7 @@ O Ctrl+S de um `.xlsx` grava por cima do próprio `.xlsx`: cada perda abaixo cai
 - ⏳ P7. Renomear aba põe a reescrita das fórmulas no Ctrl+Z de cada aba (desfazer ali quebra as fórmulas).
 - ✅ P8. Excluir aba com fórmula em edição fazia o Enter gravar na aba errada: agora pede para terminar antes.
 - ⏳ P9. Delete numa faixa filtrada apaga também as linhas escondidas (o Excel só apaga as visíveis).
+  Falta saber, no motor, quais linhas o filtro escondeu (as ocultas à mão o Excel apaga).
 
 Não lidos pelas auditorias: gráficos, dinâmica (além do fundo), editor de macros, FeatherQuery,
 vínculos entre janelas, impressão, o formato `.fshz` em detalhe, estilos do leitor de `.xlsx`.

@@ -1077,6 +1077,13 @@ fn escrever_c(
         }
     };
     match valor {
+        // Códigos que o Excel não conhece: só a fórmula, sem valor guardado (o Excel recalcula).
+        // Como erro (`t="e"`) ele acusa o arquivo e pede para consertar.
+        Value::Error(e) if matches!(e.code, feathersheet_core::celulas::values::ErrorCode::Error | feathersheet_core::celulas::values::ErrorCode::Circular | feathersheet_core::celulas::values::ErrorCode::Calculating) => {
+            out.push('>');
+            fx(out);
+            out.push_str("</c>");
+        }
         Value::Error(e) => {
             out.push_str(" t=\"e\">");
             fx(out);
@@ -1163,6 +1170,11 @@ fn serie_da_data(texto: &str) -> Option<i64> {
     Some(dias_desde_1970 + 25_569)
 }
 
+/// Última linha e coluna do Excel (1.048.576 × XFD): `A:A` do motor vai até 100 milhões e o
+/// Excel recusa o arquivo com linha além do limite dele.
+pub(crate) fn ate_o_excel_linha(r: u32) -> u32 { r.min(1_048_575) }
+pub(crate) fn ate_o_excel_coluna(c: u32) -> u32 { c.min(16_383) }
+
 /// `A1:B9 D2` do atributo `sqref`.
 fn sqref(ranges: &[feathersheet_core::celulas::refs::Rect]) -> String {
     let mut s = String::new();
@@ -1171,9 +1183,10 @@ fn sqref(ranges: &[feathersheet_core::celulas::refs::Rect]) -> String {
             s.push(' ');
         }
         s.push_str(&cell_name(r.r0, r.c0));
-        if (r.r0, r.c0) != (r.r1, r.c1) {
+        let (r1, c1) = (ate_o_excel_linha(r.r1), ate_o_excel_coluna(r.c1));
+        if (r.r0, r.c0) != (r1, c1) {
             s.push(':');
-            s.push_str(&cell_name(r.r1, r.c1));
+            s.push_str(&cell_name(r1, c1));
         }
     }
     s
@@ -1765,8 +1778,8 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
                     quote_sheet(aba),
                     col_name(a.c0),
                     a.r0 + 1,
-                    col_name(a.c1),
-                    a.r1 + 1
+                    col_name(ate_o_excel_coluna(a.c1)),
+                    ate_o_excel_linha(a.r1) + 1
                 );
                 // Os nomes internos do Excel (`_xlnm._FilterDatabase`, `_xlnm.Print_Area`) são da aba:
                 // sem o `localSheetId`, o Excel acusa o arquivo.

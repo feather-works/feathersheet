@@ -17,9 +17,13 @@ falta, está em `docs/planejamento/AUDITORIA-2026-11-13.md`. Feitos e testados (
   durante macro; Ctrl+C em coluna inteira copia só até a área usada; "Excluir aba" com dados pede
   confirmação (e não exclui com fórmula em edição); o Ctrl+Z de inserir linha não leva a macro salva
   depois; nome de aba que o Excel recusa é recusado ao renomear.
+- **Arquivos:** intervalo de coluna inteira para no limite do Excel (antes linha 100 milhões e o
+  Excel consertava o arquivo); `#CIRCULAR!`/`#ERROR!` vão só como fórmula; CSV grava data, % e moeda
+  como a célula mostra; `_x000D_` do Excel vira a quebra de linha; linha ou célula sem `r` não some.
 Ficou de fora (anotado): `ANO(vazia)` dá 1899 porque o motor não tem o 29/02/1900 falso do Excel.
 Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e critério 0 nos CONT.SE e SOMASE, ÍNDICE com linha 0, TEXTO com seções."
 "Ctrl+Z depois de abrir outro arquivo não traz mais o anterior; excluir aba com dados pede confirmação."
+"CSV exportado com datas e porcentagens como aparecem na célula; .xlsx com coluna inteira abre no Excel sem reparo."
 
 ## Depois da v0.3.2 (13/11/2026): o .dmg do macOS volta
 

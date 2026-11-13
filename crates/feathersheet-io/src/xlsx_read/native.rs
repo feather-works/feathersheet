@@ -48,7 +48,7 @@ fn strings_compartilhadas(archive: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>
         if tamanho > MAX_TEXTO_COMPARTILHADO {
             return Err(feathersheet_core::tr!("XLSX: strings compartilhadas excedem 256 MiB de texto; importação interrompida para proteger a RAM").into());
         }
-        strings.push(texto);
+        strings.push(super::sheet::desfazer_xhhhh(texto));
         Ok(())
     })?;
     Ok(strings)
@@ -368,6 +368,8 @@ fn ler_aba(
     let mut shared = HashMap::<String, sheet::SharedFormula>::new();
     let mut alturas = Vec::<sheet::AlturaLida>::new();
     let mut ultima_visivel = -1_i64;
+    // A norma deixa o `r` de fora: sem ele, a linha é a seguinte à anterior (e a célula, a seguinte na linha).
+    let mut proxima_linha = 0_i64;
     let mut so_formatadas = 0usize;
     // Cada célula com a imagem leva uma cópia da data URL: uma figura citada
     // por 100 mil células pediria terabytes (#53).
@@ -454,9 +456,11 @@ fn ler_aba(
         };
         let raiz = xml::parse_xml_linhas_rapidas(
             fonte, &mut |row| {
-                let Some(linha) = row.attr("r").and_then(|r| r.parse::<i64>().ok()).map(|r| r - 1) else {
-                    return Ok(());
+                let linha = match row.attr("r") {
+                    Some(r) => match r.parse::<i64>() { Ok(r) => r - 1, Err(_) => return Ok(()) },
+                    None => proxima_linha,
                 };
+                proxima_linha = linha + 1;
                 if !(0..1_048_576).contains(&linha) { return Ok(()); }
                 vigia.tique()?;
                 let hidden = matches!(row.attr("hidden"), Some("1") | Some("true"));
@@ -476,8 +480,13 @@ fn ler_aba(
                 // As linhas vêm em ordem: área que já acabou não pega mais
                 // ninguém, e a lista fica só com as que cruzam esta linha.
                 derramadas.retain(|&(_, _, r1, _)| r1 >= linha);
+                let mut proxima_coluna = 0_i64;
                 for celula in row.celulas() {
-                    let Some(at) = parse_cell_ref(celula.attr("r").unwrap_or("")) else { continue };
+                    let at = match celula.attr("r") {
+                        Some(r) => { let Some(at) = parse_cell_ref(r) else { continue }; at }
+                        None => super::refs::CellRef { row: linha, col: proxima_coluna },
+                    };
+                    proxima_coluna = at.col + 1;
                     if at.row < 0 || at.row >= 1_048_576 || at.col < 0 || at.col >= MAX_COLS {
                         continue;
                     }

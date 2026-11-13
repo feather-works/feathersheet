@@ -25,10 +25,12 @@ use feathersheet_core::planilha::sheet::Sheet;
 use crate::xlsx_write::{escape_xml, formula_to_excel, para_argb_pub};
 
 fn intervalo(r: &Faixa) -> String {
-    if (r.r0, r.c0) == (r.r1, r.c1) {
+    // `A:A` vem até a linha 100 milhões: o Excel só tem 1.048.576 e recusa a regra.
+    let (r1, c1) = (crate::xlsx_write::ate_o_excel_linha(r.r1), crate::xlsx_write::ate_o_excel_coluna(r.c1));
+    if (r.r0, r.c0) == (r1, c1) {
         cell_name(r.r0, r.c0)
     } else {
-        format!("{}:{}", cell_name(r.r0, r.c0), cell_name(r.r1, r.c1))
+        format!("{}:{}", cell_name(r.r0, r.c0), cell_name(r1, c1))
     }
 }
 

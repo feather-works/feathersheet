@@ -152,7 +152,13 @@ pub fn exportar_com_separador<W: std::io::Write>(
     for linha in 0..=utilizado.r1 {
         for coluna in 0..=utilizado.c1 {
             if coluna > 0 { destino.write_all(&sep)?; }
-            let celula = match workbook.valor(indice, linha, coluna) {
+            let valor = workbook.valor(indice, linha, coluna);
+            // Número com formato escolhido (data, %, moeda): sai como a célula mostra, como o Excel
+            // grava o CSV. Sem formato fica o número cru, que reabre igual.
+            let estilo = matches!(valor, Value::Number(_)).then(|| sheet.estilo_resolvido(linha, coluna)).flatten()
+                .filter(|e| e.format != feathersheet_core::celulas::style::NumberFormat::Auto);
+            let celula = match valor {
+                Value::Number(n) if estilo.is_some() => feathersheet_core::celulas::style::format_number(n, estilo.as_ref()),
                 Value::Empty => String::new(),
                 // A mesma escrita da tela (1e21, 1e-7), não a do Rust.
                 Value::Number(v) if separador == ';' => feathersheet_core::celulas::number::to_js_string(v).replace('.', ","),
@@ -204,6 +210,20 @@ pub fn texto_de_bytes(bytes: Vec<u8>) -> String {
 
 #[cfg(test)]
 mod testes {
+    #[test]
+    fn csv_grava_data_e_porcento_como_a_celula_mostra() {
+        let mut w = feathersheet_core::planilha::workbook::Workbook::new();
+        w.escrever_celula(0, 0, 0, "01/11/2026".into());
+        w.escrever_celula(0, 0, 1, "15%".into());
+        w.escrever_celula(0, 0, 2, "1250,5".into());
+        let mut saida = Vec::new();
+        super::exportar_com_separador(&w, 0, ';', &mut saida).unwrap();
+        let texto = String::from_utf8(saida).unwrap();
+        assert!(texto.contains("01/11/2026") && texto.contains("15,00%"), "{texto}");
+        // Sem formato escolhido, o número cru (reabre igual).
+        assert!(texto.contains("1250,5"), "{texto}");
+    }
+
     use super::*;
 
     #[test]

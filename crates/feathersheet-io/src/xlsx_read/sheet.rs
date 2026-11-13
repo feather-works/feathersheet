@@ -280,13 +280,11 @@ impl FonteCelula for XmlNode {
     }
     fn valor(&self) -> Option<&str> { self.child("v").map(|v| v.text.as_str()) }
     fn inline(&self) -> Option<String> {
-        self.child("is").map(|is| {
-            if let Some(direct) = is.child("t") {
-                direct.text.clone()
-            } else {
-                is.children_named("r").map(|r| r.child("t").map(|t| t.text.clone()).unwrap_or_default()).collect()
-            }
-        })
+        self.child("is").map(|is| desfazer_xhhhh(if let Some(direct) = is.child("t") {
+            direct.text.clone()
+        } else {
+            is.children_named("r").map(|r| r.child("t").map(|t| t.text.clone()).unwrap_or_default()).collect()
+        }))
     }
 }
 
@@ -296,7 +294,51 @@ impl FonteCelula for super::xml::CelulaXml {
         self.f.get().map(|t| (t, self.f_t.get(), self.f_si.get()))
     }
     fn valor(&self) -> Option<&str> { self.v.get() }
-    fn inline(&self) -> Option<String> { self.inline.get().map(str::to_owned) }
+    fn inline(&self) -> Option<String> { self.inline.get().map(|t| desfazer_xhhhh(t.to_owned())) }
+}
+
+/// O Excel escreve no texto da célula o caractere que o XML não aceita como `_xHHHH_`
+/// (a quebra do Windows vira `_x000D_`); `_x005F_` antes guarda um `_x…_` literal.
+pub(crate) fn desfazer_xhhhh(texto: String) -> String {
+    if !texto.contains("_x") { return texto; }
+    let b = texto.as_bytes();
+    let mut saida = String::with_capacity(texto.len());
+    let mut i = 0;
+    while i < texto.len() {
+        if b[i] == b'_' && i + 7 <= texto.len() && b[i + 1] == b'x' && b[i + 6] == b'_'
+            && b[i + 2..i + 6].iter().all(u8::is_ascii_hexdigit) {
+            let codigo = u32::from_str_radix(&texto[i + 2..i + 6], 16).unwrap_or(0);
+            if let Some(c) = char::from_u32(codigo) {
+                saida.push(c);
+                i += 7;
+                continue;
+            }
+        }
+        let c = texto[i..].chars().next().expect("i está numa fronteira de caractere");
+        saida.push(c);
+        i += c.len_utf8();
+    }
+    saida
+}
+
+#[cfg(test)]
+mod testes_xhhhh {
+    #[test]
+    fn linha_e_celula_sem_r_seguem_a_anterior() {
+        let xml = r#"<worksheet><sheetData><row><c t="inlineStr"><is><t>a</t></is></c><c t="inlineStr"><is><t>b</t></is></c></row><row r="3"><c r="B3" t="inlineStr"><is><t>c</t></is></c><c t="inlineStr"><is><t>d</t></is></c></row></sheetData></worksheet>"#;
+        let aba = super::read_sheet("A", xml, &[], &[]);
+        let texto = format!("{aba:?}");
+        for v in ["\"a\"", "\"b\"", "\"c\"", "\"d\""] { assert!(texto.contains(v), "faltou {v}: {texto}"); }
+    }
+
+    #[test]
+    fn desfaz_os_escapes_do_excel() {
+        let d = |t: &str| super::desfazer_xhhhh(t.to_owned());
+        assert_eq!(d("linha1_x000D_\nlinha2"), "linha1\r\nlinha2");
+        assert_eq!(d("_x005F_x0041_"), "_x0041_");
+        assert_eq!(d("ação_x"), "ação_x");
+        assert_eq!(d("sem nada"), "sem nada");
+    }
 }
 
 pub(super) fn cell_raw<C: FonteCelula + ?Sized>(c: &C, strings: &[String], xf: Option<&XfStyle>, shared: &mut HashMap<String, SharedFormula>, row: i64, col: i64) -> String {
@@ -413,10 +455,15 @@ fn read_sheet_com_links_limite(
     let mut alturas = Vec::<AlturaLida>::new();
     let mut ultima_visivel = -1_i64;
     let mut excedeu = false;
+    // Sem o `r` (a norma permite), a linha é a seguinte à anterior e a célula a seguinte na linha.
+    let mut proxima_linha = 0_i64;
     let root = parse_xml_linhas(xml, &mut |row| {
         if excedeu { return; }
-        let Some(row_index) = row.attr("r").and_then(|s| s.parse::<i64>().ok())
-            .map(|r| r - 1) else { return };
+        let row_index = match row.attr("r") {
+            Some(r) => match r.parse::<i64>() { Ok(r) => r - 1, Err(_) => return },
+            None => proxima_linha,
+        };
+        proxima_linha = row_index + 1;
         let hidden = matches!(row.attr("hidden"), Some("1") | Some("true"));
         if !hidden { ultima_visivel = ultima_visivel.max(row_index); }
         let ht = row.attr("ht").and_then(|s| s.parse::<f64>().ok());
@@ -425,8 +472,13 @@ fn read_sheet_com_links_limite(
         if row_index >= 0 && (hidden || ht.is_some() || nivel > 0 || recolhida) {
             alturas.push((row_index, ht, hidden, propria, nivel, recolhida));
         }
+        let mut proxima_coluna = 0_i64;
         for celula in row.children_named("c") {
-            let Some(at) = parse_cell_ref(celula.attr("r").unwrap_or("")) else { continue };
+            let at = match celula.attr("r") {
+                Some(r) => { let Some(at) = parse_cell_ref(r) else { continue }; at }
+                None => super::refs::CellRef { row: row_index, col: proxima_coluna },
+            };
+            proxima_coluna = at.col + 1;
             let xf_index = celula.attr("s").and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
             let xf = xfs.get(xf_index);
             let raw = cell_raw(celula, strings, xf, &mut shared, at.row, at.col);
