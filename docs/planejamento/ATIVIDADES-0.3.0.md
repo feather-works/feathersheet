@@ -193,6 +193,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 ## Frente 1 — Publicação pendente e higiene do repositório
 
 ### PUB-1. Tirar os arquivos soltos da raiz e de `crates/feathersheet`
+**Situação (13/11):** 🟡 `crates/feathersheet/0` (saída de medição solta, fora do git) saiu da pasta. Os `.snap` da raiz já são ignorados pelo `.gitignore` (`*.snap`); `video-v0.2/Fechamento.bas` é usado pelo `medir_fechamento` e `pacote/flatpak/` é do pacote Flatpak: ficam.
 **Situação (08/11):** ❌ falta. Continuam soltos: `crates/feathersheet/0`, `feathersheet_0.2.2/0.2.8/0.2.9_amd64.snap` na raiz, os dois arquivos de `video-v0.2/` e, novo, `pacote/flatpak/cargo-sources.json`. O `.claude/` já não aparece no `git status`.
 - **Onde:** `crates/feathersheet/0`; `feathersheet_0.2.2_amd64.snap` (raiz); `.claude/`;
   `docs/planejamento/video-v0.2/banner-featheroffice.png`, `vendas-outubro.xlsx`.
@@ -201,6 +202,7 @@ para stable desde a 0.2.3, pelo `PUBLICAR.md`).
 - **Depende:** D19.  **Issue:** nenhuma.  **Tamanho:** P.
 
 ### PUB-2. Limpar ramos e worktrees locais
+**Situação (13/11):** 🟡 os 6 ramos já juntados ao `main` foram apagados e a worktree `.wt/sheet-0127` (limpa, commit no `main`) saiu. Ficam `editor-alinhado` e `worktree-agent-a4d3…`: cada um com 1 commit fora do `main`, superado por `d697473` e `550ab5b`; apagar com `git branch -D` só com o usuário de acordo.
 **Situação (08/11):** ❌ falta. São 9 ramos locais. Sem nada fora do `main` (podem ser apagados): `claude-pelicano-0127`, `rel-0.2.4` e 4 `worktree-agent-*` (`a46ff…`, `a4b03…`, `a6b02…`, `a750d…`). Com 1 commit fora: `editor-alinhado` (`e5bf09b`, superado por `d697473`) e `worktree-agent-a4d3…` (a conferir). Worktree solta: `.wt/sheet-0127` (parada em `2f8581d`).
 - **Onde:** `git branch`, `git worktree list`; ramos `worktree-agent-a46ff…`, `…a4b03…`, `…a4d3…`,
   `…a6b02…`, `…a750d…`; worktrees em `/tmp/.../scratchpad/` e `.wt/`.
