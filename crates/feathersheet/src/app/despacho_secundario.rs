@@ -1153,6 +1153,14 @@ impl App {
                         // FEATHERSHEET_CAPTURAR_FAIXA=formulas abre essa aba da faixa (`inserir+mais` abre o "Mais").
                         if let Ok(chave) = std::env::var("FEATHERSHEET_CAPTURAR_FAIXA") {
                             let (chave, mais) = chave.split_once('+').map_or((chave.as_str(), false), |(c, _)| (c, true));
+                            // `micro` liga o modo micro (#68); `micro+mais` abre também o menu Editar.
+                            if chave == "micro" {
+                                self.config.faixa_micro = true;
+                                self.config.faixa_recolhida = true;
+                                self.barra_menu_aberta = mais;
+                                self.menu_grupo = 1;
+                            }
+                            let mais = mais && chave != "micro";
                             self.faixa_ativa = AbaFaixa::de_chave_persistencia(chave);
                             self.faixa_extras_aberto = mais;
                         }
@@ -1680,6 +1688,12 @@ impl App {
                 self.config.gravar();
                 Task::none()
             }
+            Msg::FaixaMicro => {
+                self.config.faixa_micro = !self.config.faixa_micro;
+                // Ligar o micro já recolhe a faixa: senão nada mudaria na tela.
+                if self.config.faixa_micro { self.config.faixa_recolhida = true; }
+                self.barra_menu_aberta = false;
+                self.config.gravar(); Task::none() }
             Msg::Faixa => { self.config.faixa_recolhida = !self.config.faixa_recolhida;
                 self.barra_menu_aberta = false;
                 self.config.gravar(); Task::none() }

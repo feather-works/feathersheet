@@ -1,4 +1,6 @@
 {
+ "Modo micro": "Modo micro",
+ "Com a faixa recolhida, menus e pesquisa ficam na barra de título.": "Con la cinta contraída, los menús y la búsqueda pasan a la barra de título.",
  "Desproteja a planilha para mudar os intervalos.": "Desproteja la hoja para cambiar los rangos.",
  "Intervalo inválido: use algo como B2:D10.": "Rango no válido: use algo como B2:D10.",
  "Intervalo liberado: vale quando a planilha for protegida.": "Rango permitido: vale cuando la hoja esté protegida.",

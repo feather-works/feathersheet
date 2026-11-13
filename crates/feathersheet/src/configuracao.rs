@@ -107,6 +107,8 @@ pub struct Configuracao {
     pub mcp_so_leitura: bool,
     /// O cursor "Claude" (`sheet_mouse`): a IA move o mouse e clica na janela. Desligado de fábrica.
     pub mcp_cursor: bool,
+    /// Modo micro (#68): com a faixa recolhida, menus e pesquisa vão para a barra de título.
+    pub faixa_micro: bool,
     /// O arquivo de preferências já existia ao abrir (não é instalação nova).
     /// Não é gravado.
     #[serde(skip)]
@@ -190,6 +192,7 @@ impl Default for Configuracao {
             mcp_ativo: false,
             mcp_so_leitura: false,
             mcp_cursor: false,
+            faixa_micro: false,
             existia: false,
         }
     }

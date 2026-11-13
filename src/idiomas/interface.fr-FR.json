@@ -1,4 +1,6 @@
 {
+ "Modo micro": "Mode micro",
+ "Com a faixa recolhida, menus e pesquisa ficam na barra de título.": "Avec le ruban réduit, les menus et la recherche passent dans la barre de titre.",
  "Desproteja a planilha para mudar os intervalos.": "Ôtez la protection de la feuille pour modifier les plages.",
  "Intervalo inválido: use algo como B2:D10.": "Plage non valide : utilisez par exemple B2:D10.",
  "Intervalo liberado: vale quando a planilha for protegida.": "Plage autorisée : elle s'applique quand la feuille est protégée.",

@@ -235,7 +235,7 @@ impl App {
         let _ = self.evento_dinamica(Evento::ArrastoSoltar);
         let _ = self.evento_dinamica(Evento::Campo(1));
         let painel_x = self.tamanho_principal.width - 378.0;
-        let topo = 43.0 + 52.0 + if self.config.faixa_recolhida { 0.0 } else { super::super::faixa_nativa::ALTURA_FAIXA_NATIVA };
+        let topo = self.topo_abaixo_abas() + if self.config.faixa_recolhida { 0.0 } else { super::super::faixa_nativa::ALTURA_FAIXA_NATIVA };
         match modo {
             "filtro" => {
                 let achado = dinamicas_da_aba(self, self.folha).iter()

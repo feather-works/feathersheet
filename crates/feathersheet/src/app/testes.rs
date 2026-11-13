@@ -499,6 +499,24 @@ fn modelo_orcamento_domestico_preenche_pasta_pelo_motor_real() {
     }
 
     #[test]
+    fn modo_micro_recolhe_a_faixa_e_tira_a_linha_das_abas() {
+        let mut app = App::default();
+        assert_eq!(app.topo_abaixo_abas(), 95.0);
+        app.update(Msg::FaixaMicro);
+        assert!(app.config.faixa_micro && app.config.faixa_recolhida && app.faixa_micro());
+        assert_eq!(app.topo_abaixo_abas(), 43.0, "a linha das abas some");
+        // Expandir a faixa volta às abas; recolher de novo volta ao micro.
+        app.update(Msg::Faixa);
+        assert!(!app.faixa_micro());
+        assert_eq!(app.topo_abaixo_abas(), 95.0);
+        app.update(Msg::Faixa);
+        assert!(app.faixa_micro());
+        { let _tela: Element<'_, Msg> = app.view_editor(window::Id::MAIN); }
+        app.update(Msg::FaixaMicro);
+        assert!(!app.faixa_micro());
+    }
+
+    #[test]
     fn menu_typescript_restaurado_mostra_nove_categorias_e_submenus() {
         let mut app = App::default();
         let catalogo = menu_nativo::catalogo();
@@ -514,7 +532,7 @@ fn modelo_orcamento_domestico_preenche_pasta_pelo_motor_real() {
         {
             // O Element toma empréstimo imutável do App. Soltar antes de
             // disparar as mutações do teste evita manter borrow ativo.
-            let _menu: Element<'_, Msg> = app.barra_menu_classico();
+            let _menu: Element<'_, Msg> = app.barra_menu_classico(96.0);
         }
         let ver = catalogo.menus.iter().position(|m| m.titulo == "Ver").unwrap();
         app.update(Msg::MenuGrupo(ver));

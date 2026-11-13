@@ -435,6 +435,7 @@ impl App {
                     self.faixa_grande_seta(tr!("Congelar"), "lock", Some(Msg::CongelarMenu), self.congelar_menu_aberto),
                     self.faixa_grande(if self.tela_inteira { tr!("Sair tela inteira") } else { tr!("Tela inteira") },
                         "arrows-maximize", Some(Msg::TelaInteira), self.tela_inteira),
+                    self.faixa_grande(tr!("Modo micro"), "layout-rows", Some(Msg::FaixaMicro), self.config.faixa_micro),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Zoom"), self.faixa_linha(vec![
                     self.faixa_lista(tr!("Zoom"), "zoom", ZOOMS, self.faixa_nome_zoom(), 88.),

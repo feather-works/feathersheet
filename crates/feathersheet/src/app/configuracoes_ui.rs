@@ -296,6 +296,8 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                 toggler("", app.config.realce_eixos).on_toggle(Msg::RealceEixos).color(COR_AZUL_ACENTO())),
             linha(tr!("Faixa de opções"), tr!("Ctrl+F1 recolhe ou expande a faixa."),
                 toggler("", !app.config.faixa_recolhida).on_toggle(|_| Msg::Faixa).color(COR_AZUL_ACENTO())),
+            linha(tr!("Modo micro"), tr!("Com a faixa recolhida, menus e pesquisa ficam na barra de título."),
+                toggler("", app.config.faixa_micro).on_toggle(|_| Msg::FaixaMicro).color(COR_AZUL_ACENTO())),
             text(tr!("Largura e altura padrão e estilo inicial de tabelas: em breve."))
                 .size(11).color(COR_TEXTO_MUTED()),
         ].spacing(0).into(),

@@ -46,6 +46,14 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**Modo micro (#68, 13/11).** `config.faixa_micro` (Exibir ▸ Janela ou Configurações ▸ Planilha, `Msg::FaixaMicro`) vale com a
+faixa recolhida (`App::faixa_micro`): `interface_editor::barra_micro` monta a barra de título (emblema, 5 ações, menus
+clássicos com título de 88 px, nome do arquivo só com ≥1500 px, pesquisa, Expandir faixa, Configurações) e a linha das abas
+some. Expandir volta às abas; recolher volta ao micro. Toda conta de "abaixo das abas" usa `App::topo_abaixo_abas` (43 ou
+95), nunca `43.0 + 52.0`. Os resultados da pesquisa flutuam (`sobrepor_busca_micro`). Foto:
+`FEATHERSHEET_CAPTURAR_FAIXA=micro` (`micro+mais` abre o menu Editar). Novidade: "Modo micro: menus e pesquisa na barra
+de título, a planilha ganha a altura das abas."
+
 **Permitir edição de intervalos (#82, 13/11).** Revisão ▸ Proteger: `app/intervalos_ui.rs` guarda os intervalos no `pr`
 da aba (o campo antigo do TS, agora com a senha no formato do Excel: `{alg,hash,sal,giros}`), `.xlsx` em `<protectedRanges>`.
 O motor só vê `Sheet::areas_liberadas` (não vai para o arquivo), posto por `App::liberar_areas` antes de cada ação conferida;

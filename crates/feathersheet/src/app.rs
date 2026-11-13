@@ -518,7 +518,7 @@ pub enum Msg {
     /// Atalho de macros consumido pelo editor de texto Iced. Nunca alcança a grade.
     MacroTeclado(window::Id, keyboard::Key, keyboard::Modifiers),
     TecladoNoCampo(window::Id, keyboard::Key, keyboard::Modifiers),
-    Tema(bool), TemaAuto, Acento(usize), BarraPropria(bool), Faixa, SecaoConfig(usize),
+    Tema(bool), TemaAuto, Acento(usize), BarraPropria(bool), Faixa, FaixaMicro, SecaoConfig(usize),
     Idioma(&'static str), CsvDetectarSeparador(bool),
     AutoSalvar(bool), SalvarXlsx(bool), ListasAlca(String), CalculoIterativo(bool), IteracoesMaximo(u32), IteracoesDiferenca(f64), Propriedade(usize, String), IntervaloAutoSalvar(u16), LimiteMemoriaGb(u16), Nucleos(u16), Fuso(Option<i32>), CalcularPulso, CalculoPulso, CalcularEmFundo, CalculoParar, FonteGrade(&'static str), CorpoGrade(u16),
     CapturarAtalho(&'static str), RestaurarAtalhos,

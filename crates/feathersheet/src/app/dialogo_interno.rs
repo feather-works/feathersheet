@@ -4,9 +4,19 @@ use super::*;
 pub(super) use feather_ui::dialogo::{self as dlg, Dialogo};
 
 impl App {
+    /// Modo micro (#68) valendo: ligado e com a faixa recolhida (expandir volta às abas).
+    pub(super) fn faixa_micro(&self) -> bool {
+        self.config.faixa_micro && self.config.faixa_recolhida
+    }
+
+    /// Fim da barra de título e da linha das abas (que some no modo micro).
+    pub(super) fn topo_abaixo_abas(&self) -> f32 {
+        43.0 + if self.faixa_micro() { 0.0 } else { 52.0 }
+    }
+
     /// Onde o diálogo começa: logo abaixo da faixa (ou das abas, se recolhida).
     pub(super) fn topo_dialogo(&self) -> f32 {
-        43.0 + 52.0
+        self.topo_abaixo_abas()
             + if self.config.faixa_recolhida { 0.0 } else { faixa_nativa::ALTURA_FAIXA_NATIVA }
             + 8.0
     }

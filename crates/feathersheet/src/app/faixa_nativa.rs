@@ -579,29 +579,42 @@ impl App {
     }
 
     /// Entrada para comandos globais; busca somente os comandos já ligados ao Rust.
-    pub(super) fn faixa_pesquisa(&self) -> Element<'_, Msg> {
+    /// Largura do campo de pesquisa de comandos (encolhe em janela estreita).
+    pub(super) fn largura_pesquisa(&self) -> f32 {
         // Com aba contextual (Tabela Dinâmica, Design da Tabela…) em janela estreita a busca
         // encolhe: senão o nome da aba ficava cortado atrás dela.
         let contextual = self.dinamica_na_faixa() || self.minigrafico_na_celula().is_some() || self.tem_forma_selecionada()
             || super::tabelas::sob_celula(&self.workbook, self.folha, self.linha, self.coluna).is_some();
-        let largura = if self.tamanho_principal.width >= 1300.0 { 250.0 } else if contextual { 92.0 } else { 172.0 };
+        if self.tamanho_principal.width >= 1300.0 { 250.0 } else if contextual { 92.0 } else { 172.0 }
+    }
+
+    /// Os comandos achados pela pesquisa (no máximo 5), ou `None` sem texto digitado.
+    pub(super) fn resultados_busca(&self) -> Option<pelicano::Column<'_, Msg>> {
+        if self.busca_comandos.trim().is_empty() { return None; }
+        let encontrados = self.resultados_faixa();
+        let mut lista = column(Vec::new()).spacing(2);
+        if encontrados.is_empty() {
+            lista = lista.push(text(tr!("Nenhum comando disponível")).size(10).color(COR_TEXTO_MUTED()));
+        }
+        for (i, (nome, _)) in encontrados.into_iter().enumerate().take(5) {
+            lista = lista.push(
+                button(text(nome).size(11)).padding([3, 7]).width(Length::FILL)
+                    .on_press(Msg::BuscaComando(i))
+                    .style(estilo_botao_pequeno(false))
+            );
+        }
+        Some(lista)
+    }
+
+    pub(super) fn faixa_pesquisa(&self) -> Element<'_, Msg> {
+        let largura = self.largura_pesquisa();
         let campo = text_input(if largura < 150.0 { tr!("Pesquisar") } else { tr!("Pesquisar comandos...") }, &self.busca_comandos)
             .on_input(Msg::BuscaComandos).width(Length::Fixed(largura))
             .size(12).padding([6, 9]);
         let mut lista = column![campo].spacing(2);
-        if !self.busca_comandos.trim().is_empty() {
-            let encontrados = self.resultados_faixa();
-            if encontrados.is_empty() {
-                lista = lista.push(text(tr!("Nenhum comando disponível")).size(10).color(COR_TEXTO_MUTED()));
-            } else {
-                for (i, (nome, _)) in encontrados.into_iter().enumerate().take(5) {
-                    lista = lista.push(
-                        button(text(nome).size(11)).padding([3, 7]).width(Length::FILL)
-                            .on_press(Msg::BuscaComando(i))
-                            .style(estilo_botao_pequeno(false))
-                    );
-                }
-            }
+        // No modo micro a lista flutua (`sobrepor_busca_micro`): a barra de título não cresce.
+        if !self.faixa_micro() {
+            if let Some(achados) = self.resultados_busca() { lista = lista.push(achados); }
         }
         container(lista).padding([2, 4]).width(Length::Fixed(largura + 13.0)).into()
     }

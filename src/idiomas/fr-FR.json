@@ -43,7 +43,7 @@
           "• Quand vous tapez un texte par lequel commence une seule cellule de la même colonne (\"Sup\" → \"Supermarché\"), la valeur complète s'affiche en dessous : Entrée, Tab ou un clic ailleurs l'accepte ; effacer une lettre abandonne la suggestion.",
           "• Ctrl + flèche saute à la fin des données ; avec Maj, sélectionne jusque-là.",
           "• Ctrl+Z annule et Ctrl+Y rétablit — macros entières comprises. L'insertion ou la suppression de lignes et de colonnes peut aussi être annulée.",
-          "Les commandes se trouvent dans le ruban en haut. Ctrl+F1 remplace le ruban par des menus déroulants et une barre d'outils compacte (et inversement). Dans une fenêtre étroite, les groupes qui ne tiennent pas deviennent un bouton portant le nom du groupe qui ouvre tout le groupe ; ce qui ne tient toujours pas passe dans Plus."
+          "Les commandes se trouvent dans le ruban en haut. Ctrl+F1 remplace le ruban par des menus déroulants et une barre d'outils compacte (et inversement). Dans une fenêtre étroite, les groupes qui ne tiennent pas deviennent un bouton portant le nom du groupe qui ouvre tout le groupe ; ce qui ne tient toujours pas passe dans Plus. Mode micro (Affichage ▸ Fenêtre, ou Paramètres) : avec le ruban réduit, les menus, la recherche de commandes et le bouton pour développer le ruban montent dans la barre de titre, et la rangée d'onglets disparaît."
         ]
       },
       "formulas": {

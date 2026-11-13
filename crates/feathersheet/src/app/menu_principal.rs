@@ -336,7 +336,7 @@ impl App {
     ) -> Element<'a, Msg> {
         if !self.menu_aberto { return base; }
         let largura = (self.tamanho_principal.width - 20.0).min(885.0).max(310.0);
-        let y = if self.config.barra_propria { 95.0 } else { 52.0 };
+        let y = if self.faixa_micro() { 43.0 } else if self.config.barra_propria { 95.0 } else { 52.0 };
         let altura = (self.tamanho_principal.height - y - 12.0).max(175.0);
         let painel = container(pelicano::row![
             self.menu_lateral(),

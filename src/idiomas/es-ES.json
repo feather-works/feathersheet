@@ -43,7 +43,7 @@
      "• Al escribir un texto con el que solo empieza una celda de la misma columna (\"Sup\" → \"Supermercado\"), el valor completo aparece debajo: Enter, Tab o hacer clic fuera lo acepta; borrar una letra quita la sugerencia.",
      "• Ctrl + flecha salta hasta el final de los datos; con Mayús, selecciona hasta allí.",
      "• Ctrl+Z deshace y Ctrl+Y rehace — incluidas las macros completas. Insertar o eliminar filas y columnas también se deshace.",
-     "Los comandos están en la cinta superior. Ctrl+F1 cambia la cinta por menús desplegables y una barra compacta (y viceversa). En una ventana estrecha, los grupos que no caben se vuelven un botón con el nombre del grupo que abre el grupo entero; lo que aun así no cabe queda en Más."
+     "Los comandos están en la cinta superior. Ctrl+F1 cambia la cinta por menús desplegables y una barra compacta (y viceversa). En una ventana estrecha, los grupos que no caben se vuelven un botón con el nombre del grupo que abre el grupo entero; lo que aun así no cabe queda en Más. Modo micro (Vista ▸ Ventana, o Configuración): con la cinta contraída, los menús, la búsqueda de comandos y el botón de expandir la cinta suben a la barra de título, y la fila de pestañas desaparece."
     ]
    },
    "formulas": {

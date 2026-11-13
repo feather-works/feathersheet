@@ -382,7 +382,7 @@ impl App {
     /// Topo do menu principal na janela: a mesma conta da camada que o
     /// desenha (`interface_editor.rs`).
     pub(in crate::app) fn topo_menu_principal(&self) -> f32 {
-        let topo_grade = 43.0 + 52.0
+        let topo_grade = self.topo_abaixo_abas()
             + if self.config.faixa_recolhida { 0.0 } else { faixa_nativa::ALTURA_FAIXA_NATIVA }
             + if self.mostrar_fx { 54.0 } else { 0.0 };
         (topo_grade + self.tabela_popup_y + 4.0).min((self.tamanho_principal.height - 490.0 - 8.0).max(8.0))

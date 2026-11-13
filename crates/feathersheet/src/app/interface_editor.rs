@@ -7,6 +7,12 @@ pub(super) const SUB_INSERIR: u8 = 1;
 const LARGURA_BOTAO_MENU: f32 = 84.0;
 /// Largura de cada título do menu clássico (cabe "FERRAMENTAS").
 const LARGURA_TITULO_MENU: f32 = 96.0;
+/// Modo micro (#68): largura fixa do emblema e das ações rápidas antes dos menus,
+/// e de cada título de menu (mais estreito para caber na barra de título).
+const INICIO_MICRO: f32 = 234.0;
+const LARGURA_TITULO_MICRO: f32 = 88.0;
+/// À direita da pesquisa no modo micro: Expandir faixa, Configurações e a margem.
+const DIREITA_MICRO: f32 = 37.0 * 2.0 + 4.0 + 12.0;
 use pelicano::column;
 
 /// Editor nativo Iced com cursores e quebras de linha em uma única célula.
@@ -51,6 +57,8 @@ impl App {
                 cromo::Acao { icone:"device-desktop", dica:tr!("Monitor (F12)"), mensagem:Some(Msg::Monitor) },
             ], Msg::Configuracoes,
         );
+        let micro = self.faixa_micro();
+        let barra = if micro { self.barra_micro() } else { barra };
         let topo: Element<'_, Msg> = if self.config.barra_propria {
             cromo::barra_integrada(barra, Self::acoes(id))
         } else { barra };
@@ -61,7 +69,7 @@ impl App {
             .width(if self.config.faixa_recolhida { Length::Fixed(LARGURA_BOTAO_MENU) } else { Length::Shrink });
         // Faixa recolhida: os menus clássicos (Arquivo, Editar…) tomam o lugar das abas.
         let abas_escolha: Element<'_, Msg> = if self.config.faixa_recolhida {
-            row![botao_menu, self.barra_menu_classico()].spacing(4).align(pelicano::Align::Center).into()
+            row![botao_menu, self.barra_menu_classico(LARGURA_TITULO_MENU)].spacing(4).align(pelicano::Align::Center).into()
         } else { row![
             botao_menu,
             self.aba_faixa(tr!("Página Inicial"), AbaFaixa::Inicio),
@@ -411,7 +419,8 @@ impl App {
         ].height(Length::FILL);
         let base: Element<'_, Msg> = column![
             topo,
-            container(abas).style(estilo_barra_abas),
+            if micro { Space::new(0.0, 0).into() }
+            else { Element::from(container(abas).style(estilo_barra_abas)) },
             container(faixa).style(estilo_corpo_faixa),
             stack![
                 corpo,
@@ -518,7 +527,7 @@ impl App {
             let x = self.tabela_popup_x.clamp(
                 8.0, (self.tamanho_principal.width - largura - 8.0).max(8.0)
             );
-            let topo_grade = 43.0 + 52.0
+            let topo_grade = self.topo_abaixo_abas()
                 + if self.config.faixa_recolhida { 0.0 }
                   else { faixa_nativa::ALTURA_FAIXA_NATIVA }
                 + if self.mostrar_fx { 54.0 } else { 0.0 };
@@ -564,7 +573,7 @@ impl App {
             ).on_press(Msg::TabelaAcao(tabelas::Acao::Fechar));
             let x = self.tabela_popup_x.clamp(8.0,
                 (self.tamanho_principal.width - tabelas::totais_popup::LARGURA - 8.0).max(8.0));
-            let topo_grade = 43.0 + 52.0
+            let topo_grade = self.topo_abaixo_abas()
                 + if self.config.faixa_recolhida { 0.0 }
                   else { faixa_nativa::ALTURA_FAIXA_NATIVA }
                 + if self.mostrar_fx { 54.0 } else { 0.0 };
@@ -582,9 +591,11 @@ impl App {
                 ],
             ].height(Length::FILL).into()
         } else { base };
+        let base = self.sobrepor_busca_micro(base);
         let base: Element<'_, Msg> = if self.barra_menu_aberta && self.config.faixa_recolhida {
             // Topo (barra do título e menus) fica de fora: passar o mouse troca de menu.
-            let topo_lista = 43.0 + 52.0 - 4.0;
+            // No modo micro os títulos ficam no meio da barra de 42 px: a lista começa logo abaixo.
+            let topo_lista = if self.faixa_micro() { 38.0 } else { self.topo_abaixo_abas() - 4.0 };
             stack![
                 base,
                 column![
@@ -1027,17 +1038,70 @@ impl App {
             .width(Length::Fixed(largura)).style(estilo_popup_menu)).into()
     }
 
+    /// Barra de título do modo micro (#68): ações rápidas, menus clássicos, nome do arquivo,
+    /// pesquisa de comandos e o botão de expandir a faixa, numa linha só.
+    fn barra_micro(&self) -> Element<'_, Msg> {
+        let inicio = row![
+            cromo::emblema(),
+            Space::new(6, 0),
+            cromo::acao("file-plus", tr!("Novo (Ctrl+N)"), Some(Msg::Novo)),
+            cromo::acao("folder-open", tr!("Abrir (Ctrl+O)"), Some(Msg::Abrir)),
+            cromo::acao("device-floppy", tr!("Salvar (Ctrl+S)"), Some(Msg::Salvar)),
+            cromo::acao("arrow-back-up", tr!("Desfazer (Ctrl+Z)"), Some(Msg::Desfazer)),
+            cromo::acao("arrow-forward-up", tr!("Refazer (Ctrl+Y)"), Some(Msg::Refazer)),
+        ].spacing(2).align(pelicano::Align::Center);
+        // Janela estreita: o nome do arquivo sai antes dos menus.
+        let nome: Element<'_, Msg> = if self.tamanho_principal.width >= 1500.0 {
+            text(format!("{}{}", self.nome_documento(), if self.alterado { " •" } else { "" }))
+                .size(11.5).color(COR_TEXTO_MUTED()).into()
+        } else { Space::new(0.0, 0).into() };
+        let itens = row![
+            container(inicio).width(Length::Fixed(INICIO_MICRO)),
+            self.barra_menu_classico(LARGURA_TITULO_MICRO),
+            Space::new(Length::FILL, 0.0),
+            nome,
+            Space::new(Length::FILL, 0.0),
+            self.faixa_pesquisa(),
+            cromo::acao("chevron-down", tr!("Expandir faixa"), Some(Msg::Faixa)),
+            cromo::acao("settings", tr!("Configurações"), Some(Msg::Configuracoes)),
+        ].spacing(4).align(pelicano::Align::Center);
+        pelicano::column![
+            container(itens).padding([0, 12]).align_y(pelicano::Align::Center).width(Length::FILL)
+                .height(cromo::BARRA_ALTURA).style(estilo_container_topo),
+        ].into()
+    }
+
+    /// Resultados da pesquisa de comandos no modo micro: flutuam sob o campo, porque a
+    /// barra de título tem altura fixa e cortaria a lista.
+    fn sobrepor_busca_micro<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
+        let Some(lista) = self.faixa_micro().then(|| self.resultados_busca()).flatten() else { return base };
+        let direita = DIREITA_MICRO + if self.config.barra_propria { 144.0 } else { 0.0 };
+        stack![
+            base,
+            pelicano::column![
+                Space::new(0.0, Length::Fixed(cromo::BARRA_ALTURA - 2.0)),
+                row![
+                    Space::new(Length::FILL, 0.0),
+                    container(lista).padding(4).width(Length::Fixed(self.largura_pesquisa() + 13.0))
+                        .style(estilo_popup_menu),
+                    Space::new(Length::Fixed(direita), 0.0),
+                ],
+            ],
+        ].height(Length::FILL).into()
+    }
+
     /// Menus clássicos (Arquivo, Editar…) mostrados no lugar das abas com a faixa recolhida.
     /// Passar o mouse troca de menu só quando algum já está aberto, como no Excel 2003.
-    pub(super) fn barra_menu_classico(&self) -> Element<'_, Msg> {
+    pub(super) fn barra_menu_classico(&self, largura_titulo: f32) -> Element<'_, Msg> {
         let dados = menu_nativo::catalogo();
         let mut categorias = row(Vec::new()).spacing(2).align(pelicano::Align::Center);
         for (i, menu) in dados.menus.iter().enumerate() {
             let aberto = self.barra_menu_aberta && self.menu_grupo == i;
-            let botao = button(text(tr!(&menu.titulo).to_uppercase()).size(11.5)
-                    .align_x(pelicano::Align::Center).width(Length::FILL))
+            // O texto vai num container centralizado: solto, ficava no alto do botão.
+            let botao = button(container(text(tr!(&menu.titulo).to_uppercase())
+                    .size(if largura_titulo < 90.0 { 10.5 } else { 11.5 })).center())
                 .height(Length::Fixed(22.0))
-                .width(Length::Fixed(LARGURA_TITULO_MENU))
+                .width(Length::Fixed(largura_titulo))
                 .padding([0, 5])
                 .style(estilo_titulo_menu(aberto))
                 .on_press(Msg::MenuGrupo(i));
@@ -1138,7 +1202,10 @@ impl App {
 
         // A posição acompanha a categoria (depois do botão Menu) e vira para a
         // esquerda se o menu encostaria na borda direita, como fitPanel() no TypeScript.
-        let x = (8.0 + LARGURA_BOTAO_MENU + 4.0 + self.menu_grupo as f32 * (LARGURA_TITULO_MENU + 2.0))
+        let x = if self.faixa_micro() {
+            12.0 + INICIO_MICRO + 4.0 + self.menu_grupo as f32 * (LARGURA_TITULO_MICRO + 2.0)
+        } else { 8.0 + LARGURA_BOTAO_MENU + 4.0 + self.menu_grupo as f32 * (LARGURA_TITULO_MENU + 2.0) };
+        let x = x
             .min((self.tamanho_principal.width - LARGURA_MENU - 8.0).max(0.0));
         row![Space::new(Length::Fixed(x), 0.0), painel].into()
     }

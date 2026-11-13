@@ -297,7 +297,7 @@ impl App {
                     .on_press_maybe(e.ui.pendente.then_some(Msg::Dinamica(Evento::AtualizarPainel))),
             ].align(pelicano::Align::Center).spacing(8),
         ].spacing(10);
-        let topo = 43.0 + 52.0 + if self.config.faixa_recolhida { 0.0 }
+        let topo = self.topo_abaixo_abas() + if self.config.faixa_recolhida { 0.0 }
             else { super::super::faixa_nativa::ALTURA_FAIXA_NATIVA };
         let altura = (self.tamanho_principal.height - topo - 40.0).max(260.0);
         // O botão direito no painel fica no painel: sem isto atravessava
@@ -426,7 +426,7 @@ impl App {
             return stack![base, fora, janela].height(Length::FILL).into();
         }
         // Painel lateral à direita: a grade continua visível e clicável.
-        let topo = 43.0 + 52.0 + if self.config.faixa_recolhida { 0.0 }
+        let topo = self.topo_abaixo_abas() + if self.config.faixa_recolhida { 0.0 }
             else { super::super::faixa_nativa::ALTURA_FAIXA_NATIVA };
         let x = (self.tamanho_principal.width - LARGURA_PAINEL - 8.0).max(0.0);
         let mut camadas = stack![
