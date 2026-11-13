@@ -731,3 +731,20 @@ fn desfazer_volta_o_valor_exato_e_o_texto_que_pareceria_outra_coisa() {
     }
     assert_eq!(s.get_value(0, 1), Value::Number(1234.5678));
 }
+
+#[test]
+fn mostrar_alteracoes_registra_o_texto_e_junta_as_mudancas_grandes() {
+    let mut s = Sheet::new("Dados");
+    s.set_cell(0, 0, "10");
+    s.set_cell(0, 0, "20");
+    let a = s.alteracoes();
+    assert_eq!(a.len(), 2);
+    assert_eq!((a[1].antes.as_str(), a[1].depois.as_str(), a[1].celulas), ("10", "20", 1));
+    // Uma transação com 60 células vira um registro com a área.
+    s.abrir_transacao();
+    for r in 0..60 { s.set_cell(r, 2, "x"); }
+    s.fechar_transacao();
+    let ultima = s.alteracoes().last().unwrap().clone();
+    assert_eq!((ultima.celulas, ultima.area), (60, Rect::new(0, 2, 59, 2)));
+    assert_eq!(s.alteracoes().len(), 3);
+}

@@ -46,6 +46,13 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**Mostrar alterações (#82, 13/11).** O motor registra, ao fechar cada transação (`Historico::alteracoes`,
+`Sheet::alteracoes`), o texto antes/depois das células que mudaram (estilo sozinho não conta); transação com mais de 50
+células vira um registro com a área e a contagem; teto de 5000 (`shortcut:`). Desfazer/refazer, inserir/excluir linhas e
+ordenar não entram. Só na sessão. Painel `app/alteracoes_ui.rs` (`alteracoes_painel: Option<bool>`, `Some(true)` = só a
+seleção), Revisão ▸ Alterações. Foto: `FEATHERSHEET_CAPTURAR_ALTERACOES=1`. Novidade: "Revisão ▸ Mostrar alterações: veja o
+que mudou em cada célula desde que abriu o arquivo." Com isto o #82 fica completo.
+
 **Verificar Ortografia (#82, 13/11).** `app/ortografia_ui.rs`, Revisão ▸ Revisão de texto, F7 e Ferramentas ▸ Ortografia…
 (`spellCheck`). Confere o bruto das células sem `=` a partir da ativa (só a seleção se tiver mais de uma célula), dá a volta
 uma vez. Palavras: sem algarismo, e-mail, web, sigla e letra solta (`palavras`). Dicionário = `/usr/share/dict` do idioma

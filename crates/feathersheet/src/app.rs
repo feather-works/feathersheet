@@ -131,6 +131,7 @@ mod eventos_vba;
 mod protecao_ui;
 mod intervalos_ui;
 mod ortografia_ui;
+mod alteracoes_ui;
 mod senha_abrir;
 mod copiar_aba;
 mod comentarios_ui;
@@ -452,6 +453,7 @@ pub enum Msg {
     Protecao(protecao_ui::Evento),
     Intervalos(intervalos_ui::Evento),
     Ortografia(ortografia_ui::Evento),
+    Alteracoes(alteracoes_ui::Evento),
     SenhaArquivo(senha_abrir::Evento),
     CopiarAba(copiar_aba::Evento),
     /// Comentários das células (aba Revisão, Inserir, botão direito, Limpar).
@@ -746,6 +748,8 @@ pub struct App {
     intervalos_abertos: std::collections::HashSet<(u32, String)>,
     /// Revisão ▸ Ortografia (F7): a palavra parada e o dicionário em uso.
     ortografia: Option<ortografia_ui::Estado>,
+    /// Revisão ▸ Mostrar alterações: `None` fechado; `Some(true)` só as da seleção.
+    alteracoes_painel: Option<bool>,
     dimensao_modal: Option<dimensao_dialogo::Estado>,
     celulas_modal: Option<celulas_dialogo::Estado>,
     subtotal: Option<topicos_ui::EstadoSubtotal>,
@@ -1128,7 +1132,7 @@ impl Default for App {
             openquery: None,
             nomes_modal: None,
             link_modal: None,
-            intervalos_dialogo: None, senha_intervalo: None, intervalos_abertos: Default::default(), ortografia: None,
+            intervalos_dialogo: None, senha_intervalo: None, intervalos_abertos: Default::default(), ortografia: None, alteracoes_painel: None,
             dimensao_modal: None,
             celulas_modal: None,
             subtotal: None,

@@ -40,6 +40,7 @@ impl App {
             Msg::Protecao(evento) => self.evento_protecao(evento),
             Msg::Intervalos(evento) => self.evento_intervalos(evento),
             Msg::Ortografia(evento) => self.evento_ortografia(evento),
+            Msg::Alteracoes(evento) => self.evento_alteracoes(evento),
             Msg::SenhaArquivo(evento) => self.evento_senha_arquivo(evento),
             Msg::CopiarAba(evento) => self.evento_copiar_aba(evento),
             Msg::Comentario(evento) => self.evento_comentario(evento),
@@ -1166,6 +1167,16 @@ impl App {
                             self.faixa_extras_aberto = mais;
                         }
                         // FEATHERSHEET_CAPTURAR_ORTOGRAFIA="texto" escreve em A1 e abre o F7.
+                        // FEATHERSHEET_CAPTURAR_ALTERACOES=1 digita algumas células e abre Mostrar alterações.
+                        if std::env::var_os("FEATHERSHEET_CAPTURAR_ALTERACOES").is_some() {
+                            self.workbook.editar(self.folha, |s| {
+                                for (r, c, t) in [(0, 0, "Vendas"), (1, 0, "120"), (1, 0, "150"), (2, 1, "=A2*2")] { s.set_cell(r, c, t); }
+                                s.abrir_transacao();
+                                for r in 3..80 { s.set_cell(r, 2, "x"); }
+                                s.fechar_transacao();
+                            });
+                            self.alteracoes_painel = Some(false);
+                        }
                         if let Ok(texto) = std::env::var("FEATHERSHEET_CAPTURAR_ORTOGRAFIA") {
                             self.workbook.escrever_celula(self.folha, 0, 0, texto);
                             let _ = self.evento_ortografia(ortografia_ui::Evento::Abrir);

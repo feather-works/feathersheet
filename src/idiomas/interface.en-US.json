@@ -1,4 +1,12 @@
 {
+ "(vazia)": "(empty)",
+ "{} células alteradas": "{} cells changed",
+ "Nenhuma alteração na seleção.": "No changes in the selection.",
+ "Nenhuma alteração nesta aba desde que o arquivo foi aberto.": "No changes on this sheet since the file was opened.",
+ "Alterações": "Changes",
+ "Só a seleção": "Selection only",
+ "Vale para esta sessão: o registro não vai para o arquivo.": "This session only: the log is not saved in the file.",
+ "Mostrar alterações": "Show Changes",
  "A célula está protegida: desproteja a planilha para corrigir.": "The cell is protected: unprotect the sheet to correct it.",
  "A verificação ortográfica foi concluída.": "The spelling check is complete.",
  "(sem sugestões)": "(no suggestions)",

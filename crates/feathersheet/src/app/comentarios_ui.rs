@@ -201,6 +201,10 @@ impl App {
                 self.faixa_grande(tr!("Ortografia"), "checks",
                     Some(Msg::Ortografia(ortografia_ui::Evento::Abrir)), self.ortografia.is_some()),
             ])),
+            self.faixa_grupo(tr!("Alterações"), self.faixa_linha(vec![
+                self.faixa_grande(tr!("Mostrar alterações"), "clock",
+                    Some(Msg::Alteracoes(alteracoes_ui::Evento::Alternar)), self.alteracoes_painel.is_some()),
+            ])),
             self.faixa_grupo(tr!("Comentários"), self.faixa_linha(vec![
                 principal,
                 self.faixa_pilha(vec![

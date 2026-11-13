@@ -161,6 +161,7 @@
      "• Revisar → Nuevo comentario anota la celda; al pasar el ratón aparece el globo. Anterior y Siguiente recorren los comentarios; Mostrar todos los comentarios los deja a la vista.",
      "• Inicio → Borrar → Borrar comentarios quita los de la selección.",
      "• Revisar → Ortografía (F7) revisa el texto escrito en las celdas (las fórmulas quedan fuera), desde la activa; con varias celdas seleccionadas, solo la selección. En cada palabra que no está en el diccionario: Cambiar (o Cambiar todas), Omitir una vez, Omitir todas o Agregar al diccionario (el personal, dicionario-pessoal.txt en la carpeta de preferencias). El diccionario es la lista de palabras del sistema; sin ella, ponga una (una palabra por línea) en dicionario-es-ES.txt en esa carpeta.",
+     "• Revisar → Mostrar cambios abre, a la derecha, lo que cambió en el texto de las celdas de la hoja desde que se abrió el archivo (lo más reciente arriba, con la hora); al hacer clic va a la celda. \"Solo la selección\" filtra por el rango seleccionado. Un cambio en muchas celdas a la vez aparece en una sola línea. El registro no se guarda en el archivo.",
      "• Revisar → Proteger hoja (o Proteger libro) impide cambios; en Inicio → Formato puede bloquear o desbloquear celdas antes. Revisar → Permitir modificar rangos deja rangos editables con la hoja protegida, con contraseña opcional (se pide al escribir en el rango)."
     ]
    },

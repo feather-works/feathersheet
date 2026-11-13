@@ -1,4 +1,12 @@
 {
+ "(vazia)": "(vide)",
+ "{} células alteradas": "{} cellules modifiées",
+ "Nenhuma alteração na seleção.": "Aucune modification dans la sélection.",
+ "Nenhuma alteração nesta aba desde que o arquivo foi aberto.": "Aucune modification sur cette feuille depuis l'ouverture du fichier.",
+ "Alterações": "Modifications",
+ "Só a seleção": "Sélection uniquement",
+ "Vale para esta sessão: o registro não vai para o arquivo.": "Pour cette session uniquement : le journal n'est pas enregistré dans le fichier.",
+ "Mostrar alterações": "Afficher les modifications",
  "A célula está protegida: desproteja a planilha para corrigir.": "La cellule est protégée : ôtez la protection de la feuille pour la corriger.",
  "A verificação ortográfica foi concluída.": "La vérification orthographique est terminée.",
  "(sem sugestões)": "(aucune suggestion)",

@@ -1,4 +1,12 @@
 {
+ "(vazia)": "(vacía)",
+ "{} células alteradas": "{} celdas modificadas",
+ "Nenhuma alteração na seleção.": "No hay cambios en la selección.",
+ "Nenhuma alteração nesta aba desde que o arquivo foi aberto.": "No hay cambios en esta hoja desde que se abrió el archivo.",
+ "Alterações": "Cambios",
+ "Só a seleção": "Solo la selección",
+ "Vale para esta sessão: o registro não vai para o arquivo.": "Solo en esta sesión: el registro no se guarda en el archivo.",
+ "Mostrar alterações": "Mostrar cambios",
  "A célula está protegida: desproteja a planilha para corrigir.": "La celda está protegida: desproteja la hoja para corregirla.",
  "A verificação ortográfica foi concluída.": "Se ha completado la revisión ortográfica.",
  "(sem sugestões)": "(sin sugerencias)",

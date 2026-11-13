@@ -494,7 +494,28 @@ pub struct Historico {
     /// muitas colunas): a invalidação roda uma vez ao fechar. Uma por coluna olhava todas as
     /// outras a cada vez, e 16.384 colunas levavam minutos (ROB-10, 10/11/2026).
     invalidar_ao_fechar: HashSet<u32>,
+    /// Revisão ▸ Mostrar alterações: o que cada transação mudou no texto das células, nesta
+    /// sessão (não vai para o arquivo). Ver [`Alteracao`].
+    alteracoes: Vec<Alteracao>,
 }
+
+/// Uma mudança registrada para Mostrar alterações. Transação com mais de
+/// [`ALTERACOES_POR_TRANSACAO`] células vira um registro só, com a área e a contagem.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Alteracao {
+    /// A célula, ou a área inteira de uma mudança grande.
+    pub area: Rect,
+    pub celulas: usize,
+    /// Texto digitado antes e depois (vazios no registro de mudança grande).
+    pub antes: String,
+    pub depois: String,
+    /// Segundos desde 1970 (UTC).
+    pub quando: u64,
+}
+
+const ALTERACOES_POR_TRANSACAO: usize = 50;
+/// shortcut: guarda só as últimas 5000 (as mais velhas saem); ir para o disco se pedirem a sessão inteira.
+const LIMITE_ALTERACOES: usize = 5000;
 
 /// O TypeScript guarda as últimas 200 transações.
 const LIMITE_DO_DESFAZER: usize = 200;
@@ -1839,6 +1860,7 @@ impl Sheet {
         self.hist.arquivo_divisao = None;
         self.hist.memoria_divisao = 0;
         if !feitas.is_empty() {
+            self.registrar_alteracoes(&feitas);
             self.hist.desfazer.push(feitas);
             if self.hist.desfazer.len() > LIMITE_DO_DESFAZER {
                 self.hist.desfazer.remove(0);
@@ -2707,6 +2729,41 @@ impl Sheet {
     pub fn tirar_historico(&mut self) -> Historico { std::mem::take(&mut self.hist) }
 
     pub fn por_historico(&mut self, h: Historico) { self.hist = h; }
+
+    /// Revisão ▸ Mostrar alterações: as mudanças desta sessão, da mais velha à mais nova.
+    pub fn alteracoes(&self) -> &[Alteracao] { &self.hist.alteracoes }
+
+    /// Só o texto das células conta (estilo sozinho não); muitas células viram um registro.
+    fn registrar_alteracoes(&mut self, feitas: &[Passo]) {
+        fn raw(s: &Option<Snap>) -> &str { s.as_ref().map_or("", |s| s.raw.as_str()) }
+        let mudancas: Vec<&Change> = feitas.iter().filter_map(|p| match p {
+            Passo::Celula(c) if raw(&c.antes) != raw(&c.depois) => Some(c),
+            _ => None,
+        }).collect();
+        if mudancas.is_empty() { return; }
+        let quando = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+        let lista = &mut self.hist.alteracoes;
+        if mudancas.len() <= ALTERACOES_POR_TRANSACAO {
+            for c in mudancas {
+                let (r, col) = Sheet::key_to_coord(c.k);
+                lista.push(Alteracao { area: Rect::new(r, col, r, col), celulas: 1,
+                    antes: raw(&c.antes).to_owned(), depois: raw(&c.depois).to_owned(), quando });
+            }
+        } else {
+            let mut area: Option<Rect> = None;
+            for c in &mudancas {
+                let (r, col) = Sheet::key_to_coord(c.k);
+                area = Some(match area {
+                    None => Rect::new(r, col, r, col),
+                    Some(a) => Rect::new(a.r0.min(r), a.c0.min(col), a.r1.max(r), a.c1.max(col)),
+                });
+            }
+            if let Some(area) = area {
+                lista.push(Alteracao { area, celulas: mudancas.len(), antes: String::new(), depois: String::new(), quando });
+            }
+        }
+        if lista.len() > LIMITE_ALTERACOES { lista.drain(..lista.len() - LIMITE_ALTERACOES); }
+    }
 
     /// Ver `Historico::novas`.
     pub fn edicoes_novas(&self) -> u64 { self.hist.novas }

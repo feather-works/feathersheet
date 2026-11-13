@@ -620,6 +620,7 @@ impl App {
         let base = self.sobrepor_link(base);
         let base = self.sobrepor_intervalos(base);
         let base = self.sobrepor_ortografia(base);
+        let base = self.sobrepor_alteracoes(base);
         let base = self.sobrepor_comentario(base);
         let base = self.sobrepor_dimensao(base);
         let base = self.sobrepor_celulas(base);
