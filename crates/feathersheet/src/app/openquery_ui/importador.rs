@@ -222,6 +222,8 @@ enum FonteItem {
     /// A pasta lida fica guardada até a escolha (o `Workbook` não atravessa thread sem trava).
     Pasta(std::sync::Arc<std::sync::Mutex<Workbook>>, usize, Rect),
     Sqlite(std::sync::Arc<feathersheet_io::sqlite_read::BancoSqlite>, feathersheet_io::sqlite_read::TabelaSqlite),
+    /// Tabela de banco de dados: a conexão, a senha (só na memória) e o SELECT.
+    Banco(super::banco::Conexao, String, String),
 }
 
 impl std::fmt::Debug for Item {
@@ -236,6 +238,10 @@ impl Item {
         Item { nome, linhas: t.linhas.len(), previa, fonte: FonteItem::Pronta(t, f) }
     }
 
+    pub(super) fn banco(nome: String, previa: Tabela, linhas: usize, c: super::banco::Conexao, senha: String, sql: String) -> Self {
+        Item { nome, previa, linhas, fonte: FonteItem::Banco(c, senha, sql) }
+    }
+
     /// A tabela inteira e os formatos de número. Pesado: executar via spawn_blocking.
     pub(super) fn ler(self) -> Result<(Tabela, super::Formatos), String> {
         match self.fonte {
@@ -246,6 +252,7 @@ impl Item {
                 let f = super::formatos_da_fonte(&wb, aba, &area, &t.cabecalho);
                 Ok((t, f))
             }
+            FonteItem::Banco(c, senha, sql) => Ok((super::banco::ler_item(&c, &senha, &sql)?, super::Formatos::new())),
             FonteItem::Sqlite(banco, tabela) => {
                 let linhas = banco.linhas(&tabela, None)?;
                 Ok((Tabela { cabecalho: tabela.colunas, linhas }, super::Formatos::new()))

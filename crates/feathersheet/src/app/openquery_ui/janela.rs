@@ -353,10 +353,62 @@ impl App {
     }
 
     /// Tela de entrada: nenhuma aba é importada automaticamente.
+    /// Obter dados ▸ Banco de dados PostgreSQL: servidor, porta, banco, usuário, senha, SSL e SQL opcional.
+    fn formulario_banco<'a>(&'a self, f: &'a banco::Formulario, escuro: bool) -> Element<'a, Msg> {
+        use banco::Campo;
+        let campo = |rotulo: &str, valor: &'a str, dica_campo: &'static str, c: Campo, largura: f32, secreto: bool| -> Element<'a, Msg> {
+            column![
+                legenda_oq(rotulo.to_owned()),
+                text_input(dica_campo, valor).secure(secreto)
+                    .on_input(move |v| om(Evento::CampoBanco(c.clone(), v)))
+                    .on_submit(om(Evento::ConectarBanco))
+                    .size(12).padding([5.0, 7.0]).style(estilo_entrada_suspensa).width(Length::Fixed(largura)),
+            ].spacing(3).into()
+        };
+        let c = &f.conexao;
+        let mut corpo = column![
+            row![
+                feather_ui::icones::icone("banco_dados", 20.0),
+                text(tr!("Banco de dados PostgreSQL")).size(14).font(negrito()),
+            ].spacing(8).align(pelicano::Align::Center),
+            row![
+                campo(tr!("Servidor"), &c.servidor, "localhost", Campo::Servidor, 220.0, false),
+                campo(tr!("Porta"), &c.porta, "5432", Campo::Porta, 70.0, false),
+                campo(tr!("Banco"), &c.banco, "postgres", Campo::Banco, 160.0, false),
+            ].spacing(10),
+            row![
+                campo(tr!("Usuário"), &c.usuario, "postgres", Campo::Usuario, 220.0, false),
+                campo(tr!("Senha"), &f.senha, "", Campo::Senha, 240.0, true),
+            ].spacing(10),
+            row![
+                pelicano::checkbox(tr!("Usar SSL (criptografar)"), c.ssl).on_toggle(|v| om(Evento::BancoSsl(v))).size(12),
+                pelicano::checkbox(tr!("Lembrar a senha no cofre do sistema"), f.lembrar).on_toggle(|v| om(Evento::BancoLembrar(v))).size(12),
+            ].spacing(18),
+            column![
+                legenda_oq(tr!("SQL (opcional): em branco, o Navegador lista as tabelas e views.")),
+                text_input("SELECT * FROM pedidos WHERE ano = 2026", &f.sql)
+                    .on_input(|v| om(Evento::CampoBanco(Campo::Sql, v)))
+                    .on_submit(om(Evento::ConectarBanco))
+                    .size(12).padding([5.0, 7.0]).style(estilo_entrada_suspensa),
+            ].spacing(3),
+            row![
+                ide::botao_primario(tr!("Conectar"), "link", Some(om(Evento::ConectarBanco))),
+                legenda_oq(tr!("Só leitura: nada é gravado no banco. A senha não vai para o arquivo.")),
+            ].spacing(10).align(pelicano::Align::Center),
+        ].spacing(10);
+        if !f.aviso.is_empty() {
+            corpo = corpo.push(text(f.aviso.clone()).size(12).color(COR_ERRO()));
+        }
+        container(corpo.padding(16)).width(Length::FILL).style(ide::estilo_cabecalho(escuro)).into()
+    }
+
     fn selecionar_fonte_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
         // Sem fonte, o centro fica em branco: as fontes estão na faixa (OBTER DADOS).
         let mut conteudo = column(Vec::<Element<Msg>>::new()).spacing(16).padding(24).width(Length::FILL);
         let navegador = !e.itens_arquivo.is_empty();
+        if let (Some(f), false) = (&e.banco, navegador) {
+            conteudo = conteudo.push(self.formulario_banco(f, escuro));
+        }
         if e.mostrar_web && !navegador {
             conteudo = conteudo.push(container(column![
                 text(tr!("Endereço Web / API")).size(13).font(negrito()),
@@ -488,7 +540,7 @@ impl App {
 
     /// Centro: JavaScript editável acima da prévia, sem ocultar a tabela.
     fn centro_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
-        if e.fonte.cabecalho.is_empty() || e.mostrar_web || e.mostrar_tabelas {
+        if e.fonte.cabecalho.is_empty() || e.mostrar_web || e.mostrar_tabelas || e.banco.is_some() {
             return self.selecionar_fonte_openquery(e, escuro);
         }
         // O script mora no Editor avançado e Digitar dados é um modal: o centro é só a prévia.
@@ -516,6 +568,12 @@ impl App {
                 legenda_oq(tr!("Origem externa • A atualização sempre exige escolher o arquivo novamente.")),
                 ide::botao_icone(tr!("Reimportar arquivo e manter etapas"), "refresh",
                     Some(om(Evento::ReimportarArquivo)), false),
+            ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center));
+        }
+        if e.origem_aba.starts_with("Banco: ") {
+            centro = centro.push(row![
+                legenda_oq(tr!("Banco de dados • Atualizar fonte relê a tabela (pede a senha se ela não foi lembrada).")),
+                ide::botao_icone(tr!("Reler o banco e manter etapas"), "refresh", Some(om(Evento::ReimportarBanco)), false),
             ].spacing(ESPACO_MEDIO).align(pelicano::Align::Center));
         }
         if e.origem_aba.starts_with("Pasta: ") {
@@ -1083,6 +1141,7 @@ impl App {
         let mut itens = vec![
             ItemMenu::sub(tr!("Arquivo"), "folder-open", arquivo),
             item(tr!("Da Web…"), "link", Evento::MostrarWeb),
+            item(tr!("Banco de dados PostgreSQL…"), "banco_dados", Evento::MostrarBanco),
             item(tr!("Tabela ou planilha desta pasta"), "table", Evento::MostrarTabelas),
             item(tr!("Da seleção"), "layout-grid", Evento::CarregarSelecao),
             item(tr!("Digitar dados"), "edit", Evento::AbaCentro(2)),
@@ -1171,6 +1230,7 @@ fn painel_dependencias<'a>(mapa: &'a [(String, Vec<String>, String)]) -> Element
         let mut origem = column![].spacing(2);
         for f in fontes {
             let icone = if f.starts_with("Consulta: ") { "sitemap" } else if f.starts_with("Web: ") { "link" }
+                else if f.starts_with("Banco: ") { "banco_dados" }
                 else if f.starts_with("Arquivo: ") || f.starts_with("Pasta: ") { "folder" } else { "table" };
             origem = origem.push(chip(f.clone(), icone));
         }

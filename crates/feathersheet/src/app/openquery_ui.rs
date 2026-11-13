@@ -34,6 +34,7 @@ mod registro;
 mod execucao;
 mod assistentes;
 mod importador;
+mod banco;
 mod vinculo;
 mod manual;
 mod janela;
@@ -102,6 +103,13 @@ pub enum Evento {
     MostrarWeb,
     UrlWeb(String),
     ImportarWeb,
+    /// Banco de dados PostgreSQL: abrir o formulário, os campos, conectar e reler pela origem.
+    MostrarBanco,
+    CampoBanco(banco::Campo, String),
+    BancoSsl(bool),
+    BancoLembrar(bool),
+    ConectarBanco,
+    ReimportarBanco,
     /// Uma resposta HTML pode conter diversas tabelas.
     TabelasWebLidas(u64, Result<(Vec<Tabela>, String), String>),
     /// Navegador: as planilhas e tabelas do arquivo escolhido.
@@ -224,6 +232,8 @@ pub(super) struct Estado {
     quantidade: String,
     separador: String,
     url_web: String,
+    /// Obter dados ▸ Banco de dados PostgreSQL aberto (o formulário da conexão).
+    banco: Option<banco::Formulario>,
     /// `Selection=` do `.iqy` aberto: a tabela da página (a partir de 1) escolhida sozinha.
     selecao_iqy: Option<usize>,
     /// Fontes extraídas de uma única requisição, aguardando seleção explícita.
@@ -412,7 +422,7 @@ impl Estado {
             filtro: String::new(),
             renomear: String::new(), quantidade: "100".into(),
             separador: ";".into(),
-            url_web: String::new(), selecao_iqy: None, tabelas_web: Vec::new(), itens_arquivo: Vec::new(), item_pedido: None, caminho_arquivo: None,
+            url_web: String::new(), banco: None, selecao_iqy: None, tabelas_web: Vec::new(), itens_arquivo: Vec::new(), item_pedido: None, caminho_arquivo: None,
             origem_web_pendente: String::new(), indice_tabela_web: 0,
             mostrar_web: false, mostrar_tabelas: false,
             passos: Vec::new(), etapas_info: Vec::new(), rotulando: None, resultado,
@@ -850,6 +860,58 @@ impl App {
                 e.importacao_pendente = None;
                 e.importacao_preservar = false;
             },
+            Evento::MostrarBanco => if let Some(e) = &mut self.openquery {
+                e.mostrar_web = false;
+                e.mostrar_tabelas = false;
+                e.mostrar_manual = false;
+                e.importacao_preservar = false;
+                e.limpar_previa_web();
+                if e.banco.is_none() { e.banco = Some(banco::Formulario { lembrar: true, ..Default::default() }); }
+            },
+            Evento::CampoBanco(campo, v) => if let Some(f) = self.openquery.as_mut().and_then(|e| e.banco.as_mut()) {
+                let c = &mut f.conexao;
+                match campo {
+                    banco::Campo::Servidor => c.servidor = v, banco::Campo::Porta => c.porta = v,
+                    banco::Campo::Banco => c.banco = v, banco::Campo::Usuario => c.usuario = v,
+                    banco::Campo::Senha => f.senha = v, banco::Campo::Sql => f.sql = v,
+                }
+                f.aviso.clear();
+            },
+            Evento::BancoSsl(v) => if let Some(f) = self.openquery.as_mut().and_then(|e| e.banco.as_mut()) { f.conexao.ssl = v; },
+            Evento::BancoLembrar(v) => if let Some(f) = self.openquery.as_mut().and_then(|e| e.banco.as_mut()) { f.lembrar = v; },
+            Evento::ConectarBanco => {
+                let Some(e) = &mut self.openquery else { return Task::none() };
+                let Some(f) = e.banco.clone() else { return Task::none() };
+                e.limpar_previa_web();
+                e.erro.clear();
+                let ticket = IMPORTACAO_SEQ.fetch_add(1, Ordering::Relaxed);
+                e.importacao_pendente = Some(ticket);
+                self.status = tr!("FeatherQuery: conectando ao banco em segundo plano").into();
+                return Task::perform(async move {
+                    tokio::task::spawn_blocking(move || {
+                        let lido = banco::listar(&f.conexao, &f.senha, &f.sql);
+                        // Só guarda a senha que conectou.
+                        if lido.is_ok() && f.lembrar && !f.senha.is_empty() { let _ = banco::guardar_senha(&f.conexao, &f.senha); }
+                        lido
+                    }).await.unwrap_or_else(|e| Err(trf!("Falha no importador: {e}")))
+                }, move |resultado| match resultado {
+                    Ok((itens, origem)) => Msg::OpenQuery(Evento::ItensLidos(ticket, itens, origem)),
+                    Err(erro) => Msg::OpenQuery(Evento::ArquivoLido(ticket, Err(erro))),
+                });
+            }
+            Evento::ReimportarBanco => {
+                let Some(e) = &mut self.openquery else { return Task::none() };
+                let Some((conexao, item)) = banco::Conexao::da_origem(&e.origem_aba) else { return Task::none() };
+                let sql = item.as_deref().and_then(|i| i.strip_prefix("SQL: ")).unwrap_or("").to_owned();
+                let senha = banco::senha_guardada(&conexao);
+                let tem_senha = senha.is_some();
+                e.importacao_preservar = true;
+                e.banco = Some(banco::Formulario {
+                    conexao, sql, senha: senha.unwrap_or_default(), lembrar: true,
+                    aviso: if tem_senha { String::new() } else { tr!("Digite a senha para reler o banco.").into() },
+                });
+                if tem_senha { return self.evento_openquery(Evento::ConectarBanco); }
+            }
             Evento::UrlWeb(v) => if let Some(e) = &mut self.openquery {
                 if e.url_web != v {
                     // Uma URL editada torna qualquer resposta anterior obsoleta.
@@ -1343,6 +1405,9 @@ impl App {
                 if origem.starts_with("Arquivo: ") {
                     return self.evento_openquery(Evento::ReimportarArquivo);
                 }
+                if origem.starts_with("Banco: ") {
+                    return self.evento_openquery(Evento::ReimportarBanco);
+                }
                 if origem == "Entrada manual" || origem == tr!("Consulta salva") || origem == "Snapshot TypeScript" {
                     return self.evento_openquery(Evento::Atualizar);
                 }
@@ -1512,7 +1577,8 @@ impl App {
                 } else if itens.len() == 1 { Some(0) } else { None };
                 if let Some(i) = escolhida {
                     let item = itens.swap_remove(i);
-                    let origem = if itens.is_empty() && !e.importacao_preservar { origem } else { format!("{origem} ▸ {}", item.nome) };
+                    // O banco guarda sempre o item (a tabela ou o SQL): é dele que a fonte é relida.
+                    let origem = if itens.is_empty() && !e.importacao_preservar && !origem.starts_with("Banco: ") { origem } else { format!("{origem} ▸ {}", item.nome) };
                     return ler_item(ticket, item, origem);
                 }
                 e.tabelas_web = itens.iter().map(|i| i.previa.clone()).collect();
@@ -1546,6 +1612,7 @@ impl App {
                         editor.importacao_preservar = false;
                         if preservar && !(editor.origem_aba.starts_with("Arquivo: ")
                             || editor.origem_aba.starts_with("Pasta: ")
+                            || editor.origem_aba.starts_with("Banco: ")
                             || editor.origem_aba.starts_with("Web: ")) {
                             editor.erro = tr!("Atualização da fonte exige um arquivo ou uma URL previamente importada").into();
                             return Task::none();
@@ -1556,6 +1623,7 @@ impl App {
                         }
                         let linhas = fonte.linhas.len();
                         let colunas = fonte.cabecalho.len();
+                        editor.banco = None;
                         editor.limpar_previa_web();
                         editor.fonte = fonte;
                         editor.rolagem = (0.0, 0.0, editor.rolagem.2, editor.rolagem.3);

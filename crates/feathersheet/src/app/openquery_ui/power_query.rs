@@ -1479,12 +1479,12 @@ impl Escritor<'_> {
                 self.por("Fonte", format!("Excel.Workbook({}, null, true)", arquivo(a0)));
                 match navegacao {
                     Some(("tabela", t)) => self.por(&format!("{t}_Table"), format!("Fonte{{[Item = {}, Kind = \"Table\"]}}[Data]", m_txt(&t))),
-                    Some((_, p)) => {
-                        self.por(&format!("{p}_Sheet"), format!("Fonte{{[Item = {}, Kind = \"Sheet\"]}}[Data]", m_txt(&p)));
+                    Some(("navegar", _)) | None => {
+                        self.por(&tr!("Navegação"), "Fonte{0}[Data]".into());
                         promover(self);
                     }
-                    None => {
-                        self.por(&tr!("Navegação"), "Fonte{0}[Data]".into());
+                    Some((_, p)) => {
+                        self.por(&format!("{p}_Sheet"), format!("Fonte{{[Item = {}, Kind = \"Sheet\"]}}[Data]", m_txt(&p)));
                         promover(self);
                     }
                 }
@@ -1497,6 +1497,21 @@ impl Escritor<'_> {
                 self.comentarios.push(tr!("Se a página for HTML, troque Csv.Document por Web.Page.").into());
                 self.por("Fonte", format!("Csv.Document(Web.Contents({}))", m_txt(a0)));
                 promover(self);
+            }
+            // "postgres://usuario@servidor:porta/banco[?ssl]" → PostgreSQL.Database("servidor:porta", "banco").
+            "lerBanco" => {
+                let resto = a0.strip_prefix("postgres://").unwrap_or(a0).trim_end_matches("?ssl");
+                let (servidor, banco) = resto.split_once('@').map_or(resto, |(_, r)| r).split_once('/').unwrap_or((resto, ""));
+                match navegacao {
+                    Some((_, item)) if item.starts_with("SQL: ") => self.por("Fonte", format!("PostgreSQL.Database({}, {}, [Query = {}])",
+                        m_txt(servidor), m_txt(banco), m_txt(item.trim_start_matches("SQL: ")))),
+                    Some((_, item)) => {
+                        self.por("Fonte", format!("PostgreSQL.Database({}, {})", m_txt(servidor), m_txt(banco)));
+                        let (esquema, tabela) = item.split_once('.').unwrap_or(("public", item.as_str()));
+                        self.por(&format!("{tabela}_Table"), format!("Fonte{{[Schema = {}, Item = {}]}}[Data]", m_txt(esquema), m_txt(tabela)));
+                    }
+                    None => self.por("Fonte", format!("PostgreSQL.Database({}, {})", m_txt(servidor), m_txt(banco))),
+                }
             }
             "lerConsulta" => self.por("Fonte", m_id(a0)),
             "lerTabela" => self.por("Fonte", format!("Excel.CurrentWorkbook(){{[Name = {}]}}[Content]", m_txt(a0))),
@@ -1775,7 +1790,8 @@ pub(super) fn para_m(codigo: &str, manual: Option<&Tabela>, fontes: &HashMap<Str
     let navegacao = comandos.iter().find_map(|c| {
         let (m, a) = separar(c.strip_prefix(&format!("{var}."))?)?;
         let item = a.first()?.as_str()?.to_owned();
-        matches!(m.as_str(), "planilha" | "tabela").then(|| (if m == "tabela" { "tabela" } else { "planilha" }, item))
+        // `navegar`: a tabela do banco ("esquema.nome" ou "SQL: …"); no arquivo segue como antes (Fonte{0}).
+        match m.as_str() { "tabela" => Some(("tabela", item)), "planilha" => Some(("planilha", item)), "navegar" => Some(("navegar", item)), _ => None }
     });
     let mut esc = Escritor { etapas: Vec::new(), comentarios: Vec::new(), fontes, sem_equivalente: 0 };
     esc.fonte(&leitor, &args_fonte, navegacao, manual);
@@ -1927,6 +1943,16 @@ in
         let (texto_m, _) = para_m(&script, None, &fontes).unwrap();
         assert!(texto_m.contains(r#"Table.NestedJoin(Fonte, {"UF"}, Estados, {"Sigla"}, "Estados", JoinKind.Inner)"#), "{texto_m}");
         assert!(texto_m.contains(r#"Table.ExpandTableColumn(#"Consultas Mescladas", "Estados", {"Nome", "Sigla"}"#), "{texto_m}");
+    }
+
+    #[test]
+    fn banco_postgres_vira_postgresql_database() {
+        let fontes = HashMap::new();
+        let (m, _) = para_m("let fonte = lerBanco(\"postgres://ana@db:5432/vendas?ssl\");\nfonte.navegar(\"public.pedidos\");", None, &fontes).unwrap();
+        assert!(m.contains(r#"PostgreSQL.Database("db:5432", "vendas")"#), "{m}");
+        assert!(m.contains(r#"Fonte{[Schema = "public", Item = "pedidos"]}[Data]"#), "{m}");
+        let (m, _) = para_m("let fonte = lerBanco(\"postgres://ana@db:5432/vendas\");\nfonte.navegar(\"SQL: select 1\");", None, &fontes).unwrap();
+        assert!(m.contains(r#"[Query = "select 1"]"#), "{m}");
     }
 
     #[test]

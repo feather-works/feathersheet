@@ -143,7 +143,7 @@ pub(super) fn destino(reg: &Json) -> Option<&str> {
 /// guardar a cópia só dobraria o arquivo. Arquivo, Web e entrada manual não
 /// têm de onde reler, e vão inteiros.
 fn fonte_guardada<'a>(fonte: &'a Tabela, origem_aba: &str) -> std::borrow::Cow<'a, Tabela> {
-    if origem_aba.starts_with("Arquivo: ") || origem_aba.starts_with("Pasta: ") || origem_aba.starts_with("Web: ") || origem_aba == "Entrada manual" {
+    if origem_aba.starts_with("Arquivo: ") || origem_aba.starts_with("Pasta: ") || origem_aba.starts_with("Web: ") || origem_aba.starts_with("Banco: ") || origem_aba == "Entrada manual" {
         std::borrow::Cow::Borrowed(fonte)
     } else {
         std::borrow::Cow::Owned(Tabela { cabecalho: fonte.cabecalho.clone(), linhas: Vec::new() })

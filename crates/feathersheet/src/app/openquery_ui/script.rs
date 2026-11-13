@@ -113,6 +113,8 @@ fn linha_da_fonte(origem: &str) -> String {
         format!("lerConsulta({})", s(consulta))
     } else if let Some(url) = origem.strip_prefix("Web: ") {
         format!("lerWeb({})", s(url))
+    } else if let Some(banco) = origem.strip_prefix("Banco: ") {
+        format!("lerBanco({})", s(banco))
     } else if let Some(tabela) = origem.strip_prefix("Tabela: ") {
         format!("lerTabela({})", s(tabela))
     } else if origem == "Entrada manual" {

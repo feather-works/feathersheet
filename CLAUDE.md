@@ -46,6 +46,21 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**PostgreSQL no FeatherQuery (#70, 13/11).** `app/openquery_ui/banco.rs`, Obter dados ▸ Banco de dados PostgreSQL…
+(`Evento::MostrarBanco`, formulário `Estado::banco`). Conexão igual à do FeatherDB (`featherdb-core/src/postgres_banco.rs`):
+crate `postgres`, protocolo simples, tipo pela `prepare` (números, lógico; inteiro acima de 2^53 e datas como texto), SSL =
+`sslmode=require` com `rustls` (criptografa, não confere o servidor). Copiado, não dependência: o `featherdb-core` traz
+`rusqlite` com C, MySQL, Mongo e SSH. Tudo em `BEGIN TRANSACTION READ ONLY` … `ROLLBACK`. Navegador: até 200 tabelas/views
+(`pg_class`, contagem estimada pelo `reltuples`), prévia `LIMIT 8` cada; com SQL escrito, um item "SQL: …". Teto de
+1.048.576 linhas (`shortcut:` sem levar filtros ao servidor). Origem `Banco: postgres://usuario@servidor:porta/banco[?ssl] ▸
+item` (sem senha), guardada como o Web (cópia na consulta; "Atualizar fonte" = `ReimportarBanco`, pega a senha do cofre ou
+pede). Senha no cofre (`keyring` com `async-secret-service` pelo zbus, sem `libdbus`; chamado numa thread própria). Script
+`lerBanco("postgres://…")` + `fonte.navegar(item)`; M: `PostgreSQL.Database("servidor:porta", "banco")` com
+`[Schema, Item]` ou `[Query = …]`. Testes de verdade (ignorados): `FEATHERSHEET_TESTE_PG=postgres://u:s@h:p/db cargo test --
+--ignored postgres_de_verdade` (passou num `postgres:16-alpine` do podman) e `cofre_ida_e_volta`. SSL não testado contra
+servidor. Foto: `FEATHERSHEET_CAPTURAR_JANELA=openquery:banco`. Novidade: "FeatherQuery conecta no PostgreSQL: escolha a
+tabela ou escreva um SQL; a senha fica no cofre do sistema."
+
 **SQLite no FeatherQuery (#70, 13/11).** `feathersheet-io/src/sqlite_read.rs`: leitor próprio, só leitura, sem C (o
 `rusqlite` traz C): cabeçalho, B-tree de tabela (folha 0x0d, interior 0x05), transbordo, registro (tipos 0–9, texto,
 blob vira "[binário, N bytes]", inteiro acima de 2^53 vira texto), UTF-16, `INTEGER PRIMARY KEY` pelo rowid, colunas do
