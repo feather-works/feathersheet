@@ -151,6 +151,18 @@ pub enum Evento {
     TextoRenomear(String),
     ConfirmarRenomear,
     CancelarRenomear,
+    /// "⋮" (ou botão direito) de uma consulta gravada: Renomear e Mover para pasta.
+    AcoesConsulta(Option<String>),
+    PastaNovaNome(String),
+    /// Move a consulta do "⋮" para a pasta (`None` = sem pasta; texto vazio = a digitada).
+    MoverParaPasta(Option<String>),
+    AlternarPasta(String),
+    /// Botão direito numa etapa: nome e descrição próprios (#94).
+    RotularEtapa(usize),
+    RotuloNome(String),
+    RotuloDescricao(String),
+    RotuloOk,
+    RotuloCancelar,
     Carregar,
     AlternarParametros,
     AbrirDestino,
@@ -228,6 +240,10 @@ pub(super) struct Estado {
     mostrar_web: bool,
     mostrar_tabelas: bool,
     passos: Vec<Passo>,
+    /// Nome e descrição dados a cada etapa (#94), na ordem das etapas; vazio = o rótulo padrão.
+    etapas_info: Vec<(String, String)>,
+    /// Etapa com o campo de nome/descrição aberto: (índice, nome, descrição).
+    rotulando: Option<(usize, String, String)>,
     resultado: Tabela,
     /// O script gerado das etapas (o Editor avançado copia ao abrir).
     codigo: String,
@@ -244,6 +260,11 @@ pub(super) struct Estado {
     exclusao_pendente: Option<String>,
     /// (id, nome digitado) da consulta gravada sendo renomeada.
     renomeando: Option<(String, String)>,
+    /// Pastas das consultas (#93): o "⋮" aberto (id e o nome de pasta nova digitado),
+    /// as pastas recolhidas e as criadas que ainda não têm consulta (não ficam no arquivo).
+    acoes_consulta: Option<(String, String)>,
+    pastas_recolhidas: std::collections::HashSet<String>,
+    pastas_vazias: Vec<String>,
     assistente: Option<assistentes::Estado>,
     passo_previa: Option<usize>,
     tabela_previa: Option<Tabela>,
@@ -394,11 +415,12 @@ impl Estado {
             url_web: String::new(), selecao_iqy: None, tabelas_web: Vec::new(), itens_arquivo: Vec::new(), item_pedido: None, caminho_arquivo: None,
             origem_web_pendente: String::new(), indice_tabela_web: 0,
             mostrar_web: false, mostrar_tabelas: false,
-            passos: Vec::new(), resultado,
+            passos: Vec::new(), etapas_info: Vec::new(), rotulando: None, resultado,
             codigo: String::new(),
             editor_avancado: None, erro_avancado: String::new(), aviso_avancado: String::new(), consultas_pq: None,
             erro: String::new(),
             edicao: None, salvas: Vec::new(), exclusao_pendente: None, renomeando: None,
+            acoes_consulta: None, pastas_recolhidas: Default::default(), pastas_vazias: Vec::new(),
             assistente: None,
             passo_previa: None, tabela_previa: None,
             importacao_pendente: None, importacao_preservar: false,
@@ -1198,6 +1220,7 @@ impl App {
             Evento::Remover(idx) => if let Some(e) = &mut self.openquery {
                 if idx < e.passos.len() {
                         e.passos.remove(idx);
+                        if idx < e.etapas_info.len() { e.etapas_info.remove(idx); }
                         e.registrar_passos();
                     }
             },
@@ -1207,6 +1230,9 @@ impl App {
                         if idx < e.passos.len() && novo >= 0 &&
                             (novo as usize) < e.passos.len() {
                             e.passos.swap(idx, novo as usize);
+                            let maior = idx.max(novo as usize);
+                            if e.etapas_info.len() <= maior { e.etapas_info.resize(maior + 1, Default::default()); }
+                            e.etapas_info.swap(idx, novo as usize);
                             e.registrar_passos();
                         }
                     }
@@ -1573,6 +1599,46 @@ impl App {
             },
             Evento::CancelarExclusao => if let Some(e) = &mut self.openquery {
                 e.exclusao_pendente = None;
+            },
+            Evento::AcoesConsulta(id) => if let Some(e) = &mut self.openquery {
+                e.acoes_consulta = id.filter(|i| e.acoes_consulta.as_ref().is_none_or(|(a, _)| a != i)).map(|i| (i, String::new()));
+            },
+            Evento::PastaNovaNome(t) => if let Some((_, nome)) = self.openquery.as_mut().and_then(|e| e.acoes_consulta.as_mut()) { *nome = t; },
+            Evento::AlternarPasta(p) => if let Some(e) = &mut self.openquery {
+                if !e.pastas_recolhidas.remove(&p) { e.pastas_recolhidas.insert(p); }
+            },
+            Evento::MoverParaPasta(pasta) => {
+                let Some((id, digitada)) = self.openquery.as_mut().and_then(|e| e.acoes_consulta.take()) else { return Task::none() };
+                let pasta = match pasta {
+                    Some(p) if p.is_empty() => Some(digitada.trim().to_owned()).filter(|p| !p.is_empty()),
+                    outra => outra,
+                };
+                match registro::mover_para_pasta(&mut self.workbook, &id, pasta.as_deref()) {
+                    Ok(()) => {
+                        if let Some(e) = &mut self.openquery {
+                            e.pastas_vazias.retain(|v| Some(v) != pasta.as_ref());
+                            if let Some(p) = &pasta { e.pastas_recolhidas.remove(p); }
+                        }
+                        self.alterado = true;
+                    }
+                    Err(erro) => if let Some(e) = &mut self.openquery { e.erro = erro; },
+                }
+            },
+            Evento::RotularEtapa(i) => if let Some(e) = &mut self.openquery {
+                if i < e.passos.len() {
+                    let (nome, descricao) = e.etapas_info.get(i).cloned().unwrap_or_default();
+                    e.rotulando = Some((i, nome, descricao));
+                }
+            },
+            Evento::RotuloNome(t) => if let Some((_, nome, _)) = self.openquery.as_mut().and_then(|e| e.rotulando.as_mut()) { *nome = t; },
+            Evento::RotuloDescricao(t) => if let Some((_, _, d)) = self.openquery.as_mut().and_then(|e| e.rotulando.as_mut()) { *d = t; },
+            Evento::RotuloCancelar => if let Some(e) = &mut self.openquery { e.rotulando = None; },
+            Evento::RotuloOk => if let Some(e) = &mut self.openquery {
+                if let Some((i, nome, descricao)) = e.rotulando.take().filter(|(i, ..)| *i < e.passos.len()) {
+                    if e.etapas_info.len() <= i { e.etapas_info.resize(i + 1, Default::default()); }
+                    e.etapas_info[i] = (nome.trim().to_owned(), descricao.trim().to_owned());
+                    self.alterado = true;
+                }
             },
             Evento::PedirRenomear(id) => if let Some(e) = &mut self.openquery {
                 let nome = e.salvas.iter().find(|(chave, _)| *chave == id).map(|(_, n)| n.clone()).unwrap_or_default();

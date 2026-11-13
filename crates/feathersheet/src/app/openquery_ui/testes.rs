@@ -77,6 +77,51 @@ use super::*;
     }
 
     #[test]
+    fn consulta_vai_para_pasta_e_fica_nela_ao_gravar_de_novo() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "n".into());
+        app.workbook.escrever_celula(0, 1, 0, "1".into());
+        abrir_aba_para_teste(&mut app);
+        app.concluir_openquery();
+        let id = registro::listar(&app.workbook).unwrap()[0].dados["id"].as_str().unwrap().to_owned();
+        app.evento_openquery(Evento::Abrir);
+        app.evento_openquery(Evento::AcoesConsulta(Some(id.clone())));
+        app.evento_openquery(Evento::PastaNovaNome(" Vendas ".into()));
+        app.evento_openquery(Evento::MoverParaPasta(Some(String::new())));
+        let pasta = |app: &App| registro::pasta(&registro::buscar(&app.workbook, &id).unwrap().dados).map(str::to_owned);
+        assert_eq!(pasta(&app).as_deref(), Some("Vendas"));
+        // Editar e gravar a consulta não tira da pasta.
+        assert!(app.abrir_consulta_salva(&id));
+        app.concluir_openquery();
+        assert_eq!(pasta(&app).as_deref(), Some("Vendas"));
+        app.evento_openquery(Evento::Abrir);
+        app.evento_openquery(Evento::AcoesConsulta(Some(id.clone())));
+        app.evento_openquery(Evento::MoverParaPasta(None));
+        assert_eq!(pasta(&app), None);
+    }
+
+    #[test]
+    fn etapa_ganha_nome_e_descricao_que_ficam_gravados() {
+        let mut app = App::default();
+        for (r, v) in ["n", "3", "1"].iter().enumerate() { app.workbook.escrever_celula(0, r as u32, 0, (*v).into()); }
+        abrir_aba_para_teste(&mut app);
+        app.evento_openquery(Evento::Adicionar("ordenar"));
+        app.evento_openquery(Evento::Adicionar("inverter"));
+        app.evento_openquery(Evento::RotularEtapa(1));
+        app.evento_openquery(Evento::RotuloNome(" Do maior ".into()));
+        app.evento_openquery(Evento::RotuloDescricao("pedido do financeiro".into()));
+        app.evento_openquery(Evento::RotuloOk);
+        app.concluir_openquery();
+        let id = registro::listar(&app.workbook).unwrap()[0].dados["id"].as_str().unwrap().to_owned();
+        assert!(app.abrir_consulta_salva(&id));
+        let e = app.openquery.as_ref().unwrap();
+        assert_eq!(e.etapas_info.get(1), Some(&("Do maior".to_owned(), "pedido do financeiro".to_owned())));
+        // Remover a primeira etapa leva o nome junto com a etapa.
+        app.evento_openquery(Evento::Remover(0));
+        assert_eq!(app.openquery.as_ref().unwrap().etapas_info[0].0, "Do maior");
+    }
+
+    #[test]
     fn gerenciar_consultas_cancela_e_desvincula_sem_apagar_celulas() {
         let mut app = App::default();
         app.workbook.escrever_celula(0, 0, 0, "Consumo".into());

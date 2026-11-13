@@ -40,7 +40,11 @@ Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e cri
 **FeatherQuery: renomear consulta (#93, 13/11).** Lápis na lista de consultas abre o campo do nome
 (`Evento::PedirRenomear`, `Estado::renomeando`); `registro::renomear` recusa vazio e repetido e troca o
 `Consulta: nome` em todo registro que lê a renomeada (origem, fontes extras, `fonte` das etapas). Pastas
-(grupos) para organizar ainda não. Novidade: "FeatherQuery: renomeie consultas salvas; as que dependem dela continuam funcionando."
+(grupos) entraram depois, no mesmo dia: o ⋮ (ou botão direito) da consulta abre Renomear e Mover para pasta
+(`Evento::AcoesConsulta`/`MoverParaPasta`); a pasta mora no registro (`_feather.pasta`, `registro::mover_para_pasta`,
+mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e ainda vazia não vai para o arquivo.
+Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
+não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
 **Autocompletar no editor de macros (#8, 13/11).** `app/macros/autocompletar.rs`: o catálogo sai das assinaturas do
 `ajuda_macros::GUIA` (o objeto antes do ponto: `sheet`, `range`, `wb`, `app`; solto a partir de 2 letras; depois de `)` vale

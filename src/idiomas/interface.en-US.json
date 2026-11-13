@@ -1,4 +1,10 @@
 {
+ "Renomear ou mover para pasta": "Rename or move to folder",
+ "Mover para pasta": "Move to folder",
+ "Sem pasta": "No folder",
+ "Nova pasta…": "New folder…",
+ "Nome da etapa": "Step name",
+ "Descrição (aparece ao passar o mouse)": "Description (shown on mouse over)",
  "Consulta Web do Excel": "Excel Web Query",
  "O arquivo .iqy não é uma consulta Web do Excel": "The .iqy file is not an Excel Web Query",
  "O arquivo .iqy não tem o endereço da consulta": "The .iqy file has no query address",

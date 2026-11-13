@@ -257,24 +257,71 @@ impl App {
         if e.edicao.is_none() {
             arvore = arvore.push(ide::item_arvore(&e.nome, "table", 12.0, None, true));
         }
-        let ao_abrir: Vec<String> = registro::listar(&self.workbook).unwrap_or_default().into_iter()
+        let registros = registro::listar(&self.workbook).unwrap_or_default();
+        let ao_abrir: Vec<String> = registros.iter()
             .filter(|s| registro::atualiza_ao_abrir(&s.dados))
             .filter_map(|s| s.dados["id"].as_str().map(str::to_owned)).collect();
-        for (id, nome) in e.salvas.iter() {
+        let pasta_de: std::collections::HashMap<String, String> = registros.iter().filter_map(|s|
+            Some((s.dados["id"].as_str()?.to_owned(), registro::pasta(&s.dados)?.to_owned()))).collect();
+        // Pastas em ordem alfabética (as com consulta e as recém-criadas), as soltas primeiro.
+        let mut pastas: Vec<String> = pasta_de.values().cloned().chain(e.pastas_vazias.iter().cloned()).collect();
+        pastas.sort_by_key(|p| p.to_lowercase());
+        pastas.dedup();
+        let linha_consulta = |id: &String, nome: &String, recuo: f32| -> Element<'a, Msg> {
             let atual = e.edicao.as_deref() == Some(id.as_str());
             let ligado = ao_abrir.contains(id);
-            arvore = arvore.push(row![
-                ide::item_arvore(nome, "table", 12.0, Some(om(Evento::EditarSalva(id.clone()))), atual),
+            let item = pelicano::mouse_area(ide::item_arvore(nome, "table", recuo, Some(om(Evento::EditarSalva(id.clone()))), atual))
+                .on_right_press(om(Evento::AcoesConsulta(Some(id.clone()))));
+            row![
+                item,
                 dica(button(feather_ui::icones::icone("clock", 15.0)).padding([5, 7])
                     .on_press(om(Evento::AoAbrir(id.clone()))).style(ide::estilo_botao_ide(ligado)),
                     if ligado { tr!("Atualiza ao abrir o arquivo (clique para desligar)") }
                     else { tr!("Atualizar ao abrir o arquivo") }),
-                botao_so_icone("pencil", tr!("Renomear consulta"), Evento::PedirRenomear(id.clone())),
                 botao_so_icone("refresh", tr!("Atualizar o resultado desta consulta"),
                     Evento::AtualizarSalva(id.clone())),
+                botao_so_icone("dots-vertical", tr!("Renomear ou mover para pasta"), Evento::AcoesConsulta(Some(id.clone()))),
                 botao_so_icone("x", tr!("Desvincular consulta (os valores da aba permanecem)"),
                     Evento::PedirExclusao(id.clone())),
-            ].align(pelicano::Align::Center));
+            ].align(pelicano::Align::Center).into()
+        };
+        let acoes = |id: &String| -> Option<Element<'a, Msg>> {
+            let (aberta, nova) = e.acoes_consulta.as_ref()?;
+            if aberta != id { return None; }
+            let mut col = column![
+                ide::botao(tr!("Renomear"), Some(om(Evento::PedirRenomear(id.clone()))), false),
+                legenda_oq(tr!("Mover para pasta")),
+            ].spacing(ESPACO_PEQUENO);
+            let mut destinos = column![].spacing(2);
+            if pasta_de.contains_key(id) {
+                destinos = destinos.push(ide::botao(tr!("Sem pasta"), Some(om(Evento::MoverParaPasta(None))), false));
+            }
+            for p in pastas.iter().filter(|p| pasta_de.get(id) != Some(*p)) {
+                destinos = destinos.push(ide::botao(p, Some(om(Evento::MoverParaPasta(Some(p.clone())))), false));
+            }
+            col = col.push(destinos);
+            col = col.push(row![
+                text_input(tr!("Nova pasta…"), nova).on_input(|v| om(Evento::PastaNovaNome(v)))
+                    .on_submit(om(Evento::MoverParaPasta(Some(String::new()))))
+                    .size(11).padding([4.0, 6.0]).style(estilo_entrada_suspensa),
+                ide::botao(tr!("Mover"), (!nova.trim().is_empty()).then(|| om(Evento::MoverParaPasta(Some(String::new())))), true),
+            ].spacing(4).align(pelicano::Align::Center));
+            Some(container(col).padding([4, 8]).into())
+        };
+        for (id, nome) in e.salvas.iter().filter(|(id, _)| !pasta_de.contains_key(id)) {
+            arvore = arvore.push(linha_consulta(id, nome, 12.0));
+            if let Some(a) = acoes(id) { arvore = arvore.push(a); }
+        }
+        for p in &pastas {
+            let recolhida = e.pastas_recolhidas.contains(p);
+            let dentro: Vec<_> = e.salvas.iter().filter(|(id, _)| pasta_de.get(id) == Some(p)).collect();
+            arvore = arvore.push(ide::item_arvore(&format!("{p} ({})", dentro.len()),
+                if recolhida { "folder" } else { "folder-open" }, 4.0, Some(om(Evento::AlternarPasta(p.clone()))), false));
+            if recolhida { continue; }
+            for (id, nome) in dentro {
+                arvore = arvore.push(linha_consulta(id, nome, 24.0));
+                if let Some(a) = acoes(id) { arvore = arvore.push(a); }
+            }
         }
         if let Some((_, nome)) = &e.renomeando {
             arvore = arvore.push(container(column![
@@ -595,10 +642,16 @@ impl App {
                 Some(om(Evento::Prever(None))), e.passo_previa.is_none()));
         }
         for (i, passo) in e.passos.iter().enumerate() {
+            let (nome, descricao) = e.etapas_info.get(i).map(|(n, d)| (n.as_str(), d.as_str())).unwrap_or(("", ""));
+            let rotulo = if nome.is_empty() { passo_rotulo(passo) } else { nome };
+            // Botão direito: nome e descrição; a descrição aparece ao passar o mouse.
+            let item: Element<'_, Msg> = pelicano::mouse_area(ide::item_arvore(&format!("{}. {}", i + 1, rotulo),
+                    if descricao.is_empty() { "list-details" } else { "info-circle" }, 0.0, Some(om(Evento::Prever(Some(i)))),
+                    e.passo_previa == Some(i)))
+                .on_right_press(om(Evento::RotularEtapa(i))).into();
+            let item = if descricao.is_empty() { item } else { dica(item, descricao) };
             lista = lista.push(row![
-                ide::item_arvore(&format!("{}. {}", i + 1, passo_rotulo(passo)),
-                    "list-details", 0.0, Some(om(Evento::Prever(Some(i)))),
-                    e.passo_previa == Some(i)),
+                item,
                 if etapa::Modal::de_passo(passo, i, Vec::new()).is_some() {
                     botao_so_icone("settings", tr!("Editar os parâmetros desta etapa"), Evento::EditarPasso(i))
                 } else {
@@ -608,6 +661,18 @@ impl App {
                 botao_so_icone("arrow-down", tr!("Mover para baixo"), Evento::Mover(i, 1)),
                 botao_so_icone("x", tr!("Remover esta etapa"), Evento::Remover(i)),
             ].align(pelicano::Align::Center));
+        }
+        if let Some((_, nome, descricao)) = &e.rotulando {
+            lista = lista.push(container(column![
+                text_input(tr!("Nome da etapa"), nome).on_input(|v| om(Evento::RotuloNome(v)))
+                    .on_submit(om(Evento::RotuloOk)).size(11).padding([4.0, 6.0]).style(estilo_entrada_suspensa),
+                text_input(tr!("Descrição (aparece ao passar o mouse)"), descricao).on_input(|v| om(Evento::RotuloDescricao(v)))
+                    .on_submit(om(Evento::RotuloOk)).size(11).padding([4.0, 6.0]).style(estilo_entrada_suspensa),
+                row![
+                    ide::botao(tr!("Cancelar"), Some(om(Evento::RotuloCancelar)), false),
+                    ide::botao(tr!("OK"), Some(om(Evento::RotuloOk)), true),
+                ].spacing(ESPACO_PEQUENO),
+            ].spacing(ESPACO_PEQUENO)).padding([4, 8]));
         }
         if e.passos.is_empty() {
             lista = lista.push(container(legenda_oq(

@@ -82,6 +82,7 @@ impl App {
             let texto = serde_json::to_string(&salva.dados["passos"])
                 .map_err(|e| e.to_string())?;
             estado.passos = json_passos::ler(&texto)?;
+            estado.etapas_info = registro::etapas_info(&salva.dados);
             estado.fontes = self.fontes_extra_da_salva(&salva.dados)?;
             estado.registrar_passos();
             // A consulta gravada abre sem Ctrl+Z para "nenhuma etapa".
@@ -186,6 +187,7 @@ impl App {
                 &id, nome, &editor.fonte, &editor.passos, &editor.origem_aba,
                 &editor.origem, &nome_aba, &area, &adicionais,
             )?;
+            registro::gravar_etapas_info(&mut reg, &editor.etapas_info, editor.passos.len());
             reg["destino"]["modo"] = serde_json::json!("apenas_conexao");
             reg["_feather"]["areaSaida"] = serde_json::Value::Null;
             reg["status"]["linhasAfetadas"] = serde_json::json!(0);
@@ -313,6 +315,7 @@ impl App {
                 &editor.origem_aba, &editor.origem, &nome_aba,
                 &area_saida, &adicionais
             )?;
+            registro::gravar_etapas_info(&mut reg, &editor.etapas_info, editor.passos.len());
             if editor.destino_modo == DestinoModo::AbaAtual {
                 reg["destino"]["modo"] = serde_json::json!("aba_atual");
             }

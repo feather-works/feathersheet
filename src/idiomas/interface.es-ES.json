@@ -1,4 +1,10 @@
 {
+ "Renomear ou mover para pasta": "Cambiar nombre o mover a carpeta",
+ "Mover para pasta": "Mover a carpeta",
+ "Sem pasta": "Sin carpeta",
+ "Nova pasta…": "Nueva carpeta…",
+ "Nome da etapa": "Nombre del paso",
+ "Descrição (aparece ao passar o mouse)": "Descripción (aparece al pasar el ratón)",
  "Consulta Web do Excel": "Consulta web de Excel",
  "O arquivo .iqy não é uma consulta Web do Excel": "El archivo .iqy no es una consulta web de Excel",
  "O arquivo .iqy não tem o endereço da consulta": "El archivo .iqy no tiene la dirección de la consulta",

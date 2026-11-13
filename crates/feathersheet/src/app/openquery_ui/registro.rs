@@ -174,6 +174,44 @@ pub(super) fn montar(
     }))
 }
 
+/// A pasta da consulta no painel (#93), em `_feather.pasta`.
+pub(super) fn pasta(reg: &Json) -> Option<&str> {
+    reg["_feather"]["pasta"].as_str().filter(|p| !p.is_empty())
+}
+/// Põe a consulta `id` na pasta (ou tira, com `None`), em toda aba que guarda o registro.
+pub(super) fn mover_para_pasta(w: &mut Workbook, id: &str, pasta: Option<&str>) -> Result<(), String> {
+    let mut mudancas = Vec::new();
+    for i in 0..w.len() {
+        let mut lista = registros(w, i)?;
+        let mut achou = false;
+        for r in lista.iter_mut().filter(|v| v["id"].as_str() == Some(id)) {
+            match pasta {
+                Some(p) => r["_feather"]["pasta"] = json!(p),
+                None => { if let Some(f) = r["_feather"].as_object_mut() { f.remove("pasta"); } }
+            }
+            achou = true;
+        }
+        if achou { mudancas.push((i, serde_json::to_string(&lista).map_err(|e| e.to_string())?)); }
+    }
+    if mudancas.is_empty() { return Err(tr!("Consulta não encontrada").into()); }
+    aplicar_gravacao(w, mudancas);
+    Ok(())
+}
+
+/// Nome e descrição de cada etapa (#94), em `_feather.etapas`: `[{"nome","descricao"}]`.
+pub(super) fn etapas_info(reg: &Json) -> Vec<(String, String)> {
+    reg["_feather"]["etapas"].as_array().into_iter().flatten().map(|e| (
+        e["nome"].as_str().unwrap_or("").to_owned(), e["descricao"].as_str().unwrap_or("").to_owned(),
+    )).collect()
+}
+/// Grava [`etapas_info`] só até o número de etapas, e só quando alguma tem nome ou descrição.
+pub(super) fn gravar_etapas_info(reg: &mut Json, info: &[(String, String)], etapas: usize) {
+    let lista: Vec<&(String, String)> = info.iter().take(etapas).collect();
+    if lista.iter().any(|(n, d)| !n.is_empty() || !d.is_empty()) {
+        reg["_feather"]["etapas"] = Json::Array(lista.iter().map(|(n, d)| json!({"nome": n, "descricao": d})).collect());
+    }
+}
+
 /// O mapa das consultas gravadas: (nome, fontes, destino), as que leem outra
 /// consulta depois dela.
 pub(super) fn dependencias(w: &Workbook) -> Vec<(String, Vec<String>, String)> {
@@ -229,6 +267,10 @@ pub(super) fn preparar_gravacao(
     let mut registro = registro.clone();
     if listar(w)?.iter().any(|s| s.dados["id"].as_str() == Some(id) && atualiza_ao_abrir(&s.dados)) {
         registro["_feather"]["atualizarAoAbrir"] = json!(true);
+    }
+    // E a pasta do painel.
+    if let Some(p) = listar(w)?.iter().find(|s| s.dados["id"].as_str() == Some(id)).and_then(|s| pasta(&s.dados).map(str::to_owned)) {
+        registro["_feather"]["pasta"] = json!(p);
     }
     let registro = &registro;
     let mut mudancas = Vec::new();
