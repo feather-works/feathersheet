@@ -637,6 +637,18 @@ impl App {
             Msg::EditarNomeAba => self.abrir_renomeacao(),
             Msg::RenomearAba => self.salvar_nome_aba(),
             Msg::RemoverAba => {
+                // Fórmula em edição guarda o índice da aba de origem: excluir uma aba antes dela faria o Enter gravar na errada.
+                if self.editor_formula.ativo { self.status = tr!("Termine de editar a fórmula antes de excluir a aba.").into(); return Task::none(); }
+                // Aba com dados: pergunta antes (não há como desfazer).
+                if self.workbook.aba(self.folha).is_some_and(|a| !a.sheet.is_empty()) && self.workbook.len() > 1 {
+                    self.excluir_aba_pedida = true;
+                    return Task::none();
+                }
+                self.update(Msg::RemoverAbaConfirmada)
+            }
+            Msg::RemoverAbaCancelar => { self.excluir_aba_pedida = false; Task::none() }
+            Msg::RemoverAbaConfirmada => {
+                self.excluir_aba_pedida = false;
                 if self.editando_nome_aba { self.cancelar_renomeacao(); }
                 let removida=self.workbook.aba(self.folha).map(|a|a.id);
                 if self.workbook.remover_aba(self.folha) {

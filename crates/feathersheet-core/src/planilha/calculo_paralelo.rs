@@ -374,7 +374,7 @@ impl EvalContext for Contexto<'_, '_> {
                 return Agregado::montar(criterios.len(), soma.is_some(), linhas, colunas,
                     |i, r, c| leitor.borrow_mut().da_celula(lidas[i].valor(criterios[i].r0 + r, criterios[i].c0 + c)),
                     |r, c| match (soma, somada.as_ref()) {
-                        (Some(rect), Some(f)) => match f.valor(rect.r0 + r, rect.c0 + c) { Value::Number(n) => Some(*n), _ => None },
+                        (Some(rect), Some(f)) => match f.valor(rect.r0 + r, rect.c0 + c) { Value::Number(n) => Some(*n), Value::Error(_) => Some(f64::NAN), _ => None },
                         _ => None,
                     },
                     || std::mem::take(&mut leitor.borrow_mut().chaves),
@@ -390,6 +390,7 @@ impl EvalContext for Contexto<'_, '_> {
                 |i, r, c| leitor.borrow_mut().da_celula(&self.ler(aba, criterios[i].r0 + r, criterios[i].c0 + c)),
                 |r, c| match soma.map(|rect| self.ler(aba, rect.r0 + r, rect.c0 + c)) {
                     Some(Value::Number(n)) => Some(n),
+                    Some(Value::Error(_)) => Some(f64::NAN),
                     _ => None,
                 },
                 || std::mem::take(&mut leitor.borrow_mut().chaves),
@@ -695,7 +696,7 @@ fn executar(
         let Some(arvore) = arvore(vista.formulas, no.aba, row, no.col, modelos) else { continue };
         ctx.falhou.set(false);
         let valor = match arvore {
-            Ok(node) => Evaluator::na_celula(&ctx, row, no.col).eval(&node),
+            Ok(node) => crate::planilha::sheet::vazio_vira_zero(Evaluator::na_celula(&ctx, row, no.col).eval(&node)),
             Err(e) => Value::Error(CellError::com_motivo(ErrorCode::Name, e)),
         };
         if ctx.falhou.get() {

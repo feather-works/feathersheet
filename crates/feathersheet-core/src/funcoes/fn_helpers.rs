@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::Evaluator;
 use crate::celulas::values::{
-    compare, to_boolean, to_number, to_text, CellError, Computed, ErrorCode, Matrix, Value,
+    compare, to_boolean, to_number, CellError, Computed, ErrorCode, Matrix, Value,
 };
 use crate::formula::evaluator::broadcast_all;
 
@@ -154,7 +154,8 @@ pub fn grupo_agregado(ev: &Evaluator<'_>, soma: Option<&crate::celulas::refs::Re
     }
     let alternativas = criterios.iter().map(ChaveCriterio::alternativas).collect::<Option<Vec<_>>>()?;
     let agregado = ev.ctx.agregado(soma, faixas)?;
-    agregado.grupo_de(&alternativas)
+    // NaN: o grupo pega um erro da faixa agregada; a varredura célula a célula devolve qual.
+    agregado.grupo_de(&alternativas).filter(|g| !g.soma.is_nan() && !g.maximo.is_nan())
 }
 
 /// Transforma o critério em uma pergunta que se faz a cada valor.
@@ -165,7 +166,15 @@ pub fn make_predicate(criterion: &Value) -> Predicate {
     if let Value::Text(texto) = criterion {
         if let Some((op, resto)) = partir_comparacao(texto.trim()) {
             let alvo = alvo_do_criterio(resto);
+            // `"=a*"` e `"<>*abc*"`: o curinga vale com o operador de igualdade, e só casa texto.
+            let curinga = matches!(op, Comparacao::Eq | Comparacao::Ne)
+                .then(|| match &alvo { Value::Text(t) if t.contains(['*', '?']) => Some(compilar_curinga(t)), _ => None })
+                .flatten();
             return Box::new(move |v| {
+                if let Some(p) = &curinga {
+                    let casa = matches!(v, Value::Text(s) if combina_curinga(p, s));
+                    return if op == Comparacao::Eq { casa } else { !casa };
+                }
                 match op {
                     Comparacao::Eq => return criterio_igual(v, &alvo),
                     Comparacao::Ne => return !criterio_igual(v, &alvo),
@@ -193,7 +202,8 @@ pub fn make_predicate(criterion: &Value) -> Predicate {
         }
         if texto.contains('*') || texto.contains('?') {
             let padrao = compilar_curinga(texto);
-            return Box::new(move |v| combina_curinga(&padrao, &to_text(v)));
+            // Curinga só olha texto: `"*"` não conta número nem célula vazia.
+            return Box::new(move |v| matches!(v, Value::Text(s) if combina_curinga(&padrao, s)));
         }
     }
     // Igualdade simples (o critério mais comum, `"Sul"` ou `1`): o mesmo
@@ -204,8 +214,8 @@ pub fn make_predicate(criterion: &Value) -> Predicate {
             let x = *x;
             let igual = move |y: f64| y.partial_cmp(&x).is_none_or(Ordering::is_eq);
             return Box::new(move |v| match v {
+                // O critério 0 não casa com célula vazia (Excel).
                 Value::Number(y) => igual(*y),
-                Value::Empty => igual(0.0),
                 _ => false,
             });
         }

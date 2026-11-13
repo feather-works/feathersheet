@@ -48,12 +48,8 @@ fn date_arg(node: &Node, ev: &Evaluator<'_>) -> Result<f64, CellError> {
 
 /// A regra do [`date_arg`] para um valor já lido (item de matriz).
 fn serial_do_valor(val: &Value) -> Result<f64, CellError> {
-    match val {
-        Value::Number(n) => Ok(*n),
-        Value::Text(s) => s.trim().parse::<f64>().map_err(|_| CellError::new(ErrorCode::Value)),
-        Value::Error(e) => Err(e.clone()),
-        _ => Err(CellError::new(ErrorCode::Value)),
-    }
+    // Como o Excel: vazio é 0, e a data escrita como texto ("2024-01-15", "15/01/2024") vale.
+    serial_de(val)
 }
 
 /// Ano, mês ou dia de cada data: `MÊS(A2:A9)` dá a matriz dos meses
@@ -175,8 +171,17 @@ pub fn fn_weeknum(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     let (y, _, _) = serial_to_ymd(serial as i64);
     let jan1_serial = ymd_to_serial(y, 1, 1);
     let diff_days = (serial.floor() - jan1_serial.floor()) as i64;
+    // Tipo: 1/17 a semana começa no domingo, 2/11 na segunda, 12…16 de terça a sábado; 21 é a ISO.
+    let tipo = if args.len() > 1 { match ev.number(&args[1]) { Ok(t) => t.trunc() as i64, Err(e) => return Computed::Scalar(Value::Error(e)) } } else { 1 };
+    let inicio = match tipo {
+        1 | 17 => 0,
+        2 | 11 => 1,
+        12..=16 => tipo - 10,
+        21 => return fn_isoweeknum(&args[..1], ev),
+        _ => return err_num(),
+    };
     let jan1_weekday = dia_da_semana(jan1_serial as i64); // 0 = Domingo
-    let week_num = ((diff_days + jan1_weekday) / 7) + 1;
+    let week_num = ((diff_days + (jan1_weekday - inicio).rem_euclid(7)) / 7) + 1;
     Computed::Scalar(Value::Number(week_num as f64))
 }
 

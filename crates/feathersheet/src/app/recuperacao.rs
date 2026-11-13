@@ -143,6 +143,8 @@ impl App {
         // O "Salvar" desmarca o alterado antes de a gravação terminar: até ela
         // acabar, a cópia é o único lugar com as mudanças.
         if self.salvando { return Task::none(); }
+        // Com macro ou cálculo em fundo, `self.workbook` é o espelho vazio: a cópia sairia sem dados.
+        if self.macro_rodando.is_some() || self.calculo_rodando.is_some() { return Task::none(); }
         if !self.alterado {
             if self.recuperacao.versoes.is_some() || fshz.exists() {
                 self.descartar_recuperacao();

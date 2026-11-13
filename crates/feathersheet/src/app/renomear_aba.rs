@@ -48,6 +48,13 @@ impl App {
             Some(tr!("O nome não pode conter \"!\"."))
         } else if nome.contains(':') {
             Some(tr!("O nome não pode conter \":\"."))
+        } else if nome.contains(['[', ']', '*', '?', '/', '\\']) {
+            // O Excel recusa e "conserta" o arquivo ao abrir.
+            Some(tr!("O nome não pode conter [ ] * ? / \\."))
+        } else if nome.starts_with('\'') || nome.ends_with('\'') {
+            Some(tr!("O nome não pode começar nem terminar com apóstrofo."))
+        } else if nome.chars().count() > 31 {
+            Some(tr!("O nome pode ter no máximo 31 caracteres (limite do Excel)."))
         } else if self
             .workbook
             .nomes()

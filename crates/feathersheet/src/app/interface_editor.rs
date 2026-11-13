@@ -740,6 +740,7 @@ impl App {
             return self.sobrepor_explicacao_erro(base);
         }
         let base = self.sobrepor_aviso_xlsx(base);
+        let base = self.sobrepor_excluir_aba(base);
         let base = self.sobrepor_aviso_macros(base);
         let base = self.sobrepor_editar_links(base);
         // Validação de dados e o alerta de erro, no diálogo interno comum.

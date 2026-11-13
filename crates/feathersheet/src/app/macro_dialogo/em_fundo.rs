@@ -30,6 +30,11 @@ impl App {
             self.status = tr!("Já há uma macro rodando.").into();
             return;
         }
+        // A resposta da gravação não passa enquanto a macro roda: o "salvando" ficaria preso para sempre.
+        if self.salvando || self.recuperacao.gravando {
+            self.status = tr!("Aguarde terminar de salvar para rodar a macro.").into();
+            return;
+        }
         let parar = Arc::new(AtomicBool::new(false));
         let mut contexto = self.contexto_da_macro(Vec::new(), Vec::new());
         contexto.limites = feather_macros::Limites { prazo: PRAZO_EM_FUNDO, parar: Some(parar.clone()) };

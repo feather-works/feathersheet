@@ -368,7 +368,9 @@ pub fn fn_averageif(args: &[Node], ev: &Evaluator<'_>) -> Computed {
                 let c_off = c - test_rect.c0;
                 let avg_r = avg_rect.r0 + r_off;
                 let avg_c = avg_rect.c0 + c_off;
-                if let Value::Number(n) = *alvo.valor(ev, avg_r, avg_c) {
+                let v = alvo.valor(ev, avg_r, avg_c);
+                if let Value::Error(e) = &*v { return Computed::Scalar(Value::Error(e.clone())); }
+                if let Value::Number(n) = *v {
                     sum += n;
                     count += 1;
                 }
@@ -434,6 +436,7 @@ pub fn fn_averageifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
             if pass {
                 let val = alvo.valor(ev, r, c);
                 let val: &Value = &val;
+                if let Value::Error(e) = val { return Computed::Scalar(Value::Error(e.clone())); }
                 if let Value::Number(n) = val {
                     sum += n;
                     count += 1;
@@ -547,6 +550,7 @@ pub fn fn_maxifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
             if pass {
                 let val = alvo.valor(ev, r, c);
                 let val: &Value = &val;
+                if let Value::Error(e) = val { return Computed::Scalar(Value::Error(e.clone())); }
                 if let Value::Number(n) = *val {
                     if n > max_val {
                         max_val = n;
@@ -608,6 +612,7 @@ pub fn fn_minifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
             if pass {
                 let val = alvo.valor(ev, r, c);
                 let val: &Value = &val;
+                if let Value::Error(e) = val { return Computed::Scalar(Value::Error(e.clone())); }
                 if let Value::Number(n) = *val {
                     if n < min_val {
                         min_val = n;

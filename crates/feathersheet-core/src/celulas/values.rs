@@ -4,7 +4,7 @@
 
 use std::cmp::Ordering;
 
-use crate::celulas::number::{format_number, from_js_string};
+use crate::celulas::number::{format_number, from_js_string, round_to_precision, to_js_string};
 
 /// Os códigos de erro que aparecem na célula.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -401,7 +401,10 @@ pub fn to_number(v: &Value) -> Result<f64, CellError> {
                     return Ok(n / 100.0);
                 }
             }
-            match numero_texto_legado(t) {
+            // Língua com ponto decimal (inglês): "1.5" é 1,5 e a vírgula é milhar. O caminho
+            // legado tira todos os pontos e daria 15.
+            let ponto = crate::celulas::locale::decimal_separator() == '.';
+            match if ponto { from_js_string(&t.replace(',', "")) } else { None }.or_else(|| numero_texto_legado(t)) {
                 Some(n) => Ok(n),
                 None => Err(CellError::com_motivo(
                     ErrorCode::Value,
@@ -419,6 +422,12 @@ pub fn to_text_formula(v: &Value) -> String {
     match v {
         Value::Bool(b) => crate::celulas::locale::texto_logico(*b),
         Value::Error(e) => e.code.na_lingua(),
+        // Como o Excel: 15 algarismos e o separador decimal da língua ("Peso: 1,5").
+        Value::Number(n) if n.is_finite() => {
+            let t = to_js_string(round_to_precision(*n, 15));
+            let sep = crate::celulas::locale::decimal_separator();
+            if sep == '.' { t } else { t.replace('.', &sep.to_string()) }
+        }
         outro => to_text(outro),
     }
 }

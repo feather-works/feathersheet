@@ -2,6 +2,25 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## Depois da v0.3.2 (13/11/2026): auditoria de fórmulas, arquivos e do app
+
+Três leituras do código acharam 31 problemas com caso concreto; a lista, com o que foi feito e o que
+falta, está em `docs/planejamento/AUDITORIA-2026-11-13.md`. Feitos e testados (testes novos em
+`feathersheet-core/src/planilha/workbook/tests_auditoria.rs` e `app/excluir_aba.rs`):
+- **Fórmulas como no Excel:** número vira texto com a vírgula da língua; fórmula que aponta célula
+  vazia vale 0 (antes "vazio": MÉDIA e CONT.NÚM erravam); `SOMA(A1;B1)` ignora texto e lógico da
+  célula; curinga no critério só casa texto e vale com `<>`; critério 0 não casa vazia; erro na faixa
+  de SOMASE/SOMASES/MÉDIASE(S)/MÁXIMOSES/MÍNIMOSES é o resultado; SEERRO sobre matriz; ÍNDICE com
+  linha ou coluna 0; datas em texto e NÚMSEMANA com tipo; TEXTO com seções e 15 algarismos.
+- **App:** Ctrl+Z depois de abrir outro arquivo não traz mais a pasta anterior; macro e cálculo em
+  fundo esperam a gravação (o "salvando" ficava preso); a cópia de recuperação não sai mais vazia
+  durante macro; Ctrl+C em coluna inteira copia só até a área usada; "Excluir aba" com dados pede
+  confirmação (e não exclui com fórmula em edição); o Ctrl+Z de inserir linha não leva a macro salva
+  depois; nome de aba que o Excel recusa é recusado ao renomear.
+Ficou de fora (anotado): `ANO(vazia)` dá 1899 porque o motor não tem o 29/02/1900 falso do Excel.
+Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e critério 0 nos CONT.SE e SOMASE, ÍNDICE com linha 0, TEXTO com seções."
+"Ctrl+Z depois de abrir outro arquivo não traz mais o anterior; excluir aba com dados pede confirmação."
+
 ## Depois da v0.3.2 (13/11/2026): o .dmg do macOS volta
 
 O job `macos.yml` não gerava `.dmg` desde a v0.2.0: as máquinas `macos-13` e `macos-14` do GitHub foram

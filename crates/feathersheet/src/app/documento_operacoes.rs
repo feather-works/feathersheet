@@ -264,8 +264,12 @@ impl App {
             self.status = tr!("Copiar e recortar não funcionam com várias áreas selecionadas").into();
             return None;
         }
-        let area = self.area_selecionada();
+        let mut area = self.area_selecionada();
         let aba = self.workbook.aba(self.folha)?;
+        // Coluna, linha inteira ou Ctrl+A vão até 100 milhões de linhas: copia só até a área usada.
+        let usado = aba.sheet.used_rect();
+        area.r1 = area.r1.min(usado.r1.max(area.r0));
+        area.c1 = area.c1.min(usado.c1.max(area.c0));
         // A renderização combina estilos da aba, coluna, linha e célula.
         // Guardar o estilo mesclado garante que o destino mantenha a aparência.
         let texto_do_valor = |r: u32, c: u32| match self.workbook.valor(self.folha, r, c) {
@@ -554,6 +558,9 @@ impl App {
         let tentada = self.senha_tentada.take();
         self.senha_documento = tentada.filter(|_| (ext == "xlsx" || ext == "xlsm") && senha_abrir::tem_senha(&path));
         self.workbook = workbook;
+        // As fotos de inserir/excluir linha são da pasta anterior: Ctrl+Z aqui traria o conteúdo dela.
+        self.desfazer_estrutura.clear();
+        self.refazer_estrutura.clear();
         self.vinculos_novo_documento();
         self.vinculos_pedir_permissao();
         self.recarregar_macros();
@@ -849,6 +856,8 @@ impl App {
                 self.estatisticas_geracao = self.estatisticas_geracao.wrapping_add(1);
                 self.estatisticas = None;
                 self.workbook = Self::pasta_nova();
+                self.desfazer_estrutura.clear();
+                self.refazer_estrutura.clear();
                 self.vinculos_novo_documento();
                 self.recarregar_macros();
                 (self.macros_bloqueadas, self.aviso_macros) = (false, false);

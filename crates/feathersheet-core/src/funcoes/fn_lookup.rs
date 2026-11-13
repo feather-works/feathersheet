@@ -5,7 +5,7 @@ use crate::formula::ast::Node;
 use crate::formula::evaluator::{broadcast_all, Evaluator};
 use crate::funcoes::fn_extra::posicao_xmatch;
 use crate::funcoes::fn_helpers::{arity, err_na, err_value, has, linhas_com_conteudo, valores_iguais, LeitorFaixa};
-use crate::celulas::values::{compare, to_boolean, CellError, Computed, ErrorCode, Value};
+use crate::celulas::values::{compare, to_boolean, CellError, Computed, ErrorCode, Matrix, Value};
 
 
 /// `=SE(teste; valor_se_verdadeiro; [valor_se_falso])` / `=IF(...)`
@@ -48,6 +48,16 @@ pub fn fn_iferror(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     let val = ev.eval_array(&args[0]);
     match &val {
         Computed::Scalar(Value::Error(_)) => ev.eval_array(&args[1]),
+        // Matriz: troca cada erro pelo valor de reserva (o da mesma posição, se for matriz).
+        Computed::Matrix(m) if m.values().any(Value::is_error) => {
+            let reserva = ev.eval_array(&args[1]);
+            let troca = |r: usize, c: usize| match &reserva {
+                Computed::Matrix(f) => f.at(r.min(f.height().saturating_sub(1)), c.min(f.width().saturating_sub(1))).clone(),
+                outro => outro.clone().scalar(),
+            };
+            Computed::Matrix(Matrix::new(m.rows().iter().enumerate().map(|(r, linha)|
+                linha.iter().enumerate().map(|(c, v)| if v.is_error() { troca(r, c) } else { v.clone() }).collect()).collect()))
+        }
         _ => val,
     }
 }
@@ -286,6 +296,20 @@ pub fn fn_index(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     if args.len() == 2 && altura == 1 {
         c = r;
         r = 1;
+    }
+    // Linha 0 ou coluna 0: a coluna (ou linha) inteira, como no Excel (`SOMA(ÍNDICE(B2:D10;0;2))`).
+    if (r == 0 || c == 0) && r <= altura && c <= largura && r >= 0 && c >= 0 {
+        let linhas: Vec<i64> = if r == 0 {
+            let usadas = match &rect { Some(rc) => linhas_com_conteudo(ev, altura as u32, [rc]) as i64, None => altura };
+            (1..=usadas.max(1).min(altura)).collect()
+        } else { vec![r] };
+        let colunas: Vec<i64> = if c == 0 { (1..=largura).collect() } else { vec![c] };
+        let ler = |r: i64, c: i64| match (&rect, &matriz) {
+            (Some(rect), _) => ev.ctx.get_value(rect.r0 + (r - 1) as u32, rect.c0 + (c - 1) as u32, rect.sheet.as_deref()),
+            (None, Some(m)) => m[(r - 1) as usize][(c - 1) as usize].clone(),
+            (None, None) => unreachable!(),
+        };
+        return Computed::Matrix(Matrix::new(linhas.iter().map(|&r| colunas.iter().map(|&c| ler(r, c)).collect()).collect()));
     }
     if r < 1 || r > altura || c < 1 || c > largura {
         return Computed::Scalar(Value::erro(ErrorCode::Ref));

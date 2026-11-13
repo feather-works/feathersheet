@@ -697,6 +697,10 @@ impl<'a> Evaluator<'a> {
         visit: &mut dyn FnMut(&Value, bool),
     ) -> Option<CellError> {
         let rect = match node {
+            // Referência a uma célula conta como intervalo (Excel: SOMA(A1;B1) ignora texto e lógico em B1).
+            // A 3D (`Jan:Mar!B5`) segue pelo valor: lá a aba que falta vira erro.
+            Node::Ref { sheet: Some(s), .. } if s.contains(':') => None,
+            Node::Ref { row, col, sheet } => Some(Rect { r0: *row, c0: *col, r1: *row, c1: *col, sheet: sheet.clone() }),
             Node::Range { r0, c0, r1, c1, sheet } => Some(Rect {
                 r0: *r0,
                 c0: *c0,

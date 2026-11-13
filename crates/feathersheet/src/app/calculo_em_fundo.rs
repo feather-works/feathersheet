@@ -22,7 +22,8 @@ impl App {
     }
 
     pub(in crate::app) fn calcular_em_fundo(&mut self) {
-        if self.macro_rodando.is_some() || self.calculo_rodando.is_some() { return; }
+        // Gravando: a resposta da gravação seria barrada durante o cálculo; o cálculo preguiçoso cobre.
+        if self.macro_rodando.is_some() || self.calculo_rodando.is_some() || self.salvando || self.recuperacao.gravando { return; }
         let espelho = super::macro_dialogo::em_fundo::espelho_da_pasta(&self.workbook);
         let mut pasta = std::mem::replace(&mut self.workbook, espelho);
         let (envio, recebe) = mpsc::channel();

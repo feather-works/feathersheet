@@ -461,6 +461,13 @@ impl Workbook {
         foto.funcoes_externas = std::mem::take(&mut self.funcoes_externas);
         foto.externos = std::mem::take(&mut self.externos);
         foto.manual = self.manual;
+        // O que não é das abas e pode ter mudado depois da foto (macro salva no Alt+F11, estilos,
+        // propriedades): o Ctrl+Z da linha inserida não pode levar embora.
+        foto.macros = std::mem::take(&mut self.macros);
+        foto.formularios = std::mem::take(&mut self.formularios);
+        foto.estilos_celula = std::mem::take(&mut self.estilos_celula);
+        foto.propriedades = std::mem::take(&mut self.propriedades);
+        foto.vba = std::mem::take(&mut self.vba);
         for a in &foto.abas { a.sheet.manual.set(foto.manual); }
         *self = foto;
         self.depois_de_mudar(usize::MAX);
@@ -516,6 +523,10 @@ impl Workbook {
         let limpo = nome.trim();
         // `:` é da referência 3D (`Jan:Dez!B5`); o Excel também recusa.
         if indice >= self.abas.len() || limpo.is_empty() || limpo.contains('!') || limpo.contains(':') {
+            return false;
+        }
+        // Nomes que o Excel recusa ao abrir o .xlsx (ele "conserta" o arquivo e perde a aba).
+        if limpo.contains(['[', ']', '*', '?', '/', '\\']) || limpo.starts_with('\'') || limpo.ends_with('\'') || limpo.chars().count() > 31 {
             return false;
         }
         let repetido = self
@@ -1724,6 +1735,8 @@ pub mod vinculos;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_auditoria;
 
 /// As células tocadas como um retângulo por coluna (da primeira à última
 /// linha tocada nela): quem lê de fora pergunta por coluna.

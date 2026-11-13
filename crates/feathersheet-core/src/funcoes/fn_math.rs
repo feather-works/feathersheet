@@ -57,8 +57,11 @@ pub fn fn_sumif(args: &[Node], ev: &Evaluator<'_>) -> Computed {
                 let sum_r = sum_rect.r0 + r_offset;
                 let sum_c = sum_rect.c0 + c_offset;
                 let sum_val = soma.valor(ev, sum_r, sum_c);
-                if let Value::Number(n) = *sum_val {
-                    sum += n;
+                match &*sum_val {
+                    Value::Number(n) => sum += n,
+                    // Como o Excel: um erro na linha que casou é o resultado.
+                    Value::Error(e) => return Computed::Scalar(Value::Error(e.clone())),
+                    _ => {}
                 }
             }
         }
@@ -540,6 +543,7 @@ pub fn fn_sumifs(args: &[Node], ev: &Evaluator<'_>) -> Computed {
             }
             if pass {
                 let val = soma.valor(ev, r, c);
+                if let Value::Error(e) = &*val { return Computed::Scalar(Value::Error(e.clone())); }
                 if let Value::Number(n) = *val {
                     sum += n;
                 }

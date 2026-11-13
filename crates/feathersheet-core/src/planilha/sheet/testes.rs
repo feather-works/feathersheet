@@ -147,7 +147,7 @@ fn trocar_de_formula_para_literal_limpa_o_lado_antigo() {
 
     sheet.set_cell_raw(0, 0, "=A2".into(), None);
     assert!(sheet.get_raw(0, 0).starts_with('='));
-    assert_eq!(sheet.get_value(0, 0), Value::Empty); // fórmula nunca calculada
+    assert_eq!(sheet.get_value(0, 0), Value::Number(0.0)); // =A2 com A2 vazia vale 0, como no Excel
 }
 
 #[test]
@@ -308,7 +308,7 @@ fn apagar_precedente_suja_o_dependente() {
     assert_eq!(sheet.get_value(0, 1), Value::Number(5.0));
 
     sheet.set_cell_raw(0, 0, String::new(), None); // apaga A1
-    assert_eq!(sheet.get_value(0, 1), Value::Empty);
+    assert_eq!(sheet.get_value(0, 1), Value::Number(0.0)); // =A1 com A1 vazia vale 0 (Excel)
 }
 
 #[test]

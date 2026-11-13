@@ -817,7 +817,7 @@ impl Sheet {
             // Resultado de uma rodada interrompida: pode estar errado.
             return Value::Empty;
         }
-        let val = self.fechar_ciclo(k, val, &avaliar);
+        let val = vazio_vira_zero(self.fechar_ciclo(k, val, &avaliar));
         let mut calc = self.calc.borrow_mut();
         // Uma consulta sem a pasta não pode guardar #REF! no lugar de um
         // resultado que será resolvido quando o hospedeiro estiver presente.
@@ -1334,7 +1334,7 @@ impl Sheet {
         if corrente::voltando() {
             return Some(Value::Empty);
         }
-        let valor = self.fechar_ciclo(k, valor, &avaliar);
+        let valor = vazio_vira_zero(self.fechar_ciclo(k, valor, &avaliar));
         let mut calc = self.calc.borrow_mut();
         if externa && host.is_none() {
             return Some(valor);
@@ -1575,6 +1575,8 @@ impl Sheet {
                     Rapido::Cru(Cru::Texto(_), _) | Rapido::Vazia => None,
                     Rapido::Lento => match self.get_value_em(row, col, host) {
                         Value::Number(n) => Some(n),
+                        // Erro na faixa somada: NaN marca o grupo, e a função refaz pela varredura (que devolve o erro).
+                        Value::Error(_) => Some(f64::NAN),
                         _ => None,
                     },
                 }
@@ -2361,4 +2363,9 @@ impl Rastro {
         chaves.dedup();
         Some(chaves)
     }
+}
+
+/// Fórmula nunca dá "vazio" no Excel: `=A2` com A2 vazia vale 0 (e conta em MÉDIA e CONT.NÚM).
+pub(crate) fn vazio_vira_zero(v: Value) -> Value {
+    if matches!(v, Value::Empty) { Value::Number(0.0) } else { v }
 }

@@ -151,7 +151,8 @@ fn texto_entende_mascara_em_pt_br_e_em_ingles() {
 fn indice_como_no_typescript() {
     assert_eq!(numero("=ÍNDICE({1\\2;3\\4}; 2; 1)"), 3.0, "sobre matriz escrita");
     assert_eq!(numero("=ÍNDICE(A1:A5; 3)"), 30.0);
-    assert!(matches!(calc("=ÍNDICE(A1:A5; 0)"), Value::Error(_)), "linha 0 é #REF!, não a primeira");
+    // Linha 0 é a coluna inteira, como no Excel (auditoria de 13/11/2026; antes dava #REF!).
+    assert_eq!(numero("=SOMA(ÍNDICE(A1:A5; 0; 1))"), 150.0, "linha 0 é a coluna inteira");
     let mut s = planilha();
     for c in 0..5u32 {
         s.set_cell_raw(10, c, (c * 7).to_string(), None);

@@ -932,6 +932,14 @@ pub fn fn_text_fmt(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         Value::Error(e) => return Computed::Scalar(Value::Error(e.clone())),
     };
 
+    // Seções como no Excel: positivo;negativo;zero ("0,00;(0,00)" mostra -5 como "(5,00)").
+    let secoes: Vec<&str> = fmt.split(';').collect();
+    let (fmt, n) = match secoes.as_slice() {
+        [_, neg, ..] if n < 0.0 => (neg.to_string(), -n),
+        [_, _, zero, ..] if n == 0.0 => (zero.to_string(), n),
+        [pos, _, ..] => (pos.to_string(), n),
+        _ => (fmt.to_string(), n),
+    };
     // Sem `0`/`#` não é máscara de número (`dd/mm/aaaa`, `hh:mm`): vai pelo
     // formato personalizado da célula, que sabe data e hora.
     if !fmt.contains(['0', '#']) {
@@ -991,7 +999,8 @@ pub fn aplicar_mascara(n: f64, mascara: &str) -> String {
 
     let v = if porcento { n * 100.0 } else { n };
     let fator = 10f64.powi(max_casas as i32);
-    let arredondado = (v.abs() * fator).round() / fator;
+    // 15 algarismos antes de arredondar, como o Excel: 2,675 vira "2,68" (e não 2,67499999…).
+    let arredondado = crate::celulas::number::round_to_precision(v.abs() * fator, 15).round() / fator;
     let texto = format!("{:.*}", max_casas, arredondado);
     let (parte_int, parte_frac) = texto.split_once('.').unwrap_or((texto.as_str(), ""));
     let mut frac = parte_frac.to_string();

@@ -1,4 +1,10 @@
 {
+ "O nome não pode conter [ ] * ? / \\.": "Le nom ne peut pas contenir [ ] * ? / \\.",
+ "O nome não pode começar nem terminar com apóstrofo.": "Le nom ne peut pas commencer ni finir par une apostrophe.",
+ "O nome pode ter no máximo 31 caracteres (limite do Excel).": "Le nom peut avoir au maximum 31 caractères (limite d'Excel).",
+ "Termine de editar a fórmula antes de excluir a aba.": "Terminez la modification de la formule avant de supprimer la feuille.",
+ "A aba \"{}\" tem dados. Excluir a aba apaga esses dados e não dá para desfazer.": "La feuille « {} » contient des données. La supprimer efface ces données et ne peut pas être annulé.",
+ "Aguarde terminar de salvar para rodar a macro.": "Attendez la fin de l'enregistrement pour exécuter la macro.",
  "Mais formatos de número…": "Plus de formats de nombre…",
  "Total de tabela e SUBTOTAL voltam a contar só as linhas visíveis quando o filtro muda.": "Les totaux de tableau et SOUS.TOTAL comptent de nouveau uniquement les lignes visibles quand le filtre change.",
  "Não deu para conferir o arquivo original ({erro}). Escolha onde salvar.": "Impossible de vérifier le fichier d'origine ({erro}). Choisissez où enregistrer.",

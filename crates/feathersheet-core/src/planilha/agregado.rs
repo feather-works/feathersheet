@@ -211,7 +211,8 @@ impl ChaveCriterio {
     pub fn alternativas(v: &Value) -> Option<Vec<Self>> {
         use ChaveCriterio::*;
         match v {
-            Value::Number(n) if *n == 0.0 => Some(vec![Numero(bits(0.0)), Vazia]),
+            // Como o Excel: o critério 0 não casa com célula vazia (só o "" casa).
+            Value::Number(n) if *n == 0.0 => Some(vec![Numero(bits(0.0))]),
             Value::Text(t) if t.is_empty() => Some(vec![TextoVazio, Vazia]),
             Value::Empty => Some(vec![Vazia, Numero(bits(0.0)), TextoVazio, Falso]),
             _ => Self::do_criterio(v).map(|k| vec![k]),

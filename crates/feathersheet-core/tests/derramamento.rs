@@ -53,7 +53,7 @@ fn outra_aba_le_a_area_derramada() {
     // A matriz encolhe: quem lê de fora acompanha.
     w.escrever_celula(dados, 0, 0, "=SEQUÊNCIA(2)".into());
     assert_eq!(w.valor(0, 0, 0), n(3.0));
-    assert_eq!(w.valor(0, 1, 0), Value::Empty);
+    assert_eq!(w.valor(0, 1, 0), n(0.0)); // =Dados!A4 com A4 vazia vale 0, como no Excel
 }
 
 #[test]

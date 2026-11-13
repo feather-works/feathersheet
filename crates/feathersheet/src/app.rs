@@ -103,6 +103,7 @@ mod recuperacao;
 mod primeiros_passos;
 mod novidades;
 mod aviso_xlsx;
+mod excluir_aba;
 mod efeitos_imagem;
 mod imagens_importadas;
 mod imagem_na_celula;
@@ -474,7 +475,7 @@ pub enum Msg {
     Mover(i32, i32), LinhaPagina(i32), ColunaPagina(i32),
     Aba(usize), AdicionarAba, DuplicarAba, MoverAba(usize, usize), OcultarAba(usize), ReexibirAba(usize),
     MostrarAbasOcultas, FecharAbasOcultas, AbaFaixa(AbaFaixa),
-    NomearAba(String), EditarNomeAba, RenomearAba, RemoverAba, IrPara(String), AlterarEndereco(String),
+    NomearAba(String), EditarNomeAba, RenomearAba, RemoverAba, RemoverAbaConfirmada, RemoverAbaCancelar, IrPara(String), AlterarEndereco(String),
     Menu, MenuGrupo(usize), MenuEscolher(usize), MenuVoltar, MenuMover(i32),
     MenuPagina(menu_principal::Pagina), MenuAbrirRecente(usize),
     /// Setas do carrossel de modelos (passo -1 ou 1) e alternância para a grade completa.
@@ -1044,6 +1045,8 @@ pub struct App {
     faixa_salvamento: Option<(String, bool)>,
     /// Depois de exportar .xlsx: funções usadas que o Excel não tem.
     aviso_xlsx: Option<Vec<String>>,
+    /// "Excluir aba" numa aba com dados: espera a confirmação (o Excel também pergunta).
+    excluir_aba_pedida: bool,
     ctrl_pressionado: bool,
     /// Versão da aba de origem na última conta de cada dinâmica com
     /// "Atualizar sozinha" (pelo id da dinâmica).
@@ -1234,6 +1237,7 @@ impl Default for App {
             aviso_salvamento_de: None,
             faixa_salvamento: None,
             aviso_xlsx: None,
+            excluir_aba_pedida: false,
             ctrl_pressionado: false,
         }
     }
@@ -1563,7 +1567,7 @@ impl App {
     fn update_sem_eventos(&mut self, msg: Msg) -> Task<Msg> {
         let anterior = self.status.clone();
         let revisao = self.monitor.console.revisao();
-        let repetir_exclusao = matches!(msg, Msg::RemoverAba);
+        let repetir_exclusao = matches!(msg, Msg::RemoverAba | Msg::RemoverAbaConfirmada);
         let arquivo_erro = matches!(&msg, Msg::Aberto(Err(_)));
         let arquivo_aberto = matches!(&msg, Msg::Aberto(Ok(Some(_))));
         let arquivo_fim = matches!(&msg, Msg::Aberto(_));

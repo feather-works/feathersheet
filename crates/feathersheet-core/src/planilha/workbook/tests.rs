@@ -1232,5 +1232,6 @@ fn ses_com_criterio_vazio_zero_e_texto_vazio_da_o_mesmo_com_e_sem_agregado() {
     };
     let (rapido, gabarito) = (montar(false), montar(true));
     assert_eq!(rapido, gabarito);
-    assert!(matches!(gabarito[0], crate::celulas::values::Value::Number(n) if n > 2000.0), "{gabarito:?}");
+    // Critério 0 conta só os zeros, não as vazias (Excel; auditoria de 13/11/2026).
+    assert!(matches!(gabarito[0], crate::celulas::values::Value::Number(n) if n > 500.0 && n < 1000.0), "{gabarito:?}");
 }
