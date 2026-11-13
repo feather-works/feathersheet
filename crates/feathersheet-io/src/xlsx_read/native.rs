@@ -617,7 +617,9 @@ fn ler_aba(
     // Visitamos só células ocupadas; intervalos A:XFD jamais geram células vazias.
     if let Some(hyperlinks) = raiz.child("hyperlinks") {
         for h in hyperlinks.children_named("hyperlink") {
-            let Some(url) = h.attr("r:id").and_then(|id| rels.get(id)) else { continue };
+            // Link para dentro da pasta (`location="Aba!A1"`) vira `#Aba!A1`.
+            let lugar = h.attr("location").filter(|l| !l.is_empty()).map(|l| format!("#{l}"));
+            let Some(url) = h.attr("r:id").and_then(|id| rels.get(id)).cloned().or(lugar) else { continue };
             let ref_text = h.attr("ref").unwrap_or("").replace('$', "");
             let mut partes = ref_text.split(':');
             let Some(inicio) = partes.next().and_then(parse_cell_ref) else { continue };

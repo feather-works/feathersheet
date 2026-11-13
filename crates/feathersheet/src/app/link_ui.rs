@@ -43,6 +43,17 @@ pub(crate) fn normalizar_link(valor: &str) -> Option<String> {
     None
 }
 
+/// O link guardado na célula (estilo ou diálogo): além dos da web, `#Aba!A1` é um lugar
+/// desta pasta (o `location` do Excel). Texto digitado na célula não vira link interno.
+pub(crate) fn link_do_estilo(valor: &str) -> Option<String> {
+    match valor.trim().strip_prefix('#') {
+        Some(lugar) if !lugar.trim().is_empty() && lugar.len() <= 255 && !lugar.chars().any(char::is_control) =>
+            Some(format!("#{}", lugar.trim())),
+        Some(_) => None,
+        None => normalizar_link(valor),
+    }
+}
+
 pub(super) fn abrir_no_sistema(url: &str) -> Result<(), String> {
     // Sem shell ou expansão de argumentos; o destino já foi validado.
     #[cfg(target_os = "windows")]
@@ -62,7 +73,7 @@ impl App {
         let aba = self.workbook.aba(folha)?;
         if let Some(link) = aba.sheet.estilo_resolvido(linha, coluna)
             .and_then(|estilo| estilo.link)
-            .and_then(|s| normalizar_link(&s))
+            .and_then(|s| link_do_estilo(&s))
         {
             return Some(link);
         }
@@ -90,11 +101,11 @@ impl App {
         let link = if estado.endereco.trim().is_empty() {
             None
         } else {
-            match normalizar_link(&estado.endereco) {
+            match link_do_estilo(&estado.endereco) {
                 Some(endereco) => Some(endereco),
                 None => {
                     if let Some(ref mut modal) = self.link_modal {
-                        modal.erro = Some(tr!("Use http://, https://, mailto: ou www. (sem espaços).").into());
+                        modal.erro = Some(tr!("Use http://, https://, mailto:, www. (sem espaços) ou #Aba!A1 para um lugar desta pasta.").into());
                     }
                     return Task::none();
                 }
@@ -213,6 +224,10 @@ impl App {
             self.status = tr!("A célula não contém um endereço web válido").into();
             return Task::none();
         };
+        // Lugar desta pasta (`#Aba!A1`): vai até a célula, como o Ir para.
+        if let Some(lugar) = link.strip_prefix('#') {
+            return self.update(Msg::IrPara(lugar.to_owned()));
+        }
         match abrir_no_sistema(&link) {
             Ok(()) => self.status = tr!("Abrindo link no navegador…").into(),
             Err(erro) => self.status = erro,
@@ -263,6 +278,15 @@ impl App {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn link_interno_so_vale_guardado_na_celula() {
+        assert_eq!(link_do_estilo(" #Dados!B2 ").as_deref(), Some("#Dados!B2"));
+        assert_eq!(link_do_estilo("#'Meu Plano'!A1").as_deref(), Some("#'Meu Plano'!A1"));
+        assert_eq!(link_do_estilo("#"), None);
+        assert_eq!(normalizar_link("#Dados!B2"), None, "texto digitado com # não vira link");
+        assert_eq!(link_do_estilo("www.exemplo.org").as_deref(), Some("https://www.exemplo.org"));
+    }
 
     #[test]
     fn link_da_macro_que_nao_e_web_nao_abre() {

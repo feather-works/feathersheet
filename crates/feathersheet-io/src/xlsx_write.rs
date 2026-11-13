@@ -1552,12 +1552,17 @@ fn aba_xml(
     let (hiperlinks, relacoes) = if links.is_empty() {
         (String::new(), None)
     } else {
+        // `#Aba!A1` é um lugar desta pasta: vai no `location`, sem relação (A10, 13/11).
+        let externos: Vec<_> = links.iter().filter(|(_, alvo)| !alvo.starts_with('#')).collect();
+        let mut n = 0;
         let refs: String = links
             .iter()
-            .enumerate()
-            .map(|(i, (r, _))| format!("<hyperlink ref=\"{r}\" r:id=\"rIdLink{}\"/>", i + 1))
+            .map(|(r, alvo)| match alvo.strip_prefix('#') {
+                Some(lugar) => format!("<hyperlink ref=\"{r}\" location=\"{}\"/>", escape_xml(lugar)),
+                None => { n += 1; format!("<hyperlink ref=\"{r}\" r:id=\"rIdLink{n}\"/>") }
+            })
             .collect();
-        let rels: String = links
+        let rels: String = externos
             .iter()
             .enumerate()
             .map(|(i, (_, alvo))| {
@@ -1570,7 +1575,7 @@ fn aba_xml(
             .collect();
         (
             format!("<hyperlinks>{refs}</hyperlinks>"),
-            Some(format!("{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{rels}</Relationships>")),
+            (!externos.is_empty()).then(|| format!("{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{rels}</Relationships>")),
         )
     };
 
@@ -2105,6 +2110,29 @@ mod testes {
         let vistas = vec![VistaAba { linhas_grade: false, congelar: (1, 2) }, VistaAba { linhas_grade: true, congelar: (0, 0) }];
         let bytes = super::com_vistas(vistas.clone(), || gerar_xlsx(&pasta)).unwrap();
         assert_eq!(crate::xlsx_read::ler_vistas_bytes(bytes), vistas);
+    }
+
+    #[test]
+    fn link_para_dentro_da_pasta_vai_no_location_e_volta() {
+        use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
+        use feathersheet_core::celulas::refs::Rect;
+        let mut pasta = Workbook::new();
+        pasta.criar_aba("Dados");
+        for (r, alvo) in [(0, "#Dados!B2"), (1, "https://exemplo.org")] {
+            pasta.escrever_celula(0, r, 0, "ir".into());
+            let mut e = EstiloParcial::new();
+            e.insert("link".into(), Campo::Texto(alvo.into()));
+            pasta.editar(0, |s| s.set_style(&Rect::cell(r, 0), &e));
+        }
+        let bytes = gerar_xlsx(&pasta).unwrap();
+        let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes.clone())).unwrap();
+        let mut aba = String::new();
+        std::io::Read::read_to_string(&mut z.by_name("xl/worksheets/sheet1.xml").unwrap(), &mut aba).unwrap();
+        assert!(aba.contains("location=\"Dados!B2\""), "{aba}");
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();
+        let link = |r| lida.aba(0).unwrap().sheet.estilo_resolvido(r, 0).and_then(|e| e.link);
+        assert_eq!(link(0).as_deref(), Some("#Dados!B2"));
+        assert_eq!(link(1).as_deref(), Some("https://exemplo.org"));
     }
 
     #[test]

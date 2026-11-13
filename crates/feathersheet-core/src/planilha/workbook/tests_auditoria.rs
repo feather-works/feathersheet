@@ -97,3 +97,16 @@ fn a09_procx_linha_inteira_do_fim_e_curinga() {
     assert_eq!(num(&w, 3, 4), Value::Text("nada".into()), "sem o modo 2, * é letra");
     assert!(matches!(num(&w, 4, 4), Value::Error(_)), "modo de pesquisa inválido");
 }
+
+#[test]
+fn p07_renomear_aba_nao_deixa_ctrl_z_quebrar_formula() {
+    let mut w = Workbook::new();
+    let d = w.criar_aba("Dados");
+    w.escrever_celula(d, 0, 0, "5".into());
+    w.escrever_celula(0, 0, 0, "=Dados!A1*2".into());
+    assert!(w.renomear_aba(d, "Base"));
+    assert_eq!(w.aba(0).unwrap().sheet.get_raw(0, 0), "=Base!A1*2");
+    w.aba_mut(0).unwrap().sheet.undo();
+    assert_eq!(w.aba(0).unwrap().sheet.get_raw(0, 0), "=Base!A1*2");
+    assert_eq!(w.valor(0, 0, 0), Value::Number(10.0));
+}

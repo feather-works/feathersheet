@@ -1,4 +1,5 @@
 {
+ "Use http://, https://, mailto:, www. (sem espaços) ou #Aba!A1 para um lugar desta pasta.": "Use http://, https://, mailto:, www. (no spaces) or #Sheet!A1 for a place in this workbook.",
  "Cursor da IA na tela": "AI cursor on screen",
  "Ligado: a IA pode mover o mouse e clicar na janela, com o cursor \"Claude\" à vista. Desligado: ela só usa as ferramentas, sem mexer no mouse.": "On: the AI can move the mouse and click in the window, with the \"Claude\" cursor visible. Off: it only uses the tools, without touching the mouse.",
  "O nome da consulta não pode ficar vazio": "The query name cannot be empty",

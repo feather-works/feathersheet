@@ -556,6 +556,9 @@ impl Workbook {
                 aba.sheet.set_cell(row, col, &raw);
             }
             aba.sheet.fechar_transacao();
+            // A reescrita não é um passo do Ctrl+Z: desfazê-la (ou um passo anterior, com o
+            // nome velho) quebrava as fórmulas. Como no inserir/excluir, a aba esquece o histórico.
+            aba.sheet.esquecer_historico();
             aba.versao = proxima_versao(aba.versao);
         }
         // Os intervalos nomeados guardam a aba pelo texto, não pelo id.

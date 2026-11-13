@@ -59,7 +59,8 @@ O Ctrl+S de um `.xlsx` grava por cima do próprio `.xlsx`: cada perda abaixo cai
   um `_x…_` literal e caractere de controle), raro.
 - ✅ A9. Linha ou célula sem o atributo `r` (permitido pela norma) era pulada; agora segue a anterior
   (nos dois leitores).
-- ⏳ A10. Link para dentro da pasta (`location=`) some sem aviso.
+- ✅ A10. Link para dentro da pasta (`location=`) é lido como `#Aba!A1` (nos dois leitores), gravado de
+  volta no `location` e, no app, o clique vai até a célula (`link_ui::link_do_estilo`, `Msg::IrPara`).
 
 ## App (`feathersheet`)
 
@@ -73,7 +74,8 @@ O Ctrl+S de um `.xlsx` grava por cima do próprio `.xlsx`: cada perda abaixo cai
   Agora copia até a área usada.
 - ✅ P5. "Excluir aba" apagava sem perguntar e sem Ctrl+Z. Aba com dados agora pede confirmação.
 - ✅ P6. Ctrl+Z de inserir linha levava embora macro salva depois (e formulários, estilos, propriedades).
-- ⏳ P7. Renomear aba põe a reescrita das fórmulas no Ctrl+Z de cada aba (desfazer ali quebra as fórmulas).
+- ✅ P7. Renomear aba reescreve as fórmulas e a aba reescrita esquece o histórico (como inserir/excluir):
+  o Ctrl+Z não volta mais o nome velho para dentro da fórmula.
 - ✅ P8. Excluir aba com fórmula em edição fazia o Enter gravar na aba errada: agora pede para terminar antes.
 - ✅ P9. Delete numa tabela ou AutoFiltro com filtro ativo pula as linhas escondidas
   (`tabelas::puladas_pelo_filtro`). Sem filtro ativo, linha oculta à mão é apagada, como no Excel.

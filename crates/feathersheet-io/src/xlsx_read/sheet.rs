@@ -619,11 +619,14 @@ fn aplicar_metadados(
     }
 
     // Hiperlinks: `<hyperlink ref="B2" r:id="rId1"/>`, endereço nas relações
-    // da aba. O `ref` pode ser um intervalo (a coluna de links inteira). Só
-    // `location` é link para dentro da pasta: ainda não. Espelha `io/xlsx.ts`.
+    // da aba. O `ref` pode ser um intervalo (a coluna de links inteira). Com
+    // `location` (link para dentro da pasta) o alvo é `#Aba!A1`.
     if let Some(hyperlinks) = root.child("hyperlinks") {
         for h in hyperlinks.children_named("hyperlink") {
-            let Some(alvo) = h.attr("r:id").and_then(|id| rels_da_aba.get(id)) else { continue };
+            // Link para dentro da pasta (`location="Aba!A1"`) vira `#Aba!A1`.
+            let lugar = h.attr("location").filter(|l| !l.is_empty()).map(|l| format!("#{l}"));
+            let Some(alvo) = h.attr("r:id").and_then(|id| rels_da_aba.get(id)).cloned().or(lugar) else { continue };
+            let alvo = &alvo;
             let texto = h.attr("ref").unwrap_or("").replace('$', "");
             let mut partes = texto.split(':');
             let Some(inicio) = partes.next().and_then(parse_cell_ref) else { continue };

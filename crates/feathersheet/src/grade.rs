@@ -451,7 +451,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                     // aparência clicável, sem criar estilos por célula.
                     let link_visivel = estilo
                         .and_then(|s| s.link.as_deref())
-                        .and_then(crate::app::link_ui::normalizar_link)
+                        .and_then(crate::app::link_ui::link_do_estilo)
                         .is_some()
                         || crate::app::link_ui::normalizar_link(&val).is_some();
                     let ajuste = ajustes_texto(estilo_memo.as_ref().map(|m| &m.0));
@@ -886,7 +886,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                 let valor = self.texto(m.r0, m.c0);
                 if !valor.is_empty() {
                     let link_visivel = estilo.as_ref().and_then(|s| s.link.as_deref())
-                        .and_then(crate::app::link_ui::normalizar_link).is_some()
+                        .and_then(crate::app::link_ui::link_do_estilo).is_some()
                         || crate::app::link_ui::normalizar_link(&valor).is_some();
                     let ajuste=ajustes_texto(aba.sheet.estilo_mesclado(m.r0,m.c0).as_ref());
                     let valor=if ajuste.vertical {
@@ -1341,7 +1341,7 @@ impl Grade<'_> {
                             if let Some(aba) = self.workbook.aba(self.aba) {
                                 let link = aba.sheet.estilo_resolvido(r,c)
                                     .and_then(|s| s.link)
-                                    .and_then(|s| crate::app::link_ui::normalizar_link(&s))
+                                    .and_then(|s| crate::app::link_ui::link_do_estilo(&s))
                                     .or_else(|| crate::app::link_ui::normalizar_link(
                                         &self.texto(r,c)));
                                 if link.is_some() {
