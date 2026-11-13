@@ -468,6 +468,17 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         app.evento_openquery(Evento::Referenciar);
         let e = app.openquery.as_ref().unwrap();
         assert_eq!(e.origem_aba, "Consulta: Base");
+        // Renomear a "Base" (#93): a consulta aberta que a lê segue o nome novo.
+        let id_base = registro::listar(&app.workbook).unwrap()[0].dados["id"].as_str().unwrap().to_owned();
+        app.evento_openquery(Evento::PedirRenomear(id_base.clone()));
+        app.evento_openquery(Evento::TextoRenomear("Base (2)".into()));
+        app.evento_openquery(Evento::ConfirmarRenomear);
+        assert_eq!(registro::buscar(&app.workbook, &id_base).unwrap().dados["nome"], "Base");
+        app.evento_openquery(Evento::TextoRenomear("Vendas".into()));
+        app.evento_openquery(Evento::ConfirmarRenomear);
+        let e = app.openquery.as_ref().unwrap();
+        assert!(e.renomeando.is_none());
+        assert_eq!(e.origem_aba, "Consulta: Vendas");
         assert_eq!(e.fonte.linhas[0][0], Value::Number(1.0));
         app.evento_openquery(Evento::Adicionar("inverter"));
         app.concluir_openquery();

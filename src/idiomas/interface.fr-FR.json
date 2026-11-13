@@ -1,4 +1,8 @@
 {
+ "O nome da consulta não pode ficar vazio": "Le nom de la requête ne peut pas être vide",
+ "Já existe uma consulta chamada '{novo}'": "Une requête nommée « {novo} » existe déjà",
+ "Renomear consulta": "Renommer la requête",
+ "Consulta renomeada para '{novo}'": "Requête renommée en « {novo} »",
  "Forma ou caixa de texto": "Forme ou zone de texte",
  "O nome não pode conter [ ] * ? / \\.": "Le nom ne peut pas contenir [ ] * ? / \\.",
  "O nome não pode começar nem terminar com apóstrofo.": "Le nom ne peut pas commencer ni finir par une apostrophe.",

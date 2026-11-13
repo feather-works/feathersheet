@@ -1,4 +1,8 @@
 {
+ "O nome da consulta não pode ficar vazio": "The query name cannot be empty",
+ "Já existe uma consulta chamada '{novo}'": "A query named '{novo}' already exists",
+ "Renomear consulta": "Rename query",
+ "Consulta renomeada para '{novo}'": "Query renamed to '{novo}'",
  "Forma ou caixa de texto": "Shape or text box",
  "O nome não pode conter [ ] * ? / \\.": "The name cannot contain [ ] * ? / \\.",
  "O nome não pode começar nem terminar com apóstrofo.": "The name cannot begin or end with an apostrophe.",

@@ -146,6 +146,11 @@ pub enum Evento {
     PedirExclusao(String),
     ConfirmarExclusao,
     CancelarExclusao,
+    /// Renomear consulta gravada (#93): abre o campo, digita, confirma ou cancela.
+    PedirRenomear(String),
+    TextoRenomear(String),
+    ConfirmarRenomear,
+    CancelarRenomear,
     Carregar,
     AlternarParametros,
     AbrirDestino,
@@ -235,6 +240,8 @@ pub(super) struct Estado {
     edicao: Option<String>,
     salvas: Vec<(String, String)>,
     exclusao_pendente: Option<String>,
+    /// (id, nome digitado) da consulta gravada sendo renomeada.
+    renomeando: Option<(String, String)>,
     assistente: Option<assistentes::Estado>,
     passo_previa: Option<usize>,
     tabela_previa: Option<Tabela>,
@@ -389,7 +396,7 @@ impl Estado {
             codigo: String::new(),
             editor_avancado: None, erro_avancado: String::new(), aviso_avancado: String::new(), consultas_pq: None,
             erro: String::new(),
-            edicao: None, salvas: Vec::new(), exclusao_pendente: None,
+            edicao: None, salvas: Vec::new(), exclusao_pendente: None, renomeando: None,
             assistente: None,
             passo_previa: None, tabela_previa: None,
             importacao_pendente: None, importacao_preservar: false,
@@ -1544,6 +1551,38 @@ impl App {
             },
             Evento::CancelarExclusao => if let Some(e) = &mut self.openquery {
                 e.exclusao_pendente = None;
+            },
+            Evento::PedirRenomear(id) => if let Some(e) = &mut self.openquery {
+                let nome = e.salvas.iter().find(|(chave, _)| *chave == id).map(|(_, n)| n.clone()).unwrap_or_default();
+                e.renomeando = Some((id, nome));
+            },
+            Evento::TextoRenomear(texto) => if let Some((_, nome)) = self.openquery.as_mut().and_then(|e| e.renomeando.as_mut()) {
+                *nome = texto;
+            },
+            Evento::CancelarRenomear => if let Some(e) = &mut self.openquery {
+                e.renomeando = None;
+            },
+            Evento::ConfirmarRenomear => {
+                let Some((id, novo)) = self.openquery.as_ref().and_then(|e| e.renomeando.clone()) else { return Task::none() };
+                let antigo = self.openquery.as_ref().and_then(|e| e.salvas.iter().find(|(c, _)| *c == id).map(|(_, n)| n.clone()));
+                match registro::renomear(&mut self.workbook, &id, &novo) {
+                    Ok(()) => {
+                        let novo = novo.trim().to_owned();
+                        if let Some(e) = &mut self.openquery {
+                            e.renomeando = None;
+                            e.erro.clear();
+                            for (chave, nome) in e.salvas.iter_mut() { if *chave == id { *nome = novo.clone(); } }
+                            if e.edicao.as_deref() == Some(id.as_str()) { e.nome = novo.clone(); }
+                            // A consulta aberta que lê a renomeada continua lendo.
+                            if antigo.is_some_and(|a| e.origem_aba == format!("Consulta: {a}")) {
+                                e.origem_aba = format!("Consulta: {novo}");
+                            }
+                        }
+                        self.alterado = true;
+                        self.status = trf!("Consulta renomeada para '{novo}'");
+                    }
+                    Err(erro) => if let Some(e) = &mut self.openquery { e.erro = erro; },
+                }
             },
             Evento::ConfirmarExclusao => {
                 let id = self.openquery.as_mut().and_then(|e| e.exclusao_pendente.take());

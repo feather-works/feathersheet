@@ -269,11 +269,23 @@ impl App {
                     .on_press(om(Evento::AoAbrir(id.clone()))).style(ide::estilo_botao_ide(ligado)),
                     if ligado { tr!("Atualiza ao abrir o arquivo (clique para desligar)") }
                     else { tr!("Atualizar ao abrir o arquivo") }),
+                botao_so_icone("pencil", tr!("Renomear consulta"), Evento::PedirRenomear(id.clone())),
                 botao_so_icone("refresh", tr!("Atualizar o resultado desta consulta"),
                     Evento::AtualizarSalva(id.clone())),
                 botao_so_icone("x", tr!("Desvincular consulta (os valores da aba permanecem)"),
                     Evento::PedirExclusao(id.clone())),
             ].align(pelicano::Align::Center));
+        }
+        if let Some((_, nome)) = &e.renomeando {
+            arvore = arvore.push(container(column![
+                text_input(tr!("Novo nome"), nome).on_input(|v| om(Evento::TextoRenomear(v)))
+                    .on_submit(om(Evento::ConfirmarRenomear))
+                    .size(11).padding([4.0, 6.0]).style(estilo_entrada_suspensa),
+                row![
+                    ide::botao(tr!("Cancelar"), Some(om(Evento::CancelarRenomear)), false),
+                    ide::botao(tr!("Renomear"), Some(om(Evento::ConfirmarRenomear)), true),
+                ].spacing(ESPACO_PEQUENO),
+            ].spacing(ESPACO_PEQUENO)).padding([4, 8]));
         }
         if let Some(id) = &e.exclusao_pendente {
             let nome = e.salvas.iter().find(|(chave, _)| chave == id)

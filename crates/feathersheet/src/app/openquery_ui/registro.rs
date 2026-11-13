@@ -250,6 +250,40 @@ pub(super) fn aplicar_gravacao(w: &mut Workbook, mudancas: Vec<(usize, String)>)
         w.editar(aba, move |sheet| sheet.oq = Some(raw));
     }
 }
+/// Troca o nome da consulta `id` e o `Consulta: nome` de quem a lê (origem, fontes
+/// extras e o `fonte` das etapas de juntar/acrescentar), em toda aba que guarda o registro.
+pub(super) fn renomear(w: &mut Workbook, id: &str, novo: &str) -> Result<(), String> {
+    let novo = novo.trim();
+    if novo.is_empty() { return Err(tr!("O nome da consulta não pode ficar vazio").into()); }
+    let todas = listar(w)?;
+    let antigo = todas.iter().find(|s| s.dados["id"].as_str() == Some(id))
+        .and_then(|s| s.dados["nome"].as_str()).ok_or(tr!("Consulta não encontrada"))?.to_owned();
+    if todas.iter().any(|s| s.dados["id"].as_str() != Some(id) && s.dados["nome"].as_str() == Some(novo)) {
+        return Err(trf!("Já existe uma consulta chamada '{novo}'"));
+    }
+    let (de, para) = (format!("Consulta: {antigo}"), Json::String(format!("Consulta: {novo}")));
+    fn trocar(v: &mut Json, de: &str, para: &Json) {
+        match v {
+            Json::String(s) if s == de => *v = para.clone(),
+            Json::Array(a) => a.iter_mut().for_each(|x| trocar(x, de, para)),
+            Json::Object(o) => o.values_mut().for_each(|x| trocar(x, de, para)),
+            _ => {}
+        }
+    }
+    let mut mudancas = Vec::new();
+    for i in 0..w.len() {
+        let mut lista = registros(w, i)?;
+        if lista.is_empty() { continue; }
+        for r in lista.iter_mut() {
+            if r["id"].as_str() == Some(id) { r["nome"] = json!(novo); }
+            trocar(r, &de, &para);
+        }
+        mudancas.push((i, serde_json::to_string(&lista).map_err(|e| e.to_string())?));
+    }
+    aplicar_gravacao(w, mudancas);
+    Ok(())
+}
+
 pub(super) fn excluir(w: &mut Workbook, id: &str) -> Result<(), String> {
     let mut mudancas = Vec::new();
     for i in 0..w.len() {
@@ -308,6 +342,24 @@ mod testes {
         assert_eq!(listar(&wb).unwrap().len(),2);
         assert_eq!(buscar(&wb,"antigo").unwrap().dados["nome"],"Legado");
         assert_eq!(buscar(&wb,"query-1").unwrap().dados["nome"],"Mudou");
+    }
+
+    #[test]
+    fn renomear_troca_o_nome_e_quem_le_a_consulta() {
+        let mut wb = Workbook::new();
+        wb.aba_mut(0).unwrap().sheet.oq = Some(json!([
+            {"id":"a","nome":"Base"},
+            {"id":"b","nome":"Filha","_feather":{"origemAba":"Consulta: Base","fontesAdicionais":["Consulta: Base"]},
+             "passos":[{"tipo":"juntar","fonte":"Consulta: Base"}]},
+        ]).to_string());
+        assert!(renomear(&mut wb, "a", "Filha").is_err());
+        assert!(renomear(&mut wb, "a", "  ").is_err());
+        renomear(&mut wb, "a", " Vendas ").unwrap();
+        assert_eq!(buscar(&wb, "a").unwrap().dados["nome"], "Vendas");
+        let filha = buscar(&wb, "b").unwrap().dados;
+        assert_eq!(origem_interna(filha["_feather"]["origemAba"].as_str().unwrap()), "Consulta: Vendas");
+        assert_eq!(fontes_extra(&filha), ["Consulta: Vendas"]);
+        assert_eq!(filha["passos"][0]["fonte"], "Consulta: Vendas");
     }
 
     #[test]

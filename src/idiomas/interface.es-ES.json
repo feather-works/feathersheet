@@ -1,4 +1,8 @@
 {
+ "O nome da consulta não pode ficar vazio": "El nombre de la consulta no puede estar vacío",
+ "Já existe uma consulta chamada '{novo}'": "Ya existe una consulta llamada '{novo}'",
+ "Renomear consulta": "Cambiar nombre de la consulta",
+ "Consulta renomeada para '{novo}'": "Consulta renombrada a '{novo}'",
  "Forma ou caixa de texto": "Forma o cuadro de texto",
  "O nome não pode conter [ ] * ? / \\.": "El nombre no puede contener [ ] * ? / \\.",
  "O nome não pode começar nem terminar com apóstrofo.": "El nombre no puede empezar ni terminar con apóstrofo.",

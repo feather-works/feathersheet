@@ -29,6 +29,11 @@ Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e cri
 "CSV exportado com datas e porcentagens como aparecem na célula; .xlsx com coluna inteira abre no Excel sem reparo."
 "Salvar .xlsx mantém o formato da coluna inteira, os painéis congelados e as linhas de grade; imagem do arquivo pede Salvar como."
 
+**FeatherQuery: renomear consulta (#93, 13/11).** Lápis na lista de consultas abre o campo do nome
+(`Evento::PedirRenomear`, `Estado::renomeando`); `registro::renomear` recusa vazio e repetido e troca o
+`Consulta: nome` em todo registro que lê a renomeada (origem, fontes extras, `fonte` das etapas). Pastas
+(grupos) para organizar ainda não. Novidade: "FeatherQuery: renomeie consultas salvas; as que dependem dela continuam funcionando."
+
 ## Depois da v0.3.2 (13/11/2026): o .dmg do macOS volta
 
 O job `macos.yml` não gerava `.dmg` desde a v0.2.0: as máquinas `macos-13` e `macos-14` do GitHub foram
