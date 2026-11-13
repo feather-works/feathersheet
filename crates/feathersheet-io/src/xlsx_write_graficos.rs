@@ -71,6 +71,59 @@ pub(crate) struct DesenhoAba {
     pub xml: String,
     pub rels: Option<String>,
     pub partes: Vec<ParteGrafico>,
+    /// Bytes das figuras (`xl/media/imageN.ext`).
+    pub midias: Vec<(String, Vec<u8>)>,
+}
+
+/// As figuras soltas da aba (`ob`, tipo imagem) como `xdr:pic`: (âncoras, relações, mídias).
+/// `contador` numera as mídias na pasta inteira. Até 13/11/2026 elas sumiam ao gravar (A2).
+fn figuras_da_aba(sheet: &Sheet, contador: &mut usize) -> (String, String, Vec<(String, Vec<u8>)>) {
+    use crate::objetos_aba::{ObjetosAba, TipoObjeto};
+    use crate::objetos_aba::Ancora;
+    let (mut ancoras, mut rels, mut midias) = (String::new(), String::new(), Vec::new());
+    let ponto = |a: &Ancora| format!(
+        "<xdr:col>{}</xdr:col><xdr:colOff>{}</xdr:colOff><xdr:row>{}</xdr:row><xdr:rowOff>{}</xdr:rowOff>",
+        a.coluna.min(16_383), (a.dx.max(0.0) as f64 * 9525.0).round() as i64,
+        a.linha.min(1_048_575), (a.dy.max(0.0) as f64 * 9525.0).round() as i64);
+    // (src, de, ate, recorte, giro): as da camada de objetos (do .xlsx) e as coladas no app (`im`).
+    let mut todas: Vec<(String, String, String, Option<[f32; 4]>, f32)> = Vec::new();
+    if let Ok(lista) = ObjetosAba::ler(sheet.ob.as_deref()) {
+        for o in lista.objetos.iter().filter(|o| o.tipo == TipoObjeto::Imagem) {
+            let Some(im) = &o.imagem else { continue };
+            todas.push((im.src.clone(), ponto(&o.de), ponto(&o.ate), im.recorte, o.giro));
+        }
+    }
+    let coladas: Vec<serde_json::Value> = sheet.im.as_deref().and_then(|t| serde_json::from_str(t).ok()).unwrap_or_default();
+    for item in &coladas {
+        let Some(src) = item["src"].as_str() else { continue };
+        let ancora = |k: &str| serde_json::from_value::<Ancora>(item[k].clone()).ok();
+        let (de, ate) = match (ancora("de"), ancora("ate")) {
+            (Some(de), Some(ate)) => (ponto(&de), ponto(&ate)),
+            _ => ancora_xml(sheet, &item["position"]),
+        };
+        todas.push((src.to_owned(), de, ate, None, 0.0));
+    }
+    for (k, (src, de, ate, recorte, giro)) in todas.iter().enumerate() {
+        let Some((cabeca, dados)) = src.split_once(";base64,") else { continue };
+        let ext = match cabeca.strip_prefix("data:image/") {
+            Some("png") => "png", Some("jpeg" | "jpg") => "jpeg", Some("gif") => "gif", _ => continue,
+        };
+        let Some(bytes) = crate::base64::decodificar(dados) else { continue };
+        *contador += 1;
+        let n = *contador;
+        let rid = format!("rIdImagem{}", k + 1);
+        let recorte = recorte.map_or(String::new(), |[l, t, r, b]| {
+            let p = |f: f32| (f * 100_000.0).round() as i64;
+            format!("<a:srcRect l=\"{}\" t=\"{}\" r=\"{}\" b=\"{}\"/>", p(l), p(t), p(r), p(b))
+        });
+        let giro = if *giro != 0.0 { format!(" rot=\"{}\"", (*giro as f64 * 60_000.0).round() as i64) } else { String::new() };
+        let _ = write!(ancoras,
+            "<xdr:twoCellAnchor editAs=\"oneCell\"><xdr:from>{}</xdr:from><xdr:to>{}</xdr:to><xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"{}\" name=\"{}\"/><xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"{rid}\"/>{recorte}<a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm{giro}><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor>",
+            de, ate, 200_000 + k, escape_xml(&feathersheet_core::trf!("Imagem {}", k + 1)));
+        let _ = write!(rels, "<Relationship Id=\"{rid}\" Type=\"{NS_R}/image\" Target=\"../media/image{n}.{ext}\"/>");
+        midias.push((format!("xl/media/image{n}.{ext}"), bytes));
+    }
+    (ancoras, rels, midias)
 }
 
 /// As linhas `<Override>` do `[Content_Types].xml` para os gráficos.
@@ -1033,11 +1086,12 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
     let viva = pasta.aba(aba)?;
     let sheet = &viva.sheet;
     let lista = graficos_da_aba(sheet);
-    if lista.is_empty() {
-        return tinta.map(|xml| DesenhoAba { xml, rels: None, partes: Vec::new() });
+    let (figuras, rels_figuras, midias) = figuras_da_aba(sheet, contador);
+    if lista.is_empty() && midias.is_empty() {
+        return tinta.map(|xml| DesenhoAba { xml, rels: None, partes: Vec::new(), midias });
     }
-    let mut ancoras = String::new();
-    let mut rels = String::new();
+    let mut ancoras = figuras;
+    let mut rels = rels_figuras;
     let mut partes = Vec::new();
     for (k, v) in lista.iter().enumerate() {
         let Ok(cfg) = serde_json::from_value::<ChartConfig>(v.clone()) else { continue };
@@ -1092,15 +1146,15 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
         }
         ancoras.push_str("<xdr:clientData/></xdr:twoCellAnchor>");
     }
-    if partes.is_empty() {
-        return tinta.map(|xml| DesenhoAba { xml, rels: None, partes: Vec::new() });
+    if partes.is_empty() && midias.is_empty() {
+        return tinta.map(|xml| DesenhoAba { xml, rels: None, partes: Vec::new(), midias });
     }
     let tinta_miolo = tinta.as_deref().map(miolo_do_desenho).unwrap_or("");
     let xml = format!(
         "{XML_DECL}<xdr:wsDr xmlns:xdr=\"{NS_XDR}\" xmlns:a=\"{NS_A}\" xmlns:r=\"{NS_R}\" xmlns:c=\"{NS_C}\">{tinta_miolo}{ancoras}</xdr:wsDr>"
     );
     let rels = format!("{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{rels}</Relationships>");
-    Some(DesenhoAba { xml, rels: Some(rels), partes })
+    Some(DesenhoAba { xml, rels: Some(rels), partes, midias })
 }
 
 #[cfg(test)]

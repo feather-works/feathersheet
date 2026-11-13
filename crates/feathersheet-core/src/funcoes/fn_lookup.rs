@@ -4,8 +4,8 @@ use crate::funcoes::fn_helpers::node_rect;
 use crate::formula::ast::Node;
 use crate::formula::evaluator::{broadcast_all, Evaluator};
 use crate::funcoes::fn_extra::posicao_xmatch;
-use crate::funcoes::fn_helpers::{arity, err_na, err_value, has, linhas_com_conteudo, valores_iguais, LeitorFaixa};
-use crate::celulas::values::{compare, to_boolean, CellError, Computed, ErrorCode, Matrix, Value};
+use crate::funcoes::fn_helpers::{arity, err_na, err_value, has, linhas_com_conteudo, LeitorFaixa};
+use crate::celulas::values::{to_boolean, CellError, Computed, ErrorCode, Matrix, Value};
 
 
 /// `=SE(teste; valor_se_verdadeiro; [valor_se_falso])` / `=IF(...)`

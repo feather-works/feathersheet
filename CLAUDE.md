@@ -24,14 +24,14 @@ falta, está em `docs/planejamento/AUDITORIA-2026-11-13.md`. Feitos e testados (
   `<col style>` nas vazias), painéis congelados e linhas de grade (`xlsx_write::com_vistas`, a vista
   mora no app); imagens e formas do arquivo entram no aviso de "Salvar como" (`nao_convertidos`).
 Depois (mesmo dia): M7 (copiar fórmula desloca `B:B`), M9 (PROCX com linha inteira, do fim e curinga) e
-P9 (Delete na tabela filtrada não apaga as escondidas), A1 (formato da linha e da aba inteira no `.xlsx`), P7 (renomear aba esquece o Ctrl+Z das abas
+P9 (Delete na tabela filtrada não apaga as escondidas), A1 (formato da linha e da aba inteira no `.xlsx`), A2 (imagens gravadas no `.xlsx`), P7 (renomear aba esquece o Ctrl+Z das abas
 reescritas) e A10 (link para dentro da pasta, `#Aba!A1`, lido, gravado e seguido pelo clique); e o cursor do Claude (`sheet_mouse`) agora tem
 liga/desliga em Configurações ▸ IA (MCP) ▸ "Cursor da IA na tela" (`config.mcp_cursor`, desligado de fábrica).
 Ficou de fora (anotado): `ANO(vazia)` dá 1899 porque o motor não tem o 29/02/1900 falso do Excel.
 Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e critério 0 nos CONT.SE e SOMASE, ÍNDICE com linha 0, TEXTO com seções."
 "Ctrl+Z depois de abrir outro arquivo não traz mais o anterior; excluir aba com dados pede confirmação."
 "CSV exportado com datas e porcentagens como aparecem na célula; .xlsx com coluna inteira abre no Excel sem reparo."
-"Salvar .xlsx mantém o formato da coluna inteira, os painéis congelados e as linhas de grade; imagem do arquivo pede Salvar como."
+"Salvar .xlsx mantém o formato da coluna inteira, os painéis congelados, as linhas de grade e as imagens."
 "PROCX traz a linha inteira, procura do fim e aceita curinga; copiar fórmula com B:B anda para C:C."
 "Delete numa tabela filtrada só apaga as linhas visíveis, como no Excel."
 "Links para outra aba do .xlsx funcionam e voltam para o Excel; no Inserir link, #Aba!A1 leva a uma célula da pasta."

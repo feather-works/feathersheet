@@ -1684,6 +1684,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     // Gráficos (`xl/charts/…`), no mesmo desenho da aba: `xlsx_write_graficos`.
     let mut partes_graficos: Vec<crate::xlsx_write_graficos::ParteGrafico> = Vec::new();
     let mut contador_graficos = 0usize;
+    let mut midias: Vec<(String, Vec<u8>)> = Vec::new();
     // Comentários: `xl/commentsN.xml` + `xl/drawings/vmlDrawingN.vml`.
     // (aba, (notas, VML)): as notas e os controles de formulário dividem o mesmo VML.
     let mut comentarios: Vec<(usize, (Option<String>, String))> = Vec::new();
@@ -1726,6 +1727,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
                 None => format!("{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{relacao}</Relationships>"),
             });
             partes_graficos.extend(desenho.partes);
+            midias.extend(desenho.midias);
             desenhos.push((i + 1, desenho.xml, desenho.rels));
         }
         // Comentários: `legacyDrawing` vem depois de `drawing` no CT_Worksheet.
@@ -1911,7 +1913,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         (
             "[Content_Types].xml".into(),
             format!(
-                "{XML_DECL}<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>{tipo_vml}{tipo_metadata}{tipo_props}<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>{tipos_abas}<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/><Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/></Types>"
+                "{XML_DECL}<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Default Extension=\"png\" ContentType=\"image/png\"/><Default Extension=\"jpeg\" ContentType=\"image/jpeg\"/><Default Extension=\"gif\" ContentType=\"image/gif\"/>{tipo_vml}{tipo_metadata}{tipo_props}<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>{tipos_abas}<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/><Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/></Types>"
             )
             .into_bytes(),
         ),
@@ -1977,6 +1979,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         }
     }
     partes.extend(partes_graficos.into_iter().map(|p| (p.caminho, p.xml.into_bytes())));
+    partes.extend(midias);
     for (i, (lista, vml)) in comentarios {
         if let Some(lista) = lista {
             partes.push((format!("xl/comments{i}.xml"), lista.into_bytes()));
@@ -2231,6 +2234,32 @@ mod testes {
         assert!(s.estilo_resolvido(0, 1).is_some_and(|e| e.bold), "célula da coluna");
         assert!(s.estilo_resolvido(5, 1).is_some_and(|e| e.bold), "vazia da coluna (pelo <col style>)");
         assert!(s.estilo_resolvido(0, 0).is_none_or(|e| !e.bold), "outra coluna sem negrito");
+    }
+
+    #[test]
+    fn imagens_da_aba_vao_para_o_desenho_e_voltam() {
+        use crate::objetos_aba::{Ancora, ImagemObjeto, ObjetoSolto, ObjetosAba, TipoObjeto};
+        // PNG 1×1 válido.
+        let png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==";
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 0, "x".into());
+        let mut figura = ObjetoSolto::novo_controle(crate::objetos_aba::ControleFormulario::novo(crate::objetos_aba::TipoControleForm::Botao),
+            Ancora { linha: 2, coluna: 1, dx: 0.0, dy: 0.0 }, Ancora { linha: 6, coluna: 3, dx: 0.0, dy: 0.0 });
+        (figura.id, figura.tipo, figura.controle) = (1, TipoObjeto::Imagem, None);
+        figura.imagem = Some(ImagemObjeto { src: png.into(), duotom: None, recorte: None });
+        let lista = ObjetosAba { objetos: vec![figura], ..Default::default() };
+        let colada = serde_json::json!([{"id": "a", "src": png, "position": {"x": 10, "y": 10, "width": 40, "height": 40},
+            "de": {"linha": 10, "coluna": 0}, "ate": {"linha": 12, "coluna": 1}}]);
+        pasta.editar(0, |s| { s.ob = lista.gravar(); s.im = Some(colada.to_string()); });
+        let bytes = gerar_xlsx(&pasta).unwrap();
+        let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes.clone())).unwrap();
+        assert!(z.by_name("xl/media/image1.png").is_ok() && z.by_name("xl/media/image2.png").is_ok());
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(bytes.clone()).unwrap();
+        let ob = ObjetosAba::ler(lida.aba(0).unwrap().sheet.ob.as_deref()).unwrap();
+        let figuras: Vec<_> = ob.objetos.iter().filter(|o| o.tipo == TipoObjeto::Imagem).collect();
+        assert_eq!(figuras.len(), 2);
+        assert_eq!((figuras[0].de.linha, figuras[0].de.coluna, figuras[0].ate.linha), (2, 1, 6));
+        assert!(crate::xlsx_read::nao_convertidos::nao_convertidos(bytes).unwrap().is_empty(), "imagem não pede mais Salvar como");
     }
 
     #[test]

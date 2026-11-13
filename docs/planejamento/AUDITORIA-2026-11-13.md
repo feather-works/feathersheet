@@ -43,9 +43,9 @@ O Ctrl+S de um `.xlsx` grava por cima do próprio `.xlsx`: cada perda abaixo cai
   cada célula leva o estilo combinado e o `<col style>` vale nas vazias. Também a linha inteira
   (`<row s customFormat>`, mesmo sem células) e a aba inteira (`<col style>` em todas as colunas, só
   quando não há formato de coluna: com ele, a aba fica só nas células com valor).
-- ✅ A2 (mínimo). Imagens, formas e caixas de texto lidas do `.xlsx` não são gravadas: agora contam
-  no aviso, e o Ctrl+S pede "Salvar como" dizendo o que se perderia. Falta: gravar de verdade
-  (`xl/media` e o desenho), e imagem colada no app também some ao gravar `.xlsx`.
+- ✅ A2. Imagens vão para o `.xlsx`: as lidas do arquivo (`ob`) e as coladas no app (`im`) viram
+  `xdr:pic` no desenho da aba, com os bytes em `xl/media` (`xlsx_write_graficos::figuras_da_aba`,
+  com recorte e giro), e saíram do aviso de "Salvar como". Falta: formas e caixas de texto (seguem no aviso).
 - ✅ A3. Painéis congelados e linhas de grade ocultas agora vão para o `.xlsx` (`<sheetViews>`), no
   Ctrl+S e no Exportar. No `.fshz` eles continuam não sendo guardados (só na sessão).
 - ✅ A4. Intervalo de coluna inteira saía com a linha 100.000.000 (formatação condicional, validação,

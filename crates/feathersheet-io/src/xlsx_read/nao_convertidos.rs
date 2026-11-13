@@ -65,13 +65,12 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         let (pasta, arquivo) = caminho.rsplit_once('/').unwrap_or(("", &caminho));
         for alvo in sheet::read_rels(&entry_text(&mut z, &format!("{pasta}/_rels/{arquivo}.rels")).unwrap_or_default()).values() {
             if let Some(o) = pelo_alvo(alvo) { somar(Some(nome), o, 1); }
-            // Desenho da aba: imagem e forma o FeatherSheet lê, mas o .xlsx gravado não leva
-            // (os gráficos levam). Contar aqui faz o Ctrl+S pedir "Salvar como" em vez de sumir com o logotipo.
+            // Desenho da aba: forma o FeatherSheet lê, mas o .xlsx gravado não leva (gráficos e,
+            // desde 13/11/2026, imagens levam). Contar aqui faz o Ctrl+S pedir "Salvar como".
             let a = alvo.to_ascii_lowercase();
             if a.contains("drawings/") && !a.contains("vmldrawing") && a.ends_with(".xml") {
                 let desenho = caminho_relativo(pasta, alvo);
                 let texto = entry_text(&mut z, &desenho).unwrap_or_default();
-                somar(Some(nome), "Imagem", texto.matches("<xdr:pic>").count() + texto.matches("<xdr:pic ").count());
                 somar(Some(nome), "Forma ou caixa de texto", texto.matches("<xdr:sp>").count() + texto.matches("<xdr:sp ").count());
             }
         }
@@ -110,7 +109,6 @@ mod testes {
         assert_eq!(v, vec![
             (None, "Conexão de dados externos", 1),
             (Some("Vendas"), "Controle ActiveX", 2),
-            (Some("Vendas"), "Imagem", 1),
             (None, "Planilha de gráfico", 1),
         ]);
     }
