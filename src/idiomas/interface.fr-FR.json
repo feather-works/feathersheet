@@ -1,4 +1,7 @@
 {
+ "Banco de dados (PostgreSQL, MySQL, SQL Server)…": "Base de données (PostgreSQL, MySQL, SQL Server)…",
+ "O servidor não respondeu.": "Le serveur n'a pas répondu.",
+ "Sem COMMIT nem IMPLICIT_TRANSACTIONS: a consulta só lê.": "Pas de COMMIT ni d'IMPLICIT_TRANSACTIONS : la requête ne fait que lire.",
  "Conectando…": "Connexion…",
  "Banco de dados (PostgreSQL, MySQL)…": "Base de données (PostgreSQL, MySQL)…",
  "Escreva um comando SQL só (sem ; no meio).": "Écrivez une seule commande SQL (sans ; au milieu).",

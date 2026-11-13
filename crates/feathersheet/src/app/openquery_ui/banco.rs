@@ -1,4 +1,4 @@
-//! FeatherQuery ▸ Obter dados ▸ Banco de dados (#70): PostgreSQL e MySQL/MariaDB. A conexão é a mesma
+//! FeatherQuery ▸ Obter dados ▸ Banco de dados (#70): PostgreSQL, MySQL/MariaDB e SQL Server. A conexão é a mesma
 //! do FeatherDB (`featherdb-core/src/postgres_banco.rs` e `mysql_banco.rs`): crates `postgres` (protocolo
 //! simples, o tipo da coluna pelo `prepare`) e `mysql` (Rust puro), TLS com `rustls`.
 //!
@@ -6,6 +6,10 @@
 //! - Só leitura: Postgres dentro de `BEGIN TRANSACTION READ ONLY` … `ROLLBACK`; MySQL com a sessão
 //!   `READ ONLY` (lá o `CREATE`/`DROP` fecha a transação sozinho e escaparia dela). O SQL escrito é um
 //!   comando só (`um_comando`): um `COMMIT; DROP …` sairia do modo leitura.
+//! - SQL Server (crate `tiberius`, Rust puro): não tem sessão só de leitura; cada consulta roda com
+//!   `IMPLICIT_TRANSACTIONS ON` e termina em `ROLLBACK` (lá o DDL também volta), e o SQL escrito não
+//!   pode ter `COMMIT` nem `IMPLICIT_TRANSACTIONS` (o T-SQL junta comandos sem `;`). Para garantia de
+//!   verdade, um usuário só de leitura no servidor.
 //! - A origem guarda servidor, porta, banco, usuário e o item, nunca a senha. "Lembrar a senha"
 //!   a põe no cofre do sistema (crate `keyring`), como o FeatherDB.
 // shortcut: traz a tabela inteira (até LIMITE_LINHAS) e filtra no FeatherQuery; levar filtro, colunas e
@@ -20,18 +24,18 @@ const MAX_TABELAS: usize = 200;
 const SERVICO_COFRE: &str = "FeatherSheet";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(super) enum Tipo { #[default] Postgres, MySql }
+pub(super) enum Tipo { #[default] Postgres, MySql, SqlServer }
 
 impl Tipo {
-    pub const TODOS: [Tipo; 2] = [Tipo::Postgres, Tipo::MySql];
-    fn esquema(self) -> &'static str { match self { Tipo::Postgres => "postgres", Tipo::MySql => "mysql" } }
-    pub fn porta_padrao(self) -> &'static str { match self { Tipo::Postgres => "5432", Tipo::MySql => "3306" } }
-    pub fn usuario_padrao(self) -> &'static str { match self { Tipo::Postgres => "postgres", Tipo::MySql => "root" } }
+    pub const TODOS: [Tipo; 3] = [Tipo::Postgres, Tipo::MySql, Tipo::SqlServer];
+    fn esquema(self) -> &'static str { match self { Tipo::Postgres => "postgres", Tipo::MySql => "mysql", Tipo::SqlServer => "sqlserver" } }
+    pub fn porta_padrao(self) -> &'static str { match self { Tipo::Postgres => "5432", Tipo::MySql => "3306", Tipo::SqlServer => "1433" } }
+    pub fn usuario_padrao(self) -> &'static str { match self { Tipo::Postgres => "postgres", Tipo::MySql => "root", Tipo::SqlServer => "sa" } }
 }
 
 impl std::fmt::Display for Tipo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self { Tipo::Postgres => "PostgreSQL", Tipo::MySql => "MySQL / MariaDB" })
+        f.write_str(match self { Tipo::Postgres => "PostgreSQL", Tipo::MySql => "MySQL / MariaDB", Tipo::SqlServer => "SQL Server" })
     }
 }
 
@@ -82,6 +86,29 @@ impl Conexao {
         if self.servidor.trim().is_empty() || self.usuario.trim().is_empty() {
             return Err(tr!("Preencha o servidor e o usuário.").into());
         }
+        if self.tipo == Tipo::SqlServer {
+            let mut cfg = tiberius::Config::new();
+            cfg.host(self.servidor.trim());
+            cfg.port(self.porta_num());
+            cfg.database(if self.banco.trim().is_empty() { "master" } else { self.banco.trim() });
+            cfg.authentication(tiberius::AuthMethod::sql_server(self.usuario.trim(), senha));
+            // Como o `require` dos outros: criptografa sem conferir o certificado (o do SQL Server costuma ser
+            // autoassinado). Sem SSL, só o login vai criptografado.
+            cfg.encryption(if self.ssl { tiberius::EncryptionLevel::Required } else { tiberius::EncryptionLevel::Off });
+            cfg.trust_cert();
+            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
+            let cliente = rt.block_on(async {
+                use tokio_util::compat::TokioAsyncWriteCompatExt;
+                let tcp = tokio::time::timeout(std::time::Duration::from_secs(15), tokio::net::TcpStream::connect(cfg.get_addr())).await
+                    .map_err(|_| tr!("O servidor não respondeu.").to_string())?.map_err(|e| e.to_string())?;
+                let _ = tcp.set_nodelay(true);
+                let mut c = tiberius::Client::connect(cfg, tcp.compat_write()).await.map_err(|e| e.to_string())?;
+                c.simple_query("SET IMPLICIT_TRANSACTIONS ON").await.map_err(|e| e.to_string())?
+                    .into_results().await.map_err(|e| e.to_string())?;
+                Ok::<_, String>(c)
+            })?;
+            return Ok(Cliente::Ms(rt, cliente));
+        }
         if self.tipo == Tipo::MySql {
             let opts = mysql::OptsBuilder::new()
                 .ip_or_hostname(Some(self.servidor.trim().to_owned())).tcp_port(self.porta_num())
@@ -108,9 +135,36 @@ impl Conexao {
     }
 }
 
-enum Cliente { Pg(postgres::Client), My(mysql::Conn) }
+enum Cliente {
+    Pg(postgres::Client),
+    My(mysql::Conn),
+    /// O tiberius é assíncrono: a conexão leva o runtime dela.
+    Ms(tokio::runtime::Runtime, tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>),
+}
 
 /// O SQL escrito pela pessoa: um comando só (um `;` no fim pode), fora de aspas e comentários.
+/// No SQL Server também sem `COMMIT`/`IMPLICIT_TRANSACTIONS` (sairiam da transação desfeita no fim).
+fn sql_da_pessoa(tipo: Tipo, sql: &str) -> Result<&str, String> {
+    let sql = um_comando(sql)?;
+    if tipo == Tipo::SqlServer {
+        let mut fora = String::new();
+        let mut aspas = None::<char>;
+        for c in sql.chars() {
+            match (aspas, c) {
+                (Some(q), _) if c == q || (q == '[' && c == ']') => aspas = None,
+                (Some(_), _) => {}
+                (None, '\'' | '"' | '[') => aspas = Some(c),
+                (None, c) => fora.push(c.to_ascii_uppercase()),
+            }
+        }
+        let palavras: Vec<&str> = fora.split(|c: char| !c.is_alphanumeric() && c != '_').collect();
+        if palavras.iter().any(|p| matches!(*p, "COMMIT" | "IMPLICIT_TRANSACTIONS")) {
+            return Err(tr!("Sem COMMIT nem IMPLICIT_TRANSACTIONS: a consulta só lê.").into());
+        }
+    }
+    Ok(sql)
+}
+
 fn um_comando(sql: &str) -> Result<&str, String> {
     let sql = sql.trim().trim_end_matches(';').trim_end();
     let (mut aspas, mut chars) = (None::<char>, sql.chars().peekable());
@@ -178,7 +232,54 @@ fn consultar(cliente: &mut Cliente, sql: &str) -> Result<Tabela, String> {
     match cliente {
         Cliente::Pg(c) => consultar_pg(c, sql),
         Cliente::My(c) => consultar_my(c, sql),
+        Cliente::Ms(rt, c) => rt.block_on(consultar_ms(c, sql)),
     }
+}
+
+/// Célula do SQL Server → valor (datas como texto, como no Postgres e no MySQL).
+fn valor_ms(d: &tiberius::ColumnData<'static>) -> Value {
+    use tiberius::{ColumnData as D, FromSql};
+    use tiberius::time::chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+    let numero = |n: f64| Value::Number(n);
+    let data = |t: Option<String>| t.map_or(Value::Empty, Value::Text);
+    match d {
+        D::U8(v) => v.map_or(Value::Empty, |n| numero(n.into())),
+        D::I16(v) => v.map_or(Value::Empty, |n| numero(n.into())),
+        D::I32(v) => v.map_or(Value::Empty, |n| numero(n.into())),
+        D::I64(v) => v.map_or(Value::Empty, |n| if n.unsigned_abs() > 1 << 53 { Value::Text(n.to_string()) } else { numero(n as f64) }),
+        D::F32(v) => v.map_or(Value::Empty, |n| numero(n.into())),
+        D::F64(v) => v.map_or(Value::Empty, numero),
+        D::Bit(v) => v.map_or(Value::Empty, Value::Bool),
+        D::String(v) => v.as_ref().map_or(Value::Empty, |t| Value::Text(t.to_string())),
+        D::Guid(v) => v.map_or(Value::Empty, |g| Value::Text(g.to_string())),
+        D::Binary(v) => v.as_ref().map_or(Value::Empty, |b| { let len = b.len(); Value::Text(feathersheet_core::trf!("[binário, {len} bytes]")) }),
+        D::Numeric(v) => v.map_or(Value::Empty, |n| valor(Some(&n.to_string()), "numeric")),
+        D::Xml(v) => v.as_ref().map_or(Value::Empty, |x| Value::Text(x.to_string())),
+        D::Date(_) => data(NaiveDate::from_sql(d).ok().flatten().map(|t| t.format("%Y-%m-%d").to_string())),
+        D::Time(_) => data(NaiveTime::from_sql(d).ok().flatten().map(|t| t.format("%H:%M:%S").to_string())),
+        D::DateTimeOffset(_) => data(tiberius::time::chrono::DateTime::<chrono::Utc>::from_sql(d).ok().flatten()
+            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())),
+        _ => data(NaiveDateTime::from_sql(d).ok().flatten().map(|t| {
+            if t.time() == NaiveTime::MIN { t.format("%Y-%m-%d").to_string() } else { t.format("%Y-%m-%d %H:%M:%S").to_string() }
+        })),
+    }
+}
+
+async fn consultar_ms(c: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>, sql: &str) -> Result<Tabela, String> {
+    let lido = async {
+        let mut fluxo = c.simple_query(sql).await?;
+        let cabecalho: Vec<String> = fluxo.columns().await?.map(|cs| cs.iter().map(|c| c.name().to_owned()).collect()).unwrap_or_default();
+        let linhas = fluxo.into_first_result().await?;
+        Ok::<_, tiberius::error::Error>((cabecalho, linhas))
+    }.await;
+    // Tudo que a consulta tenha mexido volta (IMPLICIT_TRANSACTIONS ON abriu a transação).
+    if let Ok(f) = c.simple_query("IF @@TRANCOUNT > 0 ROLLBACK").await { let _ = f.into_results().await; }
+    let (cabecalho, linhas) = lido.map_err(|e| e.to_string())?;
+    if cabecalho.is_empty() { return Err(tr!("O SQL não devolveu linhas (use um SELECT).").into()); }
+    if linhas.len() > LIMITE_LINHAS {
+        return Err(trf!("A consulta passa de {LIMITE_LINHAS} linhas: escreva um SQL com filtro."));
+    }
+    Ok(Tabela { cabecalho, linhas: linhas.into_iter().map(|r| r.into_iter().map(|d| valor_ms(&d)).collect()).collect() })
 }
 
 fn consultar_my(cliente: &mut mysql::Conn, sql: &str) -> Result<Tabela, String> {
@@ -239,6 +340,15 @@ fn citar(tipo: Tipo, nome: &str) -> String {
     match tipo {
         Tipo::Postgres => format!("\"{}\"", nome.replace('"', "\"\"")),
         Tipo::MySql => format!("`{}`", nome.replace('`', "``")),
+        Tipo::SqlServer => format!("[{}]", nome.replace(']', "]]")),
+    }
+}
+
+/// As 8 primeiras linhas: `TOP` no SQL Server, `LIMIT` nos outros.
+fn previa(tipo: Tipo, tabela: &str) -> String {
+    match tipo {
+        Tipo::SqlServer => format!("SELECT TOP 8 * FROM {tabela}"),
+        _ => format!("SELECT * FROM {tabela} LIMIT 8"),
     }
 }
 
@@ -252,7 +362,7 @@ pub(super) fn listar(c: &Conexao, senha: &str, sql: &str) -> Result<(Vec<importa
     let mut cliente = c.conectar(senha)?;
     let origem = c.origem();
     if !sql.trim().is_empty() {
-        let sql = um_comando(sql)?;
+        let sql = sql_da_pessoa(c.tipo, sql)?;
         let t = consultar(&mut cliente, sql)?;
         return Ok((vec![importador::Item::pronto(format!("SQL: {sql}"), t, Formatos::new())], origem));
     }
@@ -268,14 +378,20 @@ pub(super) fn listar(c: &Conexao, senha: &str, sql: &str) -> Result<(Vec<importa
             "SELECT table_schema, table_name, COALESCE(table_rows, 0) FROM information_schema.tables \
              WHERE table_schema NOT IN ('mysql','information_schema','performance_schema','sys') \
              AND (DATABASE() IS NULL OR table_schema = DATABASE()) ORDER BY 1, 2 LIMIT {MAX_TABELAS}"),
+        Tipo::SqlServer => format!(
+            "SELECT TOP {MAX_TABELAS} s.name, o.name, COALESCE(SUM(p.rows), 0) FROM sys.objects o \
+             JOIN sys.schemas s ON s.schema_id = o.schema_id \
+             LEFT JOIN sys.partitions p ON p.object_id = o.object_id AND p.index_id IN (0, 1) \
+             WHERE o.type IN ('U', 'V') AND o.is_ms_shipped = 0 GROUP BY s.name, o.name ORDER BY 1, 2"),
     })?;
     let mut itens = Vec::new();
     for linha in catalogo.linhas {
         let txt = |i: usize| linha.get(i).map(feathersheet_core::celulas::values::to_text).unwrap_or_default();
         let (esquema, nome) = (txt(0), txt(1));
         let linhas = match linha.get(2) { Some(Value::Number(n)) => *n as usize, _ => 0 };
-        let completo = format!("SELECT * FROM {}.{}", citar(c.tipo, &esquema), citar(c.tipo, &nome));
-        let previa = consultar(&mut cliente, &format!("{completo} LIMIT 8"))?;
+        let tabela = format!("{}.{}", citar(c.tipo, &esquema), citar(c.tipo, &nome));
+        let completo = format!("SELECT * FROM {tabela}");
+        let previa = consultar(&mut cliente, &previa(c.tipo, &tabela))?;
         itens.push(importador::Item::banco(format!("{esquema}.{nome}"), previa, linhas, c.clone(), senha.to_owned(), completo));
     }
     if itens.is_empty() { return Err(tr!("O banco não tem tabelas que este usuário possa ler.").into()); }
@@ -349,6 +465,11 @@ mod testes {
         assert_eq!(um_comando("select ';' -- a;b\n").unwrap(), "select ';' -- a;b");
         assert!(um_comando("commit; drop table x").is_err());
         assert!(um_comando("select 1; select 2").is_err());
+        assert!(sql_da_pessoa(Tipo::SqlServer, "select 1 commit drop table x").is_err());
+        assert!(sql_da_pessoa(Tipo::SqlServer, "set implicit_transactions off drop table x").is_err());
+        assert!(sql_da_pessoa(Tipo::SqlServer, "select [commit], 'commit' from t").is_ok());
+        assert_eq!(citar(Tipo::SqlServer, "a]b"), "[a]]b]");
+        assert_eq!(previa(Tipo::SqlServer, "[dbo].[t]"), "SELECT TOP 8 * FROM [dbo].[t]");
     }
 
     /// Usa o cofre de verdade da máquina: `cargo test -- --ignored cofre_ida_e_volta`.
@@ -375,7 +496,8 @@ mod testes {
         let (c, _) = Conexao::da_origem(&format!("Banco: {esquema}://{usuario}@{resto}")).unwrap();
         let (itens, _) = listar(&c, senha, "").unwrap();
         assert!(!itens.is_empty());
-        let (t, _) = listar(&c, senha, "SELECT 1 AS um, 'x' AS dois, true AS tres").unwrap();
+        let sql = if c.tipo == Tipo::SqlServer { "SELECT 1 AS um, 'x' AS dois, CAST(1 AS BIT) AS tres" } else { "SELECT 1 AS um, 'x' AS dois, true AS tres" };
+        let (t, _) = listar(&c, senha, sql).unwrap();
         let (t, _) = t.into_iter().next().unwrap().ler().unwrap();
         // O MySQL não tem lógico: `true` vem 1.
         let verdade = if c.tipo == Tipo::MySql { Value::Number(1.0) } else { Value::Bool(true) };

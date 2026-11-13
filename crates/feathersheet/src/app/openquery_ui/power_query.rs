@@ -1501,9 +1501,13 @@ impl Escritor<'_> {
             // "postgres://usuario@servidor:porta/banco[?ssl]" → PostgreSQL.Database("servidor:porta", "banco");
             // "mysql://…" → MySQL.Database, com a mesma navegação.
             "lerBanco" => {
-                let funcao = if a0.starts_with("mysql://") { "MySQL.Database" } else { "PostgreSQL.Database" };
+                let funcao = if a0.starts_with("mysql://") { "MySQL.Database" }
+                    else if a0.starts_with("sqlserver://") { "Sql.Database" } else { "PostgreSQL.Database" };
                 let resto = a0.split_once("://").map_or(a0, |(_, r)| r).trim_end_matches("?ssl");
                 let (servidor, banco) = resto.split_once('@').map_or(resto, |(_, r)| r).split_once('/').unwrap_or((resto, ""));
+                // O Sql.Database do Excel escreve a porta depois de vírgula ("servidor,1433").
+                let servidor_m = if funcao == "Sql.Database" { servidor.replacen(':', ",", 1) } else { servidor.to_owned() };
+                let servidor = servidor_m.as_str();
                 match navegacao {
                     Some((_, item)) if item.starts_with("SQL: ") => self.por("Fonte", format!("{funcao}({}, {}, [Query = {}])",
                         m_txt(servidor), m_txt(banco), m_txt(item.trim_start_matches("SQL: ")))),
@@ -1957,6 +1961,8 @@ in
         assert!(m.contains(r#"[Query = "select 1"]"#), "{m}");
         let (m, _) = para_m("let fonte = lerBanco(\"mysql://root@h:3306/loja\");\nfonte.navegar(\"loja.pedidos\");", None, &fontes).unwrap();
         assert!(m.contains(r#"MySQL.Database("h:3306", "loja")"#) && m.contains(r#"[Schema = "loja", Item = "pedidos"]"#), "{m}");
+        let (m, _) = para_m("let fonte = lerBanco(\"sqlserver://sa@h:1433/vendas\");\nfonte.navegar(\"dbo.pedidos\");", None, &fontes).unwrap();
+        assert!(m.contains(r#"Sql.Database("h,1433", "vendas")"#) && m.contains(r#"[Schema = "dbo", Item = "pedidos"]"#), "{m}");
     }
 
     #[test]

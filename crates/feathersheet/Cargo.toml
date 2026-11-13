@@ -40,7 +40,7 @@ feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v
 # Rasterizar o gráfico uma vez e recortar a imagem na rolagem (o canvas não
 # recorta SVG). A mesma versão e recursos que o Iced já usa: nada novo compila.
 resvg = { version = "0.42", default-features = false, features = ["text"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "net"] }
 # Colar imagem da area de transferencia (print). Rust puro; wayland-data-control
 # cobre GNOME/Wayland sem libs C. iced::clipboard so le texto.
 arboard = { version = "3.6", features = ["wayland-data-control"] }
@@ -56,6 +56,10 @@ scraper = "0.22"
 postgres = "0.19"
 tokio-postgres-rustls = "0.13"
 mysql = { version = "26", default-features = false, features = ["minimal-rust", "rustls-tls-ring"] }
+# SQL Server: Rust puro, TLS pelo rustls (o padrão traz native-tls/OpenSSL); datas pelo chrono.
+tiberius = { version = "0.12", default-features = false, features = ["tds73", "rustls", "chrono"] }
+chrono = { version = "0.4", default-features = false }
+tokio-util = { version = "0.7", features = ["compat"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 # Senha lembrada no cofre do sistema. Secret Service pelo zbus (Rust puro, já vem pelo rfd), não pela libdbus.
 keyring = { version = "3", default-features = false, features = ["async-secret-service", "tokio", "crypto-rust", "windows-native", "apple-native"] }

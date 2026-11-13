@@ -46,6 +46,14 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**SQL Server no FeatherQuery (#70, 13/11).** Terceiro tipo do mesmo modal. Crate `tiberius` (Rust puro, `rustls`; sem
+`winauth`, só login do SQL Server; porta explícita, sem instância nomeada), assíncrono: `Cliente::Ms` leva um runtime
+`current_thread` próprio. Sem sessão só de leitura no SQL Server: `SET IMPLICIT_TRANSACTIONS ON` na conexão e `IF @@TRANCOUNT >
+0 ROLLBACK` depois de cada consulta (o DDL também volta), e `sql_da_pessoa` recusa `COMMIT`/`IMPLICIT_TRANSACTIONS` fora de
+aspas (o T-SQL junta comandos sem `;`). Garantia de verdade só com usuário de leitura no servidor. Prévia com `TOP 8`
+(`previa`), catálogo pelo `sys.objects` + `sys.partitions`, datas pelo `FromSql` do chrono (`valor_ms`). M: `Sql.Database("servidor,porta",
+"banco")`. Testado num `mssql/server:2022` do podman, com e sem `?ssl`. Novidade: "FeatherQuery também lê do SQL Server."
+
 **MySQL/MariaDB no FeatherQuery (#70, 13/11).** Mesmo formulário, escolha do tipo (`banco::Tipo`, `Evento::BancoTipo`; troca
 porta e usuário se ainda estão no padrão do outro). Crate `mysql` (Rust puro, `rustls-tls-ring`), como o `mysql_banco.rs` do
 FeatherDB; catálogo pelo `information_schema.tables` (só o banco escolhido, ou todos menos os do sistema). Só leitura pela

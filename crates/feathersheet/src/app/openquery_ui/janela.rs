@@ -1084,7 +1084,7 @@ impl App {
         let mut itens = vec![
             ItemMenu::sub(tr!("Arquivo"), "folder-open", arquivo),
             item(tr!("Da Web…"), "link", Evento::MostrarWeb),
-            item(tr!("Banco de dados (PostgreSQL, MySQL)…"), "banco_dados", Evento::MostrarBanco),
+            item(tr!("Banco de dados (PostgreSQL, MySQL, SQL Server)…"), "banco_dados", Evento::MostrarBanco),
             item(tr!("Tabela ou planilha desta pasta"), "table", Evento::MostrarTabelas),
             item(tr!("Da seleção"), "layout-grid", Evento::CarregarSelecao),
             item(tr!("Digitar dados"), "edit", Evento::AbaCentro(2)),
