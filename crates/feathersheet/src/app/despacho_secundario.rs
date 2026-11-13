@@ -39,6 +39,7 @@ impl App {
             }
             Msg::Protecao(evento) => self.evento_protecao(evento),
             Msg::Intervalos(evento) => self.evento_intervalos(evento),
+            Msg::Ortografia(evento) => self.evento_ortografia(evento),
             Msg::SenhaArquivo(evento) => self.evento_senha_arquivo(evento),
             Msg::CopiarAba(evento) => self.evento_copiar_aba(evento),
             Msg::Comentario(evento) => self.evento_comentario(evento),
@@ -1163,6 +1164,11 @@ impl App {
                             let mais = mais && chave != "micro";
                             self.faixa_ativa = AbaFaixa::de_chave_persistencia(chave);
                             self.faixa_extras_aberto = mais;
+                        }
+                        // FEATHERSHEET_CAPTURAR_ORTOGRAFIA="texto" escreve em A1 e abre o F7.
+                        if let Ok(texto) = std::env::var("FEATHERSHEET_CAPTURAR_ORTOGRAFIA") {
+                            self.workbook.escrever_celula(self.folha, 0, 0, texto);
+                            let _ = self.evento_ortografia(ortografia_ui::Evento::Abrir);
                         }
                         // FEATHERSHEET_CAPTURAR_COMENTARIOS="B2=texto|D4!=à mostra|sobre:B2|editor".
                         if let Ok(lista) = std::env::var("FEATHERSHEET_CAPTURAR_COMENTARIOS") {

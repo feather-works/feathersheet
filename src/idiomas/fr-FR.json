@@ -160,6 +160,7 @@
         "corpo": [
           "• Révision → Nouveau commentaire annote la cellule ; le survol affiche la bulle. Précédent et Suivant parcourent les commentaires ; Afficher tous les commentaires les garde tous visibles.",
           "• Accueil → Effacer → Effacer les commentaires supprime ceux de la sélection.",
+          "• Révision → Orthographe (F7) vérifie le texte saisi dans les cellules (les formules sont ignorées), à partir de la cellule active ; avec plusieurs cellules sélectionnées, seulement la sélection. À chaque mot absent du dictionnaire : Remplacer (ou Remplacer tout), Ignorer, Ignorer tout ou Ajouter au dictionnaire (le dictionnaire personnel, dicionario-pessoal.txt dans le dossier des préférences). Le dictionnaire est la liste de mots du système ; à défaut, placez-en une (un mot par ligne) dans dicionario-fr-FR.txt dans ce dossier.",
           "• Révision → Protéger la feuille (ou Protéger le classeur) bloque les modifications ; dans Accueil → Format, vous pouvez d'abord verrouiller ou déverrouiller des cellules. Révision → Permettre la modification des plages garde des plages modifiables avec la feuille protégée, avec un mot de passe facultatif (demandé quand vous tapez dans la plage)."
         ]
       },

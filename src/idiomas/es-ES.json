@@ -160,6 +160,7 @@
     "corpo": [
      "• Revisar → Nuevo comentario anota la celda; al pasar el ratón aparece el globo. Anterior y Siguiente recorren los comentarios; Mostrar todos los comentarios los deja a la vista.",
      "• Inicio → Borrar → Borrar comentarios quita los de la selección.",
+     "• Revisar → Ortografía (F7) revisa el texto escrito en las celdas (las fórmulas quedan fuera), desde la activa; con varias celdas seleccionadas, solo la selección. En cada palabra que no está en el diccionario: Cambiar (o Cambiar todas), Omitir una vez, Omitir todas o Agregar al diccionario (el personal, dicionario-pessoal.txt en la carpeta de preferencias). El diccionario es la lista de palabras del sistema; sin ella, ponga una (una palabra por línea) en dicionario-es-ES.txt en esa carpeta.",
      "• Revisar → Proteger hoja (o Proteger libro) impide cambios; en Inicio → Formato puede bloquear o desbloquear celdas antes. Revisar → Permitir modificar rangos deja rangos editables con la hoja protegida, con contraseña opcional (se pide al escribir en el rango)."
     ]
    },

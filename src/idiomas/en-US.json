@@ -160,6 +160,7 @@
         "corpo": [
           "• Review → New comment annotates the cell; hovering shows the balloon. Previous and Next go through comments; Show all comments keeps them all visible.",
           "• Home → Clear → Clear comments removes the ones in the selection.",
+          "• Review → Spelling (F7) checks the typed text of the cells (formulas are skipped), starting at the active cell; with several cells selected, only the selection. At each word not in the dictionary: Change (or Change all), Ignore once, Ignore all or Add to dictionary (the personal one, dicionario-pessoal.txt in the settings folder). The dictionary is the system word list; without one, put a list (one word per line) in dicionario-en-US.txt in that folder.",
           "• Review → Protect Sheet (or Protect Workbook) blocks changes; in Home → Format you can lock or unlock cells first. Review → Allow Edit Ranges keeps ranges editable with the sheet protected, with an optional password (asked when you type in the range)."
         ]
       },

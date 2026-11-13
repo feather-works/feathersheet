@@ -197,6 +197,8 @@ impl Default for Configuracao {
         }
     }
 }
+/// O arquivo de preferências (a pasta dele guarda também o dicionário pessoal).
+pub fn caminho_config() -> Option<PathBuf> { caminho() }
 fn caminho() -> Option<PathBuf> {
     std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))

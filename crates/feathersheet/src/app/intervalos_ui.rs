@@ -220,7 +220,7 @@ impl App {
             corpo = corpo.push(text(erro.clone()).size(12).color(COR_ERRO()));
         }
         self.dialogo(tr!("Permitir edição de intervalos"), corpo)
-            .icone("lock-open")
+            .icone("pencil")
             .largura(520.0)
             .ao_fechar(m(Evento::Fechar))
             .secundario(tr!("Fechar"), Some(m(Evento::Fechar)))

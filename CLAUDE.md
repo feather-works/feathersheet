@@ -46,6 +46,16 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**Verificar Ortografia (#82, 13/11).** `app/ortografia_ui.rs`, Revisão ▸ Revisão de texto, F7 e Ferramentas ▸ Ortografia…
+(`spellCheck`). Confere o bruto das células sem `=` a partir da ativa (só a seleção se tiver mais de uma célula), dá a volta
+uma vez. Palavras: sem algarismo, e-mail, web, sigla e letra solta (`palavras`). Dicionário = `/usr/share/dict` do idioma
+mais `dicionario-<idioma>.txt` e `dicionario-pessoal.txt` na pasta das preferências (`configuracao::caminho_config`), lido
+uma vez por sessão; sem lista, avisa onde pôr (Windows e macOS não têm lista: `shortcut:` no módulo). Sugestões por
+distância de edição ≤2 (≤1 até 4 letras). Alterar/Alterar todas numa transação (um Ctrl+Z). Foto:
+`FEATHERSHEET_CAPTURAR_ORTOGRAFIA="texto"`. Novidade: "Revisão ▸ Ortografia (F7): ache e corrija palavras erradas, com
+sugestões e dicionário pessoal." Ícones: `lock-open` e `abc` não existem no feather-ui (viram "+"); conferir com
+`feather_ui::icones::existe`.
+
 **Modo micro (#68, 13/11).** `config.faixa_micro` (Exibir ▸ Janela ou Configurações ▸ Planilha, `Msg::FaixaMicro`) vale com a
 faixa recolhida (`App::faixa_micro`): `interface_editor::barra_micro` monta a barra de título (emblema, 5 ações, menus
 clássicos com título de 88 px, nome do arquivo só com ≥1500 px, pesquisa, Expandir faixa, Configurações) e a linha das abas

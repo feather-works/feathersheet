@@ -2874,6 +2874,19 @@
       "titulo": "Ferramentas",
       "itens": [
         {
+          "rotulo": "Ortografia…",
+          "icone": "",
+          "dica": "",
+          "atalho": "F7",
+          "separador": false,
+          "catalogo": false,
+          "acao": {
+            "id": "spellCheck",
+            "args": []
+          },
+          "filhos": []
+        },
+        {
           "rotulo": "Catálogo de funções",
           "icone": "funcao",
           "dica": "",

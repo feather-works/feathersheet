@@ -160,6 +160,7 @@
         "corpo": [
           "• Revisão → Novo comentário anota a célula; passar o mouse mostra o balão. Anterior e Próximo percorrem os comentários; Mostrar todos os comentários deixa todos à vista.",
           "• Página Inicial → Limpar → Limpar comentários apaga os da seleção.",
+          "• Revisão → Ortografia (F7) confere o texto digitado das células (fórmulas ficam de fora), a partir da ativa; com várias células selecionadas, só a seleção. Em cada palavra fora do dicionário: Alterar (ou Alterar todas), Ignorar uma vez, Ignorar tudo ou Adicionar ao dicionário (o pessoal, dicionario-pessoal.txt na pasta de preferências). O dicionário é a lista de palavras do sistema; sem ela, ponha uma (uma palavra por linha) em dicionario-pt-BR.txt nessa pasta.",
           "• Revisão → Proteger planilha (ou Proteger pasta de trabalho) impede mudanças; em Página Inicial → Formatar dá para bloquear ou desbloquear células antes. Revisão → Permitir edição de intervalos deixa intervalos editáveis com a planilha protegida, com senha opcional (pedida ao digitar no intervalo)."
         ]
       },

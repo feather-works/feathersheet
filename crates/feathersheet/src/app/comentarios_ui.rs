@@ -197,6 +197,10 @@ impl App {
             self.faixa_grande(tr!("Novo comentário"), "message-circle", m(Evento::Novo), self.comentario_editor.is_some())
         };
         vec![
+            self.faixa_grupo(tr!("Revisão de texto"), self.faixa_linha(vec![
+                self.faixa_grande(tr!("Ortografia"), "checks",
+                    Some(Msg::Ortografia(ortografia_ui::Evento::Abrir)), self.ortografia.is_some()),
+            ])),
             self.faixa_grupo(tr!("Comentários"), self.faixa_linha(vec![
                 principal,
                 self.faixa_pilha(vec![
@@ -215,7 +219,7 @@ impl App {
             self.faixa_grupo(tr!("Proteger"), self.faixa_linha(vec![
                 self.faixa_grande(tr!("Proteger planilha"), "lock", Some(Msg::Protecao(protecao_ui::Evento::Abrir)),
                     self.workbook.aba(self.folha).is_some_and(|a| a.sheet.protegida())),
-                self.faixa_grande(tr!("Permitir edição de intervalos"), "lock-open",
+                self.faixa_grande(tr!("Permitir edição de intervalos"), "pencil",
                     Some(Msg::Intervalos(intervalos_ui::Evento::Abrir)), self.intervalos_dialogo.is_some()),
                 self.faixa_grande(tr!("Proteger pasta de trabalho"), "lock",
                     Some(Msg::Protecao(protecao_ui::Evento::AbrirPasta)),

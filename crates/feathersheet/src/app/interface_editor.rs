@@ -619,6 +619,7 @@ impl App {
         let base = self.sobrepor_avaliar(base);
         let base = self.sobrepor_link(base);
         let base = self.sobrepor_intervalos(base);
+        let base = self.sobrepor_ortografia(base);
         let base = self.sobrepor_comentario(base);
         let base = self.sobrepor_dimensao(base);
         let base = self.sobrepor_celulas(base);
@@ -1311,6 +1312,7 @@ impl App {
             "deleteRows" => Msg::Estrutura(Estrutura::ExcluirLinha),
             "deleteColumns" => Msg::Estrutura(Estrutura::ExcluirColuna),
             "findReplace" => Msg::BuscaAba(true),
+            "spellCheck" => Msg::Ortografia(ortografia_ui::Evento::Abrir),
             "goTo" => Msg::IrParaJanela(ir_para::Evento::Abrir),
             "customSort" => Msg::Classificar(classificar::Evento::Abrir),
             "novoModulo" => Msg::MacroNovoModulo,
