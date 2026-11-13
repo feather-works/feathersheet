@@ -46,6 +46,14 @@ mantida pelo `preparar_gravacao`) e o painel agrupa ao desenhar; pasta criada e 
 Etapas (#94): botão direito dá nome e descrição (`Estado::etapas_info`, `_feather.etapas`; acompanham remover e mover,
 não o Ctrl+Z das etapas). Novidade: "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas."
 
+**MySQL/MariaDB no FeatherQuery (#70, 13/11).** Mesmo formulário, escolha do tipo (`banco::Tipo`, `Evento::BancoTipo`; troca
+porta e usuário se ainda estão no padrão do outro). Crate `mysql` (Rust puro, `rustls-tls-ring`), como o `mysql_banco.rs` do
+FeatherDB; catálogo pelo `information_schema.tables` (só o banco escolhido, ou todos menos os do sistema). Só leitura pela
+sessão (`SET SESSION TRANSACTION READ ONLY`): no MySQL o DDL fecha a transação sozinho. O SQL escrito vale para os dois
+bancos só com um comando (`um_comando`; um `COMMIT; DROP` escaparia do modo leitura). Origem `Banco: mysql://…`, M
+`MySQL.Database`. Testado num `mariadb:11` do podman (o mesmo teste `postgres_de_verdade` com `FEATHERSHEET_TESTE_PG=mysql://…`).
+Novidade: "FeatherQuery também conecta no MySQL e no MariaDB."
+
 **PostgreSQL no FeatherQuery (#70, 13/11).** `app/openquery_ui/banco.rs`, Obter dados ▸ Banco de dados PostgreSQL…
 (`Evento::MostrarBanco`, formulário `Estado::banco`). Conexão igual à do FeatherDB (`featherdb-core/src/postgres_banco.rs`):
 crate `postgres`, protocolo simples, tipo pela `prepare` (números, lógico; inteiro acima de 2^53 e datas como texto), SSL =

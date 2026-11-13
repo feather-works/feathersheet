@@ -1498,19 +1498,21 @@ impl Escritor<'_> {
                 self.por("Fonte", format!("Csv.Document(Web.Contents({}))", m_txt(a0)));
                 promover(self);
             }
-            // "postgres://usuario@servidor:porta/banco[?ssl]" → PostgreSQL.Database("servidor:porta", "banco").
+            // "postgres://usuario@servidor:porta/banco[?ssl]" → PostgreSQL.Database("servidor:porta", "banco");
+            // "mysql://…" → MySQL.Database, com a mesma navegação.
             "lerBanco" => {
-                let resto = a0.strip_prefix("postgres://").unwrap_or(a0).trim_end_matches("?ssl");
+                let funcao = if a0.starts_with("mysql://") { "MySQL.Database" } else { "PostgreSQL.Database" };
+                let resto = a0.split_once("://").map_or(a0, |(_, r)| r).trim_end_matches("?ssl");
                 let (servidor, banco) = resto.split_once('@').map_or(resto, |(_, r)| r).split_once('/').unwrap_or((resto, ""));
                 match navegacao {
-                    Some((_, item)) if item.starts_with("SQL: ") => self.por("Fonte", format!("PostgreSQL.Database({}, {}, [Query = {}])",
+                    Some((_, item)) if item.starts_with("SQL: ") => self.por("Fonte", format!("{funcao}({}, {}, [Query = {}])",
                         m_txt(servidor), m_txt(banco), m_txt(item.trim_start_matches("SQL: ")))),
                     Some((_, item)) => {
-                        self.por("Fonte", format!("PostgreSQL.Database({}, {})", m_txt(servidor), m_txt(banco)));
+                        self.por("Fonte", format!("{funcao}({}, {})", m_txt(servidor), m_txt(banco)));
                         let (esquema, tabela) = item.split_once('.').unwrap_or(("public", item.as_str()));
                         self.por(&format!("{tabela}_Table"), format!("Fonte{{[Schema = {}, Item = {}]}}[Data]", m_txt(esquema), m_txt(tabela)));
                     }
-                    None => self.por("Fonte", format!("PostgreSQL.Database({}, {})", m_txt(servidor), m_txt(banco))),
+                    None => self.por("Fonte", format!("{funcao}({}, {})", m_txt(servidor), m_txt(banco))),
                 }
             }
             "lerConsulta" => self.por("Fonte", m_id(a0)),
@@ -1953,6 +1955,8 @@ in
         assert!(m.contains(r#"Fonte{[Schema = "public", Item = "pedidos"]}[Data]"#), "{m}");
         let (m, _) = para_m("let fonte = lerBanco(\"postgres://ana@db:5432/vendas\");\nfonte.navegar(\"SQL: select 1\");", None, &fontes).unwrap();
         assert!(m.contains(r#"[Query = "select 1"]"#), "{m}");
+        let (m, _) = para_m("let fonte = lerBanco(\"mysql://root@h:3306/loja\");\nfonte.navegar(\"loja.pedidos\");", None, &fontes).unwrap();
+        assert!(m.contains(r#"MySQL.Database("h:3306", "loja")"#) && m.contains(r#"[Schema = "loja", Item = "pedidos"]"#), "{m}");
     }
 
     #[test]

@@ -55,6 +55,7 @@ scraper = "0.22"
 # que o reqwest já traz.
 postgres = "0.19"
 tokio-postgres-rustls = "0.13"
+mysql = { version = "26", default-features = false, features = ["minimal-rust", "rustls-tls-ring"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 # Senha lembrada no cofre do sistema. Secret Service pelo zbus (Rust puro, já vem pelo rfd), não pela libdbus.
 keyring = { version = "3", default-features = false, features = ["async-secret-service", "tokio", "crypto-rust", "windows-native", "apple-native"] }

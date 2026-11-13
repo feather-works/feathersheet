@@ -1,4 +1,6 @@
 {
+ "Banco de dados (PostgreSQL, MySQL)…": "Base de datos (PostgreSQL, MySQL)…",
+ "Escreva um comando SQL só (sem ; no meio).": "Escriba un solo comando SQL (sin ; en el medio).",
  "FeatherQuery: conectando ao banco em segundo plano": "FeatherQuery: conectando a la base de datos en segundo plano",
  "Digite a senha para reler o banco.": "Escriba la contraseña para volver a leer la base de datos.",
  "Preencha o servidor e o usuário.": "Complete el servidor y el usuario.",

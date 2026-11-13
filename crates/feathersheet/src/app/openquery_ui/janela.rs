@@ -369,15 +369,16 @@ impl App {
         let mut corpo = column![
             row![
                 feather_ui::icones::icone("banco_dados", 20.0),
-                text(tr!("Banco de dados PostgreSQL")).size(14).font(negrito()),
+                text(tr!("Banco de dados")).size(14).font(negrito()),
+                pelicano::pick_list(&banco::Tipo::TODOS[..], Some(c.tipo), |t| om(Evento::BancoTipo(t))).size(12.5),
             ].spacing(8).align(pelicano::Align::Center),
             row![
                 campo(tr!("Servidor"), &c.servidor, "localhost", Campo::Servidor, 220.0, false),
-                campo(tr!("Porta"), &c.porta, "5432", Campo::Porta, 70.0, false),
-                campo(tr!("Banco"), &c.banco, "postgres", Campo::Banco, 160.0, false),
+                campo(tr!("Porta"), &c.porta, c.tipo.porta_padrao(), Campo::Porta, 70.0, false),
+                campo(tr!("Banco"), &c.banco, "", Campo::Banco, 160.0, false),
             ].spacing(10),
             row![
-                campo(tr!("Usuário"), &c.usuario, "postgres", Campo::Usuario, 220.0, false),
+                campo(tr!("Usuário"), &c.usuario, c.tipo.usuario_padrao(), Campo::Usuario, 220.0, false),
                 campo(tr!("Senha"), &f.senha, "", Campo::Senha, 240.0, true),
             ].spacing(10),
             row![
@@ -1141,7 +1142,7 @@ impl App {
         let mut itens = vec![
             ItemMenu::sub(tr!("Arquivo"), "folder-open", arquivo),
             item(tr!("Da Web…"), "link", Evento::MostrarWeb),
-            item(tr!("Banco de dados PostgreSQL…"), "banco_dados", Evento::MostrarBanco),
+            item(tr!("Banco de dados (PostgreSQL, MySQL)…"), "banco_dados", Evento::MostrarBanco),
             item(tr!("Tabela ou planilha desta pasta"), "table", Evento::MostrarTabelas),
             item(tr!("Da seleção"), "layout-grid", Evento::CarregarSelecao),
             item(tr!("Digitar dados"), "edit", Evento::AbaCentro(2)),
