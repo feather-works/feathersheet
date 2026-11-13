@@ -252,8 +252,10 @@ impl App {
         } else {
             pelicano::Color::rgb8(fundo.0, fundo.1, fundo.2)
         };
-        let simbolo = container(feather_ui::icones::icone_colorido(icone, 25., cor))
-            .padding(7)
+        // Placa menor que a de antes (25 px + 7): com rótulo de duas linhas
+        // ("Formatação\ncondicional") a segunda linha era cortada pela faixa.
+        let simbolo = container(feather_ui::icones::icone_colorido(icone, 22., cor))
+            .padding(5)
             .style(move |_| pelicano::Style {
                 background: Some(pelicano::Background::Color(superficie)),
                 border: pelicano::Border {radius: [8.0; 4], ..Default::default()},
@@ -263,8 +265,8 @@ impl App {
             simbolo,
             text(rotulo.to_owned()).size(11)
                 .align_x(pelicano::Align::Center),
-        ].spacing(3).align(pelicano::Align::Center))
-            .padding([4, 7])
+        ].spacing(2).align(pelicano::Align::Center))
+            .padding([2, 7])
             .style(estilo_botao_grande(ativo))
             .on_press_maybe(msg)
             .into()
