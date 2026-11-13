@@ -1291,7 +1291,7 @@ impl App {
                             let _ = self.update(Msg::CondicionalAdicionar);
                             return self.update(Msg::CondicionalNovaRegra);
                         }
-                        // FEATHERSHEET_CAPTURAR_JANELA=openquery[:etapa|avancado|menu|digitar|tabela|banco]: dados de exemplo no FeatherQuery,
+                        // FEATHERSHEET_CAPTURAR_JANELA=openquery[:etapa|avancado|menu|digitar|tabela|web|banco]: dados de exemplo no FeatherQuery,
                         // com o modal da etapa aberto (agrupar, personalizada, condicional, dividir…).
                         if let Some(resto) = std::env::var("FEATHERSHEET_CAPTURAR_JANELA").ok().and_then(|j| j.strip_prefix("openquery").map(str::to_owned)) {
                             for (r, l) in [["Cliente", "UF", "Preço", "Qtd"], ["  ana silva ", "SP", "10", "3"], ["Bruno", "", "2,5", "4"],
@@ -1316,6 +1316,8 @@ impl App {
                                 let _ = self.evento_openquery(openquery_ui::Evento::AbaCentro(2));
                             } else if resto == ":tabela" {
                                 let _ = self.evento_openquery(openquery_ui::Evento::MostrarTabelas);
+                            } else if resto == ":web" {
+                                let _ = self.evento_openquery(openquery_ui::Evento::MostrarWeb);
                             } else if resto == ":banco" {
                                 let _ = self.evento_openquery(openquery_ui::Evento::MostrarBanco);
                             } else if resto == ":avancado" {

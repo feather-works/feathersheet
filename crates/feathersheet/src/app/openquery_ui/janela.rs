@@ -68,6 +68,7 @@ impl App {
         if e.modal.take().is_some() || e.dependencias.take().is_some() || e.consultas_pq.take().is_some() { return true; }
         if e.mostrar_manual { e.mostrar_manual = false; return true; }
         if e.banco.take().is_some() { return true; }
+        if e.mostrar_web && e.tabelas_web.is_empty() { e.mostrar_web = false; return true; }
         if e.menu_obter { e.menu_obter = false; return true; }
         if e.parametros_abertos { e.parametros_abertos = false; e.acao_parametros = None; return true; }
         e.assistente.take().is_some()
@@ -109,6 +110,8 @@ impl App {
             Some(painel_destino(e))
         } else if e.mostrar_manual {
             Some(painel_manual(e))
+        } else if e.mostrar_web && e.tabelas_web.is_empty() && e.itens_arquivo.is_empty() {
+            Some(painel_web(e))
         } else if let (Some(f), true) = (&e.banco, e.itens_arquivo.is_empty()) {
             // Configurar a conexão é modal: o centro continua com os dados (o Navegador vem depois).
             Some(painel_banco(f, &e.erro, e.importacao_pendente.is_some()))
@@ -361,19 +364,6 @@ impl App {
         // Sem fonte, o centro fica em branco: as fontes estão na faixa (OBTER DADOS).
         let mut conteudo = column(Vec::<Element<Msg>>::new()).spacing(16).padding(24).width(Length::FILL);
         let navegador = !e.itens_arquivo.is_empty();
-        if e.mostrar_web && !navegador {
-            conteudo = conteudo.push(container(column![
-                text(tr!("Endereço Web / API")).size(13).font(negrito()),
-                entrada(&e.url_web, "https://exemplo.com/api/dados.json", Evento::UrlWeb),
-                row![
-                    ide::botao_primario(tr!("Conectar e analisar"), "link",
-                        Some(om(Evento::ImportarWeb))),
-                    legenda_oq(tr!("JSON, CSV, TSV ou HTML com tabelas • 8 MiB • 25 s")),
-                    legenda_oq(tr!("JSON aninhado: use #json=dados.itens[0] no final da URL.")),
-                ].spacing(10).align(pelicano::Align::Center),
-            ].spacing(9).padding(16)).width(Length::FILL)
-                .style(ide::estilo_cabecalho(escuro)));
-        }
         if e.mostrar_web && !e.tabelas_web.is_empty() {
             let mut escolher = column![
                 row![
@@ -492,7 +482,8 @@ impl App {
 
     /// Centro: JavaScript editável acima da prévia, sem ocultar a tabela.
     fn centro_openquery<'a>(&'a self, e: &'a Estado, escuro: bool) -> Element<'a, Msg> {
-        if e.fonte.cabecalho.is_empty() || e.mostrar_web || e.mostrar_tabelas {
+        // O endereço Web é modal: o centro só sai dos dados quando há tabelas para escolher.
+        if e.fonte.cabecalho.is_empty() || (e.mostrar_web && !e.tabelas_web.is_empty()) || e.mostrar_tabelas {
             return self.selecionar_fonte_openquery(e, escuro);
         }
         // O script mora no Editor avançado e Digitar dados é um modal: o centro é só a prévia.
@@ -1136,6 +1127,28 @@ fn painel_manual<'a>(e: &'a Estado) -> Element<'a, Msg> {
         .ao_fechar(om(Evento::AbaCentro(0)))
         .secundario(tr!("Cancelar"), Some(om(Evento::AbaCentro(0))))
         .primario(tr!("OK"), Some(om(Evento::AplicarManual)))
+        .painel()
+}
+
+/// Obter dados ▸ Da Web: o endereço da página ou da API.
+fn painel_web(e: &Estado) -> Element<'_, Msg> {
+    let conectando = e.importacao_pendente.is_some();
+    let mut corpo = column![
+        legenda_oq(tr!("Endereço Web / API")),
+        text_input("https://exemplo.com/api/dados.json", &e.url_web)
+            .on_input(|v| om(Evento::UrlWeb(v))).on_submit(om(Evento::ImportarWeb))
+            .size(12).padding([5.0, 7.0]).style(estilo_entrada_suspensa),
+        legenda_oq(tr!("JSON, CSV, TSV ou HTML com tabelas • 8 MiB • 25 s")),
+        legenda_oq(tr!("JSON aninhado: use #json=dados.itens[0] no final da URL.")),
+    ].spacing(ESPACO_MEDIO);
+    if !e.erro.is_empty() { corpo = corpo.push(text(e.erro.clone()).size(TAM_TEXTO).color(cor_erro())); }
+    if conectando { corpo = corpo.push(legenda_oq(tr!("Conectando…"))); }
+    feather_ui::dialogo::Dialogo::new(tr!("Da Web"), corpo)
+        .icone("link")
+        .largura(560.0)
+        .ao_fechar(om(Evento::FecharWeb))
+        .secundario(tr!("Cancelar"), Some(om(Evento::FecharWeb)))
+        .primario(tr!("Conectar e analisar"), (!conectando).then(|| om(Evento::ImportarWeb)))
         .painel()
 }
 

@@ -108,6 +108,7 @@ pub enum Evento {
     CampoBanco(banco::Campo, String),
     BancoSsl(bool),
     FecharBanco,
+    FecharWeb,
     BancoTipo(banco::Tipo),
     BancoLembrar(bool),
     ConectarBanco,
@@ -886,6 +887,11 @@ impl App {
                 if banco::Tipo::TODOS.iter().any(|o| o.usuario_padrao() == c.usuario.trim()) { c.usuario = t.usuario_padrao().into(); }
                 c.tipo = t;
             },
+            Evento::FecharWeb => if let Some(e) = &mut self.openquery {
+                e.mostrar_web = false;
+                e.importacao_pendente = None;
+                e.erro.clear();
+            },
             Evento::FecharBanco => if let Some(e) = &mut self.openquery {
                 e.banco = None;
                 e.importacao_pendente = None;
@@ -1091,6 +1097,8 @@ impl App {
             },
             Evento::CancelarSelecaoWeb => if let Some(e) = &mut self.openquery {
                 e.limpar_previa_web();
+                // Senão o modal do endereço Web voltaria ao cancelar o Navegador de um arquivo.
+                e.mostrar_web = false;
                 e.importacao_pendente = None;
                 e.importacao_preservar = false;
             },
