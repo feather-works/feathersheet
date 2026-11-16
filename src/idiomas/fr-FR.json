@@ -87,7 +87,8 @@
           "Police, couleur, bordures, alignement et format de nombre (monétaire, %, décimales) se trouvent dans l'onglet Accueil. Le pinceau copie la mise en forme d'une cellule vers d'autres ; Ctrl+1 ouvre Format de cellule. La flèche à côté du bouton monétaire choisit la devise de la cellule (dollar, euro, franc suisse, roupie et toutes les autres devises en circulation, 155 au total) ; dans Format de cellule, Monétaire les liste toutes avec recherche par nom, code ou symbole. Les roupies indienne, pakistanaise et népalaise et le taka regroupent en lakh et crore (12,34,567), et un nombre saisi ainsi (12,34,567 ou 1.23.45.678) est lu comme un nombre ; les boutons de décimales fonctionnent aussi sur la devise choisie.",
           "• Mise en forme conditionnelle (Accueil → Conditionnelle) : colore les cellules selon une règle — supérieur à, texte qui contient, doublons, formule personnalisée, échelle de couleurs et barre de données.",
           "• Lignes à bandes (Accueil → Styles) alterne les couleurs des lignes ; Styles de cellules applique un style prêt à l'emploi.",
-          "• Figer les volets (Affichage → Figer) maintient les premières lignes ou colonnes en place pendant le défilement."
+          "• Figer les volets (Affichage → Figer) maintient les premières lignes ou colonnes en place pendant le défilement.",
+          "• Fractionner (Affichage → Fenêtre) affiche deux volets l'un au-dessus de l'autre, chacun avec sa feuille et son défilement. Cliquez sur un volet pour l'utiliser et choisissez sa feuille en bas ; cliquez à nouveau sur le bouton pour revenir à un seul volet."
         ]
       },
       "tabelas": {
@@ -107,7 +108,8 @@
           "• Un clic droit sur un en-tête permet aussi de masquer et d'afficher. Une colonne ou ligne masquée apparaît comme un trait plus épais entre ses voisines.",
           "• Fusionner se trouve dans le groupe Alignement ; sa flèche ouvre Fusionner et centrer et Fusionner horizontalement.",
           "• Collage spécial (Ctrl+Alt+V ou la flèche sous Coller) : valeurs uniquement, formats uniquement, transposer et plus.",
-          "• Atteindre (F5 ou Ctrl+G) : saute vers une cellule ou un nom, ou sélectionne par type — formules, constantes, cellules vides, erreurs, cellules visibles seulement.", "• Clic droit sur la sélection → Copier comme image : la plage part dans le presse-papiers sous forme d'image, telle qu'elle apparaît à l'écran (bordures, couleurs, formats de nombre). Ctrl+V la colle comme image ici ou dans un autre programme."
+          "• Atteindre (F5 ou Ctrl+G) : saute vers une cellule ou un nom, ou sélectionne par type — formules, constantes, cellules vides, erreurs, cellules visibles seulement.",
+          "• Clic droit sur la sélection → Copier comme image : la plage part dans le presse-papiers sous forme d'image, telle qu'elle apparaît à l'écran (bordures, couleurs, formats de nombre). Ctrl+V la colle comme image ici ou dans un autre programme."
         ]
       },
       "auditoria": {
@@ -178,7 +180,8 @@
         "titulo": "Mise en page et impression",
         "corpo": [
           "Mise en page : Marges, Orientation, Taille du papier, Zone d'impression, Sauts de page, Mise à l'échelle (pages en largeur et en hauteur, ou une échelle) et Imprimer le quadrillage.",
-          "Aperçu montre les pages avant l'impression. Insertion → En-tête et pied de page ajoute du texte en haut et en bas de chaque page.", "Tout cela est conservé dans la feuille et enregistré avec le fichier (.fshz et .xlsx) : ouvrir un .xlsx rapporte les marges, le papier, la zone d'impression et l'en-tête enregistrés par Excel."
+          "Aperçu montre les pages avant l'impression. Insertion → En-tête et pied de page ajoute du texte en haut et en bas de chaque page.",
+          "Tout cela est conservé dans la feuille et enregistré avec le fichier (.fshz et .xlsx) : ouvrir un .xlsx rapporte les marges, le papier, la zone d'impression et l'en-tête enregistrés par Excel."
         ]
       },
       "dados": {
@@ -218,7 +221,9 @@
           "Cette aide peut aussi devenir un fichier : dans la fenêtre d'Aide (F1), Exporter en Markdown enregistre tout dans un .md, dans la langue de l'application.",
           "L'enregistrement automatique fonctionne UNIQUEMENT pour les fichiers .fshz déjà enregistrés : il les écrase à l'intervalle choisi dans les Paramètres. Un fichier .xlsx, .csv ou .parquet ouvert, ou un nouveau classeur, n'est jamais écrit automatiquement — pour utiliser l'enregistrement automatique, choisissez Enregistrer sous… et prenez .fshz.",
           "La récupération automatique couvre tout le reste : elle garde une copie de tout classeur modifié (y compris .xlsx, .parquet et ceux jamais enregistrés) dans Documents/FeatherSheet/Temporarios/Recuperacao. Si l'ordinateur s'éteint, elle apparaît sur l'écran d'accueil pour être récupérée. Elle ne remplace pas l'enregistrement : la copie est supprimée quand vous enregistrez ou abandonnez. Les très gros classeurs (plus de 100 millions de cellules) n'ont pas de copie automatique, car chaque copie figerait la fenêtre et doublerait la mémoire : enregistrez-les avec Ctrl+S.",
-          "Tout s'exécute sur votre machine : pas de compte, pas de connexion, aucun de vos contenus n'en sort.", "Paramètres ▸ Enregistrer les nouveaux classeurs en .xlsx : Enregistrer sous… propose le format Excel.", "☰ Menu ▸ Informations ▸ Propriétés : titre, sujet, auteur, responsable, société, catégorie, mots-clés et commentaires du classeur, comme dans Excel. Enregistrés dans le .fshz et le .xlsx ; la création, la dernière modification et le dernier auteur de la modification sont remplis automatiquement."
+          "Tout s'exécute sur votre machine : pas de compte, pas de connexion, aucun de vos contenus n'en sort.",
+          "Paramètres ▸ Enregistrer les nouveaux classeurs en .xlsx : Enregistrer sous… propose le format Excel.",
+          "☰ Menu ▸ Informations ▸ Propriétés : titre, sujet, auteur, responsable, société, catégorie, mots-clés et commentaires du classeur, comme dans Excel. Enregistrés dans le .fshz et le .xlsx ; la création, la dernière modification et le dernier auteur de la modification sont remplis automatiquement."
         ]
       },
       "config": {
@@ -226,7 +231,8 @@
         "corpo": [
           "Dans les Paramètres : thème clair ou sombre, jeu de couleurs et accent, police et taille de la grille, zoom, enregistrement automatique, langue (qui détermine aussi le séparateur des formules) et raccourcis clavier. Dans Affichage › Zoom sur la sélection, la zone sélectionnée remplit l'écran.",
           "Affichage → Moniteur (ou F12) montre la mémoire, le processeur et la Console avec ce que l'application a journalisé — utile à joindre à un rapport de bogue.",
-          "Mises à jour : au démarrage, FeatherSheet vérifie sur GitHub s'il existe une nouvelle version (au plus une fois par jour) et, s'il y en a une, affiche une carte dans le coin avec Nouveautés, Plus tard et Mettre à jour. Désactivez-la dans Paramètres → À propos → Signaler les nouvelles versions ; le bouton Rechercher des mises à jour vérifie immédiatement.", "Paramètres ▸ Vos informations : nom, initiales et organisation, enregistrés comme auteur des fichiers, \"dernière modification par\" et société, et utilisés pour signer les commentaires (comme dans Premiers pas)."
+          "Mises à jour : au démarrage, FeatherSheet vérifie sur GitHub s'il existe une nouvelle version (au plus une fois par jour) et, s'il y en a une, affiche une carte dans le coin avec Nouveautés, Plus tard et Mettre à jour. Désactivez-la dans Paramètres → À propos → Signaler les nouvelles versions ; le bouton Rechercher des mises à jour vérifie immédiatement.",
+          "Paramètres ▸ Vos informations : nom, initiales et organisation, enregistrés comme auteur des fichiers, \"dernière modification par\" et société, et utilisés pour signer les commentaires (comme dans Premiers pas)."
         ]
       }
     },
@@ -305,7 +311,7 @@
       "excel-fn": "Fonctions de feuille de calcul (app.fn)"
     },
     "funcoes": {
-      "cell": "Comme en VBA : cell, cells et range sans feuille utilisent la feuille active (celle où la macro s'exécute). Une autre feuille seulement si elle est écrite : sheets(\"Ventes\").cell(\"A1\") ou sheets(2).",
+      "cell": "cell(row, col) et cells(row, col) renvoient la cellule à la ligne et à la colonne (la première est 1), sous forme de plage.",
       "value": "La valeur calculée de la cellule.",
       "formula": "Le texte saisi dans la cellule, commençant par \"=\" quand c'est une formule.",
       "set": "Écrit une valeur ou une formule dans la cellule. Renvoie `sheet`, donc les appels s'enchaînent : `sheet.set(\"A1\", 1).set(\"A2\", 2)`.",
@@ -378,7 +384,6 @@
       "insertCells": "Insère des cellules vides et pousse la sélection vers le bas (\"down\") ou vers la droite (\"right\").",
       "rowCount": "Le nombre de lignes de la plage.",
       "columnCount": "Le nombre de colonnes de la plage.",
-      "cell": "cell(row, col) et cells(row, col) renvoient la cellule à la ligne et à la colonne (la première est 1), sous forme de plage.",
       "getLastRow": "Numéro de la dernière ligne contenant des données dans la colonne ; 0 si la colonne est vide. Le `Cells(Rows.Count, 1).End(xlUp).Row`.",
       "getLastColumn": "Numéro de la dernière colonne contenant des données dans la ligne ; 0 si la ligne est vide.",
       "getDataRange": "Le plus petit rectangle contenant tout ce qui est utilisé (`UsedRange`), ou `null` si la feuille est vide.",
@@ -404,9 +409,9 @@
       "addDataBar": "Barres de données dans les cellules.",
       "clearConditionalFormats": "Supprime les règles de mise en forme conditionnelle qui touchent la plage.",
       "wb.sheet": "L'API (`sheet`) d'une autre feuille, par nom ou par position (la première est 1). Insérer/supprimer des lignes et colonnes ne fonctionne que sur la feuille à l'écran.",
-      "wb.addSheet": "Crée une nouvelle feuille et renvoie son API.",
-      "wb.deleteSheet": "Supprime la feuille (le classeur en a besoin d'au moins une).",
-      "wb.renameSheet": "Renomme la feuille.",
+      "wb.addSheet": "Crée une feuille (nom facultatif : Planilha4…) avant ou après une autre (feuille ou nom) ; sans position, avant la feuille active. La nouvelle feuille devient active et est renvoyée.",
+      "wb.deleteSheet": "Supprime la feuille (objet ou nom). Le classeur garde toujours au moins une feuille visible ; si la macro échoue, la feuille revient.",
+      "wb.renameSheet": "Renomme la feuille (objet ou nom) ; les formules qui y font référence suivent. Refuse un nom vide, contenant !, ou déjà utilisé.",
       "wb.copySheet": "Duplique la feuille et renvoie l'API de la copie.",
       "wb.moveSheet": "Déplace la feuille à la position (la première est 1).",
       "wb.setTabColor": "Couleur de l'onglet de la feuille ; `null` la supprime.",
@@ -415,9 +420,6 @@
       "wb.freezePanes": "Fige les lignes du haut et les colonnes de gauche.",
       "wb.addName": "Nomme une plage (sur la feuille active, ou écrite sous la forme `\"Plan1!A1:A10\"`).",
       "wb.sheetCount": "Le nombre de feuilles du classeur (une propriété, sans parenthèses).",
-      "wb.addSheet": "Crée une feuille (nom facultatif : Planilha4…) avant ou après une autre (feuille ou nom) ; sans position, avant la feuille active. La nouvelle feuille devient active et est renvoyée.",
-      "wb.deleteSheet": "Supprime la feuille (objet ou nom). Le classeur garde toujours au moins une feuille visible ; si la macro échoue, la feuille revient.",
-      "wb.renameSheet": "Renomme la feuille (objet ou nom) ; les formules qui y font référence suivent. Refuse un nom vide, contenant !, ou déjà utilisé.",
       "wb.name": "Le nom du document ouvert (une propriété, sans parenthèses).",
       "sheet.exportPdf": "Exporte cette feuille en PDF, en utilisant la zone d'impression. Le chemin est relatif au dossier du fichier ouvert (`\\` devient `/`). Renvoie `sheet`.",
       "sheet.saveAs": "Enregistre uniquement cette feuille dans un nouveau fichier, `.xlsx` ou `.fshz` (selon l'extension). Le chemin est relatif au dossier du fichier ouvert (`\\` devient `/`). Renvoie `sheet`.",

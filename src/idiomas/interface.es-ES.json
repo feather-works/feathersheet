@@ -6044,5 +6044,8 @@
  "Copiar ou arrastar fórmula com coluna ou linha inteira (B:B) desloca a referência.": "Copiar o arrastrar una fórmula con columna o fila entera (B:B) desplaza la referencia.",
  "PROCX devolve a linha inteira quando o retorno tem várias colunas.": "BUSCARX devuelve la fila entera cuando el rango de retorno tiene varias columnas.",
  "Cursor da IA na tela, em Configurações ▸ IA (MCP), desligado de fábrica.": "Cursor de la IA en pantalla, en Configuración ▸ IA (MCP), desactivado de fábrica.",
- "Instalador para macOS de volta (Intel e Apple Silicon).": "Vuelve el instalador para macOS (Intel y Apple Silicon)."
+ "Instalador para macOS de volta (Intel e Apple Silicon).": "Vuelve el instalador para macOS (Intel y Apple Silicon).",
+ "Divisão removida": "División quitada",
+ "Janela dividida: clique no outro painel e escolha a aba dele": "Ventana dividida: haga clic en el otro panel y elija su hoja",
+ "Dividir janela": "Dividir ventana"
 }

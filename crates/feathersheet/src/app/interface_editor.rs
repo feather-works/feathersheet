@@ -301,6 +301,7 @@ impl App {
             ];
             stack![grid, camada].height(Length::FILL).width(Length::FILL).into()
         } else { grid };
+        let grid = self.com_painel_dividido(grid);
         // Abas + posição + zoom no MESMO rodapé (antes eram duas barras
         // sobrepostas em altura: 42 px das abas + ~35 px de status).
         // Mantém ações e o aviso temporário de abas, ganhando área útil.

@@ -71,6 +71,7 @@ mod nomes_ui;
 mod dialogo_interno;
 pub(crate) mod link_ui;
 mod congelar_ui;
+mod painel_dividido;
 mod formulas_ui;
 mod inspecao_ui;
 mod mcp_vivo;
@@ -380,6 +381,10 @@ pub enum Msg {
     Salvar, SalvarComo, DestinoSalvar(Option<PathBuf>),
     /// Alterna a janela principal entre tela inteira e janela normal (F11).
     TelaInteira,
+    /// Exibir ▸ Janela ▸ Dividir: liga ou desliga o segundo painel (#83).
+    Dividir,
+    /// Mensagem da grade do painel inativo: ele vira o ativo antes de tratá-la.
+    NoOutroPainel(Box<Msg>),
     /// Arquivo > Renomear…: escolhe o novo nome e renomeia o arquivo no disco.
     RenomearArquivo, DestinoRenomear(Option<PathBuf>),
     MenuSalvarCopia, DestinoCopia(Option<PathBuf>),
@@ -819,6 +824,8 @@ pub struct App {
     /// Abas (id) cujo arquivo do Excel desligava as linhas de grade
     /// (`showGridLines="0"`); valem junto com a opção global.
     grade_oculta: std::collections::HashSet<u32>,
+    /// Exibir ▸ Janela ▸ Dividir (#83): o outro painel, com a aba e a rolagem dele.
+    painel_dividido: Option<painel_dividido::PainelDividido>,
     congelar_menu_aberto: bool,
     /// Aba Desenhar: ferramenta, canetas, seleção do laço e apagar em andamento.
     tinta: desenhar::EstadoTinta,
@@ -1156,6 +1163,7 @@ impl Default for App {
             colar_especial_ultimo: Default::default(),
             congelados: std::collections::HashMap::new(),
             grade_oculta: std::collections::HashSet::new(),
+            painel_dividido: None,
             congelar_menu_aberto: false,
             tinta: Default::default(),
             objetos: Default::default(),

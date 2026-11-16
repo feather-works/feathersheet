@@ -921,6 +921,8 @@ impl App {
                 Err(e) => { self.pendente = None; self.status = e; Task::none() }
             },
             Msg::DestinoSalvar(None) => { self.pendente = None; Task::none() },
+            Msg::Dividir => { self.alternar_divisao(); Task::none() }
+            Msg::NoOutroPainel(m) => self.no_outro_painel(*m),
             Msg::TelaInteira => {
                 self.tela_inteira = !self.tela_inteira;
                 match self.janelas.principal {

@@ -1177,6 +1177,16 @@ impl App {
                             });
                             self.alteracoes_painel = Some(false);
                         }
+                        // FEATHERSHEET_CAPTURAR_DIVIDIR=1: janela dividida, aba 1 embaixo e aba 2 em cima (#83).
+                        if std::env::var_os("FEATHERSHEET_CAPTURAR_DIVIDIR").is_some() {
+                            for (r, t) in [(0, "Vendas"), (1, "120"), (2, "150"), (3, "=SOMA(A2:A3)")] {
+                                self.workbook.escrever_celula(self.folha, r, 0, t.into());
+                            }
+                            self.alternar_divisao();
+                            let _ = self.update(Msg::AdicionarAba);
+                            self.workbook.escrever_celula(self.folha, 0, 0, "Metas".into());
+                            self.trocar_selecao(1, 1);
+                        }
                         if let Ok(texto) = std::env::var("FEATHERSHEET_CAPTURAR_ORTOGRAFIA") {
                             self.workbook.escrever_celula(self.folha, 0, 0, texto);
                             let _ = self.evento_ortografia(ortografia_ui::Evento::Abrir);

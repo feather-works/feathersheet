@@ -55,6 +55,10 @@ macro took 25 s.
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
 
+### Coming in the next version
+
+- **Split window** (View → Window → Split, #83): two panes, one above the other, each with its own sheet and scrolling. Click a pane to work in it.
+
 ### New in v0.3.3
 
 - **FeatherQuery on databases:** read tables from SQLite, PostgreSQL, MySQL/MariaDB and SQL Server; the connection opens in its own window. Also: rename queries, organize them in folders, name and describe steps, and open Excel web queries (`.iqy`).

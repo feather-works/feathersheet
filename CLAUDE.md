@@ -2,6 +2,19 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## Depois da v0.3.3 (para a 0.3.4)
+
+**Dividir janela (#83, 16/11).** Exibir ▸ Janela ▸ Dividir janela (`Msg::Dividir`, `app/painel_dividido.rs`): dois
+painéis, um em cima do outro, cada um com a sua aba e rolagem. Só um é o ativo (o estado de sempre: `folha`,
+`linha_inicio`, seleção); o outro fica em `App::painel_dividido` (id da aba, rolagem, célula e uma `EstadoEixos`
+própria, trocada com `eixos_grade` por `RefCell::swap`) e é desenhado só com as células. A grade do outro painel
+é mapeada para `Msg::NoOutroPainel`: qualquer clique ou roda nele troca os papéis (por `Msg::Aba`, que confirma a
+edição; recusa = nada muda) e repassa a mensagem; com fórmula aberta o clique aponta a referência na outra aba.
+Os painéis não mudam de lugar (`ativo_embaixo`). **Não feito:** imagens, gráficos, tinta e botões de macro no
+painel inativo (aparecem ao clicar nele); divisão vertical ou em quatro; Nova janela e Alternar janelas.
+Teste: `painel_dividido::testes`. Foto: `FEATHERSHEET_CAPTURAR_DIVIDIR=1` (pt-BR e en-US conferidas).
+Novidade: "Dividir janela (Exibir ▸ Janela): duas abas à vista, uma em cima da outra, cada uma com a sua rolagem."
+
 ## Depois da v0.3.2 (13/11/2026): auditoria de fórmulas, arquivos e do app
 
 Três leituras do código acharam 31 problemas com caso concreto; a lista, com o que foi feito e o que

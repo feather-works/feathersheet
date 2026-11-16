@@ -87,7 +87,8 @@
           "Fonte, cor, bordas, alinhamento e formato de número (R$, %, casas decimais) ficam na Página Inicial. O pincel copia a formatação de uma célula para outras; Ctrl+1 abre Formatar células. A seta ao lado do R$ escolhe a moeda da célula (dólar, euro, franco suíço, rupia e as outras moedas em circulação, 155 no total); em Formatar células, Moeda mostra todas com busca por nome, código ou símbolo. As rupias da Índia, do Paquistão e do Nepal e a taka agrupam em lakh e crore (12,34,567), e um número digitado assim (12,34,567 ou 1.23.45.678) entra como número; os botões de casas decimais também valem para a moeda escolhida.",
           "• Formatação condicional (Página Inicial → Condicional): pinta células por regra — maior que, contém texto, duplicados, fórmula própria, escala de cor e barra de dados.",
           "• Cores alternadas (Página Inicial → Estilos) listra as linhas; Estilos de célula aplica um estilo pronto.",
-          "• Congelar (Exibir → Congelar) fixa as primeiras linhas ou colunas enquanto você rola."
+          "• Congelar (Exibir → Congelar) fixa as primeiras linhas ou colunas enquanto você rola.",
+          "• Dividir janela (Exibir → Janela) mostra dois painéis, um em cima do outro, cada um com a sua aba e a sua rolagem. Clique num painel para usá-lo e escolha a aba dele no rodapé; clique de novo no botão para voltar a um painel só."
         ]
       },
       "tabelas": {
@@ -107,7 +108,8 @@
           "• Botão direito no cabeçalho também oculta e reexibe. Uma coluna ou linha oculta aparece como um traço mais grosso entre as vizinhas.",
           "• Mesclar fica no grupo Alinhamento; a seta abre Mesclar e centralizar e Mesclar através.",
           "• Colar especial (Ctrl+Alt+V ou a seta de Colar): só valores, só formatos, transpor e outras opções.",
-          "• Ir para (F5 ou Ctrl+G): vai a uma célula ou nome, ou seleciona por tipo — fórmulas, constantes, em branco, erros, só as visíveis.", "• Botão direito na seleção → Copiar como imagem: a área vai para a área de transferência como imagem, com a aparência da tela (bordas, cores, formato dos números). O Ctrl+V cola como figura aqui ou em outro programa."
+          "• Ir para (F5 ou Ctrl+G): vai a uma célula ou nome, ou seleciona por tipo — fórmulas, constantes, em branco, erros, só as visíveis.",
+          "• Botão direito na seleção → Copiar como imagem: a área vai para a área de transferência como imagem, com a aparência da tela (bordas, cores, formato dos números). O Ctrl+V cola como figura aqui ou em outro programa."
         ]
       },
       "auditoria": {
@@ -178,7 +180,8 @@
         "titulo": "Página e impressão",
         "corpo": [
           "Layout da Página: Margens, Orientação, Tamanho do papel, Área de impressão, Quebras, Dimensionar para Ajustar (páginas de largura e altura, ou escala) e Imprimir linhas de grade.",
-          "Visualizar mostra as páginas antes de imprimir. Inserir → Cabeçalho e rodapé põe um texto no alto e no pé de cada página.", "Tudo isso fica guardado na aba e vai junto no arquivo (.fshz e .xlsx): ao abrir um .xlsx, as margens, o papel, a área de impressão e o cabeçalho que o Excel gravou já vêm prontos."
+          "Visualizar mostra as páginas antes de imprimir. Inserir → Cabeçalho e rodapé põe um texto no alto e no pé de cada página.",
+          "Tudo isso fica guardado na aba e vai junto no arquivo (.fshz e .xlsx): ao abrir um .xlsx, as margens, o papel, a área de impressão e o cabeçalho que o Excel gravou já vêm prontos."
         ]
       },
       "dados": {
@@ -218,7 +221,9 @@
           "Esta ajuda também vira arquivo: na janela da Ajuda (F1), Exportar como Markdown grava tudo num .md, no idioma do app.",
           "O salvamento automático vale SÓ para arquivos .fshz já salvos: grava por cima deles no intervalo escolhido em Configurações. Um .xlsx, .csv ou .parquet aberto, ou uma planilha nova, nunca é gravado sozinho — para entrar no salvamento automático, use Salvar como… e escolha .fshz.",
           "A recuperação automática cobre todo o resto: guarda uma cópia de qualquer planilha alterada (inclusive .xlsx, .parquet e as nunca salvas) em Documentos/FeatherSheet/Temporarios/Recuperacao. Se o computador desligar, ela aparece na tela inicial para recuperar. Ela não substitui salvar: a cópia some quando você salva ou descarta. Pastas muito grandes (mais de 100 milhões de células) não recebem cópia automática, porque cada cópia travaria a janela e dobraria a memória: nelas, salve com Ctrl+S.",
-          "Tudo roda na sua máquina: sem conta, sem login, nada do seu conteúdo sai dela.", "Configurações ▸ Salvar planilha nova como .xlsx: o Salvar como… já sugere o formato do Excel.", "☰ Menu ▸ Informações ▸ Propriedades: título, assunto, autor, gerente, empresa, categoria, palavras-chave e comentários da planilha, como no Excel. Vão no .fshz e no .xlsx ao salvar; criado em, modificado em e modificado por são preenchidos sozinhos."
+          "Tudo roda na sua máquina: sem conta, sem login, nada do seu conteúdo sai dela.",
+          "Configurações ▸ Salvar planilha nova como .xlsx: o Salvar como… já sugere o formato do Excel.",
+          "☰ Menu ▸ Informações ▸ Propriedades: título, assunto, autor, gerente, empresa, categoria, palavras-chave e comentários da planilha, como no Excel. Vão no .fshz e no .xlsx ao salvar; criado em, modificado em e modificado por são preenchidos sozinhos."
         ]
       },
       "config": {
@@ -226,7 +231,8 @@
         "corpo": [
           "Em Configurações: tema claro ou escuro, esquema e cor de destaque, letra e tamanho da grade, zoom, salvamento automático, idioma (que também decide o separador das fórmulas) e os atalhos do teclado. Em Exibir › Zoom na seleção, a área selecionada passa a encher a tela.",
           "Exibir → Monitor (ou F12) mostra memória, processador e o Console com o que o aplicativo registrou — útil para mandar junto com um relato de problema.",
-          "Atualizações: ao abrir, o FeatherSheet procura uma versão nova no GitHub (no máximo uma vez por dia) e, se houver, mostra um cartão no canto com Novidades, Depois e Atualizar. Desligue em Configurações → Sobre → Avisar de versão nova; o botão Procurar atualizações consulta na hora.", "Configurações ▸ Seus dados: nome, iniciais e organização, que vão como autor, \"modificado por\" e empresa dos arquivos salvos e assinam os comentários (os mesmos de Primeiros passos)."
+          "Atualizações: ao abrir, o FeatherSheet procura uma versão nova no GitHub (no máximo uma vez por dia) e, se houver, mostra um cartão no canto com Novidades, Depois e Atualizar. Desligue em Configurações → Sobre → Avisar de versão nova; o botão Procurar atualizações consulta na hora.",
+          "Configurações ▸ Seus dados: nome, iniciais e organização, que vão como autor, \"modificado por\" e empresa dos arquivos salvos e assinam os comentários (os mesmos de Primeiros passos)."
         ]
       }
     },
@@ -305,7 +311,7 @@
       "excel-fn": "Funções de planilha (app.fn)"
     },
     "funcoes": {
-      "cell": "Como no VBA: cell, cells e range sem aba valem para a aba ativa (onde a macro roda). Outra aba só quando escrita: sheets(\"Vendas\").cell(\"A1\") ou sheets(2).",
+      "cell": "cell(row, col) e cells(row, col) devolvem a célula na linha e coluna (a primeira é 1), como intervalo.",
       "value": "O valor já calculado da célula.",
       "formula": "O texto digitado na célula, com \"=\" quando é fórmula.",
       "set": "Escreve um valor ou uma fórmula na célula. Devolve `sheet`, então dá para encadear: `sheet.set(\"A1\", 1).set(\"A2\", 2)`.",
@@ -378,7 +384,6 @@
       "insertCells": "Insere células vazias e empurra as da seleção para baixo (\"down\") ou para a direita (\"right\").",
       "rowCount": "Quantas linhas o intervalo tem.",
       "columnCount": "Quantas colunas o intervalo tem.",
-      "cell": "cell(row, col) e cells(row, col) devolvem a célula na linha e coluna (a primeira é 1), como intervalo.",
       "getLastRow": "Número da última linha com dado na coluna; 0 se a coluna está vazia. É o `Cells(Rows.Count, 1).End(xlUp).Row`.",
       "getLastColumn": "Número da última coluna com dado na linha; 0 se a linha está vazia.",
       "getDataRange": "O menor retângulo que contém tudo que foi usado (`UsedRange`), ou `null` se a aba está vazia.",
@@ -404,9 +409,9 @@
       "addDataBar": "Barras de dados dentro da célula.",
       "clearConditionalFormats": "Remove as regras de formatação condicional que tocam o intervalo.",
       "wb.sheet": "A API (`sheet`) de outra aba, por nome ou posição (a primeira é 1). Inserir/excluir linhas e colunas só funcionam na aba que está na tela.",
-      "wb.addSheet": "Cria uma aba nova e devolve a API dela.",
-      "wb.deleteSheet": "Remove a aba (a pasta precisa de pelo menos uma).",
-      "wb.renameSheet": "Renomeia a aba.",
+      "wb.addSheet": "Cria uma aba (nome opcional: Planilha4…) antes ou depois de outra (aba ou nome); sem posição, antes da ativa. A aba nova fica ativa e é devolvida.",
+      "wb.deleteSheet": "Apaga a aba (objeto ou nome). A pasta fica sempre com pelo menos uma aba visível; se a macro der erro, a aba volta.",
+      "wb.renameSheet": "Renomeia a aba (objeto ou nome); as fórmulas que a citam acompanham. Recusa nome vazio, com ! ou repetido.",
       "wb.copySheet": "Duplica a aba e devolve a API da cópia.",
       "wb.moveSheet": "Leva a aba para a posição (a primeira é 1).",
       "wb.setTabColor": "Cor da guia da aba; `null` tira.",
@@ -415,9 +420,6 @@
       "wb.freezePanes": "Congela linhas e colunas de cima e da esquerda.",
       "wb.addName": "Dá nome a um intervalo (da aba ativa, ou escrito como `\"Plan1!A1:A10\"`).",
       "wb.sheetCount": "Quantas abas a pasta tem (propriedade, sem parênteses).",
-      "wb.addSheet": "Cria uma aba (nome opcional: Planilha4…) antes ou depois de outra (aba ou nome); sem posição, antes da ativa. A aba nova fica ativa e é devolvida.",
-      "wb.deleteSheet": "Apaga a aba (objeto ou nome). A pasta fica sempre com pelo menos uma aba visível; se a macro der erro, a aba volta.",
-      "wb.renameSheet": "Renomeia a aba (objeto ou nome); as fórmulas que a citam acompanham. Recusa nome vazio, com ! ou repetido.",
       "wb.name": "O nome do documento aberto (propriedade, sem parênteses).",
       "sheet.exportPdf": "Exporta esta aba em PDF, usando a área de impressão. O caminho é relativo à pasta do arquivo aberto (`\\` vira `/`). Devolve `sheet`.",
       "sheet.saveAs": "Salva só esta aba num arquivo novo, `.xlsx` ou `.fshz` (pela extensão). O caminho é relativo à pasta do arquivo aberto (`\\` vira `/`). Devolve `sheet`.",

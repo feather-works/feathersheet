@@ -87,7 +87,8 @@
      "Fuente, color, bordes, alineación y formato de número (moneda, %, decimales) están en la pestaña Inicio. La herramienta de copiar formato lo copia de una celda a otras; Ctrl+1 abre Formato de celdas. La flecha junto al botón de moneda elige la moneda de la celda (dólar, euro, franco suizo, rupia y las demás monedas en circulación, 155 en total); en Formato de celdas, Moneda las muestra todas con búsqueda por nombre, código o símbolo. Las rupias de India, Pakistán y Nepal y el taka agrupan en lakh y crore (12,34,567), y un número escrito así (12,34,567 o 1.23.45.678) entra como número; los botones de decimales también valen para la moneda elegida.",
      "• Formato condicional (Inicio → Condicional): colorea celdas según una regla — mayor que, contiene texto, duplicados, fórmula personalizada, escala de color y barra de datos.",
      "• Colores alternados (Inicio → Estilos) rayan las filas; Estilos de celda aplica un estilo listo.",
-     "• Inmovilizar (Mostrar → Inmovilizar) mantiene las primeras filas o columnas fijas mientras se desplaza."
+     "• Inmovilizar (Mostrar → Inmovilizar) mantiene las primeras filas o columnas fijas mientras se desplaza.",
+     "• Dividir ventana (Mostrar → Ventana) muestra dos paneles, uno encima del otro, cada uno con su hoja y su desplazamiento. Haga clic en un panel para usarlo y elija su hoja abajo; vuelva a pulsar el botón para quedarse con un solo panel."
     ]
    },
    "tabelas": {
@@ -107,7 +108,8 @@
      "• El clic derecho en el encabezado también oculta y muestra. Una columna o fila oculta aparece como una línea más gruesa entre sus vecinas.",
      "• Combinar está en el grupo Alineación; la flecha abre Combinar y centrar y Combinar horizontalmente.",
      "• Pegado especial (Ctrl+Alt+V o la flecha de Pegar): solo valores, solo formatos, transponer y más.",
-     "• Ir a (F5 o Ctrl+G): va a una celda o nombre, o selecciona por tipo — fórmulas, constantes, en blanco, errores, solo visibles.", "• Clic derecho en la selección → Copiar como imagen: el rango va al portapapeles como imagen, con el aspecto de la pantalla (bordes, colores, formato de los números). Ctrl+V lo pega como figura aquí o en otro programa."
+     "• Ir a (F5 o Ctrl+G): va a una celda o nombre, o selecciona por tipo — fórmulas, constantes, en blanco, errores, solo visibles.",
+     "• Clic derecho en la selección → Copiar como imagen: el rango va al portapapeles como imagen, con el aspecto de la pantalla (bordes, colores, formato de los números). Ctrl+V lo pega como figura aquí o en otro programa."
     ]
    },
    "auditoria": {
@@ -178,7 +180,8 @@
     "titulo": "Página e impresión",
     "corpo": [
      "Diseño de página: Márgenes, Orientación, Tamaño del papel, Área de impresión, Saltos, Ajustar área de impresión (páginas de ancho y alto, o escala) e Imprimir líneas de cuadrícula.",
-     "Vista previa muestra las páginas antes de imprimir. Insertar → Encabezado y pie de página añade un texto arriba y abajo de cada página.", "Todo esto se guarda en la hoja y va con el archivo (.fshz y .xlsx): al abrir un .xlsx, los márgenes, el papel, el área de impresión y el encabezado que guardó Excel ya vienen listos."
+     "Vista previa muestra las páginas antes de imprimir. Insertar → Encabezado y pie de página añade un texto arriba y abajo de cada página.",
+     "Todo esto se guarda en la hoja y va con el archivo (.fshz y .xlsx): al abrir un .xlsx, los márgenes, el papel, el área de impresión y el encabezado que guardó Excel ya vienen listos."
     ]
    },
    "dados": {
@@ -218,7 +221,9 @@
      "Esta ayuda también se puede guardar: en la ventana de Ayuda (F1), Exportar como Markdown guarda todo en un .md, en el idioma de la app.",
      "El guardado automático funciona SOLO para archivos .fshz que ya se guardaron: sobrescribe en el intervalo elegido en Configuración. Un archivo .xlsx, .csv o .parquet abierto, o una hoja nueva, nunca se escribe automáticamente — para usar el guardado automático, elija Guardar como… y seleccione .fshz.",
      "La recuperación automática cubre todo lo demás: guarda una copia de cualquier hoja modificada (incluidos .xlsx, .parquet y las que nunca se guardaron) en Documents/FeatherSheet/Temporarios/Recuperacao. Si el equipo se apaga, aparece en la pantalla de inicio para recuperarla. No reemplaza guardar: la copia se elimina al guardar o descartar. Los libros muy grandes (más de 100 millones de celdas) no reciben copia automática, porque cada copia congelaría la ventana y duplicaría la memoria: guárdelos con Ctrl+S.",
-     "Todo funciona en su equipo: sin cuenta, sin inicio de sesión, y ningún contenido sale de él.", "Configuración ▸ Guardar libros nuevos como .xlsx: Guardar como… sugiere el formato de Excel.", "☰ Menú ▸ Información ▸ Propiedades: título, asunto, autor, administrador, compañía, categoría, palabras clave y comentarios del libro, como en Excel. Van en el .fshz y el .xlsx al guardar; creado, modificado y modificado por se completan solos."
+     "Todo funciona en su equipo: sin cuenta, sin inicio de sesión, y ningún contenido sale de él.",
+     "Configuración ▸ Guardar libros nuevos como .xlsx: Guardar como… sugiere el formato de Excel.",
+     "☰ Menú ▸ Información ▸ Propiedades: título, asunto, autor, administrador, compañía, categoría, palabras clave y comentarios del libro, como en Excel. Van en el .fshz y el .xlsx al guardar; creado, modificado y modificado por se completan solos."
     ]
    },
    "config": {
@@ -226,7 +231,8 @@
     "corpo": [
      "En Configuración: tema claro u oscuro, esquema de colores y acento, fuente y tamaño de la cuadrícula, zoom, guardado automático, idioma (que también define el separador de fórmulas) y atajos de teclado. En Vista › Zoom a la selección, el área seleccionada pasa a llenar la pantalla.",
      "Mostrar → Monitor (o F12) muestra memoria, procesador y la Consola con lo que la aplicación registró — útil para enviar junto con un informe de error.",
-     "Actualizaciones: al abrir, FeatherSheet busca una versión nueva en GitHub (como máximo una vez al día) y, si la hay, muestra una tarjeta en la esquina con Novedades, Después y Actualizar. Desactívelo en Configuración → Acerca de → Avisar de versiones nuevas; el botón Buscar actualizaciones consulta al momento.", "Configuración ▸ Sus datos: nombre, iniciales y organización, que van como autor, \"modificado por\" y empresa de los archivos guardados y firman los comentarios (los mismos de Primeros pasos)."
+     "Actualizaciones: al abrir, FeatherSheet busca una versión nueva en GitHub (como máximo una vez al día) y, si la hay, muestra una tarjeta en la esquina con Novedades, Después y Actualizar. Desactívelo en Configuración → Acerca de → Avisar de versiones nuevas; el botón Buscar actualizaciones consulta al momento.",
+     "Configuración ▸ Sus datos: nombre, iniciales y organización, que van como autor, \"modificado por\" y empresa de los archivos guardados y firman los comentarios (los mismos de Primeros pasos)."
     ]
    }
   },
@@ -403,9 +409,9 @@
    "addDataBar": "Barras de datos dentro de la celda.",
    "clearConditionalFormats": "Quita las reglas de formato condicional que tocan el rango.",
    "wb.sheet": "La API (`sheet`) de otra hoja, por nombre o posición (la primera es 1). Insertar o eliminar filas y columnas solo funciona en la hoja en pantalla.",
-   "wb.addSheet": "Crea una hoja nueva y devuelve su API.",
-   "wb.deleteSheet": "Elimina la hoja (el libro necesita al menos una).",
-   "wb.renameSheet": "Cambia el nombre de la hoja.",
+   "wb.addSheet": "Crea una hoja (nombre opcional: Planilha4…) antes o después de otra (hoja o nombre); sin posición, antes de la activa. La hoja nueva queda activa y se devuelve.",
+   "wb.deleteSheet": "Elimina la hoja (objeto o nombre). El libro siempre conserva al menos una hoja visible; si la macro falla, la hoja vuelve.",
+   "wb.renameSheet": "Cambia el nombre de la hoja (objeto o nombre); las fórmulas que la citan la acompañan. Rechaza un nombre vacío, con ! o repetido.",
    "wb.copySheet": "Duplica la hoja y devuelve la API de la copia.",
    "wb.moveSheet": "Mueve la hoja a la posición indicada (la primera es 1).",
    "wb.setTabColor": "Color de la pestaña de la hoja; `null` lo quita.",
@@ -414,9 +420,6 @@
    "wb.freezePanes": "Inmoviliza las filas superiores y las columnas de la izquierda.",
    "wb.addName": "Pone nombre a un rango (en la hoja activa, o escrito como `\"Plan1!A1:A10\"`).",
    "wb.sheetCount": "Cuántas hojas tiene el libro (una propiedad, sin paréntesis).",
-   "wb.addSheet": "Crea una hoja (nombre opcional: Planilha4…) antes o después de otra (hoja o nombre); sin posición, antes de la activa. La hoja nueva queda activa y se devuelve.",
-   "wb.deleteSheet": "Elimina la hoja (objeto o nombre). El libro siempre conserva al menos una hoja visible; si la macro falla, la hoja vuelve.",
-   "wb.renameSheet": "Cambia el nombre de la hoja (objeto o nombre); las fórmulas que la citan la acompañan. Rechaza un nombre vacío, con ! o repetido.",
    "wb.name": "El nombre del documento abierto (una propiedad, sin paréntesis).",
    "sheet.exportPdf": "Exporta esta hoja a PDF, usando el área de impresión. La ruta es relativa a la carpeta del archivo abierto (`\\` se convierte en `/`). Devuelve `sheet`.",
    "sheet.saveAs": "Guarda solo esta hoja en un archivo nuevo, `.xlsx` o `.fshz` (según la extensión). La ruta es relativa a la carpeta del archivo abierto (`\\` se convierte en `/`). Devuelve `sheet`.",

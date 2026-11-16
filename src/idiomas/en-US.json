@@ -87,7 +87,8 @@
           "Font, color, borders, alignment and number format (currency, %, decimals) are on the Home tab. The format painter copies formatting from one cell to others; Ctrl+1 opens Format Cells. The arrow next to the currency button picks the cell currency (dollar, euro, Swiss franc, rupee and every other currency in circulation, 155 in all); in Format Cells, Currency lists them all with search by name, code or symbol. The Indian, Pakistani and Nepalese rupees and the taka group in lakh and crore (12,34,567), and a number typed that way (12,34,567 or 1.23.45.678) is read as a number; the decimal buttons also work on the chosen currency.",
           "• Conditional formatting (Home → Conditional): colors cells by rule — greater than, contains text, duplicates, custom formula, color scale and data bar.",
           "• Banded colors (Home → Styles) stripes the rows; Cell styles applies a ready-made style.",
-          "• Freeze (View → Freeze) keeps the first rows or columns in place while you scroll."
+          "• Freeze (View → Freeze) keeps the first rows or columns in place while you scroll.",
+          "• Split (View → Window) shows two panes, one above the other, each with its own sheet and scrolling. Click a pane to use it and pick its sheet at the bottom; click the button again to go back to one pane."
         ]
       },
       "tabelas": {
@@ -107,7 +108,8 @@
           "• Right-clicking a header also hides and unhides. A hidden column or row shows as a thicker line between its neighbors.",
           "• Merge is in the Alignment group; its arrow opens Merge & center and Merge across.",
           "• Paste special (Ctrl+Alt+V or the arrow under Paste): values only, formats only, transpose and more.",
-          "• Go To (F5 or Ctrl+G): jumps to a cell or name, or selects by type — formulas, constants, blanks, errors, visible cells only.", "• Right-click the selection → Copy as picture: the range goes to the clipboard as a picture, as the screen shows it (borders, colors, number formats). Ctrl+V pastes it as a picture here or in another program."
+          "• Go To (F5 or Ctrl+G): jumps to a cell or name, or selects by type — formulas, constants, blanks, errors, visible cells only.",
+          "• Right-click the selection → Copy as picture: the range goes to the clipboard as a picture, as the screen shows it (borders, colors, number formats). Ctrl+V pastes it as a picture here or in another program."
         ]
       },
       "auditoria": {
@@ -178,7 +180,8 @@
         "titulo": "Page and printing",
         "corpo": [
           "Page Layout: Margins, Orientation, paper Size, Print area, Breaks, Scale to Fit (pages wide and tall, or a scale) and Print gridlines.",
-          "Preview shows the pages before printing. Insert → Header & footer adds text at the top and bottom of each page.", "All of this is kept in the sheet and saved with the file (.fshz and .xlsx): opening an .xlsx brings the margins, paper, print area and header Excel saved."
+          "Preview shows the pages before printing. Insert → Header & footer adds text at the top and bottom of each page.",
+          "All of this is kept in the sheet and saved with the file (.fshz and .xlsx): opening an .xlsx brings the margins, paper, print area and header Excel saved."
         ]
       },
       "dados": {
@@ -218,7 +221,9 @@
           "This help can become a file too: in the Help window (F1), Export as Markdown saves everything to a .md, in the app's language.",
           "Autosave works ONLY for .fshz files that were already saved: it writes over them at the interval chosen in Settings. An opened .xlsx, .csv or .parquet file, or a new spreadsheet, is never written automatically — to use autosave, choose Save as… and pick .fshz.",
           "Automatic recovery covers everything else: it keeps a copy of any changed spreadsheet (including .xlsx, .parquet and never-saved ones) in Documents/FeatherSheet/Temporarios/Recuperacao. If the computer shuts down, it shows up on the start screen to recover. It does not replace saving: the copy is removed when you save or discard. Very large workbooks (over 100 million cells) get no automatic copy, because each copy would freeze the window and double the memory: save them with Ctrl+S.",
-          "Everything runs on your machine: no account, no login, none of your content leaves it.", "Settings ▸ Save new workbooks as .xlsx: Save as… suggests the Excel format.", "☰ Menu ▸ Info ▸ Properties: the workbook's title, subject, author, manager, company, category, tags and comments, as in Excel. Saved in .fshz and .xlsx; created, last modified and last modified by are filled in automatically."
+          "Everything runs on your machine: no account, no login, none of your content leaves it.",
+          "Settings ▸ Save new workbooks as .xlsx: Save as… suggests the Excel format.",
+          "☰ Menu ▸ Info ▸ Properties: the workbook's title, subject, author, manager, company, category, tags and comments, as in Excel. Saved in .fshz and .xlsx; created, last modified and last modified by are filled in automatically."
         ]
       },
       "config": {
@@ -226,7 +231,8 @@
         "corpo": [
           "In Settings: light or dark theme, color scheme and accent, grid font and size, zoom, autosave, language (which also decides the formula separator) and keyboard shortcuts. In View › Zoom to Selection, the selected area fills the screen.",
           "View → Monitor (or F12) shows memory, processor and the Console with what the app logged — useful to send along with a bug report.",
-          "Updates: on startup, FeatherSheet checks GitHub for a new version (at most once a day) and, if there is one, shows a card in the corner with What's new, Later and Update. Turn it off in Settings → About → Notify about new versions; the Check for updates button checks right away.", "Settings ▸ Your details: name, initials and organization, saved as the files' author, \"last modified by\" and company, and used to sign comments (the same as in Getting started)."
+          "Updates: on startup, FeatherSheet checks GitHub for a new version (at most once a day) and, if there is one, shows a card in the corner with What's new, Later and Update. Turn it off in Settings → About → Notify about new versions; the Check for updates button checks right away.",
+          "Settings ▸ Your details: name, initials and organization, saved as the files' author, \"last modified by\" and company, and used to sign comments (the same as in Getting started)."
         ]
       }
     },
@@ -305,7 +311,7 @@
       "excel-fn": "Worksheet functions (app.fn)"
     },
     "funcoes": {
-      "cell": "Like VBA: cell, cells and range without a sheet use the active sheet (where the macro runs). Another sheet only when written: sheets(\"Sales\").cell(\"A1\") or sheets(2).",
+      "cell": "The cell at row and column (the first is 1), as a range.",
       "value": "The computed value of the cell.",
       "formula": "The text typed in the cell, starting with \"=\" when it is a formula.",
       "set": "Writes a value or a formula into the cell. Returns `sheet`, so calls chain: `sheet.set(\"A1\", 1).set(\"A2\", 2)`.",
@@ -378,7 +384,6 @@
       "insertCells": "Inserts empty cells and pushes the selection down (\"down\") or right (\"right\").",
       "rowCount": "How many rows the range has.",
       "columnCount": "How many columns the range has.",
-      "cell": "The cell at row and column (the first is 1), as a range.",
       "getLastRow": "Number of the last row with data in the column; 0 if the column is empty. The `Cells(Rows.Count, 1).End(xlUp).Row`.",
       "getLastColumn": "Number of the last column with data in the row; 0 if the row is empty.",
       "getDataRange": "The smallest rectangle containing everything used (`UsedRange`), or `null` if the sheet is empty.",
@@ -404,9 +409,9 @@
       "addDataBar": "In-cell data bars.",
       "clearConditionalFormats": "Removes the conditional formatting rules that touch the range.",
       "wb.sheet": "The API (`sheet`) of another sheet, by name or position (the first is 1). Inserting/deleting rows and columns only works on the sheet on screen.",
-      "wb.addSheet": "Creates a new sheet and returns its API.",
-      "wb.deleteSheet": "Removes the sheet (the workbook needs at least one).",
-      "wb.renameSheet": "Renames the sheet.",
+      "wb.addSheet": "Creates a sheet (optional name: Planilha4…) before or after another (sheet or name); with no position, before the active one. The new sheet becomes active and is returned.",
+      "wb.deleteSheet": "Deletes the sheet (object or name). The workbook always keeps at least one visible sheet; if the macro fails, the sheet comes back.",
+      "wb.renameSheet": "Renames the sheet (object or name); formulas that refer to it follow. Rejects an empty name, one with !, or a repeated one.",
       "wb.copySheet": "Duplicates the sheet and returns the copy's API.",
       "wb.moveSheet": "Moves the sheet to the position (the first is 1).",
       "wb.setTabColor": "Sheet tab color; `null` removes it.",
@@ -415,9 +420,6 @@
       "wb.freezePanes": "Freezes the top rows and left columns.",
       "wb.addName": "Names a range (on the active sheet, or written as `\"Plan1!A1:A10\"`).",
       "wb.sheetCount": "How many sheets the workbook has (a property, no parentheses).",
-      "wb.addSheet": "Creates a sheet (optional name: Planilha4…) before or after another (sheet or name); with no position, before the active one. The new sheet becomes active and is returned.",
-      "wb.deleteSheet": "Deletes the sheet (object or name). The workbook always keeps at least one visible sheet; if the macro fails, the sheet comes back.",
-      "wb.renameSheet": "Renames the sheet (object or name); formulas that refer to it follow. Rejects an empty name, one with !, or a repeated one.",
       "wb.name": "The name of the open document (a property, no parentheses).",
       "sheet.exportPdf": "Exports this sheet to PDF, using the print area. The path is relative to the open file's folder (`\\` becomes `/`). Returns `sheet`.",
       "sheet.saveAs": "Saves only this sheet to a new file, `.xlsx` or `.fshz` (by extension). The path is relative to the open file's folder (`\\` becomes `/`). Returns `sheet`.",

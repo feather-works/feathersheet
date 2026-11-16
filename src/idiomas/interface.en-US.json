@@ -6044,5 +6044,8 @@
  "Copiar ou arrastar fórmula com coluna ou linha inteira (B:B) desloca a referência.": "Copying or dragging a formula with a whole column or row (B:B) shifts the reference.",
  "PROCX devolve a linha inteira quando o retorno tem várias colunas.": "XLOOKUP returns the whole row when the return range has several columns.",
  "Cursor da IA na tela, em Configurações ▸ IA (MCP), desligado de fábrica.": "On-screen AI cursor, in Settings ▸ AI (MCP), off by default.",
- "Instalador para macOS de volta (Intel e Apple Silicon).": "The macOS installer is back (Intel and Apple Silicon)."
+ "Instalador para macOS de volta (Intel e Apple Silicon).": "The macOS installer is back (Intel and Apple Silicon).",
+ "Divisão removida": "Split removed",
+ "Janela dividida: clique no outro painel e escolha a aba dele": "Window split: click the other pane and pick its sheet",
+ "Dividir janela": "Split"
 }

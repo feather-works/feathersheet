@@ -6044,5 +6044,8 @@
  "Copiar ou arrastar fórmula com coluna ou linha inteira (B:B) desloca a referência.": "Copier ou faire glisser une formule avec une colonne ou une ligne entière (B:B) décale la référence.",
  "PROCX devolve a linha inteira quando o retorno tem várias colunas.": "RECHERCHEX renvoie la ligne entière quand la plage de retour a plusieurs colonnes.",
  "Cursor da IA na tela, em Configurações ▸ IA (MCP), desligado de fábrica.": "Curseur de l'IA à l'écran, dans Paramètres ▸ IA (MCP), désactivé par défaut.",
- "Instalador para macOS de volta (Intel e Apple Silicon).": "Le programme d'installation pour macOS est de retour (Intel et Apple Silicon)."
+ "Instalador para macOS de volta (Intel e Apple Silicon).": "Le programme d'installation pour macOS est de retour (Intel et Apple Silicon).",
+ "Divisão removida": "Fractionnement supprimé",
+ "Janela dividida: clique no outro painel e escolha a aba dele": "Fenêtre fractionnée : cliquez sur l'autre volet et choisissez sa feuille",
+ "Dividir janela": "Fractionner"
 }
