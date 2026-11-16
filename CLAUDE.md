@@ -154,6 +154,15 @@ dela com o alvo `x86_64-apple-darwin`) e o `libc` vale para Linux e macOS. Rodad
 `.dmg` saíram (Intel 22 MB, Apple Silicon 20 MB), **sem abrir num Mac**. Na próxima tag eles anexam à
 release sozinhos. Novidade: "Instalador para macOS de volta (Intel e Apple Silicon)."
 
+## v0.3.3 — 16/11/2026: FeatherQuery em bancos de dados, Revisão completa, autocompletar nas macros
+
+Junta o que entrou depois da v0.3.2: FeatherQuery lê SQLite, PostgreSQL, MySQL/MariaDB e SQL Server (#70), com a
+conexão num modal, pastas e renomear consultas, nome e descrição nas etapas (#93, #94) e a consulta Web `.iqy`;
+Revisão ▸ Ortografia (F7), Mostrar alterações e Permitir edição de intervalos (#82); Organizar e Painel de Seleção
+(#79); modo micro (#68); autocompletar no editor de macros (#8); cursor da IA liga/desliga (#9); auditoria de 13/11
+(fórmulas e arquivos); cascata e histograma por nomes `_xlchart` (#27, **sem conferir no Excel**); `.dmg` do macOS
+de volta. Novidades da 0.3.3 nas quatro línguas. Mesmo pelicano 0.1.34 e feather-ui v0.3.16.
+
 ## v0.3.2 — 12/11/2026: abre em placa de vídeo antiga, cálculo iterativo, números como no Excel
 
 Junta o que entrou depois da v0.3.1 (itens de 11/11 e 12/11 da "Fila de trabalho" abaixo): cálculo iterativo, milhar

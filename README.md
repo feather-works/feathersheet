@@ -55,6 +55,17 @@ macro took 25 s.
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
 
+### New in v0.3.3
+
+- **FeatherQuery on databases:** read tables from SQLite, PostgreSQL, MySQL/MariaDB and SQL Server; the connection opens in its own window. Also: rename queries, organize them in folders, name and describe steps, and open Excel web queries (`.iqy`).
+- **A complete Review tab:** Spelling (F7), Show Changes and Allow Edit Ranges on a protected sheet.
+- **Arrange and Selection Pane** in Page Layout: bring forward, align and rotate objects; the pane lists, hides and reorders them.
+- **Autocomplete in macros:** typing `sheet.` opens the list of methods with how to use each one and an example.
+- **Micro mode:** with the ribbon collapsed, the menus and command search move to the title bar (*View ▸ Window*).
+- **Formulas closer to Excel:** an empty cell counts as 0, wildcards and criterion 0 in `COUNTIF`/`SUMIF`, `INDEX` with row 0, `TEXT` with sections, `XLOOKUP` returning whole rows, whole-column references (`B:B`) shift when copied.
+- **Files:** waterfall and histogram charts are saved in the `.xlsx` the way Excel saves them; Ctrl+S on an `.xlsx` keeps column formats, frozen panes and gridlines.
+- The macOS installer is back (Intel and Apple Silicon).
+
 ### New in v0.3.2
 
 - **Opens on old graphics cards:** on a card with no usable Vulkan or OpenGL (Intel HD 4000 / Ivy Bridge) the app no longer closes at startup; the window is drawn by the processor. If the card fails while the app is open, the windows switch to the processor too.

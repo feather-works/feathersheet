@@ -10,6 +10,30 @@ pub use feather_ui::novidades::Versao;
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.3.3",
+        data: "16/11/2026",
+        resumo: "FeatherQuery em bancos de dados, Revisão completa e autocompletar nas macros",
+        ilustracao: Ilustracao::Atualizacao,
+        destaques: &[
+            ("database", "FeatherQuery em bancos de dados", "Leia tabelas do SQLite, PostgreSQL, MySQL/MariaDB e SQL Server."),
+            ("checks", "Revisão completa", "Ortografia (F7), Mostrar alterações e Permitir edição de intervalos."),
+            ("layout-grid", "Organizar e Painel de Seleção", "Alinhe e gire objetos; o painel lista, oculta e reordena os objetos da aba."),
+            ("code", "Autocompletar nas macros", "Ao digitar sheet. abre a lista dos métodos, com a forma de usar e um exemplo."),
+        ],
+        tambem: &[
+            "Modo micro: com a faixa recolhida, os menus e a pesquisa de comandos vão para a barra de título (Exibir ▸ Janela).",
+            "FeatherQuery: renomeie consultas, organize em pastas e dê nome e descrição às etapas.",
+            "Abra no FeatherQuery as consultas Web (.iqy) salvas pelo Excel.",
+            "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e critério 0 nos CONT.SE e SOMASE, ÍNDICE com linha 0, TEXTO com seções.",
+            "Gráficos de cascata e histograma são gravados no .xlsx do jeito que o Excel grava.",
+            "Ctrl+S num .xlsx mantém o formato das colunas, os painéis congelados e a grade.",
+            "Copiar ou arrastar fórmula com coluna ou linha inteira (B:B) desloca a referência.",
+            "PROCX devolve a linha inteira quando o retorno tem várias colunas.",
+            "Cursor da IA na tela, em Configurações ▸ IA (MCP), desligado de fábrica.",
+            "Instalador para macOS de volta (Intel e Apple Silicon).",
+        ],
+    },
+    Versao {
         numero: "0.3.2",
         data: "12/11/2026",
         resumo: "Abre em placa de vídeo antiga, cálculo iterativo e números como no Excel",
