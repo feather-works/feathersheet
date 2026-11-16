@@ -205,13 +205,18 @@ fn cor_motor(c: [u8; 4]) -> Cor {
 
 impl App {
     pub(super) fn vista_tinta(&self) -> Option<Vista> {
+        self.vista_de(self.painel_ativo())
+    }
+
+    /// A vista (zoom, rolagem, painel congelado) de um painel da janela.
+    pub(super) fn vista_de(&self, p: PainelVista) -> Option<Vista> {
         use crate::grade::modelo::{inicio_x_da, inicio_y_da};
-        let aba = self.workbook.aba(self.folha)?;
-        let (linhas_fixas, colunas_fixas) = self.congelamento_atual();
+        let aba = self.workbook.aba(p.folha)?;
+        let (linhas_fixas, colunas_fixas) = self.congelamento_de(p.folha);
         Some(Vista {
             zoom: (f32::from(self.config.zoom) / 100.0).max(0.05),
-            desloc_x: inicio_x_da(&aba.sheet, self.coluna_inicio),
-            desloc_y: inicio_y_da(&aba.sheet, self.linha_inicio),
+            desloc_x: inicio_x_da(&aba.sheet, p.coluna_inicio),
+            desloc_y: inicio_y_da(&aba.sheet, p.linha_inicio),
             fixa_x: inicio_x_da(&aba.sheet, colunas_fixas),
             fixa_y: inicio_y_da(&aba.sheet, linhas_fixas),
         })
@@ -243,8 +248,14 @@ impl App {
     /// Traços na vista (rolagem e painel congelado já descontados) e a
     /// transformação vista → tela. É o que a camada desenha.
     pub(super) fn tracos_tela(&self) -> (Vec<TracoTela>, Transformacao) {
-        let Some(vista) = self.vista_tinta() else { return (Vec::new(), Transformacao::default()) };
-        let Some((_, tinta)) = self.tinta_atual() else { return (Vec::new(), vista.transformacao()) };
+        self.tracos_de(self.painel_ativo())
+    }
+
+    fn tracos_de(&self, p: PainelVista) -> (Vec<TracoTela>, Transformacao) {
+        let Some(vista) = self.vista_de(p) else { return (Vec::new(), Transformacao::default()) };
+        let tinta = if p.ativo { self.tinta_atual().map(|(_, t)| t) }
+            else { self.workbook.aba(p.folha).map(|a| tinta_absoluta(&a.sheet)) };
+        let Some(tinta) = tinta else { return (Vec::new(), vista.transformacao()) };
         let tracos = tinta
             .tracos()
             .iter()
@@ -309,6 +320,19 @@ impl App {
                 camada.selecionados = ids.clone();
             }
         }
+        stack![base, ui_tinta::camada(camada)].width(Length::FILL).height(Length::FILL).into()
+    }
+
+    /// A tinta do outro painel da janela dividida (#83): só desenha, todo evento passa.
+    pub(super) fn tinta_sobre<'a>(&'a self, base: Element<'a, Msg>, p: PainelVista) -> Element<'a, Msg> {
+        if !self.workbook.aba(p.folha).is_some_and(|a| a.sheet.tn.is_some()) {
+            return base;
+        }
+        let (tracos, transformacao) = self.tracos_de(p);
+        let zoom = transformacao.escala;
+        let mut camada = Camada::nova(tracos, transformacao, Msg::Tinta);
+        camada.margens = pelicano::Padding { top: CABECALHO_Y * zoom, right: BARRA, bottom: BARRA, left: cabecalho_x() * zoom };
+        camada.capturar_caneta = false;
         stack![base, ui_tinta::camada(camada)].width(Length::FILL).height(Length::FILL).into()
     }
 

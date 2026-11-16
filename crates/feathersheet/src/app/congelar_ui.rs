@@ -4,7 +4,11 @@ use super::*;
 
 impl App {
     pub(super) fn congelamento_atual(&self) -> (u32,u32) {
-        self.workbook.aba(self.folha).and_then(|a| self.congelados.get(&a.id))
+        self.congelamento_de(self.folha)
+    }
+
+    pub(super) fn congelamento_de(&self, folha: usize) -> (u32,u32) {
+        self.workbook.aba(folha).and_then(|a| self.congelados.get(&a.id))
             .copied().unwrap_or((0,0))
     }
 

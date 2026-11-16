@@ -4,16 +4,23 @@
 
 ## Depois da v0.3.3 (para a 0.3.4)
 
-**Dividir janela (#83, 16/11).** Exibir ▸ Janela ▸ Dividir janela (`Msg::Dividir`, `app/painel_dividido.rs`): dois
-painéis, um em cima do outro, cada um com a sua aba e rolagem. Só um é o ativo (o estado de sempre: `folha`,
+**Dividir janela (#83, 16/11).** Exibir ▸ Janela ▸ Dividir janela / Lado a lado (`Msg::Dividir(lado)`,
+`app/painel_dividido.rs`): dois painéis, um em cima do outro ou lado a lado, cada um com a sua aba e rolagem
+(o outro botão muda só o sentido; o mesmo de novo desfaz). Só um é o ativo (o estado de sempre: `folha`,
 `linha_inicio`, seleção); o outro fica em `App::painel_dividido` (id da aba, rolagem, célula e uma `EstadoEixos`
-própria, trocada com `eixos_grade` por `RefCell::swap`) e é desenhado só com as células. A grade do outro painel
+própria, trocada com `eixos_grade` por `RefCell::swap`). Ele é desenhado com as mesmas camadas da grade ativa
+(`imagens_sobre`, `objetos_sobre`, `botoes_macro_sobre`, `tinta_sobre`), que recebem um `PainelVista` (aba,
+rolagem, `ativo`); no inativo não há alças, seleção, inserção nem edição no lugar, e a tinta só desenha.
+Segmentações de dados ficam só no ativo. Os objetos da aba do outro painel são relidos a cada quadro (o cache
+de `objetos_de` guarda só a aba ativa). A grade do outro painel
 é mapeada para `Msg::NoOutroPainel`: qualquer clique ou roda nele troca os papéis (por `Msg::Aba`, que confirma a
 edição; recusa = nada muda) e repassa a mensagem; com fórmula aberta o clique aponta a referência na outra aba.
-Os painéis não mudam de lugar (`ativo_embaixo`). **Não feito:** imagens, gráficos, tinta e botões de macro no
-painel inativo (aparecem ao clicar nele); divisão vertical ou em quatro; Nova janela e Alternar janelas.
-Teste: `painel_dividido::testes`. Foto: `FEATHERSHEET_CAPTURAR_DIVIDIR=1` (pt-BR e en-US conferidas).
-Novidade: "Dividir janela (Exibir ▸ Janela): duas abas à vista, uma em cima da outra, cada uma com a sua rolagem."
+Os painéis não mudam de lugar (`ativo_embaixo`: o ativo é o segundo, embaixo ou à direita). **Não feito:**
+divisão em quatro; Nova janela, Organizar tudo e Alternar janelas.
+Teste: `painel_dividido::testes`. Foto: `FEATHERSHEET_CAPTURAR_DIVIDIR=1` (em cima/embaixo) e `=lado` (lado a
+lado, com as formas de exemplo no painel inativo).
+Novidade: "Dividir janela (Exibir ▸ Janela): duas abas à vista, uma em cima da outra ou lado a lado, cada uma com
+a sua rolagem, imagens e gráficos."
 
 ## Depois da v0.3.2 (13/11/2026): auditoria de fórmulas, arquivos e do app
 

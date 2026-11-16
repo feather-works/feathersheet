@@ -88,7 +88,7 @@
           "• Formatação condicional (Página Inicial → Condicional): pinta células por regra — maior que, contém texto, duplicados, fórmula própria, escala de cor e barra de dados.",
           "• Cores alternadas (Página Inicial → Estilos) listra as linhas; Estilos de célula aplica um estilo pronto.",
           "• Congelar (Exibir → Congelar) fixa as primeiras linhas ou colunas enquanto você rola.",
-          "• Dividir janela (Exibir → Janela) mostra dois painéis, um em cima do outro, cada um com a sua aba e a sua rolagem. Clique num painel para usá-lo e escolha a aba dele no rodapé; clique de novo no botão para voltar a um painel só."
+          "• Dividir janela (Exibir → Janela) mostra dois painéis, um em cima do outro (Lado a lado: um ao lado do outro), cada um com a sua aba e a sua rolagem, com as imagens, formas, gráficos e botões de cada aba. Clique num painel para usá-lo e escolha a aba dele no rodapé; clique de novo no mesmo botão para voltar a um painel só."
         ]
       },
       "tabelas": {

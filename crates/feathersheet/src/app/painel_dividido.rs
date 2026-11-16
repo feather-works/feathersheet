@@ -1,8 +1,9 @@
-//! Exibir ▸ Janela ▸ Dividir (#83): dois painéis da pasta, um em cima do outro, cada um com
-//! a sua aba e a sua rolagem. Só um painel é o ativo (o estado de sempre: `folha`, rolagem,
-//! seleção); o outro guarda o seu aqui e é desenhado só com as células. Qualquer clique ou
-//! roda no outro painel troca os dois de papel e repassa a mensagem, que cai na aba certa.
-//! Os painéis não mudam de lugar ao trocar: `ativo_embaixo` diz onde está o ativo.
+//! Exibir ▸ Janela ▸ Dividir (#83): dois painéis da pasta, um em cima do outro ou lado a lado,
+//! cada um com a sua aba e a sua rolagem. Só um painel é o ativo (o estado de sempre: `folha`,
+//! rolagem, seleção); o outro guarda o seu aqui e é desenhado com as células, imagens, formas,
+//! gráficos, tinta e botões de macro, sem seleção. Qualquer clique ou roda no outro painel troca
+//! os dois de papel e repassa a mensagem, que cai na aba certa. Os painéis não mudam de lugar
+//! ao trocar: `ativo_embaixo` diz se o ativo é o segundo (embaixo ou à direita).
 use super::*;
 
 #[derive(Default)]
@@ -13,14 +14,39 @@ pub(super) struct PainelDividido {
     linha: u32,
     coluna: u32,
     ativo_embaixo: bool,
+    lado_a_lado: bool,
     /// Régua própria do outro painel: com abas diferentes, uma régua só seria refeita a cada quadro.
     eixos: RefCell<crate::grade::EstadoEixos>,
 }
 
+/// A aba e a rolagem que uma camada sobre a grade desenha: a do painel ativo ou a do outro.
+#[derive(Clone, Copy)]
+pub(super) struct PainelVista {
+    pub(super) folha: usize,
+    pub(super) linha_inicio: u32,
+    pub(super) coluna_inicio: u32,
+    /// O outro painel só desenha: sem alças de seleção nem edição no lugar.
+    pub(super) ativo: bool,
+}
+
 impl App {
-    /// Liga (o outro painel começa igual ao atual, como no Excel) ou desliga a divisão.
-    pub(super) fn alternar_divisao(&mut self) {
-        if self.painel_dividido.take().is_some() {
+    pub(super) fn painel_ativo(&self) -> PainelVista {
+        PainelVista { folha: self.folha, linha_inicio: self.linha_inicio, coluna_inicio: self.coluna_inicio, ativo: true }
+    }
+
+    /// Dividida nesse sentido (o botão da faixa fica aceso).
+    pub(super) fn janela_dividida(&self, lado: bool) -> bool {
+        self.painel_dividido.as_ref().is_some_and(|p| p.lado_a_lado == lado)
+    }
+
+    /// Liga (o outro painel começa igual ao atual, como no Excel), muda o sentido ou desliga.
+    pub(super) fn alternar_divisao(&mut self, lado: bool) {
+        if let Some(p) = self.painel_dividido.as_mut() {
+            if p.lado_a_lado != lado {
+                p.lado_a_lado = lado;
+                return;
+            }
+            self.painel_dividido = None;
             self.status = tr!("Divisão removida").into();
             return;
         }
@@ -31,6 +57,7 @@ impl App {
             coluna_inicio: self.coluna_inicio,
             linha: self.linha,
             coluna: self.coluna,
+            lado_a_lado: lado,
             ..Default::default()
         });
         self.status = tr!("Janela dividida: clique no outro painel e escolha a aba dele").into();
@@ -64,14 +91,12 @@ impl App {
         Task::batch([troca, seguinte])
     }
 
-    /// A grade ativa e, com a janela dividida, o outro painel (só células) com a divisória.
+    /// A grade ativa e, com a janela dividida, o outro painel com a divisória.
     pub(super) fn com_painel_dividido<'a>(&'a self, ativo: Element<'a, Msg>) -> Element<'a, Msg> {
         let Some(p) = &self.painel_dividido else { return ativo };
         let Some(indice) = self.workbook.indice_do_id(p.aba_id) else { return ativo };
         let (congelar_linhas, congelar_colunas) = self.congelados.get(&p.aba_id).copied().unwrap_or((0, 0));
         let base = self.grade();
-        // shortcut: o outro painel não mostra imagens, gráficos, tinta nem botões de macro;
-        // aparecem ao clicar nele. Desenhar as camadas lá quando alguém pedir.
         let outro = Grade {
             eixos: &p.eixos,
             aba: indice,
@@ -94,16 +119,23 @@ impl App {
             circulos_validacao: &[],
             ..base
         };
-        let outro: Element<'a, Msg> = Element::from(crate::compat::canvas(outro)
-            .width(Length::FILL).height(Length::FILL))
+        let celulas: Element<'a, Msg> = crate::compat::canvas(outro).width(Length::FILL).height(Length::FILL).into();
+        // As mesmas camadas da grade ativa, na ordem dela (a tinta por cima).
+        let vista = PainelVista { folha: indice, linha_inicio: p.linha_inicio, coluna_inicio: p.coluna_inicio, ativo: false };
+        let outro = self.tinta_sobre(self.botoes_macro_sobre(self.objetos_sobre(self.imagens_sobre(celulas, vista), vista), vista), vista)
             .map(|m| Msg::NoOutroPainel(Box::new(m)));
-        let divisoria = container(Space::new(Length::FILL, Length::Fixed(4.0)))
+        let (largura, altura) = if p.lado_a_lado { (Length::Fixed(4.0), Length::FILL) } else { (Length::FILL, Length::Fixed(4.0)) };
+        let divisoria = container(Space::new(largura, altura))
             .style(|_| pelicano::Style {
                 background: Some(pelicano::Background::Color(COR_TEXTO_MUTED().alpha(0.45))),
                 ..Default::default()
             });
-        let (cima, baixo) = if p.ativo_embaixo { (outro, ativo) } else { (ativo, outro) };
-        pelicano::column![cima, divisoria, baixo].width(Length::FILL).height(Length::FILL).into()
+        let (primeiro, segundo) = if p.ativo_embaixo { (outro, ativo) } else { (ativo, outro) };
+        if p.lado_a_lado {
+            row![primeiro, divisoria, segundo].width(Length::FILL).height(Length::FILL).into()
+        } else {
+            pelicano::column![primeiro, divisoria, segundo].width(Length::FILL).height(Length::FILL).into()
+        }
     }
 }
 
@@ -118,7 +150,7 @@ mod testes {
         let _ = app.update(Msg::Aba(0));
         app.linha_inicio = 40;
         app.trocar_selecao_por_clique(45, 2);
-        app.alternar_divisao();
+        app.alternar_divisao(false);
         // O painel de cima vai para a aba 2, linha 1.
         let _ = app.update(Msg::Aba(1));
         app.linha_inicio = 0;
@@ -131,7 +163,10 @@ mod testes {
         let p = app.painel_dividido.as_ref().unwrap();
         assert!(p.ativo_embaixo);
         assert_eq!((app.workbook.indice_do_id(p.aba_id), p.linha_inicio), (Some(1), 0));
-        app.alternar_divisao();
+        // Lado a lado muda só o sentido; o mesmo botão de novo desfaz.
+        app.alternar_divisao(true);
+        assert!(app.janela_dividida(true) && !app.janela_dividida(false));
+        app.alternar_divisao(true);
         assert!(app.painel_dividido.is_none());
     }
 }

@@ -514,6 +514,7 @@ impl App {
     /// Os gráficos da aba ativa para a camada de objetos desenhar:
     /// `(z, retângulo, svg)`. Os do `.xlsx` vêm na ordem do desenho do
     /// Excel (`_excel.z`); os criados no app ficam por cima de tudo.
+    #[cfg(test)]
     pub(in crate::app) fn graficos_da_camada(&self) -> Vec<(u64, feathersheet_io::objetos_aba::Retangulo, String)> {
         self.graficos_da_aba(self.folha)
     }

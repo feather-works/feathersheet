@@ -1178,11 +1178,13 @@ impl App {
                             self.alteracoes_painel = Some(false);
                         }
                         // FEATHERSHEET_CAPTURAR_DIVIDIR=1: janela dividida, aba 1 embaixo e aba 2 em cima (#83).
-                        if std::env::var_os("FEATHERSHEET_CAPTURAR_DIVIDIR").is_some() {
+                        // `=lado`: lado a lado, com as formas de exemplo na aba 1 (painel inativo).
+                        if let Ok(modo) = std::env::var("FEATHERSHEET_CAPTURAR_DIVIDIR") {
                             for (r, t) in [(0, "Vendas"), (1, "120"), (2, "150"), (3, "=SOMA(A2:A3)")] {
                                 self.workbook.escrever_celula(self.folha, r, 0, t.into());
                             }
-                            self.alternar_divisao();
+                            if modo == "lado" { self.preparar_captura_objetos("1"); self.faixa_ativa = AbaFaixa::Exibir; }
+                            self.alternar_divisao(modo == "lado");
                             let _ = self.update(Msg::AdicionarAba);
                             self.workbook.escrever_celula(self.folha, 0, 0, "Metas".into());
                             self.trocar_selecao(1, 1);

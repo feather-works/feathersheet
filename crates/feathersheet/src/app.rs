@@ -72,6 +72,7 @@ mod dialogo_interno;
 pub(crate) mod link_ui;
 mod congelar_ui;
 mod painel_dividido;
+use painel_dividido::PainelVista;
 mod formulas_ui;
 mod inspecao_ui;
 mod mcp_vivo;
@@ -382,7 +383,8 @@ pub enum Msg {
     /// Alterna a janela principal entre tela inteira e janela normal (F11).
     TelaInteira,
     /// Exibir ▸ Janela ▸ Dividir: liga ou desliga o segundo painel (#83).
-    Dividir,
+    /// `true`: lado a lado; `false`: um em cima do outro. O mesmo de novo desfaz.
+    Dividir(bool),
     /// Mensagem da grade do painel inativo: ele vira o ativo antes de tratá-la.
     NoOutroPainel(Box<Msg>),
     /// Arquivo > Renomear…: escolhe o novo nome e renomeia o arquivo no disco.

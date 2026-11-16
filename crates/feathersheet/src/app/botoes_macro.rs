@@ -335,22 +335,27 @@ impl App {
     pub(super) fn grade_com_botoes_macro<'a>(
         &'a self, grade: Element<'a, Msg>,
     ) -> Element<'a, Msg> {
-        let Some(aba) = self.workbook.aba(self.folha) else { return grade };
+        self.botoes_macro_sobre(grade, self.painel_ativo())
+    }
+
+    /// Os botões de macro de um painel (o ativo ou o outro da janela dividida).
+    pub(super) fn botoes_macro_sobre<'a>(&'a self, grade: Element<'a, Msg>, p: PainelVista) -> Element<'a, Msg> {
+        let Some(aba) = self.workbook.aba(p.folha) else { return grade };
         let Ok(lista) = listar(&aba.sheet) else { return grade };
         if lista.is_empty() { return grade; }
         let z = f64::from(self.config.zoom) / 100.;
-        let (fixas_r, fixas_c) = self.congelamento_atual();
+        let (fixas_r, fixas_c) = self.congelamento_de(p.folha);
         // Régua real da aba (larguras e alturas próprias), a mesma da grade.
         use crate::grade::modelo::{inicio_x, inicio_y};
-        let xf = f64::from(inicio_x(&self.workbook, self.folha, fixas_c));
-        let yf = f64::from(inicio_y(&self.workbook, self.folha, fixas_r));
-        let dx = f64::from(inicio_x(&self.workbook, self.folha, self.coluna_inicio));
-        let dy = f64::from(inicio_y(&self.workbook, self.folha, self.linha_inicio));
+        let xf = f64::from(inicio_x(&self.workbook, p.folha, fixas_c));
+        let yf = f64::from(inicio_y(&self.workbook, p.folha, fixas_r));
+        let dx = f64::from(inicio_x(&self.workbook, p.folha, p.coluna_inicio));
+        let dy = f64::from(inicio_y(&self.workbook, p.folha, p.linha_inicio));
         let mut camadas: Vec<Element<'a, Msg>> = vec![grade];
         for item in lista {
             let Some(id) = item["id"].as_str() else { continue };
             let Some(mut pos) = Posicao::ler(&item) else { continue };
-            let selecionado = self.botao_macro_selecionado.as_ref()
+            let selecionado = p.ativo && self.botao_macro_selecionado.as_ref()
                 .is_some_and(|(aba_id, escolhido)| *aba_id == aba.id && escolhido == id);
             if let Some(drag) = &self.arraste_botao_macro {
                 if drag.aba_id == aba.id && drag.id == id {

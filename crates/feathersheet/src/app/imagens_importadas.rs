@@ -3,7 +3,7 @@
 //! somente o campo `src` quando acionado explicitamente na Ribbon.
 //! Usa o bloco opaco `im` do FSHZ / ImageConfig TypeScript,
 //! sem converter imagens em valores de células.
-use super::{App, Msg};
+use super::{App, Msg, PainelVista};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use crate::compat::mouse; use pelicano::column; use pelicano::container; use pelicano::image as iced_image; use pelicano::Image; use pelicano::mouse_area; use pelicano::row; use pelicano::stack; use pelicano::Space; use pelicano::Border; use pelicano::Color; use pelicano::Element; use pelicano::Length; use pelicano::Point;
 use feathersheet_core::planilha::sheet::Sheet;
@@ -482,8 +482,12 @@ impl App {
     /// Um clique seleciona, arrastar no corpo move, e arrastar a alça ↘
     /// redimensiona preservando proporções. Não desloca Ribbon ou barra fx.
     pub(super) fn grade_com_imagens(&self) -> Element<'_, Msg> {
-        let grade = self.view_grade();
-        let Some(aba) = self.workbook.aba(self.folha) else { return grade };
+        self.imagens_sobre(self.view_grade(), self.painel_ativo())
+    }
+
+    /// As imagens da aba e da rolagem de um painel (o ativo ou o outro da janela dividida).
+    pub(super) fn imagens_sobre<'a>(&'a self, grade: Element<'a, Msg>, p: PainelVista) -> Element<'a, Msg> {
+        let Some(aba) = self.workbook.aba(p.folha) else { return grade };
         let Ok(lista) = self.itens_cached(aba.id, &aba.sheet) else { return grade };
         if lista.is_empty() {
             return grade;
@@ -492,9 +496,9 @@ impl App {
         // A primeira camada enche: a pilha das imagens ocupa a grade toda para o recorte abaixo.
         let mut camadas: Vec<Element<'_, Msg>> = vec![Space::new(Length::FILL, Length::FILL).into()];
         use crate::grade::modelo::{inicio_x_da, inicio_y_da};
-        let x_desloc = f64::from(inicio_x_da(&aba.sheet, self.coluna_inicio));
-        let y_desloc = f64::from(inicio_y_da(&aba.sheet, self.linha_inicio));
-        let (linhas_fixas, colunas_fixas) = self.congelamento_atual();
+        let x_desloc = f64::from(inicio_x_da(&aba.sheet, p.coluna_inicio));
+        let y_desloc = f64::from(inicio_y_da(&aba.sheet, p.linha_inicio));
+        let (linhas_fixas, colunas_fixas) = self.congelamento_de(p.folha);
         let faixa_fixa_x = f64::from(inicio_x_da(&aba.sheet, colunas_fixas));
         let faixa_fixa_y = f64::from(inicio_y_da(&aba.sheet, linhas_fixas));
 
@@ -512,7 +516,7 @@ impl App {
                 continue;
             };
             let Some(mut pos) = Posicao::efetiva(item, &aba.sheet) else { continue };
-            let selecionada = self.imagem_selecionada.as_ref()
+            let selecionada = p.ativo && self.imagem_selecionada.as_ref()
                 .is_some_and(|(aba_id, escolhido)| *aba_id == aba.id && escolhido == id);
             if let Some(arraste) = &self.arraste_imagem {
                 if arraste.aba_id == aba.id && arraste.id == id {

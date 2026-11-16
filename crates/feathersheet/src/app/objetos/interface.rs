@@ -134,12 +134,19 @@ impl App {
     /// A camada de objetos por cima da grade, a barra do selecionado e o
     /// campo de texto da forma em edição.
     pub(in crate::app) fn grade_com_objetos<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
-        let Some(vista) = self.vista_tinta() else { return base };
-        let Some(aba) = self.workbook.aba(self.folha) else { return base };
-        let Some((aba_id, lidos)) = self.objetos_da_aba() else { return base };
-        let graficos: Vec<super::camada::GraficoTela> = self.graficos_da_camada().into_iter()
+        self.objetos_sobre(base, self.painel_ativo())
+    }
+
+    /// Formas e gráficos de um painel. No outro painel da janela dividida (#83) só desenha:
+    /// sem seleção, inserção nem edição de texto (o clique o torna o ativo).
+    pub(in crate::app) fn objetos_sobre<'a>(&'a self, base: Element<'a, Msg>, p: PainelVista) -> Element<'a, Msg> {
+        let Some(vista) = self.vista_de(p) else { return base };
+        let Some(aba) = self.workbook.aba(p.folha) else { return base };
+        let Some((aba_id, lidos)) = self.objetos_de(p.folha) else { return base };
+        let inserir = if p.ativo { self.objetos.inserir } else { None };
+        let graficos: Vec<super::camada::GraficoTela> = self.graficos_da_aba(p.folha).into_iter()
             .map(|(z, ret, svg)| super::camada::GraficoTela::novo(z, ret, svg)).collect();
-        if lidos.objetos.is_empty() && self.objetos.inserir.is_none() && graficos.is_empty() {
+        if lidos.objetos.is_empty() && inserir.is_none() && graficos.is_empty() {
             return base;
         }
         let regua = ReguaAba(&aba.sheet);
@@ -154,12 +161,12 @@ impl App {
                 it.controle = self.controle_tela(o, &opcoes, o.retangulo(&regua).altura);
             }
             if let Some(corpo) = it.texto.as_deref().and_then(|t| t.strip_prefix('=')).filter(|c| !c.trim().is_empty()) {
-                it.texto = Some(self.texto_de_formula_da_forma(corpo));
+                it.texto = Some(self.texto_de_formula_da_forma(p.folha, corpo));
             }
         }
-        let selecionado = self.objetos.selecionado.filter(|(a, id)| *a == aba_id && lidos.obter(*id).is_some()).map(|(_, id)| id);
+        let selecionado = self.objetos.selecionado.filter(|(a, id)| p.ativo && *a == aba_id && lidos.obter(*id).is_some()).map(|(_, id)| id);
         let editando = self.objetos.texto.as_ref().map(|(id, _)| *id).filter(|id| selecionado == Some(*id));
-        let camada = Camada { itens, graficos, selecionado, inserir: self.objetos.inserir, vista, travar: self.objetos.travar, editando };
+        let camada = Camada { itens, graficos, selecionado, inserir, vista, travar: self.objetos.travar, editando };
         let tela = selecionado.and_then(|id| camada.itens.iter().find(|i| i.id == id)).map(|it| camada.ret_tela(it.ret));
         let giro = selecionado.and_then(|id| camada.itens.iter().find(|i| i.id == id)).map_or(0.0, |i| i.giro);
         let item_editado = editando.and_then(|id| camada.itens.iter().find(|i| i.id == id)).cloned();
@@ -225,18 +232,18 @@ impl App {
     }
 
     /// O resultado da fórmula do texto de uma forma, já formatado.
-    fn texto_de_formula_da_forma(&self, corpo: &str) -> String {
+    fn texto_de_formula_da_forma(&self, folha: usize, corpo: &str) -> String {
         use feathersheet_core::{formula::ast::Node, planilha::bloco::texto_formatado};
         let Ok(no) = feathersheet_core::formula::parser::parse_formula(corpo) else {
             return "#NOME?".into();
         };
         if let Node::Ref { row, col, sheet } = &no {
-            let indice = sheet.as_deref().map_or(Some(self.folha), |n| self.workbook.indice_por_nome(n));
+            let indice = sheet.as_deref().map_or(Some(folha), |n| self.workbook.indice_por_nome(n));
             let Some(indice) = indice else { return "#REF!".into() };
             let estilo = self.workbook.aba(indice).and_then(|a| a.sheet.get_style(*row, *col));
             return texto_formatado(&self.workbook.valor(indice, *row, *col), estilo);
         }
-        texto_formatado(&self.workbook.avaliar_em(self.folha, 0, 0, &no), None)
+        texto_formatado(&self.workbook.avaliar_em(folha, 0, 0, &no), None)
     }
 
     /// Barra flutuante do objeto selecionado.

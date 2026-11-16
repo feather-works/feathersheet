@@ -57,7 +57,7 @@ Help menu, under *What's new*).
 
 ### Coming in the next version
 
-- **Split window** (View → Window → Split, #83): two panes, one above the other, each with its own sheet and scrolling. Click a pane to work in it.
+- **Split window** (View → Window → Split or Side by side, #83): two panes, one above the other or next to each other, each with its own sheet and scrolling, pictures, shapes, charts and buttons included. Click a pane to work in it.
 
 ### New in v0.3.3
 

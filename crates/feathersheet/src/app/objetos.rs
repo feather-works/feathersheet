@@ -393,8 +393,17 @@ fn numero(t: &str) -> Option<f32> {
 impl App {
     /// Objetos da aba ativa (lidos uma vez por versão do texto `ob`).
     fn objetos_da_aba(&self) -> Option<(u32, Arc<ObjetosAba>)> {
-        let aba = self.workbook.aba(self.folha)?;
+        self.objetos_de(self.folha)
+    }
+
+    /// Objetos de uma aba qualquer; só a ativa fica no cache.
+    // shortcut: a aba do outro painel (#83) é relida a cada quadro; guardar um segundo cache se pesar.
+    pub(super) fn objetos_de(&self, folha: usize) -> Option<(u32, Arc<ObjetosAba>)> {
+        let aba = self.workbook.aba(folha)?;
         let Some(texto) = aba.sheet.ob.as_deref() else { return Some((aba.id, Arc::new(ObjetosAba::default()))) };
+        if folha != self.folha {
+            return Some((aba.id, Arc::new(ObjetosAba::ler(Some(texto)).unwrap_or_default())));
+        }
         let chave = (aba.id, texto.as_ptr() as usize, texto.len());
         if let Some((id, ptr, len, lidos)) = self.objetos.cache.borrow().as_ref() {
             if (*id, *ptr, *len) == chave {

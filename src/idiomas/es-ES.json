@@ -88,7 +88,7 @@
      "• Formato condicional (Inicio → Condicional): colorea celdas según una regla — mayor que, contiene texto, duplicados, fórmula personalizada, escala de color y barra de datos.",
      "• Colores alternados (Inicio → Estilos) rayan las filas; Estilos de celda aplica un estilo listo.",
      "• Inmovilizar (Mostrar → Inmovilizar) mantiene las primeras filas o columnas fijas mientras se desplaza.",
-     "• Dividir ventana (Mostrar → Ventana) muestra dos paneles, uno encima del otro, cada uno con su hoja y su desplazamiento. Haga clic en un panel para usarlo y elija su hoja abajo; vuelva a pulsar el botón para quedarse con un solo panel."
+     "• Dividir ventana (Mostrar → Ventana) muestra dos paneles, uno encima del otro (En paralelo: uno al lado del otro), cada uno con su hoja y su desplazamiento, con las imágenes, formas, gráficos y botones de esa hoja. Haga clic en un panel para usarlo y elija su hoja abajo; vuelva a pulsar el mismo botón para quedarse con un solo panel."
     ]
    },
    "tabelas": {

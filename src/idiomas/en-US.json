@@ -88,7 +88,7 @@
           "• Conditional formatting (Home → Conditional): colors cells by rule — greater than, contains text, duplicates, custom formula, color scale and data bar.",
           "• Banded colors (Home → Styles) stripes the rows; Cell styles applies a ready-made style.",
           "• Freeze (View → Freeze) keeps the first rows or columns in place while you scroll.",
-          "• Split (View → Window) shows two panes, one above the other, each with its own sheet and scrolling. Click a pane to use it and pick its sheet at the bottom; click the button again to go back to one pane."
+          "• Split (View → Window) shows two panes, one above the other (Side by side: next to each other), each with its own sheet and scrolling, including that sheet's pictures, shapes, charts and buttons. Click a pane to use it and pick its sheet at the bottom; click the same button again to go back to one pane."
         ]
       },
       "tabelas": {
