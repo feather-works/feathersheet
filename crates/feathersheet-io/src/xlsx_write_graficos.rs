@@ -949,16 +949,23 @@ fn reserva_classica(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia) -> String 
     chart_space(&plot, ap, &[0], cfg.plot_vis_only)
 }
 
-fn cx_texto(t: &Textos) -> String {
+/// O Excel só aceita no `cx:f` um nome oculto `_xlchart.v1.N`, nunca o intervalo direto: com
+/// o intervalo, ele descarta o desenho inteiro da aba (#27). Guarda o intervalo em `nomes`.
+fn nome_xlchart(f: &str, nomes: &mut Vec<String>) -> String {
+    nomes.push(f.to_string());
+    format!("_xlchart.v1.{}", nomes.len() - 1)
+}
+
+fn cx_texto(t: &Textos, nomes: &mut Vec<String>) -> String {
     let nome = escape_xml(t.v.first().map(String::as_str).unwrap_or(""));
     match &t.f {
-        Some(f) => format!("<cx:tx><cx:txData><cx:f>{}</cx:f><cx:v>{nome}</cx:v></cx:txData></cx:tx>", escape_xml(f)),
+        Some(f) => format!("<cx:tx><cx:txData><cx:f>{}</cx:f><cx:v>{nome}</cx:v></cx:txData></cx:tx>", nome_xlchart(f, nomes)),
         None => format!("<cx:tx><cx:txData><cx:v>{nome}</cx:v></cx:txData></cx:tx>"),
     }
 }
 
 /// O `cx:chartSpace` (Office 2016) da cascata ou do histograma.
-fn grafico_ex(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia) -> String {
+fn grafico_ex(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia, nomes: &mut Vec<String>) -> String {
     let mut o = format!("{XML_DECL}<cx:chartSpace xmlns:a=\"{NS_A}\" xmlns:r=\"{NS_R}\" xmlns:cx=\"{NS_CX}\"><cx:chartData><cx:data id=\"0\">");
     let vazia = Serie { nome: Textos::default(), val: Numeros::default(), cor: "#2563eb".into(), invisivel: false };
     let s = ex.series.first().unwrap_or(&vazia);
@@ -967,7 +974,7 @@ fn grafico_ex(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia) -> String {
         if let Some(c) = &ex.cats {
             o.push_str("<cx:strDim type=\"cat\">");
             if let Some(f) = &c.f {
-                let _ = write!(o, "<cx:f>{}</cx:f>", escape_xml(f));
+                let _ = write!(o, "<cx:f>{}</cx:f>", nome_xlchart(f, nomes));
             }
             let _ = write!(o, "<cx:lvl ptCount=\"{}\">", c.v.len());
             for (i, v) in c.v.iter().enumerate() {
@@ -978,7 +985,7 @@ fn grafico_ex(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia) -> String {
     }
     o.push_str("<cx:numDim type=\"val\">");
     if let Some(f) = &s.val.f {
-        let _ = write!(o, "<cx:f>{}</cx:f>", escape_xml(f));
+        let _ = write!(o, "<cx:f>{}</cx:f>", nome_xlchart(f, nomes));
     }
     let _ = write!(o, "<cx:lvl ptCount=\"{}\" formatCode=\"General\">", s.val.v.len());
     for (i, v) in s.val.v.iter().enumerate() {
@@ -996,7 +1003,7 @@ fn grafico_ex(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia) -> String {
     }
     let layout = if histograma { "clusteredColumn" } else { "waterfall" };
     let _ = write!(o, "<cx:plotArea><cx:plotAreaRegion><cx:series layoutId=\"{layout}\" uniqueId=\"{{00000000-0000-4000-8000-000000000001}}\">");
-    o.push_str(&cx_texto(&s.nome));
+    o.push_str(&cx_texto(&s.nome, nomes));
     let _ = write!(o, "<cx:spPr>{}</cx:spPr>", preenchimento(&s.cor));
     if ap.rotulos {
         o.push_str("<cx:dataLabels pos=\"outEnd\"><cx:visibility seriesName=\"0\" categoryName=\"0\" value=\"1\"/></cx:dataLabels>");
@@ -1081,8 +1088,9 @@ fn graficos_da_aba(sheet: &Sheet) -> Vec<serde_json::Value> {
 
 /// O desenho da aba `aba` (0-based): os gráficos dela mais a tinta (já em
 /// `tinta`, o `drawingN.xml` pronto). `contador` numera as partes dos
-/// gráficos na pasta inteira. `None` quando a aba não tem nada a desenhar.
-pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>, contador: &mut usize) -> Option<DesenhoAba> {
+/// gráficos na pasta inteira; `nomes` junta os intervalos dos `_xlchart.v1.N` da pasta inteira.
+/// `None` quando a aba não tem nada a desenhar.
+pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>, contador: &mut usize, nomes: &mut Vec<String>) -> Option<DesenhoAba> {
     let viva = pasta.aba(aba)?;
     let sheet = &viva.sheet;
     let lista = graficos_da_aba(sheet);
@@ -1137,7 +1145,7 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
                 rels,
                 "<Relationship Id=\"{rid}\" Type=\"{REL_GRAFICO_EX}\" Target=\"../charts/chartEx{n}.xml\"/><Relationship Id=\"{rid_reserva}\" Type=\"{REL_GRAFICO}\" Target=\"../charts/reserva{n}.xml\"/>"
             );
-            partes.push(ParteGrafico { caminho: format!("xl/charts/chartEx{n}.xml"), xml: grafico_ex(&cfg, &ex, &ap), tipo: TIPO_GRAFICO_EX });
+            partes.push(ParteGrafico { caminho: format!("xl/charts/chartEx{n}.xml"), xml: grafico_ex(&cfg, &ex, &ap, nomes), tipo: TIPO_GRAFICO_EX });
             partes.push(ParteGrafico { caminho: format!("xl/charts/reserva{n}.xml"), xml: reserva_classica(&cfg, &ex, &ap), tipo: TIPO_GRAFICO });
         } else {
             ancoras.push_str(&quadro(id_forma, &nome, NS_C, "<c:chart", &rid));
@@ -1224,7 +1232,7 @@ mod testes {
     fn referencias_e_cache_das_series() {
         let wb = pasta_com_graficos(&["column"]);
         let mut n = 0;
-        let d = desenho_da_aba(&wb, 0, None, &mut n).unwrap();
+        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new()).unwrap();
         let g = &d.partes[0].xml;
         assert!(g.contains("<c:f>'Dados e Gráficos'!$A$2:$A$5</c:f>"), "{g}");
         assert!(g.contains("<c:f>'Dados e Gráficos'!$B$1</c:f>"));
@@ -1246,7 +1254,7 @@ mod testes {
         ];
         let wb = pasta_com_graficos(&tipos);
         let mut n = 0;
-        let d = desenho_da_aba(&wb, 0, None, &mut n).unwrap();
+        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new()).unwrap();
         bem_formado(&d.xml);
         bem_formado(d.rels.as_deref().unwrap());
         // 26 gráficos; cascata e histograma levam chartEx + reserva.
@@ -1287,7 +1295,7 @@ mod testes {
             s.g = Some(serde_json::to_string(&lista).unwrap());
         });
         let mut n = 0;
-        let d = desenho_da_aba(&wb, 0, None, &mut n).unwrap();
+        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new()).unwrap();
         let rosca = &d.partes[0].xml;
         bem_formado(rosca);
         assert!(rosca.contains("<c:doughnutChart><c:varyColors val=\"1\"/>"), "{rosca}");
@@ -1327,6 +1335,12 @@ mod testes {
         assert!(nome("xl/worksheets/sheet1.xml").unwrap().contains("<drawing r:id=\"rIdTinta\"/>"));
         assert!(nome("xl/worksheets/_rels/sheet1.xml.rels").unwrap().contains("../drawings/drawing1.xml"));
         assert!(nome("xl/drawings/_rels/drawing1.xml.rels").unwrap().contains("../charts/chart1.xml"));
+        // #27: o chartEx aponta para nomes ocultos `_xlchart.v1.N`, nunca para o intervalo.
+        let cascata = nome("xl/charts/chartEx8.xml").unwrap();
+        assert!(cascata.contains("<cx:f>_xlchart.v1.0</cx:f>") && !cascata.contains("$"), "{cascata}");
+        let livro = nome("xl/workbook.xml").unwrap();
+        assert!(livro.contains("<definedName name=\"_xlchart.v1.0\" hidden=\"1\">"), "{livro}");
+        assert!(livro.contains("<definedName name=\"_xlchart.v1.4\" hidden=\"1\">"), "cascata (3) + histograma (2): {livro}");
 
         let bytes = crate::xlsx_write::gerar_xlsx(&wb).unwrap();
         let (volta, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();

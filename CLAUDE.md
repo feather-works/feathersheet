@@ -37,6 +37,14 @@ Novidades: "Fórmulas mais fiéis ao Excel: célula vazia vale 0, curingas e cri
 "Links para outra aba do .xlsx funcionam e voltam para o Excel; no Inserir link, #Aba!A1 leva a uma célula da pasta."
 "Cursor da IA na tela: liga e desliga em Configurações ▸ IA (MCP)."
 
+**Cascata e histograma no `.xlsx` (#27, 16/11).** O Excel descartava o desenho inteiro da aba ("Parte removida:
+drawingN.xml") porque o `cx:f` do `chartExN.xml` levava o intervalo direto (`'Aba'!$A$1:$A$5`); o Excel só aceita ali
+um nome oculto `_xlchart.v1.N` (conferido num `.xlsx` gravado pelo Excel 16, que usa `_xlchart.v5.N`). Agora
+`xlsx_write_graficos::nome_xlchart` junta os intervalos da pasta inteira e o `workbook.xml` declara cada um com
+`hidden="1"`; o leitor já resolvia esses nomes. **Sem conferir num Excel de verdade.** Diferenças que ficaram (o
+Excel grava, nós não): `style`/`colors` do chartEx e a reserva como forma de texto em vez de gráfico clássico.
+Novidade: "Gráficos de cascata e histograma salvos em .xlsx abrem no Excel sem sumir o desenho da aba."
+
 **FeatherQuery: renomear consulta (#93, 13/11).** Lápis na lista de consultas abre o campo do nome
 (`Evento::PedirRenomear`, `Estado::renomeando`); `registro::renomear` recusa vazio e repetido e troca o
 `Consulta: nome` em todo registro que lê a renomeada (origem, fontes extras, `fonte` das etapas). Pastas

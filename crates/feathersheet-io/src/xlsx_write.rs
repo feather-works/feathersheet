@@ -1706,6 +1706,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     // Gráficos (`xl/charts/…`), no mesmo desenho da aba: `xlsx_write_graficos`.
     let mut partes_graficos: Vec<crate::xlsx_write_graficos::ParteGrafico> = Vec::new();
     let mut contador_graficos = 0usize;
+    let mut nomes_graficos = Vec::new();
     let mut midias: Vec<(String, Vec<u8>)> = Vec::new();
     // Comentários: `xl/commentsN.xml` + `xl/drawings/vmlDrawingN.vml`.
     // (aba, (notas, VML)): as notas e os controles de formulário dividem o mesmo VML.
@@ -1730,7 +1731,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         }
         let tn = pasta.aba(i).and_then(|a| a.sheet.tn.as_deref());
         let tinta = crate::tinta_aba::desenho_xlsx(tn);
-        if let Some(desenho) = crate::xlsx_write_graficos::desenho_da_aba(pasta, i, tinta, &mut contador_graficos) {
+        if let Some(desenho) = crate::xlsx_write_graficos::desenho_da_aba(pasta, i, tinta, &mut contador_graficos, &mut nomes_graficos) {
             // `drawing` vem depois de `hyperlinks` no CT_Worksheet.
             if let Some(fim) = xml.rfind("</worksheet>") {
                 xml.insert_str(fim, "<drawing r:id=\"rIdTinta\"/>");
@@ -1839,7 +1840,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         .and_then(|s| nomes_das_abas.iter().position(|n| n.eq_ignore_ascii_case(s))).unwrap_or(0);
     let nomeados: Vec<_> = nomeados.into_iter().filter(|nm| !de_pagina.iter()
         .any(|(i, nome, _)| nm.nome.eq_ignore_ascii_case(nome) && aba_do_nome(nm) == *i)).collect();
-    let nomes_definidos = if nomeados.is_empty() && de_pagina.is_empty() {
+    let nomes_definidos = if nomeados.is_empty() && de_pagina.is_empty() && nomes_graficos.is_empty() {
         String::new()
     } else {
         let primeira = nomes_das_abas.first().cloned().unwrap_or_else(|| "Planilha1".to_string());
@@ -1869,6 +1870,9 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
             })
             .chain(de_pagina.iter().map(|(i, nome, texto)| {
                 format!("<definedName name=\"{nome}\" localSheetId=\"{i}\">{}</definedName>", escape_xml(texto))
+            }))
+            .chain(nomes_graficos.iter().enumerate().map(|(i, f)| {
+                format!("<definedName name=\"_xlchart.v1.{i}\" hidden=\"1\">{}</definedName>", escape_xml(f))
             }))
             .collect();
         format!("<definedNames>{itens}</definedNames>")
