@@ -84,11 +84,11 @@ Novidade: "Colar especial com Colar vínculo, Comentários e Validação, como n
 **Inspecionar documento (19/11).** ☰ Menu ▸ Informações, acima das propriedades (`app/inspetor_documento.rs`,
 `Msg::InspetorDocumento`): no clique (não a cada quadro) lista comentários, dados pessoais, abas ocultas, linhas/colunas
 ocultas, nomes, vínculos externos (`areas_citadas`) e macros/VBA. Remove só o que é seguro: comentários (um Ctrl+Z por
-aba, `shortcut:`) e dados pessoais (limpa autor, modificado por, empresa e gerente e liga
+aba, `shortcut:`) e dados pessoais (limpa autor, modificado por, empresa, gerente e o autor de cada comentário, e liga
 `Propriedades::sem_dados_pessoais`, que faz `carimbar_propriedades` não pôr o nome de volta; "Voltar a gravar" desliga).
 A marca vai no `.fshz` (`pr.semDadosPessoais`) e no `.xlsx` (`<workbookPr removePersonalInformation="1"/>`, junto do
-`codeName` no `.xlsm`, um `workbookPr` só). Abas e linhas ocultas são só apontadas (Reexibir… abre o diálogo existente).
-**Limite:** o autor de cada comentário fica. Testes `inspetor_documento::tests`,
+`codeName` no `.xlsm`, um `workbookPr` só); com ela, comentário novo nasce sem autor. Abas e linhas ocultas são só
+apontadas (Reexibir… abre o diálogo existente). Testes `inspetor_documento::tests`,
 `testes_sem_dados_pessoais`; foto `FEATHERSHEET_CAPTURAR_JANELA=informacoes` conferida. Novidade: "Menu ▸ Informações ▸
 Inspecionar documento: veja comentários, seu nome, abas ocultas e vínculos antes de mandar a planilha, e remova o que não
 deve ir."

@@ -146,8 +146,18 @@ impl App {
                 p.organizacao.clear();
                 p.gerente.clear();
                 p.sem_dados_pessoais = true;
+                // O nome de quem escreveu cada comentário também sai (um Ctrl+Z por aba); o texto fica.
+                for i in 0..self.workbook.len() {
+                    if !self.workbook.aba(i).is_some_and(|a| a.sheet.comentarios.values().any(|c| !c.autor.is_empty())) { continue; }
+                    self.workbook.editar(i, |s| {
+                        let com_nome: Vec<((u32, u32), feathersheet_core::planilha::sheet::comentarios::Comentario)> = s.comentarios.iter()
+                            .filter(|(_, c)| !c.autor.is_empty()).map(|(&k, c)| (k, c.clone())).collect();
+                        s.abrir_transacao();
+                        for ((r, c), mut nota) in com_nome { nota.autor.clear(); s.definir_comentario(r, c, Some(nota)); }
+                        s.fechar_transacao();
+                    });
+                }
                 self.alterado = true;
-                // shortcut: o nome de quem escreveu cada comentário fica; "Remover todos" acima tira os comentários.
                 self.status = tr!("Dados pessoais removidos. Ao salvar, seu nome não entra neste arquivo.").into();
             }
             Evento::GravarDadosPessoais => {
@@ -208,6 +218,8 @@ mod tests {
         assert_eq!(app.workbook.aba(0).unwrap().sheet.comentarios.len(), 1, "Ctrl+Z traz de volta");
 
         let _ = app.update(Msg::InspetorDocumento(Evento::RemoverDadosPessoais));
+        let nota = app.workbook.aba(0).unwrap().sheet.comentario(2, 1).cloned().unwrap();
+        assert_eq!((nota.autor.as_str(), nota.texto.as_str()), ("", "ver"), "o nome sai, o texto fica");
         app.carimbar_propriedades();
         let p = &app.workbook.propriedades;
         assert!(p.autor.is_empty() && p.modificado_por.is_empty() && p.organizacao.is_empty(), "{p:?}");

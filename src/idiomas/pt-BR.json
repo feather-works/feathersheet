@@ -224,7 +224,7 @@
           "Tudo roda na sua máquina: sem conta, sem login, nada do seu conteúdo sai dela.",
           "Configurações ▸ Salvar planilha nova como .xlsx: o Salvar como… já sugere o formato do Excel.",
           "☰ Menu ▸ Informações ▸ Propriedades: título, assunto, autor, gerente, empresa, categoria, palavras-chave e comentários da planilha, como no Excel. Vão no .fshz e no .xlsx ao salvar; criado em, modificado em e modificado por são preenchidos sozinhos.",
-          "☰ Menu ▸ Informações ▸ Inspecionar documento: antes de mandar a planilha para alguém, mostra o que vai junto sem estar à vista (comentários, seu nome e empresa, abas, linhas e colunas ocultas, nomes, vínculos com outros arquivos e macros). Remover todos tira os comentários (Ctrl+Z desfaz); Remover dados pessoais faz o arquivo ser salvo sem autor, modificado por e empresa."
+          "☰ Menu ▸ Informações ▸ Inspecionar documento: antes de mandar a planilha para alguém, mostra o que vai junto sem estar à vista (comentários, seu nome e empresa, abas, linhas e colunas ocultas, nomes, vínculos com outros arquivos e macros). Remover todos tira os comentários (Ctrl+Z desfaz); Remover dados pessoais faz o arquivo ser salvo sem autor, modificado por, empresa e o nome de quem escreveu cada comentário."
         ]
       },
       "config": {

@@ -81,7 +81,9 @@ impl App {
     fn abrir_editor_comentario(&mut self) -> Task<Msg> {
         if !self.confirmar() { return Task::none(); }
         let existente = self.comentario_ativo().cloned();
-        let autor = existente.as_ref().map(|c| c.autor.clone()).unwrap_or_else(|| self.autor());
+        // Pasta com "Remover dados pessoais": comentário novo nasce sem nome, como no Excel.
+        let autor = existente.as_ref().map(|c| c.autor.clone()).unwrap_or_else(||
+            if self.workbook.propriedades.sem_dados_pessoais { String::new() } else { self.autor() });
         self.comentario_editor = Some(Estado {
             folha: self.folha, linha: self.linha, coluna: self.coluna, autor,
             conteudo: Content::with_text(existente.as_ref().map_or("", |c| c.texto.as_str())),

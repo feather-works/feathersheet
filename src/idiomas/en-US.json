@@ -224,7 +224,7 @@
           "Everything runs on your machine: no account, no login, none of your content leaves it.",
           "Settings ▸ Save new workbooks as .xlsx: Save as… suggests the Excel format.",
           "☰ Menu ▸ Info ▸ Properties: the workbook's title, subject, author, manager, company, category, tags and comments, as in Excel. Saved in .fshz and .xlsx; created, last modified and last modified by are filled in automatically.",
-          "☰ Menu ▸ Info ▸ Inspect document: before sending the workbook to someone, shows what goes along without being visible (comments, your name and company, hidden sheets, rows and columns, names, links to other files and macros). Remove all deletes the comments (Ctrl+Z undoes); Remove personal data saves the file without author, last modified by and company."
+          "☰ Menu ▸ Info ▸ Inspect document: before sending the workbook to someone, shows what goes along without being visible (comments, your name and company, hidden sheets, rows and columns, names, links to other files and macros). Remove all deletes the comments (Ctrl+Z undoes); Remove personal data saves the file without author, last modified by, company and the name of who wrote each comment."
         ]
       },
       "config": {

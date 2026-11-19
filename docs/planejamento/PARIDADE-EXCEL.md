@@ -640,7 +640,7 @@ Faltando:
 - [~] Histórico de versões: o formato `.fshz` prevê Git embutido (`FORMATO.md`); no FeatherSheet ainda não está ligado. Falta "Mostrar alterações".
 - [ ] Controlar alterações (legado) e comparar/mesclar pastas.
 - [~] Proteção (`28f11abe`): Proteger planilha com senha (hash SHA-512 do Excel) e as 15 permissões, célula bloqueada e fórmula oculta valendo, Bloquear célula no Formatar ▾; gravado no `.fshz` e no `.xlsx` (`sheetProtection`, `<protection>` do estilo) (14/10). A ação proibida é recusada ou desfeita na hora. Intervalos protegidos por senha só guardados no arquivo. Falta: permitir edição de intervalos, proteger estrutura, criptografia do arquivo com senha, assinatura digital, marcar como final.
-- [~] Inspetor de documento (19/11, ☰ Menu ▸ Informações): aponta comentários, dados pessoais, abas/linhas/colunas ocultas, nomes, vínculos externos e macros; remove comentários e dados pessoais (gravado como `removePersonalInformation` no `.xlsx`). Falta: tirar o autor de cada comentário, cabeçalho/rodapé, objetos invisíveis e XML personalizado.
+- [~] Inspetor de documento (19/11, ☰ Menu ▸ Informações): aponta comentários, dados pessoais, abas/linhas/colunas ocultas, nomes, vínculos externos e macros; remove comentários e dados pessoais (gravado como `removePersonalInformation` no `.xlsx`). Falta: cabeçalho/rodapé, objetos invisíveis e XML personalizado.
 
 ## 12. Desenho à tinta e dispositivos
 
