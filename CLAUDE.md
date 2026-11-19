@@ -18,7 +18,8 @@ edição; recusa = nada muda) e repassa a mensagem; com fórmula aberta o clique
 Os painéis não mudam de lugar (`ativo_embaixo`: o ativo é o segundo, embaixo ou à direita). **Não feito:**
 divisão em quatro; Nova janela, Organizar tudo e Alternar janelas.
 Teste: `painel_dividido::testes`. Foto: `FEATHERSHEET_CAPTURAR_DIVIDIR=1` (em cima/embaixo) e `=lado` (lado a
-lado, com as formas de exemplo no painel inativo).
+lado, com as formas de exemplo no painel inativo). "Lado a lado" é botão grande (ícone + rótulo) como os vizinhos
+do grupo Janela (19/11; antes saía como botão pequeno solto, conferido por foto `FEATHERSHEET_CAPTURAR_FAIXA=exibir`).
 Novidade: "Dividir janela (Exibir ▸ Janela): duas abas à vista, uma em cima da outra ou lado a lado, cada uma com
 a sua rolagem, imagens e gráficos."
 

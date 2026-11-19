@@ -436,9 +436,7 @@ impl App {
                     self.faixa_grande(if self.tela_inteira { tr!("Sair tela inteira") } else { tr!("Tela inteira") },
                         "arrows-maximize", Some(Msg::TelaInteira), self.tela_inteira),
                     self.faixa_grande(tr!("Dividir janela"), "layout-align-middle", Some(Msg::Dividir(false)), self.janela_dividida(false)),
-                    self.faixa_pilha(vec![
-                        self.faixa_pequeno(tr!("Lado a lado"), "layout-columns", Some(Msg::Dividir(true)), self.janela_dividida(true)),
-                    ]),
+                    self.faixa_grande(tr!("Lado a lado"), "layout-columns", Some(Msg::Dividir(true)), self.janela_dividida(true)),
                     self.faixa_grande(tr!("Modo micro"), "layout-rows", Some(Msg::FaixaMicro), self.config.faixa_micro),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Zoom"), self.faixa_linha(vec![
