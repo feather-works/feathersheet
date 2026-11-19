@@ -101,7 +101,7 @@ fn figuras_da_aba(sheet: &Sheet, contador: &mut usize) -> (String, String, Vec<(
             (Some(de), Some(ate)) => (ponto(&de), ponto(&ate)),
             _ => ancora_xml(sheet, &item["position"]),
         };
-        todas.push((src.to_owned(), de, ate, None, 0.0, None));
+        todas.push((src.to_owned(), de, ate, None, 0.0, item["alt"].as_str().map(str::trim).filter(|t| !t.is_empty()).map(str::to_owned)));
     }
     for (k, (src, de, ate, recorte, giro, alt)) in todas.iter().enumerate() {
         let Some((cabeca, dados)) = src.split_once(";base64,") else { continue };

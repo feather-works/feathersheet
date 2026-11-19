@@ -84,7 +84,7 @@ Novidade: "Colar especial com Colar vínculo, Comentários e Validação, como n
 **Texto alternativo nas imagens (19/11).** Botão direito na imagem ▸ Texto alternativo… (`Evento::TextoAlt*`, diálogo
 `dialogo_texto_alt`, estado `EstadoObjetos::texto_alt`). Fica em `ImagemObjeto::texto_alt` (aparado; em branco = `None`),
 vira `descr` no `cNvPr` do `xdr:pic` e é lido de volta (`desenho_objetos.rs`). Um Ctrl+Z. Só imagens: formas e
-gráficos não (gráfico tem o seu no painel; controle no Formatar controle); as imagens antigas do `im` não têm.
+gráficos não (gráfico tem o seu no painel; controle no Formatar controle). A imagem inserida no app (bloco `im`) tem o campo no painel Formatar imagem (`Evento::TextoAlt`, chave `alt`, grava a cada tecla).
 Testes `texto_alternativo_da_imagem` e `imagens_da_aba_vao_para_o_desenho_e_voltam`. Novidade: "Texto alternativo nas
 imagens, para leitores de tela."
 

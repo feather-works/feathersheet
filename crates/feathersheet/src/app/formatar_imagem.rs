@@ -36,6 +36,8 @@ pub enum Evento {
     Posicionamento(Posicionamento),
     Imprimir(bool),
     Bloqueado(bool),
+    /// Texto alternativo (lido por leitores de tela); vazio tira.
+    TextoAlt(String),
 }
 
 #[derive(Debug, Default)]
@@ -60,6 +62,7 @@ struct Medidas {
     posicionamento: Posicionamento,
     imprimir: bool,
     bloqueado: bool,
+    alt: String,
 }
 
 fn base_da_escala(item: &Value, original: Option<(u32, u32)>, relativo: bool) -> (f64, f64) {
@@ -82,6 +85,7 @@ impl Medidas {
             posicionamento: Posicionamento::de(item),
             imprimir: item["print"].as_bool().unwrap_or(true),
             bloqueado: item["locked"].as_bool().unwrap_or(true),
+            alt: item["alt"].as_str().unwrap_or_default().to_owned(),
         })
     }
 
@@ -211,6 +215,12 @@ impl App {
                 item["locked"] = json!(v);
                 true
             }),
+            // shortcut: grava a cada tecla (nada se perde ao clicar fora), então o Ctrl+Z volta letra a letra.
+            Evento::TextoAlt(t) => self.mudar_imagem(tr!("Texto alternativo da imagem alterado."), move |item, _| {
+                let Some(o) = item.as_object_mut() else { return false };
+                if t.trim().is_empty() { o.remove("alt"); } else { o.insert("alt".into(), json!(t)); }
+                true
+            }),
         }
         pelicano::Task::none()
     }
@@ -327,7 +337,12 @@ impl App {
                 corpo = corpo
                     .push(marca(tr!("Imprimir objeto"), m.imprimir, Evento::Imprimir))
                     .push(marca(tr!("Bloqueado"), m.bloqueado, Evento::Bloqueado))
-                    .push(text(tr!("Bloqueada, a imagem não se move com a planilha protegida.")).size(11).color(COR_TEXTO_MUTED()));
+                    .push(text(tr!("Bloqueada, a imagem não se move com a planilha protegida.")).size(11).color(COR_TEXTO_MUTED()))
+                    .push(divisor())
+                    .push(secao(tr!("Texto alternativo")))
+                    .push(pelicano::text_input(tr!("Ex.: logotipo da empresa"), m.alt.clone()).size(12).padding([5, 8])
+                        .on_input(move |s| ev(Evento::TextoAlt(s))))
+                    .push(text(tr!("Descreva a imagem para quem usa leitor de tela. Deixe em branco se ela for só decoração.")).size(11).color(COR_TEXTO_MUTED()));
             }
         }
         container(feather_ui::tema::rolagem(corpo).height(Length::FILL))
@@ -422,5 +437,16 @@ mod testes {
         let _ = app.update(Msg::FormatarImagem(Evento::Abrir));
         assert!(app.formatar_imagem.aberto);
         assert!(!app.graficos.aberto, "só um painel lateral por vez");
+    }
+
+    #[test]
+    fn texto_alternativo_grava_no_item_e_vazio_tira() {
+        let (mut app, _) = com_imagem();
+        let _ = app.evento_formatar_imagem(Evento::TextoAlt("Logo".into()));
+        assert_eq!(medidas(&app).alt, "Logo");
+        let _ = app.evento_formatar_imagem(Evento::TextoAlt("  ".into()));
+        assert_eq!(medidas(&app).alt, "");
+        app.workbook.aba_mut(0).unwrap().sheet.undo();
+        assert_eq!(medidas(&app).alt, "Logo", "Ctrl+Z volta");
     }
 }

@@ -2325,7 +2325,7 @@ mod testes {
         figura.imagem = Some(ImagemObjeto { src: png.into(), duotom: None, recorte: None, texto_alt: Some("Logo <da> firma".into()) });
         let lista = ObjetosAba { objetos: vec![figura], ..Default::default() };
         let colada = serde_json::json!([{"id": "a", "src": png, "position": {"x": 10, "y": 10, "width": 40, "height": 40},
-            "de": {"linha": 10, "coluna": 0}, "ate": {"linha": 12, "coluna": 1}}]);
+            "de": {"linha": 10, "coluna": 0}, "ate": {"linha": 12, "coluna": 1}, "alt": "Foto da obra"}]);
         pasta.editar(0, |s| { s.ob = lista.gravar(); s.im = Some(colada.to_string()); });
         let bytes = gerar_xlsx(&pasta).unwrap();
         let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes.clone())).unwrap();
@@ -2336,7 +2336,7 @@ mod testes {
         assert_eq!(figuras.len(), 2);
         assert_eq!((figuras[0].de.linha, figuras[0].de.coluna, figuras[0].ate.linha), (2, 1, 6));
         assert_eq!(figuras[0].imagem.as_ref().unwrap().texto_alt.as_deref(), Some("Logo <da> firma"));
-        assert_eq!(figuras[1].imagem.as_ref().unwrap().texto_alt, None);
+        assert_eq!(figuras[1].imagem.as_ref().unwrap().texto_alt.as_deref(), Some("Foto da obra"), "a colada no app também leva");
         assert!(crate::xlsx_read::nao_convertidos::nao_convertidos(bytes).unwrap().is_empty(), "imagem não pede mais Salvar como");
     }
 
