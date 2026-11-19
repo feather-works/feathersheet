@@ -107,7 +107,7 @@
           "• Home → Cells: Insert, Delete and Format (row height, column width, AutoFit, hide and unhide, protection).",
           "• Right-clicking a header also hides and unhides. A hidden column or row shows as a thicker line between its neighbors.",
           "• Merge is in the Alignment group; its arrow opens Merge & center and Merge across.",
-          "• Paste special (Ctrl+Alt+V or the arrow under Paste): values only, formats only, transpose and more.",
+          "• Paste special (Ctrl+Alt+V or the arrow under Paste): values only, formats only, transpose and more. Paste link pastes formulas that point to the copied cells (=Data!B3), so they follow when those change.",
           "• Go To (F5 or Ctrl+G): jumps to a cell or name, or selects by type — formulas, constants, blanks, errors, visible cells only.",
           "• Right-click the selection → Copy as picture: the range goes to the clipboard as a picture, as the screen shows it (borders, colors, number formats). Ctrl+V pastes it as a picture here or in another program."
         ]

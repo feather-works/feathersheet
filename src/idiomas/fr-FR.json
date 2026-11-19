@@ -107,7 +107,7 @@
           "• Accueil → Cellules : Insérer, Supprimer et Format (hauteur de ligne, largeur de colonne, ajustement automatique, masquer et afficher, protection).",
           "• Un clic droit sur un en-tête permet aussi de masquer et d'afficher. Une colonne ou ligne masquée apparaît comme un trait plus épais entre ses voisines.",
           "• Fusionner se trouve dans le groupe Alignement ; sa flèche ouvre Fusionner et centrer et Fusionner horizontalement.",
-          "• Collage spécial (Ctrl+Alt+V ou la flèche sous Coller) : valeurs uniquement, formats uniquement, transposer et plus.",
+          "• Collage spécial (Ctrl+Alt+V ou la flèche sous Coller) : valeurs uniquement, formats uniquement, transposer et plus. Coller avec liaison colle des formules qui pointent vers les cellules copiées (=Données!B3) et suivent leurs changements.",
           "• Atteindre (F5 ou Ctrl+G) : saute vers une cellule ou un nom, ou sélectionne par type — formules, constantes, cellules vides, erreurs, cellules visibles seulement.",
           "• Clic droit sur la sélection → Copier comme image : la plage part dans le presse-papiers sous forme d'image, telle qu'elle apparaît à l'écran (bordures, couleurs, formats de nombre). Ctrl+V la colle comme image ici ou dans un autre programme."
         ]

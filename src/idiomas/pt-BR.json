@@ -107,7 +107,7 @@
           "• Página Inicial → Células: Inserir, Excluir e Formatar (altura da linha, largura da coluna, AutoAjuste, ocultar e reexibir, proteção).",
           "• Botão direito no cabeçalho também oculta e reexibe. Uma coluna ou linha oculta aparece como um traço mais grosso entre as vizinhas.",
           "• Mesclar fica no grupo Alinhamento; a seta abre Mesclar e centralizar e Mesclar através.",
-          "• Colar especial (Ctrl+Alt+V ou a seta de Colar): só valores, só formatos, transpor e outras opções.",
+          "• Colar especial (Ctrl+Alt+V ou a seta de Colar): só valores, só formatos, transpor e outras opções. Colar vínculo cola fórmulas que apontam para as células copiadas (=Dados!B3), e acompanham quando elas mudam.",
           "• Ir para (F5 ou Ctrl+G): vai a uma célula ou nome, ou seleciona por tipo — fórmulas, constantes, em branco, erros, só as visíveis.",
           "• Botão direito na seleção → Copiar como imagem: a área vai para a área de transferência como imagem, com a aparência da tela (bordas, cores, formato dos números). O Ctrl+V cola como figura aqui ou em outro programa."
         ]

@@ -17,6 +17,8 @@ pub enum QueColar {
     Formatos,
     ValoresEFormatos,
     Larguras,
+    /// Colar vínculo: cada célula vira `=Aba!A1` apontando para a copiada.
+    Vinculo,
 }
 
 #[derive(Debug, Clone)]
@@ -28,6 +30,8 @@ pub enum Evento {
     Transpor(bool),
     /// "Colar": lê a área de transferência e volta em `Executar`.
     Confirmar,
+    /// Colar vínculo direto do menu Colar ▾ (sem abrir a janela).
+    ColarVinculo,
     Executar(String),
     Fechar,
 }
@@ -59,6 +63,12 @@ impl App {
             Evento::Operacao(o) => if let Some(e) = &mut self.colar_especial { e.operacao = o; },
             Evento::IgnorarBranco(v) => if let Some(e) = &mut self.colar_especial { e.ignorar_branco = v; },
             Evento::Transpor(v) => if let Some(e) = &mut self.colar_especial { e.transpor = v; },
+            Evento::ColarVinculo => {
+                self.colar_menu_aberto = false;
+                // As outras escolhas da última colagem (operação, transpor) não entram no vínculo do menu.
+                self.colar_especial = Some(Estado { colar: QueColar::Vinculo, ..Default::default() });
+                return self.evento_colar_especial(Evento::Confirmar);
+            }
             Evento::Confirmar => {
                 return Task::read_clipboard(|v|
                     Msg::ColarEspecialJanela(Evento::Executar(v.unwrap_or_default())));
@@ -82,7 +92,7 @@ impl App {
         if !self.confirmar() { return; }
         let copia = self.area_copiada.as_ref().filter(|c| c.texto == dados);
         let precisa_interna = matches!(e.colar,
-            QueColar::Formatos | QueColar::ValoresEFormatos | QueColar::Larguras);
+            QueColar::Formatos | QueColar::ValoresEFormatos | QueColar::Larguras | QueColar::Vinculo);
         if precisa_interna && copia.is_none() {
             self.status = tr!("Esta opção requer células copiadas do FeatherSheet").into();
             return;
@@ -109,6 +119,13 @@ impl App {
             Ok(p) => p,
             Err(m) => { self.status = m.into(); return; }
         };
+        // Colar vínculo: a aba vai no nome só quando a origem é outra (como o Excel).
+        let vinculo = (e.colar == QueColar::Vinculo).then(|| copia.map(|c| {
+            let aba = (Some(c.aba_origem) != self.workbook.aba(self.folha).map(|a| a.id))
+                .then(|| self.workbook.indice_do_id(c.aba_origem).and_then(|i| self.workbook.aba(i)))
+                .flatten().map(|a| format!("{}!", feathersheet_core::celulas::refs::quote_sheet(&a.sheet.name)));
+            (aba.unwrap_or_default(), c.origem)
+        })).flatten();
         let vazia = Origem { raw: "", valor: "", estilo: None };
         let fonte = |dr: usize, dc: usize| -> &Origem<'_> {
             let (or, oc) = if e.transpor { (dc % alt_o, dr % larg_o) } else { (dr % alt_o, dc % larg_o) };
@@ -121,6 +138,13 @@ impl App {
             for dc in 0..plano.largura {
                 let (r, c) = (plano.r0 + dr as u32, plano.c0 + dc as u32);
                 let o = fonte(dr, dc);
+                if let Some((prefixo, (r0, c0))) = &vinculo {
+                    let (or, oc) = if e.transpor { (dc % alt_o, dr % larg_o) } else { (dr % alt_o, dc % larg_o) };
+                    if e.ignorar_branco && o.raw.is_empty() { continue; }
+                    let estilo = aba.sheet.snapshot(r, c).and_then(|s| s.style);
+                    novas.push((r, c, Some(Snap { raw: format!("={prefixo}{}", cell_name(r0 + or as u32, c0 + oc as u32)), style: estilo })));
+                    continue;
+                }
                 if e.ignorar_branco && o.raw.is_empty() { continue; }
                 let atual = aba.sheet.snapshot(r, c);
                 let raw_atual = atual.as_ref().map(|s| s.raw.as_str()).unwrap_or("");
@@ -215,7 +239,7 @@ impl App {
             container(a).width(Length::Fill(1)),
             container(b).width(Length::Fill(1)),
         ];
-        let sem_conta = e.colar == QueColar::Formatos || e.colar == QueColar::Larguras;
+        let sem_conta = matches!(e.colar, QueColar::Formatos | QueColar::Larguras | QueColar::Vinculo);
         let mut operacoes = column![
             grupo(tr!("OPERAÇÃO")),
             duas(conta(tr!("Nenhuma"), OperacaoColagem::Nenhuma).into(),
@@ -227,7 +251,7 @@ impl App {
         if sem_conta {
             operacoes = operacoes.push(row![
                 feather_ui::icones::icone("info-circle", 14.0),
-                text(tr!("A operação não vale para formatos e larguras.")).size(11)
+                text(tr!("A operação não vale para formatos, larguras e vínculos.")).size(11)
                     .color(COR_TEXTO_MUTED()),
             ].spacing(6).align(pelicano::Align::Center));
         }
@@ -240,6 +264,7 @@ impl App {
                     opcao(tr!("Larguras das colunas"), QueColar::Larguras).into()),
                 duas(opcao(tr!("Valores"), QueColar::Valores).into(),
                     opcao(tr!("Formatos"), QueColar::Formatos).into()),
+                duas(opcao(tr!("Colar vínculo"), QueColar::Vinculo).into(), Space::new(0, 0.0).into()),
             ].spacing(8),
             operacoes,
             row![
@@ -277,6 +302,25 @@ mod testes {
         let _ = app.update(Msg::IrPara(destino.into()));
         app.colar_especial = Some(e);
         let _ = app.update(Msg::ColarEspecialJanela(Evento::Executar(dados)));
+    }
+
+    #[test]
+    fn colar_vinculo_aponta_para_a_origem_e_cita_a_outra_aba() {
+        let mut app = App::default();
+        for (r, v) in ["10", "20"].iter().enumerate() { app.workbook.escrever_celula(0, r as u32, 0, (*v).into()); }
+        let dados = copiar(&mut app, "A1:A2");
+        let vinculo = Estado { colar: QueColar::Vinculo, ..Default::default() };
+        colar(&mut app, "C1", dados.clone(), vinculo);
+        let aba = &app.workbook.aba(0).unwrap().sheet;
+        assert_eq!((aba.get_raw(0, 2), aba.get_raw(1, 2)), ("=A1".to_string(), "=A2".to_string()));
+        assert_eq!(app.workbook.valor(0, 1, 2), Value::Number(20.0));
+        // Em outra aba, o nome da origem vai junto.
+        let nome = app.workbook.aba(0).unwrap().sheet.name.clone();
+        let outra = app.workbook.inserir_aba("Resumo", 1);
+        let _ = app.update(Msg::Aba(outra));
+        colar(&mut app, "B2", dados, vinculo);
+        assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(1, 1), format!("={}!A1", feathersheet_core::celulas::refs::quote_sheet(&nome)));
+        assert_eq!(app.workbook.valor(outra, 2, 1), Value::Number(20.0));
     }
 
     #[test]

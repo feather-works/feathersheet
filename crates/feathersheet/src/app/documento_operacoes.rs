@@ -317,7 +317,7 @@ impl App {
             .map(|c| aba.sheet.col_widths.get(&c).copied()).collect();
         self.area_copiada = Some(AreaCopiada {
             texto: texto.clone(), celulas, valores, larguras,
-            origem: (area.r0, area.c0), recortada: false,
+            origem: (area.r0, area.c0), aba_origem: aba.id, recortada: false,
         });
         Some(texto)
     }

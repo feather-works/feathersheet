@@ -6060,5 +6060,7 @@
  "Formatação condicional sem equivalente": "Mise en forme conditionnelle sans équivalent",
  "Filtro da planilha (fora de tabela)": "Filtre de la feuille (hors tableau)",
  "Zeros": "Zéros",
- "Comentário em conversa (vira anotação simples)": "Commentaire en conversation (devient une note simple)"
+ "Comentário em conversa (vira anotação simples)": "Commentaire en conversation (devient une note simple)",
+ "Colar vínculo": "Coller avec liaison",
+ "A operação não vale para formatos, larguras e vínculos.": "L'opération ne s'applique pas aux formats, largeurs et liaisons."
 }

@@ -608,6 +608,8 @@ struct AreaCopiada {
     /// Canto de cima à esquerda da origem: colar desloca as referências
     /// relativas pela distância até ele, como no Excel.
     origem: (u32, u32),
+    /// Id da aba de onde veio (Colar vínculo aponta para ela).
+    aba_origem: u32,
     /// Veio do Ctrl+X: colar leva a fórmula sem deslocar (é mover).
     recortada: bool,
 }

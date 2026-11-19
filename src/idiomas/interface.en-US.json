@@ -6060,5 +6060,7 @@
  "Formatação condicional sem equivalente": "Conditional formatting with no equivalent",
  "Filtro da planilha (fora de tabela)": "Sheet filter (outside a table)",
  "Zeros": "Zeros",
- "Comentário em conversa (vira anotação simples)": "Threaded comment (becomes a plain note)"
+ "Comentário em conversa (vira anotação simples)": "Threaded comment (becomes a plain note)",
+ "Colar vínculo": "Paste link",
+ "A operação não vale para formatos, larguras e vínculos.": "The operation does not apply to formats, widths and links."
 }

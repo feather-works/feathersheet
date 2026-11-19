@@ -3,7 +3,7 @@
 use super::*;
 
 const LARGURA: f32 = 278.0;
-const ALTURA_PREVISTA: f32 = 280.0;
+const ALTURA_PREVISTA: f32 = 314.0;
 const X: f32 = 8.0;
 // 43 px de cromo + 52 px das abas + botão Colar (ícone e seta).
 const Y_ABAIXO_SETA: f32 = 43.0 + 52.0 + 64.0;
@@ -35,6 +35,15 @@ impl App {
                     .on_press(Msg::ColarEspecialSolicitar(modo)),
             );
         }
+        itens = itens.push(
+            button(pelicano::row![
+                feather_ui::icones::icone("link", 16.0),
+                text(tr!("Colar vínculo")).size(12.5),
+            ].spacing(9).align(pelicano::Align::Center))
+                .width(Length::FILL).padding([8, 10])
+                .style(estilo_item_menu(false, true))
+                .on_press(Msg::ColarEspecialJanela(colar_especial::Evento::ColarVinculo)),
+        );
         itens = itens.push(
             button(pelicano::row![
                 feather_ui::icones::icone("clipboard", 16.0),

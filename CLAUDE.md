@@ -67,6 +67,12 @@ mesma pilha nova (saía cortado embaixo da lista do Tema). Novidade: "Exibir ▸
 numa aba, como no Excel; a opção vem e volta no .xlsx." Foto: `FEATHERSHEET_CAPTURAR_ZEROS=0` (conferida: 0 digitado e fórmula que dá 0 em
 branco, texto "0" aparece). Teste `testes_zeros` e `zeros_ocultos_vao_e_voltam_do_xlsx`.
 
+**Colar vínculo (19/11).** Colar especial ganhou "Colar vínculo" (`QueColar::Vinculo`) e o menu Colar ▾ também
+(`Evento::ColarVinculo`, executa direto): cada célula do destino vira `=A1` (mesma aba) ou `='Aba'!A1` (outra), relativa,
+apontando para a célula copiada; o estilo do destino fica. Pede cópia feita no FeatherSheet (`AreaCopiada::aba_origem`,
+novo). "Ignorar em branco" e "Transpor" valem; a operação não. Teste `colar_vinculo_aponta_para_a_origem_e_cita_a_outra_aba`.
+Novidade: "Colar vínculo: cole fórmulas que apontam para as células copiadas, como no Excel."
+
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava
 `extras.grupo` = número novo (maior da aba + 1) em todos, e quem já era de grupo leva o grupo inteiro; com forma de grupo
