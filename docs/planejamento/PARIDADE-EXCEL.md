@@ -624,7 +624,7 @@ Faltando:
 ## 10. Exibição, janelas, layout e impressão
 
 - [x] Congelar painéis (linha, coluna ou interseção).
-- [ ] Dividir a janela em 2 ou 4 painéis.
+- [~] Dividir a janela em 2 painéis (em cima/embaixo ou lado a lado, cada um com sua aba e rolagem; Exibir ▸ Janela). Falta: 4 painéis.
 - [ ] Nova janela, organizar tudo, lado a lado com rolagem sincronizada.
 - [~] Modos de exibição: Normal e Visualização de quebra de página. Falta: Layout da página com régua e cabeçalho editável na folha.
 - [ ] Modos de exibição de planilha (visões por pessoa) e personalizados.
@@ -650,7 +650,7 @@ Faltando:
 ## 13. Acessibilidade, voz e idiomas
 
 - [ ] Verificador de acessibilidade.
-- [ ] Texto alternativo em imagens e gráficos.
+- [~] Texto alternativo em imagens e gráficos: imagens (botão direito ▸ Texto alternativo…, vai no `.xlsx`), gráficos (painel) e controles. Falta: formas.
 - [ ] Falar células (leitura em voz alta).
 - [ ] Tradutor.
 - [ ] Ortografia, sinônimos e pesquisa inteligente.

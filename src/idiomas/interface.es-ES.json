@@ -6112,5 +6112,11 @@
  "O nome e o caminho vão no arquivo: {}": "El nombre y la ruta van en el archivo: {}",
  "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} comentarios eliminados. Ctrl+Z lo deshace en cada hoja.",
  "{} copiado": "{} copiado",
- "Clique para copiar": "Haga clic para copiar"
+ "Clique para copiar": "Haga clic para copiar",
+ "Texto alternativo…": "Texto alternativo…",
+ "Por enquanto só imagens têm texto alternativo": "Por ahora solo las imágenes tienen texto alternativo",
+ "Texto alternativo removido da imagem": "Texto alternativo quitado de la imagen",
+ "Texto alternativo gravado na imagem": "Texto alternativo guardado en la imagen",
+ "Descreva a imagem para quem usa leitor de tela. Deixe em branco se ela for só decoração.": "Describa la imagen para quien usa lector de pantalla. Déjelo en blanco si es solo decoración.",
+ "Ex.: logotipo da empresa": "Ej.: logotipo de la empresa"
 }

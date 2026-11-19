@@ -6112,5 +6112,11 @@
  "O nome e o caminho vão no arquivo: {}": "Le nom et le chemin sont dans le fichier : {}",
  "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} commentaires supprimés. Ctrl+Z annule sur chaque feuille.",
  "{} copiado": "{} copié",
- "Clique para copiar": "Cliquez pour copier"
+ "Clique para copiar": "Cliquez pour copier",
+ "Texto alternativo…": "Texte de remplacement…",
+ "Por enquanto só imagens têm texto alternativo": "Pour l'instant, seules les images ont un texte de remplacement",
+ "Texto alternativo removido da imagem": "Texte de remplacement retiré de l'image",
+ "Texto alternativo gravado na imagem": "Texte de remplacement enregistré sur l'image",
+ "Descreva a imagem para quem usa leitor de tela. Deixe em branco se ela for só decoração.": "Décrivez l'image pour les utilisateurs de lecteur d'écran. Laissez vide si elle est seulement décorative.",
+ "Ex.: logotipo da empresa": "Ex. : logo de l'entreprise"
 }

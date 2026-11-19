@@ -273,6 +273,9 @@ pub struct ImagemObjeto {
     /// Recorte (`srcRect`) em frações `[esquerda, topo, direita, base]`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recorte: Option<[f32; 4]>,
+    /// Texto alternativo, lido por leitores de tela (`descr` do `cNvPr`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub texto_alt: Option<String>,
 }
 
 /// Ponto preso a uma célula: linha/coluna (base 0) e deslocamento em px

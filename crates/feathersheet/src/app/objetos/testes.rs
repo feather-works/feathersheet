@@ -532,3 +532,29 @@ fn agrupar_move_junto_e_desagrupar_solta() {
     app.historico(false);
     assert!(super::grupo_de(lidos(&app).obter(a).unwrap()).is_some());
 }
+
+/// Texto alternativo: só imagem abre o diálogo; OK grava (aparado), em branco tira, Ctrl+Z volta.
+#[test]
+fn texto_alternativo_da_imagem() {
+    let mut app = app();
+    let id = criar(&mut app, "retangulo", Retangulo::novo(100.0, 100.0, 200.0, 100.0));
+    let _ = app.update(Msg::Objetos(Evento::TextoAlt));
+    assert!(app.objetos.texto_alt.is_none(), "forma comum não tem texto alternativo");
+    let mut ob = lidos(&app);
+    let o = ob.objetos.iter_mut().find(|o| o.id == id).unwrap();
+    o.tipo = modelo::TipoObjeto::Imagem;
+    o.imagem = Some(modelo::ImagemObjeto { src: "data:image/png;base64,".into(), duotom: None, recorte: None, texto_alt: None });
+    app.workbook.editar(0, |s| s.ob = ob.gravar());
+    let _ = app.update(Msg::Objetos(Evento::TextoAlt));
+    let _ = app.update(Msg::Objetos(Evento::TextoAltDigitado("  Logo da firma ".into())));
+    let _: Element<'_, Msg> = app.sobrepor_menu_formas(text("base").into());
+    let _ = app.update(Msg::Objetos(Evento::TextoAltConfirmar));
+    let alt = |app: &App| lidos(app).obter(id).unwrap().imagem.clone().unwrap().texto_alt;
+    assert_eq!(alt(&app).as_deref(), Some("Logo da firma"));
+    let _ = app.update(Msg::Objetos(Evento::TextoAlt));
+    let _ = app.update(Msg::Objetos(Evento::TextoAltDigitado("   ".into())));
+    let _ = app.update(Msg::Objetos(Evento::TextoAltConfirmar));
+    assert_eq!(alt(&app), None);
+    app.update(Msg::Desfazer);
+    assert_eq!(alt(&app).as_deref(), Some("Logo da firma"));
+}

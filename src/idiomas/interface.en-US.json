@@ -6112,5 +6112,11 @@
  "O nome e o caminho vão no arquivo: {}": "The name and path go in the file: {}",
  "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} comments removed. Ctrl+Z undoes it on each sheet.",
  "{} copiado": "{} copied",
- "Clique para copiar": "Click to copy"
+ "Clique para copiar": "Click to copy",
+ "Texto alternativo…": "Alt text…",
+ "Por enquanto só imagens têm texto alternativo": "For now only images have alt text",
+ "Texto alternativo removido da imagem": "Alt text removed from the image",
+ "Texto alternativo gravado na imagem": "Alt text saved on the image",
+ "Descreva a imagem para quem usa leitor de tela. Deixe em branco se ela for só decoração.": "Describe the image for screen reader users. Leave it blank if it is only decoration.",
+ "Ex.: logotipo da empresa": "E.g.: company logo"
 }

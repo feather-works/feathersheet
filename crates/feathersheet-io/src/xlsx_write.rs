@@ -2322,7 +2322,7 @@ mod testes {
         let mut figura = ObjetoSolto::novo_controle(crate::objetos_aba::ControleFormulario::novo(crate::objetos_aba::TipoControleForm::Botao),
             Ancora { linha: 2, coluna: 1, dx: 0.0, dy: 0.0 }, Ancora { linha: 6, coluna: 3, dx: 0.0, dy: 0.0 });
         (figura.id, figura.tipo, figura.controle) = (1, TipoObjeto::Imagem, None);
-        figura.imagem = Some(ImagemObjeto { src: png.into(), duotom: None, recorte: None });
+        figura.imagem = Some(ImagemObjeto { src: png.into(), duotom: None, recorte: None, texto_alt: Some("Logo <da> firma".into()) });
         let lista = ObjetosAba { objetos: vec![figura], ..Default::default() };
         let colada = serde_json::json!([{"id": "a", "src": png, "position": {"x": 10, "y": 10, "width": 40, "height": 40},
             "de": {"linha": 10, "coluna": 0}, "ate": {"linha": 12, "coluna": 1}}]);
@@ -2335,6 +2335,8 @@ mod testes {
         let figuras: Vec<_> = ob.objetos.iter().filter(|o| o.tipo == TipoObjeto::Imagem).collect();
         assert_eq!(figuras.len(), 2);
         assert_eq!((figuras[0].de.linha, figuras[0].de.coluna, figuras[0].ate.linha), (2, 1, 6));
+        assert_eq!(figuras[0].imagem.as_ref().unwrap().texto_alt.as_deref(), Some("Logo <da> firma"));
+        assert_eq!(figuras[1].imagem.as_ref().unwrap().texto_alt, None);
         assert!(crate::xlsx_read::nao_convertidos::nao_convertidos(bytes).unwrap().is_empty(), "imagem não pede mais Salvar como");
     }
 

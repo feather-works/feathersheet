@@ -93,6 +93,7 @@ mod testes {
             src: format!("data:image/png;base64,{}", STANDARD.encode(&png)),
             duotom: Some(["#b38600".into(), "#ffffff".into()]),
             recorte: Some([0.5, 0.0, 0.0, 0.0]),
+            texto_alt: None,
         };
         let img = pixels(&im).expect("sem figura");
         assert_eq!(img.dimensions(), (1, 1));

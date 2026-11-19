@@ -381,7 +381,9 @@ impl Leitura<'_> {
             o.aparencia.espessura = (e / EMU_POR_PX) as f32;
         }
         o.sombra = sombra(pic);
-        o.imagem = Some(ImagemObjeto { src, duotom, recorte });
+        let texto_alt = pic.child("nvPicPr").and_then(|n| n.child("cNvPr")).and_then(|c| c.attr("descr"))
+            .map(str::trim).filter(|t| !t.is_empty()).map(str::to_owned);
+        o.imagem = Some(ImagemObjeto { src, duotom, recorte, texto_alt });
         transformar(&mut o, pr.and_then(|p| p.child("xfrm")));
         self.saida.push(o);
     }

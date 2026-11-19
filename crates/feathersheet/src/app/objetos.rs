@@ -114,7 +114,7 @@ pub(super) fn colar_imagem_do_intervalo(w: &mut Workbook, origem: usize, area: R
     let mut o = ObjetoSolto::nova_forma(0, "rect", ret, &regua);
     o.tipo = modelo::TipoObjeto::Imagem;
     o.aparencia = modelo::Aparencia { preenchimento: None, contorno: None, espessura: 0.0, transparencia: 0.0 };
-    o.imagem = Some(modelo::ImagemObjeto { src: format!("data:image/png;base64,{}", STANDARD.encode(&png)), duotom: None, recorte: None });
+    o.imagem = Some(modelo::ImagemObjeto { src: format!("data:image/png;base64,{}", STANDARD.encode(&png)), duotom: None, recorte: None, texto_alt: None });
     let mut lidos = modelo::ler_da_aba(&viva.sheet);
     let id = lidos.adicionar(o).ok_or(tr!("A aba já tem objetos demais"))?;
     modelo::gravar_na_aba(&mut viva.sheet, &lidos);
@@ -278,6 +278,11 @@ pub enum Evento {
     MacroEscolher(Option<String>),
     MacroConfirmar,
     MacroCancelar,
+    /// Texto alternativo da imagem (lido por leitores de tela): abrir, digitar, OK, cancelar.
+    TextoAlt,
+    TextoAltDigitado(String),
+    TextoAltConfirmar,
+    TextoAltCancelar,
     ExecutarMacro(u64),
     /// Clique num controle de formulário em (x, y), px lógicos do canto de cima à esquerda dele.
     ClicarControle { id: u64, x: f32, y: f32 },
@@ -367,6 +372,8 @@ pub(super) struct EstadoObjetos {
     pub texto: Option<(u64, String)>,
     /// Diálogo Atribuir macro: objeto e a macro escolhida.
     pub macro_dialogo: Option<(u64, Option<String>)>,
+    /// Diálogo Texto alternativo: imagem e o texto digitado.
+    pub texto_alt: Option<(u64, String)>,
     /// Área de transferência interna dos objetos e se o último copiar foi de objeto.
     area: Vec<ObjetoSolto>,
     copia_de_objeto: bool,
@@ -928,6 +935,26 @@ impl App {
                 }
             }
             Evento::MacroCancelar => self.objetos.macro_dialogo = None,
+            Evento::TextoAlt => {
+                if let Some(o) = self.objeto_selecionado() {
+                    if let Some(im) = &o.imagem {
+                        self.objetos.texto_alt = Some((o.id, im.texto_alt.clone().unwrap_or_default()));
+                    }
+                }
+            }
+            Evento::TextoAltDigitado(t) => {
+                if let Some((_, texto)) = &mut self.objetos.texto_alt { *texto = t; }
+            }
+            Evento::TextoAltConfirmar => {
+                if let Some((id, t)) = self.objetos.texto_alt.take() {
+                    if self.objetos.selecionado.map(|s| s.1) == Some(id) {
+                        let t = t.trim().to_owned();
+                        let status = if t.is_empty() { tr!("Texto alternativo removido da imagem") } else { tr!("Texto alternativo gravado na imagem") };
+                        self.mudar_selecionado(status, |o, _| if let Some(im) = &mut o.imagem { im.texto_alt = (!t.is_empty()).then_some(t) });
+                    }
+                }
+            }
+            Evento::TextoAltCancelar => self.objetos.texto_alt = None,
             Evento::ExecutarMacro(id) => self.executar_macro_da_forma(id),
             Evento::ClicarControle { id, x, y } => self.clicar_controle(id, x, y),
             Evento::ArrastarBarra { id, x0, y0, x, y, solto } => self.arrastar_barra(id, (x0, y0), (x, y), solto),
@@ -1389,6 +1416,7 @@ impl App {
         self.objetos.mais_cores = false;
         let o = &mut self.objetos;
         if o.macro_dialogo.take().is_some()
+            || o.texto_alt.take().is_some()
             || o.formatar_controle.take().is_some()
             || o.texto.take().is_some()
             || o.contexto.take().is_some()

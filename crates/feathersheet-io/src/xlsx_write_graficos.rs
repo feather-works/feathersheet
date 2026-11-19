@@ -85,12 +85,12 @@ fn figuras_da_aba(sheet: &Sheet, contador: &mut usize) -> (String, String, Vec<(
         "<xdr:col>{}</xdr:col><xdr:colOff>{}</xdr:colOff><xdr:row>{}</xdr:row><xdr:rowOff>{}</xdr:rowOff>",
         a.coluna.min(16_383), (a.dx.max(0.0) as f64 * 9525.0).round() as i64,
         a.linha.min(1_048_575), (a.dy.max(0.0) as f64 * 9525.0).round() as i64);
-    // (src, de, ate, recorte, giro): as da camada de objetos (do .xlsx) e as coladas no app (`im`).
-    let mut todas: Vec<(String, String, String, Option<[f32; 4]>, f32)> = Vec::new();
+    // (src, de, ate, recorte, giro, texto alternativo): as da camada de objetos (do .xlsx) e as coladas no app (`im`).
+    let mut todas: Vec<(String, String, String, Option<[f32; 4]>, f32, Option<String>)> = Vec::new();
     if let Ok(lista) = ObjetosAba::ler(sheet.ob.as_deref()) {
         for o in lista.objetos.iter().filter(|o| o.tipo == TipoObjeto::Imagem) {
             let Some(im) = &o.imagem else { continue };
-            todas.push((im.src.clone(), ponto(&o.de), ponto(&o.ate), im.recorte, o.giro));
+            todas.push((im.src.clone(), ponto(&o.de), ponto(&o.ate), im.recorte, o.giro, im.texto_alt.clone()));
         }
     }
     let coladas: Vec<serde_json::Value> = sheet.im.as_deref().and_then(|t| serde_json::from_str(t).ok()).unwrap_or_default();
@@ -101,9 +101,9 @@ fn figuras_da_aba(sheet: &Sheet, contador: &mut usize) -> (String, String, Vec<(
             (Some(de), Some(ate)) => (ponto(&de), ponto(&ate)),
             _ => ancora_xml(sheet, &item["position"]),
         };
-        todas.push((src.to_owned(), de, ate, None, 0.0));
+        todas.push((src.to_owned(), de, ate, None, 0.0, None));
     }
-    for (k, (src, de, ate, recorte, giro)) in todas.iter().enumerate() {
+    for (k, (src, de, ate, recorte, giro, alt)) in todas.iter().enumerate() {
         let Some((cabeca, dados)) = src.split_once(";base64,") else { continue };
         let ext = match cabeca.strip_prefix("data:image/") {
             Some("png") => "png", Some("jpeg" | "jpg") => "jpeg", Some("gif") => "gif", _ => continue,
@@ -118,8 +118,9 @@ fn figuras_da_aba(sheet: &Sheet, contador: &mut usize) -> (String, String, Vec<(
         });
         let giro = if *giro != 0.0 { format!(" rot=\"{}\"", (*giro as f64 * 60_000.0).round() as i64) } else { String::new() };
         let _ = write!(ancoras,
-            "<xdr:twoCellAnchor editAs=\"oneCell\"><xdr:from>{}</xdr:from><xdr:to>{}</xdr:to><xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"{}\" name=\"{}\"/><xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"{rid}\"/>{recorte}<a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm{giro}><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor>",
-            de, ate, 200_000 + k, escape_xml(&feathersheet_core::trf!("Imagem {}", k + 1)));
+            "<xdr:twoCellAnchor editAs=\"oneCell\"><xdr:from>{}</xdr:from><xdr:to>{}</xdr:to><xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"{}\" name=\"{}\"{}/><xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"{rid}\"/>{recorte}<a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm{giro}><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor>",
+            de, ate, 200_000 + k, escape_xml(&feathersheet_core::trf!("Imagem {}", k + 1)),
+            alt.as_deref().map_or(String::new(), |t| format!(" descr=\"{}\"", escape_xml(t))));
         let _ = write!(rels, "<Relationship Id=\"{rid}\" Type=\"{NS_R}/image\" Target=\"../media/image{n}.{ext}\"/>");
         midias.push((format!("xl/media/image{n}.{ext}"), bytes));
     }

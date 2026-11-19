@@ -81,6 +81,13 @@ transpor; fórmula personalizada não desloca as referências. Teste `colar_vali
 De passagem, Limpar formatos passou a tirar também sobrescrito, subscrito, sublinhado duplo e o `alignExcel`.
 Novidade: "Colar especial com Colar vínculo, Comentários e Validação, como no Excel."
 
+**Texto alternativo nas imagens (19/11).** Botão direito na imagem ▸ Texto alternativo… (`Evento::TextoAlt*`, diálogo
+`dialogo_texto_alt`, estado `EstadoObjetos::texto_alt`). Fica em `ImagemObjeto::texto_alt` (aparado; em branco = `None`),
+vira `descr` no `cNvPr` do `xdr:pic` e é lido de volta (`desenho_objetos.rs`). Um Ctrl+Z. Só imagens: formas e
+gráficos não (gráfico tem o seu no painel; controle no Formatar controle); as imagens antigas do `im` não têm.
+Testes `texto_alternativo_da_imagem` e `imagens_da_aba_vao_para_o_desenho_e_voltam`. Novidade: "Texto alternativo nas
+imagens, para leitores de tela."
+
 **Clicar na conta do rodapé copia o valor (19/11).** `barra_status::pecas_contas` devolve as contas que cabem com a chave;
 `view_resumo_selecao` faz de cada uma um botão sem moldura (dica "Clique para copiar") com `Evento::Copiar(chave)`, que
 copia o valor como aparece (`1.234,5`). Somando ou fora da área continua texto. Teste `testes_copiar`; foto conferida

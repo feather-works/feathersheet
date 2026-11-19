@@ -676,6 +676,8 @@ impl App {
             ItemMenu::Separador,
             ItemMenu::acao(tr!("Atribuir macro…"), "code", e(Evento::AtribuirMacro)),
             ItemMenu::em_breve(tr!("Hiperlink…"), "link", tr!("Em breve: link na forma")),
+            ItemMenu::talvez(tr!("Texto alternativo…"), "eye", o.imagem.is_some().then(|| e(Evento::TextoAlt)),
+                tr!("Por enquanto só imagens têm texto alternativo")),
             ItemMenu::Separador,
             ItemMenu::acao(tr!("Formatar forma…"), "palette", e(Evento::FormatarForma)),
             ItemMenu::acao(tr!("Tamanho e posição…"), "arrow-autofit-width", e(Evento::FormatarForma)),
@@ -741,6 +743,28 @@ impl App {
                 Space::new(Length::FILL, 0.0),
                 button(text(tr!("Cancelar")).size(13)).style(estilo_botao_secundario).on_press(ev(Evento::MacroCancelar)),
                 button(text("OK").size(13)).style(estilo_botao_primario).on_press(ev(Evento::MacroConfirmar)),
+            ]
+            .spacing(10),
+        ]
+        .spacing(10)
+        .padding(17);
+        Some(container(conteudo).width(Length::Fixed(420.0)).style(estilo_painel_faixa).into())
+    }
+
+    /// Diálogo Texto alternativo da imagem.
+    fn dialogo_texto_alt(&self) -> Option<Element<'_, Msg>> {
+        let (_, texto) = self.objetos.texto_alt.as_ref()?;
+        let conteudo = column![
+            text(tr!("Texto alternativo")).size(19),
+            text(tr!("Descreva a imagem para quem usa leitor de tela. Deixe em branco se ela for só decoração."))
+                .size(12)
+                .color(COR_TEXTO_MUTED()),
+            text_input(tr!("Ex.: logotipo da empresa"), texto).size(13).padding([6, 8])
+                .on_input(|t| ev(Evento::TextoAltDigitado(t))).on_submit(ev(Evento::TextoAltConfirmar)),
+            row![
+                Space::new(Length::FILL, 0.0),
+                button(text(tr!("Cancelar")).size(13)).style(estilo_botao_secundario).on_press(ev(Evento::TextoAltCancelar)),
+                button(text("OK").size(13)).style(estilo_botao_primario).on_press(ev(Evento::TextoAltConfirmar)),
             ]
             .spacing(10),
         ]
@@ -832,6 +856,16 @@ impl App {
             base = menu_contexto::sobrepor(base, &itens, None, |_| g(G::PassouNoMenu), g(G::FecharContexto), (x, y), janela);
         }
         base = self.sobrepor_formatar_controle(base);
+        if let Some(dialogo) = self.dialogo_texto_alt() {
+            base = stack![
+                base,
+                fora(ev(Evento::TextoAltCancelar)),
+                container(opaque(dialogo)).center(),
+            ]
+            .width(Length::FILL)
+            .height(Length::FILL)
+            .into();
+        }
         if let Some(dialogo) = self.dialogo_macro() {
             base = stack![
                 base,
