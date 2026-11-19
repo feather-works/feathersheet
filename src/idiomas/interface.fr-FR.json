@@ -279,7 +279,6 @@
  "A mensagem de entrada": "Le message de saisie",
  "A mensagem de erro": "Le message d'erreur",
  "A nota deve ser um número inteiro de 1 a 10.": "La note doit être un nombre entier de 1 à 10.",
- "A operação não vale para formatos e larguras.": "L'opération ne s'applique pas aux formats et aux largeurs.",
  "A ordem já era essa.": "C'était déjà dans cet ordre.",
  "A origem '{nome}' foi removida; a consulta não pode ser atualizada": "La source '{nome}' a été supprimée ; la requête ne peut pas être actualisée",
  "A origem [{arquivo}] não foi encontrada.": "La source [{arquivo}] est introuvable.",
@@ -6062,5 +6061,7 @@
  "Zeros": "Zéros",
  "Comentário em conversa (vira anotação simples)": "Commentaire en conversation (devient une note simple)",
  "Colar vínculo": "Coller avec liaison",
- "A operação não vale para formatos, larguras e vínculos.": "L'opération ne s'applique pas aux formats, largeurs et liaisons."
+ "As células copiadas não têm comentários.": "Les cellules copiées n'ont pas de commentaires.",
+ "{quantos} comentário(s) colado(s)": "{quantos} commentaire(s) collé(s)",
+ "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "L'opération ne s'applique qu'à Tout, Formules, Valeurs et Valeurs et formats."
 }

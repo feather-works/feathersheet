@@ -107,7 +107,7 @@
      "• Inicio → Celdas: Insertar, Eliminar y Formato (alto de fila, ancho de columna, autoajuste, ocultar y mostrar, protección).",
      "• El clic derecho en el encabezado también oculta y muestra. Una columna o fila oculta aparece como una línea más gruesa entre sus vecinas.",
      "• Combinar está en el grupo Alineación; la flecha abre Combinar y centrar y Combinar horizontalmente.",
-     "• Pegado especial (Ctrl+Alt+V o la flecha de Pegar): solo valores, solo formatos, transponer y más. Pegar vínculo pega fórmulas que apuntan a las celdas copiadas (=Datos!B3) y las siguen cuando cambian.",
+     "• Pegado especial (Ctrl+Alt+V o la flecha de Pegar): solo valores, solo formatos, transponer y más. Comentarios pega solo los comentarios. Pegar vínculo pega fórmulas que apuntan a las celdas copiadas (=Datos!B3) y las siguen cuando cambian.",
      "• Ir a (F5 o Ctrl+G): va a una celda o nombre, o selecciona por tipo — fórmulas, constantes, en blanco, errores, solo visibles.",
      "• Clic derecho en la selección → Copiar como imagen: el rango va al portapapeles como imagen, con el aspecto de la pantalla (bordes, colores, formato de los números). Ctrl+V lo pega como figura aquí o en otro programa."
     ]

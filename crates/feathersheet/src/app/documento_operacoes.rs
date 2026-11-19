@@ -318,6 +318,8 @@ impl App {
         self.area_copiada = Some(AreaCopiada {
             texto: texto.clone(), celulas, valores, larguras,
             origem: (area.r0, area.c0), aba_origem: aba.id, recortada: false,
+            comentarios: aba.sheet.comentarios_na_area(&area).into_iter()
+                .filter_map(|(r, c)| aba.sheet.comentario(r, c).map(|m| ((r - area.r0, c - area.c0), m.clone()))).collect(),
         });
         Some(texto)
     }

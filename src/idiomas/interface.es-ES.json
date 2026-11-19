@@ -275,7 +275,6 @@
  "A mensagem de entrada": "El mensaje de entrada",
  "A mensagem de erro": "El mensaje de error",
  "A nota deve ser um número inteiro de 1 a 10.": "La nota debe ser un número entero de 1 a 10.",
- "A operação não vale para formatos e larguras.": "La operación no se aplica a formatos y anchos.",
  "A ordem já era essa.": "El orden ya era ese.",
  "A origem '{nome}' foi removida; a consulta não pode ser atualizada": "El origen '{nome}' se eliminó; la consulta no se puede actualizar",
  "A origem [{arquivo}] não foi encontrada.": "No se encontró el origen [{arquivo}].",
@@ -6062,5 +6061,7 @@
  "Zeros": "Ceros",
  "Comentário em conversa (vira anotação simples)": "Comentario en conversación (pasa a nota simple)",
  "Colar vínculo": "Pegar vínculo",
- "A operação não vale para formatos, larguras e vínculos.": "La operación no se aplica a formatos, anchos y vínculos."
+ "As células copiadas não têm comentários.": "Las celdas copiadas no tienen comentarios.",
+ "{quantos} comentário(s) colado(s)": "{quantos} comentario(s) pegado(s)",
+ "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "La operación solo se aplica a Todo, Fórmulas, Valores y Valores y formatos."
 }

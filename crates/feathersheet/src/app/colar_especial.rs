@@ -19,6 +19,8 @@ pub enum QueColar {
     Larguras,
     /// Colar vínculo: cada célula vira `=Aba!A1` apontando para a copiada.
     Vinculo,
+    /// Só os comentários das células copiadas; conteúdo e formato do destino ficam.
+    Comentarios,
 }
 
 #[derive(Debug, Clone)]
@@ -92,7 +94,7 @@ impl App {
         if !self.confirmar() { return; }
         let copia = self.area_copiada.as_ref().filter(|c| c.texto == dados);
         let precisa_interna = matches!(e.colar,
-            QueColar::Formatos | QueColar::ValoresEFormatos | QueColar::Larguras | QueColar::Vinculo);
+            QueColar::Formatos | QueColar::ValoresEFormatos | QueColar::Larguras | QueColar::Vinculo | QueColar::Comentarios);
         if precisa_interna && copia.is_none() {
             self.status = tr!("Esta opção requer células copiadas do FeatherSheet").into();
             return;
@@ -119,6 +121,27 @@ impl App {
             Ok(p) => p,
             Err(m) => { self.status = m.into(); return; }
         };
+        if e.colar == QueColar::Comentarios {
+            let comentarios = copia.map(|c| c.comentarios.clone()).unwrap_or_default();
+            if comentarios.is_empty() { self.status = tr!("As células copiadas não têm comentários.").into(); return; }
+            let mut quantos = 0;
+            self.workbook.editar(self.folha, |sheet| {
+                sheet.abrir_transacao();
+                // A origem se repete pelo destino maior, como o resto da colagem.
+                for dr in 0..plano.altura {
+                    for dc in 0..plano.largura {
+                        let (or, oc) = if e.transpor { (dc % alt_o, dr % larg_o) } else { (dr % alt_o, dc % larg_o) };
+                        if let Some((_, m)) = comentarios.iter().find(|(p, _)| *p == (or as u32, oc as u32)) {
+                            quantos += sheet.definir_comentario(plano.r0 + dr as u32, plano.c0 + dc as u32, Some(m.clone())) as usize;
+                        }
+                    }
+                }
+                sheet.fechar_transacao();
+            });
+            self.alterado |= quantos > 0;
+            self.status = trf!("{quantos} comentário(s) colado(s)");
+            return;
+        }
         // Colar vínculo: a aba vai no nome só quando a origem é outra (como o Excel).
         let vinculo = (e.colar == QueColar::Vinculo).then(|| copia.map(|c| {
             let aba = (Some(c.aba_origem) != self.workbook.aba(self.folha).map(|a| a.id))
@@ -239,7 +262,7 @@ impl App {
             container(a).width(Length::Fill(1)),
             container(b).width(Length::Fill(1)),
         ];
-        let sem_conta = matches!(e.colar, QueColar::Formatos | QueColar::Larguras | QueColar::Vinculo);
+        let sem_conta = matches!(e.colar, QueColar::Formatos | QueColar::Larguras | QueColar::Vinculo | QueColar::Comentarios);
         let mut operacoes = column![
             grupo(tr!("OPERAÇÃO")),
             duas(conta(tr!("Nenhuma"), OperacaoColagem::Nenhuma).into(),
@@ -251,7 +274,7 @@ impl App {
         if sem_conta {
             operacoes = operacoes.push(row![
                 feather_ui::icones::icone("info-circle", 14.0),
-                text(tr!("A operação não vale para formatos, larguras e vínculos.")).size(11)
+                text(tr!("A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.")).size(11)
                     .color(COR_TEXTO_MUTED()),
             ].spacing(6).align(pelicano::Align::Center));
         }
@@ -264,7 +287,8 @@ impl App {
                     opcao(tr!("Larguras das colunas"), QueColar::Larguras).into()),
                 duas(opcao(tr!("Valores"), QueColar::Valores).into(),
                     opcao(tr!("Formatos"), QueColar::Formatos).into()),
-                duas(opcao(tr!("Colar vínculo"), QueColar::Vinculo).into(), Space::new(0, 0.0).into()),
+                duas(opcao(tr!("Colar vínculo"), QueColar::Vinculo).into(),
+                    opcao(tr!("Comentários"), QueColar::Comentarios).into()),
             ].spacing(8),
             operacoes,
             row![
@@ -321,6 +345,21 @@ mod testes {
         colar(&mut app, "B2", dados, vinculo);
         assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(1, 1), format!("={}!A1", feathersheet_core::celulas::refs::quote_sheet(&nome)));
         assert_eq!(app.workbook.valor(outra, 2, 1), Value::Number(20.0));
+    }
+
+    #[test]
+    fn colar_so_comentarios_mantem_o_conteudo_do_destino() {
+        use feathersheet_core::planilha::sheet::comentarios::Comentario;
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "origem".into());
+        app.workbook.escrever_celula(0, 0, 3, "destino".into());
+        app.workbook.editar(0, |s| { s.definir_comentario(0, 0, Some(Comentario { autor: "Ana".into(), texto: "conferir".into(), visivel: false })); });
+        let dados = copiar(&mut app, "A1:B1");
+        colar(&mut app, "D1", dados, Estado { colar: QueColar::Comentarios, ..Default::default() });
+        let aba = &app.workbook.aba(0).unwrap().sheet;
+        assert_eq!(aba.get_raw(0, 3), "destino");
+        assert_eq!(aba.comentario(0, 3).map(|c| c.texto.as_str()), Some("conferir"));
+        assert!(aba.comentario(0, 4).is_none());
     }
 
     #[test]

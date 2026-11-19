@@ -71,7 +71,10 @@ branco, texto "0" aparece). Teste `testes_zeros` e `zeros_ocultos_vao_e_voltam_d
 (`Evento::ColarVinculo`, executa direto): cada célula do destino vira `=A1` (mesma aba) ou `='Aba'!A1` (outra), relativa,
 apontando para a célula copiada; o estilo do destino fica. Pede cópia feita no FeatherSheet (`AreaCopiada::aba_origem`,
 novo). "Ignorar em branco" e "Transpor" valem; a operação não. Teste `colar_vinculo_aponta_para_a_origem_e_cita_a_outra_aba`.
-Novidade: "Colar vínculo: cole fórmulas que apontam para as células copiadas, como no Excel."
+Na mesma janela, "Comentários" (`QueColar::Comentarios`): só os comentários da cópia (`AreaCopiada::comentarios`, pela posição
+na área) vão para o destino, que fica com o conteúdo e o formato; destino sem comentário na origem não muda. Teste
+`colar_so_comentarios_mantem_o_conteudo_do_destino`. Foto da janela conferida (`FEATHERSHEET_CAPTURAR_DIALOGO=colar_especial`).
+Novidade: "Colar especial com Colar vínculo e Comentários, como no Excel."
 
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava

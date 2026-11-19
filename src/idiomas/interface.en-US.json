@@ -279,7 +279,6 @@
  "A mensagem de entrada": "The input message",
  "A mensagem de erro": "The error message",
  "A nota deve ser um número inteiro de 1 a 10.": "The grade must be a whole number from 1 to 10.",
- "A operação não vale para formatos e larguras.": "The operation does not apply to formats and widths.",
  "A ordem já era essa.": "It was already in this order.",
  "A origem '{nome}' foi removida; a consulta não pode ser atualizada": "The source '{nome}' was removed; the query cannot be refreshed",
  "A origem [{arquivo}] não foi encontrada.": "The source [{arquivo}] was not found.",
@@ -6062,5 +6061,7 @@
  "Zeros": "Zeros",
  "Comentário em conversa (vira anotação simples)": "Threaded comment (becomes a plain note)",
  "Colar vínculo": "Paste link",
- "A operação não vale para formatos, larguras e vínculos.": "The operation does not apply to formats, widths and links."
+ "As células copiadas não têm comentários.": "The copied cells have no comments.",
+ "{quantos} comentário(s) colado(s)": "{quantos} comment(s) pasted",
+ "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "The operation only applies to All, Formulas, Values and Values and formats."
 }
