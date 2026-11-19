@@ -272,6 +272,8 @@ struct Leitura<'a> {
     saida: Vec<ObjetoSolto>,
     /// Índice da âncora em leitura (ordem de empilhamento, como o `z` dos gráficos).
     z: usize,
+    /// Grupos já lidos: o número do próximo (`extras.grupo`, o Agrupar do app).
+    grupos: u64,
 }
 
 fn base(tipo: TipoObjeto, forma: String, ret: Retangulo, regua: &ReguaLida, z: usize) -> ObjetoSolto {
@@ -395,6 +397,7 @@ impl Leitura<'_> {
             let (cor, gradiente) = preenchimento(&falso, herdado);
             Herdado { cor, gradiente }
         }).unwrap_or_else(|| herdado.clone());
+        let inicio = self.saida.len();
         for c in &g.children {
             if !matches!(c.name.as_str(), "sp" | "cxnSp" | "pic" | "grpSp" | "AlternateContent") { continue; }
             let pr_filho = c.child(if c.name == "grpSp" { "grpSpPr" } else { "spPr" });
@@ -412,6 +415,11 @@ impl Leitura<'_> {
                 _ => ret,
             };
             self.elemento(zip, c, r, &proprio);
+        }
+        // Os filhos andam juntos no app (grupo dentro de grupo vira o de fora: o app não aninha).
+        if self.saida.len() - inicio >= 2 {
+            self.grupos += 1;
+            for o in &mut self.saida[inicio..] { o.extras.insert("grupo".into(), serde_json::json!(self.grupos)); }
         }
     }
 }
@@ -453,7 +461,7 @@ fn ler_desenho(
 ) -> Vec<ObjetoSolto> {
     let (dir, arq) = caminho.rsplit_once('/').unwrap_or(("", caminho));
     let rels = entry_text(zip, &format!("{dir}/_rels/{arq}.rels")).map(|t| read_rels(&t)).unwrap_or_default();
-    let mut l = Leitura { regua, rels, desenho: caminho.to_string(), saida: Vec::new(), z: 0 };
+    let mut l = Leitura { regua, rels, desenho: caminho.to_string(), saida: Vec::new(), z: 0, grupos: 0 };
     for (z, a) in xml.children.iter().filter(|c| c.name.ends_with("Anchor")).enumerate() {
         l.z = z;
         let Some(ret) = retangulo_da_ancora(a, regua) else { continue };
@@ -654,6 +662,9 @@ mod testes {
         assert_eq!(barra.aparencia.contorno, None);
         let r = barra.retangulo(&regua());
         assert_eq!((r.x, r.y, r.largura, r.altura), (64.0, 20.0, 256.0, 20.0));
+        // Os dois filhos do grupo andam juntos no app; o resto fica solto.
+        let grupo = |o: &ObjetoSolto| o.extras.get("grupo").and_then(|v| v.as_u64());
+        assert_eq!((grupo(&objs[1]), grupo(&objs[2]), grupo(&objs[0]), grupo(&objs[3])), (Some(1), Some(1), None, None));
         let fig = &objs[2];
         assert_eq!(fig.tipo, TipoObjeto::Imagem);
         let im = fig.imagem.as_ref().unwrap();

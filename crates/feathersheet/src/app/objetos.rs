@@ -224,6 +224,11 @@ pub enum Evento {
     /// Formatar forma > Efeitos: liga/desliga a sombra da forma selecionada.
     SombraForma,
     Selecionar(u64),
+    /// Shift+clique: junta (ou tira) a forma na seleção de várias, para Agrupar (#79).
+    SelecionarMais(u64),
+    /// Junta as formas selecionadas num grupo, ou desfaz o grupo da selecionada.
+    Agrupar,
+    Desagrupar,
     Desselecionar,
     /// Resultado de mover, redimensionar ou girar (px lógicos absolutos).
     Transformar { id: u64, ret: Retangulo, giro: f32, medida: Medida },
@@ -330,6 +335,8 @@ pub(super) struct Campos {
 pub(super) struct EstadoObjetos {
     /// Painel de Seleção aberto (#79): lista os objetos da aba.
     pub painel_selecao: bool,
+    /// Outras formas da seleção de várias (Shift+clique), além da `selecionado`.
+    pub mais: Vec<u64>,
     /// Aba e id do objeto selecionado.
     pub selecionado: Option<(u32, u64)>,
     /// Forma escolhida no menu, à espera do arraste que a cria.
@@ -471,6 +478,7 @@ impl App {
     fn selecionar(&mut self, id: u64) {
         let aba = self.workbook.aba(self.folha).map(|a| a.id);
         self.objetos.selecionado = aba.map(|a| (a, id));
+        self.objetos.mais.clear();
         self.desselecionar_grafico();
         self.objetos.painel = None;
         self.imagem_selecionada = None;
@@ -481,12 +489,24 @@ impl App {
     /// Tira a seleção; a aba Editar forma some (volta para Inserir).
     fn desselecionar(&mut self) {
         self.objetos.selecionado = None;
+        self.objetos.mais.clear();
         self.desselecionar_grafico();
         self.objetos.painel = None;
         self.objetos.menu_faixa = None;
         if self.faixa_ativa == AbaFaixa::EditarForma {
             self.faixa_ativa = AbaFaixa::Inserir;
         }
+    }
+
+    /// Formas que se desenham com contorno de seleção além da selecionada: as do Shift+clique
+    /// e as do mesmo grupo.
+    pub(super) fn marcados(&self) -> Vec<u64> {
+        let Some(o) = self.objeto_selecionado() else { return vec![] };
+        let mut v = self.objetos.mais.clone();
+        if let (Some(g), Some((_, lidos))) = (grupo_de(&o), self.objetos_da_aba()) {
+            v.extend(lidos.objetos.iter().filter(|x| x.id != o.id && grupo_de(x) == Some(g)).map(|x| x.id));
+        }
+        v
     }
 
     fn registrar_medida(&mut self, gesto: &str, m: Medida) {
@@ -595,6 +615,39 @@ impl App {
                 }
             }
             Evento::Desselecionar => self.desselecionar(),
+            Evento::SelecionarMais(id) => match self.objetos.selecionado {
+                None => return self.evento_objetos(Evento::Selecionar(id)),
+                Some((_, sel)) if sel == id => {}
+                Some(_) => {
+                    if let Some(i) = self.objetos.mais.iter().position(|&m| m == id) { self.objetos.mais.remove(i); } else { self.objetos.mais.push(id); }
+                    self.status = trf!("{} formas selecionadas: Organizar ▸ Agrupar junta todas.", self.objetos.mais.len() + 1);
+                }
+            },
+            Evento::Agrupar => {
+                let Some((_, sel)) = self.objetos.selecionado else { return Task::none() };
+                if self.objetos.mais.is_empty() { return Task::none(); }
+                let Some((_, lidos)) = self.objetos_da_aba() else { return Task::none() };
+                let mut objetos = (*lidos).clone();
+                // Quem já estava em grupo leva o grupo inteiro para o novo.
+                let mut ids: Vec<u64> = std::iter::once(sel).chain(self.objetos.mais.iter().copied()).collect();
+                let antigos: Vec<u64> = ids.iter().filter_map(|&id| objetos.obter(id).and_then(grupo_de)).collect();
+                ids.extend(objetos.objetos.iter().filter(|o| grupo_de(o).is_some_and(|g| antigos.contains(&g))).map(|o| o.id));
+                // Número novo, acima dos que a aba já usa (os grupos vindos do .xlsx contam 1, 2…).
+                let grupo = objetos.objetos.iter().filter_map(grupo_de).max().unwrap_or(0) + 1;
+                for o in objetos.objetos.iter_mut().filter(|o| ids.contains(&o.id)) {
+                    o.extras.insert("grupo".into(), serde_json::Value::from(grupo));
+                }
+                self.objetos.mais.clear();
+                self.gravar_objetos(&objetos, tr!("Formas agrupadas: movem juntas (Ctrl+Z desfaz).").into());
+            }
+            Evento::Desagrupar => {
+                let Some(o) = self.objeto_selecionado() else { return Task::none() };
+                let Some(g) = grupo_de(&o) else { return Task::none() };
+                let Some((_, lidos)) = self.objetos_da_aba() else { return Task::none() };
+                let mut objetos = (*lidos).clone();
+                for o in objetos.objetos.iter_mut().filter(|o| grupo_de(o) == Some(g)) { o.extras.remove("grupo"); }
+                self.gravar_objetos(&objetos, tr!("Grupo desfeito (Ctrl+Z desfaz).").into());
+            }
             Evento::Transformar { id, ret, giro, medida } => {
                 let Some(aba) = self.workbook.aba(self.folha) else { return Task::none() };
                 let Some((_, lidos)) = self.objetos_da_aba() else { return Task::none() };
@@ -611,6 +664,17 @@ impl App {
                 } else {
                     "mover"
                 };
+                // Mover uma forma do grupo leva as outras junto; girar e redimensionar mexem só nela.
+                // shortcut: o grupo não gira nem estica como um todo (o Excel faz); fazer se pedirem.
+                if gesto == "mover" {
+                    if let Some(g) = grupo_de(o) {
+                        let (dx, dy) = (ret.x - antes.0.x, ret.y - antes.0.y);
+                        for outro in objetos.objetos.iter_mut().filter(|x| x.id != id && grupo_de(x) == Some(g)) {
+                            let r = outro.retangulo(&regua);
+                            outro.ancorar(Retangulo { x: r.x + dx, y: r.y + dy, ..r }, &regua);
+                        }
+                    }
+                }
                 let status = match gesto { "girar" => tr!("Forma girada"), "redimensionar" => tr!("Forma redimensionada"), _ => tr!("Forma movida") };
                 self.gravar_objetos(&objetos, trf!("{status} (Ctrl+Z desfaz)."));
                 self.registrar_medida(gesto, medida);
@@ -1200,6 +1264,8 @@ impl App {
             let r = o.retangulo(&regua);
             let mut novo = o.clone();
             novo.id = objetos.proximo_id();
+            // A cópia é solta: entrar no grupo da original a faria andar junto com ela.
+            novo.extras.remove("grupo");
             novo.ancorar(Retangulo::novo(r.x + PASSO_COLAR, r.y + PASSO_COLAR, r.largura, r.altura), &regua);
             ultimo = objetos.adicionar(novo).or(ultimo);
         }
@@ -1493,3 +1559,8 @@ impl App {
 
 #[cfg(test)]
 mod testes;
+
+/// Grupo da forma (#79): guardado em `extras.grupo`, vai e volta no `.fshz` sem campo novo.
+pub(super) fn grupo_de(o: &ObjetoSolto) -> Option<u64> {
+    o.extras.get("grupo").and_then(serde_json::Value::as_u64)
+}

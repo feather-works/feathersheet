@@ -58,6 +58,7 @@ Help menu, under *What's new*).
 ### Coming in the next version
 
 - **Split window** (View → Window → Split or Side by side, #83): two panes, one above the other or next to each other, each with its own sheet and scrolling, pictures, shapes, charts and buttons included. Click a pane to work in it.
+- **Group shapes** (Page Layout → Arrange → Group, #79): Shift+click to select several shapes, Group to move them together, Ungroup to release them. Groups in an Excel `.xlsx` open grouped.
 
 ### New in v0.3.3
 

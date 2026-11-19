@@ -549,6 +549,8 @@ pub(super) struct Camada {
     /// Gráficos do Excel intercalados com os objetos pelo `z`.
     pub graficos: Vec<GraficoTela>,
     pub selecionado: Option<u64>,
+    /// Outras formas da seleção (Shift+clique) e do mesmo grupo: só um contorno.
+    pub marcados: Vec<u64>,
     pub inserir: Option<&'static str>,
     pub vista: Vista,
     /// "Travar proporção" ligado na aba Editar forma.
@@ -976,6 +978,11 @@ impl Camada {
                     return (Captured::Yes, None);
                 }
                 match self.alvo(p, estado.ctrl) {
+                    // Shift+clique junta a forma na seleção (para Agrupar), sem arrastar.
+                    Some((id, TipoGesto::Mover)) if estado.shift => {
+                        estado.gesto = None;
+                        (Captured::Yes, msg(Evento::SelecionarMais(id)))
+                    }
                     Some((id, tipo)) => {
                         let it = self.itens.iter().find(|i| i.id == id).expect("alvo existe");
                         // Duplo clique numa forma sem macro: editar o texto.
@@ -1097,6 +1104,14 @@ impl Camada {
             let (forma, ajustes) = ajuste.as_ref().map_or((it.forma.as_str(), it.ajustes.as_slice()), |(f, a)| (*f, a.as_slice()));
             if Some(it.id) == em_gesto {
                 self.desenhar_recortado(frame, it, ret, giro, ajustes, forma, tamanho);
+            }
+            if self.marcados.contains(&it.id) {
+                let r = self.ret_tela(ret);
+                frame.with_clip(corpo, |f| {
+                    f.translate(Vector::new(-corpo.x, -corpo.y));
+                    f.stroke(&Path::rectangle(r.position(), r.size()),
+                        Stroke { line_dash: cv::LineDash { segments: &[4.0, 3.0], offset: 0 }, ..Stroke::default().with_color(COR_AZUL_ACENTO()).with_width(1.0) });
+                });
             }
             if self.selecionado == Some(it.id) {
                 frame.with_clip(corpo, |f| {

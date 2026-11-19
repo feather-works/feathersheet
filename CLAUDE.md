@@ -23,6 +23,18 @@ do grupo Janela (19/11; antes saía como botão pequeno solto, conferido por fot
 Novidade: "Dividir janela (Exibir ▸ Janela): duas abas à vista, uma em cima da outra ou lado a lado, cada uma com
 a sua rolagem, imagens e gráficos."
 
+**Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
+arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava
+`extras.grupo` = número novo (maior da aba + 1) em todos, e quem já era de grupo leva o grupo inteiro; com forma de grupo
+selecionada o botão vira Desagrupar (`link-off`). Sem campo novo: `extras` vai e volta no `.fshz`. Mover uma forma do
+grupo (`Evento::Transformar` com gesto "mover") anda as outras pelo mesmo tanto; **girar e redimensionar mexem só na
+forma** (`shortcut:` no código; o Excel estica o grupo inteiro). As outras do grupo e do Shift+clique ganham contorno
+tracejado (`Camada::marcados`, `App::marcados`). Colar/duplicar tira o `grupo` da cópia. `.xlsx`: o `grpSp` lido marca os
+filhos com o mesmo número (grupo dentro de grupo vira o de fora; `Leitura::grupos`); **gravar `.xlsx` não escreve o
+`grpSp`** (as formas saem soltas). Testes: `objetos::testes::agrupar_move_junto_e_desagrupar_solta` e o do
+`desenho_objetos`. Novidade: "Agrupar formas: Shift+clique para escolher várias e Organizar ▸ Agrupar para movê-las
+juntas; grupos do Excel chegam agrupados." Com isto o #79 fica completo (menos girar/esticar o grupo inteiro).
+
 ## Depois da v0.3.2 (13/11/2026): auditoria de fórmulas, arquivos e do app
 
 Três leituras do código acharam 31 problemas com caso concreto; a lista, com o que foi feito e o que

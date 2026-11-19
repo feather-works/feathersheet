@@ -6048,5 +6048,8 @@
  "Divisão removida": "Fractionnement supprimé",
  "Janela dividida: clique no outro painel e escolha a aba dele": "Fenêtre fractionnée : cliquez sur l'autre volet et choisissez sa feuille",
  "Dividir janela": "Fractionner",
- "Lado a lado": "Côte à côte"
+ "Lado a lado": "Côte à côte",
+ "Formas agrupadas: movem juntas (Ctrl+Z desfaz).": "Formes groupées : elles se déplacent ensemble (Ctrl+Z annule).",
+ "Grupo desfeito (Ctrl+Z desfaz).": "Groupe dissocié (Ctrl+Z annule).",
+ "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} formes sélectionnées : Organiser ▸ Grouper les réunit toutes."
 }

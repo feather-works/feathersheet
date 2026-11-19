@@ -6048,5 +6048,8 @@
  "Divisão removida": "Split removed",
  "Janela dividida: clique no outro painel e escolha a aba dele": "Window split: click the other pane and pick its sheet",
  "Dividir janela": "Split",
- "Lado a lado": "Side by side"
+ "Lado a lado": "Side by side",
+ "Formas agrupadas: movem juntas (Ctrl+Z desfaz).": "Shapes grouped: they move together (Ctrl+Z undoes).",
+ "Grupo desfeito (Ctrl+Z desfaz).": "Group removed (Ctrl+Z undoes).",
+ "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} shapes selected: Arrange ▸ Group joins them all."
 }

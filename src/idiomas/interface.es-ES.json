@@ -6048,5 +6048,8 @@
  "Divisão removida": "División quitada",
  "Janela dividida: clique no outro painel e escolha a aba dele": "Ventana dividida: haga clic en el otro panel y elija su hoja",
  "Dividir janela": "Dividir ventana",
- "Lado a lado": "En paralelo"
+ "Lado a lado": "En paralelo",
+ "Formas agrupadas: movem juntas (Ctrl+Z desfaz).": "Formas agrupadas: se mueven juntas (Ctrl+Z deshace).",
+ "Grupo desfeito (Ctrl+Z desfaz).": "Grupo deshecho (Ctrl+Z deshace).",
+ "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} formas seleccionadas: Organizar ▸ Agrupar las une todas."
 }

@@ -166,7 +166,8 @@ impl App {
         }
         let selecionado = self.objetos.selecionado.filter(|(a, id)| p.ativo && *a == aba_id && lidos.obter(*id).is_some()).map(|(_, id)| id);
         let editando = self.objetos.texto.as_ref().map(|(id, _)| *id).filter(|id| selecionado == Some(*id));
-        let camada = Camada { itens, graficos, selecionado, inserir, vista, travar: self.objetos.travar, editando };
+        let marcados = if selecionado.is_some() { self.marcados() } else { vec![] };
+        let camada = Camada { itens, graficos, selecionado, marcados, inserir, vista, travar: self.objetos.travar, editando };
         let tela = selecionado.and_then(|id| camada.itens.iter().find(|i| i.id == id)).map(|it| camada.ret_tela(it.ret));
         let giro = selecionado.and_then(|id| camada.itens.iter().find(|i| i.id == id)).map_or(0.0, |i| i.giro);
         let item_editado = editando.and_then(|id| camada.itens.iter().find(|i| i.id == id)).cloned();
@@ -882,6 +883,11 @@ impl App {
             self.faixa_pilha(vec![
                 self.faixa_pequeno(tr!("Alinhar"), "layout-grid", com(MenuFaixa::Alinhar), aberto(MenuFaixa::Alinhar)),
                 self.faixa_pequeno(tr!("Girar"), "refresh", com(MenuFaixa::Girar), aberto(MenuFaixa::Girar)),
+                if self.objeto_selecionado().as_ref().and_then(super::grupo_de).is_some() {
+                    self.faixa_pequeno(tr!("Desagrupar"), "link-off", Some(ev(Evento::Desagrupar)), false)
+                } else {
+                    self.faixa_pequeno(tr!("Agrupar"), "link", (!self.objetos.mais.is_empty()).then(|| ev(Evento::Agrupar)), false)
+                },
             ]),
         ]))
     }

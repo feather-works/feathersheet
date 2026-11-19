@@ -85,7 +85,7 @@ fn camada_acha_alca_giro_e_objeto_e_ignora_area_vazia() {
     let vista = app.vista_tinta().unwrap();
     let aba = app.workbook.aba(0).unwrap();
     let itens: Vec<ItemTela> = lidos(&app).objetos.iter().map(|o| ItemTela::de(o, &ReguaAba(&aba.sheet))).collect();
-    let camada = Camada { itens, graficos: Vec::new(), selecionado: Some(id), inserir: None, vista, travar: false, editando: None };
+    let camada = Camada { itens, graficos: Vec::new(), selecionado: Some(id), marcados: vec![], inserir: None, vista, travar: false, editando: None };
     let r = camada.ret_tela(Retangulo::novo(100.0, 100.0, 200.0, 100.0));
     assert_eq!(camada.alvo(Point::new(r.x + r.width, r.y + r.height), false), Some((id, TipoGesto::Alca(Alca::Se))));
     assert_eq!(camada.alvo(Point::new(r.center_x(), r.y - 22.0), false), Some((id, TipoGesto::Girar)));
@@ -111,7 +111,7 @@ fn forma_com_macro_executa_no_clique_e_ctrl_seleciona() {
     let vista = app.vista_tinta().unwrap();
     let aba = app.workbook.aba(0).unwrap();
     let itens: Vec<ItemTela> = lidos(&app).objetos.iter().map(|o| ItemTela::de(o, &ReguaAba(&aba.sheet))).collect();
-    let camada = Camada { itens, graficos: Vec::new(), selecionado: None, inserir: None, vista, travar: false, editando: None };
+    let camada = Camada { itens, graficos: Vec::new(), selecionado: None, marcados: vec![], inserir: None, vista, travar: false, editando: None };
     let centro = camada.ret_tela(Retangulo::novo(100.0, 100.0, 200.0, 100.0)).center();
     assert_eq!(camada.alvo(centro, false), Some((id, TipoGesto::Macro)));
     assert_eq!(camada.alvo(centro, true), Some((id, TipoGesto::Mover)), "Ctrl+clique seleciona");
@@ -499,4 +499,36 @@ fn painel_de_selecao_oculta_e_muda_a_ordem() {
     assert_eq!(ordem, [b, a]);
     // O grupo Organizar aparece na aba Layout da Página.
     let _ = app.grupos_layout_pagina();
+}
+
+#[test]
+fn agrupar_move_junto_e_desagrupar_solta() {
+    let mut app = app();
+    let a = criar(&mut app, "retangulo", Retangulo::novo(40.0, 40.0, 100.0, 60.0));
+    let b = criar(&mut app, "elipse", Retangulo::novo(200.0, 40.0, 100.0, 60.0));
+    let regua_ret = |app: &App, id| lidos(app).obter(id).unwrap().retangulo(&ReguaAba(&app.workbook.aba(0).unwrap().sheet));
+    // Sem a segunda forma na seleção, Agrupar não faz nada.
+    let _ = app.update(Msg::Objetos(Evento::Selecionar(a)));
+    let _ = app.update(Msg::Objetos(Evento::Agrupar));
+    assert!(super::grupo_de(lidos(&app).obter(a).unwrap()).is_none());
+    let _ = app.update(Msg::Objetos(Evento::SelecionarMais(b)));
+    assert_eq!(app.objetos.mais, vec![b]);
+    let _ = app.update(Msg::Objetos(Evento::Agrupar));
+    assert_eq!(super::grupo_de(lidos(&app).obter(b).unwrap()), super::grupo_de(lidos(&app).obter(a).unwrap()));
+    assert!(super::grupo_de(lidos(&app).obter(a).unwrap()).is_some());
+    // Mover a leva b pelo mesmo tanto.
+    let antes_b = regua_ret(&app, b);
+    let _ = app.update(Msg::Objetos(Evento::Transformar { id: a, ret: Retangulo::novo(140.0, 100.0, 100.0, 60.0), giro: 0.0, medida: Medida::default() }));
+    let depois_b = regua_ret(&app, b);
+    assert!(((depois_b.x - antes_b.x) - 100.0).abs() < 0.5 && ((depois_b.y - antes_b.y) - 60.0).abs() < 0.5, "{antes_b:?} → {depois_b:?}");
+    // A cópia colada não entra no grupo.
+    let _ = app.update(Msg::Objetos(Evento::Duplicar));
+    let copia = app.objetos.selecionado.unwrap().1;
+    assert!(super::grupo_de(lidos(&app).obter(copia).unwrap()).is_none());
+    // Desagrupar solta as duas; um Ctrl+Z volta o grupo.
+    let _ = app.update(Msg::Objetos(Evento::Selecionar(b)));
+    let _ = app.update(Msg::Objetos(Evento::Desagrupar));
+    assert!(lidos(&app).objetos.iter().all(|o| super::grupo_de(o).is_none()));
+    app.historico(false);
+    assert!(super::grupo_de(lidos(&app).obter(a).unwrap()).is_some());
 }
