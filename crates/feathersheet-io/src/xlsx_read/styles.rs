@@ -64,6 +64,10 @@ pub struct Style {
     pub bg: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rotation: Option<f64>,
+    /// Alinhamento horizontal do Excel que o app não desenha igual (`centerContinuous`, `fill`,
+    /// `justify`, `distributed`): a tela usa o mais próximo em `align` e a gravação devolve este.
+    #[serde(rename = "alignExcel", skip_serializing_if = "Option::is_none")]
+    pub align_excel: Option<&'static str>,
     /// `<alignment shrinkToFit="1"/>`: Reduzir para caber.
     #[serde(rename = "shrinkToFit", skip_serializing_if = "Option::is_none")]
     pub shrink_to_fit: Option<bool>,
@@ -111,6 +115,7 @@ impl Style {
             || self.bg.is_some()
             || self.rotation.is_some()
             || self.indent.is_some()
+            || self.align_excel.is_some()
             || self.shrink_to_fit.is_some()
             || self.text_vertical.is_some()
             || self.link.is_some()
@@ -369,6 +374,11 @@ fn read_xf(xf: &XmlNode, codes: &HashMap<i64, String>, fonts: &[Style], fills: &
             Some("left") => style.align = Some("left"),
             Some("center") => style.align = Some("center"),
             Some("right") => style.align = Some("right"),
+            // shortcut: Centralizar na seleção centraliza só na célula; desenhar através das vizinhas vazias se pedirem.
+            Some("centerContinuous") => { style.align = Some("center"); style.align_excel = Some("centerContinuous") }
+            Some("distributed") => { style.align = Some("center"); style.align_excel = Some("distributed") }
+            Some("fill") => { style.align = Some("left"); style.align_excel = Some("fill") }
+            Some("justify") => { style.align = Some("left"); style.align_excel = Some("justify") }
             _ => {}
         }
         match align.attr("vertical") {
@@ -424,6 +434,14 @@ mod tests {
         assert_eq!(xfs[2].style.rotation, Some(-45.0));
         let json = serde_json::to_value(&xfs[0].style).unwrap();
         assert_eq!(json["shrinkToFit"], true);
+    }
+
+    #[test]
+    fn centralizar_na_selecao_fica_guardado() {
+        let xml = r#"<styleSheet><cellXfs><xf><alignment horizontal="centerContinuous"/></xf><xf><alignment horizontal="fill"/></xf></cellXfs></styleSheet>"#;
+        let xfs = read_styles(xml);
+        assert_eq!((xfs[0].style.align, xfs[0].style.align_excel), (Some("center"), Some("centerContinuous")));
+        assert_eq!((xfs[1].style.align, xfs[1].style.align_excel), (Some("left"), Some("fill")));
     }
 
     #[test]

@@ -30,6 +30,14 @@ lê `shrinkToFit` e o 255 como `textVertical`, e o `xlsx_write` grava os dois. T
 (leitor) e `reduzir_para_caber_e_texto_vertical_voltam_do_xlsx` (`da_workbook`). Novidade: "Reduzir para caber e texto
 vertical do Excel agora abrem e salvam no .xlsx."
 
+**Centralizar na seleção e outros alinhamentos do Excel guardados (19/11).** `horizontal` = `centerContinuous`,
+`distributed`, `fill` ou `justify` era descartado ao ler o `.xlsx` (a célula ficava no Geral e o Ctrl+S apagava). Agora a
+leitura põe o mais próximo em `align` (centro para os dois primeiros, esquerda para os outros) e guarda o original em
+`alignExcel`; o `xlsx_write` devolve o original só se o `align` ainda é o que ele virou (trocado no app, vale o novo).
+**Na tela** Centralizar na seleção centraliza só dentro da célula (`shortcut:` em `styles.rs`). Testes:
+`centralizar_na_selecao_fica_guardado` e `centralizar_na_selecao_volta_ao_xlsx_so_se_nao_mudou`. Novidade: "Centralizar
+na seleção, Preencher, Justificar e Distribuído do Excel não se perdem mais ao abrir e salvar o .xlsx."
+
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava
 `extras.grupo` = número novo (maior da aba + 1) em todos, e quem já era de grupo leva o grupo inteiro; com forma de grupo

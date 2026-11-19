@@ -471,7 +471,15 @@ fn estilos_xml(tabela: &TabelaDeEstilos) -> String {
         let mut alinhar: Vec<String> = Vec::new();
         let recuo = numero(s, "indent").filter(|n| *n >= 1.0 && !n.is_nan()).map(|n| n.round().min(15.0) as u32);
         if verdadeiro(s.get("align")) {
-            alinhar.push(format!("horizontal=\"{}\"", texto(s, "align").unwrap_or_default()));
+            let a = texto(s, "align").unwrap_or_default();
+            // O alinhamento do Excel guardado na leitura volta, se o da tela ainda é o que ele virou
+            // (trocado no app para outro, vale o novo).
+            let excel = texto(s, "alignExcel").filter(|e| match e.as_str() {
+                "centerContinuous" | "distributed" => a == "center",
+                "fill" | "justify" => a == "left",
+                _ => false,
+            });
+            alinhar.push(format!("horizontal=\"{}\"", excel.unwrap_or(a)));
         } else if recuo.is_some() {
             // O Excel só aplica recuo a alinhamento à esquerda/direita/distribuído.
             alinhar.push("horizontal=\"left\"".to_string());

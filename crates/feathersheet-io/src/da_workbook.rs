@@ -533,6 +533,26 @@ mod testes {
     }
 
     #[test]
+    fn centralizar_na_selecao_volta_ao_xlsx_so_se_nao_mudou() {
+        use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
+        use feathersheet_core::celulas::refs::Rect;
+        let mut wb = Workbook::new();
+        wb.escrever_celula(0, 0, 0, "Relatório".into());
+        wb.escrever_celula(0, 1, 0, "Outro".into());
+        wb.editar(0, |s| {
+            let p = |a: &str| { let mut p = EstiloParcial::new(); p.insert("align".into(), Campo::Texto(a.into())); p.insert("alignExcel".into(), Campo::Texto("centerContinuous".into())); p };
+            s.set_style(&Rect::cell(0, 0), &p("center"));
+            // Trocado no app para a esquerda: o centerContinuous antigo não pode voltar.
+            s.set_style(&Rect::cell(1, 0), &p("left"));
+        });
+        let (xlsx, _) = crate::xlsx_read::ler_xlsx_workbook(crate::xlsx_write::gerar_xlsx(&wb).unwrap()).unwrap();
+        let aba = &xlsx.aba(0).unwrap().sheet;
+        let campo = |l, k: &str| aba.estilo_mesclado(l, 0).as_ref().and_then(|e| e.get(k).cloned());
+        assert_eq!(campo(0, "alignExcel"), Some(Campo::Texto("centerContinuous".into())));
+        assert_eq!((campo(1, "alignExcel"), campo(1, "align")), (None, Some(Campo::Texto("left".into()))));
+    }
+
+    #[test]
     fn comentarios_sobrevivem_fshz_e_xlsx() {
         use feathersheet_core::planilha::sheet::comentarios::Comentario;
         let mut wb = Workbook::new();
