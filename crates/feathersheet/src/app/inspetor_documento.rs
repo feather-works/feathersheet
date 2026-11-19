@@ -1,6 +1,6 @@
 //! Arquivo ▸ Informações ▸ Inspecionar documento, como o Inspetor de Documento do Excel: antes de
 //! mandar a pasta para alguém, mostra o que vai junto sem estar à vista (comentários, dados pessoais,
-//! abas, linhas e colunas ocultas, nomes, vínculos com outros arquivos, macros).
+//! abas, linhas e colunas ocultas, cabeçalho e rodapé, nomes, vínculos com outros arquivos, macros).
 //!
 //! Só remove o que volta com Ctrl+Z ou com um clique (comentários, dados pessoais); abas e linhas
 //! ocultas são apontadas, não apagadas: apagar dado escondido é decisão de quem conhece a planilha.
@@ -82,6 +82,25 @@ impl App {
             achados.push(Achado {
                 titulo: tr!("Linhas ou colunas ocultas").into(),
                 detalhe: trf!("{}. Quem abrir o arquivo pode reexibir.", lista_abas(&com_ocultas)),
+                acao: None,
+            });
+        }
+
+        // Cabeçalho e rodapé saem na impressão e no PDF e costumam levar nome, empresa ou caminho.
+        // Só apontados: a configuração de página não tem Ctrl+Z (nem no Excel).
+        let com_texto: Vec<String> = abas.iter().filter_map(|s| {
+            let pg = feathersheet_io::pagina_aba::ler(s.pg.as_deref());
+            let textos: Vec<String> = [&pg.cabecalho, &pg.rodape].into_iter().cloned()
+                .chain([&pg.xlsx_cabecalho, &pg.xlsx_rodape].into_iter().flatten().map(|c| feathersheet_io::pagina_aba::texto_simples(c)))
+                .map(|t| t.trim().to_owned()).filter(|t| !t.is_empty()).collect();
+            let primeiro = textos.first()?;
+            let curto: String = primeiro.chars().take(40).collect();
+            Some(format!("{}: \"{}{}\"", s.name, curto, if primeiro.chars().count() > 40 { "…" } else { "" }))
+        }).collect();
+        if !com_texto.is_empty() {
+            achados.push(Achado {
+                titulo: tr!("Cabeçalho e rodapé").into(),
+                detalhe: trf!("Saem na impressão e no PDF. {}. Mude em Inserir ▸ Cabeçalho e rodapé.", lista_abas(&com_texto)),
                 acao: None,
             });
         }
@@ -216,6 +235,13 @@ mod tests {
         assert!(app.workbook.aba(0).unwrap().sheet.comentarios.is_empty());
         let _ = app.update(Msg::Desfazer);
         assert_eq!(app.workbook.aba(0).unwrap().sheet.comentarios.len(), 1, "Ctrl+Z traz de volta");
+
+        assert!(!titulos.iter().any(|t| t == tr!("Cabeçalho e rodapé")), "sem cabeçalho, nada a apontar");
+        let pg = feathersheet_io::pagina_aba::PaginaAba { xlsx_rodape: Some("&L&\"Arial\"C:\\Users\\ana\\custos.xlsx&R&P".into()), ..Default::default() };
+        app.workbook.editar(0, |s| s.pg = feathersheet_io::pagina_aba::gravar(&pg));
+        let _ = app.update(Msg::InspetorDocumento(Evento::Inspecionar));
+        let rodape = app.inspecao_documento.as_ref().unwrap().iter().find(|a| a.titulo == tr!("Cabeçalho e rodapé")).expect("rodapé apontado");
+        assert!(rodape.detalhe.contains("custos.xlsx"), "{}", rodape.detalhe);
 
         let _ = app.update(Msg::InspetorDocumento(Evento::RemoverDadosPessoais));
         let nota = app.workbook.aba(0).unwrap().sheet.comentario(2, 1).cloned().unwrap();

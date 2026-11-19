@@ -225,7 +225,7 @@
      "Todo funciona en su equipo: sin cuenta, sin inicio de sesión, y ningún contenido sale de él.",
      "Configuración ▸ Guardar libros nuevos como .xlsx: Guardar como… sugiere el formato de Excel.",
      "☰ Menú ▸ Información ▸ Propiedades: título, asunto, autor, administrador, compañía, categoría, palabras clave y comentarios del libro, como en Excel. Van en el .fshz y el .xlsx al guardar; creado, modificado y modificado por se completan solos.",
-     "☰ Menú ▸ Información ▸ Inspeccionar documento: antes de enviar el libro a alguien, muestra lo que va incluido sin estar a la vista (comentarios, su nombre y empresa, hojas, filas y columnas ocultas, nombres, vínculos con otros archivos y macros). Quitar todos elimina los comentarios (Ctrl+Z deshace); Quitar datos personales guarda el archivo sin autor, modificado por, empresa ni el nombre de quien escribió cada comentario."
+     "☰ Menú ▸ Información ▸ Inspeccionar documento: antes de enviar el libro a alguien, muestra lo que va incluido sin estar a la vista (comentarios, su nombre y empresa, hojas, filas y columnas ocultas, encabezado y pie de página, nombres, vínculos con otros archivos y macros). Quitar todos elimina los comentarios (Ctrl+Z deshace); Quitar datos personales guarda el archivo sin autor, modificado por, empresa ni el nombre de quien escribió cada comentario."
     ]
    },
    "config": {

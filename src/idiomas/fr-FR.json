@@ -225,7 +225,7 @@
           "Tout s'exécute sur votre machine : pas de compte, pas de connexion, aucun de vos contenus n'en sort.",
           "Paramètres ▸ Enregistrer les nouveaux classeurs en .xlsx : Enregistrer sous… propose le format Excel.",
           "☰ Menu ▸ Informations ▸ Propriétés : titre, sujet, auteur, responsable, société, catégorie, mots-clés et commentaires du classeur, comme dans Excel. Enregistrés dans le .fshz et le .xlsx ; la création, la dernière modification et le dernier auteur de la modification sont remplis automatiquement.",
-          "☰ Menu ▸ Informations ▸ Inspecter le document : avant d'envoyer le classeur, montre ce qui l'accompagne sans être visible (commentaires, votre nom et société, feuilles, lignes et colonnes masquées, noms, liaisons vers d'autres fichiers et macros). Tout supprimer retire les commentaires (Ctrl+Z annule) ; Supprimer les données personnelles enregistre le fichier sans auteur, dernier modificateur, société ni le nom de l'auteur de chaque commentaire."
+          "☰ Menu ▸ Informations ▸ Inspecter le document : avant d'envoyer le classeur, montre ce qui l'accompagne sans être visible (commentaires, votre nom et société, feuilles, lignes et colonnes masquées, en-tête et pied de page, noms, liaisons vers d'autres fichiers et macros). Tout supprimer retire les commentaires (Ctrl+Z annule) ; Supprimer les données personnelles enregistre le fichier sans auteur, dernier modificateur, société ni le nom de l'auteur de chaque commentaire."
         ]
       },
       "config": {

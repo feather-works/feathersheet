@@ -6118,5 +6118,6 @@
  "Texto alternativo removido da imagem": "Texte de remplacement retiré de l'image",
  "Texto alternativo gravado na imagem": "Texte de remplacement enregistré sur l'image",
  "Descreva a imagem para quem usa leitor de tela. Deixe em branco se ela for só decoração.": "Décrivez l'image pour les utilisateurs de lecteur d'écran. Laissez vide si elle est seulement décorative.",
- "Ex.: logotipo da empresa": "Ex. : logo de l'entreprise"
+ "Ex.: logotipo da empresa": "Ex. : logo de l'entreprise",
+ "Saem na impressão e no PDF. {}. Mude em Inserir ▸ Cabeçalho e rodapé.": "Ils apparaissent à l'impression et dans le PDF. {}. Modifiez-les dans Insertion ▸ En-tête et pied de page."
 }
