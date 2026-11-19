@@ -6051,5 +6051,8 @@
  "Lado a lado": "Side by side",
  "Formas agrupadas: movem juntas (Ctrl+Z desfaz).": "Shapes grouped: they move together (Ctrl+Z undoes).",
  "Grupo desfeito (Ctrl+Z desfaz).": "Group removed (Ctrl+Z undoes).",
- "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} shapes selected: Arrange ▸ Group joins them all."
+ "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} shapes selected: Arrange ▸ Group joins them all.",
+ "Preenchimento em degradê": "Gradient fill",
+ "Borda diagonal": "Diagonal border",
+ "Preenchimento com hachura": "Pattern fill"
 }

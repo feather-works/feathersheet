@@ -6051,5 +6051,8 @@
  "Lado a lado": "Côte à côte",
  "Formas agrupadas: movem juntas (Ctrl+Z desfaz).": "Formes groupées : elles se déplacent ensemble (Ctrl+Z annule).",
  "Grupo desfeito (Ctrl+Z desfaz).": "Groupe dissocié (Ctrl+Z annule).",
- "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} formes sélectionnées : Organiser ▸ Grouper les réunit toutes."
+ "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} formes sélectionnées : Organiser ▸ Grouper les réunit toutes.",
+ "Preenchimento em degradê": "Remplissage dégradé",
+ "Borda diagonal": "Bordure diagonale",
+ "Preenchimento com hachura": "Remplissage à motif"
 }

@@ -46,6 +46,17 @@ fn caminho_relativo(pasta: &str, alvo: &str) -> String {
     partes.join("/")
 }
 
+/// Quantas vezes a marca `<tag` (com ou sem prefixo, `<x:tag`) abre no XML.
+fn abre(texto: &str, tag: &str) -> usize {
+    texto.match_indices(tag).filter(|(i, _)| {
+        let antes = &texto[..*i];
+        let depois = texto[i + tag.len()..].chars().next();
+        let inicio = antes.rfind('<').map(|j| &antes[j + 1..]);
+        // Logo depois de `<` ou de `<prefixo:`, e não `</`.
+        matches!(depois, Some(' ' | '>' | '/')) && inicio.is_some_and(|p| p.is_empty() || (p.ends_with(':') && !p.starts_with('/') && !p.contains([' ', '"'])))
+    }).count()
+}
+
 pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
     let mut z = ZipArchive::new(Cursor::new(std::sync::Arc::<[u8]>::from(bytes))).map_err(|e| feathersheet_core::trf!("Não parece um arquivo ZIP: {e}"))?;
     let mut saida: Vec<NaoConvertido> = Vec::new();
@@ -75,6 +86,14 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
             }
         }
     }
+    // Formatos que o estilo do FeatherSheet não guarda: o .xlsx gravado perderia (vira sólido ou some).
+    let estilos = entry_text(&mut z, "xl/styles.xml").unwrap_or_default();
+    somar(None, "Preenchimento em degradê", abre(&estilos, "gradientFill"));
+    somar(None, "Borda diagonal", ["diagonalUp=\"1\"", "diagonalDown=\"1\"", "diagonalUp=\"true\"", "diagonalDown=\"true\""].iter().map(|a| estilos.matches(a).count()).sum());
+    somar(None, "Preenchimento com hachura", estilos.match_indices("patternType=\"").filter(|(i, m)| {
+        let resto = &estilos[i + m.len()..];
+        !["none\"", "solid\"", "gray125\""].iter().any(|v| resto.starts_with(v))
+    }).count());
     let partes: Vec<String> = z.file_names().map(str::to_owned).collect();
     for p in &partes {
         if let Some(o) = pela_parte(p) { somar(None, o, 1); }
@@ -101,15 +120,22 @@ mod testes {
             f("xl/drawings/drawing1.xml", "<xdr:wsDr><xdr:twoCellAnchor><xdr:pic><xdr:nvPicPr/></xdr:pic></xdr:twoCellAnchor><xdr:twoCellAnchor><xdr:graphicFrame/></xdr:twoCellAnchor></xdr:wsDr>");
             f("xl/chartsheets/sheet1.xml", "<chartsheet/>");
             f("xl/connections.xml", "<connections/>");
+            f("xl/styles.xml", r#"<styleSheet><fills><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
+              <fill><patternFill patternType="lightGrid"/></fill><fill><gradientFill degree="90"><stop position="0"/></gradientFill></fill></fills>
+              <borders><border diagonalUp="1"><diagonal style="thin"/></border></borders></styleSheet>"#);
             zw.finish().unwrap();
         }
         let mut r = nao_convertidos(bytes).unwrap();
         r.sort_by_key(|x| x.o_que);
         let v: Vec<_> = r.iter().map(|x| (x.aba.as_deref(), x.o_que, x.quantos)).collect();
         assert_eq!(v, vec![
+            (None, "Borda diagonal", 1),
             (None, "Conexão de dados externos", 1),
             (Some("Vendas"), "Controle ActiveX", 2),
             (None, "Planilha de gráfico", 1),
+            (None, "Preenchimento com hachura", 1),
+            (None, "Preenchimento em degradê", 1),
         ]);
+        assert_eq!(abre("<x:gradientFill a='1'></x:gradientFill><gradientFill/>", "gradientFill"), 2);
     }
 }

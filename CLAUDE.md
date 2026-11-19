@@ -44,6 +44,13 @@ na seleção, Preencher, Justificar e Distribuído do Excel não se perdem mais 
 (`cor_aba`, pelo `styles::cor_de`, que entende tema e tint) e gravação no `<sheetPr>` antes do `pageSetUpPr`. Teste
 `cor_da_guia_vai_e_volta_do_xlsx`. Novidade: "A cor das guias das abas abre e salva no .xlsx do Excel."
 
+**Degradê, borda diagonal e hachura avisados (19/11).** O estilo do app guarda só cor sólida e uma linha por lado:
+`gradientFill`, `diagonalUp/Down` e `patternType` de hachura no `xl/styles.xml` sumiam no Ctrl+S calados. Agora entram no
+`nao_convertidos` (do arquivo inteiro, contados pelo texto do `styles.xml`, `abre` aceita prefixo), então o F12 lista e o
+Ctrl+S num `.xlsx` com eles pede "Salvar como" dizendo o que se perderia. Pode dar aviso por estilo definido e não usado
+por célula nenhuma (fica do lado seguro). Novidade: "Salvar por cima de um .xlsx com degradê, borda diagonal ou hachura
+avisa antes, em vez de perder esses formatos."
+
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava
 `extras.grupo` = número novo (maior da aba + 1) em todos, e quem já era de grupo leva o grupo inteiro; com forma de grupo

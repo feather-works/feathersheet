@@ -6051,5 +6051,8 @@
  "Lado a lado": "En paralelo",
  "Formas agrupadas: movem juntas (Ctrl+Z desfaz).": "Formas agrupadas: se mueven juntas (Ctrl+Z deshace).",
  "Grupo desfeito (Ctrl+Z desfaz).": "Grupo deshecho (Ctrl+Z deshace).",
- "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} formas seleccionadas: Organizar ▸ Agrupar las une todas."
+ "{} formas selecionadas: Organizar ▸ Agrupar junta todas.": "{} formas seleccionadas: Organizar ▸ Agrupar las une todas.",
+ "Preenchimento em degradê": "Relleno degradado",
+ "Borda diagonal": "Borde diagonal",
+ "Preenchimento com hachura": "Relleno de trama"
 }
