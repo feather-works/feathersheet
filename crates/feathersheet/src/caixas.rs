@@ -130,7 +130,7 @@ pub fn estado(sheet: &Sheet, r: u32, c: u32, marcado: &str, desmarcado: &str) ->
 }
 
 /// `a` menos `b`: até quatro retângulos (faixas de cima, de baixo e laterais).
-fn subtrair(a: &Rect, b: &Rect) -> Vec<Rect> {
+pub(crate) fn subtrair(a: &Rect, b: &Rect) -> Vec<Rect> {
     let (r0, r1) = (a.r0.max(b.r0), a.r1.min(b.r1));
     let (c0, c1) = (a.c0.max(b.c0), a.c1.min(b.c1));
     if r0 > r1 || c0 > c1 {

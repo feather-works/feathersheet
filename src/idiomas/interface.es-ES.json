@@ -6063,5 +6063,7 @@
  "Colar vínculo": "Pegar vínculo",
  "As células copiadas não têm comentários.": "Las celdas copiadas no tienen comentarios.",
  "{quantos} comentário(s) colado(s)": "{quantos} comentario(s) pegado(s)",
- "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "La operación solo se aplica a Todo, Fórmulas, Valores y Valores y formatos."
+ "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "La operación solo se aplica a Todo, Fórmulas, Valores y Valores y formatos.",
+ "Validação colada ({quantas} regra(s))": "Validación pegada ({quantas} regla(s))",
+ "Validação": "Validación"
 }

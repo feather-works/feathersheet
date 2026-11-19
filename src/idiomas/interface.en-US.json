@@ -6063,5 +6063,7 @@
  "Colar vínculo": "Paste link",
  "As células copiadas não têm comentários.": "The copied cells have no comments.",
  "{quantos} comentário(s) colado(s)": "{quantos} comment(s) pasted",
- "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "The operation only applies to All, Formulas, Values and Values and formats."
+ "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "The operation only applies to All, Formulas, Values and Values and formats.",
+ "Validação colada ({quantas} regra(s))": "Validation pasted ({quantas} rule(s))",
+ "Validação": "Validation"
 }

@@ -21,6 +21,8 @@ pub enum QueColar {
     Vinculo,
     /// Só os comentários das células copiadas; conteúdo e formato do destino ficam.
     Comentarios,
+    /// Só a validação de dados: a do destino é trocada pela da cópia.
+    Validacao,
 }
 
 #[derive(Debug, Clone)]
@@ -94,7 +96,7 @@ impl App {
         if !self.confirmar() { return; }
         let copia = self.area_copiada.as_ref().filter(|c| c.texto == dados);
         let precisa_interna = matches!(e.colar,
-            QueColar::Formatos | QueColar::ValoresEFormatos | QueColar::Larguras | QueColar::Vinculo | QueColar::Comentarios);
+            QueColar::Formatos | QueColar::ValoresEFormatos | QueColar::Larguras | QueColar::Vinculo | QueColar::Comentarios | QueColar::Validacao);
         if precisa_interna && copia.is_none() {
             self.status = tr!("Esta opção requer células copiadas do FeatherSheet").into();
             return;
@@ -121,6 +123,30 @@ impl App {
             Ok(p) => p,
             Err(m) => { self.status = m.into(); return; }
         };
+        if e.colar == QueColar::Validacao {
+            // shortcut: a validação vai uma vez, no canto do destino (sem repetir pela área maior nem
+            // transpor), e fórmula personalizada não desloca as referências; fazer se pedirem.
+            let copiadas = copia.map(|c| c.validacoes.clone()).unwrap_or_default();
+            let Some(aba) = self.workbook.aba(self.folha) else { return };
+            let mut regras = match validacao_ui::carregar_regras(aba.sheet.va.as_deref()) {
+                Ok(v) => v,
+                Err(erro) => { self.status = erro; return; }
+            };
+            let destino = Rect::new(plano.r0, plano.c0, plano.r0 + alt_o as u32 - 1, plano.c0 + larg_o as u32 - 1);
+            for v in &mut regras { v.ranges = v.ranges.iter().flat_map(|r| crate::caixas::subtrair(r, &destino)).collect(); }
+            regras.retain(|v| !v.ranges.is_empty());
+            let quantas = copiadas.len();
+            regras.extend(copiadas.into_iter().map(|mut v| {
+                v.ranges = v.ranges.iter().map(|r| Rect::new(r.r0 + plano.r0, r.c0 + plano.c0, r.r1 + plano.r0, r.c1 + plano.c0)).collect();
+                v
+            }));
+            let json = (!regras.is_empty()).then(|| serde_json::to_string(&regras).unwrap_or_default());
+            self.workbook.editar(self.folha, |sheet| { sheet.alterar_validacoes(json, &destino); });
+            self.alterado = true;
+            self.atualizar_circulos();
+            self.status = trf!("Validação colada ({quantas} regra(s))");
+            return;
+        }
         if e.colar == QueColar::Comentarios {
             let comentarios = copia.map(|c| c.comentarios.clone()).unwrap_or_default();
             if comentarios.is_empty() { self.status = tr!("As células copiadas não têm comentários.").into(); return; }
@@ -262,7 +288,7 @@ impl App {
             container(a).width(Length::Fill(1)),
             container(b).width(Length::Fill(1)),
         ];
-        let sem_conta = matches!(e.colar, QueColar::Formatos | QueColar::Larguras | QueColar::Vinculo | QueColar::Comentarios);
+        let sem_conta = matches!(e.colar, QueColar::Formatos | QueColar::Larguras | QueColar::Vinculo | QueColar::Comentarios | QueColar::Validacao);
         let mut operacoes = column![
             grupo(tr!("OPERAÇÃO")),
             duas(conta(tr!("Nenhuma"), OperacaoColagem::Nenhuma).into(),
@@ -289,6 +315,7 @@ impl App {
                     opcao(tr!("Formatos"), QueColar::Formatos).into()),
                 duas(opcao(tr!("Colar vínculo"), QueColar::Vinculo).into(),
                     opcao(tr!("Comentários"), QueColar::Comentarios).into()),
+                duas(opcao(tr!("Validação"), QueColar::Validacao).into(), Space::new(0, 0.0).into()),
             ].spacing(8),
             operacoes,
             row![
@@ -345,6 +372,23 @@ mod testes {
         colar(&mut app, "B2", dados, vinculo);
         assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(1, 1), format!("={}!A1", feathersheet_core::celulas::refs::quote_sheet(&nome)));
         assert_eq!(app.workbook.valor(outra, 2, 1), Value::Number(20.0));
+    }
+
+    #[test]
+    fn colar_validacao_troca_a_do_destino_e_mantem_o_conteudo() {
+        let mut app = App::default();
+        let lista = r#"[{"ranges":[{"r0":0,"c0":0,"r1":9,"c1":0}],"regra":{"tipo":"lista","valores":["Sim","Não"]},"quando":"recusar"}]"#;
+        app.workbook.editar(0, |s| s.va = Some(lista.into()));
+        app.workbook.escrever_celula(0, 0, 3, "texto".into());
+        for r in [1, 2] { app.workbook.escrever_celula(0, r, 0, "Sim".into()); }
+        let dados = copiar(&mut app, "A2:A3");
+        colar(&mut app, "D1", dados, Estado { colar: QueColar::Validacao, ..Default::default() });
+        let regras = validacao_ui::carregar_regras(app.workbook.aba(0).unwrap().sheet.va.as_deref()).unwrap();
+        assert_eq!(regras.len(), 2);
+        assert_eq!(regras[1].ranges, vec![Rect::new(0, 3, 1, 3)], "D1:D2, o tamanho do pedaço copiado");
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(0, 3), "texto");
+        app.historico(false);
+        assert_eq!(validacao_ui::carregar_regras(app.workbook.aba(0).unwrap().sheet.va.as_deref()).unwrap().len(), 1, "um Ctrl+Z volta");
     }
 
     #[test]

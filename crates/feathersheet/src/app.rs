@@ -610,6 +610,9 @@ struct AreaCopiada {
     origem: (u32, u32),
     /// Id da aba de onde veio (Colar vínculo aponta para ela).
     aba_origem: u32,
+    /// Regras de validação que cobrem a área, recortadas nela e pela posição dentro dela
+    /// (Colar especial ▸ Validação).
+    validacoes: Vec<feathersheet_core::operacoes::validation::Validacao>,
     /// Comentários da área, pela posição dentro dela (Colar especial ▸ Comentários).
     comentarios: Vec<((u32, u32), feathersheet_core::planilha::sheet::comentarios::Comentario)>,
     /// Veio do Ctrl+X: colar leva a fórmula sem deslocar (é mover).

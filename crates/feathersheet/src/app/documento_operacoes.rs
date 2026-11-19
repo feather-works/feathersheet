@@ -318,6 +318,15 @@ impl App {
         self.area_copiada = Some(AreaCopiada {
             texto: texto.clone(), celulas, valores, larguras,
             origem: (area.r0, area.c0), aba_origem: aba.id, recortada: false,
+            validacoes: super::validacao_ui::carregar_regras(aba.sheet.va.as_deref()).unwrap_or_default().into_iter()
+                .filter_map(|mut v| {
+                    // Só o pedaço de cada intervalo que cai na área, contado a partir do canto dela.
+                    v.ranges = v.ranges.iter().filter_map(|r| {
+                        let (r0, r1, c0, c1) = (r.r0.max(area.r0), r.r1.min(area.r1), r.c0.max(area.c0), r.c1.min(area.c1));
+                        (r0 <= r1 && c0 <= c1).then(|| Rect::new(r0 - area.r0, c0 - area.c0, r1 - area.r0, c1 - area.c0))
+                    }).collect();
+                    (!v.ranges.is_empty()).then_some(v)
+                }).collect(),
             comentarios: aba.sheet.comentarios_na_area(&area).into_iter()
                 .filter_map(|(r, c)| aba.sheet.comentario(r, c).map(|m| ((r - area.r0, c - area.c0), m.clone()))).collect(),
         });

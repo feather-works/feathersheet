@@ -74,7 +74,12 @@ novo). "Ignorar em branco" e "Transpor" valem; a operação não. Teste `colar_v
 Na mesma janela, "Comentários" (`QueColar::Comentarios`): só os comentários da cópia (`AreaCopiada::comentarios`, pela posição
 na área) vão para o destino, que fica com o conteúdo e o formato; destino sem comentário na origem não muda. Teste
 `colar_so_comentarios_mantem_o_conteudo_do_destino`. Foto da janela conferida (`FEATHERSHEET_CAPTURAR_DIALOGO=colar_especial`).
-Novidade: "Colar especial com Colar vínculo e Comentários, como no Excel."
+E "Validação" (`QueColar::Validacao`): a cópia guarda as regras recortadas na área (`AreaCopiada::validacoes`, pela posição);
+colar tira o destino das regras dele (`caixas::subtrair`, agora `pub(crate)`) e põe as copiadas, num Ctrl+Z
+(`alterar_validacoes`). **Limites** (`shortcut:` no código): vai uma vez no canto do destino, sem repetir pela área maior nem
+transpor; fórmula personalizada não desloca as referências. Teste `colar_validacao_troca_a_do_destino_e_mantem_o_conteudo`.
+De passagem, Limpar formatos passou a tirar também sobrescrito, subscrito, sublinhado duplo e o `alignExcel`.
+Novidade: "Colar especial com Colar vínculo, Comentários e Validação, como no Excel."
 
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava

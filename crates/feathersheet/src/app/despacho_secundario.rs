@@ -316,7 +316,8 @@ impl App {
                 let mut patch = EstiloParcial::new();
                 for chave in ["bold", "italic", "underline", "strike", "wrap", "fontSize",
                     "fontFamily", "decimals", "borders", "align", "vAlign",
-                    "format", "color", "bg", "rotation", "link", "indent", "textVertical", "shrinkToFit"] {
+                    "format", "color", "bg", "rotation", "link", "indent", "textVertical", "shrinkToFit",
+                    "superscript", "subscript", "alignExcel", feathersheet_core::operacoes::sublinhado::CHAVE_DUPLO] {
                     patch.insert(chave.into(), Campo::Nulo);
                 }
                 // As caixas de seleção também são formato (Excel): saem da seleção.

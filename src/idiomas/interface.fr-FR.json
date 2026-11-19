@@ -6063,5 +6063,7 @@
  "Colar vínculo": "Coller avec liaison",
  "As células copiadas não têm comentários.": "Les cellules copiées n'ont pas de commentaires.",
  "{quantos} comentário(s) colado(s)": "{quantos} commentaire(s) collé(s)",
- "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "L'opération ne s'applique qu'à Tout, Formules, Valeurs et Valeurs et formats."
+ "A operação só vale para Tudo, Fórmulas, Valores e Valores e formatos.": "L'opération ne s'applique qu'à Tout, Formules, Valeurs et Valeurs et formats.",
+ "Validação colada ({quantas} regra(s))": "Validation collée ({quantas} règle(s))",
+ "Validação": "Validation"
 }
