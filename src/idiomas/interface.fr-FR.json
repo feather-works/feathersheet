@@ -6056,5 +6056,8 @@
  "Borda diagonal": "Bordure diagonale",
  "Preenchimento com hachura": "Remplissage à motif",
  "Texto com formatação em parte da célula": "Texte mis en forme sur une partie de la cellule",
- "Validação de dados sem equivalente": "Validation des données sans équivalent"
+ "Validação de dados sem equivalente": "Validation des données sans équivalent",
+ "Formatação condicional sem equivalente": "Mise en forme conditionnelle sans équivalent",
+ "Filtro da planilha (fora de tabela)": "Filtre de la feuille (hors tableau)",
+ "Zeros": "Zéros"
 }

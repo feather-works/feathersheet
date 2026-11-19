@@ -17,11 +17,13 @@ pub struct VistaAba {
     pub linhas_grade: bool,
     /// Painel congelado: linhas e colunas fixas (`<pane state="frozen">`).
     pub congelar: (u32, u32),
+    /// `showZeros` (padrão: ligado); desligado, célula com zero aparece em branco.
+    pub zeros: bool,
 }
 
 impl Default for VistaAba {
     fn default() -> Self {
-        Self { linhas_grade: true, congelar: (0, 0) }
+        Self { linhas_grade: true, congelar: (0, 0), zeros: true }
     }
 }
 
@@ -55,6 +57,7 @@ pub fn vista_do_xml(xml: &str) -> VistaAba {
     let Some(raiz) = parse_xml(xml).ok() else { return vista };
     let Some(v) = raiz.child("sheetViews").and_then(|s| s.child("sheetView")) else { return vista };
     vista.linhas_grade = !matches!(v.attr("showGridLines"), Some("0") | Some("false"));
+    vista.zeros = !matches!(v.attr("showZeros"), Some("0") | Some("false"));
     if let Some(p) = v.child("pane").filter(|p| matches!(p.attr("state"), Some("frozen") | Some("frozenSplit"))) {
         let n = |a: &str| p.attr(a).and_then(|x| x.parse::<f64>().ok()).unwrap_or(0.0).max(0.0) as u32;
         let (mut linhas, mut colunas) = (n("ySplit"), n("xSplit"));
@@ -107,9 +110,10 @@ mod testes {
 
     #[test]
     fn grade_desligada_e_painel_congelado() {
+        assert!(!vista_do_xml(r#"<worksheet><sheetViews><sheetView showZeros="0"/></sheetViews></worksheet>"#).zeros);
         let x = r#"<worksheet><sheetViews><sheetView showGridLines="0" workbookViewId="0">
             <pane xSplit="1" ySplit="4" topLeftCell="B5" activePane="bottomRight" state="frozen"/></sheetView></sheetViews></worksheet>"#;
-        assert_eq!(vista_do_xml(x), VistaAba { linhas_grade: false, congelar: (4, 1) });
+        assert_eq!(vista_do_xml(x), VistaAba { linhas_grade: false, congelar: (4, 1), zeros: true });
         let sem = r#"<worksheet><sheetViews><sheetView workbookViewId="0"/></sheetViews></worksheet>"#;
         assert_eq!(vista_do_xml(sem), VistaAba::default());
         // Divisão comum (não congelada) não vira painel congelado.
@@ -138,5 +142,15 @@ mod testes {
         let v = ler_vistas_bytes(saida.into_inner());
         assert_eq!(v.len(), 2);
         assert!(!v[0].linhas_grade && v[1].linhas_grade);
+    }
+
+    #[test]
+    fn zeros_ocultos_vao_e_voltam_do_xlsx() {
+        let mut wb = feathersheet_core::planilha::workbook::Workbook::new();
+        wb.escrever_celula(0, 0, 0, "0".into());
+        let vistas = vec![VistaAba { zeros: false, ..VistaAba::default() }];
+        let bytes = crate::xlsx_write::com_vistas(vistas, || crate::xlsx_write::gerar_xlsx(&wb)).unwrap();
+        let v = ler_vistas_bytes(bytes);
+        assert!(!v[0].zeros && v[0].linhas_grade);
     }
 }

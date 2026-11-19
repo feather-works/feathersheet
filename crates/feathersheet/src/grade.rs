@@ -429,6 +429,8 @@ impl canvas::Program<Msg> for Grade<'_> {
                     String::new()
                 } else if esconder && !self.mostrar_formulas {
                     String::new()
+                } else if !self.mostrar_zeros && !self.mostrar_formulas && self.e_zero(r, c) {
+                    String::new()
                 } else if self.mostrar_formulas {
                     // Totais virtuais de tabela não substituem o texto da fórmula.
                     self.texto(r, c)
@@ -883,7 +885,7 @@ impl canvas::Program<Msg> for Grade<'_> {
                     && m.c0 <= self.area.c1 && m.c1 >= self.area.c0 {
                     f.fill_rectangle(Point::new(x,y), Size::new(w,h), selecao);
                 }
-                let valor = self.texto(m.r0, m.c0);
+                let valor = if !self.mostrar_zeros && !self.mostrar_formulas && self.e_zero(m.r0, m.c0) { String::new() } else { self.texto(m.r0, m.c0) };
                 if !valor.is_empty() {
                     let link_visivel = estilo.as_ref().and_then(|s| s.link.as_deref())
                         .and_then(crate::app::link_ui::link_do_estilo).is_some()

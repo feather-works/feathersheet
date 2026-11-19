@@ -257,6 +257,11 @@ impl App {
         self.linhas_grade && !self.workbook.aba(self.folha).is_some_and(|a| self.grade_oculta.contains(&a.id))
     }
 
+    /// A aba ativa mostra os zeros (Exibir ▸ Zeros).
+    pub(super) fn zeros_visiveis(&self) -> bool {
+        !self.workbook.aba(self.folha).is_some_and(|a| self.zeros_ocultos.contains(&a.id))
+    }
+
     pub(super) fn grade(&self) -> Grade<'_> {
         Grade {
             workbook: &self.workbook,
@@ -274,6 +279,7 @@ impl App {
             escuro: false,
             cabecalho_escuro: escuro_resolvido(self.config.tema_auto, self.config.escuro),
             linhas_grade: self.linhas_grade_visiveis(),
+            mostrar_zeros: self.zeros_visiveis(),
             mostrar_formulas: self.mostrar_formulas,
             fonte_padrao: &self.config.fonte_grade,
             tamanho_fonte_padrao: self.config.tamanho_fonte_grade,
@@ -476,4 +482,20 @@ fn ler_intervalos(texto: &str) -> Option<Vec<feathersheet_core::operacoes::rules
             .map(|a| Faixa { r0: a.r0, c0: a.c0, r1: a.r1, c1: a.c1 }))
         .collect::<Option<Vec<_>>>()
         .filter(|v| !v.is_empty())
+}
+
+#[cfg(test)]
+mod testes_zeros {
+    use crate::app::{App, Msg};
+
+    #[test]
+    fn zeros_desligados_valem_so_na_aba_e_vao_para_o_xlsx() {
+        let mut app = App::default();
+        let _ = app.update(Msg::MostrarZeros(false));
+        assert!(!app.zeros_visiveis() && !app.grade().mostrar_zeros);
+        let vistas = app.vistas_das_abas();
+        assert!(!vistas[0].zeros, "o .xlsx gravado leva showZeros=\"0\"");
+        let _ = app.update(Msg::MostrarZeros(true));
+        assert!(app.zeros_visiveis() && app.vistas_das_abas()[0].zeros);
+    }
 }

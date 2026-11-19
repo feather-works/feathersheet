@@ -6056,5 +6056,8 @@
  "Borda diagonal": "Diagonal border",
  "Preenchimento com hachura": "Pattern fill",
  "Texto com formatação em parte da célula": "Text formatted in only part of the cell",
- "Validação de dados sem equivalente": "Data validation with no equivalent"
+ "Validação de dados sem equivalente": "Data validation with no equivalent",
+ "Formatação condicional sem equivalente": "Conditional formatting with no equivalent",
+ "Filtro da planilha (fora de tabela)": "Sheet filter (outside a table)",
+ "Zeros": "Zeros"
 }

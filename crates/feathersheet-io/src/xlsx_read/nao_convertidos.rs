@@ -46,9 +46,9 @@ fn caminho_relativo(pasta: &str, alvo: &str) -> String {
     partes.join("/")
 }
 
-/// Os trechos `<…tag …>…</…tag>` do XML lido aos pedaços (a aba pode ter centenas de MB; só os
-/// trechos ficam na memória). Com ou sem prefixo (`<x14:dataValidations>`).
-fn trechos(mut leitor: impl std::io::Read, tag: &[u8]) -> Vec<String> {
+/// Os trechos `<…tag …>…</…tag>` (de qualquer uma das `tags`) do XML lido aos pedaços: a aba pode ter
+/// centenas de MB e só os trechos ficam na memória. Com ou sem prefixo (`<x14:dataValidations>`).
+fn trechos(mut leitor: impl std::io::Read, tags: &[&[u8]]) -> Vec<String> {
     let mut saida = Vec::new();
     let mut janela: Vec<u8> = Vec::new();
     let mut pedaco = vec![0u8; 1 << 16];
@@ -61,8 +61,8 @@ fn trechos(mut leitor: impl std::io::Read, tag: &[u8]) -> Vec<String> {
         loop {
             match &mut dentro {
                 None => {
-                    // Abertura: `<tag` ou `<prefixo:tag`, seguida de espaço ou `>`.
-                    let Some(i) = achar(&janela, tag) else { break };
+                    // A primeira das marcas na janela.
+                    let Some((i, tag)) = tags.iter().filter_map(|t| achar(&janela, t).map(|i| (i, *t))).min_by_key(|(i, _)| *i) else { break };
                     let antes = &janela[..i];
                     let lt = antes.iter().rposition(|&c| c == b'<');
                     let depois = janela.get(i + tag.len()).copied();
@@ -70,7 +70,7 @@ fn trechos(mut leitor: impl std::io::Read, tag: &[u8]) -> Vec<String> {
                     match (ok, depois) {
                         (_, None) => break, // pede mais bytes para saber o que vem depois
                         (true, Some(b' ' | b'>')) => {
-                            let j = lt.unwrap();
+                            let j = lt.expect("conferido no ok");
                             let fecho = [b"</".as_slice(), &janela[j + 1..i], tag, b">"].concat();
                             dentro = Some((janela[j..].to_vec(), fecho));
                             janela.clear();
@@ -80,8 +80,9 @@ fn trechos(mut leitor: impl std::io::Read, tag: &[u8]) -> Vec<String> {
                 }
                 Some((bloco, fecho)) => {
                     bloco.append(&mut janela);
-                    let Some(i) = achar(bloco, fecho) else { break };
-                    let fim = i + fecho.len();
+                    // `<tag …/>` fecha na própria abertura (sem isso o resto da aba entraria no bloco).
+                    let sozinha = bloco.iter().position(|&c| c == b'>').filter(|&g| g > 0 && bloco[g - 1] == b'/').map(|g| g + 1);
+                    let Some(fim) = sozinha.or_else(|| achar(bloco, fecho).map(|i| i + fecho.len())) else { break };
                     janela = bloco.split_off(fim);
                     saida.push(String::from_utf8_lossy(bloco).into_owned());
                     dentro = None;
@@ -126,12 +127,20 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         // shortcut: descompacta cada aba (≈1 s a mais no 1º Ctrl+S de um .xlsx de centenas de MB); se pesar,
         // guardar a contagem que a leitura já faz (`validacoes::ler`) na abertura.
         if let Ok(f) = z.by_name(&caminho) {
-            let blocos = trechos(f, b"dataValidations");
+            let mut blocos = trechos(f, &[b"dataValidations", b"conditionalFormatting", b"conditionalFormattings", b"autoFilter"]);
+            // AutoFiltro da aba, fora de tabela (o da tabela mora na parte da tabela): o app só filtra tabela.
+            let e_filtro = |b: &String| b.trim_start_matches('<').split([' ', '/', '>']).next().is_some_and(|n| n.ends_with("autoFilter"));
+            somar(Some(nome), "Filtro da planilha (fora de tabela)", blocos.iter().filter(|b| e_filtro(b)).count());
+            blocos.retain(|b| !e_filtro(b));
             if !blocos.is_empty() {
-                // Os blocos x14 entram como `extLst/ext`, onde o leitor de sempre procura.
+                // Os blocos x14 entram como `extLst/ext`, onde os leitores de sempre procuram.
                 let (x14, classicos): (Vec<_>, Vec<_>) = blocos.into_iter().partition(|b| b.starts_with("<x14:"));
                 let xml = format!("<worksheet>{}<extLst><ext>{}</ext></extLst></worksheet>", classicos.concat(), x14.concat());
-                if let Ok(raiz) = xml::parse_xml(&xml) { somar(Some(nome), "Validação de dados sem equivalente", super::validacoes::ler(&raiz).1); }
+                if let Ok(raiz) = xml::parse_xml(&xml) {
+                    somar(Some(nome), "Validação de dados sem equivalente", super::validacoes::ler(&raiz).1);
+                    // Ícones, período de datas, desvio padrão…: o estilo (dxf) não importa para contar.
+                    somar(Some(nome), "Formatação condicional sem equivalente", super::condicional::ler(&raiz, &[]).fora.len());
+                }
             }
         }
         let (pasta, arquivo) = caminho.rsplit_once('/').unwrap_or(("", &caminho));
@@ -179,7 +188,7 @@ mod testes {
             let mut f = |n: &str, t: &str| { zw.start_file(n, SimpleFileOptions::default()).unwrap(); zw.write_all(t.as_bytes()).unwrap(); };
             f("xl/workbook.xml", r#"<workbook xmlns:r="r"><sheets><sheet name="Vendas" r:id="rId1"/><sheet name="Gráf" r:id="rId2"/></sheets></workbook>"#);
             f("xl/_rels/workbook.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Target="chartsheets/sheet1.xml"/></Relationships>"#);
-            f("xl/worksheets/sheet1.xml", r#"<worksheet><sheetData/><dataValidations count="2"><dataValidation type="textLength" operator="lessThan" sqref="A1"><formula1>5</formula1></dataValidation><dataValidation type="list" sqref="B1"><formula1>"a,b"</formula1></dataValidation></dataValidations><extLst><x14:sparkline></x14:sparkline><x14:sparkline></x14:sparkline></extLst></worksheet>"#);
+            f("xl/worksheets/sheet1.xml", r#"<worksheet><sheetData/><dataValidations count="2"><dataValidation type="textLength" operator="lessThan" sqref="A1"><formula1>5</formula1></dataValidation><dataValidation type="list" sqref="B1"><formula1>"a,b"</formula1></dataValidation></dataValidations><autoFilter ref="A1:B9"/><conditionalFormatting sqref="A1:A9"><cfRule type="iconSet" priority="1"><iconSet><cfvo type="percent" val="0"/></iconSet></cfRule></conditionalFormatting><extLst><x14:sparkline></x14:sparkline><x14:sparkline></x14:sparkline></extLst></worksheet>"#);
             f("xl/worksheets/_rels/sheet1.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="../activeX/activeX1.xml"/><Relationship Id="rId2" Target="../activeX/activeX2.xml"/><Relationship Id="rId3" Target="../drawings/drawing1.xml"/></Relationships>"#);
             f("xl/drawings/drawing1.xml", "<xdr:wsDr><xdr:twoCellAnchor><xdr:pic><xdr:nvPicPr/></xdr:pic></xdr:twoCellAnchor><xdr:twoCellAnchor><xdr:graphicFrame/></xdr:twoCellAnchor></xdr:wsDr>");
             f("xl/chartsheets/sheet1.xml", "<chartsheet/>");
@@ -197,6 +206,8 @@ mod testes {
             (None, "Borda diagonal", 1),
             (None, "Conexão de dados externos", 1),
             (Some("Vendas"), "Controle ActiveX", 2),
+            (Some("Vendas"), "Filtro da planilha (fora de tabela)", 1),
+            (Some("Vendas"), "Formatação condicional sem equivalente", 1),
             (None, "Planilha de gráfico", 1),
             (None, "Preenchimento com hachura", 1),
             (None, "Preenchimento em degradê", 1),
@@ -208,8 +219,9 @@ mod testes {
         impl std::io::Read for AosPoucos<'_> {
             fn read(&mut self, b: &mut [u8]) -> std::io::Result<usize> { let n = self.0.len().min(3).min(b.len()); b[..n].copy_from_slice(&self.0[..n]); self.0 = &self.0[n..]; Ok(n) }
         }
-        let xml = b"<a><x14:dataValidations n=\"1\"><x/></x14:dataValidations><dataValidationsX/><dataValidations>y</dataValidations></a>";
-        assert_eq!(trechos(AosPoucos(xml), b"dataValidations"), vec!["<x14:dataValidations n=\"1\"><x/></x14:dataValidations>", "<dataValidations>y</dataValidations>"]);
+        let xml = b"<a><x14:dataValidations n=\"1\"><x/></x14:dataValidations><dataValidationsX/><autoFilter ref=\"A1\"/><dataValidations>y</dataValidations></a>";
+        assert_eq!(trechos(AosPoucos(xml), &[b"dataValidations", b"autoFilter"]),
+            vec!["<x14:dataValidations n=\"1\"><x/></x14:dataValidations>", "<autoFilter ref=\"A1\"/>", "<dataValidations>y</dataValidations>"]);
         assert_eq!(abre("<x:gradientFill a='1'></x:gradientFill><gradientFill/>", "gradientFill"), 2);
     }
 }

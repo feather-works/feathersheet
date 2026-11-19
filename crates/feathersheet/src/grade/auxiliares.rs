@@ -240,6 +240,12 @@ impl Grade<'_> {
         self.ponto_para_celula(p,tamanho)
     }
 
+    /// A célula vale exatamente zero (número, não texto "0"); a que está sendo digitada não conta.
+    pub(super) fn e_zero(&self, r: u32, c: u32) -> bool {
+        !((r, c) == self.selecionada && self.rascunho.is_some())
+            && matches!(self.workbook.valor(self.aba, r, c), feathersheet_core::Value::Number(n) if n == 0.0)
+    }
+
     pub(super) fn texto(&self, r: u32, c: u32) -> String {
         if (r,c)==self.selecionada {
             if let Some(t)=self.rascunho {return t.to_owned();}

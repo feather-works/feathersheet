@@ -69,6 +69,8 @@ pub struct Grade<'a> {
     /// Letras e números (cabeçalhos) no tema escuro da interface; as células seguem `escuro`.
     pub cabecalho_escuro: bool,
     pub linhas_grade: bool,
+    /// Falso: célula com valor zero fica em branco (`showZeros="0"` do Excel, por aba).
+    pub mostrar_zeros: bool,
     /// Exibe os textos brutos (inclusive =fórmulas), sem alterar o Workbook.
     pub mostrar_formulas: bool,
     /// Preferências do usuário só para células sem fonte/tamanho explícitos.

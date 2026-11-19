@@ -412,6 +412,10 @@ impl App {
                     self.faixa_pilha(vec![
                         self.faixa_pequeno(tr!("Pintar linha/coluna"), "palette", Some(Msg::RealceEixos(!self.config.realce_eixos)), self.config.realce_eixos),
                         self.faixa_lista(tr!("Tema"), "tema", TEMA, Some(if self.config.escuro { "Escuro" } else { "Claro" }), 91.),
+                    ]),
+                    // Monitor saía cortado como terceiro item embaixo da lista do Tema.
+                    self.faixa_pilha(vec![
+                        self.faixa_pequeno(tr!("Zeros"), "funcao_contar_numeros", Some(Msg::MostrarZeros(!self.zeros_visiveis())), self.zeros_visiveis()),
                         self.faixa_pequeno(tr!("Monitor"), "device-desktop", Some(Msg::Monitor), false),
                     ]),
                 ])));

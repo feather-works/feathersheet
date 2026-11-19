@@ -51,9 +51,20 @@ Ctrl+S num `.xlsx` com eles pede "Salvar como" dizendo o que se perderia. Texto 
 `sharedStrings.xml`: negrito numa palavra, cor num trecho) entrou no mesmo aviso, porque a célula guarda um formato só e
 o trecho formatado sairia liso. Validação de tipo sem equivalente no motor (tamanho do texto, personalizada qualquer), que a leitura
 deixava de fora só com nota no diário, também entra ("Validação de dados sem equivalente", por aba): `trechos` lê o XML da aba
-aos pedaços e guarda só os blocos `<dataValidations>`/`<x14:dataValidations>`, passados ao `validacoes::ler` de sempre. Pode dar aviso por estilo definido e não usado
+aos pedaços e guarda só os blocos `<dataValidations>`/`<x14:dataValidations>`, passados ao `validacoes::ler` de sempre. O mesmo trecho traz a formatação condicional (`conditionalFormatting` e o
+`x14:conditionalFormattings`): as regras que o `condicional::ler` deixa de fora (conjuntos de ícones, período de datas,
+desvio padrão, 10% primeiros, barra de dados do x14) contam como "Formatação condicional sem equivalente". E o `<autoFilter>` da aba fora de tabela (o app só filtra tabela; os botões
+sumiam e o Ctrl+S apagava) conta como "Filtro da planilha (fora de tabela)". O `trechos` trata `<tag …/>` sem fecho. Pode dar aviso por estilo definido e não usado
 por célula nenhuma (fica do lado seguro). Novidade: "Salvar por cima de um .xlsx com degradê, borda diagonal ou hachura
 avisa antes, em vez de perder esses formatos."
+
+**Exibir ▸ Zeros, por aba (19/11).** O `showZeros="0"` do `<sheetView>` era ignorado (as células com zero apareciam)
+e o Ctrl+S apagava. Agora `VistaAba::zeros` (lido em `vistas.rs`, gravado no `vista_xml`), `App::zeros_ocultos` (ids, como o
+`grade_oculta`; só estado da janela, não vai no `.fshz`), `Grade::mostrar_zeros` e `Grade::e_zero` (só número 0; o "0" texto e a
+célula em digitação aparecem). Botão Exibir ▸ Mostrar ▸ Zeros (`Msg::MostrarZeros`, marca alterado); o Monitor foi para a
+mesma pilha nova (saía cortado embaixo da lista do Tema). Novidade: "Exibir ▸ Zeros: deixe em branco as células com zero
+numa aba, como no Excel; a opção vem e volta no .xlsx." Foto: `FEATHERSHEET_CAPTURAR_ZEROS=0` (conferida: 0 digitado e fórmula que dá 0 em
+branco, texto "0" aparece). Teste `testes_zeros` e `zeros_ocultos_vao_e_voltam_do_xlsx`.
 
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava

@@ -460,6 +460,14 @@ impl App {
                 self.config.gravar();
                 Task::none()
             }
+            // Por aba, como o Excel (Opções ▸ "Mostrar zero nas células com valor zero"); vai no .xlsx.
+            Msg::MostrarZeros(v) => {
+                if let Some(id) = self.workbook.aba(self.folha).map(|a| a.id) {
+                    if v { self.zeros_ocultos.remove(&id); } else { self.zeros_ocultos.insert(id); }
+                    self.alterado = true;
+                }
+                Task::none()
+            }
             Msg::RealceEixos(v) => {
                 self.config.realce_eixos = v;
                 self.config.gravar();
@@ -1143,6 +1151,10 @@ impl App {
                                 let _ = self.update(Msg::CondicionalCorAbrir(if tipo == TipoCondicional::Escala {
                                     condicional_ui::CorRegra::Min } else { condicional_ui::CorRegra::Principal }));
                             }
+                        }
+                        // FEATHERSHEET_CAPTURAR_ZEROS=0: Exibir ▸ Zeros desligado na aba.
+                        if std::env::var("FEATHERSHEET_CAPTURAR_ZEROS").is_ok_and(|v| v == "0") {
+                            let _ = self.update(Msg::MostrarZeros(false));
                         }
                         // FEATHERSHEET_CAPTURAR_MENU_ABA=1: botão direito na primeira aba.
                         if std::env::var_os("FEATHERSHEET_CAPTURAR_MENU_ABA").is_some() {

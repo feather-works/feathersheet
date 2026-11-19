@@ -568,6 +568,7 @@ impl App {
         self.eixos_grade.borrow_mut().limpar();
         self.congelados.clear();
         self.grade_oculta.clear();
+        self.zeros_ocultos.clear();
         if ext == "xlsx" || ext == "xlsm" { self.aplicar_vistas_excel(&path); }
         self.congelar_menu_aberto = false;
         self.imagem_selecionada = None;
@@ -640,6 +641,7 @@ impl App {
         (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i)).map(|a| feathersheet_io::xlsx_read::VistaAba {
             linhas_grade: !self.grade_oculta.contains(&a.id),
             congelar: self.congelados.get(&a.id).copied().unwrap_or((0, 0)),
+            zeros: !self.zeros_ocultos.contains(&a.id),
         }).collect()
     }
 
@@ -647,6 +649,7 @@ impl App {
         for (i, v) in feathersheet_io::xlsx_read::ler_vistas_arquivo(path).into_iter().enumerate() {
             let Some(id) = self.workbook.aba(i).map(|a| a.id) else { break };
             if !v.linhas_grade { self.grade_oculta.insert(id); }
+            if !v.zeros { self.zeros_ocultos.insert(id); }
             let (linhas, colunas) = v.congelar;
             if (linhas > 0 || colunas > 0) && linhas <= 30 && colunas <= 16 {
                 self.congelados.insert(id, (linhas, colunas));
@@ -877,6 +880,7 @@ impl App {
                 self.condicional.borrow_mut().limpar();
                 self.congelados.clear();
                 self.grade_oculta.clear();
+                self.zeros_ocultos.clear();
                 self.congelar_menu_aberto = false;
                 self.imagem_selecionada = None;
                 self.arraste_imagem = None;

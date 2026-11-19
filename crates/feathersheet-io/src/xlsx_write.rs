@@ -2079,8 +2079,11 @@ pub fn com_vistas<R>(vistas: Vec<crate::xlsx_read::VistaAba>, gerar: impl FnOnce
 fn vista_xml(indice: usize) -> String {
     let Some(v) = VISTAS.with(|v| v.borrow().get(indice).copied()) else { return String::new() };
     let (linhas, colunas) = v.congelar;
-    if v.linhas_grade && linhas == 0 && colunas == 0 { return String::new(); }
-    let grade = if v.linhas_grade { "" } else { " showGridLines=\"0\"" };
+    if v.linhas_grade && v.zeros && linhas == 0 && colunas == 0 { return String::new(); }
+    let grade = match (v.linhas_grade, v.zeros) {
+        (true, true) => "", (false, true) => " showGridLines=\"0\"",
+        (true, false) => " showZeros=\"0\"", (false, false) => " showGridLines=\"0\" showZeros=\"0\"",
+    };
     let painel = if linhas == 0 && colunas == 0 { String::new() } else {
         let ativo = match (linhas > 0, colunas > 0) { (true, true) => "bottomRight", (true, false) => "bottomLeft", _ => "topRight" };
         let x = if colunas > 0 { format!(" xSplit=\"{colunas}\"") } else { String::new() };
@@ -2178,7 +2181,7 @@ mod testes {
         let mut pasta = Workbook::new();
         pasta.escrever_celula(0, 0, 0, "Título".into());
         pasta.criar_aba("Outra");
-        let vistas = vec![VistaAba { linhas_grade: false, congelar: (1, 2) }, VistaAba { linhas_grade: true, congelar: (0, 0) }];
+        let vistas = vec![VistaAba { linhas_grade: false, congelar: (1, 2), zeros: true }, VistaAba { linhas_grade: true, congelar: (0, 0), zeros: true }];
         let bytes = super::com_vistas(vistas.clone(), || gerar_xlsx(&pasta)).unwrap();
         assert_eq!(crate::xlsx_read::ler_vistas_bytes(bytes), vistas);
     }
