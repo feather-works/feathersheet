@@ -94,6 +94,9 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         let resto = &estilos[i + m.len()..];
         !["none\"", "solid\"", "gray125\""].iter().any(|v| resto.starts_with(v))
     }).count());
+    // Texto com parte formatada (negrito numa palavra, cor num trecho): a célula guarda um formato só.
+    let textos = entry_text(&mut z, "xl/sharedStrings.xml").unwrap_or_default();
+    somar(None, "Texto com formatação em parte da célula", textos.split("</si>").filter(|si| si.contains("<rPr") || si.contains(":rPr")).count());
     let partes: Vec<String> = z.file_names().map(str::to_owned).collect();
     for p in &partes {
         if let Some(o) = pela_parte(p) { somar(None, o, 1); }
@@ -123,6 +126,7 @@ mod testes {
             f("xl/styles.xml", r#"<styleSheet><fills><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
               <fill><patternFill patternType="lightGrid"/></fill><fill><gradientFill degree="90"><stop position="0"/></gradientFill></fill></fills>
               <borders><border diagonalUp="1"><diagonal style="thin"/></border></borders></styleSheet>"#);
+            f("xl/sharedStrings.xml", r#"<sst><si><t>liso</t></si><si><r><rPr><b/></rPr><t>Total</t></r><r><t> do mês</t></r></si></sst>"#);
             zw.finish().unwrap();
         }
         let mut r = nao_convertidos(bytes).unwrap();
@@ -135,6 +139,7 @@ mod testes {
             (None, "Planilha de gráfico", 1),
             (None, "Preenchimento com hachura", 1),
             (None, "Preenchimento em degradê", 1),
+            (None, "Texto com formatação em parte da célula", 1),
         ]);
         assert_eq!(abre("<x:gradientFill a='1'></x:gradientFill><gradientFill/>", "gradientFill"), 2);
     }

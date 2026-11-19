@@ -47,7 +47,9 @@ na seleção, Preencher, Justificar e Distribuído do Excel não se perdem mais 
 **Degradê, borda diagonal e hachura avisados (19/11).** O estilo do app guarda só cor sólida e uma linha por lado:
 `gradientFill`, `diagonalUp/Down` e `patternType` de hachura no `xl/styles.xml` sumiam no Ctrl+S calados. Agora entram no
 `nao_convertidos` (do arquivo inteiro, contados pelo texto do `styles.xml`, `abre` aceita prefixo), então o F12 lista e o
-Ctrl+S num `.xlsx` com eles pede "Salvar como" dizendo o que se perderia. Pode dar aviso por estilo definido e não usado
+Ctrl+S num `.xlsx` com eles pede "Salvar como" dizendo o que se perderia. Texto com parte formatada (`<rPr>` dentro de um `<si>` do
+`sharedStrings.xml`: negrito numa palavra, cor num trecho) entrou no mesmo aviso, porque a célula guarda um formato só e
+o trecho formatado sairia liso. Pode dar aviso por estilo definido e não usado
 por célula nenhuma (fica do lado seguro). Novidade: "Salvar por cima de um .xlsx com degradê, borda diagonal ou hachura
 avisa antes, em vez de perder esses formatos."
 
