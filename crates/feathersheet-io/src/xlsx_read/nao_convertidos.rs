@@ -33,6 +33,8 @@ fn pela_parte(nome: &str) -> Option<&'static str> {
     else if n.starts_with("xl/model/") { "Modelo de dados (Power Pivot)" }
     else if n == "xl/connections.xml" { "Conexão de dados externos" }
     else if n.starts_with("xl/querytables/") && n.ends_with(".xml") { "Consulta de tabela (Power Query)" }
+    // Excel 365: a conversa (respostas, autores) mora aqui; o app junta as respostas numa anotação só, e é assim que grava.
+    else if n.starts_with("xl/threadedcomments/") && n.ends_with(".xml") { "Comentário em conversa (vira anotação simples)" }
     else { return None })
 }
 
@@ -193,6 +195,7 @@ mod testes {
             f("xl/drawings/drawing1.xml", "<xdr:wsDr><xdr:twoCellAnchor><xdr:pic><xdr:nvPicPr/></xdr:pic></xdr:twoCellAnchor><xdr:twoCellAnchor><xdr:graphicFrame/></xdr:twoCellAnchor></xdr:wsDr>");
             f("xl/chartsheets/sheet1.xml", "<chartsheet/>");
             f("xl/connections.xml", "<connections/>");
+            f("xl/threadedComments/threadedComment1.xml", "<ThreadedComments/>");
             f("xl/styles.xml", r#"<styleSheet><fills><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
               <fill><patternFill patternType="lightGrid"/></fill><fill><gradientFill degree="90"><stop position="0"/></gradientFill></fill></fills>
               <borders><border diagonalUp="1"><diagonal style="thin"/></border></borders></styleSheet>"#);
@@ -204,6 +207,7 @@ mod testes {
         let v: Vec<_> = r.iter().map(|x| (x.aba.as_deref(), x.o_que, x.quantos)).collect();
         assert_eq!(v, vec![
             (None, "Borda diagonal", 1),
+            (None, "Comentário em conversa (vira anotação simples)", 1),
             (None, "Conexão de dados externos", 1),
             (Some("Vendas"), "Controle ActiveX", 2),
             (Some("Vendas"), "Filtro da planilha (fora de tabela)", 1),

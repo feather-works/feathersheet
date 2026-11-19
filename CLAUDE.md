@@ -54,7 +54,8 @@ deixava de fora só com nota no diário, também entra ("Validação de dados se
 aos pedaços e guarda só os blocos `<dataValidations>`/`<x14:dataValidations>`, passados ao `validacoes::ler` de sempre. O mesmo trecho traz a formatação condicional (`conditionalFormatting` e o
 `x14:conditionalFormattings`): as regras que o `condicional::ler` deixa de fora (conjuntos de ícones, período de datas,
 desvio padrão, 10% primeiros, barra de dados do x14) contam como "Formatação condicional sem equivalente". E o `<autoFilter>` da aba fora de tabela (o app só filtra tabela; os botões
-sumiam e o Ctrl+S apagava) conta como "Filtro da planilha (fora de tabela)". O `trechos` trata `<tag …/>` sem fecho. Pode dar aviso por estilo definido e não usado
+sumiam e o Ctrl+S apagava) conta como "Filtro da planilha (fora de tabela)". Comentário em conversa do Excel 365 (`xl/threadedComments/`) também: o texto
+não se perde (as respostas entram na nota), mas a conversa vira "anotação simples" ao gravar. O `trechos` trata `<tag …/>` sem fecho. Pode dar aviso por estilo definido e não usado
 por célula nenhuma (fica do lado seguro). Novidade: "Salvar por cima de um .xlsx com degradê, borda diagonal ou hachura
 avisa antes, em vez de perder esses formatos."
 
