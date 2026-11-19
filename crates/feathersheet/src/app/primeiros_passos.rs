@@ -71,9 +71,12 @@ impl App {
         let autor = self.autor();
         let organizacao = self.config.autor_organizacao.trim().to_owned();
         let p = &mut self.workbook.propriedades;
-        if p.autor.is_empty() { p.autor = autor.clone(); }
-        p.modificado_por = autor;
-        if p.organizacao.is_empty() { p.organizacao = organizacao; }
+        // Inspecionar documento ▸ Remover dados pessoais: só as datas continuam.
+        if !p.sem_dados_pessoais {
+            if p.autor.is_empty() { p.autor = autor.clone(); }
+            p.modificado_por = autor;
+            if p.organizacao.is_empty() { p.organizacao = organizacao; }
+        }
         let agora = feathersheet_io::xlsx_write::data_w3c_agora();
         if p.criado.is_empty() { p.criado = agora.clone(); }
         p.modificado = agora;

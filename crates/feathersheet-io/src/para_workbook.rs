@@ -144,6 +144,7 @@ pub fn propriedades_para_json(p: &feathersheet_core::planilha::workbook::Proprie
         if let Some(pp) = &p.protecao_estrutura {
             v["protecaoEstrutura"] = serde_json::json!({ "senha": pp.senha.as_ref().map(senha_para_json) });
         }
+        if p.sem_dados_pessoais { v["semDadosPessoais"] = serde_json::json!(true); }
         v
     })
 }
@@ -172,6 +173,7 @@ pub fn propriedades_de_json(v: &serde_json::Value) -> feathersheet_core::planilh
         criado: campo("criado"), modificado: campo("modificado"),
         protecao_estrutura: v.get("protecaoEstrutura").filter(|x| x.is_object()).map(|x|
             feathersheet_core::planilha::workbook::ProtecaoPasta { senha: x.get("senha").and_then(senha_de_json) }),
+        sem_dados_pessoais: v["semDadosPessoais"].as_bool().unwrap_or(false),
     }
 }
 

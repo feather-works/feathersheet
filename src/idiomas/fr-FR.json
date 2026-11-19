@@ -223,7 +223,8 @@
           "La récupération automatique couvre tout le reste : elle garde une copie de tout classeur modifié (y compris .xlsx, .parquet et ceux jamais enregistrés) dans Documents/FeatherSheet/Temporarios/Recuperacao. Si l'ordinateur s'éteint, elle apparaît sur l'écran d'accueil pour être récupérée. Elle ne remplace pas l'enregistrement : la copie est supprimée quand vous enregistrez ou abandonnez. Les très gros classeurs (plus de 100 millions de cellules) n'ont pas de copie automatique, car chaque copie figerait la fenêtre et doublerait la mémoire : enregistrez-les avec Ctrl+S.",
           "Tout s'exécute sur votre machine : pas de compte, pas de connexion, aucun de vos contenus n'en sort.",
           "Paramètres ▸ Enregistrer les nouveaux classeurs en .xlsx : Enregistrer sous… propose le format Excel.",
-          "☰ Menu ▸ Informations ▸ Propriétés : titre, sujet, auteur, responsable, société, catégorie, mots-clés et commentaires du classeur, comme dans Excel. Enregistrés dans le .fshz et le .xlsx ; la création, la dernière modification et le dernier auteur de la modification sont remplis automatiquement."
+          "☰ Menu ▸ Informations ▸ Propriétés : titre, sujet, auteur, responsable, société, catégorie, mots-clés et commentaires du classeur, comme dans Excel. Enregistrés dans le .fshz et le .xlsx ; la création, la dernière modification et le dernier auteur de la modification sont remplis automatiquement.",
+          "☰ Menu ▸ Informations ▸ Inspecter le document : avant d'envoyer le classeur, montre ce qui l'accompagne sans être visible (commentaires, votre nom et société, feuilles, lignes et colonnes masquées, noms, liaisons vers d'autres fichiers et macros). Tout supprimer retire les commentaires (Ctrl+Z annule) ; Supprimer les données personnelles enregistre le fichier sans auteur, dernier modificateur ni société."
         ]
       },
       "config": {

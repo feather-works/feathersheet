@@ -1705,8 +1705,13 @@ fn com_macros(pasta: &Workbook, partes: &mut Vec<(String, Vec<u8>)>) {
     trocar_na_parte(partes, "[Content_Types].xml", "<Default Extension=\"xml\"",
         "<Default Extension=\"bin\" ContentType=\"application/vnd.ms-office.vbaProject\"/><Default Extension=\"xml\"");
     // `workbookPr` vem antes de `workbookProtection` e de `bookViews` no CT_Workbook.
-    inserir_depois_da_abertura(partes, "xl/workbook.xml", "<workbook ",
-        &format!("<workbookPr codeName=\"{}\"/>", escape_xml(&vba.nome_pasta)));
+    let codigo = format!("codeName=\"{}\"", escape_xml(&vba.nome_pasta));
+    if pasta.propriedades.sem_dados_pessoais {
+        // Já há um `workbookPr` (removePersonalInformation): o atributo entra nele, não num segundo.
+        trocar_na_parte(partes, "xl/workbook.xml", "<workbookPr ", &format!("<workbookPr {codigo} "));
+    } else {
+        inserir_depois_da_abertura(partes, "xl/workbook.xml", "<workbook ", &format!("<workbookPr {codigo}/>"));
+    }
     trocar_na_parte(partes, "xl/_rels/workbook.xml.rels", "</Relationships>",
         "<Relationship Id=\"rIdVba\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProject\" Target=\"vbaProject.bin\"/></Relationships>");
     partes.push(("xl/vbaProject.bin".into(), vba.binario.clone()));
@@ -1933,6 +1938,9 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
             escape_xml(&s.algoritmo), escape_xml(&s.hash), escape_xml(&s.sal), s.giros),
         None => "<workbookProtection lockStructure=\"1\"/>".to_string(),
     }).unwrap_or_default();
+    let protecao_pasta = if pasta.propriedades.sem_dados_pessoais {
+        format!("<workbookPr removePersonalInformation=\"1\"/>{protecao_pasta}")
+    } else { protecao_pasta };
     // Propriedades do arquivo (Arquivo → Informações no Excel): só quando há autor.
     let props = &pasta.propriedades;
     let (tipo_props, rel_props) = if props.vazia() {
@@ -2559,5 +2567,21 @@ mod testes {
         assert_eq!(csv, "\"a,b\",12\n\"diz \"\"oi\"\"\",24");
         let tsv = String::from_utf8(gerar_delimitado(&mut pasta, 0, '\t').unwrap()).unwrap();
         assert_eq!(tsv, "a,b\t12\n\"diz \"\"oi\"\"\"\t24");
+    }
+}
+
+#[cfg(test)]
+mod testes_sem_dados_pessoais {
+    use super::*;
+
+    #[test]
+    fn sem_dados_pessoais_com_macros_fica_um_so_workbook_pr() {
+        let mut pasta = Workbook::new();
+        pasta.propriedades.sem_dados_pessoais = true;
+        pasta.vba = Some(feathersheet_core::planilha::workbook::ProjetoVba { binario: vec![1, 2], nome_pasta: "EstaPasta".into(), nomes_abas: vec![] });
+        let partes = montar_partes_formato(&pasta, true);
+        let livro = partes.iter().find(|(n, _)| n == "xl/workbook.xml").map(|(_, b)| String::from_utf8_lossy(b).into_owned()).unwrap();
+        assert_eq!(livro.matches("<workbookPr").count(), 1, "{livro}");
+        assert!(livro.contains("<workbookPr codeName=\"EstaPasta\" removePersonalInformation=\"1\"/>"), "{livro}");
     }
 }

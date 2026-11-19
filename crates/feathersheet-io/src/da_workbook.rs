@@ -726,7 +726,7 @@ mod testes {
             titulo: "Orçamento 2027".into(), assunto: "Obras".into(), palavras_chave: "custos; casa".into(),
             categoria: "Finanças".into(), comentarios: "Versão para o banco".into(), gerente: "Bia".into(),
             criado: "2026-11-01T10:00:00Z".into(), modificado: "2026-11-08T19:30:00Z".into(),
-            protecao_estrutura: None,
+            protecao_estrutura: None, sem_dados_pessoais: true,
         };
         let lida = crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap();
         assert_eq!(crate::para_workbook::para_workbook(&lida).propriedades, wb.propriedades);

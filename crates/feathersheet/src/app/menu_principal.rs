@@ -240,6 +240,8 @@ impl App {
                 text(trf!("Abas: {}", self.workbook.len())).size(13),
                 text(if self.alterado { tr!("Há alterações não salvas") }
                     else { tr!("Sem alterações pendentes") }).size(13),
+                self.vista_inspetor_documento(),
+                self.menu_divisor(),
                 self.menu_propriedades(),
                 pelicano::row![
                     button(tr!("Salvar")).on_press(Msg::Salvar).style(estilo_botao_primario),

@@ -99,6 +99,9 @@ pub struct Propriedades {
     /// Revisão › Proteger Pasta de Trabalho (`<workbookProtection lockStructure>` do Excel):
     /// com `Some`, a interface não cria, exclui, renomeia, move, oculta nem colore abas.
     pub protecao_estrutura: Option<ProtecaoPasta>,
+    /// Arquivo ▸ Informações ▸ Inspecionar documento ▸ Remover dados pessoais: ao salvar, autor,
+    /// "modificado por" e empresa não são carimbados (`<workbookPr removePersonalInformation>` do Excel).
+    pub sem_dados_pessoais: bool,
 }
 
 /// A senha usa o mesmo hash da proteção da aba (SHA-512 do Excel); `None` = sem senha.
@@ -113,7 +116,7 @@ impl Propriedades {
             && self.titulo.is_empty() && self.assunto.is_empty() && self.palavras_chave.is_empty()
             && self.categoria.is_empty() && self.comentarios.is_empty() && self.gerente.is_empty()
             && self.criado.is_empty() && self.modificado.is_empty()
-            && self.protecao_estrutura.is_none()
+            && self.protecao_estrutura.is_none() && !self.sem_dados_pessoais
     }
 }
 

@@ -24,6 +24,7 @@ impl App {
             Msg::Topicos(evento) => self.evento_topicos(evento),
             Msg::Consolidar(evento) => self.evento_consolidar(evento),
             Msg::FiltroAvancado(evento) => self.evento_filtro_avancado(evento),
+            Msg::InspetorDocumento(evento) => self.evento_inspetor_documento(evento),
             Msg::VbaImportar => self.importar_vba(),
             Msg::MacroResponder(sim) => { self.responder_macro(sim); Task::none() }
             Msg::MacroEscolher(i) => { self.escolher_na_macro(i); Task::none() }
@@ -1431,6 +1432,12 @@ impl App {
                                     p.organizacao = "Construtora Exemplo".into();
                                     p.palavras_chave = "obra; custos".into();
                                     self.carimbar_propriedades();
+                                    // E o Inspecionar documento já clicado, com um comentário e uma aba oculta.
+                                    self.workbook.editar(0, |s| { s.definir_comentario(1, 1, Some(feathersheet_core::planilha::sheet::comentarios::Comentario {
+                                        autor: "Bentido Silva".into(), texto: "conferir".into(), visivel: false })); });
+                                    self.workbook.criar_aba("Custos internos");
+                                    let _ = self.workbook.ocultar_aba(self.workbook.len() - 1);
+                                    self.inspecao_documento = Some(self.inspecionar_documento());
                                     return self.update(Msg::MenuPagina(super::menu_principal::Pagina::Informacoes));
                                 }
                                 // config:<seção 1–10> (2 = Seus dados, 9 = IA (MCP), 10 = Sobre).

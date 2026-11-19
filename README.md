@@ -59,6 +59,7 @@ Help menu, under *What's new*).
 
 - **Split window** (View → Window → Split or Side by side, #83): two panes, one above the other or next to each other, each with its own sheet and scrolling, pictures, shapes, charts and buttons included. Click a pane to work in it.
 - **Sheet tab colors** now open from and save to `.xlsx`.
+- **Inspect document** (☰ Menu ▸ Info): before sending a workbook, see what goes along without being visible (comments, your name, hidden sheets, rows and columns, names, links to other files, macros) and remove comments and personal data.
 - **Advanced Filter** (Data ▸ Advanced): AND/OR criteria range on the sheet, filter in place or copy the result, unique records only.
 - **Paste link, comments and validation** (Paste ▾ or Paste special): paste formulas that point to the copied cells, or only their comments or data validation, like Excel.
 - **View → Zeros:** leave cells with a zero value blank on one sheet, like Excel; the setting opens from and saves to `.xlsx`.

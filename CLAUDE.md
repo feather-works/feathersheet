@@ -81,6 +81,18 @@ transpor; fórmula personalizada não desloca as referências. Teste `colar_vali
 De passagem, Limpar formatos passou a tirar também sobrescrito, subscrito, sublinhado duplo e o `alignExcel`.
 Novidade: "Colar especial com Colar vínculo, Comentários e Validação, como no Excel."
 
+**Inspecionar documento (19/11).** ☰ Menu ▸ Informações, acima das propriedades (`app/inspetor_documento.rs`,
+`Msg::InspetorDocumento`): no clique (não a cada quadro) lista comentários, dados pessoais, abas ocultas, linhas/colunas
+ocultas, nomes, vínculos externos (`areas_citadas`) e macros/VBA. Remove só o que é seguro: comentários (um Ctrl+Z por
+aba, `shortcut:`) e dados pessoais (limpa autor, modificado por, empresa e gerente e liga
+`Propriedades::sem_dados_pessoais`, que faz `carimbar_propriedades` não pôr o nome de volta; "Voltar a gravar" desliga).
+A marca vai no `.fshz` (`pr.semDadosPessoais`) e no `.xlsx` (`<workbookPr removePersonalInformation="1"/>`, junto do
+`codeName` no `.xlsm`, um `workbookPr` só). Abas e linhas ocultas são só apontadas (Reexibir… abre o diálogo existente).
+**Limite:** o autor de cada comentário fica. Testes `inspetor_documento::tests`,
+`testes_sem_dados_pessoais`; foto `FEATHERSHEET_CAPTURAR_JANELA=informacoes` conferida. Novidade: "Menu ▸ Informações ▸
+Inspecionar documento: veja comentários, seu nome, abas ocultas e vínculos antes de mandar a planilha, e remova o que não
+deve ir."
+
 **Filtro avançado na faixa (19/11).** Dados ▸ Classificar e filtrar ▸ Avançado (`app/filtro_avancado_ui.rs`,
 `Msg::FiltroAvancado`): lista (proposta pela região da célula ativa), critérios opcionais, filtrar no lugar (oculta as linhas
 que não passam, `alterar_visibilidade_dimensoes`, num Ctrl+Z) ou copiar para (cabeçalho + linhas que passam; recusa destino

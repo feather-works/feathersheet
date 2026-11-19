@@ -657,6 +657,7 @@ fn propriedades(arquivo: &mut ZipArchive<Cursor<std::sync::Arc<[u8]>>>) -> feath
     feathersheet_core::planilha::workbook::Propriedades {
         autor, modificado_por, organizacao, titulo, assunto, palavras_chave, categoria, comentarios, gerente, criado, modificado,
         protecao_estrutura: None,
+        sem_dados_pessoais: false,
     }
 }
 
@@ -791,6 +792,8 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     }
     if workbook.is_empty() { workbook.criar_aba("Planilha1"); }
     workbook.propriedades = propriedades(&mut arquivo);
+    workbook.propriedades.sem_dados_pessoais = book.child("workbookPr")
+        .and_then(|n| n.attr("removePersonalInformation")).is_some_and(|v| v == "1" || v == "true");
     workbook.propriedades.protecao_estrutura = book.child("workbookProtection").and_then(|no| {
         matches!(no.attr("lockStructure"), Some("1" | "true")).then(|| feathersheet_core::planilha::workbook::ProtecaoPasta {
             // O `workbookPassword` antigo (16 bits) não é guardado: abre protegida sem senha.
