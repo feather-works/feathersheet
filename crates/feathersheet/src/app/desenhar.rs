@@ -525,6 +525,7 @@ impl App {
             || self.perfil_coluna.is_some()
             || self.subtotal.is_some()
             || self.consolidar.is_some()
+            || self.filtro_avancado.is_some()
             || self.novo_estilo.is_some()
             || self.colar_especial.is_some()
             || self.ir_para.is_some()

@@ -627,6 +627,7 @@ impl App {
         let base = self.sobrepor_celulas(base);
         let base = self.sobrepor_subtotal(base);
         let base = self.sobrepor_consolidar(base);
+        let base = self.sobrepor_filtro_avancado(base);
         let base = self.sobrepor_protecao(base);
         let base = self.sobrepor_senha_arquivo(base);
         let base = self.sobrepor_novo_estilo(base);

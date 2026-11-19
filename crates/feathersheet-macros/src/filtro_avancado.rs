@@ -10,7 +10,7 @@ use feathersheet_core::planilha::workbook::Workbook;
 use std::collections::HashSet;
 
 /// O nome em que o Excel guarda a lista filtrada no lugar (o `ShowAllData` a reexibe).
-pub(crate) const NOME_DA_LISTA: &str = "_xlnm._FilterDatabase";
+pub const NOME_DA_LISTA: &str = "_xlnm._FilterDatabase";
 
 fn texto(v: &Value) -> String {
     feathersheet_core::operacoes::filtro::texto_js(v)
@@ -29,7 +29,7 @@ fn teste(v: &Value) -> Box<dyn Fn(&Value) -> bool> {
 
 /// As linhas de dados (absolutas) da `lista` que passam nos `criterios`, sem repetidas
 /// se `unicos` (a linha inteira igual a uma anterior).
-pub(crate) fn linhas_que_passam(pasta: &Workbook, aba: usize, lista: &Rect, criterios: Option<&Rect>, unicos: bool) -> Result<Vec<u32>, String> {
+pub fn linhas_que_passam(pasta: &Workbook, aba: usize, lista: &Rect, criterios: Option<&Rect>, unicos: bool) -> Result<Vec<u32>, String> {
     let sheet = &pasta.aba(aba).ok_or("Aba inexistente")?.sheet;
     let ultima = lista.r1.min(sheet.max_row);
     let valor = |r, c| pasta.valor(aba, r, c);

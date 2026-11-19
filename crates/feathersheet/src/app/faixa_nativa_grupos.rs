@@ -350,6 +350,10 @@ impl App {
                         self.faixa_pequeno(tr!("Classificar"), "sort-filter",
                             Some(Msg::Classificar(classificar::Evento::Abrir)), self.classificar.is_some()),
                     ]),
+                    self.faixa_pilha(vec![
+                        self.faixa_pequeno(tr!("Avançado"), "filter",
+                            Some(Msg::FiltroAvancado(filtro_avancado_ui::Evento::Abrir)), self.filtro_avancado.is_some()),
+                    ]),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Ferramentas de dados"), self.faixa_linha(vec![
                     // Ação principal abre a janela diretamente: sem menu intermediário.

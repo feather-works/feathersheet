@@ -81,6 +81,15 @@ transpor; fórmula personalizada não desloca as referências. Teste `colar_vali
 De passagem, Limpar formatos passou a tirar também sobrescrito, subscrito, sublinhado duplo e o `alignExcel`.
 Novidade: "Colar especial com Colar vínculo, Comentários e Validação, como no Excel."
 
+**Filtro avançado na faixa (19/11).** Dados ▸ Classificar e filtrar ▸ Avançado (`app/filtro_avancado_ui.rs`,
+`Msg::FiltroAvancado`): lista (proposta pela região da célula ativa), critérios opcionais, filtrar no lugar (oculta as linhas
+que não passam, `alterar_visibilidade_dimensoes`, num Ctrl+Z) ou copiar para (cabeçalho + linhas que passam; recusa destino
+com dados ou em cima da lista/critérios: nada é sobrescrito), e somente registros exclusivos. A regra dos critérios é a das
+macros (`feathersheet_macros::filtro_avancado::linhas_que_passam`, agora `pub`). **Limites:** lista e critérios só desta aba;
+a cópia leva o valor das fórmulas (`shortcut:`); filtrar no lugar não grava o `_xlnm._FilterDatabase` (reexibir pelas linhas
+ocultas ou Ctrl+Z). Testes `filtro_avancado_ui::testes`; foto `FEATHERSHEET_CAPTURAR_DIALOGO=filtro_avancado` conferida.
+Novidade: "Filtro avançado do Excel em Dados ▸ Avançado: critérios E/OU na planilha, copiar o resultado e só registros exclusivos."
+
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava
 `extras.grupo` = número novo (maior da aba + 1) em todos, e quem já era de grupo leva o grupo inteiro; com forma de grupo

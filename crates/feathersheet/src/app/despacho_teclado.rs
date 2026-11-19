@@ -67,6 +67,7 @@ impl App {
                     if self.celulas_modal.is_some() { return self.update(Msg::Celulas(celulas_dialogo::Evento::Fechar)); }
                     if self.subtotal.is_some() { return self.update(Msg::Topicos(topicos_ui::Evento::SubtotalFechar)); }
                     if self.consolidar.is_some() { return self.update(Msg::Consolidar(consolidar_ui::Evento::Fechar)); }
+                    if self.filtro_avancado.is_some() { return self.update(Msg::FiltroAvancado(filtro_avancado_ui::Evento::Fechar)); }
                     if self.protecao_modal.is_some() { return self.update(Msg::Protecao(protecao_ui::Evento::Fechar)); }
                     if self.senha_arquivo.is_some() { return self.update(Msg::SenhaArquivo(senha_abrir::Evento::Fechar)); }
                     if self.novo_estilo.is_some() { return self.update(Msg::NovoEstilo(estilo_novo::Evento::Fechar)); }

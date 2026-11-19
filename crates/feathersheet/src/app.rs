@@ -125,6 +125,7 @@ mod dimensao_dialogo;
 mod celulas_dialogo;
 pub(crate) mod topicos_ui;
 pub(crate) mod consolidar_ui;
+pub(crate) mod filtro_avancado_ui;
 mod importar_vba;
 mod macro_dialogo;
 mod calculo_em_fundo;
@@ -455,7 +456,7 @@ pub enum Msg {
     CondicionalAdicionar, CondicionalEditar(usize), CondicionalRemover(usize), CondicionalMover(usize, i32),
     CondicionalLimparSelecao, CondicionalLimparTudo, CondicionalCoresAlternadas,
     Limpar, Desfazer, Refazer, Mesclar, MesclarModo(mesclas::ModoMescla), InclinarTexto,
-    AjustarAltura, Dimensao(dimensao_dialogo::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento), Consolidar(consolidar_ui::Evento),
+    AjustarAltura, Dimensao(dimensao_dialogo::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento), Consolidar(consolidar_ui::Evento), FiltroAvancado(filtro_avancado_ui::Evento),
     /// Macros → Importar VBA (do .xlsm aberto ou escolhido) e o arquivo lido.
     Protecao(protecao_ui::Evento),
     Intervalos(intervalos_ui::Evento),
@@ -768,6 +769,7 @@ pub struct App {
     celulas_modal: Option<celulas_dialogo::Estado>,
     subtotal: Option<topicos_ui::EstadoSubtotal>,
     consolidar: Option<consolidar_ui::EstadoConsolidar>,
+    filtro_avancado: Option<filtro_avancado_ui::EstadoFiltroAvancado>,
     /// VBA do .xlsm aberto, convertido e esperando a importação.
     vba_pendente: Option<importar_vba::VbaPendente>,
     /// Pergunta Sim/Não de uma macro esperando a pessoa.
@@ -1155,6 +1157,7 @@ impl Default for App {
             celulas_modal: None,
             subtotal: None,
             consolidar: None,
+            filtro_avancado: None,
             vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), selecao_evento: (0, 0, 0, (0, 0)), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             senha_arquivo: None,

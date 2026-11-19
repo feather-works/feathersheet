@@ -15,7 +15,7 @@ mod condicionais;
 mod navegacao;
 mod visiveis;
 mod varias_areas;
-mod filtro_avancado;
+pub mod filtro_avancado;
 mod navegacao_intervalos;
 mod estrutura;
 mod mesclagem;

@@ -23,6 +23,7 @@ impl App {
             Msg::Celulas(evento) => self.evento_celulas(evento),
             Msg::Topicos(evento) => self.evento_topicos(evento),
             Msg::Consolidar(evento) => self.evento_consolidar(evento),
+            Msg::FiltroAvancado(evento) => self.evento_filtro_avancado(evento),
             Msg::VbaImportar => self.importar_vba(),
             Msg::MacroResponder(sim) => { self.responder_macro(sim); Task::none() }
             Msg::MacroEscolher(i) => { self.escolher_na_macro(i); Task::none() }

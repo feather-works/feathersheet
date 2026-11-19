@@ -91,6 +91,7 @@ impl App {
             }
             "subtotal" => self.update(Msg::Topicos(topicos_ui::Evento::SubtotalAbrir)),
             "consolidar" => self.update(Msg::Consolidar(consolidar_ui::Evento::Abrir)),
+            "filtro_avancado" => self.update(Msg::FiltroAvancado(filtro_avancado_ui::Evento::Abrir)),
             "novo_estilo" => self.update(Msg::NovoEstilo(estilo_novo::Evento::Abrir)),
             // Série… e Validação de dados (abas, alerta, balão, círculos).
             "serie" | "serie_data" => self.preparar_captura_serie(nome),
