@@ -69,6 +69,7 @@
      "• Un número solo se copia; con Ctrl pulsado al arrastrar, cuenta (7, 8, 9). Con una serie, Ctrl hace lo contrario y copia.",
      "• Ctrl+D copia la celda de arriba hacia abajo; Ctrl+R copia la celda de la izquierda hacia la derecha.",
      "• Arrastrar el borde de la selección mueve las celdas; las fórmulas que leen el bloque se actualizan.",
+     "• La barra de estado muestra la suma, el promedio y el recuento de la selección (clic derecho elige cuáles). Haga clic en uno para copiar el valor.",
      "• Ctrl+Mayús+V pega solo valores.",
      "• Inicio → Rellenar: Serie… (lineal, crecimiento o fecha, con incremento y límite) y Relámpago (Ctrl+E), que completa la columna siguiendo el ejemplo que escribió."
     ]

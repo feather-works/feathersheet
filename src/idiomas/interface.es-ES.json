@@ -6110,5 +6110,7 @@
  "Nomes definidos: {}": "Nombres definidos: {}",
  "Vínculos com outros arquivos: {}": "Vínculos con otros archivos: {}",
  "O nome e o caminho vão no arquivo: {}": "El nombre y la ruta van en el archivo: {}",
- "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} comentarios eliminados. Ctrl+Z lo deshace en cada hoja."
+ "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} comentarios eliminados. Ctrl+Z lo deshace en cada hoja.",
+ "{} copiado": "{} copiado",
+ "Clique para copiar": "Haga clic para copiar"
 }

@@ -6110,5 +6110,7 @@
  "Nomes definidos: {}": "Noms définis : {}",
  "Vínculos com outros arquivos: {}": "Liaisons vers d'autres fichiers : {}",
  "O nome e o caminho vão no arquivo: {}": "Le nom et le chemin sont dans le fichier : {}",
- "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} commentaires supprimés. Ctrl+Z annule sur chaque feuille."
+ "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} commentaires supprimés. Ctrl+Z annule sur chaque feuille.",
+ "{} copiado": "{} copié",
+ "Clique para copiar": "Cliquez pour copier"
 }

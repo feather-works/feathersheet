@@ -69,6 +69,7 @@
           "• A single number is copied; hold Ctrl while dragging to count up (7, 8, 9). With a series, Ctrl does the opposite and copies.",
           "• Ctrl+D copies the cell above downwards; Ctrl+R copies the cell on the left to the right.",
           "• Dragging the border of the selection moves the cells; formulas that read the block follow along.",
+          "• The status bar shows the sum, average and count of the selection (right-click picks which). Click one to copy its value.",
           "• Ctrl+Shift+V pastes values only.",
           "• Home → Fill: Series… (linear, growth or date, with step and limit) and Flash Fill (Ctrl+E), which completes the column following the example you typed."
         ]

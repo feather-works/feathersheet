@@ -43,6 +43,8 @@ pub enum Evento {
     Abrir,
     Fechar,
     Alternar(&'static str),
+    /// Clique numa conta do rodapé: copia o valor, como no Excel.
+    Copiar(&'static str),
 }
 
 /// Formatação pt-BR (milhar com ponto, até duas casas), a mesma do rodapé.
@@ -122,7 +124,14 @@ fn rotulo_curto(chave: &str, valor: &str) -> String {
 pub(super) fn texto_contas(
     c: &ContagemSelecao, ligados: &[String], celulas_area: u64, largura: f32,
 ) -> String {
-    let mut pecas: Vec<(&str, String)> = ITENS.iter().flat_map(|g| g.iter())
+    pecas_contas(c, ligados, celulas_area, largura).into_iter().map(|(_, t)| t).collect::<Vec<_>>().join("     ")
+}
+
+/// As contas que cabem, cada uma com a chave (o rodapé faz de cada uma um botão que copia o valor).
+pub(super) fn pecas_contas(
+    c: &ContagemSelecao, ligados: &[String], celulas_area: u64, largura: f32,
+) -> Vec<(&'static str, String)> {
+    let mut pecas: Vec<(&'static str, String)> = ITENS.iter().flat_map(|g| g.iter())
         .filter(|(chave, _)| ligados.iter().any(|l| l == chave))
         .filter_map(|(chave, _)| valor(chave, c, celulas_area).map(|v| (*chave, rotulo_curto(chave, &v))))
         .collect();
@@ -134,7 +143,7 @@ pub(super) fn texto_contas(
         }
         pecas.retain(|(chave, _)| *chave != sai);
     }
-    pecas.into_iter().map(|(_, t)| t).collect::<Vec<_>>().join("     ")
+    pecas
 }
 
 impl App {
@@ -155,6 +164,13 @@ impl App {
                     self.config.barra_status.push(chave.to_string());
                 }
                 self.config.gravar();
+            }
+            Evento::Copiar(chave) => {
+                let (conta, celulas) = self.contas_da_selecao();
+                if let Some(v) = valor(chave, &conta, celulas) {
+                    self.status = trf!("{} copiado", v);
+                    return Task::write_clipboard(v);
+                }
             }
         }
         Task::none()
@@ -298,5 +314,19 @@ mod testes {
         { let _: Element<'_, Msg> = app.menu_barra_status(); }
         let _ = app.evento_barra_status(Evento::Fechar);
         assert!(!app.barra_status_menu);
+    }
+}
+
+#[cfg(test)]
+mod testes_copiar {
+    use super::*;
+
+    #[test]
+    fn clicar_na_soma_copia_o_valor() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "1234.5".into());
+        let _ = app.update(Msg::BarraStatus(Evento::Copiar("soma")));
+        assert_eq!(app.status, trf!("{} copiado", "1.234,5"));
+        let _: Element<'_, Msg> = app.view_resumo_selecao();
     }
 }

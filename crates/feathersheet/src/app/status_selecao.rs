@@ -218,7 +218,8 @@ impl App {
         let largura = self.tamanho_principal.width;
         let estado = self.resumo_selecao.borrow();
         let celulas = estado.chave.as_ref().map_or(0, |c| celulas_da_area(&c.area) + c.extras.iter().map(celulas_da_area).sum::<u64>());
-        let contas = barra_status::texto_contas(&estado.conta, &self.config.barra_status, celulas, largura);
+        let pecas = barra_status::pecas_contas(&estado.conta, &self.config.barra_status, celulas, largura);
+        let contas = pecas.iter().map(|(_, t)| t.as_str()).collect::<Vec<_>>().join("     ");
         let texto = if estado.fora_da_area {
             // Fora da área usada não há o que contar; só as vazias, se pedidas.
             if self.barra_status_mostra("vazias") {
@@ -229,8 +230,20 @@ impl App {
         } else {
             contas
         };
-        let resumo = text(texto).size(11).color(COR_TEXTO_MUTED())
-            .no_wrap();
+        // Pronto (nem somando nem fora da área): cada conta vira um botão sem moldura que copia o valor.
+        let resumo: Element<'_, Msg> = if !estado.fora_da_area && !estado.pendente && !pecas.is_empty() {
+            let mut r = row![].spacing(20).align(pelicano::Align::Center);
+            for (chave, rotulo) in pecas {
+                r = r.push(pelicano::tooltip(
+                    button(text(rotulo).size(11).color(COR_TEXTO_MUTED()).no_wrap())
+                        .padding(0).style(|_, _| pelicano::Style::default())
+                        .on_press(Msg::BarraStatus(barra_status::Evento::Copiar(chave))),
+                    tr!("Clique para copiar"), pelicano::TooltipPosition::Top));
+            }
+            r.into()
+        } else {
+            text(texto).size(11).color(COR_TEXTO_MUTED()).no_wrap().into()
+        };
         let mut linha = row![resumo].spacing(8).align(pelicano::Align::Center);
         if let Some(erro) = estado.erro.as_ref().filter(|_| self.barra_status_mostra("aviso_erro")) {
             let aviso = button(text(erro.clone()).size(11).color(COR_ERRO)

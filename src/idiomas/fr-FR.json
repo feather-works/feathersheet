@@ -69,6 +69,7 @@
           "• Un nombre seul est copié ; maintenez Ctrl en faisant glisser pour incrémenter (7, 8, 9). Avec une série, Ctrl fait l'inverse et copie.",
           "• Ctrl+D recopie la cellule du dessus vers le bas ; Ctrl+R recopie la cellule de gauche vers la droite.",
           "• Faire glisser la bordure de la sélection déplace les cellules ; les formules qui lisent le bloc suivent.",
+          "• La barre d'état affiche la somme, la moyenne et le nombre de la sélection (clic droit pour choisir). Cliquez sur l'un d'eux pour copier la valeur.",
           "• Ctrl+Maj+V colle uniquement les valeurs.",
           "• Accueil → Remplissage : Série… (linéaire, géométrique ou chronologique, avec pas et limite) et Remplissage instantané (Ctrl+E), qui complète la colonne d'après l'exemple saisi."
         ]

@@ -6110,5 +6110,7 @@
  "Nomes definidos: {}": "Defined names: {}",
  "Vínculos com outros arquivos: {}": "Links to other files: {}",
  "O nome e o caminho vão no arquivo: {}": "The name and path go in the file: {}",
- "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} comments removed. Ctrl+Z undoes it on each sheet."
+ "{} comentários removidos. Ctrl+Z desfaz em cada aba.": "{} comments removed. Ctrl+Z undoes it on each sheet.",
+ "{} copiado": "{} copied",
+ "Clique para copiar": "Click to copy"
 }

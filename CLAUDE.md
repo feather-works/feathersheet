@@ -81,6 +81,12 @@ transpor; fórmula personalizada não desloca as referências. Teste `colar_vali
 De passagem, Limpar formatos passou a tirar também sobrescrito, subscrito, sublinhado duplo e o `alignExcel`.
 Novidade: "Colar especial com Colar vínculo, Comentários e Validação, como no Excel."
 
+**Clicar na conta do rodapé copia o valor (19/11).** `barra_status::pecas_contas` devolve as contas que cabem com a chave;
+`view_resumo_selecao` faz de cada uma um botão sem moldura (dica "Clique para copiar") com `Evento::Copiar(chave)`, que
+copia o valor como aparece (`1.234,5`). Somando ou fora da área continua texto. Teste `testes_copiar`; foto conferida
+(`FEATHERSHEET_CAPTURAR_MODELO=queda-tensao FEATHERSHEET_CAPTURAR_CELULA=B5:D9`). Novidade: "Clique na soma, média ou
+contagem do rodapé para copiar o valor."
+
 **Inspecionar documento (19/11).** ☰ Menu ▸ Informações, acima das propriedades (`app/inspetor_documento.rs`,
 `Msg::InspetorDocumento`): no clique (não a cada quadro) lista comentários, dados pessoais, abas ocultas, linhas/colunas
 ocultas, nomes, vínculos externos (`areas_citadas`) e macros/VBA. Remove só o que é seguro: comentários (um Ctrl+Z por

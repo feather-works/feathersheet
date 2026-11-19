@@ -662,7 +662,7 @@ Faltando:
 - [~] Formatos: abre e grava `.fshz` (próprio, Arrow) e `.xlsx`; abre `.csv`/`.tsv`; exporta PDF, CSV/TSV e JSON; lê o VBA de `.xlsm` para converter. Falta: gravar `.xlsm`, `.xlsb`, modelos `.xltx`, HTML, XML, `.ods`.
 - [x] Salvamento automático e recuperação depois de travar (cópia de recuperação, intervalo escolhido, gravação atômica em segundo plano).
 - [ ] Abrir e reparar arquivo corrompido.
-- [~] Barra de status com soma, média, contagem, mínimo, máximo e desvio padrão da seleção, ignorando linhas ocultas. Falta: copiar o valor clicando nele.
+- [x] Barra de status com soma, média, contagem, mínimo, máximo e desvio padrão da seleção, ignorando linhas ocultas; clicar numa conta copia o valor (19/11).
 - [~] Hiperlinks: inserir, abrir e remover link na célula. Falta a conferir: link para outra aba/célula/nome, `mailto:` com assunto.
 - [ ] Mala direta.
 - [ ] Publicar no Power BI / SharePoint (nuvem).
