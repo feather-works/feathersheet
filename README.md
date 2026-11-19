@@ -60,6 +60,7 @@ Help menu, under *What's new*).
 - **Split window** (View → Window → Split or Side by side, #83): two panes, one above the other or next to each other, each with its own sheet and scrolling, pictures, shapes, charts and buttons included. Click a pane to work in it.
 - **Sheet tab colors** now open from and save to `.xlsx`.
 - **Click to copy** a sum, average or count in the status bar, like Excel.
+- **Fill handle like Excel:** the pointer turns into a thin cross over the handle, and dragging the handle of an empty cell clears the cells it covers (one Ctrl+Z).
 - **Alt text on images:** Format image panel (or right-click an imported image → Alt text…) to describe it for screen readers; it is saved in the `.xlsx` (`descr`) and read back from Excel files.
 - **Inspect document** (☰ Menu ▸ Info): before sending a workbook, see what goes along without being visible (comments, your name, hidden sheets, rows and columns, header and footer text, hidden shapes, names, links to other files, macros) and remove comments and personal data.
 - **Advanced Filter** (Data ▸ Advanced): AND/OR criteria range on the sheet, filter in place or copy the result, unique records only.

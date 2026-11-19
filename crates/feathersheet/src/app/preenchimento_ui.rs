@@ -74,9 +74,41 @@ impl App {
         let origem = self.area_selecionada().normalized();
         let destino = destino.normalized();
         if destino == origem { return; }
+        if self.limpar_pela_alca(&origem, &destino) { return; }
         // Ctrl no arrasto da alça inverte cópia/sequência, como no Excel.
         let ctrl = self.ctrl_pressionado;
         self.aplicar_preenchimento(&origem, &destino, true, ctrl);
+    }
+
+    /// Alça arrastada de célula vazia (Excel): apaga o conteúdo do destino, mantém a
+    /// formatação (como o Delete), um Ctrl+Z. Devolve se a origem era vazia.
+    fn limpar_pela_alca(&mut self, origem: &Rect, destino: &Rect) -> bool {
+        let Some(sheet) = self.workbook.aba(self.folha).map(|a| &a.sheet) else { return false };
+        if (origem.r0..=origem.r1).any(|r| (origem.c0..=origem.c1).any(|c| !sheet.get_raw(r, c).is_empty())) {
+            return false;
+        }
+        if mesclas::ler(sheet).iter().any(|area| mesclas::cruzam(area, destino)) {
+            self.status = tr!("Preenchimento bloqueado: o destino cruza células mescladas.").into();
+            return true;
+        }
+        // Só a parte usada: arrastar até a linha 1 milhão não percorre células vazias.
+        let usado = sheet.used_rect();
+        let area = Rect::new(destino.r0, destino.c0, destino.r1.min(usado.r1), destino.c1.min(usado.c1));
+        let cheias: Vec<(u32, u32)> = (area.r0..=area.r1).flat_map(|r| (area.c0..=area.c1).map(move |c| (r, c)))
+            .filter(|&(r, c)| !(origem.contains(r, c)) && !sheet.get_raw(r, c).is_empty()).collect();
+        if !cheias.is_empty() {
+            self.workbook.editar(self.folha, |aba| {
+                aba.abrir_transacao();
+                for &(r, c) in &cheias { aba.limpar_conteudo(r, c); }
+                aba.fechar_transacao();
+            });
+            self.alterado = true;
+        }
+        self.linha = destino.r0;
+        self.coluna = destino.c0;
+        self.fim_selecao = (destino.r1, destino.c1);
+        self.status = trf!("{} célula(s) apagada(s) pela alça (a origem estava vazia); Ctrl+Z desfaz.", cheias.len());
+        true
     }
 
     /// Fórmula descendo para uma coluna vazia (Ctrl+D, alça, até o fim): vai
@@ -336,6 +368,22 @@ mod testes {
         app.preencher_selecao(DirecaoPreenchimento::AteOFim);
         assert_eq!(app.workbook.valor(0, 5, 1), Value::Number(60.0));
         assert_eq!(app.fim_selecao, (5, 1));
+    }
+
+    #[test]
+    fn alca_de_celula_vazia_apaga_o_destino_como_no_excel() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 1, 0, "um".into());
+        app.workbook.escrever_celula(0, 2, 0, "dois".into());
+        app.workbook.escrever_celula(0, 4, 0, "fora".into());
+        selecionar(&mut app, 0, 0, 0, 0);
+        app.preencher_pela_alca(Rect::new(0, 0, 2, 0));
+        assert_eq!(app.workbook.valor(0, 1, 0), Value::Empty);
+        assert_eq!(app.workbook.valor(0, 2, 0), Value::Empty);
+        assert_eq!(app.workbook.valor(0, 4, 0), Value::Text("fora".into()), "fora do arrasto fica");
+        app.update(Msg::Desfazer);
+        assert_eq!(app.workbook.valor(0, 1, 0), Value::Text("um".into()), "um Ctrl+Z volta tudo");
+        assert_eq!(app.workbook.valor(0, 2, 0), Value::Text("dois".into()));
     }
 
     #[test]

@@ -63,7 +63,7 @@
       "preencher": {
         "titulo": "Fill, copy and move",
         "corpo": [
-          "• Drag the small square at the corner of the selection (the fill handle) to continue a series: 1, 2, 3…, dates, \"Item 1, Item 2…\" and formulas.",
+          "• Drag the small square at the corner of the selection (the fill handle) to continue a series: 1, 2, 3…, dates, \"Item 1, Item 2…\" and formulas. Over the handle the pointer becomes a thin cross. Dragging the handle of an empty cell clears the contents of the cells it covers (formatting stays; Ctrl+Z undoes).",
           "• Double-clicking the handle fills down to the end of the data in the neighbouring column.",
           "• Months and weekdays continue their list (Jan, Feb, Mar…). For your own lists (S, M, L, XL), type them in Settings › Sheet › Custom fill lists.",
           "• A single number is copied; hold Ctrl while dragging to count up (7, 8, 9). With a series, Ctrl does the opposite and copies.",

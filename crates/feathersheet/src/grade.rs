@@ -1136,6 +1136,10 @@ impl Grade<'_> {
                 }
             };
         }
+        // Alça de preenchimento (ou arrastando por ela): cruz fina, como no Excel.
+        if _state.alca.is_some() || local(cursor, bounds).is_some_and(|p| self.sobre_alca(p, bounds.size())) {
+            return mouse::Interaction::Crosshair;
+        }
         if let Some(p) = local(cursor, bounds) {
             let p = Point::new(p.x / self.zoom, p.y / self.zoom);
             let perto = |inicio: f32, tamanho: f32, ponto: f32| (ponto - (inicio + tamanho)).abs() <= FOLGA_DIVISORIA;
@@ -1147,7 +1151,8 @@ impl Grade<'_> {
                 && self.linhas_visiveis(bounds.height / self.zoom).0.iter().any(|&(_, y, h)| perto(y, h, p.y)) {
                 return mouse::Interaction::NsResize;
             }
-            return mouse::Interaction::Crosshair;
+            // Sobre as células, a cruz grossa de planilha; a fina fica para a alça.
+            return mouse::Interaction::Cell;
         }
         mouse::Interaction::default()
     }

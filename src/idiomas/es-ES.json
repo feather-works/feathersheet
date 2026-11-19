@@ -63,7 +63,7 @@
    "preencher": {
     "titulo": "Rellenar, copiar y mover",
     "corpo": [
-     "• Arrastre el cuadrito de la esquina de la selección (el controlador de relleno) para continuar una serie: 1, 2, 3…, fechas, \"Elemento 1, Elemento 2…\" y fórmulas.",
+     "• Arrastre el cuadrito de la esquina de la selección (el controlador de relleno) para continuar una serie: 1, 2, 3…, fechas, \"Elemento 1, Elemento 2…\" y fórmulas. Sobre el controlador el cursor se vuelve una cruz fina. Arrastrar el controlador de una celda vacía borra el contenido de las celdas que cubre (el formato queda; Ctrl+Z deshace).",
      "• Hacer doble clic en el controlador rellena hacia abajo hasta el final de los datos de la columna vecina.",
      "• Meses y días de la semana continúan la lista (ene, feb, mar…). Para sus listas (S, M, L, XL), escríbalas en Configuración › Hoja › Listas personalizadas del controlador.",
      "• Un número solo se copia; con Ctrl pulsado al arrastrar, cuenta (7, 8, 9). Con una serie, Ctrl hace lo contrario y copia.",

@@ -6122,5 +6122,6 @@
  "Saem na impressão e no PDF. {}. Mude em Inserir ▸ Cabeçalho e rodapé.": "They show up when printing and in the PDF. {}. Change them in Insert ▸ Header & footer.",
  "Formas e imagens ocultas": "Hidden shapes and images",
  "{}. Vão no arquivo sem aparecer; mostre em Editar forma ▸ Painel de Seleção.": "{}. They go in the file without showing; show them in Edit shape ▸ Selection Pane.",
- "Texto alternativo da imagem alterado.": "Image alt text changed."
+ "Texto alternativo da imagem alterado.": "Image alt text changed.",
+ "{} célula(s) apagada(s) pela alça (a origem estava vazia); Ctrl+Z desfaz.": "{} cell(s) cleared by the fill handle (the source was empty); Ctrl+Z undoes."
 }

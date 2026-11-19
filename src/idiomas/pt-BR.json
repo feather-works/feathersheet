@@ -63,7 +63,7 @@
       "preencher": {
         "titulo": "Preencher, copiar e mover",
         "corpo": [
-          "• Arraste o quadradinho no canto da seleção (a alça) para continuar uma série: 1, 2, 3…, datas, \"Item 1, Item 2…\" e fórmulas.",
+          "• Arraste o quadradinho no canto da seleção (a alça) para continuar uma série: 1, 2, 3…, datas, \"Item 1, Item 2…\" e fórmulas. Sobre a alça o cursor vira uma cruz fina. Arrastar a alça de uma célula vazia apaga o conteúdo das células por onde passa (a formatação fica; Ctrl+Z desfaz).",
           "• Duplo clique na alça preenche até o fim dos dados da coluna ao lado.",
           "• Meses e dias da semana continuam a lista (jan, fev, mar…). Para as suas listas (P, M, G, GG), escreva-as em Configurações › Planilha › Listas personalizadas da alça.",
           "• Um número sozinho é copiado; com Ctrl apertado ao arrastar, ele conta (7, 8, 9). Com uma sequência, o Ctrl faz o contrário e copia.",

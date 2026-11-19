@@ -127,6 +127,12 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
         grade.atualizar(&mut estado, &mover(544.0), area, em(544.0));
         let (_, msg) = grade.atualizar(&mut estado, &soltar, area, em(544.0));
         assert!(matches!(msg, Some(Msg::DimensaoArrastada(true, 0, 172))), "{msg:?}");
+        // Cursor: cruz grossa sobre a célula, cruz fina sobre a alça (o quadradinho).
+        let icone = |p: Point| pelicano::Program::<Msg>::mouse_interaction(&grade, &super::EstadoMouse::default(), area, Some(p));
+        assert_eq!(icone(Point::new(300.0, 120.0)), pelicano::CursorIcon::Cell);
+        let alca = (0..1000).flat_map(|y| (0..1600).step_by(2).map(move |x| Point::new(x as f32, y as f32)))
+            .find(|&p| grade.sobre_alca(p, area.size())).expect("a alça da A1 está à vista");
+        assert_eq!(icone(alca), pelicano::CursorIcon::Crosshair);
         // Clique sem arrastar não grava (e segue valendo o duplo clique).
         let mut estado = super::EstadoMouse::default();
         grade.atualizar(&mut estado, &apertar, area, em(444.0));

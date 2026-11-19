@@ -6122,5 +6122,6 @@
  "Saem na impressão e no PDF. {}. Mude em Inserir ▸ Cabeçalho e rodapé.": "Salen al imprimir y en el PDF. {}. Cámbielos en Insertar ▸ Encabezado y pie de página.",
  "Formas e imagens ocultas": "Formas e imágenes ocultas",
  "{}. Vão no arquivo sem aparecer; mostre em Editar forma ▸ Painel de Seleção.": "{}. Van en el archivo sin verse; muéstrelas en Editar forma ▸ Panel de selección.",
- "Texto alternativo da imagem alterado.": "Texto alternativo de la imagen cambiado."
+ "Texto alternativo da imagem alterado.": "Texto alternativo de la imagen cambiado.",
+ "{} célula(s) apagada(s) pela alça (a origem estava vazia); Ctrl+Z desfaz.": "{} celda(s) borrada(s) con el controlador de relleno (el origen estaba vacío); Ctrl+Z deshace."
 }

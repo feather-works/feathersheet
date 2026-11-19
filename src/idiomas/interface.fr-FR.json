@@ -6122,5 +6122,6 @@
  "Saem na impressão e no PDF. {}. Mude em Inserir ▸ Cabeçalho e rodapé.": "Ils apparaissent à l'impression et dans le PDF. {}. Modifiez-les dans Insertion ▸ En-tête et pied de page.",
  "Formas e imagens ocultas": "Formes et images masquées",
  "{}. Vão no arquivo sem aparecer; mostre em Editar forma ▸ Painel de Seleção.": "{}. Elles sont dans le fichier sans être visibles ; affichez-les dans Modifier la forme ▸ Volet Sélection.",
- "Texto alternativo da imagem alterado.": "Texte de remplacement de l'image modifié."
+ "Texto alternativo da imagem alterado.": "Texte de remplacement de l'image modifié.",
+ "{} célula(s) apagada(s) pela alça (a origem estava vazia); Ctrl+Z desfaz.": "{} cellule(s) effacée(s) par la poignée de recopie (la source était vide) ; Ctrl+Z annule."
 }

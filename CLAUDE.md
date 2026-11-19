@@ -88,6 +88,14 @@ gráficos não (gráfico tem o seu no painel; controle no Formatar controle). A 
 Testes `texto_alternativo_da_imagem` e `imagens_da_aba_vao_para_o_desenho_e_voltam`. Novidade: "Texto alternativo nas
 imagens, para leitores de tela."
 
+**Alça de célula vazia apaga, cursor da alça (19/11, relato do pai).** Arrastar a alça a partir de origem sem
+conteúdo limpa o conteúdo do destino como o Delete (formatação fica; `limpar_pela_alca`, um Ctrl+Z, só a parte
+usada); antes recusava com "A origem está vazia". Ctrl+D/R de origem vazia continua recusando. Cursor: `Cell`
+(cruz grossa) sobre as células e `Crosshair` (cruz fina) sobre a alça ou arrastando por ela (`icone_do_mouse`).
+Testes `alca_de_celula_vazia_apaga_o_destino_como_no_excel` e `arrastar_divisoria_do_cabecalho_muda_a_largura_com_zoom`;
+conferido no app por `PELICANO_ROTEIRO` gravado (B2 vazia arrastada sobre a A2). Novidade: "A alça de preenchimento
+funciona como no Excel: cruz fina ao passar o mouse e, arrastada de uma célula vazia, apaga as células por onde passa."
+
 **Clicar na conta do rodapé copia o valor (19/11).** `barra_status::pecas_contas` devolve as contas que cabem com a chave;
 `view_resumo_selecao` faz de cada uma um botão sem moldura (dica "Clique para copiar") com `Evento::Copiar(chave)`, que
 copia o valor como aparece (`1.234,5`). Somando ou fora da área continua texto. Teste `testes_copiar`; foto conferida
