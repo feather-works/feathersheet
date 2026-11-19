@@ -39,6 +39,11 @@ leitura põe o mais próximo em `align` (centro para os dois primeiros, esquerda
 `centralizar_na_selecao_fica_guardado` e `centralizar_na_selecao_volta_ao_xlsx_so_se_nao_mudou`. Novidade: "Centralizar
 na seleção, Preencher, Justificar e Distribuído do Excel não se perdem mais ao abrir e salvar o .xlsx."
 
+**Cor da guia no `.xlsx` (19/11).** `Sheet::tab_color` ia e voltava do `.fshz`, mas o `.xlsx` não lia nem gravava o
+`sheetPr/tabColor`: a aba colorida no Excel chegava sem cor e a colorida aqui saía sem cor. Leitura em `xlsx_read/sheet.rs`
+(`cor_aba`, pelo `styles::cor_de`, que entende tema e tint) e gravação no `<sheetPr>` antes do `pageSetUpPr`. Teste
+`cor_da_guia_vai_e_volta_do_xlsx`. Novidade: "A cor das guias das abas abre e salva no .xlsx do Excel."
+
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava
 `extras.grupo` = número novo (maior da aba + 1) em todos, e quem já era de grupo leva o grupo inteiro; com forma de grupo

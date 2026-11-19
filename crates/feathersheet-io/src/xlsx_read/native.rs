@@ -826,6 +826,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         folha.colunas_ocultas_desde = resumo.colunas_ocultas_desde;
         folha.topicos = std::mem::take(&mut resumo.topicos);
         folha.protecao = resumo.protecao.take();
+        if resumo.cor_aba.is_some() { folha.tab_color = resumo.cor_aba.take(); }
         if resumo.intervalos.is_some() { folha.pr = resumo.intervalos.take(); }
         if !resumo.validacoes.is_empty() {
             folha.va = serde_json::to_string(&resumo.validacoes).ok();

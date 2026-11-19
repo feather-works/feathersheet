@@ -1738,10 +1738,13 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         let codinome = pasta.codinome_da_aba(i).filter(|_| macros && pasta.vba.is_some())
             .map(|nome| format!(" codeName=\"{}\"", escape_xml(nome))).unwrap_or_default();
         let ajustar = pasta.aba(i).is_some_and(|a| crate::pagina_aba::ler(a.sheet.pg.as_deref()).ajustar.is_some());
-        if !codinome.is_empty() || ajustar {
+        // Cor da guia: `tabColor` vem antes de `pageSetUpPr` no CT_SheetPr.
+        let cor = pasta.aba(i).and_then(|a| para_argb(a.sheet.tab_color.clone()))
+            .map(|c| format!("<tabColor rgb=\"{c}\"/>")).unwrap_or_default();
+        if !codinome.is_empty() || ajustar || !cor.is_empty() {
             if let Some(fim) = xml.find("<worksheet ").and_then(|p| xml[p..].find('>').map(|j| p + j + 1)) {
                 let filho = if ajustar { "<pageSetUpPr fitToPage=\"1\"/>" } else { "" };
-                xml.insert_str(fim, &format!("<sheetPr{codinome}>{filho}</sheetPr>"));
+                xml.insert_str(fim, &format!("<sheetPr{codinome}>{cor}{filho}</sheetPr>"));
             }
         }
         let tn = pasta.aba(i).and_then(|a| a.sheet.tn.as_deref());

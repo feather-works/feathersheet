@@ -110,6 +110,9 @@ pub struct SheetJson {
     /// `<sheetProtection sheet="1">`.
     #[serde(skip)]
     pub protecao: Option<feathersheet_core::planilha::sheet::protecao::ProtecaoPlanilha>,
+    /// `sheetPr/tabColor`: a cor da guia da aba.
+    #[serde(skip)]
+    pub cor_aba: Option<String>,
     /// `<protectedRanges>` no JSON do `pr` (Permitir edição de intervalos).
     #[serde(skip)]
     pub intervalos: Option<String>,
@@ -559,6 +562,7 @@ fn aplicar_metadados(
         .unwrap_or(15.0);
 
     sheet.protecao = root.child("sheetProtection").and_then(ler_protecao);
+    sheet.cor_aba = root.child("sheetPr").and_then(|p| p.child("tabColor")).and_then(super::styles::cor_de);
     sheet.intervalos = root.child("protectedRanges").map(ler_intervalos).filter(|t| t != "[]");
     let (validacoes, fora) = super::validacoes::ler(root);
     if fora > 0 {

@@ -58,6 +58,7 @@ Help menu, under *What's new*).
 ### Coming in the next version
 
 - **Split window** (View → Window → Split or Side by side, #83): two panes, one above the other or next to each other, each with its own sheet and scrolling, pictures, shapes, charts and buttons included. Click a pane to work in it.
+- **Sheet tab colors** now open from and save to `.xlsx`.
 - **Shrink to fit, vertical text, superscript and subscript** from Format Cells now open from and save to `.xlsx` (Excel's vertical text used to come in rotated); Excel's Center Across Selection, Fill, Justify and Distributed alignments are no longer lost when you open and save an `.xlsx`.
 - **Group shapes** (Page Layout → Arrange → Group, #79): Shift+click to select several shapes, Group to move them together, Ungroup to release them. Groups in an Excel `.xlsx` open grouped.
 

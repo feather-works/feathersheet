@@ -559,6 +559,15 @@ mod testes {
     }
 
     #[test]
+    fn cor_da_guia_vai_e_volta_do_xlsx() {
+        let mut wb = Workbook::new();
+        wb.escrever_celula(0, 0, 0, "x".into());
+        wb.aba_mut(0).unwrap().sheet.tab_color = Some("#00aa44".into());
+        let (xlsx, _) = crate::xlsx_read::ler_xlsx_workbook(crate::xlsx_write::gerar_xlsx(&wb).unwrap()).unwrap();
+        assert_eq!(xlsx.aba(0).unwrap().sheet.tab_color.as_deref(), Some("#00aa44"));
+    }
+
+    #[test]
     fn comentarios_sobrevivem_fshz_e_xlsx() {
         use feathersheet_core::planilha::sheet::comentarios::Comentario;
         let mut wb = Workbook::new();
