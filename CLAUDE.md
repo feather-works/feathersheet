@@ -96,7 +96,7 @@ contagem do rodapé para copiar o valor."
 
 **Inspecionar documento (19/11).** ☰ Menu ▸ Informações, acima das propriedades (`app/inspetor_documento.rs`,
 `Msg::InspetorDocumento`): no clique (não a cada quadro) lista comentários, dados pessoais, abas ocultas, linhas/colunas
-ocultas, cabeçalho e rodapé (texto de cada aba, do `pg`; só apontado, porque a página não tem Ctrl+Z), nomes,
+ocultas, cabeçalho e rodapé (texto de cada aba, do `pg`; só apontado, porque a página não tem Ctrl+Z), formas e imagens ocultas (`extras.oculto`), nomes,
 vínculos externos (`areas_citadas`) e macros/VBA. Remove só o que é seguro: comentários (um Ctrl+Z por
 aba, `shortcut:`) e dados pessoais (limpa autor, modificado por, empresa, gerente e o autor de cada comentário, e liga
 `Propriedades::sem_dados_pessoais`, que faz `carimbar_propriedades` não pôr o nome de volta; "Voltar a gravar" desliga).

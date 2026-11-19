@@ -6119,5 +6119,7 @@
  "Texto alternativo gravado na imagem": "Alt text saved on the image",
  "Descreva a imagem para quem usa leitor de tela. Deixe em branco se ela for só decoração.": "Describe the image for screen reader users. Leave it blank if it is only decoration.",
  "Ex.: logotipo da empresa": "E.g.: company logo",
- "Saem na impressão e no PDF. {}. Mude em Inserir ▸ Cabeçalho e rodapé.": "They show up when printing and in the PDF. {}. Change them in Insert ▸ Header & footer."
+ "Saem na impressão e no PDF. {}. Mude em Inserir ▸ Cabeçalho e rodapé.": "They show up when printing and in the PDF. {}. Change them in Insert ▸ Header & footer.",
+ "Formas e imagens ocultas": "Hidden shapes and images",
+ "{}. Vão no arquivo sem aparecer; mostre em Editar forma ▸ Painel de Seleção.": "{}. They go in the file without showing; show them in Edit shape ▸ Selection Pane."
 }

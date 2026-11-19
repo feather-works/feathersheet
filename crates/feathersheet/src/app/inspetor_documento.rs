@@ -1,6 +1,6 @@
 //! Arquivo ▸ Informações ▸ Inspecionar documento, como o Inspetor de Documento do Excel: antes de
 //! mandar a pasta para alguém, mostra o que vai junto sem estar à vista (comentários, dados pessoais,
-//! abas, linhas e colunas ocultas, cabeçalho e rodapé, nomes, vínculos com outros arquivos, macros).
+//! abas, linhas e colunas ocultas, cabeçalho e rodapé, formas ocultas, nomes, vínculos com outros arquivos, macros).
 //!
 //! Só remove o que volta com Ctrl+Z ou com um clique (comentários, dados pessoais); abas e linhas
 //! ocultas são apontadas, não apagadas: apagar dado escondido é decisão de quem conhece a planilha.
@@ -101,6 +101,19 @@ impl App {
             achados.push(Achado {
                 titulo: tr!("Cabeçalho e rodapé").into(),
                 detalhe: trf!("Saem na impressão e no PDF. {}. Mude em Inserir ▸ Cabeçalho e rodapé.", lista_abas(&com_texto)),
+                acao: None,
+            });
+        }
+
+        let com_invisivel: Vec<String> = abas.iter().filter_map(|s| {
+            let ob = feathersheet_io::objetos_aba::ObjetosAba::ler(s.ob.as_deref()).ok()?;
+            let n = ob.objetos.iter().filter(|o| o.extras.get("oculto") == Some(&serde_json::Value::Bool(true))).count();
+            (n > 0).then(|| format!("{} ({n})", s.name))
+        }).collect();
+        if !com_invisivel.is_empty() {
+            achados.push(Achado {
+                titulo: tr!("Formas e imagens ocultas").into(),
+                detalhe: trf!("{}. Vão no arquivo sem aparecer; mostre em Editar forma ▸ Painel de Seleção.", lista_abas(&com_invisivel)),
                 acao: None,
             });
         }
@@ -242,6 +255,14 @@ mod tests {
         let _ = app.update(Msg::InspetorDocumento(Evento::Inspecionar));
         let rodape = app.inspecao_documento.as_ref().unwrap().iter().find(|a| a.titulo == tr!("Cabeçalho e rodapé")).expect("rodapé apontado");
         assert!(rodape.detalhe.contains("custos.xlsx"), "{}", rodape.detalhe);
+        let mut ob = feathersheet_io::objetos_aba::ObjetosAba::default();
+        let mut forma = feathersheet_io::objetos_aba::ObjetoSolto::novo_controle(
+            feathersheet_io::objetos_aba::ControleFormulario::novo(feathersheet_io::objetos_aba::TipoControleForm::Botao), Default::default(), Default::default());
+        forma.extras.insert("oculto".into(), serde_json::Value::Bool(true));
+        ob.objetos.push(forma);
+        app.workbook.editar(0, |s| s.ob = ob.gravar());
+        let _ = app.update(Msg::InspetorDocumento(Evento::Inspecionar));
+        assert!(app.inspecao_documento.as_ref().unwrap().iter().any(|a| a.titulo == tr!("Formas e imagens ocultas")));
 
         let _ = app.update(Msg::InspetorDocumento(Evento::RemoverDadosPessoais));
         let nota = app.workbook.aba(0).unwrap().sheet.comentario(2, 1).cloned().unwrap();
