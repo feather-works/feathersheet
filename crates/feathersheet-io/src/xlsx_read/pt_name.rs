@@ -93,7 +93,7 @@ pub const PT_NAME: &[(&str, &str)] = &[
     ("NETWORKDAYS", "DIATRABALHOTOTAL"),
     ("NORM.DIST", "DIST.NORM.N"),
     ("NORM.INV", "INV.NORM.N"),
-    ("NORM.S.DIST", "DIST.NORMP"),
+    ("NORM.S.DIST", "DIST.NORMP.N"),
     ("NOT", "NÃO"),
     ("NOW", "AGORA"),
     ("OR", "OU"),
@@ -154,3 +154,17 @@ pub const PT_NAME: &[(&str, &str)] = &[
     ("XLOOKUP", "PROCX"),
     ("YEAR", "ANO"),
 ];
+
+#[cfg(test)]
+mod testes {
+    /// Cada nome em português escolhido para o `.xlsx` volta à mesma função do Excel: NORM.S.DIST
+    /// virava DIST.NORMP (a NORMSDIST, de um argumento) e a fórmula reaberta dava erro.
+    #[test]
+    fn todo_nome_portugues_volta_a_mesma_funcao() {
+        let errados: Vec<String> = super::PT_NAME.iter()
+            .filter(|(en, pt)| feathersheet_core::funcoes::functions::canonical(pt).is_some_and(|c| c != *en))
+            .map(|(en, pt)| format!("{en} → {pt} → {}", feathersheet_core::funcoes::functions::canonical(pt).unwrap()))
+            .collect();
+        assert!(errados.is_empty(), "{errados:#?}");
+    }
+}

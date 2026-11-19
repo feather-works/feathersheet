@@ -88,6 +88,14 @@ gráficos não (gráfico tem o seu no painel; controle no Formatar controle). A 
 Testes `texto_alternativo_da_imagem` e `imagens_da_aba_vao_para_o_desenho_e_voltam`. Novidade: "Texto alternativo nas
 imagens, para leitores de tela."
 
+**Conferido com o GridCraft (19/11).** `gridcraft.cli check` (snap; arquivos em `~/snap/gridcraft/common/`) sobre a
+`amostra_ouro.xlsx`: refaz as contas pelo valor guardado e testa ida e volta. Achou a normal imprecisa: `fn_stats.rs`
+tinha cópia própria de `erf`/`norm_inv` (Abramowitz-Stegun, erro na 7ª casa); agora usa as de `fn_dist.rs` (teste
+`normal_com_precisao_do_excel`). E o `pt_name.rs` mandava NORM.S.DIST para DIST.NORMP (= NORMSDIST); teste
+`todo_nome_portugues_volta_a_mesma_funcao` confere a tabela inteira. Sobram 29 diferenças esperadas: texto no formato
+pt-BR (o GridCraft calcula em en-US), funções só nossas (IMAGEM, JUNTAR, REGEXCORRESP, CONT.ÚNICOS) e `_xlws.SORT`,
+que o GridCraft não entende (nós gravamos como o Excel 365). Novidade: "Distribuição normal com a precisão do Excel."
+
 **Alça de célula vazia apaga, cursor da alça (19/11, relato do pai).** Arrastar a alça a partir de origem sem
 conteúdo limpa o conteúdo do destino como o Delete (formatação fica; `limpar_pela_alca`, um Ctrl+Z, só a parte
 usada); antes recusava com "A origem está vazia". Ctrl+D/R de origem vazia continua recusando. Cursor: `Cell`

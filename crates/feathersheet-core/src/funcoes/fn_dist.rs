@@ -1531,6 +1531,17 @@ mod testes {
         assert!((t_sup(t, 2.0) / exato - 1.0).abs() < 1e-7);
     }
 
+    /// As da normal em fn_stats usavam uma erf aproximada (erro na 7ª casa); o GridCraft
+    /// e o Excel dão estes valores.
+    #[test]
+    fn normal_com_precisao_do_excel() {
+        perto("=DIST.NORM.N(1;0;1;VERDADEIRO)", 0.841_344_746_068_543, 1e-14);
+        perto("=DIST.NORMP.N(1;VERDADEIRO)", 0.841_344_746_068_543, 1e-14);
+        perto("=DISTNORM(1;0;1;VERDADEIRO)", 0.841_344_746_068_543, 1e-14);
+        perto("=INV.NORM.N(0,95;0;1)", 1.644_853_626_951_472_7, 1e-12);
+        perto("=INV.NORM(0,95;0;1)", 1.644_853_626_951_472_7, 1e-12);
+    }
+
     #[test]
     fn beta_e_binomial() {
         perto("=DIST.BETA.N(2;8;10;VERDADEIRO;1;3)", 0.685_470_6, 1e-7);

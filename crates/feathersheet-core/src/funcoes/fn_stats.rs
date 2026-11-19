@@ -1022,53 +1022,8 @@ pub fn fn_kurt(args: &[Node], ev: &Evaluator<'_>) -> Computed {
     Computed::Scalar(Value::Number(term1 - term2))
 }
 
-fn erf(x: f64) -> f64 {
-    let sign = if x >= 0.0 { 1.0 } else { -1.0 };
-    let abs_x = x.abs();
-    let a1 = 0.254829592;
-    let a2 = -0.284496736;
-    let a3 = 1.421413741;
-    let a4 = -1.453152027;
-    let a5 = 1.061405429;
-    let p = 0.3275911;
-    let t = 1.0 / (1.0 + p * abs_x);
-    let y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * (-abs_x * abs_x).exp();
-    sign * y
-}
-
-fn norm_cdf(z: f64) -> f64 {
-    0.5 * (1.0 + erf(z / std::f64::consts::SQRT_2))
-}
-
-fn norm_pdf(z: f64) -> f64 {
-    (-0.5 * z * z).exp() / (2.0 * std::f64::consts::PI).sqrt()
-}
-
-fn norm_inv(p: f64) -> f64 {
-    if p <= 0.0 || p >= 1.0 {
-        return f64::NAN;
-    }
-    let a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.50662827459239];
-    let b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
-    let c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
-    let d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
-    let p_low = 0.02425;
-    let p_high = 1.0 - p_low;
-    if p < p_low {
-        let q = (-2.0 * p.ln()).sqrt();
-        (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
-            / (((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0))
-    } else if p <= p_high {
-        let q = p - 0.5;
-        let r = q * q;
-        ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q)
-            / ((((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1.0))
-    } else {
-        let q = (-2.0 * (1.0 - p).ln()).sqrt();
-        -((((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
-            / (((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0)))
-    }
-}
+// Normal: as versões precisas de fn_dist (a cópia daqui, Abramowitz-Stegun, errava na 7ª casa).
+use crate::funcoes::fn_dist::{norm_cdf, norm_inv, norm_pdf};
 
 fn log_gamma(x: f64) -> f64 {
     let coeff = [
