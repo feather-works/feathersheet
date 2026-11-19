@@ -39,6 +39,11 @@ pub struct Style {
     pub double_underline: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub strike: Option<bool>,
+    /// `<vertAlign val="superscript|subscript"/>` da fonte (a célula inteira, como o app faz).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub superscript: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subscript: Option<bool>,
     #[serde(rename = "fontSize", skip_serializing_if = "Option::is_none")]
     pub font_size: Option<i64>,
     #[serde(rename = "fontFamily", skip_serializing_if = "Option::is_none")]
@@ -107,6 +112,8 @@ impl Style {
             || self.borders.is_some()
             || self.border_line_style.is_some()
             || self.double_underline.is_some()
+            || self.superscript.is_some()
+            || self.subscript.is_some()
             || self.align.is_some()
             || self.v_align.is_some()
             || self.wrap.is_some()
@@ -267,6 +274,11 @@ fn read_font(f: &XmlNode) -> Style {
     }
     if f.child("strike").is_some_and(liga) {
         style.strike = Some(true);
+    }
+    match f.child("vertAlign").and_then(|v| v.attr("val")) {
+        Some("superscript") => style.superscript = Some(true),
+        Some("subscript") => style.subscript = Some(true),
+        _ => {}
     }
     if let Some(size) = f.child("sz").and_then(|n| n.attr("val")).and_then(|v| v.parse::<f64>().ok()) {
         if size > 0.0 && (size - 11.0).abs() > 0.01 {
@@ -434,6 +446,15 @@ mod tests {
         assert_eq!(xfs[2].style.rotation, Some(-45.0));
         let json = serde_json::to_value(&xfs[0].style).unwrap();
         assert_eq!(json["shrinkToFit"], true);
+    }
+
+    #[test]
+    fn sobrescrito_e_subscrito_da_fonte() {
+        let xml = r#"<styleSheet><fonts><font><vertAlign val="superscript"/></font><font><vertAlign val="subscript"/></font></fonts>
+            <cellXfs><xf fontId="0"/><xf fontId="1"/></cellXfs></styleSheet>"#;
+        let xfs = read_styles(xml);
+        assert_eq!((xfs[0].style.superscript, xfs[0].style.subscript), (Some(true), None));
+        assert_eq!((xfs[1].style.superscript, xfs[1].style.subscript), (None, Some(true)));
     }
 
     #[test]

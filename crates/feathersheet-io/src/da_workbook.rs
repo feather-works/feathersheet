@@ -520,16 +520,22 @@ mod testes {
         let mut wb = Workbook::new();
         wb.escrever_celula(0, 0, 0, "texto comprido".into());
         wb.escrever_celula(0, 1, 0, "VERTICAL".into());
+        wb.escrever_celula(0, 2, 0, "m2".into());
+        wb.escrever_celula(0, 3, 0, "H2O".into());
         wb.editar(0, |s| {
             let um = |k: &str| { let mut p = EstiloParcial::new(); p.insert(k.into(), Campo::Logico(true)); p };
             s.set_style(&Rect::cell(0, 0), &um("shrinkToFit"));
             s.set_style(&Rect::cell(1, 0), &um("textVertical"));
+            s.set_style(&Rect::cell(2, 0), &um("superscript"));
+            s.set_style(&Rect::cell(3, 0), &um("subscript"));
         });
         let (xlsx, _) = crate::xlsx_read::ler_xlsx_workbook(crate::xlsx_write::gerar_xlsx(&wb).unwrap()).unwrap();
         let aba = &xlsx.aba(0).unwrap().sheet;
         let tem = |l, k: &str| matches!(aba.estilo_mesclado(l, 0).as_ref().and_then(|e| e.get(k)), Some(Campo::Logico(true)));
         assert!(tem(0, "shrinkToFit") && !tem(0, "textVertical"));
         assert!(tem(1, "textVertical") && !tem(1, "shrinkToFit"));
+        assert!(tem(2, "superscript") && !tem(2, "subscript"));
+        assert!(tem(3, "subscript") && !tem(3, "superscript"));
     }
 
     #[test]

@@ -410,6 +410,8 @@ fn estilos_xml(tabela: &TabelaDeEstilos) -> String {
                 partes.push_str(if duplo { "<u val=\"double\"/>" } else { tag });
             }
         }
+        if verdadeiro(s.get("superscript")) { partes.push_str("<vertAlign val=\"superscript\"/>"); }
+        else if verdadeiro(s.get("subscript")) { partes.push_str("<vertAlign val=\"subscript\"/>"); }
         let tamanho = match numero(s, "fontSize") {
             Some(n) if n != 0.0 && !n.is_nan() => to_js_string(arredondar(n * 0.75)),
             _ => "11".to_string(),

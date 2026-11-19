@@ -27,8 +27,9 @@ a sua rolagem, imagens e gráficos."
 (`shrinkToFit` e `textVertical` no `EstiloParcial`, desenhados pela grade), mas o `.xlsx` não lia nem gravava: o arquivo
 do Excel perdia o efeito, e o vertical do Excel (`textRotation="255"`) virava giro de -165°. Agora `xlsx_read/styles.rs`
 lê `shrinkToFit` e o 255 como `textVertical`, e o `xlsx_write` grava os dois. Testes: `reduzir_para_caber_e_texto_vertical`
-(leitor) e `reduzir_para_caber_e_texto_vertical_voltam_do_xlsx` (`da_workbook`). Novidade: "Reduzir para caber e texto
-vertical do Excel agora abrem e salvam no .xlsx."
+(leitor) e `reduzir_para_caber_e_texto_vertical_voltam_do_xlsx` (`da_workbook`). Mesmo caminho para sobrescrito e
+subscrito (`superscript`/`subscript` ↔ `<vertAlign>` da fonte; teste `sobrescrito_e_subscrito_da_fonte`). Novidade:
+"Reduzir para caber, texto vertical, sobrescrito e subscrito do Excel agora abrem e salvam no .xlsx."
 
 **Centralizar na seleção e outros alinhamentos do Excel guardados (19/11).** `horizontal` = `centerContinuous`,
 `distributed`, `fill` ou `justify` era descartado ao ler o `.xlsx` (a célula ficava no Geral e o Ctrl+S apagava). Agora a
