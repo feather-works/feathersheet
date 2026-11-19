@@ -483,8 +483,13 @@ fn estilos_xml(tabela: &TabelaDeEstilos) -> String {
         if verdadeiro(s.get("wrap")) {
             alinhar.push("wrapText=\"1\"".to_string());
         }
+        if verdadeiro(s.get("shrinkToFit")) {
+            alinhar.push("shrinkToFit=\"1\"".to_string());
+        }
         if let Some(n) = recuo { alinhar.push(format!("indent=\"{n}\"")); }
-        if let Some(r) = numero(s, "rotation").filter(|r| *r != 0.0 && !r.is_nan()) {
+        if verdadeiro(s.get("textVertical")) {
+            alinhar.push("textRotation=\"255\"".to_string());
+        } else if let Some(r) = numero(s, "rotation").filter(|r| *r != 0.0 && !r.is_nan()) {
             alinhar.push(format!("textRotation=\"{}\"", to_js_string(if r < 0.0 { 90.0 - r } else { r })));
         }
 

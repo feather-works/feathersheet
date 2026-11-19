@@ -64,6 +64,12 @@ pub struct Style {
     pub bg: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rotation: Option<f64>,
+    /// `<alignment shrinkToFit="1"/>`: Reduzir para caber.
+    #[serde(rename = "shrinkToFit", skip_serializing_if = "Option::is_none")]
+    pub shrink_to_fit: Option<bool>,
+    /// `textRotation="255"`: texto vertical empilhado (uma letra embaixo da outra).
+    #[serde(rename = "textVertical", skip_serializing_if = "Option::is_none")]
+    pub text_vertical: Option<bool>,
     /// `<alignment indent="n"/>`: nível de recuo do texto (0..=15).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub indent: Option<u32>,
@@ -105,6 +111,8 @@ impl Style {
             || self.bg.is_some()
             || self.rotation.is_some()
             || self.indent.is_some()
+            || self.shrink_to_fit.is_some()
+            || self.text_vertical.is_some()
             || self.link.is_some()
     }
 }
@@ -375,8 +383,14 @@ fn read_xf(xf: &XmlNode, codes: &HashMap<i64, String>, fonts: &[Style], fills: &
         if let Some(n) = align.attr("indent").and_then(|s| s.parse::<u32>().ok()).filter(|n| *n > 0) {
             style.indent = Some(n.min(15));
         }
+        if matches!(align.attr("shrinkToFit"), Some("1") | Some("true")) {
+            style.shrink_to_fit = Some(true);
+        }
         if let Some(rot) = align.attr("textRotation").and_then(|s| s.parse::<f64>().ok()) {
-            if rot != 0.0 {
+            // 255 não é ângulo: é o texto vertical empilhado (antes virava um giro de -165°).
+            if rot == 255.0 {
+                style.text_vertical = Some(true);
+            } else if rot != 0.0 {
                 style.rotation = Some(if rot > 90.0 { 90.0 - rot } else { rot });
             }
         }
@@ -395,6 +409,21 @@ mod tests {
         assert_eq!(from_argb(Some("00FF00")), Some("#00ff00".to_string()));
         assert_eq!(from_argb(None), None);
         assert_eq!(from_argb(Some("xyz")), None);
+    }
+
+    #[test]
+    fn reduzir_para_caber_e_texto_vertical() {
+        let xml = r#"<styleSheet><cellXfs>
+            <xf><alignment shrinkToFit="1"/></xf>
+            <xf><alignment textRotation="255"/></xf>
+            <xf><alignment textRotation="135"/></xf>
+          </cellXfs></styleSheet>"#;
+        let xfs = read_styles(xml);
+        assert_eq!((xfs[0].style.shrink_to_fit, xfs[0].style.text_vertical), (Some(true), None));
+        assert_eq!((xfs[1].style.text_vertical, xfs[1].style.rotation), (Some(true), None), "255 é vertical, não giro");
+        assert_eq!(xfs[2].style.rotation, Some(-45.0));
+        let json = serde_json::to_value(&xfs[0].style).unwrap();
+        assert_eq!(json["shrinkToFit"], true);
     }
 
     #[test]

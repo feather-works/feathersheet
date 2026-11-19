@@ -514,6 +514,25 @@ mod testes {
     }
 
     #[test]
+    fn reduzir_para_caber_e_texto_vertical_voltam_do_xlsx() {
+        use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
+        use feathersheet_core::celulas::refs::Rect;
+        let mut wb = Workbook::new();
+        wb.escrever_celula(0, 0, 0, "texto comprido".into());
+        wb.escrever_celula(0, 1, 0, "VERTICAL".into());
+        wb.editar(0, |s| {
+            let um = |k: &str| { let mut p = EstiloParcial::new(); p.insert(k.into(), Campo::Logico(true)); p };
+            s.set_style(&Rect::cell(0, 0), &um("shrinkToFit"));
+            s.set_style(&Rect::cell(1, 0), &um("textVertical"));
+        });
+        let (xlsx, _) = crate::xlsx_read::ler_xlsx_workbook(crate::xlsx_write::gerar_xlsx(&wb).unwrap()).unwrap();
+        let aba = &xlsx.aba(0).unwrap().sheet;
+        let tem = |l, k: &str| matches!(aba.estilo_mesclado(l, 0).as_ref().and_then(|e| e.get(k)), Some(Campo::Logico(true)));
+        assert!(tem(0, "shrinkToFit") && !tem(0, "textVertical"));
+        assert!(tem(1, "textVertical") && !tem(1, "shrinkToFit"));
+    }
+
+    #[test]
     fn comentarios_sobrevivem_fshz_e_xlsx() {
         use feathersheet_core::planilha::sheet::comentarios::Comentario;
         let mut wb = Workbook::new();

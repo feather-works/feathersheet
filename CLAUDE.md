@@ -23,6 +23,13 @@ do grupo Janela (19/11; antes saía como botão pequeno solto, conferido por fot
 Novidade: "Dividir janela (Exibir ▸ Janela): duas abas à vista, uma em cima da outra ou lado a lado, cada uma com
 a sua rolagem, imagens e gráficos."
 
+**Reduzir para caber e texto vertical no `.xlsx` (19/11).** O app já tinha os dois em Formatar células ▸ Alinhamento
+(`shrinkToFit` e `textVertical` no `EstiloParcial`, desenhados pela grade), mas o `.xlsx` não lia nem gravava: o arquivo
+do Excel perdia o efeito, e o vertical do Excel (`textRotation="255"`) virava giro de -165°. Agora `xlsx_read/styles.rs`
+lê `shrinkToFit` e o 255 como `textVertical`, e o `xlsx_write` grava os dois. Testes: `reduzir_para_caber_e_texto_vertical`
+(leitor) e `reduzir_para_caber_e_texto_vertical_voltam_do_xlsx` (`da_workbook`). Novidade: "Reduzir para caber e texto
+vertical do Excel agora abrem e salvam no .xlsx."
+
 **Agrupar formas (#79, 19/11).** Shift+clique numa forma (`Evento::SelecionarMais`, só no gesto de mover; a camada não
 arrasta) junta-a em `EstadoObjetos::mais`; Organizar ▸ Agrupar (`Evento::Agrupar`, ícone `link`, ativo com ≥2) grava
 `extras.grupo` = número novo (maior da aba + 1) em todos, e quem já era de grupo leva o grupo inteiro; com forma de grupo
