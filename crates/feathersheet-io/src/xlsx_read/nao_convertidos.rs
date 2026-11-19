@@ -46,6 +46,54 @@ fn caminho_relativo(pasta: &str, alvo: &str) -> String {
     partes.join("/")
 }
 
+/// Os trechos `<…tag …>…</…tag>` do XML lido aos pedaços (a aba pode ter centenas de MB; só os
+/// trechos ficam na memória). Com ou sem prefixo (`<x14:dataValidations>`).
+fn trechos(mut leitor: impl std::io::Read, tag: &[u8]) -> Vec<String> {
+    let mut saida = Vec::new();
+    let mut janela: Vec<u8> = Vec::new();
+    let mut pedaco = vec![0u8; 1 << 16];
+    // Bloco aberto e a marca que o fecha (com o prefixo da abertura: `</x14:tag>`).
+    let mut dentro: Option<(Vec<u8>, Vec<u8>)> = None;
+    let achar = |h: &[u8], a: &[u8]| h.windows(a.len()).position(|w| w == a);
+    loop {
+        let n = match leitor.read(&mut pedaco) { Ok(0) | Err(_) => break, Ok(n) => n };
+        janela.extend_from_slice(&pedaco[..n]);
+        loop {
+            match &mut dentro {
+                None => {
+                    // Abertura: `<tag` ou `<prefixo:tag`, seguida de espaço ou `>`.
+                    let Some(i) = achar(&janela, tag) else { break };
+                    let antes = &janela[..i];
+                    let lt = antes.iter().rposition(|&c| c == b'<');
+                    let depois = janela.get(i + tag.len()).copied();
+                    let ok = lt.is_some_and(|j| { let p = &antes[j + 1..]; (p.is_empty() || p.ends_with(b":")) && !p.starts_with(b"/") && !p.contains(&b' ') });
+                    match (ok, depois) {
+                        (_, None) => break, // pede mais bytes para saber o que vem depois
+                        (true, Some(b' ' | b'>')) => {
+                            let j = lt.unwrap();
+                            let fecho = [b"</".as_slice(), &janela[j + 1..i], tag, b">"].concat();
+                            dentro = Some((janela[j..].to_vec(), fecho));
+                            janela.clear();
+                        }
+                        _ => { janela.drain(..i + tag.len()); }
+                    }
+                }
+                Some((bloco, fecho)) => {
+                    bloco.append(&mut janela);
+                    let Some(i) = achar(bloco, fecho) else { break };
+                    let fim = i + fecho.len();
+                    janela = bloco.split_off(fim);
+                    saida.push(String::from_utf8_lossy(bloco).into_owned());
+                    dentro = None;
+                }
+            }
+        }
+        // Fora de bloco, guarda só a ponta (uma marca pode vir partida entre dois pedaços).
+        if dentro.is_none() && janela.len() > 256 { janela.drain(..janela.len() - 256); }
+    }
+    saida
+}
+
 /// Quantas vezes a marca `<tag` (com ou sem prefixo, `<x:tag`) abre no XML.
 fn abre(texto: &str, tag: &str) -> usize {
     texto.match_indices(tag).filter(|(i, _)| {
@@ -73,6 +121,19 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         let (Some(nome), Some(alvo)) = (no.attr("name"), no.attr("r:id").and_then(|id| rels.get(id))) else { continue };
         let caminho = match alvo.strip_prefix('/') { Some(a) => a.to_owned(), None => format!("xl/{}", alvo.trim_start_matches("./")) };
         if !caminho.starts_with("xl/worksheets/") { continue; } // gráfico/macro/diálogo: contados pela parte
+        // Validação de tipo que o motor não tem (tamanho do texto, personalizada qualquer): a leitura deixa
+        // de fora e o Ctrl+S apagaria. Só o trecho `<dataValidations>` é guardado, não a aba inteira.
+        // shortcut: descompacta cada aba (≈1 s a mais no 1º Ctrl+S de um .xlsx de centenas de MB); se pesar,
+        // guardar a contagem que a leitura já faz (`validacoes::ler`) na abertura.
+        if let Ok(f) = z.by_name(&caminho) {
+            let blocos = trechos(f, b"dataValidations");
+            if !blocos.is_empty() {
+                // Os blocos x14 entram como `extLst/ext`, onde o leitor de sempre procura.
+                let (x14, classicos): (Vec<_>, Vec<_>) = blocos.into_iter().partition(|b| b.starts_with("<x14:"));
+                let xml = format!("<worksheet>{}<extLst><ext>{}</ext></extLst></worksheet>", classicos.concat(), x14.concat());
+                if let Ok(raiz) = xml::parse_xml(&xml) { somar(Some(nome), "Validação de dados sem equivalente", super::validacoes::ler(&raiz).1); }
+            }
+        }
         let (pasta, arquivo) = caminho.rsplit_once('/').unwrap_or(("", &caminho));
         for alvo in sheet::read_rels(&entry_text(&mut z, &format!("{pasta}/_rels/{arquivo}.rels")).unwrap_or_default()).values() {
             if let Some(o) = pelo_alvo(alvo) { somar(Some(nome), o, 1); }
@@ -118,7 +179,7 @@ mod testes {
             let mut f = |n: &str, t: &str| { zw.start_file(n, SimpleFileOptions::default()).unwrap(); zw.write_all(t.as_bytes()).unwrap(); };
             f("xl/workbook.xml", r#"<workbook xmlns:r="r"><sheets><sheet name="Vendas" r:id="rId1"/><sheet name="Gráf" r:id="rId2"/></sheets></workbook>"#);
             f("xl/_rels/workbook.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Target="chartsheets/sheet1.xml"/></Relationships>"#);
-            f("xl/worksheets/sheet1.xml", "<worksheet><extLst><x14:sparkline></x14:sparkline><x14:sparkline></x14:sparkline></extLst></worksheet>");
+            f("xl/worksheets/sheet1.xml", r#"<worksheet><sheetData/><dataValidations count="2"><dataValidation type="textLength" operator="lessThan" sqref="A1"><formula1>5</formula1></dataValidation><dataValidation type="list" sqref="B1"><formula1>"a,b"</formula1></dataValidation></dataValidations><extLst><x14:sparkline></x14:sparkline><x14:sparkline></x14:sparkline></extLst></worksheet>"#);
             f("xl/worksheets/_rels/sheet1.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="../activeX/activeX1.xml"/><Relationship Id="rId2" Target="../activeX/activeX2.xml"/><Relationship Id="rId3" Target="../drawings/drawing1.xml"/></Relationships>"#);
             f("xl/drawings/drawing1.xml", "<xdr:wsDr><xdr:twoCellAnchor><xdr:pic><xdr:nvPicPr/></xdr:pic></xdr:twoCellAnchor><xdr:twoCellAnchor><xdr:graphicFrame/></xdr:twoCellAnchor></xdr:wsDr>");
             f("xl/chartsheets/sheet1.xml", "<chartsheet/>");
@@ -140,7 +201,15 @@ mod testes {
             (None, "Preenchimento com hachura", 1),
             (None, "Preenchimento em degradê", 1),
             (None, "Texto com formatação em parte da célula", 1),
+            (Some("Vendas"), "Validação de dados sem equivalente", 1),
         ]);
+        // Pedaço a pedaço: a marca partida entre dois `read` ainda é achada.
+        struct AosPoucos<'a>(&'a [u8]);
+        impl std::io::Read for AosPoucos<'_> {
+            fn read(&mut self, b: &mut [u8]) -> std::io::Result<usize> { let n = self.0.len().min(3).min(b.len()); b[..n].copy_from_slice(&self.0[..n]); self.0 = &self.0[n..]; Ok(n) }
+        }
+        let xml = b"<a><x14:dataValidations n=\"1\"><x/></x14:dataValidations><dataValidationsX/><dataValidations>y</dataValidations></a>";
+        assert_eq!(trechos(AosPoucos(xml), b"dataValidations"), vec!["<x14:dataValidations n=\"1\"><x/></x14:dataValidations>", "<dataValidations>y</dataValidations>"]);
         assert_eq!(abre("<x:gradientFill a='1'></x:gradientFill><gradientFill/>", "gradientFill"), 2);
     }
 }
