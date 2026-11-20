@@ -366,6 +366,15 @@ fn internar(lista: &mut Vec<String>, visto: &mut HashMap<String, usize>, xml: St
     lista.len() - 1
 }
 
+/// O tamanho da letra em pt a partir dos px inteiros do motor. 10 pt vira 13 px na leitura e voltaria
+/// 9,75 pt (a letra encolhia a cada ida e volta): o tamanho padrão do Office a até 0,375 pt (meio px)
+/// é o que estava no arquivo.
+fn pt_da_fonte(px: f64) -> f64 {
+    const PADRAO: [f64; 18] = [8.0, 9.0, 10.0, 10.5, 11.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 36.0, 48.0, 60.0, 72.0];
+    let pt = px * 0.75;
+    PADRAO.iter().copied().find(|p| (p - pt).abs() <= 0.375 + 1e-9).unwrap_or_else(|| arredondar(pt))
+}
+
 fn borda_xml(b: &BTreeMap<String, Campo>, estilo_linha: Option<&str>) -> String {
     let cor = para_argb(texto(b, "color"));
     // `borderLineStyle` do estilo (Formatar células, Desenhar borda).
@@ -416,7 +425,7 @@ fn estilos_xml(tabela: &TabelaDeEstilos) -> String {
         if verdadeiro(s.get("superscript")) { partes.push_str("<vertAlign val=\"superscript\"/>"); }
         else if verdadeiro(s.get("subscript")) { partes.push_str("<vertAlign val=\"subscript\"/>"); }
         let tamanho = match numero(s, "fontSize") {
-            Some(n) if n != 0.0 && !n.is_nan() => to_js_string(arredondar(n * 0.75)),
+            Some(n) if n != 0.0 && !n.is_nan() => to_js_string(pt_da_fonte(n)),
             _ => "11".to_string(),
         };
         partes.push_str(&format!("<sz val=\"{tamanho}\"/>"));
@@ -2580,6 +2589,15 @@ mod testes {
 
 #[cfg(test)]
 mod testes_sem_dados_pessoais {
+    #[test]
+    fn tamanho_da_letra_volta_o_do_arquivo() {
+        // px como o leitor guarda: (pt / 0,75).round()
+        for pt in [8.0, 9.0, 10.0, 10.5, 12.0, 14.0, 18.0, 24.0, 72.0] {
+            assert_eq!(super::pt_da_fonte((pt / 0.75_f64).round()), pt, "{pt} pt");
+        }
+        assert_eq!(super::pt_da_fonte(17.0), 12.75, "fora da lista fica como está");
+    }
+
     use super::*;
 
     #[test]

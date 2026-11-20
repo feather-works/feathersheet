@@ -321,7 +321,8 @@ fn read_border(b: &XmlNode) -> Option<Borders> {
                     let traco = match s {
                         "thick" | "double" => Some("Grossa"),
                         "medium" | "mediumDashed" | "mediumDashDot" | "mediumDashDotDot" => Some("Média"),
-                        "dashed" | "dotted" | "dashDot" | "dashDotDot" | "hair" | "slantDashDot" => Some("Tracejada"),
+                        // `hair` é a linha contínua mais fina do Excel (a do LibreOffice para 0,5 pt): fica Fina.
+                        "dashed" | "dotted" | "dashDot" | "dashDotDot" | "slantDashDot" => Some("Tracejada"),
                         _ => None,
                     };
                     let peso = |t: Option<&str>| match t { Some("Grossa") => 3, Some("Média") => 2, Some("Tracejada") => 1, _ => 0 };
@@ -489,6 +490,14 @@ mod tests {
         assert_eq!(s.v_align, Some("middle"));
         assert_eq!(s.wrap, Some(true));
         assert_eq!(s.format, Some("percent"));
+    }
+
+    #[test]
+    fn borda_hair_fica_fina_e_nao_tracejada() {
+        let xml = |estilo: &str| format!(r#"<styleSheet><borders><border><left style="{estilo}"/></border></borders><cellXfs><xf borderId="0"/></cellXfs></styleSheet>"#);
+        let linha = |estilo: &str| read_styles(&xml(estilo))[0].style.borders.as_ref().unwrap().estilo_linha;
+        assert_eq!(linha("hair"), None);
+        assert_eq!(linha("dotted"), Some("Tracejada"));
     }
 
     #[test]

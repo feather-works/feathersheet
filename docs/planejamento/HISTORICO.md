@@ -13,6 +13,9 @@
   `roundRect`) e grupo (as formas saem soltas). Conferido no LibreOffice. Teste `forma_desenhada_vai_e_volta_pelo_xlsx`.
 - Ícone, WordArt e SmartArt desenhados no app ainda não vão para o `.xlsx`: depois de salvar, o status avisa
   quantos ficaram de fora e sugere salvar também em `.fshz` (`App::objetos_sem_xlsx`).
+- Ida e volta de um `.xlsx` do LibreOffice (20/11): a borda `hair` (0,5 pt contínua) voltava tracejada (agora
+  fica Fina) e a letra encolhia (10 pt → 13 px → 9,75 pt): `xlsx_write::pt_da_fonte` leva ao tamanho padrão do
+  Office a até 0,375 pt. O motor segue guardando px inteiros.
 
 ## v0.3.4 — 20/11/2026: Dividir janela, Inspecionar documento, Filtro avançado, cálculo mais rápido
 
