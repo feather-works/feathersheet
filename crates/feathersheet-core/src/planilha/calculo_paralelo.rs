@@ -139,13 +139,22 @@ struct Contexto<'a, 'v> {
     /// lista disputavam o cadeado entre as threads: ~2 s de 2,1 s).
     lidas: RefCell<HashMap<ChaveFaixa, Option<Arc<FaixaLida>>>>,
     falhou: Cell<bool>,
+    ultima_aba: RefCell<Option<(Box<str>, Option<usize>)>>,
 }
 
 impl Contexto<'_, '_> {
     fn indice(&self, nome: Option<&str>) -> Option<usize> {
         match nome {
             None => Some(self.atual),
-            Some(n) => self.abas.iter().position(|a| mesmo_nome(a.nome, n)),
+            Some(n) => {
+                // Mesmo nome que a última pergunta (a faixa de outra aba lida célula a célula).
+                if let Some((k, i)) = &*self.ultima_aba.borrow() {
+                    if **k == *n { return *i; }
+                }
+                let i = self.abas.iter().position(|a| mesmo_nome(a.nome, n));
+                *self.ultima_aba.borrow_mut() = Some((n.into(), i));
+                i
+            }
         }
     }
 
@@ -680,6 +689,7 @@ fn executar(
         faixas,
         lidas: RefCell::default(),
         falhou: Cell::new(false),
+        ultima_aba: RefCell::new(None),
     };
     let mut saida = Vec::with_capacity(tarefa.linhas.len());
     // O Parar e o andamento valem por linha: uma fatia de fórmula lenta (o

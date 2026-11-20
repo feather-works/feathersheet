@@ -1251,3 +1251,41 @@ fn aba_com_nome_de_endereco_sem_aspas() {
     assert_eq!(w.valor(0, 0, 0), crate::celulas::values::Value::Number(12.0));
     assert_eq!(w.valor(0, 0, 1), crate::celulas::values::Value::Number(14.0));
 }
+
+/// Mudar a célula de um nome definido recalcula quem usa o nome, também em outra aba
+/// (achado conferindo com o GridCraft: a Taxa mudava e o total ficava o antigo).
+#[test]
+fn mudar_a_celula_do_nome_recalcula_quem_usa_o_nome() {
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    w.criar_aba("Mes");
+    w.escrever_celula(0, 1, 1, "0,05".into());
+    let primeira = w.aba(0).unwrap().sheet.name.clone();
+    w.definir_nome("Taxa", Rect::na_aba(1, 1, 1, 1, primeira));
+    w.escrever_celula(1, 0, 0, "100".into());
+    w.escrever_celula(1, 0, 1, "=A1*(1+Taxa)".into());
+    w.escrever_celula(0, 0, 0, "=Mes!B1*2".into());
+    w.calcular_em_paralelo();
+    assert_eq!(w.valor(1, 0, 1), Value::Number(105.0));
+    w.escrever_celula(0, 1, 1, "0,1".into());
+    let perto = |v: Value, x: f64| matches!(v, Value::Number(n) if (n - x).abs() < 1e-9);
+    assert!(perto(w.valor(1, 0, 1), 110.0), "{:?}", w.valor(1, 0, 1));
+    assert!(perto(w.valor(0, 0, 0), 220.0), "{:?}", w.valor(0, 0, 0));
+}
+
+/// Cadeia entre abas de dois saltos (Plan1!B2 → Mes!B1 → Plan1!A1): mudar a ponta chega ao fim.
+#[test]
+fn cadeia_entre_abas_de_dois_saltos_recalcula() {
+    use crate::celulas::values::Value;
+    let mut w = Workbook::new();
+    w.criar_aba("Mes");
+    let primeira = w.aba(0).unwrap().sheet.name.clone();
+    w.escrever_celula(0, 1, 1, "5".into());
+    w.escrever_celula(1, 0, 1, format!("={primeira}!B2*10"));
+    w.escrever_celula(0, 0, 0, "=Mes!B1*2".into());
+    w.calcular_em_paralelo();
+    assert_eq!(w.valor(0, 0, 0), Value::Number(100.0));
+    w.escrever_celula(0, 1, 1, "7".into());
+    assert_eq!(w.valor(1, 0, 1), Value::Number(70.0));
+    assert_eq!(w.valor(0, 0, 0), Value::Number(140.0));
+}

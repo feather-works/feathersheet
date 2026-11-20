@@ -686,20 +686,33 @@ impl Workbook {
             self.externas_adiadas.push((mexida, alcance.map(<[Rect]>::to_vec)));
             return;
         }
-        let nome = self.abas.get(mexida).map(|a| a.sheet.name.clone());
-        for (i, aba) in self.abas.iter_mut().enumerate() {
-            if !aba.sheet.tem_formulas_externas() {
-                continue;
-            }
-            let sujou = match (&nome, alcance) {
-                (Some(nome), Some(rects)) => aba.sheet.sujar_externas_de(nome, rects),
-                _ => {
-                    aba.sheet.sujar_externas();
-                    true
+        // Em cadeia: a aba que ficou suja muda de valor no próximo cálculo, e quem a lê de
+        // outra aba também precisa sujar (Plan1!B2 → Mes!B1 → Plan1!A1 ficava com o valor
+        // velho, 19/11). Da segunda volta em diante, a aba inteira conta como mudada; cada
+        // aba entra na fila uma vez só.
+        let tudo = [Rect::new(0, 0, crate::celulas::refs::MAX_ROWS - 1, crate::celulas::refs::MAX_COLS - 1)];
+        let mut fila: Vec<(usize, Option<Vec<Rect>>)> = vec![(mexida, alcance.map(<[Rect]>::to_vec))];
+        let mut propagadas = std::collections::HashSet::new();
+        while let Some((m, alc)) = fila.pop() {
+            let nome = self.abas.get(m).map(|a| a.sheet.name.clone());
+            for (i, aba) in self.abas.iter_mut().enumerate() {
+                if !aba.sheet.tem_formulas_externas() {
+                    continue;
                 }
-            };
-            if sujou && i != mexida {
-                aba.versao = proxima_versao(aba.versao);
+                let sujou = match (&nome, alc.as_deref()) {
+                    (Some(nome), Some(rects)) => aba.sheet.sujar_externas_de(nome, rects),
+                    (Some(nome), None) if m != mexida || alcance.is_some() => aba.sheet.sujar_externas_de(nome, &tudo),
+                    _ => {
+                        aba.sheet.sujar_externas();
+                        true
+                    }
+                };
+                if sujou && i != mexida {
+                    aba.versao = proxima_versao(aba.versao);
+                }
+                if sujou && propagadas.insert(i) {
+                    fila.push((i, None));
+                }
             }
         }
     }

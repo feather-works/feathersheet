@@ -765,7 +765,7 @@ impl Sheet {
     /// formatação condicional enxergar `LIN()` e as referências relativas do
     /// lugar certo. Fica fora do grafo de dependências: regra não é célula.
     pub fn avaliar_em(&self, row: u32, col: u32, node: &crate::formula::ast::Node, host: Option<&dyn Hospedeiro>) -> Value {
-        let ctx = SheetCtx { sheet: self, host };
+        let ctx = SheetCtx { sheet: self, host, ultima: Default::default() };
         Evaluator::na_celula(&ctx, row, col).eval(node)
     }
 
@@ -808,7 +808,7 @@ impl Sheet {
                 .filter(|&fora| fora).and_then(|_| self.intervalo_externo_sem_valores(node, host)) {
                 Some(erro) => erro,
                 None => {
-                    let ctx = SheetCtx { sheet: self, host };
+                    let ctx = SheetCtx { sheet: self, host, ultima: Default::default() };
                     let ev = Evaluator::na_celula(&ctx, row, col);
                     ev.eval(node)
                 }
@@ -1324,7 +1324,7 @@ impl Sheet {
             }
             calc.evaluating.insert(k);
         }
-        let ctx = SheetCtx { sheet: self, host };
+        let ctx = SheetCtx { sheet: self, host, ultima: Default::default() };
         let ev = Evaluator::na_celula(&ctx, row, col);
         let avaliar = || if let Some(erro) = externa.then(|| self.intervalo_externo_sem_valores(node, host)).flatten() {
             erro
@@ -2059,7 +2059,7 @@ impl Sheet {
         let c1 = selecao.c1.min(usado.c1);
         if r1 < r0 || c1 < c0 { return resultado; }
         let intervalo = Rect::new(r0, c0, r1, c1);
-        let contexto = SheetCtx { sheet: self, host };
+        let contexto = SheetCtx { sheet: self, host, ultima: Default::default() };
         // Linha oculta (altura 0, filtro) não conta. Sem nenhuma oculta, pula
         // a consulta ao mapa a cada célula: era metade do custo em 13 milhões.
         let tem_ocultas = self.tem_linhas_ocultas();
@@ -2077,6 +2077,9 @@ impl Sheet {
 struct SheetCtx<'a> {
     sheet: &'a Sheet,
     host: Option<&'a dyn Hospedeiro>,
+    /// A última aba achada pelo nome: ler uma faixa de outra aba pergunta o mesmo nome a cada
+    /// célula, e procurar entre todas as abas era metade do cálculo (24 meses ligados, 19/11).
+    ultima: std::cell::RefCell<Option<(Box<str>, Option<&'a Sheet>)>>,
 }
 
 impl SheetCtx<'_> {
@@ -2182,7 +2185,14 @@ impl<'a> SheetCtx<'a> {
         match nome {
             None => Some(self.sheet),
             Some(n) if mesmo_nome(n, &self.sheet.name) => Some(self.sheet),
-            Some(n) => self.host.and_then(|h| h.aba(n)),
+            Some(n) => {
+                if let Some((k, aba)) = &*self.ultima.borrow() {
+                    if **k == *n { return *aba; }
+                }
+                let aba = self.host.and_then(|h| h.aba(n));
+                *self.ultima.borrow_mut() = Some((n.into(), aba));
+                aba
+            }
         }
     }
 
@@ -2214,7 +2224,7 @@ impl<'a> EvalContext for SheetCtx<'a> {
             return;
         };
         if !std::ptr::eq(aba, self.sheet) {
-            let ctx = SheetCtx { sheet: aba, host: self.host };
+            let ctx = SheetCtx { sheet: aba, host: self.host, ultima: Default::default() };
             let mut local = rect.clone();
             local.sheet = None;
             return ctx.for_each_in_range(&local, visit);

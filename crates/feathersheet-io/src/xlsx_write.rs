@@ -153,7 +153,10 @@ pub fn formula_to_excel(raw: &str) -> String {
                     if params.declara(&t.text, seguinte == Some(TokenType::Comma)) || params.conhecido(&t.text) {
                         out.push_str("_xlpm.");
                     }
-                    out.push_str(nome);
+                    // Sem parêntese é nome definido ou parâmetro: só VERDADEIRO/FALSO se traduzem.
+                    // Antes um nome "Taxa" saía como RATE (a função TAXA) e a fórmula virava #NOME?.
+                    let constante = matches!(nome, "TRUE" | "FALSE");
+                    out.push_str(if constante { nome } else { &t.text });
                 }
             }
             TokenType::LParen => {
@@ -2396,6 +2399,9 @@ mod testes {
         assert_eq!(formula_to_excel("=SE(A1>1;\"a\"\"b\";FALSO)"), "IF(A1>1,\"a\"\"b\",FALSE)");
         assert_eq!(formula_to_excel("='Meu Plano'!A1+Dados!B2"), "'Meu Plano'!A1+Dados!B2");
         assert_eq!(formula_to_excel("={1\\2;3\\4}"), "{1,2;3,4}");
+        // Nome definido com nome de função em português (Taxa = TAXA/RATE) não se traduz.
+        assert_eq!(formula_to_excel("=A1*(1+Taxa)+SOMA(Media)"), "A1*(1+Taxa)+SUM(Media)");
+        assert_eq!(formula_to_excel("=TAXA(10;-100;1000)"), "RATE(10,-100,1000)");
         assert_eq!(formula_to_excel("=MÉDIA(A1:A2)"), "AVERAGE(A1:A2)");
         // Nome que não é apelido fica como foi escrito.
         assert_eq!(formula_to_excel("=sum(A1)"), "sum(A1)");

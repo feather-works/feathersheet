@@ -61,6 +61,9 @@ Help menu, under *What's new*).
 - **Sheet tab colors** now open from and save to `.xlsx`.
 - **Click to copy** a sum, average or count in the status bar, like Excel.
 - **Sorting a million rows is ~80× faster** when cells have their own format (dates, currency): 27 s → 0.3 s to move the rows.
+- **Fixed: a named range with a Portuguese function name** (like `Taxa`) was saved to `.xlsx` as the function (`RATE`), breaking the formula in Excel.
+- **Fixed: chains across sheets now update when you edit** (a value on Sheet1 → Sheet2 → back to Sheet1 kept the old result until the file was reopened).
+- **Workbooks with many linked sheets calculate ~3× faster.**
 - **Sheets named like a cell** (`S1`, `ABA1`) referenced without quotes, as some programs write them, now calculate instead of showing #NAME?.
 - **Smaller `.xlsx` files:** saved workbooks are about 40% smaller (a million-row sheet went from 71 MB to 44 MB).
 - **Normal distribution exact to Excel:** NORM.DIST, NORM.S.DIST, NORM.INV and the old NORMDIST/NORMINV were off from the 7th digit (a rough erf); and NORM.S.DIST from an `.xlsx` no longer reopens as the one-argument NORMSDIST.

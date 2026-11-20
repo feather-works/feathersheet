@@ -88,6 +88,17 @@ gráficos não (gráfico tem o seu no painel; controle no Formatar controle). A 
 Testes `texto_alternativo_da_imagem` e `imagens_da_aba_vao_para_o_desenho_e_voltam`. Novidade: "Texto alternativo nas
 imagens, para leitores de tela."
 
+**Pasta com abas ligadas, conferida pelo GridCraft (19/11).** 24 meses × 2 mil linhas (cada mês faz PROCV no anterior),
+Cadastro, Parametros com o nome `Taxa`, Resumo com 3D (`Mes_01:Mes_24!`) e SOMARPRODUTO: 288.126 fórmulas, todas
+iguais às do GridCraft (`gridcraft.cli check` no arquivo que nós salvamos). Achou três erros nossos:
+1. **Nome definido virava função ao salvar:** `Taxa` saía como `RATE` (`formula_to_excel` traduzia todo identificador);
+   agora só o que vem antes de `(` e VERDADEIRO/FALSO.
+2. **Cadeia entre abas de dois saltos ficava velha ao editar:** `depois_de_mudar_em` sujava só quem lia a célula escrita;
+   agora repete com a aba suja inteira até parar (cada aba uma vez). Testes `cadeia_entre_abas_de_dois_saltos_recalcula`
+   e `mudar_a_celula_do_nome_recalcula_quem_usa_o_nome`.
+3. **Achar a aba pelo nome a cada célula era metade do cálculo:** memória de uma entrada em `SheetCtx::alvo` e
+   `Contexto::indice` (8,4 → 2,8 s; GridCraft 36 s).
+
 **Desempenho contra o GridCraft (19/11).** `.xlsx` neutro gerado à mão (fórmulas sem valor guardado: Total = Qtd×Preço,
 SE, SOMA/SOMASE/CONT.SE no topo), `taskset -c 0-7` nos dois; FeatherSheet pelo exemplo `comparar_desempenho`,
 GridCraft por `gridcraft.cli cat`/`convert`. Abrir+calcular 1 milhão de linhas: 1,8 s e 0,23 GB contra 21 s e 3,4 GB;
