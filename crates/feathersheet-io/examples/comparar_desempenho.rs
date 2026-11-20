@@ -1,4 +1,4 @@
-//! Comparação de desempenho com outra planilha (GridCraft, 19/11/2026): abre um `.xlsx` ou `.csv`,
+//! Medição de desempenho (19/11/2026): abre um `.xlsx` ou `.csv`,
 //! calcula tudo, mostra G1:I1 (os totais da planilha de teste), e opcionalmente ordena e grava.
 //!
 //! cargo run --release --example comparar_desempenho -- ENTRADA [--editar-b2 VALOR] [--ordenar COLUNA] [--salvar SAIDA.xlsx]

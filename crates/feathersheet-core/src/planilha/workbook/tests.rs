@@ -1237,7 +1237,7 @@ fn ses_com_criterio_vazio_zero_e_texto_vazio_da_o_mesmo_com_e_sem_agregado() {
 }
 
 /// Aba com nome que parece endereço (S1, ABA1) citada sem aspas, como alguns geradores de
-/// .xlsx gravam: antes dava #NOME? ("Caractere inesperado !"); achado comparando com o GridCraft.
+/// .xlsx gravam: antes dava #NOME? ("Caractere inesperado !").
 #[test]
 fn aba_com_nome_de_endereco_sem_aspas() {
     let mut w = Workbook::new();
@@ -1253,7 +1253,7 @@ fn aba_com_nome_de_endereco_sem_aspas() {
 }
 
 /// Mudar a célula de um nome definido recalcula quem usa o nome, também em outra aba
-/// (achado conferindo com o GridCraft: a Taxa mudava e o total ficava o antigo).
+/// (a Taxa mudava e o total ficava o antigo).
 #[test]
 fn mudar_a_celula_do_nome_recalcula_quem_usa_o_nome() {
     use crate::celulas::values::Value;

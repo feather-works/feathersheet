@@ -1531,8 +1531,8 @@ mod testes {
         assert!((t_sup(t, 2.0) / exato - 1.0).abs() < 1e-7);
     }
 
-    /// As da normal em fn_stats usavam uma erf aproximada (erro na 7ª casa); o GridCraft
-    /// e o Excel dão estes valores.
+    /// As da normal em fn_stats usavam uma erf aproximada (erro na 7ª casa); o Excel
+    /// dá estes valores.
     #[test]
     fn normal_com_precisao_do_excel() {
         perto("=DIST.NORM.N(1;0;1;VERDADEIRO)", 0.841_344_746_068_543, 1e-14);

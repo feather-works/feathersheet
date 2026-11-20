@@ -74,7 +74,7 @@ pub fn zipar(entradas: Vec<(String, Vec<u8>)>) -> Result<Vec<u8>, String> {
         out.extend_from_slice(nome);
 
         let inicio = out.len();
-        // Nível 4 (19/11, medido contra o GridCraft): 1 milhão de linhas em 44 MB e 2,9 s; o `fast` dava 71 MB em 2,0 s.
+        // Nível 4 (19/11): 1 milhão de linhas em 44 MB e 2,9 s; o `fast` dava 71 MB em 2,0 s.
         let mut enc = DeflateEncoder::new(&mut out, Compression::new(4));
         enc.write_all(&cru).map_err(|e| e.to_string())?;
         enc.finish().map_err(|e| e.to_string())?;
