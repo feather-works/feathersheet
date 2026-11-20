@@ -160,9 +160,10 @@ pub fn exportar_com_separador<W: std::io::Write>(
             // Número com formato escolhido (data, %, moeda): sai como a célula mostra, como o Excel
             // grava o CSV. Sem formato fica o número cru, que reabre igual.
             let estilo = matches!(valor, Value::Number(_)).then(|| sheet.estilo_resolvido(linha, coluna)).flatten()
-                .filter(|e| e.format != feathersheet_core::celulas::style::NumberFormat::Auto);
+                .filter(|e| e.format != feathersheet_core::celulas::style::NumberFormat::Auto || e.code.is_some());
             let celula = match valor {
-                Value::Number(n) if estilo.is_some() => feathersheet_core::celulas::style::format_number(n, estilo.as_ref()),
+                // O formato personalizado (`0000` do CEP) vale como na grade.
+                Value::Number(n) if estilo.is_some() => feathersheet_core::celulas::style::format_value(&Value::Number(n), estilo.as_ref()),
                 Value::Empty => String::new(),
                 // A mesma escrita da tela (1e21, 1e-7), não a do Rust.
                 Value::Number(v) if separador == ';' => feathersheet_core::celulas::number::to_js_string(v).replace('.', ","),
@@ -214,6 +215,20 @@ pub fn texto_de_bytes(bytes: Vec<u8>) -> String {
 
 #[cfg(test)]
 mod testes {
+    #[test]
+    fn formato_personalizado_sai_no_csv_como_na_grade() {
+        use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
+        let mut wb = Workbook::new();
+        let mut cep = EstiloParcial::new();
+        cep.insert("numFmt".into(), Campo::Texto("0000".into()));
+        let s = &mut wb.aba_mut(0).unwrap().sheet;
+        let i = s.registrar_parcial(cep).unwrap();
+        s.set_cell_raw(0, 0, "7".into(), Some(i));
+        let mut out = Vec::new();
+        exportar_delimitado(&wb, 0, false, &mut out).unwrap();
+        assert_eq!(String::from_utf8(out).unwrap().trim_start_matches('\u{feff}'), "0007");
+    }
+
     #[test]
     fn csv_grava_data_e_porcento_como_a_celula_mostra() {
         let mut w = feathersheet_core::planilha::workbook::Workbook::new();

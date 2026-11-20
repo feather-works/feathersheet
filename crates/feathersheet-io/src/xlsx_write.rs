@@ -2135,7 +2135,8 @@ pub fn gerar_excel_com_funcoes(pasta: &Workbook, macros: bool) -> Result<(Vec<u8
 /// `style.ts`: só número é formatado.
 fn texto_formatado(valor: &Value, estilo: Option<&feathersheet_core::celulas::style::Style>) -> String {
     match valor {
-        Value::Number(n) if estilo.map(|s| s.format) != Some(NumberFormat::Text) => format_number(*n, estilo),
+        // O formato personalizado (`0000`, `"Total: "0`) vale como na grade.
+        Value::Number(_) if estilo.map(|s| s.format) != Some(NumberFormat::Text) => feathersheet_core::celulas::style::format_value(valor, estilo),
         v => to_text(v),
     }
 }

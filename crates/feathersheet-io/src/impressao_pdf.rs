@@ -10,7 +10,7 @@ use feather_draw::pdf::{largura_texto, DocumentoPdf, FontePdf, PaginaPdf};
 use std::fmt::Write as _;
 use feather_draw::Cor;
 use feathersheet_core::celulas::refs::{col_name, Rect};
-use feathersheet_core::celulas::style::{effective_align, format_number, Align, Style};
+use feathersheet_core::celulas::style::{effective_align, Align, Style};
 use feathersheet_core::celulas::values::Value;
 use feathersheet_core::planilha::impressao::{AreaImpressao, ConfigPagina, Escala, Margens};
 use feathersheet_core::planilha::workbook::Workbook;
@@ -505,7 +505,8 @@ fn texto_centro(p: &mut impl Pincel, x: f32, y: f32, w: f32, h: f32, t: &str, fs
 /// O mesmo texto que a grade mostra (`grade/auxiliares.rs::texto`).
 fn texto_exibido(valor: &Value, estilo: Option<&Style>) -> String {
     let t = match valor {
-        Value::Number(n) => format_number(*n, estilo),
+        // O formato personalizado (`0000`, `"Total: "0`) vale como na grade.
+        Value::Number(_) => feathersheet_core::celulas::style::format_value(valor, estilo),
         Value::Empty => String::new(),
         Value::Text(s) => s.clone(),
         Value::Bool(b) => if *b { "VERDADEIRO".into() } else { "FALSO".into() },

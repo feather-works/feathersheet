@@ -4,6 +4,10 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- Formato personalizado (`0000` do CEP, `"Total: "0`) era ignorado na exportação CSV, na impressão em PDF e no
+  texto do `.xlsx_write::texto_formatado`: os três usavam `format_number` (só o `format`), a grade usa
+  `format_value` (o `code` manda). Agora os três passam por `format_value`. Teste
+  `formato_personalizado_sai_no_csv_como_na_grade`. Os códigos em si já iam e voltavam iguais no `.xlsx`.
 - **Recalcular tudo (Ctrl+Alt+F9)**, em Fórmulas → Opções de cálculo: `Workbook::calcular_tudo` marca todas as
   fórmulas (`for_each_formula` + `sujar_celulas`) e calcula. O F9 só refaz o que está marcado: o valor guardado
   errado de um arquivo de outro programa (um `#NAME?` do LibreOffice) ficava até mexer na célula. Teste
