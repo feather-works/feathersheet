@@ -153,6 +153,7 @@ const COMANDOS: &[(&str, &str)] = &[
     ("calculo", "Opções de cálculo: args {manual: true|false}"),
     ("calcular_agora", "F9"),
     ("calcular_planilha", "Shift+F9"),
+    ("calcular_tudo", "Ctrl+Alt+F9: todas as fórmulas, também as que nada mudou"),
     ("menu_formulas", "abre um menu da aba Fórmulas: args {nome: Lógica|Texto|Mais|Recentes|Nomes|Cálculo…}"),
     ("criar_da_selecao", "abre Criar nomes a partir da seleção"),
     ("criar_da_selecao_borda", "marca/desmarca uma borda: args {lado: 0 topo, 1 esquerda, 2 base, 3 direita}"),
@@ -468,6 +469,7 @@ impl Hospede for HospedeApp<'_> {
             "calculo" => self.enviar(Msg::Formulas(F::Manual(args.get("manual").and_then(Json::as_bool).unwrap_or(false)))),
             "calcular_agora" => self.enviar(Msg::Formulas(F::CalcularAgora)),
             "calcular_planilha" => self.enviar(Msg::Formulas(F::CalcularPlanilha)),
+            "calcular_tudo" => self.enviar(Msg::Formulas(F::CalcularTudo)),
             "menu_formulas" => {
                 let menu = formulas_ui::menu_por_nome(&texto("nome")).ok_or("Menu desconhecido")?;
                 self.app.faixa_ativa = AbaFaixa::Formulas;
