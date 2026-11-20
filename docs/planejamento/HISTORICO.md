@@ -4,6 +4,10 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- CSV: código só de dígitos que começa com 0 (`007`, CEP, telefone) entra como texto e guarda o zero
+  (`csv_colunas::codigo_com_zero`, nos três caminhos de importação; o `classificar` continua igual ao
+  `parse_literal`, a regra fica no `campo`). `0`, `0.5` e `0,5` seguem número. Teste
+  `codigo_com_zero_a_esquerda_fica_texto`; Ajuda F1 nas quatro línguas.
 - MCP (`feathersheet-mcp/src/arquivo.rs`): salvar `.xlsx`/`.csv`/`.tsv` pelo `sheet_save` passou a ser atômico
   (`feathersheet_io::arquivo::gravar_atomico`), como o `.fshz` já era.
 - Formas desenhadas no app iam embora ao salvar `.xlsx`, sem aviso (o aviso do Ctrl+S só olha o arquivo

@@ -219,6 +219,12 @@ fn classificar(t: &str) -> Classe {
     }
 }
 
+/// Só dígitos, mais de um, começando com 0 (`007`, CEP, CPF, telefone `011…`): é código, fica texto.
+/// O Excel tira o zero da frente ao abrir o CSV e o código se perde; aqui não. `0`, `0.5` e `0,5` são número.
+pub(crate) fn codigo_com_zero(t: &str) -> bool {
+    t.len() > 1 && t.starts_with('0') && t.bytes().all(|b| b.is_ascii_digit())
+}
+
 /// `-?[0-9]+(\.[0-9]+)?` lido como o `f64` lê. Até 15 dígitos e 22 casas,
 /// dígitos ÷ 10^casas já é o valor certo (os dois são exatos no `f64` e a
 /// divisão arredonda uma vez só); fora disso, o `parse` da biblioteca.
@@ -328,6 +334,7 @@ impl<'a> Construtor<'a> {
         }
         let bit = 1u8 << (r & 7);
         let classe = if t.starts_with('=') { Classe::Outra }
+            else if codigo_com_zero(t) { Classe::Texto }
             else if let Some(sem) = self.lingua.and_then(|l| sem_milhar_digitado(t, l)) {
                 // Milhar da língua da coluna tirado: o número vai direto; moeda e percentual
                 // seguem como avulsa, e quem grava tira o milhar de novo.
@@ -684,6 +691,8 @@ mod testes {
                 for (c, v) in campos.into_iter().enumerate() {
                     let v = super::sem_milhar_da_coluna(&v, &linguas, c).unwrap_or(v);
                     if v.is_empty() {
+                    } else if super::codigo_com_zero(v.trim()) {
+                        aba.set_cell_valor(linha, c as u32, feathersheet_core::Value::Text(v.trim().to_owned()));
                     } else if !v.starts_with('=') && super::formato_do_literal(super::parse_literal(v.trim()).format).is_some() {
                         aba.set_cell_divisao(linha, c as u32, v.trim());
                     } else {
@@ -774,6 +783,17 @@ mod testes {
         let tsv = gerar(2_000, '\t', true);
         iguais(&celula_a_celula(&tsv, true, None).aba(0).unwrap().sheet,
             &por_colunas(&tsv, true, None).aba(0).unwrap().sheet, "TSV");
+    }
+
+    #[test]
+    fn codigo_com_zero_a_esquerda_fica_texto() {
+        use feathersheet_core::Value;
+        let p = por_colunas(b"cep,qtd,meio\n01310100,0,0.5\n007,10,0,5\n", false, None);
+        assert_eq!(p.valor(0, 1, 0), Value::Text("01310100".into()));
+        assert_eq!(p.valor(0, 2, 0), Value::Text("007".into()));
+        assert_eq!((p.valor(0, 1, 1), p.valor(0, 1, 2)), (Value::Number(0.0), Value::Number(0.5)));
+        let c = celula_a_celula(b"cep\n007\n", false, None);
+        assert_eq!(c.valor(0, 1, 0), Value::Text("007".into()));
     }
 
     /// Os atalhos de `classificar` dão sempre o que o `parse_literal` daria.

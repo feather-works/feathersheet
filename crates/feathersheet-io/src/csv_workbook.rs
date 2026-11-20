@@ -52,7 +52,9 @@ fn importar_celula_a_celula(
                 continue;
             }
             for (coluna, valor) in campos.into_iter().enumerate() {
-                if !valor.is_empty() {
+                if crate::csv_colunas::codigo_com_zero(valor.trim()) {
+                    aba.set_cell_valor(linha, coluna as u32, feathersheet_core::Value::Text(valor.trim().to_owned()));
+                } else if !valor.is_empty() {
                     aba.set_cell_raw(linha, coluna as u32, valor, None);
                 }
             }
@@ -110,7 +112,9 @@ pub fn importar_csv_tsv_com_separador(
                 continue;
             }
             for (coluna, valor) in campos.into_iter().enumerate() {
-                if !valor.is_empty() {
+                if crate::csv_colunas::codigo_com_zero(valor.trim()) {
+                    aba.set_cell_valor(linha, coluna as u32, feathersheet_core::Value::Text(valor.trim().to_owned()));
+                } else if !valor.is_empty() {
                     let valor = crate::csv_colunas::sem_milhar_da_coluna(&valor, &linguas, coluna).unwrap_or(valor);
                     aba.set_cell_raw(linha, coluna as u32, valor, None);
                 }

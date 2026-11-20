@@ -216,7 +216,7 @@
       "arquivos": {
         "titulo": "Files",
         "corpo": [
-          "The native format is .fshz. Ctrl+S saves and Ctrl+Shift+S (Save as…) saves under another name as .fshz, .xlsx or .xlsm. An open .xlsx or .xlsm is saved back in the same format by Ctrl+S. Open also reads .csv, .tsv and .parquet.",
+          "The native format is .fshz. Ctrl+S saves and Ctrl+Shift+S (Save as…) saves under another name as .fshz, .xlsx or .xlsm. An open .xlsx or .xlsm is saved back in the same format by Ctrl+S. Open also reads .csv, .tsv and .parquet. In a .csv, a code with a leading zero (ZIP code, phone, 007) stays text and keeps the zero.",
           "Arquivo → Exportar writes the workbook as .xlsx or the current sheet as .csv.",
           "A password-protected .xlsx (Excel or LibreOffice) opens: the app asks for the password, used only to decrypt the file on your machine. Review › Encrypt with password sets, changes or removes the password: the .xlsx is encrypted as in Excel (AES-256), and an opened file keeps its password when saved again. The .fshz does not keep a password: with a password set, Save suggests .xlsx and Ctrl+S on a .fshz asks where to save.",
           "This help can become a file too: in the Help window (F1), Export as Markdown saves everything to a .md, in the app's language.",
