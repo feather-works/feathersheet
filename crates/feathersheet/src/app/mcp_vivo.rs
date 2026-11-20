@@ -330,7 +330,8 @@ impl Hospede for HospedeApp<'_> {
             self.tarefas.push(t);
             Ok(format!("Gravando {} em segundo plano (o título perde o * quando terminar).", destino.display()))
         } else {
-            feathersheet_mcp::arquivo::salvar(&self.app.workbook, self.app.folha, &destino)?;
+            feathersheet_mcp::arquivo::conferir_sobrescrita(&destino, self.app.caminho.as_deref())?;
+            feathersheet_mcp::arquivo::salvar(&self.app.workbook, self.app.folha, &destino, self.app.vistas_das_abas())?;
             Ok(format!("Exportado para {} (o arquivo da tela não muda).", destino.display()))
         }
     }

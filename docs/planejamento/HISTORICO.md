@@ -4,6 +4,11 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- MCP (avulso e ao vivo) não grava `.xlsx` por cima do arquivo aberto quando ele tem `nao_convertidos`
+  (`arquivo::conferir_sobrescrita`; a mensagem lista o que se perderia e pede outro `caminho`), como o Ctrl+S do app.
+  O ao vivo passa as vistas da tela (`vistas_das_abas`) ao exportar `.xlsx`. Teste
+  `nao_grava_por_cima_do_xlsx_com_parte_nao_convertida`. Conserta também a compilação do app, que a mudança de
+  `arquivo::salvar` (vistas) da entrega anterior tinha quebrado no `mcp_vivo.rs`.
 - `.xlsx` com nome definido que o motor não guarda (valor ou fórmula, `=0,1`, `=Vendas!A1*2`; ou o mesmo nome em duas
   abas pelo `localSheetId`): a leitura deixava de fora e o Ctrl+S gravava por cima sem avisar. Agora entram nos
   `nao_convertidos` ("Nome definido com valor ou fórmula", "Nome definido repetido em outra aba"); `#REF!` não conta.

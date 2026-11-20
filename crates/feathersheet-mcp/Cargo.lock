@@ -980,6 +980,7 @@ dependencies = [
  "feathersheet-macros",
  "feathersheet-vba",
  "serde_json",
+ "zip",
 ]
 
 [[package]]

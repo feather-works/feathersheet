@@ -109,6 +109,7 @@ impl Hospede for Avulso {
     fn salvar(&mut self, caminho: Option<&Path>) -> Result<String, String> {
         let destino = caminho.map(Path::to_path_buf).or_else(|| self.caminho.clone())
             .ok_or("A pasta ainda não tem arquivo: informe `caminho` (.fshz).")?;
+        crate::arquivo::conferir_sobrescrita(&destino, self.caminho.as_deref())?;
         let vistas = (0..self.pasta.len()).filter_map(|i| self.pasta.aba(i))
             .map(|a| self.vistas.get(&a.id).copied().unwrap_or_default()).collect();
         crate::arquivo::salvar(&self.pasta, self.aba_ativa(), &destino, vistas)?;
@@ -141,5 +142,41 @@ mod testes {
         let lidas = feathersheet_io::xlsx_read::ler_vistas_arquivo(&destino);
         let _ = std::fs::remove_dir_all(&pasta);
         assert_eq!(lidas, vec![VistaAba::default(), vista, VistaAba::default()]);
+    }
+
+    #[test]
+    fn nao_grava_por_cima_do_xlsx_com_parte_nao_convertida() {
+        use std::io::Write;
+        let pasta = std::env::temp_dir().join(format!("fs-mcp-sobrescrita-{}", std::process::id()));
+        std::fs::create_dir_all(&pasta).unwrap();
+        let origem = pasta.join("a.xlsx");
+        // O .xlsx do próprio gravador, com um nome de valor (`Taxa` = 0,1) que a leitura deixa de fora.
+        let bytes = feathersheet_io::xlsx_write::gerar_xlsx(&Workbook::new()).unwrap();
+        let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        let mut saida = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        for i in 0..z.len() {
+            let mut f = z.by_index(i).unwrap();
+            let nome = f.name().to_owned();
+            let mut texto = Vec::new();
+            std::io::Read::read_to_end(&mut f, &mut texto).unwrap();
+            if nome == "xl/workbook.xml" {
+                let t = String::from_utf8(texto).unwrap();
+                let t = match t.find("<definedNames>") {
+                    Some(_) => t.replacen("<definedNames>", "<definedNames><definedName name=\"Taxa\">0.1</definedName>", 1),
+                    None => t.replacen("</sheets>", "</sheets><definedNames><definedName name=\"Taxa\">0.1</definedName></definedNames>", 1),
+                };
+                texto = t.into_bytes();
+            }
+            saida.start_file(nome, zip::write::SimpleFileOptions::default()).unwrap();
+            saida.write_all(&texto).unwrap();
+        }
+        std::fs::write(&origem, saida.finish().unwrap().into_inner()).unwrap();
+        let mut h = Avulso::default();
+        h.abrir(&origem).unwrap();
+        let erro = h.salvar(None).unwrap_err();
+        let outro = h.salvar(Some(&pasta.join("b.xlsx")));
+        let _ = std::fs::remove_dir_all(&pasta);
+        assert!(erro.contains("Nome definido com valor ou fórmula"), "{erro}");
+        assert!(outro.is_ok(), "{outro:?}");
     }
 }

@@ -15,6 +15,10 @@ feathersheet-vba = { path = "../feathersheet-vba" }
 feather-macros = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.1" }
 serde_json = "1"
 
+[dev-dependencies]
+# Só o teste que monta um .xlsx com parte não convertida.
+zip = { version = "4.2.0", default-features = false, features = ["deflate"] }
+
 [lib]
 name = "feathersheet_mcp"
 path = "src/lib.rs"

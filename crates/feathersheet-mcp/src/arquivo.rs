@@ -24,6 +24,21 @@ pub fn abrir(caminho: &Path) -> Result<(Workbook, usize), String> {
     Ok((pasta, aba))
 }
 
+/// Recusa gravar `.xlsx` por cima do arquivo aberto (`origem`) quando ele tem partes que a leitura deixou de fora
+/// (formas, nomes com fórmula, validação sem equivalente…): o Ctrl+S do app pede "Salvar como" pelo mesmo motivo.
+pub fn conferir_sobrescrita(destino: &Path, origem: Option<&Path>) -> Result<(), String> {
+    if extensao(destino) != "xlsx" || origem != Some(destino) { return Ok(()); }
+    let Ok(bytes) = std::fs::read(destino) else { return Ok(()) };
+    let perdidos = feathersheet_io::xlsx_read::nao_convertidos::nao_convertidos(bytes).unwrap_or_default();
+    if perdidos.is_empty() { return Ok(()); }
+    let lista: Vec<String> = perdidos.iter().map(|x| match &x.aba {
+        Some(a) => format!("{} × {} (aba {a})", x.quantos, x.o_que),
+        None => format!("{} × {}", x.quantos, x.o_que),
+    }).collect();
+    Err(format!("Gravar por cima de {} apagaria o que o FeatherSheet não converte: {}. Informe outro `caminho` (.xlsx ou .fshz).",
+        destino.display(), lista.join("; ")))
+}
+
 /// O `<sheetView>` de cada aba de um `.xlsx` (vazio para os outros formatos).
 pub fn vistas(caminho: &Path) -> Vec<feathersheet_io::xlsx_read::VistaAba> {
     if extensao(caminho) == "xlsx" { feathersheet_io::xlsx_read::ler_vistas_arquivo(caminho) } else { Vec::new() }
