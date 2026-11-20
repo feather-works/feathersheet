@@ -13,6 +13,8 @@ edition = "2021"
 feather-io = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.1" }
 feather-charts = { git = "https://github.com/feather-works/feather-charts", tag = "v0.3.5" }
 feather-draw = { git = "https://github.com/feather-works/feather-draw", tag = "v0.1.1" }
+# O nome `prstGeom` de cada forma do catálogo, para gravar as formas no .xlsx (a mesma tag do app).
+feather-shapes = { git = "https://github.com/feather-works/feather-shapes", tag = "v0.1.2" }
 feathersheet-core = { path = "../feathersheet-core" }
 arrow = { version = "56", default-features = false, features = ["ipc"] }
 # Leitura de .parquet (15/10/2026). Sem zstd: o crate zstd traz biblioteca C

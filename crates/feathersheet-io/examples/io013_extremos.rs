@@ -130,7 +130,7 @@ fn main() {
     let destino = std::env::args().nth(1)
         .unwrap_or_else(|| "/tmp/io013_grande.fshz".into());
     let resultado = (|| -> Result<usize, String> {
-        let bytes = conferir(quantidade())?;
+        let bytes = conferir(linhas)?;
         std::fs::write(&destino, &bytes).map_err(|e| e.to_string())?;
         let disco = std::fs::read(&destino).map_err(|e| e.to_string())?;
         if disco != bytes {
@@ -140,7 +140,7 @@ fn main() {
         Ok(bytes.len())
     })();
     match resultado {
-        Ok(bytes) => println!("IO-013 FSHZ OK: {bytes} bytes em {destino} (linhas validados; Unicode e metadados)"),
+        Ok(bytes) => println!("IO-013 FSHZ OK: {bytes} bytes em {destino} ({linhas} linhas validadas; Unicode e metadados)"),
         Err(e) => {
             eprintln!("IO-013 FSHZ FALHOU: {e}");
             std::process::exit(1);

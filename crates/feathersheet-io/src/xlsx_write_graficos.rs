@@ -124,7 +124,74 @@ fn figuras_da_aba(sheet: &Sheet, contador: &mut usize) -> (String, String, Vec<(
         let _ = write!(rels, "<Relationship Id=\"{rid}\" Type=\"{NS_R}/image\" Target=\"../media/image{n}.{ext}\"/>");
         midias.push((format!("xl/media/image{n}.{ext}"), bytes));
     }
+    // As formas desenhadas (retângulo, seta, caixa de texto…): até 20/11/2026 sumiam ao gravar o .xlsx.
+    if let Ok(lista) = ObjetosAba::ler(sheet.ob.as_deref()) {
+        for (k, o) in lista.objetos.iter().filter(|o| o.tipo == TipoObjeto::Forma).enumerate() {
+            let _ = write!(ancoras, "<xdr:twoCellAnchor><xdr:from>{}</xdr:from><xdr:to>{}</xdr:to>{}<xdr:clientData/></xdr:twoCellAnchor>",
+                ponto(&o.de), ponto(&o.ate), forma_xml(o, 300_000 + k));
+        }
+    }
     (ancoras, rels, midias)
+}
+
+/// Cor `#rrggbb[aa]` → `<a:srgbClr>` (o alfa e a transparência do objeto viram `a:alpha`).
+fn cor_drawingml(css: &str, transparencia: f32) -> String {
+    let h = css.trim_start_matches('#');
+    let rgb = h.get(..6).unwrap_or("000000").to_ascii_uppercase();
+    let alfa = h.get(6..8).and_then(|a| u8::from_str_radix(a, 16).ok()).map_or(1.0, |a| f32::from(a) / 255.0) * (1.0 - transparencia.clamp(0.0, 1.0));
+    if alfa >= 0.999 {
+        format!("<a:srgbClr val=\"{rgb}\"/>")
+    } else {
+        format!("<a:srgbClr val=\"{rgb}\"><a:alpha val=\"{}\"/></a:srgbClr>", (alfa * 100_000.0).round() as i64)
+    }
+}
+
+/// Uma forma da camada de objetos como `xdr:sp` (a âncora dá o lugar; `xfrm` vazio como nas figuras).
+fn forma_xml(o: &crate::objetos_aba::ObjetoSolto, id: usize) -> String {
+    use crate::objetos_aba::{AlinharH, AlinharV};
+    use feather_shapes::tipo::TipoForma;
+    // O id do catálogo (`seta-direita`) vira o `prstGeom`; a que veio do Office já é um.
+    let prst = TipoForma::pelo_id(&o.forma).and_then(TipoForma::prst)
+        .or_else(|| TipoForma::pelo_prst(&o.forma).map(|_| o.forma.as_str()))
+        .unwrap_or("rect");
+    let prst = if prst == "rect" && o.ajustes.iter().any(|a| *a > 0.0) { "roundRect" } else { prst };
+    let ap = &o.aparencia;
+    let linha = crate::objetos_aba::e_linha(&o.forma) || crate::objetos_aba::e_linha(prst);
+    let preenchimento = match (&ap.preenchimento, linha) {
+        (Some(c), false) => format!("<a:solidFill>{}</a:solidFill>", cor_drawingml(c, ap.transparencia)),
+        _ => "<a:noFill/>".to_owned(),
+    };
+    let contorno = match &ap.contorno {
+        Some(c) => format!("<a:ln w=\"{}\"><a:solidFill>{}</a:solidFill></a:ln>", (f64::from(ap.espessura.max(0.0)) * 9525.0).round() as i64, cor_drawingml(c, ap.transparencia)),
+        None => "<a:ln><a:noFill/></a:ln>".to_owned(),
+    };
+    let mut xfrm = String::new();
+    if o.giro != 0.0 { let _ = write!(xfrm, " rot=\"{}\"", (f64::from(o.giro) * 60_000.0).round() as i64); }
+    if o.espelhar_h { xfrm.push_str(" flipH=\"1\""); }
+    if o.espelhar_v { xfrm.push_str(" flipV=\"1\""); }
+    let nome = o.extras.get("nome").and_then(|v| v.as_str()).map_or_else(|| feathersheet_core::trf!("Forma {}", id - 299_999), str::to_owned);
+    let macro_ = o.extras.get("macro_excel").and_then(|v| v.as_str()).unwrap_or("");
+    let texto = o.texto.as_deref().filter(|t| !t.is_empty()).map_or(String::new(), |t| {
+        let f = o.fonte.clone().unwrap_or_default();
+        // Sem cor escolhida: branco sobre forma cheia, cinza-escuro sem (como o app desenha).
+        let cor = f.cor.clone().unwrap_or_else(|| if ap.preenchimento.is_some() && !linha { "#ffffff".into() } else { "#404040".into() });
+        let mut rpr = format!("<a:rPr lang=\"pt-BR\"{}{}{}>", f.tamanho.map_or(String::new(), |t| format!(" sz=\"{}\"", (t * 100.0).round() as i64)),
+            if f.negrito { " b=\"1\"" } else { "" }, if f.italico { " i=\"1\"" } else { "" });
+        let _ = write!(rpr, "<a:solidFill>{}</a:solidFill>", cor_drawingml(&cor, 0.0));
+        if let Some(fam) = &f.familia { let _ = write!(rpr, "<a:latin typeface=\"{}\"/>", escape_xml(fam)); }
+        rpr.push_str("</a:rPr>");
+        let algn = match o.alinhar.h { AlinharH::Esquerda => "l", AlinharH::Centro => "ctr", AlinharH::Direita => "r" };
+        let anchor = match o.alinhar.v { AlinharV::Topo => "t", AlinharV::Meio => "ctr", AlinharV::Baixo => "b" };
+        let paragrafos: String = t.split('\n').map(|l| if l.is_empty() {
+            format!("<a:p><a:pPr algn=\"{algn}\"/><a:endParaRPr lang=\"pt-BR\"/></a:p>")
+        } else {
+            format!("<a:p><a:pPr algn=\"{algn}\"/><a:r>{rpr}<a:t>{}</a:t></a:r></a:p>", escape_xml(l))
+        }).collect();
+        format!("<xdr:txBody><a:bodyPr anchor=\"{anchor}\" rtlCol=\"0\"{}/><a:lstStyle/>{paragrafos}</xdr:txBody>", if f.sem_quebra { " wrap=\"none\"" } else { "" })
+    });
+    format!(
+        "<xdr:sp macro=\"{}\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"{id}\" name=\"{}\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm{xfrm}><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></a:xfrm><a:prstGeom prst=\"{prst}\"><a:avLst/></a:prstGeom>{preenchimento}{contorno}</xdr:spPr>{texto}</xdr:sp>",
+        escape_xml(macro_), escape_xml(&nome))
 }
 
 /// As linhas `<Override>` do `[Content_Types].xml` para os gráficos.
@@ -1103,7 +1170,7 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
     let sheet = &viva.sheet;
     let lista = graficos_da_aba(sheet);
     let (figuras, rels_figuras, midias) = figuras_da_aba(sheet, contador);
-    if lista.is_empty() && midias.is_empty() {
+    if lista.is_empty() && figuras.is_empty() {
         return tinta.map(|xml| DesenhoAba { xml, rels: None, partes: Vec::new(), midias });
     }
     let mut ancoras = figuras;
@@ -1162,7 +1229,7 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
         }
         ancoras.push_str("<xdr:clientData/></xdr:twoCellAnchor>");
     }
-    if partes.is_empty() && midias.is_empty() {
+    if partes.is_empty() && ancoras.is_empty() {
         return tinta.map(|xml| DesenhoAba { xml, rels: None, partes: Vec::new(), midias });
     }
     let tinta_miolo = tinta.as_deref().map(miolo_do_desenho).unwrap_or("");
@@ -1177,6 +1244,32 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
 mod testes {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn forma_desenhada_vai_e_volta_pelo_xlsx() {
+        use crate::objetos_aba::{Ancora, AlinharH, FonteTexto, ObjetosAba, ObjetoSolto, TipoObjeto};
+        let mut f = ObjetoSolto::novo_controle(crate::objetos_aba::ControleFormulario::novo(crate::objetos_aba::TipoControleForm::Botao),
+            Ancora { linha: 2, coluna: 1, dx: 0.0, dy: 0.0 }, Ancora { linha: 6, coluna: 3, dx: 0.0, dy: 0.0 });
+        (f.id, f.tipo, f.controle, f.forma, f.giro) = (1, TipoObjeto::Forma, None, "seta-direita".into(), 30.0);
+        f.aparencia.preenchimento = Some("#ff8800".into());
+        f.aparencia.contorno = Some("#112233".into());
+        f.texto = Some("Olá <mundo>\nlinha 2".into());
+        f.alinhar.h = AlinharH::Esquerda;
+        f.fonte = Some(FonteTexto { tamanho: Some(14.0), negrito: true, ..FonteTexto::default() });
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 0, "x".into());
+        pasta.editar(0, |s| s.ob = ObjetosAba { objetos: vec![f], ..Default::default() }.gravar());
+        let bytes = crate::xlsx_write::gerar_xlsx(&pasta).unwrap();
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();
+        let ob = ObjetosAba::ler(lida.aba(0).unwrap().sheet.ob.as_deref()).unwrap();
+        let formas: Vec<_> = ob.objetos.iter().filter(|o| o.tipo == TipoObjeto::Forma).collect();
+        assert_eq!(formas.len(), 1, "a forma sumiu do .xlsx");
+        let g = formas[0];
+        assert_eq!((g.forma.as_str(), g.giro, g.de.linha, g.ate.coluna), ("rightArrow", 30.0, 2, 3));
+        assert_eq!((g.aparencia.preenchimento.as_deref(), g.aparencia.contorno.as_deref()), (Some("#ff8800"), Some("#112233")));
+        assert_eq!(g.texto.as_deref(), Some("Olá <mundo>\nlinha 2"));
+        assert_eq!((g.alinhar.h, g.fonte.as_ref().map(|f| (f.tamanho, f.negrito))), (AlinharH::Esquerda, Some((Some(14.0), true))));
+    }
 
     fn pasta_com_graficos(tipos: &[&str]) -> Workbook {
         let mut wb = Workbook::new();

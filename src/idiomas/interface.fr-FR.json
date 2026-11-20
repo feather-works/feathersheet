@@ -6151,5 +6151,6 @@
  "Nome definido (como Taxa) não vira mais função ao salvar o .xlsx.": "Un nom défini (comme Taxa) ne devient plus une fonction à l'enregistrement du .xlsx.",
  "Fórmula que passa por duas abas recalcula ao editar a primeira.": "Une formule qui passe par deux feuilles se recalcule quand on modifie la première.",
  "Aba com nome de endereço citada sem aspas (S1!C2) calcula, em vez de dar #NOME?.": "Une feuille au nom d'adresse citée sans guillemets (S1!C2) se calcule, au lieu de donner #NOM?.",
- "Limpar formatos tira também sobrescrito, subscrito e sublinhado duplo.": "Effacer les formats retire aussi exposant, indice et double soulignement."
+ "Limpar formatos tira também sobrescrito, subscrito e sublinhado duplo.": "Effacer les formats retire aussi exposant, indice et double soulignement.",
+ "Forma {}": "Forme {}"
 }

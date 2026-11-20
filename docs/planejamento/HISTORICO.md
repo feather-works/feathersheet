@@ -6,6 +6,11 @@
 
 - MCP (`feathersheet-mcp/src/arquivo.rs`): salvar `.xlsx`/`.csv`/`.tsv` pelo `sheet_save` passou a ser atômico
   (`feathersheet_io::arquivo::gravar_atomico`), como o `.fshz` já era.
+- Formas desenhadas no app iam embora ao salvar `.xlsx`, sem aviso (o aviso do Ctrl+S só olha o arquivo
+  original). Agora `xlsx_write_graficos::forma_xml` grava cada forma como `xdr:sp`: `prstGeom` pelo
+  `feather_shapes::TipoForma::prst` (dependência nova do `-io`), preenchimento, contorno, giro, espelho, texto
+  com alinhamento e letra, macro e nome. Não vão: degradê, sombra, ajustes (o retângulo com cantos vira
+  `roundRect`) e grupo (as formas saem soltas). Conferido no LibreOffice. Teste `forma_desenhada_vai_e_volta_pelo_xlsx`.
 
 ## v0.3.4 — 20/11/2026: Dividir janela, Inspecionar documento, Filtro avançado, cálculo mais rápido
 

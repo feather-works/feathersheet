@@ -148,8 +148,8 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         let (pasta, arquivo) = caminho.rsplit_once('/').unwrap_or(("", &caminho));
         for alvo in sheet::read_rels(&entry_text(&mut z, &format!("{pasta}/_rels/{arquivo}.rels")).unwrap_or_default()).values() {
             if let Some(o) = pelo_alvo(alvo) { somar(Some(nome), o, 1); }
-            // Desenho da aba: forma o FeatherSheet lê, mas o .xlsx gravado não leva (gráficos e,
-            // desde 13/11/2026, imagens levam). Contar aqui faz o Ctrl+S pedir "Salvar como".
+            // Desenho da aba: desde 20/11/2026 a forma vai para o .xlsx gravado, mas sem degradê, sombra,
+            // ajustes e grupo. Contar aqui segue fazendo o Ctrl+S pedir "Salvar como" no arquivo original.
             let a = alvo.to_ascii_lowercase();
             if a.contains("drawings/") && !a.contains("vmldrawing") && a.ends_with(".xml") {
                 let desenho = caminho_relativo(pasta, alvo);
