@@ -4,6 +4,9 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- Foto de celular entrava deitada (a orientação fica no EXIF e quem desenha só olha os pixels): ao inserir
+  imagem solta (`imagens_importadas::importar`) ou na célula, o JPEG com orientação é regravado em pé
+  (`girada_pelo_exif`, qualidade 92, sem EXIF). Só JPEG. Teste `foto_com_orientacao_no_exif_entra_em_pe`.
 - CSV: código só de dígitos que começa com 0 (`007`, CEP, telefone) entra como texto e guarda o zero
   (`csv_colunas::codigo_com_zero`, nos três caminhos de importação; o `classificar` continua igual ao
   `parse_literal`, a regra fica no `campo`). `0`, `0.5` e `0,5` seguem número. Teste

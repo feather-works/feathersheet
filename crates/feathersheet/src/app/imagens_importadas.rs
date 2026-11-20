@@ -343,11 +343,30 @@ fn decodificar_src(src: &str) -> Option<Vec<u8>> {
     (dados.len() <= MAX_BYTES && !dados.is_empty()).then_some(dados)
 }
 
+/// A foto do celular vem deitada com a orientação no EXIF, e quem desenha (e o `.xlsx`) olha só os
+/// pixels: o JPEG com orientação volta regravado em pé, sem EXIF. `None`: não precisa girar.
+// shortcut: só JPEG (é onde a câmera grava a orientação); PNG com EXIF segue como está.
+pub(crate) fn girada_pelo_exif(bytes: &[u8]) -> Option<Vec<u8>> {
+    use image::ImageDecoder;
+    if image::guess_format(bytes).ok()? != image::ImageFormat::Jpeg {
+        return None;
+    }
+    let mut dec = image::codecs::jpeg::JpegDecoder::new(Cursor::new(bytes)).ok()?;
+    let o = dec.orientation().ok().filter(|o| *o != image::metadata::Orientation::NoTransforms)?;
+    let mut img = image::DynamicImage::from_decoder(dec).ok()?;
+    img.apply_orientation(o);
+    let mut saida = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut saida, 92).encode_image(&img.to_rgb8()).ok()?;
+    Some(saida)
+}
+
 /// Adiciona uma imagem real, com dimensões de exibição contidas e dados
 /// originais no campo `im`. Sem efeitos, reamostragem ou cópias em células.
 pub(super) fn importar(
     sheet: &mut Sheet, bytes: &[u8], nome: &str, linha: u32, coluna: u32,
 ) -> Result<String, String> {
+    let girada = girada_pelo_exif(bytes);
+    let bytes = girada.as_deref().unwrap_or(bytes);
     if bytes.is_empty() || bytes.len() > MAX_BYTES {
         return Err(tr!("Selecione uma imagem PNG/JPEG de até 16 MiB.").into());
     }
@@ -736,6 +755,21 @@ mod testes {
         image::DynamicImage::ImageRgba8(img)
             .write_to(&mut Cursor::new(&mut data), image::ImageFormat::Png).unwrap();
         data
+    }
+
+    #[test]
+    fn foto_com_orientacao_no_exif_entra_em_pe() {
+        let mut jpeg = Vec::new();
+        image::RgbImage::from_pixel(20, 10, image::Rgb([200, 10, 10]))
+            .write_to(&mut Cursor::new(&mut jpeg), image::ImageFormat::Jpeg).unwrap();
+        assert!(girada_pelo_exif(&jpeg).is_none(), "sem orientação não regrava");
+        let tiff: &[u8] = b"Exif\0\0MM\0\x2a\0\0\0\x08\0\x01\x01\x12\0\x03\0\0\0\x01\0\x06\0\0\0\0\0\0";
+        let mut app1 = vec![0xFF, 0xE1];
+        app1.extend_from_slice(&((tiff.len() + 2) as u16).to_be_bytes());
+        app1.extend_from_slice(tiff);
+        jpeg.splice(2..2, app1);
+        let em_pe = image::load_from_memory(&girada_pelo_exif(&jpeg).unwrap()).unwrap();
+        assert_eq!((em_pe.width(), em_pe.height()), (10, 20));
     }
 
     #[test]

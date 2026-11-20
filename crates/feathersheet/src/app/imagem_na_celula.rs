@@ -96,6 +96,7 @@ impl App {
                         }
                         let bytes = std::fs::read(&caminho)
                             .map_err(|e| trf!("Falha ao ler imagem: {e}"))?;
+                        let bytes = imagens_importadas::girada_pelo_exif(&bytes).unwrap_or(bytes);
                         Ok(Some((bytes, nome)))
                     }).await.unwrap_or_else(|e| Err(trf!("Falha ao carregar imagem: {e}")))
                 }, |r| Msg::ImagemCelula(Evento::Carregada(r)));
