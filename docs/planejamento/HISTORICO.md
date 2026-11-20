@@ -2,6 +2,11 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## Depois da v0.3.4 (para a 0.3.5)
+
+- MCP (`feathersheet-mcp/src/arquivo.rs`): salvar `.xlsx`/`.csv`/`.tsv` pelo `sheet_save` passou a ser atômico
+  (`feathersheet_io::arquivo::gravar_atomico`), como o `.fshz` já era.
+
 ## v0.3.4 — 20/11/2026: Dividir janela, Inspecionar documento, Filtro avançado, cálculo mais rápido
 
 Junta a seção "Depois da v0.3.3" abaixo: Dividir janela/Lado a lado (#83), Agrupar formas (#79), Inspecionar
