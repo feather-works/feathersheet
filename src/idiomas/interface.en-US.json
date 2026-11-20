@@ -6152,5 +6152,6 @@
  "Fórmula que passa por duas abas recalcula ao editar a primeira.": "A formula chain across two sheets recalculates when the first one is edited.",
  "Aba com nome de endereço citada sem aspas (S1!C2) calcula, em vez de dar #NOME?.": "A sheet named like an address and cited without quotes (S1!C2) calculates instead of giving #NAME?.",
  "Limpar formatos tira também sobrescrito, subscrito e sublinhado duplo.": "Clear formats also removes superscript, subscript and double underline.",
- "Forma {}": "Shape {}"
+ "Forma {}": "Shape {}",
+ "Salvo como .xlsx, mas {} ícone(s), WordArt ou SmartArt não vão neste formato: para mantê-los, salve também em .fshz.": "Saved as .xlsx, but {} icon(s), WordArt or SmartArt do not go in this format: to keep them, also save as .fshz."
 }

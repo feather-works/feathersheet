@@ -723,6 +723,16 @@ impl App {
         let _ = self.gravacao_terminou(path, copia, resultado);
     }
 
+    /// Quantos objetos das abas o .xlsx gravado não leva (ícone, WordArt, SmartArt).
+    fn objetos_sem_xlsx(&self) -> usize {
+        use feathersheet_io::objetos_aba::{ObjetosAba, TipoObjeto};
+        (0..self.workbook.len())
+            .filter_map(|i| self.workbook.aba(i))
+            .filter_map(|a| ObjetosAba::ler(a.sheet.ob.as_deref()).ok())
+            .map(|l| l.objetos.iter().filter(|o| matches!(o.tipo, TipoObjeto::Icone | TipoObjeto::Wordart | TipoObjeto::Smartart)).count())
+            .sum()
+    }
+
     pub(super) fn gravacao_terminou(&mut self, path: PathBuf, copia: bool, resultado: Result<u64, String>) -> Task<Msg> {
         self.salvando = false;
         match resultado {
@@ -748,6 +758,11 @@ impl App {
                 // Como o Excel: o `.xlsx` não leva macros VBA.
                 if self.workbook.vba.is_some() && formato_excel(&path) == Some(false) {
                     self.status = tr!("Salvo como .xlsx: as macros VBA não vão neste formato (use .xlsm para mantê-las).").into();
+                }
+                // Ícone, WordArt e SmartArt desenhados no app ainda não vão para o .xlsx (as formas e as imagens vão).
+                let sem_xlsx = if formato_excel(&path).is_some() { self.objetos_sem_xlsx() } else { 0 };
+                if sem_xlsx > 0 {
+                    self.status = trf!("Salvo como .xlsx, mas {} ícone(s), WordArt ou SmartArt não vão neste formato: para mantê-los, salve também em .fshz.", sem_xlsx);
                 }
                 if self.senha_documento.is_some() && formato_excel(&path).is_none() {
                     self.status = tr!("Salvo em .fshz, que não leva a senha: para proteger, salve como .xlsx.").into();

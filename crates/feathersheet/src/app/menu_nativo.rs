@@ -246,7 +246,6 @@ mod testes {
             .is_some_and(|a| a.id == "pasteFormats")));
     }
 
-    #[test]
     /// INT-3 (regra 3, nada de item de menu morto): numa pasta com dados, todo item dos
     /// menus clássicos tem ação; só ficam desligados os que dependem do momento.
     #[test]

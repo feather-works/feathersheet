@@ -11,6 +11,8 @@
   `feather_shapes::TipoForma::prst` (dependência nova do `-io`), preenchimento, contorno, giro, espelho, texto
   com alinhamento e letra, macro e nome. Não vão: degradê, sombra, ajustes (o retângulo com cantos vira
   `roundRect`) e grupo (as formas saem soltas). Conferido no LibreOffice. Teste `forma_desenhada_vai_e_volta_pelo_xlsx`.
+- Ícone, WordArt e SmartArt desenhados no app ainda não vão para o `.xlsx`: depois de salvar, o status avisa
+  quantos ficaram de fora e sugere salvar também em `.fshz` (`App::objetos_sem_xlsx`).
 
 ## v0.3.4 — 20/11/2026: Dividir janela, Inspecionar documento, Filtro avançado, cálculo mais rápido
 
