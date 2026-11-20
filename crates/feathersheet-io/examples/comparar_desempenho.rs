@@ -1,7 +1,7 @@
 //! Comparação de desempenho com outra planilha (GridCraft, 19/11/2026): abre um `.xlsx` ou `.csv`,
 //! calcula tudo, mostra G1:I1 (os totais da planilha de teste), e opcionalmente ordena e grava.
 //!
-//! cargo run --release --example comparar_desempenho -- ENTRADA [--ordenar COLUNA] [--salvar SAIDA.xlsx]
+//! cargo run --release --example comparar_desempenho -- ENTRADA [--editar-b2 VALOR] [--ordenar COLUNA] [--salvar SAIDA.xlsx]
 use feathersheet_core::celulas::refs::Rect;
 use feathersheet_core::operacoes::ops;
 use std::time::Instant;
@@ -22,6 +22,13 @@ fn main() {
     let calcular = t2.elapsed();
     let totais: Vec<String> = (6..9).map(|c| format!("{:?}", w.valor(0, 0, c))).collect();
     println!("abrir {:.3} s · calcular {:.3} s · G1:I1 = {}", abrir.as_secs_f64(), calcular.as_secs_f64(), totais.join("  "));
+    // Editar uma célula e recalcular o que depende dela (o que o app faz ao digitar).
+    if let Some(valor) = opcao("--editar-b2") {
+        let t5 = Instant::now();
+        w.escrever_celula(0, 1, 1, valor);
+        let totais: Vec<String> = (6..9).map(|c| format!("{:?}", w.valor(0, 0, c))).collect();
+        println!("editar B2 e recalcular {:.3} s · G1:I1 = {}", t5.elapsed().as_secs_f64(), totais.join("  "));
+    }
     if let Some(coluna) = opcao("--ordenar") {
         let indice = coluna.bytes().next().expect("letra") as u32 - b'A' as u32;
         // O caminho do botão A→Z do app (`App::ordenar`): planeja lendo os valores e permuta as linhas.

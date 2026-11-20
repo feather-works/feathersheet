@@ -409,8 +409,10 @@ fn achar_fechamento_colchete(s: &[char], inicio: usize) -> Option<usize> {
                     texto = em(inicio, i);
                 }
             }
-            // Plan1!A1 — o nome da aba entra no mesmo token da referência.
-            if olhar(i) == Some('!') && !parece_referencia(&texto) {
+            // Plan1!A1 — o nome da aba entra no mesmo token da referência. Nome que parece
+            // endereço (S1, ABA1) também: endereço nunca vem seguido de `!` (o Excel põe aspas,
+            // mas há gerador de .xlsx que não põe).
+            if olhar(i) == Some('!') {
                 let inicio_ref = i + 1;
                 let mut j = inicio_ref;
                 while j < n && (e_letra_de_nome(s[j]) || s[j] == '$' || s[j] == ' ') {

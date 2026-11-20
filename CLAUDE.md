@@ -95,7 +95,10 @@ gravar: 3,8 s contra 27 s; 50 mil PROCV+CONT.SE: 1,1 s contra 98 s. Mesmos totai
 Abrir CSV de 1 milhão de linhas: 1,7 s e 0,2 GB contra 2,8 s e 0,8 GB. Ordenar 1 milhão
 de linhas levava 27 s só para mover: `permutar_sem_registro` tirava e punha o estilo célula por célula, partindo a faixa
 do `EstilosCelula` a cada vez (memmove, quadrático; a coluna de datas do CSV tem estilo em toda célula). Agora remonta
-as faixas por coluna: 0,3 s (abrir+ordenar 3,5 s contra 8,7 s do GridCraft). O `.xlsx` nosso saía 65% maior (zip `fast`): `zip_write` passou ao nível 4 (1 milhão de linhas: 71 → 44 MB,
+as faixas por coluna: 0,3 s (abrir+ordenar 3,5 s contra 8,7 s do GridCraft). 100 abas × 10 mil linhas com resumo: 0,45 s e 130 MB contra 8,2 s e 1,9 GB. Editar B2 em 1 milhão de
+linhas e recalcular: 0,21 s contra ~0,7 s. Fórmula com aba de nome que parece endereço sem aspas (`S1!C2`, `ABA1!C2`)
+dava #NOME?: o `tokenizer` pulava o `!` quando o nome `parece_referencia`; agora endereço seguido de `!` é aba
+(teste `aba_com_nome_de_endereco_sem_aspas`; ao gravar sai `'S1'!`). O `.xlsx` nosso saía 65% maior (zip `fast`): `zip_write` passou ao nível 4 (1 milhão de linhas: 71 → 44 MB,
 gravar 2,0 → 2,9 s). Novidade: ".xlsx salvo cerca de 40% menor."
 
 **Conferido com o GridCraft (19/11).** `gridcraft.cli check` (snap; arquivos em `~/snap/gridcraft/common/`) sobre a

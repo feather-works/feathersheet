@@ -1235,3 +1235,19 @@ fn ses_com_criterio_vazio_zero_e_texto_vazio_da_o_mesmo_com_e_sem_agregado() {
     // Critério 0 conta só os zeros, não as vazias (Excel; auditoria de 13/11/2026).
     assert!(matches!(gabarito[0], crate::celulas::values::Value::Number(n) if n > 500.0 && n < 1000.0), "{gabarito:?}");
 }
+
+/// Aba com nome que parece endereço (S1, ABA1) citada sem aspas, como alguns geradores de
+/// .xlsx gravam: antes dava #NOME? ("Caractere inesperado !"); achado comparando com o GridCraft.
+#[test]
+fn aba_com_nome_de_endereco_sem_aspas() {
+    let mut w = Workbook::new();
+    w.criar_aba("S1");
+    w.criar_aba("ABA1");
+    w.escrever_celula(1, 1, 2, "7".into());
+    w.escrever_celula(2, 1, 2, "5".into());
+    w.escrever_celula(0, 0, 0, "=SOMA(S1!C2:C3)+ABA1!C2".into());
+    w.escrever_celula(0, 0, 1, "='S1'!C2*2".into());
+    w.calcular_em_paralelo();
+    assert_eq!(w.valor(0, 0, 0), crate::celulas::values::Value::Number(12.0));
+    assert_eq!(w.valor(0, 0, 1), crate::celulas::values::Value::Number(14.0));
+}
