@@ -17,6 +17,8 @@ const FIXOS: &[(&str,&str)] = &[
     ("imprimir","Ctrl+P"),
     ("monitor","F12"),
     ("executarMacro","Ctrl+Enter"),
+    ("calcular","F9 / Shift+F9"),
+    ("calcularTudo","Ctrl+Alt+F9"),
 ];
 const CONFIGURAVEIS: &[(&str,&str)] = &[
     ("createTable","Ctrl+T"),

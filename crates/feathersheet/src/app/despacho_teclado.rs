@@ -501,6 +501,7 @@ impl App {
                         "F9" => Some(Msg::Formulas(formulas_ui::Evento::CalcularAgora)),
                         "F7" => Some(Msg::Ortografia(ortografia_ui::Evento::Abrir)),
                         "Shift+F9" => Some(Msg::Formulas(formulas_ui::Evento::CalcularPlanilha)),
+                        "Ctrl+Alt+F9" => Some(Msg::Formulas(formulas_ui::Evento::CalcularTudo)),
                         // Seleciona a matriz derramada da célula ativa (Excel: Ctrl+/).
                         "Ctrl+/" | "Ctrl+Shift+/" => Some(Msg::Formulas(formulas_ui::Evento::SelecionarDerramada)),
                         _ => None,

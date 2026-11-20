@@ -56,7 +56,7 @@
           "Pendant la saisie, des suggestions et des aides sur les arguments apparaissent. Cliquer ou faire glisser sur la grille insère la référence ; chaque cadre de référence coloré peut être déplacé (glisser) ou étiré par son coin (redimensionner).",
           "Les fonctions qui renvoient plusieurs cellules (FILTRE, UNIQUE, TRIER, SEQUENCE…) étendent le résultat vers le bas et vers la droite. Si quelque chose gêne, la cellule affiche #SPILL!.",
           "Formule en erreur : clic droit sur la cellule → \"Expliquer cette erreur\" montre la partie qui échoue et comment la corriger.",
-          "• Noms (Formules → Noms définis) : Définir un nom, Gestionnaire, Créer à partir de la sélection et Utiliser dans la formule. Un nom fonctionne dans n'importe quelle formule : =SOMME(Ventes). Formules → Calcul propose les Options de calcul et Calculer maintenant.",
+          "• Noms (Formules → Noms définis) : Définir un nom, Gestionnaire, Créer à partir de la sélection et Utiliser dans la formule. Un nom fonctionne dans n'importe quelle formule : =SOMME(Ventes). Formules → Calcul propose les Options de calcul et Calculer maintenant. Options de calcul → Tout recalculer (Ctrl+Alt+F9) refait toutes les formules, même celles que rien n’a changées : corrige une valeur erronée venue du fichier d’un autre programme.",
           "• Calcul itératif : une formule qui dépend d'elle-même (A1 lit B1 et B1 lit A1) affiche #CIRCULAIRE!. Pour qu'elle répète le calcul jusqu'à se stabiliser, activez Paramètres › Feuille › Calcul itératif et choisissez le nombre maximal d'itérations et l'écart à partir duquel le calcul s'arrête. Chaque F9 répète les itérations."
         ]
       },
@@ -252,7 +252,9 @@
       "formatarCelulas": "Format de cellule",
       "imprimir": "Imprimer",
       "monitor": "Moniteur (mémoire, console, mesures)",
-      "executarMacro": "Exécuter la macro (dans le volet Macros)"
+      "executarMacro": "Exécuter la macro (dans le volet Macros)",
+      "calcular": "Calculer le classeur (F9) ou seulement la feuille (Maj+F9)",
+      "calcularTudo": "Recalculer toutes les formules, même celles que rien n’a changées"
     }
   },
   "atalhos": {

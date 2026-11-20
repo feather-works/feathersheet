@@ -49,6 +49,8 @@ pub enum Evento {
     RemoverSetas,
     Manual(bool),
     CalcularAgora,
+    /// Ctrl+Alt+F9: todas as fórmulas, também as que nada mudou.
+    CalcularTudo,
     CalcularPlanilha,
     SelecionarDerramada,
     /// Criar a partir da seleção: abrir, marcar uma borda (0 topo, 1
@@ -152,6 +154,12 @@ impl App {
                 let inicio = Instant::now();
                 self.workbook.calcular_agora();
                 self.status = trf!("Pasta calculada em {} ms", inicio.elapsed().as_millis());
+            }
+            Evento::CalcularTudo => {
+                self.formulas_menu = None;
+                let inicio = Instant::now();
+                self.workbook.calcular_tudo();
+                self.status = trf!("Pasta recalculada por inteiro em {} ms", inicio.elapsed().as_millis());
             }
             Evento::CalcularPlanilha => {
                 let inicio = Instant::now();
@@ -548,7 +556,10 @@ impl App {
                         Msg::Formulas(Evento::Manual(false)), !manual))
                     .push(Self::item_menu(tr!("Manual").into(),
                         tr!("Só calcula com F9 (pasta) ou Shift+F9 (planilha)").into(),
-                        Msg::Formulas(Evento::Manual(true)), manual));
+                        Msg::Formulas(Evento::Manual(true)), manual))
+                    .push(Self::item_menu(tr!("Recalcular tudo").into(),
+                        tr!("Ctrl+Alt+F9: refaz todas as fórmulas, também as que nada mudou").into(),
+                        Msg::Formulas(Evento::CalcularTudo), false));
                 tr!("Opções de cálculo").to_owned()
             }
         };

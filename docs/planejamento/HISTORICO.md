@@ -4,6 +4,10 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- **Recalcular tudo (Ctrl+Alt+F9)**, em Fórmulas → Opções de cálculo: `Workbook::calcular_tudo` marca todas as
+  fórmulas (`for_each_formula` + `sujar_celulas`) e calcula. O F9 só refaz o que está marcado: o valor guardado
+  errado de um arquivo de outro programa (um `#NAME?` do LibreOffice) ficava até mexer na célula. Teste
+  `tests/calcular_tudo.rs`; Ajuda F1 (atalhos F9/Shift+F9/Ctrl+Alt+F9 e o parágrafo de Nomes/Cálculo) nas quatro línguas.
 - Salvar por um atalho (symlink) trocava o atalho por um arquivo comum e o original ficava velho:
   `arquivo::gravar_atomico_com` resolve o caminho real (`canonicalize`) antes. Teste
   `gravar_por_um_atalho_grava_no_original_e_o_atalho_continua`.

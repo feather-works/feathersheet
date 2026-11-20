@@ -67,6 +67,20 @@ impl Workbook {
         self.manual = manual;
     }
 
+    /// Ctrl+Alt+F9: recalcula todas as fórmulas da pasta, também as que nada mudou. O F9 só refaz o
+    /// que está marcado; o valor guardado num arquivo de outro programa (um `#NAME?` de quando o nome
+    /// ainda não existia) fica até alguém mexer na célula.
+    pub fn calcular_tudo(&mut self) {
+        for i in 0..self.len() {
+            if let Some(aba) = self.aba(i) {
+                let mut chaves = Vec::new();
+                aba.sheet.for_each_formula(&mut |r, c, _| chaves.push(crate::planilha::sheet::Sheet::cell_key(r, c)));
+                aba.sheet.sujar_celulas(&chaves);
+            }
+        }
+        self.calcular_agora();
+    }
+
     /// Shift+F9: só a aba `indice`.
     pub fn calcular_aba(&mut self, indice: usize) {
         if let Some(aba) = self.aba_mut(indice) {

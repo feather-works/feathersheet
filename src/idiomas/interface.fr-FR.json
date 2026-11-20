@@ -6153,5 +6153,8 @@
  "Aba com nome de endereço citada sem aspas (S1!C2) calcula, em vez de dar #NOME?.": "Une feuille au nom d'adresse citée sans guillemets (S1!C2) se calcule, au lieu de donner #NOM?.",
  "Limpar formatos tira também sobrescrito, subscrito e sublinhado duplo.": "Effacer les formats retire aussi exposant, indice et double soulignement.",
  "Forma {}": "Forme {}",
- "Salvo como .xlsx, mas {} ícone(s), WordArt ou SmartArt não vão neste formato: para mantê-los, salve também em .fshz.": "Enregistré en .xlsx, mais {} icône(s), WordArt ou SmartArt ne sont pas pris en charge par ce format : pour les garder, enregistrez aussi en .fshz."
+ "Salvo como .xlsx, mas {} ícone(s), WordArt ou SmartArt não vão neste formato: para mantê-los, salve também em .fshz.": "Enregistré en .xlsx, mais {} icône(s), WordArt ou SmartArt ne sont pas pris en charge par ce format : pour les garder, enregistrez aussi en .fshz.",
+ "Recalcular tudo": "Tout recalculer",
+ "Ctrl+Alt+F9: refaz todas as fórmulas, também as que nada mudou": "Ctrl+Alt+F9 : refait toutes les formules, même celles que rien n’a changées",
+ "Pasta recalculada por inteiro em {} ms": "Classeur entièrement recalculé en {} ms"
 }
