@@ -988,7 +988,7 @@ impl App {
     /// sozinho (soma em cada série, como no menu) e grava, se já está na
     /// planilha. Devolve se ligou agora.
     fn exigir_resumo_se_grande(&mut self) -> bool {
-        let Some(r) = parse_range_ref(self.graficos.intervalo.trim()).map(|r| r.normalized()) else {
+        let Some(r) = retangulo_do_intervalo(&self.graficos.intervalo).map(|r| r.normalized()) else {
             self.graficos.resumo_obrigatorio = false;
             return false;
         };
@@ -1011,7 +1011,7 @@ impl App {
     /// o resto → colunas.
     // shortcut: olha só as 200 primeiras linhas; basta para escolher o tipo.
     fn tipo_recomendado(&self) -> TipoUi {
-        let Some(r) = parse_range_ref(self.graficos.intervalo.trim()).map(|r| r.normalized()) else { return TipoUi::Colunas };
+        let Some(r) = retangulo_do_intervalo(&self.graficos.intervalo).map(|r| r.normalized()) else { return TipoUi::Colunas };
         let Some(aba) = self.workbook.aba(self.folha) else { return TipoUi::Colunas };
         let numero = |t: &str| t.trim().replace(',', ".").parse::<f64>().ok();
         let r0 = r.r0 + u32::from(self.graficos.cabecalho);
@@ -1048,7 +1048,7 @@ impl App {
         let salvo = self.svg_do_grafico_em_edicao();
         let desenhar_previa = salvo.is_none();
         let resultado = (|| {
-            let r = parse_range_ref(self.graficos.intervalo.trim())
+            let r = retangulo_do_intervalo(&self.graficos.intervalo)
                 .ok_or(tr!("Intervalo inválido. Use A1:C10."))?
                 .normalized();
             if r.sheet.is_some() {
@@ -1234,6 +1234,9 @@ impl App {
         if origem.is_some_and(|n| !n.eq_ignore_ascii_case(&aba.sheet.name)) {
             return None;
         }
+        if let Some(areas) = v["_featherAreas"].as_str().filter(|t| !t.trim().is_empty()) {
+            return Some(areas.trim().to_string());
+        }
         // Gravado como objeto (`{"r0":…}`) pelo app; texto em arquivo antigo.
         match &v["range"] {
             serde_json::Value::String(r) => Some(r.trim().to_string()).filter(|r| !r.is_empty()),
@@ -1394,9 +1397,10 @@ impl App {
                         area = aba.sheet.regiao_da_tabela(area.r0, area.c0);
                     }
                 }
-                // Ctrl+clique em colunas separadas (A e D), como no Excel: o bloco de A até D
-                // com as colunas do meio que não foram escolhidas como séries ocultas.
-                let colunas_fora = self.colunas_fora_da_selecao(&mut area);
+                // Ctrl+clique em colunas separadas (A e D), como no Excel: `A1:A3;D1:D3`.
+                let intervalo = self.intervalo_da_selecao(&area);
+                let varias = intervalo.contains(';');
+                if let Some(bloco) = retangulo_do_intervalo(&intervalo).filter(|_| varias) { area = bloco; }
                 // Captura a posição do clique ANTES de recriar o estado.
                 // A assinatura global do mouse usa coordenadas da janela.
                 let cursor_abertura = self.graficos.cursor;
@@ -1412,7 +1416,7 @@ impl App {
                     cursor: cursor_abertura,
                     ancora_seletor_x: cursor_abertura.x,
                     seletor_aberto: true,
-                    intervalo: format_ref(&area),
+                    intervalo,
                     titulo: tr!("Gráfico").into(),
                     cabecalho: self.workbook.aba(self.folha).is_some_and(|a| {
                         // Se a primeira linha já contém números, não é um
@@ -1430,8 +1434,8 @@ impl App {
                     ..Default::default()
                 };
                 self.atualizar_grafico();
-                if !colunas_fora.is_empty() {
-                    self.ocultar_colunas(&colunas_fora, area.c0);
+                if varias {
+                    self.ocultar_colunas_fora();
                     self.atualizar_grafico();
                 }
                 return Task::none();
@@ -1673,7 +1677,15 @@ impl App {
                 self.editar_ao_vivo(None);
             }
             Evento::Intervalo(s) => {
-                self.graficos.intervalo = s;
+                let antes = std::mem::replace(&mut self.graficos.intervalo, s);
+                // Digitar `A1:A3;D1:D3` (ou arrastar uma das caixas) refaz as colunas do meio ocultas;
+                // voltar a uma área só tira as que eram dessas colunas.
+                if self.graficos.intervalo.contains(';') {
+                    self.atualizar_tipos_series();
+                    self.ocultar_colunas_fora();
+                } else if antes.contains(';') {
+                    self.graficos.ocultas.clear();
+                }
                 self.editar_ao_vivo(Some("intervalo"));
             }
             Evento::Titulo(s) => {
@@ -1886,36 +1898,57 @@ impl App {
 #[cfg(test)]
 mod testes;
 
+/// As áreas do intervalo do gráfico: `A1:A3;C1:C3` (como o Excel mostra a série de colunas
+/// separadas) ou uma só. `None` se alguma não lê ou se as áreas não são colunas das mesmas
+/// linhas sem se cruzar (o único caso que o gráfico desenha).
+pub(super) fn areas_do_intervalo(texto: &str) -> Option<Vec<feathersheet_core::celulas::refs::Rect>> {
+    let mut areas = Vec::new();
+    for parte in texto.split(';').map(str::trim).filter(|p| !p.is_empty()) {
+        areas.push(parse_range_ref(parte)?.normalized());
+    }
+    let primeira = areas.first()?.clone();
+    let mesmas_linhas = areas.iter().all(|a| a.r0 == primeira.r0 && a.r1 == primeira.r1);
+    let separadas = areas.iter().enumerate().all(|(i, a)| areas[i + 1..].iter().all(|b| a.c1 < b.c0 || b.c1 < a.c0));
+    (mesmas_linhas && separadas).then_some(areas)
+}
+
+/// O bloco que cobre as áreas do intervalo (o que o motor do gráfico lê).
+pub(super) fn retangulo_do_intervalo(texto: &str) -> Option<feathersheet_core::celulas::refs::Rect> {
+    let areas = areas_do_intervalo(texto)?;
+    let (c0, c1) = (areas.iter().map(|a| a.c0).min()?, areas.iter().map(|a| a.c1).max()?);
+    Some(feathersheet_core::celulas::refs::Rect::new(areas[0].r0, c0, areas[0].r1, c1))
+}
+
+/// As colunas do bloco que não estão em nenhuma área (as do meio de `A1:A3;D1:D3`).
+fn colunas_fora_do_intervalo(texto: &str) -> Vec<u32> {
+    let (Some(areas), Some(r)) = (areas_do_intervalo(texto), retangulo_do_intervalo(texto)) else { return Vec::new() };
+    (r.c0..=r.c1).filter(|&c| !areas.iter().any(|a| a.c0 <= c && c <= a.c1)).collect()
+}
+
 impl App {
-    /// Com várias áreas de colunas nas mesmas linhas, sem se cruzar (A1:A10 e D1:D10):
-    /// `area` vira o bloco que as cobre e volta a lista das colunas do meio que ficaram de fora.
-    /// Áreas de formatos diferentes: fica só a ativa, como antes.
-    fn colunas_fora_da_selecao(&self, area: &mut feathersheet_core::celulas::refs::Rect) -> Vec<u32> {
-        let areas: Vec<_> = self.areas_selecionadas().into_iter().map(|a| a.normalized()).collect();
-        let Some(primeira) = areas.first() else { return Vec::new() };
-        let mesmas_linhas = areas.iter().all(|a| a.r0 == primeira.r0 && a.r1 == primeira.r1);
-        let separadas = areas.iter().enumerate().all(|(i, a)| areas[i + 1..].iter().all(|b| a.c1 < b.c0 || b.c1 < a.c0));
-        if areas.len() < 2 || !mesmas_linhas || !separadas {
-            return Vec::new();
-        }
-        let (c0, c1) = (areas.iter().map(|a| a.c0).min().unwrap_or(0), areas.iter().map(|a| a.c1).max().unwrap_or(0));
-        *area = feathersheet_core::celulas::refs::Rect::new(primeira.r0, c0, primeira.r1, c1);
-        (c0..=c1).filter(|&c| !areas.iter().any(|a| a.c0 <= c && c <= a.c1)).collect()
+    /// O texto do intervalo com a seleção atual: várias áreas de colunas nas mesmas linhas
+    /// (Ctrl+clique em A e D) saem como `A1:A3;D1:D3`, da esquerda para a direita; senão `area`.
+    fn intervalo_da_selecao(&self, area: &feathersheet_core::celulas::refs::Rect) -> String {
+        let mut areas: Vec<_> = self.areas_selecionadas().into_iter().map(|a| a.normalized()).collect();
+        areas.sort_by_key(|a| a.c0);
+        let texto = areas.iter().map(format_ref).collect::<Vec<_>>().join(";");
+        if areas.len() > 1 && areas_do_intervalo(&texto).is_some() { texto } else { format_ref(area) }
     }
 
-    /// Esconde as séries das colunas `fora` (absolutas; o intervalo começa em `c0`), na
-    /// numeração que o desenho usa agora (sem resumir, o motor pula a série sem número).
-    fn ocultar_colunas(&mut self, fora: &[u32], c0: u32) {
+    /// Com intervalo de várias áreas, as colunas do meio viram séries ocultas, na numeração
+    /// que o desenho usa agora (sem resumir, o motor pula a série sem número).
+    fn ocultar_colunas_fora(&mut self) {
+        let fora = colunas_fora_do_intervalo(&self.graficos.intervalo);
+        let Some(r) = retangulo_do_intervalo(&self.graficos.intervalo) else { return };
         let tipos = self.series_de_texto();
         let g = &mut self.graficos;
         let todas = g.agrupar && g.colunas && g.categorias;
-        let n = parse_range_ref(g.intervalo.trim()).map_or(0, |r| { let r = r.normalized(); r.c1 - r.c0 + 1 });
         let (mut ordem_todas, mut ordem) = (0u32, 0u32);
         let mut ocultas = Vec::new();
-        for k in 0..n {
+        for k in 0..=(r.c1 - r.c0) {
             if g.categorias && k == g.coluna_categoria { continue; }
             if todas || !tipos.sem_numero.contains(&ordem_todas) {
-                if fora.contains(&(c0 + k)) { ocultas.push(ordem); }
+                if fora.contains(&(r.c0 + k)) { ocultas.push(ordem); }
                 ordem += 1;
             }
             ordem_todas += 1;

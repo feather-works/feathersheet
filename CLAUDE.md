@@ -89,9 +89,12 @@ Testes `texto_alternativo_da_imagem` e `imagens_da_aba_vao_para_o_desenho_e_volt
 imagens, para leitores de tela."
 
 **Gráfico de colunas separadas com Ctrl (19/11, pedido do pai).** Coluna A e coluna D marcadas (`selecoes_extras`)
-com as mesmas linhas e sem se cruzar: `colunas_fora_da_selecao` faz o intervalo A:D e `ocultar_colunas` põe B e C em
-`ocultas`, na numeração que o desenho usa (sem resumir, coluna sem número não conta). O `.xlsx` já filtra
-`hiddenSeries`, então o Excel recebe só D. Áreas de linhas diferentes: só a ativa, como antes. Teste
+com as mesmas linhas e sem se cruzar: o intervalo é o texto `A1:A3;D1:D3`, como o Excel mostra (`intervalo_da_selecao`;
+digitar assim também vale). `areas_do_intervalo`/`retangulo_do_intervalo` (graficos.rs) leem o texto em todo lugar
+que lia o intervalo; o motor recebe o bloco A:D e `ocultar_colunas_fora` põe B e C em `ocultas`, na numeração que o
+desenho usa (sem resumir, coluna sem número não conta). O texto vai no JSON como `_featherAreas` e volta ao reabrir;
+a moldura na grade sai das referências do texto, então são duas caixas (antes uma A1:D3, pegando B e C, foto do pai).
+O `.xlsx` filtra `hiddenSeries`, então o Excel recebe só A e D. Áreas de linhas diferentes: só a ativa. Teste
 `colunas_separadas_com_ctrl_viram_categoria_e_serie`. Novidade: "Gráfico com colunas separadas (A e D com Ctrl), como no Excel."
 
 **Pasta com abas ligadas, conferida pelo GridCraft (19/11).** 24 meses × 2 mil linhas (cada mês faz PROCV no anterior),

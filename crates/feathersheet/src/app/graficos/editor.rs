@@ -245,7 +245,7 @@ impl App {
     /// (`graficos_salvos::mesclado`), preserva `_excel`, `sourceSheet` e o resto.
     fn json_do_editor(&self, id: &str) -> Result<serde_json::Value, String> {
         let g = &self.graficos;
-        let r = parse_range_ref(&g.intervalo).map(|r| r.normalized())
+        let r = super::retangulo_do_intervalo(&g.intervalo)
             .ok_or(tr!("Intervalo inválido. Use A1:C10."))?;
         let tipo = if g.tipo == TipoUi::Pizza {
             "pie".to_owned()
@@ -267,6 +267,12 @@ impl App {
         // Aba Configurar: coluna das categorias, séries ocultas e a conta de cada uma.
         valor["categoryColumnIndex"] = json!(g.coluna_categoria);
         valor["style"]["hiddenSeries"] = json!(g.ocultas);
+        // `A1:A3;D1:D3`: o texto volta assim ao reabrir (o motor lê o bloco e as do meio ocultas).
+        if g.intervalo.contains(';') {
+            valor["_featherAreas"] = json!(g.intervalo.trim());
+        } else if let Some(o) = valor.as_object_mut() {
+            o.remove("_featherAreas");
+        }
         valor["aggregateBySeries"] = serde_json::to_value(&g.contas).unwrap_or_default();
         if let Some(e) = g.eixos3d {
             valor["eixos3d"] = json!(e);
@@ -475,9 +481,11 @@ impl App {
             aberto: true,
             id: Some(id.into()),
             aba_grafico: Some(aba.id),
-            intervalo: format_ref(&feathersheet_core::celulas::refs::Rect::new(
-                c.range.r0, c.range.c0, c.range.r1, c.range.c1,
-            )),
+            intervalo: v["_featherAreas"].as_str().map(str::to_string)
+                .filter(|t| super::retangulo_do_intervalo(t).is_some_and(|r| (r.r0, r.c0, r.r1, r.c1) == (c.range.r0, c.range.c0, c.range.r1, c.range.c1)))
+                .unwrap_or_else(|| format_ref(&feathersheet_core::celulas::refs::Rect::new(
+                    c.range.r0, c.range.c0, c.range.r1, c.range.c1,
+                ))),
             titulo: c.title,
             tipo,
             cabecalho: c.has_headers,

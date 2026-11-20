@@ -220,8 +220,8 @@ use super::editor::svg_do_grafico_salvo;
         ).is_none());
     }
 
-    /// Coluna A e coluna D com Ctrl, como no Excel: o gráfico tem A como categorias e só D
-    /// como série (B e C ficam ocultas; B de texto nem entra na numeração sem resumir).
+    /// Coluna A e coluna D com Ctrl, como no Excel: o intervalo é `A1:A4;D1:D4`, a moldura marca
+    /// as duas áreas (não a B e a C) e o gráfico tem A como categorias e só D como série.
     #[test]
     fn colunas_separadas_com_ctrl_viram_categoria_e_serie() {
         let mut a = App::default();
@@ -231,14 +231,24 @@ use super::editor::svg_do_grafico_salvo;
         a.coluna = 3;
         a.fim_selecao = (3, 3);
         let _ = a.evento_grafico(Evento::Abrir);
-        assert_eq!(a.graficos.intervalo, "A1:D4");
+        assert_eq!(a.graficos.intervalo, "A1:A4;D1:D4");
         assert_eq!(a.graficos.ocultas, [0], "Custo (C) fica oculta; Obs (B) não tem número");
         let _ = a.evento_grafico(Evento::Tipo(TipoUi::Colunas));
         let nomes: Vec<String> = a.series_da_origem().into_iter().filter(|(o, _)| !a.graficos.ocultas.contains(o)).map(|s| s.1).collect();
         assert_eq!(nomes, ["Venda"]);
+        let caixas: Vec<_> = a.caixas_do_grafico().into_iter().map(|c| (c.rect.c0, c.rect.c1)).collect();
+        assert_eq!(caixas, [(0, 0), (3, 3)], "a moldura marca A e D, não a B e a C");
+        // Digitar no campo também vale: A e C.
+        let _ = a.evento_grafico(Evento::Intervalo("A1:A4;C1:C4".into()));
+        let nomes: Vec<String> = a.series_da_origem().into_iter().filter(|(o, _)| !a.graficos.ocultas.contains(o)).map(|s| s.1).collect();
+        assert_eq!(nomes, ["Custo"]);
+        // Fechar e reabrir o gráfico salvo devolve o texto com as duas áreas.
+        let id = a.graficos.id.clone().unwrap();
+        let _ = a.evento_grafico(Evento::Editar(id));
+        assert_eq!(a.graficos.intervalo, "A1:A4;C1:C4");
         // Áreas de linhas diferentes: fica só a ativa, como antes.
         a.selecoes_extras = vec![Rect::new(0, 0, 1, 0)];
-        let _ = a.evento_grafico(Evento::Abrir);
+        a.graficos.aberto = false;
         let _ = a.evento_grafico(Evento::Abrir);
         assert_eq!(a.graficos.intervalo, "D1:D4");
         assert!(a.graficos.ocultas.is_empty());

@@ -1164,7 +1164,7 @@ impl App {
     /// intervalo: o cabeçalho da planilha, ou "Coluna B" sem cabeçalho.
     pub(super) fn rotulos_do_intervalo(&self) -> Vec<String> {
         let g = &self.graficos;
-        let Some(r) = parse_range_ref(g.intervalo.trim()).map(|r| r.normalized()) else { return Vec::new() };
+        let Some(r) = super::retangulo_do_intervalo(&g.intervalo).map(|r| r.normalized()) else { return Vec::new() };
         let Some(aba) = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i)).find(|a| Some(a.id) == g.aba_id) else {
             return Vec::new();
         };
@@ -1209,7 +1209,7 @@ impl App {
     pub(super) fn series_de_texto(&self) -> TiposSeries {
         let g = &self.graficos;
         let mut tipos = TiposSeries::default();
-        let Some(r) = parse_range_ref(g.intervalo.trim()).map(|r| r.normalized()) else { return tipos };
+        let Some(r) = super::retangulo_do_intervalo(&g.intervalo).map(|r| r.normalized()) else { return tipos };
         let Some(aba) = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i)).find(|a| Some(a.id) == g.aba_id) else {
             return tipos;
         };
@@ -1286,7 +1286,7 @@ impl App {
     /// Linha 3D sem escolha no painel: as colunas que o motor usaria.
     pub(super) fn eixos3d_padrao(&self) -> Option<feathersheet_core::grafico::chart::Eixos3d> {
         let g = &self.graficos;
-        let r = parse_range_ref(g.intervalo.trim())?.normalized();
+        let r = super::retangulo_do_intervalo(&g.intervalo)?.normalized();
         let aba = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i)).find(|a| Some(a.id) == g.aba_id)?;
         let linha = r.r0 + u32::from(g.cabecalho && r.r1 > r.r0);
         Some(feathersheet_core::grafico::chart::eixos_3d_padrao(r.c1 - r.c0 + 1, |i| aba.sheet.get_value(linha, r.c0 + i)))
