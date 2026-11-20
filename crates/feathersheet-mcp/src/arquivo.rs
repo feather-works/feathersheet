@@ -24,12 +24,18 @@ pub fn abrir(caminho: &Path) -> Result<(Workbook, usize), String> {
     Ok((pasta, aba))
 }
 
+/// O `<sheetView>` de cada aba de um `.xlsx` (vazio para os outros formatos).
+pub fn vistas(caminho: &Path) -> Vec<feathersheet_io::xlsx_read::VistaAba> {
+    if extensao(caminho) == "xlsx" { feathersheet_io::xlsx_read::ler_vistas_arquivo(caminho) } else { Vec::new() }
+}
+
 /// Grava pela extensão do destino. A gravação do `.fshz` é atômica (`.parcial` + renomear).
-pub fn salvar(pasta: &Workbook, aba: usize, caminho: &Path) -> Result<(), String> {
+/// `vistas`: linhas de grade e painel congelado de cada aba, para o `.xlsx` (como o app grava).
+pub fn salvar(pasta: &Workbook, aba: usize, caminho: &Path, vistas: Vec<feathersheet_io::xlsx_read::VistaAba>) -> Result<(), String> {
     match extensao(caminho).as_str() {
         "fshz" => feathersheet_io::da_workbook::pasta_gravar_arquivo(pasta, aba as u32, caminho),
         "xlsx" => {
-            let bytes = feathersheet_io::xlsx_write::gerar_xlsx(pasta)?;
+            let bytes = feathersheet_io::xlsx_write::com_vistas(vistas, || feathersheet_io::xlsx_write::gerar_xlsx(pasta))?;
             // Atômico (`.parcial` + renomear): disco cheio no meio não corta o arquivo que já existia.
             feathersheet_io::arquivo::gravar_atomico(caminho, &bytes).map_err(|e| format!("Não consegui gravar {}: {e}", caminho.display()))
         }

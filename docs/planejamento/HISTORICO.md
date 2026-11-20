@@ -4,6 +4,9 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- MCP avulso: salvar `.xlsx` perdia o painel congelado, as linhas de grade e os zeros ocultos (o app guarda o
+  `<sheetView>` ao abrir e devolve com `xlsx_write::com_vistas`; o MCP gravava sem). `Avulso::vistas` guarda pelo id
+  da aba e `arquivo::salvar` passa por `com_vistas`. Teste `salvar_xlsx_pelo_mcp_mantem_painel_congelado_e_linhas_de_grade`.
 - Formato personalizado (`0000` do CEP, `"Total: "0`) era ignorado na exportação CSV, na impressão em PDF e no
   texto do `.xlsx_write::texto_formatado`: os três usavam `format_number` (só o `format`), a grade usa
   `format_value` (o `code` manda). Agora os três passam por `format_value`. Teste

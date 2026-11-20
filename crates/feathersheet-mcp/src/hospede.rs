@@ -75,11 +75,14 @@ pub struct Avulso {
     pub aba: usize,
     pub caminho: Option<PathBuf>,
     pub alterado: bool,
+    /// O `<sheetView>` de cada aba do `.xlsx` aberto (linhas de grade, painel congelado, zeros), pelo id
+    /// da aba: volta ao salvar `.xlsx`, mesmo com abas criadas ou apagadas no meio.
+    pub vistas: std::collections::HashMap<u32, feathersheet_io::xlsx_read::VistaAba>,
 }
 
 impl Default for Avulso {
     fn default() -> Self {
-        Self { pasta: Workbook::new(), aba: 0, caminho: None, alterado: false }
+        Self { pasta: Workbook::new(), aba: 0, caminho: None, alterado: false, vistas: Default::default() }
     }
 }
 
@@ -94,6 +97,8 @@ impl Hospede for Avulso {
 
     fn abrir(&mut self, caminho: &Path) -> Result<String, String> {
         let (pasta, aba) = crate::arquivo::abrir(caminho)?;
+        self.vistas = crate::arquivo::vistas(caminho).into_iter().enumerate()
+            .filter_map(|(i, v)| Some((pasta.aba(i)?.id, v))).collect();
         self.pasta = pasta;
         self.aba = aba;
         self.caminho = Some(caminho.to_path_buf());
@@ -104,9 +109,37 @@ impl Hospede for Avulso {
     fn salvar(&mut self, caminho: Option<&Path>) -> Result<String, String> {
         let destino = caminho.map(Path::to_path_buf).or_else(|| self.caminho.clone())
             .ok_or("A pasta ainda não tem arquivo: informe `caminho` (.fshz).")?;
-        crate::arquivo::salvar(&self.pasta, self.aba_ativa(), &destino)?;
+        let vistas = (0..self.pasta.len()).filter_map(|i| self.pasta.aba(i))
+            .map(|a| self.vistas.get(&a.id).copied().unwrap_or_default()).collect();
+        crate::arquivo::salvar(&self.pasta, self.aba_ativa(), &destino, vistas)?;
         self.caminho = Some(destino.clone());
         self.alterado = false;
         Ok(format!("Salvo em {}", destino.display()))
+    }
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+    use feathersheet_io::xlsx_read::VistaAba;
+
+    #[test]
+    fn salvar_xlsx_pelo_mcp_mantem_painel_congelado_e_linhas_de_grade() {
+        let pasta = std::env::temp_dir().join(format!("fs-mcp-vistas-{}", std::process::id()));
+        std::fs::create_dir_all(&pasta).unwrap();
+        let (origem, destino) = (pasta.join("a.xlsx"), pasta.join("b.xlsx"));
+        let mut w = Workbook::new();
+        w.criar_aba("Segunda");
+        let vista = VistaAba { linhas_grade: false, congelar: (2, 1), zeros: true };
+        let bytes = feathersheet_io::xlsx_write::com_vistas(vec![vista, VistaAba::default()], || feathersheet_io::xlsx_write::gerar_xlsx(&w)).unwrap();
+        std::fs::write(&origem, bytes).unwrap();
+        let mut h = Avulso::default();
+        h.abrir(&origem).unwrap();
+        // Uma aba nova no começo: a vista continua com a aba dela, não com a posição.
+        h.pasta.inserir_aba("Nova", 0);
+        h.salvar(Some(&destino)).unwrap();
+        let lidas = feathersheet_io::xlsx_read::ler_vistas_arquivo(&destino);
+        let _ = std::fs::remove_dir_all(&pasta);
+        assert_eq!(lidas, vec![VistaAba::default(), vista, VistaAba::default()]);
     }
 }
