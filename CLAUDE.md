@@ -92,7 +92,10 @@ imagens, para leitores de tela."
 SE, SOMA/SOMASE/CONT.SE no topo), `taskset -c 0-7` nos dois; FeatherSheet pelo exemplo `comparar_desempenho`,
 GridCraft por `gridcraft.cli cat`/`convert`. Abrir+calcular 1 milhão de linhas: 1,8 s e 0,23 GB contra 21 s e 3,4 GB;
 gravar: 3,8 s contra 27 s; 50 mil PROCV+CONT.SE: 1,1 s contra 98 s. Mesmos totais, e cada um abre o arquivo do outro.
-O `.xlsx` nosso saía 65% maior (zip `fast`): `zip_write` passou ao nível 4 (1 milhão de linhas: 71 → 44 MB,
+Abrir CSV de 1 milhão de linhas: 1,7 s e 0,2 GB contra 2,8 s e 0,8 GB. Ordenar 1 milhão
+de linhas levava 27 s só para mover: `permutar_sem_registro` tirava e punha o estilo célula por célula, partindo a faixa
+do `EstilosCelula` a cada vez (memmove, quadrático; a coluna de datas do CSV tem estilo em toda célula). Agora remonta
+as faixas por coluna: 0,3 s (abrir+ordenar 3,5 s contra 8,7 s do GridCraft). O `.xlsx` nosso saía 65% maior (zip `fast`): `zip_write` passou ao nível 4 (1 milhão de linhas: 71 → 44 MB,
 gravar 2,0 → 2,9 s). Novidade: ".xlsx salvo cerca de 40% menor."
 
 **Conferido com o GridCraft (19/11).** `gridcraft.cli check` (snap; arquivos em `~/snap/gridcraft/common/`) sobre a

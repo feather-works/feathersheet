@@ -39,6 +39,7 @@ pub(super) fn classificar_por_varias_chaves() {
 pub(super) fn ordenar_leva_estilo_e_formula_e_desfaz_de_uma_vez() {
     let mut s = planilha(&[&["Nome", "Dobro"], &["c", "=B2*0"], &["a", "=A3"], &["b", ""]]);
     s.set_style(&Rect::new(2, 0, 2, 0), &negrito());
+    s.set_style(&Rect::new(5, 0, 5, 0), &negrito());
     s.clear_history();
     let chaves = [SortKey { col: 0, ascending: true }];
     sort_range(&mut s, Rect::new(0, 0, 3, 1), &chaves, true);
@@ -48,9 +49,12 @@ pub(super) fn ordenar_leva_estilo_e_formula_e_desfaz_de_uma_vez() {
     assert_eq!(s.get_raw(3, 1), "=B4*0");
     assert!(s.estilo_mesclado(1, 0).is_some_and(|e| e.contains_key("bold")), "o negrito de \"a\" foi junto");
     assert!(s.estilo_mesclado(2, 0).is_none_or(|e| !e.contains_key("bold")));
+    assert!(s.estilo_mesclado(5, 0).is_some_and(|e| e.contains_key("bold")), "fora da área o estilo fica");
     s.undo();
     assert_eq!(coluna(&s, 0, 3), ["Nome", "c", "a", "b"]);
     assert_eq!(s.get_raw(2, 1), "=A3");
+    assert!(s.estilo_mesclado(2, 0).is_some_and(|e| e.contains_key("bold")), "o Ctrl+Z devolve o negrito");
+    assert!(s.estilo_mesclado(1, 0).is_none_or(|e| !e.contains_key("bold")));
 }
 
 #[test]

@@ -2868,13 +2868,20 @@ impl Sheet {
                 regravar.push((destino, origem, col, raw));
             }
         }
-        let estilos: Vec<(CellKey, usize)> = self.styles.chaves_no_retangulo(first, c0, last, c1).into_iter()
-            .filter_map(|k| self.styles.get(k).map(|v| (k, v))).collect();
-        for (k, _) in &estilos {
-            self.styles.remove(k);
-        }
-        for (k, v) in estilos {
-            self.styles.insert(novo(k), v);
+        // Estilo por faixas, coluna a coluna: tirar e pôr célula por célula partia a faixa
+        // a cada passo (memmove no vetor) e ordenar 1 milhão de datas levava 27 s (19/11).
+        for col in c0..=c1 {
+            if !self.styles.faixas_da_coluna(col).iter().any(|f| f.r1 >= first && f.r0 <= last) { continue; }
+            let antes: Vec<Option<usize>> = (first..=last).map(|r| self.styles.get_em(r, col)).collect();
+            self.styles.remover_faixa(col, first, last);
+            let mut i = 0usize;
+            while i < ordem.len() {
+                let estilo = antes[(ordem[i] - first) as usize];
+                let mut j = i;
+                while j + 1 < ordem.len() && antes[(ordem[j + 1] - first) as usize] == estilo { j += 1; }
+                if let Some(idx) = estilo { self.styles.inserir_faixa(col, first + i as u32, first + j as u32, idx); }
+                i = j + 1;
+            }
         }
         let textos: Vec<(CellKey, String)> = self.textos.iter().filter(|(&k, _)| dentro(k)).map(|(&k, v)| (k, v.to_owned())).collect();
         for (k, _) in &textos {
