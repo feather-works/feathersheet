@@ -97,6 +97,12 @@ a moldura na grade sai das referências do texto, então são duas caixas (antes
 O `.xlsx` filtra `hiddenSeries`, então o Excel recebe só A e D. Áreas de linhas diferentes: só a ativa. Teste
 `colunas_separadas_com_ctrl_viram_categoria_e_serie`. Novidade: "Gráfico com colunas separadas (A e D com Ctrl), como no Excel."
 
+**Nome da série sem cabeçalho como no Excel (19/11, pedido do pai depois de abrir no LibreOffice).** Era "Série 3"
+(espaço e a posição da coluna). Agora o motor deixa o nome vazio e, depois de tirar as ocultas, dá
+`nome_padrao_da_serie(i)` = "Série1", "Série2"… pela ordem no gráfico (também nos caminhos 3D e resumido). No `.xlsx` a
+série sem cabeçalho e com o nome padrão sai sem `c:tx`, como o Excel grava (o LibreOffice/Excel dão o próprio nome).
+Teste `serie_sem_cabecalho_se_chama_serie1_e_nao_vai_no_xlsx`.
+
 **Pasta com abas ligadas, conferida pelo GridCraft (19/11).** 24 meses × 2 mil linhas (cada mês faz PROCV no anterior),
 Cadastro, Parametros com o nome `Taxa`, Resumo com 3D (`Mes_01:Mes_24!`) e SOMARPRODUTO: 288.126 fórmulas, todas
 iguais às do GridCraft (`gridcraft.cli check` no arquivo que nós salvamos). Achou três erros nossos:

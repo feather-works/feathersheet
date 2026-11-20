@@ -1567,3 +1567,29 @@ fn gantt_marca_hoje_e_pinta_pela_situacao_pelo_painel() {
     assert_eq!(salvos[0]["_featherNative"]["estilo"]["gantt"]["concluida"], "#123456");
     assert!(svg_do_grafico_salvo(&aba.sheet, &salvos[0]).unwrap().contains("class=\"hoje\""));
 }
+
+/// O caso da foto do pai: 1, 2, 3 em A e em C, sem cabeçalho, A e C com Ctrl. Como no Excel e
+/// no LibreOffice, a série se chama "Série1" (não "Série 3", a posição da coluna) e o `.xlsx`
+/// não grava o nome (quem abre dá o seu).
+#[test]
+fn serie_sem_cabecalho_se_chama_serie1_e_nao_vai_no_xlsx() {
+    let mut a = App::default();
+    let _ = a.update(Msg::Colar("1\t\t1\n2\t\t2\n3\t\t3".into()));
+    a.selecoes_extras = vec![feathersheet_core::celulas::refs::Rect::new(0, 0, 2, 0)];
+    a.linha = 0;
+    a.coluna = 2;
+    a.fim_selecao = (2, 2);
+    let _ = a.evento_grafico(Evento::Abrir);
+    let _ = a.evento_grafico(Evento::Tipo(TipoUi::Colunas));
+    let aba = a.workbook.aba(0).unwrap();
+    let cfg: feathersheet_core::grafico::chart::ChartConfig =
+        serde_json::from_value(feathersheet_io::graficos_salvos::listar(&aba.sheet).unwrap()[0].clone()).unwrap();
+    let dados = feathersheet_core::grafico::chart::extract_chart_data(&aba.sheet, &cfg);
+    let nomes: Vec<&str> = dados.series.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(nomes, [feathersheet_core::grafico::chart::nome_padrao_da_serie(0).as_str()]);
+    let bytes = feathersheet_io::xlsx_write::gerar_xlsx(&a.workbook).unwrap();
+    let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+    let mut xml = String::new();
+    std::io::Read::read_to_string(&mut z.by_name("xl/charts/chart1.xml").unwrap(), &mut xml).unwrap();
+    assert!(!xml.contains("<c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:tx>") && !xml.contains("Série"), "{xml}");
+}

@@ -688,15 +688,8 @@ pub fn extract_chart_data_visiveis(
         let bruto = texto_movido(valor);
         if bruto.is_empty() { format!("Item {item}") } else { bruto }
     };
-    let nome_da_coluna = |c: u32| {
-        let reserva = crate::trf!("Série {}", c - c0 + 1);
-        if header_offset > 0 {
-            let s = str_de(r0, c);
-            if s.is_empty() { reserva } else { s }
-        } else {
-            reserva
-        }
-    };
+    // Sem cabeçalho o nome fica vazio: "Série1, Série2…" sai no fim, pela ordem no gráfico (Excel).
+    let nome_da_coluna = |c: u32| if header_offset > 0 { str_de(r0, c) } else { String::new() };
 
     let mut amostrado: Option<Amostra> = None;
     let mut anotar_amostra = |disponiveis: usize, usados: usize| {
@@ -748,7 +741,7 @@ pub fn extract_chart_data_visiveis(
             }
             None => (
                 linhas.iter().map(|&r| (r - data_row_start + 1).to_string()).collect(),
-                vec![ChartSeries { name: nome_da_coluna(y), values: ler(y) }],
+                vec![ChartSeries { name: Some(nome_da_coluna(y)).filter(|n| !n.is_empty()).unwrap_or_else(|| nome_padrao_da_serie(0)), values: ler(y) }],
                 None,
             ),
         };
@@ -838,7 +831,7 @@ pub fn extract_chart_data_visiveis(
             let mut sem_moda: Vec<String> = Vec::new();
             let mut series = Vec::with_capacity(colunas.len());
             for (k, &c) in colunas.iter().enumerate() {
-                let nome = nome_da_coluna(c);
+                let nome = Some(nome_da_coluna(c)).filter(|n| !n.is_empty()).unwrap_or_else(|| nome_padrao_da_serie(k));
                 if moda_estourou[k] {
                     sem_moda.push(nome.clone());
                 }
@@ -945,13 +938,9 @@ pub fn extract_chart_data_visiveis(
                         name_parts.push(s);
                     }
                 }
-                if name_parts.is_empty() {
-                    crate::trf!("Série {}", r - r0 + 1)
-                } else {
-                    name_parts.join(" - ")
-                }
+                name_parts.join(" - ")
             } else {
-                crate::trf!("Série {}", r - r0 + 1)
+                String::new()
             };
             let mut numerica = false;
             let values = colunas
@@ -992,6 +981,10 @@ pub fn extract_chart_data_visiveis(
             fica
         });
         ordens.retain(|o| !escondidas.contains(o));
+    }
+    // Como o Excel e o LibreOffice: a série sem nome é "Série1", "Série2"… pela ordem no gráfico.
+    for (i, s) in series.iter_mut().enumerate() {
+        if s.name.is_empty() { s.name = nome_padrao_da_serie(i); }
     }
 
     if vai_agregar && !categories.is_empty() && !series.is_empty() {
@@ -1049,10 +1042,15 @@ pub fn extract_raw_chart_series_with(
         .into_iter()
         .enumerate()
         .map(|(i, s)| {
-            let nome = if s.name.is_empty() { crate::trf!("Série {}", i + 1) } else { s.name };
+            let nome = if s.name.is_empty() { nome_padrao_da_serie(i) } else { s.name };
             (i as u32, nome)
         })
         .collect()
+}
+
+/// O nome que o Excel dá à série sem nome: "Série1" (a contar de 0 aqui).
+pub fn nome_padrao_da_serie(i: usize) -> String {
+    crate::trf!("Série{}", i + 1)
 }
 
 // ----------------------------------------------------------- utilitários

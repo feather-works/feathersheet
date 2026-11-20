@@ -312,7 +312,11 @@ fn extrair(sheet: &Sheet, aba: &str, cfg: &ChartConfig, dados: &ChartData) -> Ex
         .map(|(i, (c, s))| {
             let (a, b, cc, d) = c.valores;
             Serie {
-                nome: Textos { f: c.nome.map(|(l, col)| area_ref(aba, l, col, l, col)), v: vec![s.name.clone()] },
+                // Sem cabeçalho e com o nome padrão ("Série1"), o Excel não grava `c:tx`: quem abre dá o seu.
+                nome: Textos {
+                    f: c.nome.map(|(l, col)| area_ref(aba, l, col, l, col)),
+                    v: if c.nome.is_none() && s.name == feathersheet_core::grafico::chart::nome_padrao_da_serie(i) { Vec::new() } else { vec![s.name.clone()] },
+                },
                 val: Numeros { f: Some(area_ref(aba, a, b, cc, d)), v: s.values.clone() },
                 cor: get_series_color(&cfg.style, i as u32),
                 invisivel: false,
@@ -382,6 +386,9 @@ fn fonte_numero(o: &mut String, n: &Numeros) {
 }
 
 fn tx_serie(o: &mut String, t: &Textos) {
+    if t.f.is_none() && t.v.is_empty() {
+        return;
+    }
     let nome = t.v.first().cloned().unwrap_or_default();
     match &t.f {
         Some(f) => {
