@@ -220,6 +220,30 @@ use super::editor::svg_do_grafico_salvo;
         ).is_none());
     }
 
+    /// Coluna A e coluna D com Ctrl, como no Excel: o gráfico tem A como categorias e só D
+    /// como série (B e C ficam ocultas; B de texto nem entra na numeração sem resumir).
+    #[test]
+    fn colunas_separadas_com_ctrl_viram_categoria_e_serie() {
+        let mut a = App::default();
+        let _ = a.update(Msg::Colar("Mes\tObs\tCusto\tVenda\njan\tx\t5\t10\nfev\ty\t6\t20\nmar\tz\t7\t30".into()));
+        a.selecoes_extras = vec![Rect::new(0, 0, 3, 0)];
+        a.linha = 0;
+        a.coluna = 3;
+        a.fim_selecao = (3, 3);
+        let _ = a.evento_grafico(Evento::Abrir);
+        assert_eq!(a.graficos.intervalo, "A1:D4");
+        assert_eq!(a.graficos.ocultas, [0], "Custo (C) fica oculta; Obs (B) não tem número");
+        let _ = a.evento_grafico(Evento::Tipo(TipoUi::Colunas));
+        let nomes: Vec<String> = a.series_da_origem().into_iter().filter(|(o, _)| !a.graficos.ocultas.contains(o)).map(|s| s.1).collect();
+        assert_eq!(nomes, ["Venda"]);
+        // Áreas de linhas diferentes: fica só a ativa, como antes.
+        a.selecoes_extras = vec![Rect::new(0, 0, 1, 0)];
+        let _ = a.evento_grafico(Evento::Abrir);
+        let _ = a.evento_grafico(Evento::Abrir);
+        assert_eq!(a.graficos.intervalo, "D1:D4");
+        assert!(a.graficos.ocultas.is_empty());
+    }
+
     #[test]
     fn dropdown_respeita_selecao_e_grafico_move_na_grade() {
         let mut a = App::default();

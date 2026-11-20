@@ -88,6 +88,12 @@ gráficos não (gráfico tem o seu no painel; controle no Formatar controle). A 
 Testes `texto_alternativo_da_imagem` e `imagens_da_aba_vao_para_o_desenho_e_voltam`. Novidade: "Texto alternativo nas
 imagens, para leitores de tela."
 
+**Gráfico de colunas separadas com Ctrl (19/11, pedido do pai).** Coluna A e coluna D marcadas (`selecoes_extras`)
+com as mesmas linhas e sem se cruzar: `colunas_fora_da_selecao` faz o intervalo A:D e `ocultar_colunas` põe B e C em
+`ocultas`, na numeração que o desenho usa (sem resumir, coluna sem número não conta). O `.xlsx` já filtra
+`hiddenSeries`, então o Excel recebe só D. Áreas de linhas diferentes: só a ativa, como antes. Teste
+`colunas_separadas_com_ctrl_viram_categoria_e_serie`. Novidade: "Gráfico com colunas separadas (A e D com Ctrl), como no Excel."
+
 **Pasta com abas ligadas, conferida pelo GridCraft (19/11).** 24 meses × 2 mil linhas (cada mês faz PROCV no anterior),
 Cadastro, Parametros com o nome `Taxa`, Resumo com 3D (`Mes_01:Mes_24!`) e SOMARPRODUTO: 288.126 fórmulas, todas
 iguais às do GridCraft (`gridcraft.cli check` no arquivo que nós salvamos). Achou três erros nossos:

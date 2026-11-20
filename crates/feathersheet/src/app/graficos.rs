@@ -1394,6 +1394,9 @@ impl App {
                         area = aba.sheet.regiao_da_tabela(area.r0, area.c0);
                     }
                 }
+                // Ctrl+clique em colunas separadas (A e D), como no Excel: o bloco de A até D
+                // com as colunas do meio que não foram escolhidas como séries ocultas.
+                let colunas_fora = self.colunas_fora_da_selecao(&mut area);
                 // Captura a posição do clique ANTES de recriar o estado.
                 // A assinatura global do mouse usa coordenadas da janela.
                 let cursor_abertura = self.graficos.cursor;
@@ -1427,6 +1430,10 @@ impl App {
                     ..Default::default()
                 };
                 self.atualizar_grafico();
+                if !colunas_fora.is_empty() {
+                    self.ocultar_colunas(&colunas_fora, area.c0);
+                    self.atualizar_grafico();
+                }
                 return Task::none();
             }
             Evento::Cursor(p) => {
@@ -1878,3 +1885,42 @@ impl App {
 }
 #[cfg(test)]
 mod testes;
+
+impl App {
+    /// Com várias áreas de colunas nas mesmas linhas, sem se cruzar (A1:A10 e D1:D10):
+    /// `area` vira o bloco que as cobre e volta a lista das colunas do meio que ficaram de fora.
+    /// Áreas de formatos diferentes: fica só a ativa, como antes.
+    fn colunas_fora_da_selecao(&self, area: &mut feathersheet_core::celulas::refs::Rect) -> Vec<u32> {
+        let areas: Vec<_> = self.areas_selecionadas().into_iter().map(|a| a.normalized()).collect();
+        let Some(primeira) = areas.first() else { return Vec::new() };
+        let mesmas_linhas = areas.iter().all(|a| a.r0 == primeira.r0 && a.r1 == primeira.r1);
+        let separadas = areas.iter().enumerate().all(|(i, a)| areas[i + 1..].iter().all(|b| a.c1 < b.c0 || b.c1 < a.c0));
+        if areas.len() < 2 || !mesmas_linhas || !separadas {
+            return Vec::new();
+        }
+        let (c0, c1) = (areas.iter().map(|a| a.c0).min().unwrap_or(0), areas.iter().map(|a| a.c1).max().unwrap_or(0));
+        *area = feathersheet_core::celulas::refs::Rect::new(primeira.r0, c0, primeira.r1, c1);
+        (c0..=c1).filter(|&c| !areas.iter().any(|a| a.c0 <= c && c <= a.c1)).collect()
+    }
+
+    /// Esconde as séries das colunas `fora` (absolutas; o intervalo começa em `c0`), na
+    /// numeração que o desenho usa agora (sem resumir, o motor pula a série sem número).
+    fn ocultar_colunas(&mut self, fora: &[u32], c0: u32) {
+        let tipos = self.series_de_texto();
+        let g = &mut self.graficos;
+        let todas = g.agrupar && g.colunas && g.categorias;
+        let n = parse_range_ref(g.intervalo.trim()).map_or(0, |r| { let r = r.normalized(); r.c1 - r.c0 + 1 });
+        let (mut ordem_todas, mut ordem) = (0u32, 0u32);
+        let mut ocultas = Vec::new();
+        for k in 0..n {
+            if g.categorias && k == g.coluna_categoria { continue; }
+            if todas || !tipos.sem_numero.contains(&ordem_todas) {
+                if fora.contains(&(c0 + k)) { ocultas.push(ordem); }
+                ordem += 1;
+            }
+            ordem_todas += 1;
+        }
+        g.ocultas = ocultas;
+        g.series_todas = Some(todas);
+    }
+}

@@ -61,6 +61,7 @@ Help menu, under *What's new*).
 - **Sheet tab colors** now open from and save to `.xlsx`.
 - **Click to copy** a sum, average or count in the status bar, like Excel.
 - **Sorting a million rows is ~80× faster** when cells have their own format (dates, currency): 27 s → 0.3 s to move the rows.
+- **Charts from separate columns:** select column A, hold Ctrl and select column D, and the chart uses A as categories and D as the series, like Excel.
 - **Fixed: a named range with a Portuguese function name** (like `Taxa`) was saved to `.xlsx` as the function (`RATE`), breaking the formula in Excel.
 - **Fixed: chains across sheets now update when you edit** (a value on Sheet1 → Sheet2 → back to Sheet1 kept the old result until the file was reopened).
 - **Workbooks with many linked sheets calculate ~3× faster.**
