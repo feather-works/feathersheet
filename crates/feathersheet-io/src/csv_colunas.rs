@@ -318,12 +318,15 @@ struct Construtor<'a> {
     avulsas: Vec<(u32, u32, u32)>,
     /// A língua em que a coluna foi escrita ([`linguas_da_amostra`]); `None`: como sempre foi.
     lingua: Option<&'a LocaleConfig>,
+    /// Datas da coluna escritas mês/dia/ano ([`ColunaCsv::mes_primeiro`]).
+    mes_primeiro: bool,
 }
 
 impl<'a> Construtor<'a> {
-    fn novo(lingua: Option<&'a LocaleConfig>) -> Self {
+    fn novo(coluna: Option<&'a ColunaCsv>) -> Self {
         Construtor { numeros: None, textos: None, verbetes: Vec::new(), dict: HashMap::default(),
-            bools: [-1; 2], avulsas: Vec::new(), lingua }
+            bools: [-1; 2], avulsas: Vec::new(), lingua: coluna.and_then(|c| c.lingua.as_ref()),
+            mes_primeiro: coluna.is_some_and(|c| c.mes_primeiro) }
     }
 
     /// O campo `ini..fim` de `texto` na linha `r` do bloco.
@@ -335,6 +338,8 @@ impl<'a> Construtor<'a> {
         let bit = 1u8 << (r & 7);
         let classe = if t.starts_with('=') { Classe::Outra }
             else if codigo_com_zero(t) { Classe::Texto }
+            // A data mês/dia vira avulsa com o texto trocado por quem grava ([`sem_milhar_da_coluna`]).
+            else if self.mes_primeiro && dia_e_mes_trocados(t).is_some() { Classe::Outra }
             else if let Some(sem) = self.lingua.and_then(|l| sem_milhar_digitado(t, l)) {
                 // Milhar da língua da coluna tirado: o número vai direto; moeda e percentual
                 // seguem como avulsa, e quem grava tira o milhar de novo.
@@ -389,8 +394,8 @@ impl<'a> Construtor<'a> {
 /// guardado (linha a linha): coluna a coluna, cada campo lido ficava longe
 /// do anterior na memória e o processador esperava a RAM (6,1 s em 70
 /// milhões de células, 16/10/2026).
-fn montar_grupo<'a>(de: usize, ate: usize, bloco: &BlocoLinhas, texto: &'a str, linguas: &'a [Option<LocaleConfig>]) -> Vec<BlocoColuna> {
-    let mut construtores: Vec<Construtor> = (de..ate).map(|c| Construtor::novo(linguas.get(c).and_then(Option::as_ref))).collect();
+fn montar_grupo<'a>(de: usize, ate: usize, bloco: &BlocoLinhas, texto: &'a str, linguas: &'a [ColunaCsv]) -> Vec<BlocoColuna> {
+    let mut construtores: Vec<Construtor> = (de..ate).map(|c| Construtor::novo(linguas.get(c))).collect();
     for r in 0..bloco.quantas_linhas() {
         let primeiro = bloco.linhas[r] as usize;
         let campos = bloco.linhas[r + 1] as usize - primeiro;
@@ -404,7 +409,7 @@ fn montar_grupo<'a>(de: usize, ate: usize, bloco: &BlocoLinhas, texto: &'a str, 
 
 /// Classifica as colunas do bloco em `nucleos` threads (cada uma com a sua
 /// faixa de colunas); com um núcleo, aqui mesmo.
-fn montar_colunas(bloco: &BlocoLinhas, texto: &str, nucleos: usize, linguas: &[Option<LocaleConfig>]) -> Vec<BlocoColuna> {
+fn montar_colunas(bloco: &BlocoLinhas, texto: &str, nucleos: usize, linguas: &[ColunaCsv]) -> Vec<BlocoColuna> {
     let colunas = (0..bloco.quantas_linhas())
         .map(|r| (bloco.linhas[r + 1] - bloco.linhas[r]) as usize).max().unwrap_or(0);
     if nucleos <= 1 || colunas <= 1 {
@@ -422,7 +427,7 @@ fn montar_colunas(bloco: &BlocoLinhas, texto: &str, nucleos: usize, linguas: &[O
 /// Lê `leitor` (o arquivo inteiro) para dentro de `aba`, vazia. `delim`
 /// já escolhido (ASCII). `linguas`: a língua de cada coluna, de [`linguas_da_amostra`].
 /// Devolve as células gravadas.
-pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, linguas: &[Option<LocaleConfig>], aba: &mut Sheet) -> Result<u64, String> {
+pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, linguas: &[ColunaCsv], aba: &mut Sheet) -> Result<u64, String> {
     use std::time::{Duration, Instant};
     let nucleos = feathersheet_core::paralelismo::nucleos();
     let (para_montar, a_montar) = std::sync::mpsc::sync_channel::<BlocoLinhas>(2);
@@ -527,19 +532,57 @@ pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, linguas: &[Option
 /// milhar sai antes do analisador: `"12,345"` numa coluna de ponto decimal é 12345, e `1.234`
 /// numa de vírgula é 1234. Coluna sem sinal (`None`) é lida como sempre foi.
 // shortcut: só a amostra (64 KiB) decide; coluna cujo sinal aparece depois dela fica como era.
-pub(crate) fn linguas_da_amostra(texto: &str, delim: char, cortada: bool) -> Vec<Option<LocaleConfig>> {
+pub(crate) fn linguas_da_amostra(texto: &str, delim: char, cortada: bool) -> Vec<ColunaCsv> {
     let mut linhas = crate::csv::dividir_csv(texto, delim);
     if cortada { linhas.pop(); }
-    feathersheet_core::celulas::input::decimais_das_colunas(&linhas).into_iter()
-        .map(|d| feathersheet_core::celulas::input::lingua_da_coluna(d, None)).collect()
+    feathersheet_core::celulas::input::decimais_das_colunas(&linhas).into_iter().enumerate()
+        .map(|(c, d)| ColunaCsv {
+            lingua: feathersheet_core::celulas::input::lingua_da_coluna(d, None),
+            mes_primeiro: mes_primeiro(linhas.iter().filter_map(|l| l.get(c)).map(String::as_str)),
+        }).collect()
+}
+
+/// O que a amostra diz de uma coluna do CSV.
+pub(crate) struct ColunaCsv {
+    /// A língua do decimal (`None`: como sempre foi).
+    pub lingua: Option<LocaleConfig>,
+    /// As datas `a/b/aaaa` estão como mês/dia (o CSV americano): alguma tem o segundo número
+    /// acima de 12 e nenhuma o primeiro. Sem isso, `02/13/2026` ficava texto e `01/02/2026` virava 1º de fevereiro.
+    pub mes_primeiro: bool,
+}
+
+/// `a/b/aaaa` em números (dia e mês ainda sem ordem).
+fn partes_da_data(t: &str) -> Option<(u32, u32, &str)> {
+    let mut p = t.split('/');
+    let (a, b, ano) = (p.next()?, p.next()?, p.next()?);
+    let curto = |s: &str| (1..=2).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit());
+    if p.next().is_some() || !curto(a) || !curto(b) || !(2..=4).contains(&ano.len()) || !ano.bytes().all(|b| b.is_ascii_digit()) { return None; }
+    Some((a.parse().ok()?, b.parse().ok()?, ano))
+}
+
+fn mes_primeiro<'a>(valores: impl Iterator<Item = &'a str>) -> bool {
+    let (mut dia_primeiro, mut mes_primeiro) = (false, false);
+    for (a, b, _) in valores.filter_map(|v| partes_da_data(v.trim())) {
+        dia_primeiro |= a > 12;
+        mes_primeiro |= b > 12;
+    }
+    mes_primeiro && !dia_primeiro
+}
+
+/// `m/d/aaaa` reescrita `d/m/aaaa`, como o leitor de datas espera.
+fn dia_e_mes_trocados(t: &str) -> Option<String> {
+    let (m, d, ano) = partes_da_data(t)?;
+    Some(format!("{d}/{m}/{ano}"))
 }
 
 /// O campo `raw` da coluna `col` sem o milhar da língua dela; `None`: fica como veio.
-pub(crate) fn sem_milhar_da_coluna(raw: &str, linguas: &[Option<LocaleConfig>], col: usize) -> Option<String> {
-    let lingua = linguas.get(col)?.as_ref()?;
+/// Numa coluna mês/dia, a data sai trocada para dia/mês.
+pub(crate) fn sem_milhar_da_coluna(raw: &str, linguas: &[ColunaCsv], col: usize) -> Option<String> {
+    let coluna = linguas.get(col)?;
     let t = raw.trim();
     if t.starts_with('=') { return None; }
-    sem_milhar_digitado(t, lingua)
+    if coluna.mes_primeiro { if let Some(d) = dia_e_mes_trocados(t) { return Some(d); } }
+    sem_milhar_digitado(t, coluna.lingua.as_ref()?)
 }
 
 /// Escolhe o separador como o `feather_io::csv_lotes` (numa amostra de
@@ -548,7 +591,7 @@ pub(crate) fn sem_milhar_da_coluna(raw: &str, linguas: &[Option<LocaleConfig>], 
 /// "ANSI" do Excel e dos dados do governo, como os do TSE) são convertidos ao ler.
 // shortcut: só a amostra decide a codificação; byte inválido depois dela ainda dá erro.
 pub(crate) fn separador_e_leitor<R: BufRead + Send + 'static>(mut leitor: R, tsv: bool, preferido: Option<char>)
-    -> std::io::Result<(char, Vec<Option<LocaleConfig>>, Box<dyn BufRead + Send>)> {
+    -> std::io::Result<(char, Vec<ColunaCsv>, Box<dyn BufRead + Send>)> {
     let mut amostra = Vec::new();
     leitor.by_ref().take(64 * 1024).read_to_end(&mut amostra)?;
     let cortada = amostra.len() == 64 * 1024;
@@ -794,6 +837,18 @@ mod testes {
         assert_eq!((p.valor(0, 1, 1), p.valor(0, 1, 2)), (Value::Number(0.0), Value::Number(0.5)));
         let c = celula_a_celula(b"cep\n007\n", false, None);
         assert_eq!(c.valor(0, 1, 0), Value::Text("007".into()));
+    }
+
+    #[test]
+    fn coluna_de_datas_mes_dia_vira_data_certa() {
+        use feathersheet_core::Value;
+        // 02/13 só cabe como mês/dia: a coluna inteira é americana, e 01/02 é 2 de janeiro.
+        let csv = b"date,br\n01/02/2026,01/02/2026\n02/13/2026,13/02/2026\n";
+        for p in [por_colunas(csv, false, None), celula_a_celula(csv, false, None)] {
+            assert_eq!(p.valor(0, 1, 0), Value::Number(46024.0), "2 de janeiro");
+            assert_eq!(p.valor(0, 2, 0), Value::Number(46066.0), "13 de fevereiro");
+            assert_eq!(p.valor(0, 1, 1), Value::Number(46054.0), "a coluna dia/mês segue como era");
+        }
     }
 
     /// Os atalhos de `classificar` dão sempre o que o `parse_literal` daria.

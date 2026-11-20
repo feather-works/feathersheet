@@ -4,6 +4,10 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- CSV com datas mês/dia (o americano): `02/13/2026` ficava texto e `01/02/2026` virava 1º de fevereiro. A amostra
+  marca a coluna `mes_primeiro` quando algum segundo número passa de 12 e nenhum primeiro passa
+  (`csv_colunas::ColunaCsv`); a data sai trocada para dia/mês nos dois caminhos. Teste
+  `coluna_de_datas_mes_dia_vira_data_certa`; Ajuda F1 nas quatro línguas.
 - MCP avulso: salvar `.xlsx` perdia o painel congelado, as linhas de grade e os zeros ocultos (o app guarda o
   `<sheetView>` ao abrir e devolve com `xlsx_write::com_vistas`; o MCP gravava sem). `Avulso::vistas` guarda pelo id
   da aba e `arquivo::salvar` passa por `com_vistas`. Teste `salvar_xlsx_pelo_mcp_mantem_painel_congelado_e_linhas_de_grade`.
