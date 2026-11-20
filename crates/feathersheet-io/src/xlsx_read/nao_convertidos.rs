@@ -120,6 +120,16 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
     };
     let livro = xml::parse_xml(&entry_text(&mut z, "xl/workbook.xml")?).map_err(|e| e.to_string())?;
     let rels = sheet::read_rels(&entry_text(&mut z, "xl/_rels/workbook.xml.rels")?);
+    // Nome com valor ou fórmula (`=7`, `=Taxa*2`): o motor só guarda nome de intervalo e a leitura o deixa
+    // de fora. Nome igual em mais de uma aba (`localSheetId`): o motor tem um só, fica o último.
+    // `#REF!` é nome já quebrado no próprio Excel; não conta.
+    let lidos = sheet::read_names(&livro);
+    let candidatos = livro.child("definedNames").into_iter().flat_map(|d| d.children_named("definedName"))
+        .filter(|n| n.attr("function") != Some("1") && n.attr("name").is_some_and(|m| !sheet::eh_nome_de_pagina(m)))
+        .filter(|n| !n.text.contains("#REF!")).count();
+    somar(None, "Nome definido com valor ou fórmula", candidatos.saturating_sub(lidos.len()));
+    let mut vistos = std::collections::HashSet::new();
+    somar(None, "Nome definido repetido em outra aba", lidos.iter().filter(|n| !vistos.insert(n.name.to_uppercase())).count());
     for no in livro.child("sheets").into_iter().flat_map(|s| s.children_named("sheet")) {
         let (Some(nome), Some(alvo)) = (no.attr("name"), no.attr("r:id").and_then(|id| rels.get(id))) else { continue };
         let caminho = match alvo.strip_prefix('/') { Some(a) => a.to_owned(), None => format!("xl/{}", alvo.trim_start_matches("./")) };
@@ -188,7 +198,11 @@ mod testes {
         {
             let mut zw = zip::ZipWriter::new(Cursor::new(&mut bytes));
             let mut f = |n: &str, t: &str| { zw.start_file(n, SimpleFileOptions::default()).unwrap(); zw.write_all(t.as_bytes()).unwrap(); };
-            f("xl/workbook.xml", r#"<workbook xmlns:r="r"><sheets><sheet name="Vendas" r:id="rId1"/><sheet name="Gráf" r:id="rId2"/></sheets></workbook>"#);
+            f("xl/workbook.xml", r#"<workbook xmlns:r="r"><sheets><sheet name="Vendas" r:id="rId1"/><sheet name="Gráf" r:id="rId2"/></sheets><definedNames>
+              <definedName name="Taxa">0.1</definedName><definedName name="Dobro">Vendas!$A$1*2</definedName>
+              <definedName name="Quebrado">#REF!</definedName><definedName name="_xlnm.Print_Area" localSheetId="0">Vendas!$A$1:$B$2</definedName>
+              <definedName name="Local" localSheetId="0">Vendas!$A$1</definedName><definedName name="Local" localSheetId="1">Vendas!$B$1</definedName>
+              <definedName name="Base">Vendas!$A$1:$A$9</definedName></definedNames></workbook>"#);
             f("xl/_rels/workbook.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Target="chartsheets/sheet1.xml"/></Relationships>"#);
             f("xl/worksheets/sheet1.xml", r#"<worksheet><sheetData/><dataValidations count="2"><dataValidation type="textLength" operator="lessThan" sqref="A1"><formula1>5</formula1></dataValidation><dataValidation type="list" sqref="B1"><formula1>"a,b"</formula1></dataValidation></dataValidations><autoFilter ref="A1:B9"/><conditionalFormatting sqref="A1:A9"><cfRule type="iconSet" priority="1"><iconSet><cfvo type="percent" val="0"/></iconSet></cfRule></conditionalFormatting><extLst><x14:sparkline></x14:sparkline><x14:sparkline></x14:sparkline></extLst></worksheet>"#);
             f("xl/worksheets/_rels/sheet1.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="../activeX/activeX1.xml"/><Relationship Id="rId2" Target="../activeX/activeX2.xml"/><Relationship Id="rId3" Target="../drawings/drawing1.xml"/></Relationships>"#);
@@ -212,6 +226,8 @@ mod testes {
             (Some("Vendas"), "Controle ActiveX", 2),
             (Some("Vendas"), "Filtro da planilha (fora de tabela)", 1),
             (Some("Vendas"), "Formatação condicional sem equivalente", 1),
+            (None, "Nome definido com valor ou fórmula", 2),
+            (None, "Nome definido repetido em outra aba", 1),
             (None, "Planilha de gráfico", 1),
             (None, "Preenchimento com hachura", 1),
             (None, "Preenchimento em degradê", 1),

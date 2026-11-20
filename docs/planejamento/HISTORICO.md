@@ -4,6 +4,10 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- `.xlsx` com nome definido que o motor não guarda (valor ou fórmula, `=0,1`, `=Vendas!A1*2`; ou o mesmo nome em duas
+  abas pelo `localSheetId`): a leitura deixava de fora e o Ctrl+S gravava por cima sem avisar. Agora entram nos
+  `nao_convertidos` ("Nome definido com valor ou fórmula", "Nome definido repetido em outra aba"); `#REF!` não conta.
+  Suportar esses nomes de verdade fica para depois (o `Nomeado` só tem `area: Rect`).
 - CSV com datas mês/dia (o americano): `02/13/2026` ficava texto e `01/02/2026` virava 1º de fevereiro. A amostra
   marca a coluna `mes_primeiro` quando algum segundo número passa de 12 e nenhum primeiro passa
   (`csv_colunas::ColunaCsv`); a data sai trocada para dia/mês nos dois caminhos. Teste
