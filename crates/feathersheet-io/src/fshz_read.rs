@@ -368,7 +368,7 @@ fn montar_aba_lida_com_pool(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>
     let mut colunas_txt = Vec::new();
     let mut colunas_formula = Vec::new();
 
-    if let (Some(cols), Some(_), Some(linhas)) = (aba.cols, aba.ar, aba.len) {
+    if let (Some(cols), Some(_), Some(_)) = (aba.cols, aba.ar, aba.len) {
         for col in cols {
             match col.k.as_str() {
                 "num" if matches!(arrow.get(&col.f), Some(ColunaArrow::NumBlocos(_))) => {

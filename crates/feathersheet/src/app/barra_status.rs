@@ -121,6 +121,7 @@ fn rotulo_curto(chave: &str, valor: &str) -> String {
 /// Texto das contas no rodapé, na ordem do menu. Quando não cabe na
 /// largura (~6,5 px por caractere em 11 pt), as contas saem na ordem de
 /// [`PRIORIDADE_SAIDA`].
+#[cfg(test)]
 pub(super) fn texto_contas(
     c: &ContagemSelecao, ligados: &[String], celulas_area: u64, largura: f32,
 ) -> String {

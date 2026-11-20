@@ -24,7 +24,7 @@ const MAX_TABELAS: usize = 200;
 const SERVICO_COFRE: &str = "FeatherSheet";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(super) enum Tipo { #[default] Postgres, MySql, SqlServer }
+pub enum Tipo { #[default] Postgres, MySql, SqlServer }
 
 impl Tipo {
     pub const TODOS: [Tipo; 3] = [Tipo::Postgres, Tipo::MySql, Tipo::SqlServer];

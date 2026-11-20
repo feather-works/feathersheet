@@ -124,6 +124,7 @@ pub fn mais_nova(atual: &str, outra: &str) -> bool {
 }
 
 /// Lê um lançamento da API do GitHub (um item de `releases`).
+#[cfg(test)]
 pub fn ler_lancamento(json: &str) -> Option<Lancamento> {
     lancamento_de(&serde_json::from_str(json).ok()?)
 }

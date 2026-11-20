@@ -160,7 +160,7 @@ fn tipo_pelo_codigo(codigo: &str) -> TipoDeModulo {
 pub fn ler_projeto(bin: &[u8]) -> Result<Vec<ModuloVba>, String> {
     let mut cfb = cfb::CompoundFile::open(Cursor::new(bin)).map_err(|_| feathersheet_core::tr!("O projeto VBA (vbaProject.bin) não é um arquivo OLE válido."))?;
     let mut fluxo = |nome: &str| -> Result<Vec<u8>, String> {
-        let mut f = cfb.open_stream(nome).map_err(|_| feathersheet_core::trf!("O projeto VBA não tem o fluxo {nome}."))?;
+        let f = cfb.open_stream(nome).map_err(|_| feathersheet_core::trf!("O projeto VBA não tem o fluxo {nome}."))?;
         let mut v = Vec::new();
         f.take(LIMITE_DE_BYTES as u64 + 1).read_to_end(&mut v).map_err(|e| feathersheet_core::trf!("Não consegui ler {nome}: {e}"))?;
         if v.len() > LIMITE_DE_BYTES {

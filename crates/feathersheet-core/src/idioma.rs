@@ -44,7 +44,7 @@ pub fn veio_de(texto: &str, modelo_pt: &str) -> bool {
     let mut resto = texto;
     let mut fixo = String::new();
     let mut letras = modelo.chars().peekable();
-    let mut casa = |fixo: &mut String, resto: &mut &str| -> bool {
+    let casa = |fixo: &mut String, resto: &mut &str| -> bool {
         if fixo.is_empty() { return true; }
         let achou = resto.find(fixo.as_str());
         if let Some(i) = achou { *resto = &resto[i + fixo.len()..]; }
