@@ -15,6 +15,9 @@ pub fn gravar_atomico_com(
     destino: &Path,
     escrever: impl FnOnce(&mut fs::File) -> io::Result<()>,
 ) -> io::Result<()> {
+    // Um atalho (symlink) é seguido: o renomear trocava o atalho por um arquivo e o original ficava velho.
+    let real = fs::canonicalize(destino).ok();
+    let destino = real.as_deref().unwrap_or(destino);
     let nome = destino.file_name().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, feathersheet_core::tr!("Arquivo sem nome")))?;
     apagar_parciais_velhos(destino);
     let mut tentativa = 0;
@@ -63,6 +66,21 @@ fn apagar_parciais_velhos(destino: &Path) {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn gravar_por_um_atalho_grava_no_original_e_o_atalho_continua() {
+        let pasta = std::env::temp_dir().join(format!("fs-atalho-{}", std::process::id()));
+        fs::create_dir_all(&pasta).unwrap();
+        let (real, atalho) = (pasta.join("real.csv"), pasta.join("atalho.csv"));
+        fs::write(&real, b"velho").unwrap();
+        std::os::unix::fs::symlink(&real, &atalho).unwrap();
+        gravar_atomico_com(&atalho, |f| std::io::Write::write_all(f, b"novo")).unwrap();
+        let (conteudo, link) = (fs::read(&real).unwrap(), fs::symlink_metadata(&atalho).unwrap().file_type().is_symlink());
+        let _ = fs::remove_dir_all(&pasta);
+        assert_eq!(conteudo, b"novo");
+        assert!(link, "o atalho continua atalho");
+    }
 
     #[test]
     fn parcial_velho_de_salvamento_interrompido_some_no_proximo() {

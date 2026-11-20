@@ -4,6 +4,9 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- Salvar por um atalho (symlink) trocava o atalho por um arquivo comum e o original ficava velho:
+  `arquivo::gravar_atomico_com` resolve o caminho real (`canonicalize`) antes. Teste
+  `gravar_por_um_atalho_grava_no_original_e_o_atalho_continua`.
 - Foto de celular entrava deitada (a orientação fica no EXIF e quem desenha só olha os pixels): ao inserir
   imagem solta (`imagens_importadas::importar`) ou na célula, o JPEG com orientação é regravado em pé
   (`girada_pelo_exif`, qualidade 92, sem EXIF). Só JPEG. Teste `foto_com_orientacao_no_exif_entra_em_pe`.
