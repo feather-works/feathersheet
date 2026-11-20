@@ -2,7 +2,7 @@
 name = "feathersheet-vba"
 version = "0.0.2"
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.88"
 description = "Converte macros VBA (do .xlsm do Excel) para as macros em JavaScript do FeatherSheet."
 
 # Rust puro (regra 7 da suíte), compila também para wasm:

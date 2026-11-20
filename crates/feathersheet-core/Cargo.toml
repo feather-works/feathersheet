@@ -2,7 +2,7 @@
 name = "feathersheet-core"
 version = "0.0.2"
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.88"
 description = "O motor do FeatherSheet: referências, valores, fórmulas e recálculo."
 
 # Sem dependência, de propósito. Este crate roda no app, no teste e (se um dia
