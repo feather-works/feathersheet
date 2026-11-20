@@ -1,7 +1,7 @@
 //! Autoajuste de largura de colunas e altura de linhas ao conteúdo. Mede só
 //! as linhas/colunas usadas (amostragem limitada); quem grava é o chamador,
 //! numa transação (interface e MCP usam a mesma conta).
-use crate::celulas::{refs::Rect, style::format_number, values::Value};
+use crate::celulas::{refs::Rect, values::Value};
 use crate::planilha::workbook::Workbook;
 
 /// Teto de linhas medidas por coluna (cabeça + amostra espalhada).
@@ -12,7 +12,8 @@ const LIMITE_EIXO: u32 = 256;
 fn texto_exibido(w: &Workbook, folha: usize, r: u32, c: u32) -> String {
     let estilo = w.aba(folha).and_then(|a| a.sheet.estilo_resolvido(r, c));
     match w.valor(folha, r, c) {
-        Value::Number(n) => format_number(n, estilo.as_ref()),
+        // O formato personalizado (`"Total: "0`, `0000`) muda a largura, como na grade.
+        Value::Number(n) => crate::celulas::style::format_value(&Value::Number(n), estilo.as_ref()),
         Value::Empty => String::new(),
         Value::Text(s) => s,
         Value::Bool(b) => if b { "VERDADEIRO".into() } else { "FALSO".into() },
@@ -93,5 +94,20 @@ mod testes {
         let livre = larguras_ideais(&w, 0, 0, 0, 122, &[])[0].1;
         let mesclado = larguras_ideais(&w, 0, 0, 0, 122, &[Rect::new(0, 0, 0, 2)])[0].1;
         assert!(livre > 250 && mesclado < 100, "{livre} {mesclado}");
+    }
+
+    #[test]
+    fn formato_personalizado_conta_na_largura() {
+        use crate::celulas::estilo_parcial::{Campo, EstiloParcial};
+        let mut w = Workbook::new();
+        w.editar(0, |s| {
+            let mut total = EstiloParcial::new();
+            total.insert("numFmt".into(), Campo::Texto("\"Total geral do mês: \"0".into()));
+            let i = s.registrar_parcial(total).unwrap();
+            s.set_cell_raw(0, 0, "42".into(), Some(i));
+            s.set_cell(0, 1, "42");
+        });
+        let l = larguras_ideais(&w, 0, 0, 1, 122, &[]);
+        assert!(l[0].1 > l[1].1 * 2, "{l:?}");
     }
 }

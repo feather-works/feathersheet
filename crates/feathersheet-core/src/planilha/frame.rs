@@ -54,7 +54,7 @@
 //! `TextDecoder` do lado de lá trabalha em bytes, então os dois concordam.
 
 use crate::planilha::sheet::Sheet;
-use crate::celulas::style::{format_number, Style};
+use crate::celulas::style::Style;
 use crate::celulas::values::Value;
 
 /// A assinatura no começo de todo quadro.
@@ -83,7 +83,7 @@ pub const BANDEIRA_LOGICO: u8 = 8;
 /// Quem formata é o Rust — é a regra do `docs/ARQUITETURA.md`, e ela apaga uma
 /// classe inteira de bug (a mesma célula com dois formatadores diferentes).
 ///
-/// O número sai pelo [`crate::celulas::style::format_number`], com o estilo da célula:
+/// O número sai pelo [`crate::celulas::style::format_value`] (o formato personalizado manda), com o estilo da célula:
 /// moeda, porcentagem, data, duração, científico — tudo já resolvido aqui. A
 /// fidelidade ao `style.ts` foi conferida em 1.344 casos, sem divergência.
 ///
@@ -97,7 +97,8 @@ fn texto_e_bandeiras(valor: &Value, eh_formula: bool, estilo: Option<&Style>) ->
         Value::Empty => String::new(),
         Value::Number(n) => {
             bandeiras |= BANDEIRA_NUMERO;
-            format_number(*n, estilo)
+            // O formato personalizado manda, como na grade.
+            crate::celulas::style::format_value(&Value::Number(*n), estilo)
         }
         Value::Text(t) => t.clone(),
         Value::Bool(b) => {
