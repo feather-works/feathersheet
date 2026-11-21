@@ -4,6 +4,11 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- Reexibir coluna/linha devolve a largura/altura de antes de ocultar (voltava ao padrão; só o Ctrl+Z recuperava).
+  `Sheet::dimensoes_ocultadas` (só na memória: inserir/excluir linhas ou colunas esquece; não vai para o `.fshz`,
+  `// shortcut:`). No `.xlsx`, a coluna oculta sai com `hidden="1"` e a largura própria (saía `width="0"`), e a lida
+  guarda a largura (`SheetJson::larguras_ocultas`). Testes `reexibir_devolve_a_largura_e_a_altura_de_antes` e
+  `tests/coluna_oculta_xlsx.rs`.
 - MCP (avulso e ao vivo) não grava `.xlsx` por cima do arquivo aberto quando ele tem `nao_convertidos`
   (`arquivo::conferir_sobrescrita`; a mensagem lista o que se perderia e pede outro `caminho`), como o Ctrl+S do app.
   O ao vivo passa as vistas da tela (`vistas_das_abas`) ao exportar `.xlsx`. Teste

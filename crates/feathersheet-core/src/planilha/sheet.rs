@@ -240,6 +240,10 @@ pub struct Sheet {
     /// por célula. É o mesmo desenho do `pool` de texto.
     pub style_table: Vec<crate::celulas::style::Style>,
     pub col_widths: HashMap<u32, u32>,
+    /// A largura (coluna, `true`) ou altura (linha) própria de antes de ocultar: reexibir devolve ela, como no
+    /// Excel. Só na memória; inserir ou excluir linhas/colunas esquece (os índices andam).
+    // shortcut: não vai para o .fshz; reabrir o arquivo e reexibir volta ao padrão. Gravar quando pedirem.
+    pub dimensoes_ocultadas: HashMap<(bool, u32), u32>,
     /// Largura das colunas sem largura própria (Formatar ▾ → Largura padrão),
     /// em pixels; `None` = a da grade.
     pub largura_padrao: Option<u32>,
@@ -381,6 +385,7 @@ impl Sheet {
             styles: Default::default(),
             style_table: Vec::new(),
             col_widths: HashMap::new(),
+            dimensoes_ocultadas: HashMap::new(),
             largura_padrao: None,
             row_heights: HashMap::new(),
             linhas_ocultas_desde: None,
@@ -1789,6 +1794,7 @@ impl Sheet {
         self.styles.inserir_linhas(at, count);
 
         let mut next_rh = HashMap::new();
+        self.dimensoes_ocultadas.clear();
         for (r, h) in self.row_heights.drain() {
             if r >= at {
                 next_rh.insert(r + count, h);
@@ -1849,6 +1855,7 @@ impl Sheet {
         self.styles.excluir_linhas(at, count);
 
         let mut next_rh = HashMap::new();
+        self.dimensoes_ocultadas.clear();
         for (r, h) in self.row_heights.drain() {
             if r >= at && r < end {
                 continue;
@@ -1898,6 +1905,7 @@ impl Sheet {
         self.styles.inserir_colunas(at, count);
 
         let mut next_cw = HashMap::new();
+        self.dimensoes_ocultadas.clear();
         for (c, w) in self.col_widths.drain() {
             if c >= at {
                 next_cw.insert(c + count, w);
@@ -1951,6 +1959,7 @@ impl Sheet {
         self.styles.excluir_colunas(at, count);
 
         let mut next_cw = HashMap::new();
+        self.dimensoes_ocultadas.clear();
         for (c, w) in self.col_widths.drain() {
             if c >= at && c < end {
                 continue;

@@ -1775,7 +1775,14 @@ impl Sheet {
         for indice in &indices {
             let antes = if coluna { self.col_widths.get(indice) }
                 else { self.row_heights.get(indice) }.copied();
-            let depois = if ocultar { Some(0) } else { None };
+            // Ocultar guarda a medida própria; reexibir devolve ela (sem medida guardada, volta ao padrão).
+            let depois = if ocultar {
+                match antes.filter(|&v| v > 0) {
+                    Some(v) => { self.dimensoes_ocultadas.insert((coluna, *indice), v); }
+                    None => { self.dimensoes_ocultadas.remove(&(coluna, *indice)); }
+                }
+                Some(0)
+            } else { self.dimensoes_ocultadas.remove(&(coluna, *indice)) };
             if let Some(pendente) = self.hist.pendente.as_mut() {
                 pendente.push(Passo::Dimensao {
                     coluna, indice: *indice, antes, depois,

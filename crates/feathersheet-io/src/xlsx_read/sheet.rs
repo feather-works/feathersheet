@@ -83,6 +83,9 @@ pub struct SheetJson {
     pub col_widths: Vec<(i64, i64)>,
     #[serde(rename = "rowHeights")]
     pub row_heights: Vec<(i64, i64)>,
+    /// A largura própria (px) das colunas que vêm ocultas: reexibir devolve ela (`Sheet::dimensoes_ocultadas`).
+    #[serde(skip)]
+    pub larguras_ocultas: Vec<(u32, u32)>,
     pub charts: Vec<serde_json::Value>,
     pub rules: Vec<serde_json::Value>,
     /// Minigráficos do `extLst` (só o leitor nativo os leva para a aba).
@@ -613,8 +616,11 @@ fn aplicar_metadados(
                     sheet.colunas_ocultas_desde = Some(sheet.colunas_ocultas_desde.map_or(desde, |d| d.min(desde)));
                     continue;
                 }
+                let propria = col.attr("width").and_then(|s| s.parse::<f64>().ok())
+                    .filter(|w| *w > 0.0 && verdade(col.attr("customWidth"))).map(widths_to_px);
                 for c in min.max(0)..=max {
                     sheet.col_widths.push((c, 0));
+                    if let Some(px) = propria.filter(|&px| px > 0 && c - min < 1000) { sheet.larguras_ocultas.push((c as u32, px as u32)); }
                 }
                 continue;
             }

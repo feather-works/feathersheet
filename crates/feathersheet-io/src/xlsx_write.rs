@@ -1504,6 +1504,11 @@ fn aba_xml(
                 proxima = c + 1;
                 let _ = write!(col, "<col min=\"{0}\" max=\"{0}\"", c + 1);
                 match w {
+                    // Oculta: `hidden` com a largura de antes de ocultar (o Excel devolve ela ao reexibir).
+                    Some(0) => match sheet.dimensoes_ocultadas.get(&(true, c)) {
+                        Some(&px) => { let _ = write!(col, " width=\"{}\" hidden=\"1\" customWidth=\"1\"", to_js_string(arredondar(px_para_largura(px)))); }
+                        None => { let _ = write!(col, " width=\"{}\" hidden=\"1\"", to_js_string(arredondar(px_para_largura(sheet.largura_padrao.unwrap_or(LARGURA_PADRAO_PX))))); }
+                    },
                     Some(w) => { let _ = write!(col, " width=\"{}\" customWidth=\"1\"", to_js_string(arredondar(px_para_largura(*w)))); }
                     None => { let _ = write!(col, " width=\"{}\"", to_js_string(arredondar(px_para_largura(sheet.largura_padrao.unwrap_or(LARGURA_PADRAO_PX))))); }
                 }

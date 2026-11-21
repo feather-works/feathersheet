@@ -36,6 +36,24 @@ fn ocultar_coluna_preserva_largura_personalizada_no_undo() {
 }
 
 #[test]
+fn reexibir_devolve_a_largura_e_a_altura_de_antes() {
+    let mut s = Sheet::new("Dados");
+    s.definir_dimensao(true, 3, 145);
+    s.definir_dimensao(false, 7, 40);
+    s.alterar_visibilidade_dimensoes(true, true, 3, 4).unwrap();
+    s.alterar_visibilidade_dimensoes(false, true, 7, 7).unwrap();
+    assert_eq!((s.col_widths.get(&3), s.row_heights.get(&7)), (Some(&0), Some(&0)));
+    s.alterar_visibilidade_dimensoes(true, false, 3, 4).unwrap();
+    s.alterar_visibilidade_dimensoes(false, false, 7, 7).unwrap();
+    assert_eq!(s.col_widths.get(&3), Some(&145), "a largura própria volta");
+    assert!(s.col_widths.get(&4).is_none(), "a que era padrão volta ao padrão");
+    assert_eq!(s.row_heights.get(&7), Some(&40));
+    // Ctrl+Z do reexibir oculta de novo; reexibir outra vez ainda devolve a largura.
+    assert!(s.undo());
+    assert_eq!(s.row_heights.get(&7), Some(&0));
+}
+
+#[test]
 fn reexibir_no_limite_final_e_intervalo_enorme_sao_seguros() {
     let mut s = Sheet::new("Dados");
     s.alterar_visibilidade_dimensoes(true, true, MAX_COLS - 1, MAX_COLS - 1).unwrap();

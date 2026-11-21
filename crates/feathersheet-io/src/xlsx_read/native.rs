@@ -834,6 +834,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         if !resumo.validacoes.is_empty() {
             folha.va = serde_json::to_string(&resumo.validacoes).ok();
         }
+        folha.dimensoes_ocultadas.extend(resumo.larguras_ocultas.drain(..).map(|(c, w)| ((true, c), w)));
         folha.col_widths.extend(resumo.col_widths.into_iter()
             .filter(|(c, _)| *c >= 0)
             .map(|(c, w)| (c as u32, w.max(0) as u32)));

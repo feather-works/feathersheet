@@ -32,6 +32,7 @@ impl Sheet {
         let mut copia = Sheet::new(nome);
         copia.tab_color = self.tab_color.clone();
         copia.col_widths = self.col_widths.clone();
+        copia.dimensoes_ocultadas = self.dimensoes_ocultadas.clone();
         copia.largura_padrao = self.largura_padrao;
         copia.topicos = self.topicos.clone();
         copia.protecao = self.protecao.clone();
