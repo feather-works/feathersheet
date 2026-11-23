@@ -431,6 +431,13 @@ impl App {
         let antes = self.workbook.aba(folha)
             .map(|a| a.sheet.get_raw(linha, coluna)).unwrap_or_default();
         let canonica = self.formula_para_gravar(&self.edicao, &antes);
+        // O que o Excel recusa ao digitar (e não abriria no .xlsx): a edição continua, com o motivo.
+        if antes != canonica {
+            if let Some(erro) = canonica.strip_prefix('=').and_then(feathersheet_core::formula::parser::fora_dos_limites_do_excel) {
+                self.status = format!("{}: {}", cell_name(linha, coluna), erro);
+                return false;
+            }
+        }
         // Valor fora da validação abre o alerta de erro (Parar, Aviso ou
         // Informações); a edição continua até a resposta. `validacao_aceita`
         // é o Sim/OK do alerta: grava sem perguntar de novo.

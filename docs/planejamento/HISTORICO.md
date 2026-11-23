@@ -4,6 +4,19 @@
 
 ## v0.3.5 (23/11/2026)
 
+- O resto do relatório das issues do GridCraft (23/11/2026, entrou na 0.3.5 a pedido):
+  **Limites do Excel na fórmula digitada** (`parser::fora_dos_limites_do_excel`, cobrado no `confirmar`, que
+  mantém a edição e diz o motivo no status): mais de 64 funções uma dentro da outra, mais de 255 argumentos,
+  texto entre aspas acima de 255 caracteres e número fora de 2,2E-308…9,99E+307. Arquivo aberto não passa por
+  ela (o LibreOffice grava texto longo). Teste `recusa_o_que_o_excel_nao_abre`.
+  **Excluir linhas inteiras com filtro** (Ctrl+- com linhas selecionadas) apaga só as visíveis, faixa por faixa
+  de baixo para cima, num Ctrl+Z, como o Excel numa lista filtrada (`celulas_dialogo::aplicar_celulas`). Teste
+  `excluir_linhas_com_filtro_apaga_so_as_visiveis`.
+  **CSV**: a amostra que decide separador, codificação, decimal e ordem dia/mês passou de 64 KiB para 1 MiB
+  (`csv_colunas::AMOSTRA_CSV`; umas 15 mil linhas em vez de 200). Teste
+  `datas_mes_dia_decididas_mais_embaixo_que_os_64_kib_antigos`. Ler o arquivo duas vezes seria a correção completa.
+
+
 - Comparação com o GridCraft (notas da 0.12 à 0.19 e títulos das 1.350 issues abertas), 23/11/2026, quatro correções:
   **Copiar com filtro** leva só as linhas que aparecem, como no Excel (`copiar_area(so_visiveis)`; o Recortar
   continua levando tudo, porque limpa a origem inteira; com linhas puladas a validação não vai junto, `shortcut:`);

@@ -610,3 +610,50 @@ mod testes {
         assert_eq!(numeros, 2);
     }
 }
+
+/// Limites que o Excel cobra ao digitar e que, gravados no `.xlsx`, fazem o Excel "reparar" ou recusar o
+/// arquivo: mais de 64 funções uma dentro da outra, mais de 255 argumentos, texto de mais de 255 caracteres
+/// entre aspas e número fora da faixa do `f64` do Excel (1E+308, 1E-310). Só para a fórmula digitada: arquivo
+/// aberto (o LibreOffice grava texto longo) continua abrindo. `corpo` sem o "=".
+pub fn fora_dos_limites_do_excel(corpo: &str) -> Option<String> {
+    fn olhar(no: &Node, funcoes: u32) -> Option<String> {
+        match no {
+            Node::Num(n) if !n.is_finite() || n.abs() > 9.99999999999999e307 || (*n != 0.0 && n.abs() < 2.2250738585072014e-308) =>
+                Some(crate::tr!("Número fora da faixa do Excel (de 2,2E-308 a 9,99E+307).").to_string()),
+            Node::Str(s) if s.chars().count() > 255 =>
+                Some(crate::tr!("Texto entre aspas numa fórmula pode ter até 255 caracteres, como no Excel; use & para juntar pedaços.").to_string()),
+            Node::Call { args, .. } => {
+                if funcoes + 1 > 64 {
+                    return Some(crate::tr!("Mais de 64 funções uma dentro da outra: o Excel não abriria o arquivo.").to_string());
+                }
+                if args.len() > 255 {
+                    return Some(crate::tr!("Uma função aceita até 255 argumentos, como no Excel.").to_string());
+                }
+                args.iter().find_map(|a| olhar(a, funcoes + 1))
+            }
+            Node::Binary { left, right, .. } => olhar(left, funcoes).or_else(|| olhar(right, funcoes)),
+            Node::Unary { operand, .. } => olhar(operand, funcoes),
+            Node::Array { rows } => rows.iter().flatten().find_map(|a| olhar(a, funcoes)),
+            _ => None,
+        }
+    }
+    olhar(&parse_formula(corpo).ok()?, 0)
+}
+
+#[cfg(test)]
+mod testes_limites_excel {
+    use super::fora_dos_limites_do_excel as limite;
+
+    #[test]
+    fn recusa_o_que_o_excel_nao_abre() {
+        assert!(limite("SOMA(A1:A3)+1E+300").is_none());
+        let funda = format!("{}1{}", "ABS(".repeat(65), ")".repeat(65));
+        assert!(limite(&funda).is_some(), "65 funções");
+        assert!(limite(&format!("{}1{}", "ABS(".repeat(64), ")".repeat(64))).is_none(), "64 passa");
+        let muitos = format!("SOMA({})", vec!["1"; 256].join(";"));
+        assert!(limite(&muitos).is_some(), "256 argumentos");
+        assert!(limite(&format!("\"{}\"", "a".repeat(256))).is_some());
+        assert!(limite(&format!("\"{}\"", "a".repeat(255))).is_none());
+        assert!(limite("1E+308").is_some() && limite("1E-310").is_some() && limite("0").is_none());
+    }
+}

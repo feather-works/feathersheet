@@ -71,21 +71,42 @@ impl App {
                 return;
             }
         };
-        let foto = self.foto_antes_da_estrutura();
-        let feito = match (coluna, inserir) {
-            (false, true) => self.workbook.inserir_linhas(self.folha, at, quantas),
-            (false, false) => self.workbook.excluir_linhas(self.folha, at, quantas),
-            (true, true) => self.workbook.inserir_colunas(self.folha, at, quantas),
-            (true, false) => self.workbook.excluir_colunas(self.folha, at, quantas),
+        // Excluir linhas com filtro ligado apaga só as visíveis, como o Excel numa lista filtrada: cada faixa
+        // seguida de linhas que aparecem, de baixo para cima (as de cima não mudam de lugar).
+        let trechos: Vec<(u32, u32)> = match (coluna, inserir, self.workbook.aba(self.folha)) {
+            (false, false, Some(aba)) => {
+                let pular = tabelas::puladas_pelo_filtro(&aba.sheet);
+                let mut t: Vec<(u32, u32)> = Vec::new();
+                for r in (at..at + quantas).filter(|&r| !pular(r)) {
+                    match t.last_mut() {
+                        Some((ini, n)) if *ini + *n == r => *n += 1,
+                        _ => t.push((r, 1)),
+                    }
+                }
+                t
+            }
+            _ => vec![(at, quantas)],
         };
-        if feito.is_none() {
-            self.status = tr!("Não foi possível alterar a estrutura").into();
-            self.guardar_foto_da_estrutura(foto, false);
-            return;
+        let foto = self.foto_antes_da_estrutura();
+        let (mut tabela, mut mescla) = (Ok(()), Ok(()));
+        for &(ini, n) in trechos.iter().rev() {
+            let feito = match (coluna, inserir) {
+                (false, true) => self.workbook.inserir_linhas(self.folha, ini, n),
+                (false, false) => self.workbook.excluir_linhas(self.folha, ini, n),
+                (true, true) => self.workbook.inserir_colunas(self.folha, ini, n),
+                (true, false) => self.workbook.excluir_colunas(self.folha, ini, n),
+            };
+            if feito.is_none() {
+                self.status = tr!("Não foi possível alterar a estrutura").into();
+                self.guardar_foto_da_estrutura(foto, false);
+                return;
+            }
+            let t = tabelas::refluir(&mut self.workbook, self.folha, coluna, ini, n, !inserir);
+            let m = mesclas::refluir(&mut self.workbook, self.folha, coluna, ini, n, !inserir);
+            self.refluir_minigraficos(self.folha, coluna, ini, n, !inserir);
+            if tabela.is_ok() { tabela = t; }
+            if mescla.is_ok() { mescla = m; }
         }
-        let tabela = tabelas::refluir(&mut self.workbook, self.folha, coluna, at, quantas, !inserir);
-        let mescla = mesclas::refluir(&mut self.workbook, self.folha, coluna, at, quantas, !inserir);
-        self.refluir_minigraficos(self.folha, coluna, at, quantas, !inserir);
         // Tabelas e mesclas reajustadas também guardam o "antes": um Ctrl+Z
         // as poria nas coordenadas velhas, com as células já deslocadas (#46).
         if let Some(aba) = self.workbook.aba_mut(self.folha) { aba.sheet.esquecer_historico(); }

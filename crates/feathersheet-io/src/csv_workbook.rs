@@ -99,7 +99,7 @@ pub fn importar_csv_tsv_com_separador(
     let mut linha: u32 = 0;
     let mut excedeu = false;
     // A mesma amostra do caminho do disco decide a língua de cada coluna.
-    let mut corte = conteudo.len().min(64 * 1024);
+    let mut corte = conteudo.len().min(crate::csv_colunas::AMOSTRA_CSV);
     while !conteudo.is_char_boundary(corte) { corte -= 1; }
     let linguas = crate::csv_colunas::linguas_da_amostra(&conteudo[..corte], separador, corte < conteudo.len());
 

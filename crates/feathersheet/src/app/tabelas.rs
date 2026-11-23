@@ -506,6 +506,19 @@ mod testes_filtro_copiar {
     }
 
     #[test]
+    fn excluir_linhas_com_filtro_apaga_so_as_visiveis() {
+        let mut app = app_filtrado();
+        let _ = app.update(Msg::SelecionarLinha(1));
+        let _ = app.update(Msg::EstenderLinha(4));
+        app.aplicar_celulas(false, crate::app::celulas_dialogo::Opcao::Linhas);
+        let s = &app.workbook.aba(0).unwrap().sheet;
+        let nomes: Vec<String> = (0..4).map(|r| s.get_raw(r, 0)).collect();
+        assert_eq!(nomes, ["Nome", "Ana", "Davi", ""], "Bia e Caio (SP) saem; Ana e Davi, escondidos, ficam");
+        let _ = app.update(Msg::Desfazer);
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(1, 0), "Bia", "um Ctrl+Z volta tudo");
+    }
+
+    #[test]
     fn ctrl_enter_com_filtro_nao_escreve_nas_linhas_escondidas() {
         let mut app = app_filtrado();
         let _ = app.update(Msg::IrPara("B2:B5".into()));

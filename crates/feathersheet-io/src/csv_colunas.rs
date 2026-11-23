@@ -101,7 +101,7 @@ impl Divisor {
     fn alimentar(&mut self, mut buf: &[u8], entregar: &mut impl FnMut(BlocoLinhas)) {
         if self.inicio_do_arquivo && !buf.is_empty() {
             // O BOM só conta no começo do arquivo; pode chegar aos pedaços,
-            // mas o primeiro pedaço tem sempre mais de 3 bytes (64 KiB).
+            // mas o primeiro pedaço tem sempre mais de 3 bytes (a amostra).
             buf = buf.strip_prefix(b"\xEF\xBB\xBF".as_slice()).unwrap_or(buf);
             self.inicio_do_arquivo = false;
         }
@@ -531,7 +531,12 @@ pub(crate) fn importar(leitor: impl BufRead + Send, delim: u8, linguas: &[Coluna
 /// mostram (`3.14` e `1,234.50` são ponto decimal; `3,14` e `1.234,56`, vírgula). Com ela o
 /// milhar sai antes do analisador: `"12,345"` numa coluna de ponto decimal é 12345, e `1.234`
 /// numa de vírgula é 1234. Coluna sem sinal (`None`) é lida como sempre foi.
-// shortcut: só a amostra (64 KiB) decide; coluna cujo sinal aparece depois dela fica como era.
+/// O começo do CSV que decide separador, codificação, decimal e a ordem das datas de cada coluna. Era 64 KiB
+/// (umas 200 linhas largas); 1 MiB pega o sinal de dia/mês que só aparece mais embaixo, sem custo que se note.
+pub(crate) const AMOSTRA_CSV: usize = 1 << 20;
+
+// shortcut: só a amostra (1 MiB) decide; coluna cujo sinal aparece depois dela fica como era (ler o arquivo
+// duas vezes resolveria).
 pub(crate) fn linguas_da_amostra(texto: &str, delim: char, cortada: bool) -> Vec<ColunaCsv> {
     let mut linhas = crate::csv::dividir_csv(texto, delim);
     if cortada { linhas.pop(); }
@@ -593,8 +598,8 @@ pub(crate) fn sem_milhar_da_coluna(raw: &str, linguas: &[ColunaCsv], col: usize)
 pub(crate) fn separador_e_leitor<R: BufRead + Send + 'static>(mut leitor: R, tsv: bool, preferido: Option<char>)
     -> std::io::Result<(char, Vec<ColunaCsv>, Box<dyn BufRead + Send>)> {
     let mut amostra = Vec::new();
-    leitor.by_ref().take(64 * 1024).read_to_end(&mut amostra)?;
-    let cortada = amostra.len() == 64 * 1024;
+    leitor.by_ref().take(AMOSTRA_CSV as u64).read_to_end(&mut amostra)?;
+    let cortada = amostra.len() == AMOSTRA_CSV;
     let cod = Codificacao::da_amostra(&amostra, cortada);
     let (texto, _) = cod.converter(&amostra);
     let delim = if tsv { '\t' } else { feather_io::csv_lotes::escolher_separador(&texto, preferido) };
@@ -851,6 +856,18 @@ mod testes {
         }
     }
 
+    #[test]
+    fn datas_mes_dia_decididas_mais_embaixo_que_os_64_kib_antigos() {
+        use feathersheet_core::Value;
+        // 10 mil datas ambíguas (110 KiB) e só depois a que entrega o formato americano.
+        let mut csv = b"data\n".to_vec();
+        for _ in 0..10_000 { csv.extend_from_slice(b"01/02/2026\n"); }
+        csv.extend_from_slice(b"02/13/2026\n");
+        let p = por_colunas(&csv, false, None);
+        assert_eq!(p.valor(0, 1, 0), Value::Number(46024.0), "2 de janeiro");
+        assert_eq!(p.valor(0, 10_001, 0), Value::Number(46066.0), "13 de fevereiro, não texto");
+    }
+
     /// Os atalhos de `classificar` dão sempre o que o `parse_literal` daria.
     #[test]
     fn classificar_igual_ao_parse_literal() {
@@ -903,7 +920,7 @@ mod testes {
     #[test]
     fn utf8_invalido_e_linhas_demais_dao_erro() {
         // Byte inválido depois da amostra (que era UTF-8) dá erro na leitura.
-        let mut longe = "a,b\n".repeat(20_000).into_bytes();
+        let mut longe = "a,b\n".repeat(300_000).into_bytes();
         longe.extend_from_slice(b"\xff,1\n");
         let mut w = Workbook::new();
         let aba = &mut w.aba_mut(0).unwrap().sheet;
