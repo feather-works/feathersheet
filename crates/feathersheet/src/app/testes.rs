@@ -1200,12 +1200,17 @@ fn com_ingles_as_telas_principais_nao_pedem_texto_sem_traducao() {
 }
 
 #[test]
-fn grade_limitada_vai_uma_alem_dos_dados_e_da_selecao() {
+fn grade_limitada_tem_minimo_e_cresce_com_dados_selecao_e_mais() {
     let mut app = App::default();
     assert!(app.grade().limite.is_none(), "desligada por padrão");
     let _ = app.update(Msg::GradeLimitada(true));
-    app.workbook.escrever_celula(0, 2, 1, "x".into());
-    assert_eq!(app.grade().limite, Some((3, 2)));
-    let _ = app.update(Msg::Selecionar(5, 0));
-    assert_eq!(app.grade().limite, Some((6, 2)), "a seleção na margem faz a grade crescer");
+    assert_eq!(app.grade().limite, Some((19, 10)), "folha vazia: A–K × 20");
+    app.workbook.escrever_celula(0, 29, 11, "x".into());
+    assert_eq!(app.grade().limite, Some((29, 11)), "os dados levam a borda");
+    let _ = app.update(Msg::Selecionar(35, 0));
+    assert_eq!(app.grade().limite, Some((35, 11)), "andar além da borda faz a grade crescer");
+    let _ = app.update(Msg::GradeCrescer(false));
+    assert_eq!(app.grade().limite, Some((35, 12)), "o + do cabeçalho acrescenta uma coluna");
+    let _ = app.update(Msg::GradeCrescer(true));
+    assert_eq!(app.grade().limite, Some((36, 12)));
 }

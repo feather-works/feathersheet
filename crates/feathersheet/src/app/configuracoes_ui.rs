@@ -93,6 +93,14 @@ pub(super) fn opcoes_tema(app: &App) -> Element<'_, Msg> {
     ].spacing(3).into()
 }
 
+/// Grade infinita (como no Excel) ou limitada (#164), nas Configurações e nos Primeiros passos.
+pub(super) fn opcoes_grade(app: &App) -> Element<'_, Msg> {
+    row![
+        opcao(tr!("Infinita"), "table", !app.config.grade_limitada, Msg::GradeLimitada(false)),
+        opcao(tr!("Limitada"), "layout-grid", app.config.grade_limitada, Msg::GradeLimitada(true)),
+    ].spacing(3).into()
+}
+
 /// Idioma da interface e das fórmulas (Configurações e Primeiros passos).
 pub(super) fn lista_idioma(app: &App) -> Element<'_, Msg> {
     feather_ui::componentes::lista_suspensa(
@@ -294,6 +302,8 @@ pub(super) fn visualizar(app: &App) -> Element<'_, Msg> {
                 toggler("", app.mostrar_formulas).on_toggle(|_| Msg::AlternarMostrarFormulas).color(COR_AZUL_ACENTO())),
             linha(tr!("Realçar linha e coluna"), tr!("Destaca os eixos da célula selecionada."),
                 toggler("", app.config.realce_eixos).on_toggle(Msg::RealceEixos).color(COR_AZUL_ACENTO())),
+            linha(tr!("Grade limitada"), tr!("Só a área de trabalho, com + para acrescentar linhas e colunas (Exibir ▸ Grade limitada)."),
+                toggler("", app.config.grade_limitada).on_toggle(Msg::GradeLimitada).color(COR_AZUL_ACENTO())),
             linha(tr!("Faixa de opções"), tr!("Ctrl+F1 recolhe ou expande a faixa."),
                 toggler("", !app.config.faixa_recolhida).on_toggle(|_| Msg::Faixa).color(COR_AZUL_ACENTO())),
             linha(tr!("Modo micro"), tr!("Com a faixa recolhida, menus e pesquisa ficam na barra de título."),

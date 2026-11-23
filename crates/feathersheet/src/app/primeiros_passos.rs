@@ -5,7 +5,7 @@
 //! mensagens; aqui só moram os "Seus dados" (autor e organização).
 use super::*;
 use super::comentarios_ui::autor_do_sistema;
-use super::configuracoes_ui::{amostras_acento, linha, linhas_salvamento, lista_idioma, opcoes_tema};
+use super::configuracoes_ui::{amostras_acento, linha, linhas_salvamento, lista_idioma, opcoes_grade, opcoes_tema};
 use feather_ui::consulta::{self, Ilustracao};
 
 /// Os passos, na ordem: título e ícone da lateral.
@@ -279,12 +279,13 @@ impl App {
             ].spacing(17).into(),
             3 => column![
                 consulta::cabecalho(tr!("Aparência"),
-                    tr!("Idioma, tema e cor de destaque."),
+                    tr!("Idioma, tema, cor de destaque e grade."),
                     Some(consulta::ilustracao(Ilustracao::Aparencia))),
                 column![
                     linha(tr!("Idioma"), tr!("Interface, nomes das funções, separadores (; ou ,) e a Ajuda F1."), lista_idioma(self)),
                     linha(tr!("Tema"), tr!("Automático acompanha o sistema na abertura."), opcoes_tema(self)),
                     linha(tr!("Cor de destaque"), tr!("Botões, seleção e a marca do app."), amostras_acento(self)),
+                    linha(tr!("Grade"), tr!("Infinita, como no Excel; ou limitada: só a área de trabalho, com + para acrescentar linhas e colunas. O arquivo é o mesmo nos dois."), opcoes_grade(self)),
                 ],
             ].spacing(17).into(),
             _ => column![

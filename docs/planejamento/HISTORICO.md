@@ -15,10 +15,14 @@
   painel pela aba dele (`limite_da_grade`); Colar vínculo recusa quando a aba copiada foi excluída (virava `=A1`
   desta aba); filtro avançado no lugar não mostra as linhas ocultas encostadas fora da lista
   (`Sheet::reexibir_somente`); o aviso de ícones ao salvar `.xlsx` não apaga mais o das macros VBA.
-- Exibir ▸ Grade limitada (#164, pedido de fora): depois da última linha/coluna usada (ou da seleção) mais uma de
-  margem, a grade vira fundo cinza; cresce ao escrever ou clicar na margem. Só visual (`Grade::limite`, preferência
-  `grade_limitada` da pessoa, não do arquivo); a rolagem continua livre e os cabeçalhos seguem numerados. Teste
-  `grade_limitada_vai_uma_alem_dos_dados_e_da_selecao`. Conserta também a contagem velha do `replica_atalhos_typescript`.
+- Exibir ▸ Grade limitada (#164, pedido do fadi123go, refeita no mesmo dia para bater com o desenho dele): a grade
+  acaba na última linha/coluna, com fundo liso e sem letras nem números depois; um "+" no fim das letras e outro
+  embaixo dos números acrescentam coluna/linha (`Msg::GradeCrescer`, `App::grade_extra`, só da tela); começa em
+  A–K × 20 (o tamanho que ele propôs na discussão #790 do IronCalc) e cresce com os dados e com a seleção (Enter ou
+  seta além da borda). Clique no vazio não seleciona nada (`Grade::clique_fora_da_grade`). Escolha também nos
+  Primeiros passos (Aparência ▸ Grade: Infinita/Limitada) e em Configurações. Preferência da pessoa
+  (`grade_limitada`), não do arquivo. Teste `grade_limitada_tem_minimo_e_cresce_com_dados_selecao_e_mais`; fotos
+  conferidas (`FEATHERSHEET_CAPTURAR_GRADE_LIMITADA=1`). Limite: a rolagem continua livre além do fim (só fundo).
 - Reexibir coluna/linha devolve a largura/altura de antes de ocultar (voltava ao padrão; só o Ctrl+Z recuperava).
   `Sheet::dimensoes_ocultadas` (só na memória: inserir/excluir linhas ou colunas esquece; não vai para o `.fshz`,
   `// shortcut:`). No `.xlsx`, a coluna oculta sai com `hidden="1"` e a largura própria (saía `width="0"`), e a lida

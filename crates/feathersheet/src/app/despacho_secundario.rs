@@ -476,6 +476,14 @@ impl App {
                 self.config.gravar();
                 Task::none()
             }
+            Msg::GradeCrescer(linha) => {
+                let a = self.area_selecionada();
+                if let (Some((lr, lc)), Some(id)) = (self.limite_da_grade(self.folha, a.r1.max(self.linha), a.c1.max(self.coluna)), self.workbook.aba(self.folha).map(|a| a.id)) {
+                    let novo = if linha { (lr + 1, lc) } else { (lr, lc + 1) };
+                    self.grade_extra.insert(id, novo);
+                }
+                Task::none()
+            }
             Msg::GradeLimitada(v) => {
                 self.config.grade_limitada = v;
                 self.config.gravar();

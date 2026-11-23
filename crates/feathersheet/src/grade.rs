@@ -791,19 +791,30 @@ impl canvas::Program<Msg> for Grade<'_> {
         for (p, t, cor) in tracos_borda {
             f.fill_rectangle(p, t, cor);
         }
-        // Grade limitada (#164): depois da última linha/coluna, só o fundo (os dados não mudam).
-        if let Some((lim_r, lim_c)) = self.limite {
-            if let Some(&(_, x0, _)) = colunas_visiveis.iter().find(|v| v.0 > lim_c) {
-                f.fill_rectangle(Point::new(x0, CABECALHO_COLUNA),
-                    Size::new((bounds.width - x0).max(0.0), (bounds.height - CABECALHO_COLUNA).max(0.0)), fora);
+        // Grade limitada (#164): a grade acaba na última linha/coluna (cabeçalhos inclusive), com um
+        // "+" para crescer, como no Quip e no TableEdit. Os dados e o arquivo não mudam.
+        if let Some((x0, y0)) = self.fim_da_grade(&colunas_visiveis, &linhas_visiveis) {
+            // Um botão de verdade: fundo claro da cor de destaque e o "+" nela, que se enxerga em qualquer zoom.
+            let mais = |f: &mut Frame, centro: Point| {
+                let lado = MAIS - 6.0;
+                f.fill_rectangle(Point::new(centro.x - lado / 2.0, centro.y - lado / 2.0), Size::new(lado, lado), ativo.alpha(0.15));
+                f.fill_text(Text {
+                    content: "+".into(), position: centro, color: ativo, size: crate::compat::Pixels(20.0),
+                    horizontal_alignment: pelicano::Align::Center, vertical_alignment: pelicano::Align::Center, ..Text::default()
+                });
+            };
+            if let Some(x0) = x0 {
+                f.fill_rectangle(Point::new(x0, 0.0), Size::new((bounds.width - x0).max(0.0), bounds.height), bg);
             }
-            if let Some(&(_, y0, _)) = linhas_visiveis.iter().find(|v| v.0 > lim_r) {
-                f.fill_rectangle(Point::new(cabecalho_linha(), y0),
-                    Size::new((bounds.width - cabecalho_linha()).max(0.0), (bounds.height - y0).max(0.0)), fora);
+            if let Some(y0) = y0 {
+                f.fill_rectangle(Point::new(0.0, y0), Size::new(bounds.width, (bounds.height - y0).max(0.0)), bg);
+                mais(&mut f, Point::new(cabecalho_linha() / 2.0, y0 + MAIS / 2.0));
             }
+            if let Some(x0) = x0 { mais(&mut f, Point::new(x0 + MAIS / 2.0, CABECALHO_COLUNA / 2.0)); }
         }
         // Numeração das linhas é desenhada uma única vez (não por coluna).
         for (il, &(r, y, desenhar_h)) in linhas_visiveis.iter().enumerate() {
+            if self.limite.is_some_and(|(lr, _)| r > lr) { continue; }
             let h = alturas_inteiras[il];
             if r == linha_atual {
                 f.fill_rectangle(Point::new(0.0, y), Size::new(cabecalho_linha(), desenhar_h), selecao_cab);
@@ -1120,6 +1131,32 @@ impl canvas::Program<Msg> for Grade<'_> {
     }
 }
 
+/// Largura (e altura) do "+" que faz a grade limitada crescer.
+const MAIS: f32 = 24.0;
+
+impl Grade<'_> {
+    /// Grade limitada: onde a grade acaba na tela (x da primeira coluna e y da primeira linha de fora).
+    fn fim_da_grade(&self, colunas: &[(u32, f32, f32)], linhas: &[(u32, f32, f32)]) -> Option<(Option<f32>, Option<f32>)> {
+        let (lr, lc) = self.limite?;
+        Some((colunas.iter().find(|v| v.0 > lc).map(|v| v.1), linhas.iter().find(|v| v.0 > lr).map(|v| v.1)))
+    }
+
+    /// Clique depois do fim da grade limitada: `Some(Some(msg))` no "+", `Some(None)` no vazio (não seleciona
+    /// nada), `None` dentro da grade.
+    fn clique_fora_da_grade(&self, ponto: Point, tamanho: Size) -> Option<Option<Msg>> {
+        let p = Point::new(ponto.x / self.zoom, ponto.y / self.zoom);
+        let (colunas, linhas) = (self.colunas_visiveis(tamanho.width / self.zoom).0, self.linhas_visiveis(tamanho.height / self.zoom).0);
+        let (x0, y0) = self.fim_da_grade(&colunas, &linhas)?;
+        if let Some(x0) = x0.filter(|&x0| p.x >= x0) {
+            return Some((p.y < CABECALHO_COLUNA && p.x < x0 + MAIS).then_some(Msg::GradeCrescer(false)));
+        }
+        if let Some(y0) = y0.filter(|&y0| p.y >= y0) {
+            return Some((p.x < cabecalho_linha() && p.y < y0 + MAIS).then_some(Msg::GradeCrescer(true)));
+        }
+        None
+    }
+}
+
 impl Grade<'_> {
     fn icone_do_mouse(
         &self, _state:&EstadoMouse, bounds:Rectangle, cursor:Option<Point>,
@@ -1270,6 +1307,11 @@ impl Grade<'_> {
                 // Arrastou: não é a primeira metade de um duplo clique.
                 state.ultimo_clique_alca = None;
                 return (Captured::Yes, Some(Msg::PreencherAlca(a.destino)));
+            }
+            Event::MousePressed(mouse::Button::Left)
+                if local(cursor, bounds).is_some_and(|p| self.clique_fora_da_grade(p, bounds.size()).is_some()) => {
+                let p = local(cursor, bounds).unwrap_or(Point::ORIGIN);
+                return (Captured::Yes, self.clique_fora_da_grade(p, bounds.size()).flatten());
             }
             Event::MousePressed(mouse::Button::Left) => {
                 if let Some(point) = local(cursor, bounds) {

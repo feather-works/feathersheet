@@ -476,7 +476,7 @@ pub enum Msg {
     PreenchimentoRelampago,
     /// Inserir > Checkbox nas células selecionadas; clique numa caixa.
     CaixasInserir, CaixaAlternar(u32, u32),
-    Formatar(Formatacao), Estrutura(Estrutura), LinhasGrade(bool), MostrarZeros(bool), RealceEixos(bool), GradeLimitada(bool),
+    Formatar(Formatacao), Estrutura(Estrutura), LinhasGrade(bool), MostrarZeros(bool), RealceEixos(bool), GradeLimitada(bool), GradeCrescer(bool),
     EstiloMenu(String, Campo), AlternarEstilo(String), InserirMenu(Estrutura, bool),
     InserirFuncao(String), InserirSimbolo(String), MostrarCatalogoFuncoes, Formulas(formulas_ui::Evento), Inspecao(inspecao_ui::Evento),
     /// Pedido do MCP ao vivo e a foto que ele pediu.
@@ -838,6 +838,8 @@ pub struct App {
     /// Abas (id) cujo arquivo do Excel desligava as linhas de grade
     /// (`showGridLines="0"`); valem junto com a opção global.
     grade_oculta: std::collections::HashSet<u32>,
+    /// Grade limitada: linhas e colunas acrescentadas pelo "+" (última linha, última coluna) por aba; só da tela.
+    grade_extra: std::collections::HashMap<u32, (u32, u32)>,
     /// Abas (id) que mostram célula com zero em branco (Exibir ▸ Zeros, `showZeros="0"` do .xlsx).
     zeros_ocultos: std::collections::HashSet<u32>,
     /// Exibir ▸ Janela ▸ Dividir (#83): o outro painel, com a aba e a rolagem dele.
@@ -1180,7 +1182,7 @@ impl Default for App {
             cenarios: None,
             colar_especial_ultimo: Default::default(),
             congelados: std::collections::HashMap::new(),
-            grade_oculta: std::collections::HashSet::new(), zeros_ocultos: std::collections::HashSet::new(),
+            grade_oculta: std::collections::HashSet::new(), grade_extra: std::collections::HashMap::new(), zeros_ocultos: std::collections::HashSet::new(),
             painel_dividido: None,
             congelar_menu_aberto: false,
             tinta: Default::default(),
@@ -1320,6 +1322,8 @@ impl App {
             if let Ok(idioma) = std::env::var("FEATHERSHEET_CAPTURAR_IDIOMA") {
                 ajuda::definir_idioma(&idioma);
             }
+            // FEATHERSHEET_CAPTURAR_GRADE_LIMITADA=1: a foto com Exibir ▸ Grade limitada ligada.
+            if std::env::var_os("FEATHERSHEET_CAPTURAR_GRADE_LIMITADA").is_some() { app.config.grade_limitada = true; }
         }
         // A pasta em branco nasce com o nome de aba do idioma ("Sheet1").
         app.workbook = Self::pasta_nova();

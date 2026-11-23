@@ -257,12 +257,15 @@ impl App {
         self.linhas_grade && !self.workbook.aba(self.folha).is_some_and(|a| self.grade_oculta.contains(&a.id))
     }
 
-    /// Grade limitada (#164) da aba `aba`: a última linha/coluna usada ou selecionada, mais uma de margem.
-    /// Cresce sozinha ao escrever ou clicar na margem. `None`: a opção está desligada.
+    /// Grade limitada (#164) da aba `aba`: a última linha/coluna (índices) que aparece. Pelo menos
+    /// A–K × 20 (como o fadi123go propôs na #164); cresce com os dados, a seleção (Enter ou seta além da borda) e o "+". `None`: desligada.
     pub(super) fn limite_da_grade(&self, aba: usize, linha: u32, coluna: u32) -> Option<(u32, u32)> {
+        const MINIMO: (u32, u32) = (19, 10);
         self.config.grade_limitada.then(|| {
-            let (r, c) = self.workbook.aba(aba).map_or((0, 0), |a| (a.sheet.max_row, a.sheet.max_col));
-            (r.max(linha) + 1, c.max(coluna) + 1)
+            let a = self.workbook.aba(aba);
+            let (r, c) = a.map_or((0, 0), |a| (a.sheet.max_row, a.sheet.max_col));
+            let (er, ec) = a.and_then(|a| self.grade_extra.get(&a.id)).copied().unwrap_or_default();
+            (r.max(linha).max(er).max(MINIMO.0), c.max(coluna).max(ec).max(MINIMO.1))
         })
     }
 
