@@ -17,7 +17,8 @@
   vazia, fórmula ilegível é contada (status) e não leva as outras, nome de aba ganha aspas, bits de "relativo"
   que o calamine deixa na coluna (`$BTRM$1` = A1) desfeitos, duração `[h]:mm` e data negativa ficam número,
   `sem_user` não corta `GetUser(`, pânico do calamine vira erro. Fica para depois: excluir milhares de trechos
-  filtrados numa operação só.
+  filtrados numa operação só (medido: 5000 trechos em 10 mil linhas com fórmulas = 2,5 s com a janela parada;
+  pede `mover_estrutura` com vários cortes, que mexe em fórmulas, nomes, tabelas e mesclas de uma vez).
 - **Interseção legada dentro de SE/ANO/MÊS/DIA/DIA.DA.SEMANA** (23/11/2026): `=SE(A1:A10>5;…)` de `.xlsx` antigo vale a
   linha da fórmula, como no Excel de antes do 365 (`functions::intersecao_nos_argumentos`; MAIOR/MENOR ficam de fora,
   querem o intervalo inteiro). O filtro barato da leitura deixa passar `IF(`/`YEAR(`… com ":".

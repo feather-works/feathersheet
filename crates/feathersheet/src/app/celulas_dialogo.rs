@@ -91,6 +91,9 @@ impl App {
             self.status = tr!("Todas as linhas selecionadas estão escondidas pelo filtro: nada a excluir.").into();
             return;
         }
+        // shortcut: um `excluir_linhas` por trecho, na thread da janela. Medido em 23/11/2026: 5000 trechos
+        // numa pasta de 10 mil linhas com fórmulas levam 2,5 s (release), e cresce com a pasta. Excluir
+        // várias faixas numa operação só do motor (`mover_estrutura` com vários cortes) quando alguém reclamar.
         let total: u32 = trechos.iter().map(|&(_, n)| n).sum();
         let foto = self.foto_antes_da_estrutura();
         let (mut tabela, mut mescla) = (Ok(()), Ok(()));
