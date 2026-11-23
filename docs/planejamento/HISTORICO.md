@@ -4,6 +4,7 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- AGORA()/HOJE() no Windows usam o fuso do sistema (hora local menos UTC por `GetLocalTime`/`GetSystemTime`, `app/fuso.rs`); antes era UTC e no Brasil o dia virava às 21 h. Conferido com `cargo check --target x86_64-pc-windows-gnu`, sem rodar num Windows.
 - Auditoria do código de 14 a 23/11 (23/11/2026), oito correções:
   MCP não grava por cima do `.xlsx` aberto com partes não convertidas também quando o caminho vem escrito de
   outro jeito (`./a.xlsx`, atalho: `conferir_sobrescrita` compara o caminho real); ícones só do Excel 2010+

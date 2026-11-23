@@ -88,6 +88,10 @@ strip = false
 [target.'cfg(any(all(target_os = "linux", target_env = "gnu"), target_os = "macos"))'.dependencies]
 libc = "0.2"
 
+# O fuso de AGORA()/HOJE() no Windows (hora local menos a UTC).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_SystemInformation"] }
+
 [profile.dev]
 opt-level = 1
 # Só as linhas (o backtrace continua útil): com a depuração completa, o

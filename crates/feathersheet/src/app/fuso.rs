@@ -13,7 +13,26 @@ pub(crate) fn do_sistema() -> i32 {
             return (tm.tm_gmtoff / 60) as i32;
         }
     }
-    // shortcut: no Windows ainda é UTC; ler o fuso pelo GetTimeZoneInformation.
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::SYSTEMTIME;
+        use windows_sys::Win32::System::SystemInformation::{GetLocalTime, GetSystemTime};
+        // Minutos desde 1970 de uma data civil (algoritmo de Howard Hinnant): só a diferença importa.
+        let minutos = |t: &SYSTEMTIME| {
+            let (ano, mes) = (t.wYear as i64, t.wMonth as i64);
+            let a = if mes <= 2 { ano - 1 } else { ano };
+            let era = a.div_euclid(400);
+            let ano_da_era = a - era * 400;
+            let dia_do_ano = (153 * (mes + if mes > 2 { -3 } else { 9 }) + 2) / 5 + t.wDay as i64 - 1;
+            let dias = era * 146_097 + ano_da_era * 365 + ano_da_era / 4 - ano_da_era / 100 + dia_do_ano;
+            dias * 1440 + t.wHour as i64 * 60 + t.wMinute as i64
+        };
+        // SAFETY: as duas só preenchem a estrutura que passamos.
+        let (mut local, mut utc): (SYSTEMTIME, SYSTEMTIME) = unsafe { (std::mem::zeroed(), std::mem::zeroed()) };
+        unsafe { GetLocalTime(&mut local); GetSystemTime(&mut utc); }
+        return (minutos(&local) - minutos(&utc)) as i32;
+    }
+    #[allow(unreachable_code)]
     0
 }
 
