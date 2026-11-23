@@ -174,6 +174,9 @@ mod testes {
         let mut h = Avulso::default();
         h.abrir(&origem).unwrap();
         let erro = h.salvar(None).unwrap_err();
+        // O mesmo arquivo escrito de outro jeito também é recusado.
+        let desvio = h.salvar(Some(&pasta.join(".").join("a.xlsx")));
+        assert!(desvio.is_err(), "pasta/./a.xlsx é o mesmo a.xlsx");
         let outro = h.salvar(Some(&pasta.join("b.xlsx")));
         let _ = std::fs::remove_dir_all(&pasta);
         assert!(erro.contains("Nome definido com valor ou fórmula"), "{erro}");

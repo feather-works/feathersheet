@@ -756,13 +756,16 @@ impl App {
                 }
                 self.status = trf!("Salvo: {:.1} MB em {:.1} s", tamanho as f64 / 1_048_576.0, ms as f64 / 1000.0);
                 // Como o Excel: o `.xlsx` não leva macros VBA.
-                if self.workbook.vba.is_some() && formato_excel(&path) == Some(false) {
+                let sem_macros = self.workbook.vba.is_some() && formato_excel(&path) == Some(false);
+                if sem_macros {
                     self.status = tr!("Salvo como .xlsx: as macros VBA não vão neste formato (use .xlsm para mantê-las).").into();
                 }
                 // Ícone, WordArt e SmartArt desenhados no app ainda não vão para o .xlsx (as formas e as imagens vão).
                 let sem_xlsx = if formato_excel(&path).is_some() { self.objetos_sem_xlsx() } else { 0 };
                 if sem_xlsx > 0 {
-                    self.status = trf!("Salvo como .xlsx, mas {} ícone(s), WordArt ou SmartArt não vão neste formato: para mantê-los, salve também em .fshz.", sem_xlsx);
+                    let aviso = trf!("Salvo como .xlsx, mas {} ícone(s), WordArt ou SmartArt não vão neste formato: para mantê-los, salve também em .fshz.", sem_xlsx);
+                    // Os dois avisos juntos: o dos ícones apagava o das macros.
+                    self.status = if sem_macros { format!("{} {aviso}", self.status) } else { aviso };
                 }
                 if self.senha_documento.is_some() && formato_excel(&path).is_none() {
                     self.status = tr!("Salvo em .fshz, que não leva a senha: para proteger, salve como .xlsx.").into();

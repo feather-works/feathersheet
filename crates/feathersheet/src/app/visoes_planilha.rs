@@ -257,6 +257,15 @@ impl App {
         self.linhas_grade && !self.workbook.aba(self.folha).is_some_and(|a| self.grade_oculta.contains(&a.id))
     }
 
+    /// Grade limitada (#164) da aba `aba`: a última linha/coluna usada ou selecionada, mais uma de margem.
+    /// Cresce sozinha ao escrever ou clicar na margem. `None`: a opção está desligada.
+    pub(super) fn limite_da_grade(&self, aba: usize, linha: u32, coluna: u32) -> Option<(u32, u32)> {
+        self.config.grade_limitada.then(|| {
+            let (r, c) = self.workbook.aba(aba).map_or((0, 0), |a| (a.sheet.max_row, a.sheet.max_col));
+            (r.max(linha) + 1, c.max(coluna) + 1)
+        })
+    }
+
     /// A aba ativa mostra os zeros (Exibir ▸ Zeros).
     pub(super) fn zeros_visiveis(&self) -> bool {
         !self.workbook.aba(self.folha).is_some_and(|a| self.zeros_ocultos.contains(&a.id))
@@ -284,12 +293,7 @@ impl App {
             fonte_padrao: &self.config.fonte_grade,
             tamanho_fonte_padrao: self.config.tamanho_fonte_grade,
             realce_eixos: self.config.realce_eixos,
-            // Cresce sozinha: a margem de uma linha/coluna e a seleção ficam sempre dentro.
-            limite: self.config.grade_limitada.then(|| {
-                let (r, c) = self.workbook.aba(self.folha).map_or((0, 0), |a| (a.sheet.max_row, a.sheet.max_col));
-                let area = self.area_selecionada();
-                (r.max(area.r1).max(self.linha) + 1, c.max(area.c1).max(self.coluna) + 1)
-            }),
+            limite: { let a = self.area_selecionada(); self.limite_da_grade(self.folha, a.r1.max(self.linha), a.c1.max(self.coluna)) },
             zoom: self.config.zoom as f32 / 100.,
             ctrl_pressionado: self.ctrl_pressionado,
             rascunho: if self.editor_formula.ativo &&

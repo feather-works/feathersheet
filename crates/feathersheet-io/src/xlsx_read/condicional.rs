@@ -74,6 +74,10 @@ pub(super) fn ler(root: &XmlNode, xfs: &[XfStyle]) -> Lidas {
     }
     let mut total = brutas.len();
     let mut fora = Vec::new();
+    // Intervalos que têm conjunto de ícones clássico: o x14 do mesmo intervalo só o estende.
+    let icones_classicos: Vec<String> = root.children_named("conditionalFormatting")
+        .filter(|cf| cf.children_named("cfRule").any(|r| r.attr("type") == Some("iconSet")))
+        .map(|cf| cf.attr("sqref").unwrap_or("").split_whitespace().collect::<Vec<_>>().join(" ")).collect();
     // `<extLst><ext><x14:conditionalFormattings>` (o leitor tira o prefixo).
     let novos = root
         .child("extLst")
@@ -86,7 +90,18 @@ pub(super) fn ler(root: &XmlNode, xfs: &[XfStyle]) -> Lidas {
         for r in cf.children_named("cfRule") {
             // Barra de dados e ícones do x14 repetem (ou estendem) a regra
             // clássica de mesmo tipo; a clássica já foi lida.
-            if matches!(r.attr("type"), Some("dataBar") | Some("iconSet")) {
+            if r.attr("type") == Some("dataBar") {
+                continue;
+            }
+            if r.attr("type") == Some("iconSet") {
+                // Ícones que só o Excel 2010+ tem (3 estrelas, 3 triângulos, 5 caixas) vêm sem a clássica:
+                // sem o motor para eles, contam como não convertidos em vez de sumir calados.
+                let sqref = cf.child("sqref").map(|s| s.text.split_whitespace().collect::<Vec<_>>().join(" ")).unwrap_or_default();
+                if !icones_classicos.contains(&sqref) {
+                    total += 1;
+                    let nome = r.child("iconSet").and_then(|i| i.attr("iconSet")).unwrap_or("?");
+                    fora.push(feathersheet_core::trf!("ícones {}: só do Excel 2010+", nome));
+                }
                 continue;
             }
             total += 1;

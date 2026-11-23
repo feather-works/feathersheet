@@ -368,9 +368,9 @@ fn internar(lista: &mut Vec<String>, visto: &mut HashMap<String, usize>, xml: St
 
 /// O tamanho da letra em pt a partir dos px inteiros do motor. 10 pt vira 13 px na leitura e voltaria
 /// 9,75 pt (a letra encolhia a cada ida e volta): o tamanho padrão do Office a até 0,375 pt (meio px)
-/// é o que estava no arquivo.
+/// é o que estava no arquivo. Sem o 11: a leitura toma `sz=11` por "sem tamanho" e 15 px (11,25 pt) voltaria 13 px.
 fn pt_da_fonte(px: f64) -> f64 {
-    const PADRAO: [f64; 18] = [8.0, 9.0, 10.0, 10.5, 11.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 36.0, 48.0, 60.0, 72.0];
+    const PADRAO: [f64; 17] = [8.0, 9.0, 10.0, 10.5, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 36.0, 48.0, 60.0, 72.0];
     let pt = px * 0.75;
     PADRAO.iter().copied().find(|p| (p - pt).abs() <= 0.375 + 1e-9).unwrap_or_else(|| arredondar(pt))
 }
@@ -2602,6 +2602,7 @@ mod testes_sem_dados_pessoais {
             assert_eq!(super::pt_da_fonte((pt / 0.75_f64).round()), pt, "{pt} pt");
         }
         assert_eq!(super::pt_da_fonte(17.0), 12.75, "fora da lista fica como está");
+        assert_eq!(super::pt_da_fonte(15.0), 11.25, "11 pt a leitura toma por padrão: 15 px voltaria 13");
     }
 
     use super::*;

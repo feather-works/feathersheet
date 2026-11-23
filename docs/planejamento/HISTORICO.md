@@ -4,6 +4,16 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- Auditoria do código de 14 a 23/11 (23/11/2026), oito correções:
+  MCP não grava por cima do `.xlsx` aberto com partes não convertidas também quando o caminho vem escrito de
+  outro jeito (`./a.xlsx`, atalho: `conferir_sobrescrita` compara o caminho real); ícones só do Excel 2010+
+  (3 estrelas, 3 triângulos, 5 caixas) contam como não convertidos (sumiam no Ctrl+S) e o `trechos` pega o bloco
+  `x14:conditionalFormattings` inteiro (o nome mais curto ganhava o empate); letra de 15 px volta 15 do `.xlsx`
+  (saía 11 pt, que a leitura toma por padrão; o 11 saiu de `pt_da_fonte`); reexibir depois do Ctrl+Z ainda devolve
+  a largura (`dimensoes_ocultadas` não é mais apagado ao reexibir); Grade limitada calcula o limite do outro
+  painel pela aba dele (`limite_da_grade`); Colar vínculo recusa quando a aba copiada foi excluída (virava `=A1`
+  desta aba); filtro avançado no lugar não mostra as linhas ocultas encostadas fora da lista
+  (`Sheet::reexibir_somente`); o aviso de ícones ao salvar `.xlsx` não apaga mais o das macros VBA.
 - Exibir ▸ Grade limitada (#164, pedido de fora): depois da última linha/coluna usada (ou da seleção) mais uma de
   margem, a grade vira fundo cinza; cresce ao escrever ou clicar na margem. Só visual (`Grade::limite`, preferência
   `grade_limitada` da pessoa, não do arquivo); a rolagem continua livre e os cabeçalhos seguem numerados. Teste

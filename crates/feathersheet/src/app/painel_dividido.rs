@@ -108,6 +108,7 @@ impl App {
             area: Rect::new(p.linha, p.coluna, p.linha, p.coluna),
             linhas_grade: self.linhas_grade && !self.grade_oculta.contains(&p.aba_id),
             mostrar_zeros: !self.zeros_ocultos.contains(&p.aba_id),
+            limite: self.limite_da_grade(indice, p.linha, p.coluna),
             rascunho: None,
             refs_formula: Vec::new(),
             lista_aberta: false,

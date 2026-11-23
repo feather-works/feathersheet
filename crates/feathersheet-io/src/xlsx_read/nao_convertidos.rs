@@ -139,7 +139,7 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         // shortcut: descompacta cada aba (≈1 s a mais no 1º Ctrl+S de um .xlsx de centenas de MB); se pesar,
         // guardar a contagem que a leitura já faz (`validacoes::ler`) na abertura.
         if let Ok(f) = z.by_name(&caminho) {
-            let mut blocos = trechos(f, &[b"dataValidations", b"conditionalFormatting", b"conditionalFormattings", b"autoFilter"]);
+            let mut blocos = trechos(f, &[b"dataValidations", b"conditionalFormattings", b"conditionalFormatting", b"autoFilter"]);
             // AutoFiltro da aba, fora de tabela (o da tabela mora na parte da tabela): o app só filtra tabela.
             let e_filtro = |b: &String| b.trim_start_matches('<').split([' ', '/', '>']).next().is_some_and(|n| n.ends_with("autoFilter"));
             somar(Some(nome), "Filtro da planilha (fora de tabela)", blocos.iter().filter(|b| e_filtro(b)).count());
@@ -243,5 +243,24 @@ mod testes {
         assert_eq!(trechos(AosPoucos(xml), &[b"dataValidations", b"autoFilter"]),
             vec!["<x14:dataValidations n=\"1\"><x/></x14:dataValidations>", "<autoFilter ref=\"A1\"/>", "<dataValidations>y</dataValidations>"]);
         assert_eq!(abre("<x:gradientFill a='1'></x:gradientFill><gradientFill/>", "gradientFill"), 2);
+    }
+
+    #[test]
+    fn icones_so_do_excel_2010_contam() {
+        let com = |aba: &str| {
+            let mut bytes = Vec::new();
+            {
+                let mut zw = zip::ZipWriter::new(Cursor::new(&mut bytes));
+                let mut f = |n: &str, t: &str| { zw.start_file(n, SimpleFileOptions::default()).unwrap(); zw.write_all(t.as_bytes()).unwrap(); };
+                f("xl/workbook.xml", r#"<workbook xmlns:r="r"><sheets><sheet name="A" r:id="rId1"/></sheets></workbook>"#);
+                f("xl/_rels/workbook.xml.rels", r#"<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>"#);
+                f("xl/worksheets/sheet1.xml", aba);
+                zw.finish().unwrap();
+            }
+            nao_convertidos(bytes).unwrap().iter().filter(|x| x.o_que == "Formatação condicional sem equivalente").map(|x| x.quantos).sum::<usize>()
+        };
+        // "3 estrelas": só no bloco x14, sem a regra clássica.
+        let x14 = r#"<extLst><ext uri="{78C0D931-6437-407d-A8EE-F0AAD7539E65}"><x14:conditionalFormattings><x14:conditionalFormatting xmlns:xm="xm"><x14:cfRule type="iconSet" priority="1" id="{1}"><x14:iconSet iconSet="3Stars"><x14:cfvo type="percent"><xm:f>0</xm:f></x14:cfvo></x14:iconSet></x14:cfRule><xm:sqref>A1:A9</xm:sqref></x14:conditionalFormatting></x14:conditionalFormattings></ext></extLst>"#;
+        assert_eq!(com(&format!("<worksheet><sheetData/>{x14}</worksheet>")), 1, "sumia sem aviso no Ctrl+S");
     }
 }

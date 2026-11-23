@@ -79,7 +79,7 @@ impl App {
             let mut erro = Ok(0);
             self.workbook.editar(self.folha, |s| {
                 s.abrir_transacao();
-                erro = s.alterar_visibilidade_dimensoes(false, false, lista.r0 + 1, fim);
+                erro = s.reexibir_somente(false, lista.r0 + 1, fim);
                 let mut r = lista.r0 + 1;
                 for &p in passam.iter().chain(std::iter::once(&(fim + 1))) {
                     if erro.is_ok() && p > r { erro = s.alterar_visibilidade_dimensoes(false, true, r, p - 1); }

@@ -168,6 +168,11 @@ impl App {
             self.status = trf!("{quantos} comentário(s) colado(s)");
             return;
         }
+        // A aba copiada foi excluída: sem ela o vínculo viraria =A1 desta aba, sem aviso.
+        if e.colar == QueColar::Vinculo && copia.is_some_and(|c| self.workbook.indice_do_id(c.aba_origem).is_none()) {
+            self.status = tr!("A aba de onde as células foram copiadas não existe mais: copie de novo para colar o vínculo.").into();
+            return;
+        }
         // Colar vínculo: a aba vai no nome só quando a origem é outra (como o Excel).
         let vinculo = (e.colar == QueColar::Vinculo).then(|| copia.map(|c| {
             let aba = (Some(c.aba_origem) != self.workbook.aba(self.folha).map(|a| a.id))
@@ -372,6 +377,19 @@ mod testes {
         colar(&mut app, "B2", dados, vinculo);
         assert_eq!(app.workbook.aba(outra).unwrap().sheet.get_raw(1, 1), format!("={}!A1", feathersheet_core::celulas::refs::quote_sheet(&nome)));
         assert_eq!(app.workbook.valor(outra, 2, 1), Value::Number(20.0));
+    }
+
+    #[test]
+    fn colar_vinculo_de_aba_excluida_recusa() {
+        let mut app = App::default();
+        let dados_aba = app.workbook.inserir_aba("Dados", 1);
+        let _ = app.update(Msg::Aba(dados_aba));
+        app.workbook.escrever_celula(dados_aba, 0, 0, "10".into());
+        let dados = copiar(&mut app, "A1");
+        let _ = app.update(Msg::Aba(0));
+        assert!(app.workbook.remover_aba(dados_aba));
+        colar(&mut app, "C1", dados, Estado { colar: QueColar::Vinculo, ..Default::default() });
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(0, 2), "", "não vira =A1 desta aba");
     }
 
     #[test]

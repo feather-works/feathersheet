@@ -1702,13 +1702,22 @@ impl Sheet {
         // Uma transação só: reexibir a faixa do fim e as ocultas avulsas
         // encostadas desfaz com um Ctrl+Z.
         self.abrir_transacao();
-        let r = self.visibilidade_dimensoes(coluna, ocultar, a, b);
+        let r = self.visibilidade_dimensoes(coluna, ocultar, a, b, true);
+        self.fechar_transacao();
+        r
+    }
+
+    /// Reexibe só as linhas/colunas de `a..=b`, sem se estender às ocultas encostadas
+    /// (o filtro avançado não pode mostrar o que a pessoa ocultou fora da lista).
+    pub fn reexibir_somente(&mut self, coluna: bool, a: u32, b: u32) -> Result<usize, String> {
+        self.abrir_transacao();
+        let r = self.visibilidade_dimensoes(coluna, false, a, b, false);
         self.fechar_transacao();
         r
     }
 
     fn visibilidade_dimensoes(
-        &mut self, coluna: bool, ocultar: bool, a: u32, b: u32,
+        &mut self, coluna: bool, ocultar: bool, a: u32, b: u32, estender: bool,
     ) -> Result<usize, String> {
         let limite_eixo = if coluna { MAX_COLS } else { MAX_ROWS };
         let inicio = a.min(b);
@@ -1731,7 +1740,7 @@ impl Sheet {
         // Reexibir encostado na faixa oculta do fim (selecionar a linha 29 e
         // a de baixo, ou "tudo"): a faixa inteira volta.
         let mut reexibidas_do_fim = 0usize;
-        if !ocultar {
+        if !ocultar && estender {
             if let Some(n) = desde_atual.filter(|&n| u64::from(fim) + 1 >= u64::from(n)) {
                 self.definir_ocultas_desde(coluna, None);
                 reexibidas_do_fim = (limite_eixo - n) as usize;
@@ -1751,9 +1760,9 @@ impl Sheet {
             // Estender até os zeros encostados à seleção, sem percorrer
             // milhões de linhas vazias quando o usuário selecionou um eixo.
             let mut de = inicio;
-            while de > 0 && mapa.get(&(de - 1)) == Some(&0) { de -= 1; }
+            while estender && de > 0 && mapa.get(&(de - 1)) == Some(&0) { de -= 1; }
             let mut ate = fim;
-            while ate < limite_eixo - 1 && mapa.get(&(ate + 1)) == Some(&0) { ate += 1; }
+            while estender && ate < limite_eixo - 1 && mapa.get(&(ate + 1)) == Some(&0) { ate += 1; }
             let mut ocultos: Vec<_> = mapa.iter()
                 .filter_map(|(&i, &v)| (v == 0 && i >= de && i <= ate).then_some(i))
                 .collect();
@@ -1782,7 +1791,7 @@ impl Sheet {
                     None => { self.dimensoes_ocultadas.remove(&(coluna, *indice)); }
                 }
                 Some(0)
-            } else { self.dimensoes_ocultadas.remove(&(coluna, *indice)) };
+            } else { self.dimensoes_ocultadas.get(&(coluna, *indice)).copied() };
             if let Some(pendente) = self.hist.pendente.as_mut() {
                 pendente.push(Passo::Dimensao {
                     coluna, indice: *indice, antes, depois,

@@ -27,7 +27,9 @@ pub fn abrir(caminho: &Path) -> Result<(Workbook, usize), String> {
 /// Recusa gravar `.xlsx` por cima do arquivo aberto (`origem`) quando ele tem partes que a leitura deixou de fora
 /// (formas, nomes com fórmula, validação sem equivalente…): o Ctrl+S do app pede "Salvar como" pelo mesmo motivo.
 pub fn conferir_sobrescrita(destino: &Path, origem: Option<&Path>) -> Result<(), String> {
-    if extensao(destino) != "xlsx" || origem != Some(destino) { return Ok(()); }
+    // O mesmo arquivo escrito de outro jeito (`./x.xlsx`, caminho absoluto, atalho) também é ele.
+    let real = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+    if extensao(destino) != "xlsx" || origem.map(real) != Some(real(destino)) { return Ok(()); }
     let Ok(bytes) = std::fs::read(destino) else { return Ok(()) };
     let perdidos = feathersheet_io::xlsx_read::nao_convertidos::nao_convertidos(bytes).unwrap_or_default();
     if perdidos.is_empty() { return Ok(()); }

@@ -51,6 +51,12 @@ fn reexibir_devolve_a_largura_e_a_altura_de_antes() {
     // Ctrl+Z do reexibir oculta de novo; reexibir outra vez ainda devolve a largura.
     assert!(s.undo());
     assert_eq!(s.row_heights.get(&7), Some(&0));
+    s.alterar_visibilidade_dimensoes(false, false, 7, 7).unwrap();
+    assert_eq!(s.row_heights.get(&7), Some(&40), "depois do Ctrl+Z, reexibir ainda devolve a altura");
+    assert!(s.undo() && s.undo());
+    assert_eq!(s.col_widths.get(&3), Some(&0));
+    s.alterar_visibilidade_dimensoes(true, false, 3, 3).unwrap();
+    assert_eq!(s.col_widths.get(&3), Some(&145));
 }
 
 #[test]
@@ -765,4 +771,13 @@ fn mostrar_alteracoes_registra_o_texto_e_junta_as_mudancas_grandes() {
     let ultima = s.alteracoes().last().unwrap().clone();
     assert_eq!((ultima.celulas, ultima.area), (60, Rect::new(0, 2, 59, 2)));
     assert_eq!(s.alteracoes().len(), 3);
+}
+
+#[test]
+fn reexibir_somente_nao_mostra_as_ocultas_encostadas() {
+    let mut s = Sheet::new("Dados");
+    s.alterar_visibilidade_dimensoes(false, true, 5, 20).unwrap();
+    s.reexibir_somente(false, 1, 9).unwrap();
+    assert!((5..=9).all(|r| s.row_heights.get(&r) != Some(&0)), "dentro da lista volta");
+    assert!((10..=20).all(|r| s.row_heights.get(&r) == Some(&0)), "fora da lista continua oculta");
 }
