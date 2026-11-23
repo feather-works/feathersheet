@@ -69,9 +69,10 @@ Section "FeatherSheet"
   WriteRegStr HKLM "Software\Classes\FeatherSheet.Planilha" "" "Planilha do FeatherSheet"
   WriteRegStr HKLM "Software\Classes\FeatherSheet.Planilha\DefaultIcon" "" "$INSTDIR\feathersheet.ico"
   WriteRegStr HKLM "Software\Classes\FeatherSheet.Planilha\shell\open\command" "" '"$INSTDIR\feathersheet.exe" "%1"'
-  ; "Abrir com" para .xlsx, .xlsm e .csv, sem tomar o lugar do programa padrão.
+  ; "Abrir com" para .xlsx, .xlsm, .xlsb e .csv, sem tomar o lugar do programa padrão.
   WriteRegStr HKLM "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha" ""
   WriteRegStr HKLM "Software\Classes\.xlsm\OpenWithProgids" "FeatherSheet.Planilha" ""
+  WriteRegStr HKLM "Software\Classes\.xlsb\OpenWithProgids" "FeatherSheet.Planilha" ""
   WriteRegStr HKLM "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha" ""
 
   WriteRegStr HKLM "Software\FeatherWorks\FeatherSheet" "Pasta" "$INSTDIR"
@@ -101,6 +102,7 @@ Section "Uninstall"
   DeleteRegKey HKLM "Software\Classes\FeatherSheet.Planilha"
   DeleteRegValue HKLM "Software\Classes\.xlsx\OpenWithProgids" "FeatherSheet.Planilha"
   DeleteRegValue HKLM "Software\Classes\.xlsm\OpenWithProgids" "FeatherSheet.Planilha"
+  DeleteRegValue HKLM "Software\Classes\.xlsb\OpenWithProgids" "FeatherSheet.Planilha"
   DeleteRegValue HKLM "Software\Classes\.csv\OpenWithProgids" "FeatherSheet.Planilha"
   ReadRegStr $0 HKLM "Software\Classes\.fshz" ""
   StrCmp $0 "FeatherSheet.Planilha" 0 +2

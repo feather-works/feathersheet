@@ -572,8 +572,10 @@ impl App {
             // compartilhado, mas mantém o armazenamento colunar do Sheet.
             // XLSX e FSHZ acima continuam nos codecs nativos existentes.
             (feathersheet_io::csv_workbook::importar_csv_tsv_com_separador(bytes, ext == "tsv", separador)?, 0)
+        } else if ext == "xlsb" {
+            (feathersheet_io::xlsb_read::ler_xlsb(bytes)?, 0)
         } else {
-            return Err(tr!("Formato não suportado. Abra .fshz, .xlsx, .xlsm, .csv, .tsv ou .parquet.").into());
+            return Err(tr!("Formato não suportado. Abra .fshz, .xlsx, .xlsm, .xlsb, .csv, .tsv ou .parquet.").into());
         };
         Ok((workbook, folha))
     }
@@ -642,7 +644,7 @@ impl App {
         if recuperacao {
             self.status = tr!("Cópia temporária recuperada. Use Salvar para criar o arquivo definitivo.").into();
         } else {
-            self.status = trf!("Aberto: {}", path.display());
+            self.status = if ext == "xlsb" { trf!("Aberto: {} — do .xlsb vêm valores, fórmulas e nomes; a formatação, as mesclas e os gráficos não. Salve como .xlsx ou .fshz.", path.display()) } else { trf!("Aberto: {}", path.display()) };
             self.registrar_arquivo_recente(&path);
         }
         if ext == "xlsm" { self.ler_vba_do_xlsm(&path); } else { self.vba_pendente = None; }
@@ -1014,10 +1016,11 @@ impl App {
             // Um filtro por tipo, como o Excel; o primeiro é o que vem escolhido.
             // O .xls (binário do Excel 97–2003) fica de fora até haver leitor.
             rfd::AsyncFileDialog::new().set_directory(dialogos::pasta_padrao())
-                .add_filter(tr!("Todas as planilhas"), &["fshz", "xlsx", "xlsm", "csv", "tsv", "parquet"])
+                .add_filter(tr!("Todas as planilhas"), &["fshz", "xlsx", "xlsm", "xlsb", "csv", "tsv", "parquet"])
                 .add_filter(tr!("Pasta de trabalho do FeatherSheet (.fshz)"), &["fshz"])
                 .add_filter(tr!("Pasta de trabalho do Excel (.xlsx)"), &["xlsx"])
                 .add_filter(tr!("Pasta de trabalho do Excel com macros (.xlsm)"), &["xlsm"])
+                .add_filter(tr!("Pasta de trabalho binária do Excel (.xlsb)"), &["xlsb"])
                 .add_filter(tr!("CSV (.csv)"), &["csv"])
                 .add_filter(tr!("Texto separado por tabulações (.tsv)"), &["tsv"])
                 .add_filter("Parquet (.parquet)", &["parquet"])

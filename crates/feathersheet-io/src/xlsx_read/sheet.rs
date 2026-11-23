@@ -27,7 +27,7 @@ fn widths_to_px(w: f64) -> i64 {
 /// `serialToDate` + formatação dd/mm/aaaa [hh:mm:ss] sem `Intl` — igual o
 /// motor TypeScript faz hoje (`core/style.ts`, corrigido nesta sessão por
 /// causa do custo do `Intl` por célula).
-fn format_date_serial(n: f64, incluir_hora: bool, so_hora: bool) -> String {
+pub(crate) fn format_date_serial(n: f64, incluir_hora: bool, so_hora: bool) -> String {
     let ms = EPOCH_MS + (n * DAY_MS as f64).round() as i64;
     let dias_desde_epoca = ms.div_euclid(DAY_MS);
     let ms_no_dia = ms.rem_euclid(DAY_MS);

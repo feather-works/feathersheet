@@ -45,6 +45,7 @@ pub mod recents;
 pub mod web;
 
 pub mod xlsx_read;
+pub mod xlsb_read;
 pub mod xlsx_write;
 pub mod xlsx_senha;
 mod xlsx_write_controles;

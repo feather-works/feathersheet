@@ -2,6 +2,17 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
+## Depois da v0.3.5 (para a 0.3.6)
+
+- **Abrir `.xlsb`** (23/11/2026): `feathersheet-io/src/xlsb_read.rs` pelo crate `calamine` 0.38 (Rust puro, sem os
+  recursos padrão). Vêm valores, datas (base 1904 convertida; entram como digitadas, com formato de data),
+  fórmulas (convertidas pelo `formula_from_excel` do `.xlsx`; o `User(nome,…)` que o calamine escreve para função
+  que não conhece volta a `nome(…)`) e nomes definidos (`Aba!$A$1:$B$2`, também de uma célula). Não vêm formatação,
+  mesclas, larguras, gráficos nem imagens (o calamine não lê isso no `.xlsb`); o status diz isso ao abrir. Gravar
+  `.xlsb` não existe: como o `.csv`, abre sem `caminho` e o Ctrl+S pede onde salvar. Filtro na janela de abrir,
+  "Abrir com" no `.desktop` e no instalador do Windows, Ajuda F1. Teste `tests/xlsb_xlsx.rs` com três arquivos dos
+  testes do calamine (MIT, `tests/arquivos/xlsb/LEIA-ME.md`); exemplo `examples/ver_xlsb.rs`.
+
 ## v0.3.5 (23/11/2026)
 
 - O resto do relatório das issues do GridCraft (23/11/2026, entrou na 0.3.5 a pedido):

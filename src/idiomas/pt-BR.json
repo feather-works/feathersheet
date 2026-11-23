@@ -216,7 +216,7 @@
       "arquivos": {
         "titulo": "Arquivos",
         "corpo": [
-          "O formato próprio é o .fshz. Ctrl+S salva e Ctrl+Shift+S (Salvar como…) salva com outro nome em .fshz, .xlsx ou .xlsm. Um .xlsx ou .xlsm aberto é salvo de volta no mesmo formato pelo Ctrl+S. Abrir também lê .csv, .tsv e .parquet. Num .csv, código com zero à esquerda (CEP, telefone, 007) fica texto e guarda o zero. Uma coluna de datas escrita mês/dia (02/13/2026, como nos CSVs americanos) é reconhecida e lida certo.",
+          "O formato próprio é o .fshz. Ctrl+S salva e Ctrl+Shift+S (Salvar como…) salva com outro nome em .fshz, .xlsx ou .xlsm. Um .xlsx ou .xlsm aberto é salvo de volta no mesmo formato pelo Ctrl+S. Abrir também lê .csv, .tsv, .parquet e .xlsb (o binário do Excel: vêm valores, fórmulas e nomes, sem a formatação; o Ctrl+S pede para salvar como .xlsx ou .fshz). Num .csv, código com zero à esquerda (CEP, telefone, 007) fica texto e guarda o zero. Uma coluna de datas escrita mês/dia (02/13/2026, como nos CSVs americanos) é reconhecida e lida certo.",
           "Arquivo → Exportar grava a pasta em .xlsx ou a aba atual em .csv.",
           "Um .xlsx protegido por senha (Excel ou LibreOffice) abre: o aplicativo pede a senha, que só é usada para decifrar o arquivo na sua máquina. Revisão › Criptografar com senha define, troca ou tira a senha: o .xlsx sai cifrado como no Excel (AES-256) e a senha de um arquivo aberto continua ao salvar de novo. O .fshz não leva senha: com senha definida, o Salvar sugere .xlsx e o Ctrl+S num .fshz pede onde salvar.",
           "Esta ajuda também vira arquivo: na janela da Ajuda (F1), Exportar como Markdown grava tudo num .md, no idioma do app.",
