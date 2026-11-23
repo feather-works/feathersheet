@@ -16,8 +16,11 @@
   leitura por streaming (`worksheet_cells_reader`, sem a grade densa que estourava a memória), aba de gráfico vem
   vazia, fórmula ilegível é contada (status) e não leva as outras, nome de aba ganha aspas, bits de "relativo"
   que o calamine deixa na coluna (`$BTRM$1` = A1) desfeitos, duração `[h]:mm` e data negativa ficam número,
-  `sem_user` não corta `GetUser(`, pânico do calamine vira erro. Fica para depois: interseção legada dentro de
-  IF/ANO (`=SE(A1:A10>5;…)` de arquivo antigo ainda derrama) e excluir milhares de trechos filtrados numa operação só.
+  `sem_user` não corta `GetUser(`, pânico do calamine vira erro. Fica para depois: excluir milhares de trechos
+  filtrados numa operação só.
+- **Interseção legada dentro de SE/ANO/MÊS/DIA/DIA.DA.SEMANA** (23/11/2026): `=SE(A1:A10>5;…)` de `.xlsx` antigo vale a
+  linha da fórmula, como no Excel de antes do 365 (`functions::intersecao_nos_argumentos`; MAIOR/MENOR ficam de fora,
+  querem o intervalo inteiro). O filtro barato da leitura deixa passar `IF(`/`YEAR(`… com ":".
 
 - **Abrir `.xlsb`** (23/11/2026): `feathersheet-io/src/xlsb_read.rs` pelo crate `calamine` 0.38 (Rust puro, sem os
   recursos padrão). Vêm valores, datas (base 1904 convertida; entram como digitadas, com formato de data),

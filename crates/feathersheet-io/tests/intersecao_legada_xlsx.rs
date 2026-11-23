@@ -24,7 +24,7 @@ fn xlsx(celulas: &str) -> Vec<u8> {
 #[test]
 fn formula_antiga_faz_intersecao_e_moderna_derrama() {
     let dados = r#"<row r="1"><c r="A1"><v>1</v></c><c r="D1" cm="1"><f t="array" ref="D1:D3">A1:A3*10</f><v>10</v></c></row>
-<row r="2"><c r="A2"><v>2</v></c><c r="B2"><f>A1:A3*10</f><v>20</v></c><c r="C2"><f>_xlfn.SINGLE(A:A)</f><v>2</v></c><c r="E2"><f>SUM(A1:A3)</f><v>6</v></c></row>
+<row r="2"><c r="A2"><v>2</v></c><c r="B2"><f>A1:A3*10</f><v>20</v></c><c r="C2"><f>_xlfn.SINGLE(A:A)</f><v>2</v></c><c r="E2"><f>SUM(A1:A3)</f><v>6</v></c><c r="F2" t="str"><f>IF(A1:A3&gt;1,"x","y")</f><v>x</v></c></row>
 <row r="3"><c r="A3"><v>3</v></c></row>"#;
     let (wb, _) = ler_xlsx_workbook(xlsx(dados)).unwrap();
     assert_eq!(wb.valor(0, 1, 1), Value::Number(20.0), "B2 antiga: A2*10");
@@ -32,6 +32,8 @@ fn formula_antiga_faz_intersecao_e_moderna_derrama() {
     assert_eq!(wb.valor(0, 1, 2), Value::Number(2.0), "o @ do Excel 365 (_xlfn.SINGLE) calcula");
     assert_eq!(wb.valor(0, 2, 3), Value::Number(30.0), "a moderna (cm) derrama");
     assert_eq!(wb.aba(0).unwrap().sheet.get_raw(1, 4), "=SOMA(A1:A3)", "fórmula comum fica como está");
+    assert_eq!(wb.valor(0, 1, 5), Value::Text("x".into()), "SE antigo: interseção na linha 2");
+    assert_eq!(wb.valor(0, 2, 5), Value::Empty, "e não derrama");
     // Ao salvar, o Excel recebe o @ como ele grava.
     let mut z = zip::ZipArchive::new(Cursor::new(gerar_xlsx(&wb).unwrap())).unwrap();
     let mut s = String::new();

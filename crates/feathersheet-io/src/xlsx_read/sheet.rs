@@ -432,10 +432,16 @@ pub(super) fn numero_da_celula(text: &str, xf: Option<&XfStyle>) -> String {
 pub(super) fn intersecao_legada(texto: &str, cm: bool, f_t: Option<&str>) -> Option<String> {
     // Filtro barato: só o ":" fora de parênteses e de aspas pode ser intervalo solto. `SUM(A1:B1)`, a
     // fórmula mais comum, não é convertida duas vezes.
-    if cm || f_t == Some("array") || !dois_pontos_solto(texto) { return None; }
+    if cm || f_t == Some("array") || !(dois_pontos_solto(texto) || (texto.contains(':') && chama_escalar(texto))) { return None; }
     let pt = super::formula::formula_from_excel(texto);
     feathersheet_core::funcoes::fn_info::precisa_intersecao_legada(pt.trim_start_matches('='))
         .then(|| format!("_xlfn.SINGLE({texto})"))
+}
+
+/// A fórmula chama uma função em que o Excel antigo intersectava o intervalo (`IF(`, `YEAR(`…; no
+/// `.xlsx` o nome vem em inglês). Também acerta `MYIF(`: só faz converter à toa, não muda o resultado.
+fn chama_escalar(texto: &str) -> bool {
+    ["IF(", "YEAR(", "MONTH(", "DAY(", "WEEKDAY("].iter().any(|f| texto.contains(f))
 }
 
 fn dois_pontos_solto(texto: &str) -> bool {

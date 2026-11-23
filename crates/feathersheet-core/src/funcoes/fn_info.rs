@@ -561,6 +561,9 @@ fn intersectar(no: &mut Node, aqui: (u32, u32)) {
         }
         Node::Binary { left, right, .. } => { intersectar(left, aqui); intersectar(right, aqui); }
         Node::Unary { operand, .. } => intersectar(operand, aqui),
+        Node::Call { name, args } if crate::funcoes::functions::intersecao_nos_argumentos(name) => {
+            for a in args { intersectar(a, aqui); }
+        }
         _ => {}
     }
 }
@@ -583,6 +586,7 @@ pub fn precisa_intersecao_legada(corpo: &str) -> bool {
             Node::Range { .. } => true,
             Node::Binary { left, right, .. } => tem_intervalo(left) || tem_intervalo(right),
             Node::Unary { operand, .. } => tem_intervalo(operand),
+            Node::Call { name, args } if crate::funcoes::functions::intersecao_nos_argumentos(name) => args.iter().any(tem_intervalo),
             _ => false,
         }
     }
@@ -608,6 +612,11 @@ mod testes_single {
         assert!(matches!(w.valor(0, 5, 1), Value::Error(_)), "fora do intervalo: #VALOR!");
         assert_eq!(w.valor(0, 2, 3), Value::Number(6.0), "dentro de função o intervalo fica inteiro");
         assert!(super::precisa_intersecao_legada("A:A*2") && super::precisa_intersecao_legada("B1:B9"));
+        // Dentro de SE/ANO o Excel antigo também fazia a interseção; em MAIOR, não.
+        w.escrever_celula(0, 1, 4, "=SINGLE(SE(A1:A3>1;\"x\";\"y\"))".into());
+        assert_eq!(w.valor(0, 1, 4), Value::Text("x".into()), "linha 2: A2=2 > 1");
+        assert!(super::precisa_intersecao_legada("SE(A1:A10>5;1;0)") && super::precisa_intersecao_legada("ANO(A:A)"));
+        assert!(!super::precisa_intersecao_legada("MAIOR(A1:A10;2)"));
         assert!(!super::precisa_intersecao_legada("SOMA(A:A)") && !super::precisa_intersecao_legada("A1*2"));
     }
 }

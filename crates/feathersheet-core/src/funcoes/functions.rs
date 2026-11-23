@@ -1307,6 +1307,12 @@ pub fn array_lifting(nome: &str) -> bool {
     na_lista(LEVANTAM_MATRIZ, nome)
 }
 
+/// Funções escalares em que o Excel antigo fazia interseção implícita do intervalo nos argumentos
+/// (`=SE(A1:A10>5;…)` numa célula valia a linha dela). MAIOR/MENOR querem o intervalo inteiro.
+pub fn intersecao_nos_argumentos(nome: &str) -> bool {
+    na_lista(&["IF", "YEAR", "MONTH", "DAY", "WEEKDAY"], nome)
+}
+
 /// Se o resultado da função é uma data, e de que tipo (aceita apelido).
 pub fn date_result(nome: &str) -> Option<DateResult> {
     let canonico = nome_canonico(nome);
