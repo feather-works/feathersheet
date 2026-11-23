@@ -482,3 +482,38 @@ mod testes_filtro_da_macro {
         assert!(sob_qualquer(&w, 0, 0, 0).is_none(), "AutoFilterMode = False tira o filtro");
     }
 }
+
+#[cfg(test)]
+mod testes_filtro_copiar {
+    use crate::app::{App, Msg};
+
+    /// Filtro UF = SP em A1:B5: as linhas 3 (Ana, RJ) e 5 (Davi, MG) ficam escondidas.
+    fn app_filtrado() -> App {
+        let mut app = App::default();
+        let r = feathersheet_macros::executar(&mut app.workbook, 0, r#"sheet.set("A1:B5", [["Nome","UF"],["Bia","SP"],["Ana","RJ"],["Caio","SP"],["Davi","MG"]]);
+            sheet.autoFilter("A1:B5", 2, "SP");"#);
+        assert!(super::aplicar_filtros_da_macro(&mut app.workbook, &r.filtros).is_empty());
+        app
+    }
+
+    #[test]
+    fn copiar_com_filtro_leva_so_as_linhas_que_aparecem() {
+        let mut app = app_filtrado();
+        let _ = app.update(Msg::IrPara("A1:B5".into()));
+        assert_eq!(app.copiar_selecao().unwrap(), "Nome\tUF\nBia\tSP\nCaio\tSP");
+        // Recortar leva tudo: a origem inteira é limpa, nada escondido se perde.
+        assert_eq!(app.copiar_area(false).unwrap().lines().count(), 5);
+    }
+
+    #[test]
+    fn ctrl_enter_com_filtro_nao_escreve_nas_linhas_escondidas() {
+        let mut app = app_filtrado();
+        let _ = app.update(Msg::IrPara("B2:B5".into()));
+        app.editor_formula.ativo = true;
+        app.edicao = "OK".into();
+        assert!(app.preencher_selecao_com_edicao());
+        let s = &app.workbook.aba(0).unwrap().sheet;
+        assert_eq!((s.get_raw(1, 1), s.get_raw(3, 1)), ("OK".to_string(), "OK".to_string()));
+        assert_eq!((s.get_raw(2, 1), s.get_raw(4, 1)), ("RJ".to_string(), "MG".to_string()), "escondidas ficam como estavam");
+    }
+}

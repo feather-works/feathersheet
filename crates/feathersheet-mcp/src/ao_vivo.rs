@@ -37,9 +37,9 @@ fn mensagem_de_foco(arquivos: &[String]) -> String {
 }
 
 /// Atende cada linha de uma conexão com `tratar` (uma resposta por linha, quando há).
-fn atender_conexao(leitura: impl BufRead, mut escrita: impl Write, tratar: &(impl Fn(Value) -> Option<Value> + ?Sized)) {
-    for linha in leitura.lines() {
-        let Ok(linha) = linha else { break };
+fn atender_conexao(mut leitura: impl BufRead, mut escrita: impl Write, tratar: &(impl Fn(Value) -> Option<Value> + ?Sized)) {
+    while let Some(linha) = crate::ler_linha(&mut leitura) {
+        let Ok(linha) = linha else { continue };
         let Ok(msg) = serde_json::from_str::<Value>(&linha) else { continue };
         if let Some(r) = tratar(msg) {
             if writeln!(escrita, "{r}").and_then(|()| escrita.flush()).is_err() {

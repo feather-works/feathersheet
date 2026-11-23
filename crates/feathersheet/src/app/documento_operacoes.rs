@@ -258,7 +258,11 @@ impl App {
          andar(origem.1, dc, limite_c, &coluna_oculta))
     }
 
-    pub(super) fn copiar_selecao(&mut self) -> Option<String> {
+    /// Copiar: com filtro ligado vão só as linhas que aparecem, como no Excel.
+    pub(super) fn copiar_selecao(&mut self) -> Option<String> { self.copiar_area(true) }
+
+    /// `so_visiveis` pula as linhas que o filtro escondeu. Recortar leva tudo (a origem é limpa inteira).
+    pub(super) fn copiar_area(&mut self, so_visiveis: bool) -> Option<String> {
         self.confirmar();
         if self.tem_varias_areas() {
             self.status = tr!("Copiar e recortar não funcionam com várias áreas selecionadas").into();
@@ -286,7 +290,14 @@ impl App {
         // de novo no destino.
         let derramada_sem_ancora = |r: u32, c: u32| aba.sheet.area_derramada_em(r, c)
             .is_some_and(|a| (a.r0, a.c0) != (r, c) && !area.contains(a.r0, a.c0));
-        let celulas: Vec<Vec<Snap>> = (area.r0..=area.r1).map(|r| {
+        let linhas_r: Vec<u32> = {
+            let pular = super::tabelas::puladas_pelo_filtro(&aba.sheet);
+            (area.r0..=area.r1).filter(|&r| !(so_visiveis && pular(r))).collect()
+        };
+        let pulou = linhas_r.len() as u32 != area.r1 - area.r0 + 1;
+        // Posição de uma linha da origem na cópia (sem as linhas puladas).
+        let na_copia = |r: u32| linhas_r.binary_search(&r).ok().map(|i| i as u32);
+        let celulas: Vec<Vec<Snap>> = linhas_r.iter().map(|&r| {
             (area.c0..=area.c1).map(|c| Snap {
                 raw: if derramada_sem_ancora(r, c) { texto_do_valor(r, c) } else { aba.sheet.get_raw(r, c) },
                 style: aba.sheet.estilo_mesclado(r, c),
@@ -296,7 +307,7 @@ impl App {
         // os resultados no instante da cópia, inclusive referências entre abas.
         let valores: Vec<Vec<String>> = celulas.iter().enumerate().map(|(dr, linha)| {
             linha.iter().enumerate().map(|(dc, celula)| {
-                let (r, c) = (area.r0 + dr as u32, area.c0 + dc as u32);
+                let (r, c) = (linhas_r[dr], area.c0 + dc as u32);
                 if celula.raw.starts_with('=') || (celula.raw.is_empty() && aba.sheet.area_derramada_em(r, c).is_some()) {
                     texto_do_valor(r, c)
                 } else {
@@ -318,7 +329,9 @@ impl App {
         self.area_copiada = Some(AreaCopiada {
             texto: texto.clone(), celulas, valores, larguras,
             origem: (area.r0, area.c0), aba_origem: aba.id, recortada: false,
-            validacoes: super::validacao_ui::carregar_regras(aba.sheet.va.as_deref()).unwrap_or_default().into_iter()
+            // shortcut: com linhas puladas pelo filtro a validação não vai junto (os intervalos dela
+            // ficariam picados); fazer se pedirem.
+            validacoes: if pulou { Vec::new() } else { super::validacao_ui::carregar_regras(aba.sheet.va.as_deref()).unwrap_or_default() }.into_iter()
                 .filter_map(|mut v| {
                     // Só o pedaço de cada intervalo que cai na área, contado a partir do canto dela.
                     v.ranges = v.ranges.iter().filter_map(|r| {
@@ -328,7 +341,7 @@ impl App {
                     (!v.ranges.is_empty()).then_some(v)
                 }).collect(),
             comentarios: aba.sheet.comentarios_na_area(&area).into_iter()
-                .filter_map(|(r, c)| aba.sheet.comentario(r, c).map(|m| ((r - area.r0, c - area.c0), m.clone()))).collect(),
+                .filter_map(|(r, c)| Some(((na_copia(r)?, c - area.c0), aba.sheet.comentario(r, c)?.clone()))).collect(),
         });
         Some(texto)
     }

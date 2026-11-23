@@ -524,7 +524,8 @@ fn ler_aba(
                         bruto.push_str(url);
                     } else if let Some(f) = formula_comum {
                         bruto.push(MARCA_FORMULA);
-                        bruto.push_str(&super::vinculos::trocar_numeros(f, livros));
+                        let legado = sheet::intersecao_legada(f.trim(), celula.cm.get().is_some(), celula.f_t.get());
+                        bruto.push_str(&super::vinculos::trocar_numeros(legado.as_deref().unwrap_or(f), livros));
                     } else if celula.f.get().is_none() && tipo == "n" {
                         if let Some(v) = celula.v.get().filter(|v| !v.trim().is_empty()) {
                             bruto.push(MARCA_NUMERO);

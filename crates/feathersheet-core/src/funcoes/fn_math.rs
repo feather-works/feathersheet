@@ -168,7 +168,8 @@ pub fn fn_int(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::Error(err));
     }
     match ev.number(&args[0]) {
-        Ok(n) => Computed::Scalar(Value::Number(n.floor())),
+        // 15 algarismos antes, como o Excel: 0,1×3×10 é 2,9999999999999996 no binário e INT dá 3, não 2.
+        Ok(n) => Computed::Scalar(Value::Number(if n.is_finite() { crate::celulas::number::round_to_precision(n, 15).floor() } else { n.floor() })),
         Err(e) => Computed::Scalar(Value::Error(e)),
     }
 }
@@ -1842,5 +1843,22 @@ mod testes_reescrita {
         assert_eq!(s.get_value(0, 1), Value::Number(0.0));
         assert_eq!(s.get_value(2, 2), Value::Number(1.0));
         assert_eq!(erro("MUNIT(0)"), ErrorCode::Value);
+    }
+}
+
+#[cfg(test)]
+mod testes_int {
+    use crate::planilha::workbook::Workbook;
+    use crate::celulas::values::Value;
+
+    #[test]
+    fn int_logo_abaixo_de_inteiro_e_o_inteiro_como_no_excel() {
+        let mut w = Workbook::new();
+        w.escrever_celula(0, 0, 0, "=INT(0,1*3*10)".into());
+        w.escrever_celula(0, 1, 0, "=INT(2,7)".into());
+        w.escrever_celula(0, 2, 0, "=INT(-2,5)".into());
+        assert_eq!(w.valor(0, 0, 0), Value::Number(3.0));
+        assert_eq!(w.valor(0, 1, 0), Value::Number(2.0));
+        assert_eq!(w.valor(0, 2, 0), Value::Number(-3.0));
     }
 }

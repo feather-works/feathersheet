@@ -10,6 +10,34 @@ pub use feather_ui::novidades::Versao;
 /// Da mais nova para a mais antiga. A primeira é a desta compilação.
 pub const VERSOES: &[Versao] = &[
     Versao {
+        numero: "0.3.5",
+        data: "23/11/2026",
+        resumo: "Grade limitada, inserir várias linhas e arquivos do Excel mais fiéis",
+        ilustracao: Ilustracao::Atualizacao,
+        destaques: &[
+            ("layout-grid", "Grade limitada", "Só a área de trabalho, A a K e 20 linhas, com + para crescer (Exibir ▸ Grade limitada)."),
+            ("table", "Inserir várias linhas", "Botão direito no número da linha ▸ Inserir linhas…: diga quantas e onde."),
+            ("filter", "Copiar com filtro, como no Excel", "Com filtro, copiar leva só as linhas que aparecem; Ctrl+Enter não escreve nas escondidas."),
+            ("device-floppy", "Arquivos antigos do Excel", "Fórmulas de antes do Excel 365 calculam como lá; o @ do Excel 365 não dá mais #NOME?."),
+        ],
+        tambem: &[
+            "Formas desenhadas no app vão para o .xlsx; ícone, WordArt e SmartArt avisam que ficam só no .fshz.",
+            "Salvar por um atalho grava no arquivo original.",
+            "CSV: CEP e telefone com zero na frente ficam como texto, e datas no formato americano (mês/dia) entram certas.",
+            "Formato personalizado (como 0000 do CEP) sai certo no CSV, no PDF e no .xlsx.",
+            "Recalcular tudo (Ctrl+Alt+F9), em Fórmulas ▸ Opções de cálculo.",
+            "AGORA() e HOJE() no Windows usam o fuso do computador (no Brasil o dia virava às 21 h).",
+            "Reexibir coluna ou linha devolve a largura e a altura de antes.",
+            "Foto de celular entra em pé.",
+            "Nome de aba com emoji conta como no Excel (o arquivo abria com erro lá).",
+            "Ctrl+S num .xlsx avisa também antes de perder nomes definidos com valor ou fórmula.",
+            "Integração com IA (MCP): salva sem perder painel congelado e grade, e não grava por cima de partes que não converte.",
+            "INT de uma conta que dá quase um inteiro (0,1×3×10) devolve o inteiro, como no Excel.",
+            "Datas digitadas com ponto (05.03.2026) viram data.",
+            "Nome definido com cara de endereço R1C1 (R, C2, R1C1) é recusado, porque o Excel não abriria o arquivo.",
+        ],
+    },
+    Versao {
         numero: "0.3.4",
         data: "20/11/2026",
         resumo: "Dividir janela, Inspecionar documento, Filtro avançado e cálculo mais rápido",

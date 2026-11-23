@@ -370,7 +370,8 @@ pub(super) fn cell_raw<C: FonteCelula + ?Sized>(c: &C, strings: &[String], xf: O
     if let Some((f_texto, f_t, si)) = c.formula() {
         let text = f_texto.trim();
         if !text.is_empty() {
-            let formula = safe_formula(text);
+            let legado = intersecao_legada(text, c.atributo("cm").is_some(), f_t);
+            let formula = safe_formula(legado.as_deref().unwrap_or(text));
             if let Some(si) = si {
                 if f_t == Some("shared") {
                     shared.insert(si.to_string(), SharedFormula { raw: formula.clone(), row, col });
@@ -414,6 +415,17 @@ pub(super) fn numero_da_celula(text: &str, xf: Option<&XfStyle>) -> String {
         Some("percent") => format!("{}%", format_num(round2(n * 100.0))).replace('.', ","),
         _ => format_num(n),
     }
+}
+
+/// Fórmula antiga (sem `cm` nem `t="array"`, do Excel de antes do 365 ou do LibreOffice) que fazia
+/// interseção implícita: `=A:A*2` na linha 5 era `A5*2`. Embrulhada em `_xlfn.SINGLE`, como o Excel
+/// 365 grava o `@`, para não derramar. `None`: fica como está.
+pub(super) fn intersecao_legada(texto: &str, cm: bool, f_t: Option<&str>) -> Option<String> {
+    // Sem ":" não há intervalo (o filtro barato evita converter toda fórmula duas vezes).
+    if cm || f_t == Some("array") || !texto.contains(':') { return None; }
+    let pt = super::formula::formula_from_excel(texto);
+    feathersheet_core::funcoes::fn_info::precisa_intersecao_legada(pt.trim_start_matches('='))
+        .then(|| format!("_xlfn.SINGLE({texto})"))
 }
 
 /// Texto de uma `<f>` comum (não compartilhada) como o motor recebe.

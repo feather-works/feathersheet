@@ -69,7 +69,26 @@ pub(super) fn validar_nome(nome: &str) -> Result<(), &'static str> {
             }
         }
     }
+    if parece_r1c1(nome) {
+        return Err(tr!("Esse nome parece um endereço no estilo R1C1 (como R1C1, R ou C2); o Excel não abriria o arquivo."));
+    }
     Ok(())
+}
+
+/// R, C, RC, R1C1, R2 e o que começa com R ou C seguido de número (R1x, C1_): o Excel lê como referência
+/// R1C1 e recusa o arquivo. `Receita` e `CEP` passam.
+fn parece_r1c1(nome: &str) -> bool {
+    let n = nome.to_ascii_uppercase();
+    let mut resto = n.as_str();
+    let mut digito = false;
+    for letra in ['R', 'C'] {
+        if let Some(depois) = resto.strip_prefix(letra) {
+            let sem = depois.trim_start_matches(|c: char| c.is_ascii_digit());
+            digito |= sem.len() < depois.len();
+            resto = sem;
+        }
+    }
+    resto.len() < n.len() && (resto.is_empty() || digito)
 }
 
 /// `=Planilha1!$A$1:$B$3`, como o Excel mostra em "Refere-se a".
@@ -522,10 +541,10 @@ mod testes {
 
     #[test]
     fn valida_nomes_como_o_typescript_sem_confundir_enderecos() {
-        for nome in ["Receitas", "preços_2026", "_base.2025"] {
+        for nome in ["Receitas", "preços_2026", "_base.2025", "CEP", "Rx", "Custo"] {
             assert!(validar_nome(nome).is_ok(), "{nome}");
         }
-        for nome in ["", "A1", "XFD10000000", "A1:B2", "com espaço", "12abc", "a/b"] {
+        for nome in ["", "A1", "XFD10000000", "A1:B2", "com espaço", "12abc", "a/b", "R", "c", "RC", "R1C1", "r2", "R1C1Nome", "R1x", "C1_"] {
             assert!(validar_nome(nome).is_err(), "{nome}");
         }
     }

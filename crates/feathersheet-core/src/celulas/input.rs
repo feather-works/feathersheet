@@ -263,8 +263,11 @@ fn moeda(raw: &str) -> Option<f64> {
 }
 
 pub fn parse_date_text(texto: &str) -> Option<f64> {
-    let (ano, mes, dia) = if texto.contains('/') {
-        let p: Vec<&str> = texto.split('/').collect();
+    // dd.mm.aaaa (Alemanha, Rússia…) como dd/mm/aaaa; só com ano de 4 dígitos, para não pegar 1.234.567.
+    let com_ponto = !texto.contains('/') && texto.matches('.').count() == 2
+        && texto.rsplit('.').next().is_some_and(|a| a.len() == 4);
+    let (ano, mes, dia) = if texto.contains('/') || com_ponto {
+        let p: Vec<&str> = texto.split(if com_ponto { '.' } else { '/' }).collect();
         if p.len() != 3 || !(1..=2).contains(&p[0].len())
             || !(1..=2).contains(&p[1].len()) || !(2..=4).contains(&p[2].len())
             || !p.iter().all(|s| so_digitos(s)) { return None; }
@@ -323,6 +326,14 @@ mod testes_entrada {
         let lido = parse_literal(raw);
         assert_eq!(lido.value, Value::Number(n), "{raw}");
         assert_eq!(lido.format, formato, "{raw}");
+    }
+
+    #[test]
+    fn data_com_ponto_e_dia_mes_ano() {
+        assert_eq!(parse_date_text("05.03.2026"), Some(date_to_serial(2026, 3, 5)));
+        assert_eq!(parse_literal("05.03.2026").value, Value::Number(date_to_serial(2026, 3, 5)));
+        assert_eq!(parse_date_text("1.234.567"), None, "milhar não é data");
+        assert_eq!(parse_date_text("31.02.2026"), None);
     }
 
     #[test]

@@ -2,8 +2,24 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
-## Depois da v0.3.4 (para a 0.3.5)
+## v0.3.5 (23/11/2026)
 
+- Comparação com o GridCraft (notas da 0.12 à 0.19 e títulos das 1.350 issues abertas), 23/11/2026, quatro correções:
+  **Copiar com filtro** leva só as linhas que aparecem, como no Excel (`copiar_area(so_visiveis)`; o Recortar
+  continua levando tudo, porque limpa a origem inteira; com linhas puladas a validação não vai junto, `shortcut:`);
+  **Ctrl+Enter** não escreve nas linhas que o filtro escondeu (o mesmo `puladas_pelo_filtro` do Delete);
+  **fórmula antiga do `.xlsx`** (sem `cm` nem `t="array"`, do Excel antes do 365 e do LibreOffice) com intervalo
+  solto ou numa conta (`=A:A*2`) é embrulhada em `_xlfn.SINGLE` ao abrir e faz a interseção implícita (linha 5
+  → `A5*2`) em vez de derramar; a função `SINGLE` (o `@` do Excel 365, que antes abria como `#NOME?`) existe no
+  motor e volta como `_xlfn.SINGLE` no `.xlsx` (`fn_info::fn_single`, `xlsx_read/sheet.rs::intersecao_legada`;
+  teste `tests/intersecao_legada_xlsx.rs`); **MCP** recusa mensagem acima de 16 MB sem guardá-la (`ler_linha`, stdio
+  e conexão ao vivo). E o nome de aba conta o limite de 31 em UTF-16, como o Excel (emoji vale 2; passava e o
+  Excel não abria o arquivo). Do mesmo relatório, feitos no dia: INT passa o número por 15 algarismos antes do piso (`=INT(0,1*3*10)` dava
+  2; teste `int_logo_abaixo_de_inteiro_e_o_inteiro_como_no_excel`); data digitada com ponto e ano de 4 dígitos
+  (`05.03.2026`, `input::parse_date_text`; `1.234.567` segue número); nome definido com cara de R1C1 (`R`, `RC`,
+  `R1C1`, `R1x`, `C1_`) recusado em `nomes_ui::parece_r1c1`. Ficaram para depois: aninhamento acima de 64 no
+  salvar, mais de 255 argumentos/caracteres em literal, excluir linhas de seleção filtrada (conferir o Excel), CSV
+  que decide a ordem da data só pelo começo, literal 1E+308.
 - AGORA()/HOJE() no Windows usam o fuso do sistema (hora local menos UTC por `GetLocalTime`/`GetSystemTime`, `app/fuso.rs`); antes era UTC e no Brasil o dia virava às 21 h. Conferido com `cargo check --target x86_64-pc-windows-gnu`, sem rodar num Windows.
 - Auditoria do código de 14 a 23/11 (23/11/2026), oito correções:
   MCP não grava por cima do `.xlsx` aberto com partes não convertidas também quando o caminho vem escrito de

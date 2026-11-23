@@ -1362,7 +1362,7 @@ impl App {
                 Task::none()
             }
             Msg::Recortar => {
-                match self.copiar_selecao() {
+                match self.copiar_area(false) {
                     Some(dados) => {
                         if let Some(copia) = self.area_copiada.as_mut() { copia.recortada = true; }
                         // A origem é limpa agora: não fica marca tracejada.

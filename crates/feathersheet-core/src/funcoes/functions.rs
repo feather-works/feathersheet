@@ -351,6 +351,7 @@ static FUNCOES: &[(&str, FnImpl)] = &[
     ("ISEVEN", fn_info::fn_iseven),
     ("ISODD", fn_info::fn_isodd),
     ("ROW", fn_info::fn_row),
+    ("SINGLE", fn_info::fn_single),
     ("COLUMN", fn_info::fn_column),
     ("ROWS", fn_info::fn_rows),
     ("COLUMNS", fn_info::fn_columns),

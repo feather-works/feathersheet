@@ -34,13 +34,18 @@ impl App {
         }
         let texto = self.formula_para_gravar(&self.edicao, "");
         let formula = texto.starts_with('=');
+        // Linhas que o filtro escondeu ficam como estão, como no Excel (e como o Delete).
+        let puladas: std::collections::HashSet<u32> = self.workbook.aba(folha).map(|aba| {
+            let pular = super::tabelas::puladas_pelo_filtro(&aba.sheet);
+            areas.iter().flat_map(|a| a.r0..=a.r1).filter(|&r| pular(r)).collect()
+        }).unwrap_or_default();
         self.editor_formula.encerrar();
         self.edicao_inline = None;
         self.multilinha = None;
         self.workbook.editar(folha, |sheet| {
             sheet.abrir_transacao();
             for area in &areas {
-                for r in area.r0..=area.r1 {
+                for r in (area.r0..=area.r1).filter(|r| !puladas.contains(r)) {
                     for c in area.c0..=area.c1 {
                         let bruto = if formula {
                             shift_formula(&texto, r as i32 - linha as i32, c as i32 - coluna as i32)

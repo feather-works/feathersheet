@@ -529,7 +529,7 @@ impl Workbook {
             return false;
         }
         // Nomes que o Excel recusa ao abrir o .xlsx (ele "conserta" o arquivo e perde a aba).
-        if limpo.contains(['[', ']', '*', '?', '/', '\\']) || limpo.starts_with('\'') || limpo.ends_with('\'') || limpo.chars().count() > 31 {
+        if limpo.contains(['[', ']', '*', '?', '/', '\\']) || limpo.starts_with('\'') || limpo.ends_with('\'') || limpo.encode_utf16().count() > 31 {
             return false;
         }
         let repetido = self

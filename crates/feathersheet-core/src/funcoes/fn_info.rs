@@ -540,3 +540,74 @@ mod tests {
         assert_eq!(sheet.get_value(7, 0), Value::Number(3.0));
     }
 }
+
+/// Interseção implícita do Excel antigo: o intervalo vira a célula da mesma linha (coluna) da fórmula.
+/// `None` quando a fórmula está fora dele (o Excel dá #VALOR!).
+fn intersecao(r0: u32, c0: u32, r1: u32, c1: u32, aqui: (u32, u32)) -> Option<(u32, u32)> {
+    let linha = if r0 == r1 { r0 } else if (r0..=r1).contains(&aqui.0) { aqui.0 } else { return None };
+    let coluna = if c0 == c1 { c0 } else if (c0..=c1).contains(&aqui.1) { aqui.1 } else { return None };
+    Some((linha, coluna))
+}
+
+/// Troca cada intervalo fora de chamada de função pela interseção implícita (dentro de SOMA(A:A) o
+/// intervalo continua inteiro, como no Excel antigo).
+fn intersectar(no: &mut Node, aqui: (u32, u32)) {
+    match no {
+        Node::Range { r0, c0, r1, c1, sheet } => {
+            *no = match intersecao(*r0, *c0, *r1, *c1, aqui) {
+                Some((row, col)) => Node::Ref { row, col, sheet: sheet.take() },
+                None => Node::Error("#VALUE!".into()),
+            };
+        }
+        Node::Binary { left, right, .. } => { intersectar(left, aqui); intersectar(right, aqui); }
+        Node::Unary { operand, .. } => intersectar(operand, aqui),
+        _ => {}
+    }
+}
+
+/// `@` / `SINGLE`: o Excel 365 grava assim (`_xlfn.SINGLE`) a interseção implícita das fórmulas antigas.
+pub fn fn_single(args: &[Node], ev: &Evaluator<'_>) -> Computed {
+    if let Some(e) = arity(args, 1, 1) { return Computed::Scalar(Value::Error(e)); }
+    let Some((r, c)) = ev.here else { return Computed::Scalar(ev.eval(&args[0])) };
+    let mut no = args[0].clone();
+    intersectar(&mut no, (r, c));
+    Computed::Scalar(ev.eval(&no))
+}
+
+/// Fórmula antiga do `.xlsx` (sem a marca `cm` de matriz dinâmica) que no Excel de antes do 365 fazia
+/// interseção implícita: um intervalo solto ou numa conta (`=A:A*2`), fora de função. Essas o leitor
+/// embrulha em SINGLE para não derramarem. `corpo` é a fórmula sem o "=".
+pub fn precisa_intersecao_legada(corpo: &str) -> bool {
+    fn tem_intervalo(no: &Node) -> bool {
+        match no {
+            Node::Range { .. } => true,
+            Node::Binary { left, right, .. } => tem_intervalo(left) || tem_intervalo(right),
+            Node::Unary { operand, .. } => tem_intervalo(operand),
+            _ => false,
+        }
+    }
+    crate::formula::parser::parse_formula(corpo).is_ok_and(|no| tem_intervalo(&no))
+}
+
+#[cfg(test)]
+mod testes_single {
+    use crate::planilha::workbook::Workbook;
+    use crate::celulas::values::Value;
+
+    #[test]
+    fn single_faz_a_intersecao_do_excel_antigo() {
+        let mut w = Workbook::new();
+        for r in 0..3 { w.escrever_celula(0, r, 0, format!("{}", r + 1)); }
+        w.escrever_celula(0, 1, 1, "=SINGLE(A1:A3*10)".into());
+        w.escrever_celula(0, 1, 2, "=SINGLE(A:A)".into());
+        w.escrever_celula(0, 5, 1, "=SINGLE(A1:A3)".into());
+        w.escrever_celula(0, 2, 3, "=SINGLE(SOMA(A1:A3))".into());
+        assert_eq!(w.valor(0, 1, 1), Value::Number(20.0), "linha 2: A2*10, sem derramar");
+        assert_eq!(w.valor(0, 2, 1), Value::Empty);
+        assert_eq!(w.valor(0, 1, 2), Value::Number(2.0));
+        assert!(matches!(w.valor(0, 5, 1), Value::Error(_)), "fora do intervalo: #VALOR!");
+        assert_eq!(w.valor(0, 2, 3), Value::Number(6.0), "dentro de função o intervalo fica inteiro");
+        assert!(super::precisa_intersecao_legada("A:A*2") && super::precisa_intersecao_legada("B1:B9"));
+        assert!(!super::precisa_intersecao_legada("SOMA(A:A)") && !super::precisa_intersecao_legada("A1*2"));
+    }
+}
