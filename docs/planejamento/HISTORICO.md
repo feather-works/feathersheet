@@ -15,6 +15,10 @@
   painel pela aba dele (`limite_da_grade`); Colar vínculo recusa quando a aba copiada foi excluída (virava `=A1`
   desta aba); filtro avançado no lugar não mostra as linhas ocultas encostadas fora da lista
   (`Sheet::reexibir_somente`); o aviso de ícones ao salvar `.xlsx` não apaga mais o das macros VBA.
+- Botão direito no número da linha ▸ "Inserir linhas…" (ou na letra da coluna ▸ "Inserir colunas…"): uma caixa pede
+  quantas (1 a 10.000, vem com o tamanho da seleção) e onde (acima/abaixo, esquerda/direita), num Ctrl+Z
+  (`app/inserir_varias.rs`, `inserir_menu_n`). Ideia do fadi123go (#164, discussão #790 do IronCalc). Teste
+  `insere_quantas_linhas_pedir_abaixo_da_celula`; respeita a proteção da aba como o "Inserir linha".
 - Exibir ▸ Grade limitada (#164, pedido do fadi123go, refeita no mesmo dia para bater com o desenho dele): a grade
   acaba na última linha/coluna, com fundo liso e sem letras nem números depois; um "+" no fim das letras e outro
   embaixo dos números acrescentam coluna/linha (`Msg::GradeCrescer`, `App::grade_extra`, só da tela); começa em

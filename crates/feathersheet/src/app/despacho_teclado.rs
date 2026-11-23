@@ -64,6 +64,7 @@ impl App {
                     if self.link_modal.is_some() { return self.update(Msg::LinkFechar); }
                     if self.comentario_editor.is_some() { return self.update(Msg::Comentario(comentarios_ui::Evento::Cancelar)); }
                     if self.dimensao_modal.is_some() { return self.update(Msg::Dimensao(dimensao_dialogo::Evento::Fechar)); }
+                    if self.inserir_varias.is_some() { return self.update(Msg::InserirVarias(inserir_varias::Evento::Fechar)); }
                     if self.celulas_modal.is_some() { return self.update(Msg::Celulas(celulas_dialogo::Evento::Fechar)); }
                     if self.subtotal.is_some() { return self.update(Msg::Topicos(topicos_ui::Evento::SubtotalFechar)); }
                     if self.consolidar.is_some() { return self.update(Msg::Consolidar(consolidar_ui::Evento::Fechar)); }
@@ -144,7 +145,7 @@ impl App {
                         _ => Task::none(),
                     };
                 }
-                if (self.link_modal.is_some() || self.comentario_editor.is_some() || self.dimensao_modal.is_some() || self.novo_estilo.is_some() || self.protecao_modal.is_some() || self.senha_arquivo.is_some())
+                if (self.link_modal.is_some() || self.comentario_editor.is_some() || self.dimensao_modal.is_some() || self.inserir_varias.is_some() || self.novo_estilo.is_some() || self.protecao_modal.is_some() || self.senha_arquivo.is_some())
                     && self.janelas.principal == Some(id) {
                     return Task::none();
                 }

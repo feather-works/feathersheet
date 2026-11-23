@@ -270,7 +270,10 @@ impl App {
         self.aplicar_estilo_menu(chave, Campo::Logico(!atual));
     }
 
-    pub(super) fn inserir_menu(&mut self, acao: Estrutura, depois: bool) {
+    pub(super) fn inserir_menu(&mut self, acao: Estrutura, depois: bool) { self.inserir_menu_n(acao, depois, 1); }
+
+    /// Insere `n` linhas/colunas acima (ou abaixo, com `depois`) da célula ativa, num Ctrl+Z.
+    pub(super) fn inserir_menu_n(&mut self, acao: Estrutura, depois: bool, n: u32) {
         self.confirmar();
         let (coluna, at) = match acao {
             Estrutura::InserirLinha => (false, self.linha.saturating_add(u32::from(depois))),
@@ -279,14 +282,14 @@ impl App {
         };
         let foto = self.foto_antes_da_estrutura();
         let resultado = if coluna {
-            self.workbook.inserir_colunas(self.folha, at, 1)
+            self.workbook.inserir_colunas(self.folha, at, n)
         } else {
-            self.workbook.inserir_linhas(self.folha, at, 1)
+            self.workbook.inserir_linhas(self.folha, at, n)
         };
         if resultado.is_some() {
-            let tabela = tabelas::refluir(&mut self.workbook, self.folha, coluna, at, 1, false);
-            let mescla = mesclas::refluir(&mut self.workbook, self.folha, coluna, at, 1, false);
-            self.refluir_minigraficos(self.folha, coluna, at, 1, false);
+            let tabela = tabelas::refluir(&mut self.workbook, self.folha, coluna, at, n, false);
+            let mescla = mesclas::refluir(&mut self.workbook, self.folha, coluna, at, n, false);
+            self.refluir_minigraficos(self.folha, coluna, at, n, false);
             // Tabelas e mesclas reajustadas também guardam o "antes": um Ctrl+Z
             // as poria nas coordenadas velhas, com as células já deslocadas (#46).
             if let Some(aba) = self.workbook.aba_mut(self.folha) { aba.sheet.esquecer_historico(); }

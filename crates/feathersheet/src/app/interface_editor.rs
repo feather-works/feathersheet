@@ -624,6 +624,7 @@ impl App {
         let base = self.sobrepor_alteracoes(base);
         let base = self.sobrepor_comentario(base);
         let base = self.sobrepor_dimensao(base);
+        let base = self.sobrepor_inserir_varias(base);
         let base = self.sobrepor_celulas(base);
         let base = self.sobrepor_subtotal(base);
         let base = self.sobrepor_consolidar(base);
@@ -859,6 +860,7 @@ impl App {
                 opcoes.extend([
                     Some((tr!("Inserir linha acima").into(), Msg::InserirMenu(Estrutura::InserirLinha, false))),
                     Some((tr!("Inserir linha abaixo").into(), Msg::InserirMenu(Estrutura::InserirLinha, true))),
+                    Some((tr!("Inserir linhas…").into(), Msg::InserirVarias(inserir_varias::Evento::Abrir(Estrutura::InserirLinha, true)))),
                     Some((tr!("Excluir linha").into(), Msg::Estrutura(Estrutura::ExcluirLinha))),
                     None,
                     Some((tr!("Limpar conteúdo").into(), Msg::Limpar)),
@@ -872,6 +874,7 @@ impl App {
                 opcoes.extend([
                     Some((tr!("Inserir coluna à esquerda").into(), Msg::InserirMenu(Estrutura::InserirColuna, false))),
                     Some((tr!("Inserir coluna à direita").into(), Msg::InserirMenu(Estrutura::InserirColuna, true))),
+                    Some((tr!("Inserir colunas…").into(), Msg::InserirVarias(inserir_varias::Evento::Abrir(Estrutura::InserirColuna, true)))),
                     Some((tr!("Excluir coluna").into(), Msg::Estrutura(Estrutura::ExcluirColuna))),
                     None,
                     Some((tr!("Limpar conteúdo").into(), Msg::Limpar)),

@@ -103,7 +103,7 @@ impl App {
             Msg::Digitar(_) | Msg::Editar(_) | Msg::EditarNaCelula(..) | Msg::InserirQuebraLinha
             | Msg::EditarMultilinha | Msg::ListaDaColuna | Msg::AutoSoma
                 if s.celula_bloqueada(self.linha, self.coluna) => Some(Recusa::celula_bloqueada()),
-            Msg::Estrutura(e) | Msg::InserirMenu(e, _) => match e {
+            Msg::Estrutura(e) | Msg::InserirMenu(e, _) | Msg::InserirVarias(inserir_varias::Evento::Abrir(e, _)) => match e {
                 Estrutura::InserirLinha => proibe(Permissao::InserirLinhas),
                 Estrutura::InserirColuna => proibe(Permissao::InserirColunas),
                 Estrutura::ExcluirLinha => excluir(Permissao::ExcluirLinhas, &linhas_da_selecao),

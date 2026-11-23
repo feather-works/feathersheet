@@ -122,6 +122,7 @@ mod perfil_coluna_ui;
 mod estatisticas_ui;
 mod ajuste_dimensoes;
 mod dimensao_dialogo;
+mod inserir_varias;
 mod celulas_dialogo;
 pub(crate) mod topicos_ui;
 pub(crate) mod consolidar_ui;
@@ -457,7 +458,7 @@ pub enum Msg {
     CondicionalAdicionar, CondicionalEditar(usize), CondicionalRemover(usize), CondicionalMover(usize, i32),
     CondicionalLimparSelecao, CondicionalLimparTudo, CondicionalCoresAlternadas,
     Limpar, Desfazer, Refazer, Mesclar, MesclarModo(mesclas::ModoMescla), InclinarTexto,
-    AjustarAltura, Dimensao(dimensao_dialogo::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento), Consolidar(consolidar_ui::Evento), FiltroAvancado(filtro_avancado_ui::Evento), InspetorDocumento(inspetor_documento::Evento),
+    AjustarAltura, Dimensao(dimensao_dialogo::Evento), InserirVarias(inserir_varias::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento), Consolidar(consolidar_ui::Evento), FiltroAvancado(filtro_avancado_ui::Evento), InspetorDocumento(inspetor_documento::Evento),
     /// Macros → Importar VBA (do .xlsm aberto ou escolhido) e o arquivo lido.
     Protecao(protecao_ui::Evento),
     Intervalos(intervalos_ui::Evento),
@@ -767,6 +768,7 @@ pub struct App {
     /// Revisão ▸ Mostrar alterações: `None` fechado; `Some(true)` só as da seleção.
     alteracoes_painel: Option<bool>,
     dimensao_modal: Option<dimensao_dialogo::Estado>,
+    inserir_varias: Option<inserir_varias::Estado>,
     celulas_modal: Option<celulas_dialogo::Estado>,
     subtotal: Option<topicos_ui::EstadoSubtotal>,
     consolidar: Option<consolidar_ui::EstadoConsolidar>,
@@ -1159,6 +1161,7 @@ impl Default for App {
             link_modal: None,
             intervalos_dialogo: None, senha_intervalo: None, intervalos_abertos: Default::default(), ortografia: None, alteracoes_painel: None,
             dimensao_modal: None,
+            inserir_varias: None,
             celulas_modal: None,
             subtotal: None,
             consolidar: None,
@@ -1631,7 +1634,7 @@ impl App {
             Msg::AlternarEstilo(_) | Msg::CondicionalAdicionar | Msg::CondicionalRemover(_)
             | Msg::Ordenar(_) | Msg::Preencher(_) | Msg::PreencherAlca(_) | Msg::PreenchimentoRelampago | Msg::Serie(_) | Msg::CaixasInserir | Msg::CaixaAlternar(..) | Msg::MoverAba(..)
             | Msg::OcultarDimensoes(_) | Msg::ReexibirDimensoes(_)
-            | Msg::MesclarModo(_) | Msg::AjustarAltura | Msg::Dimensao(_)
+            | Msg::MesclarModo(_) | Msg::AjustarAltura | Msg::Dimensao(_) | Msg::InserirVarias(_)
             | Msg::LimparTudo | Msg::AlterarRecuo(_) | Msg::AplicarPincel | Msg::LimparHiperlinks);
         let paineis_antes = (self.graficos.aberto, self.dinamica.is_some());
         // Aba protegida: o portão recusa ou desfaz o que não pode (protecao_ui).
