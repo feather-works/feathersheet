@@ -100,6 +100,32 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
     }
 
     #[test]
+    fn grade_limitada_nao_tem_borda_depois_do_fim() {
+        crate::grade::definir_cabecalho_linha(100.0); // as posições do teste contam com 100 px
+        let wb = Workbook::new();
+        let condicional = RefCell::new(EstadoCondicional::default());
+        let grade = Grade { cache: cache_teste(), impressao: None, copiada: None, setas: &[], comentarios: Default::default(), circulos_validacao: &[], opcoes_coluna: None, areas_extras: &[],
+            workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0,
+            linha_inicio: 0, coluna_inicio: 0,
+            selecionada: (0, 0), area: Rect::cell(0, 0),
+            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false,limite: Some((19, 1)), mostrar_formulas: false,
+            zoom: 1.0, ctrl_pressionado: false,
+            rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
+        };
+        let area = Rectangle { x: 0.0, y: 0.0, width: 1600.0, height: 1000.0 };
+        // Só A e B: a borda direita de B (100 + 2 × 122 = 344) arrasta; a de C (466) não existe mais.
+        let icone = |x: f32| pelicano::Program::<Msg>::mouse_interaction(&grade, &super::EstadoMouse::default(), area, Some(Point::new(x, 20.0)));
+        assert_eq!(icone(345.0), pelicano::CursorIcon::EwResize, "a borda da última coluna continua arrastável");
+        assert_ne!(icone(466.0), pelicano::CursorIcon::EwResize, "depois do fim não há borda");
+        assert_eq!(icone(360.0), pelicano::CursorIcon::Pointer, "o + do cabeçalho");
+        let mut estado = super::EstadoMouse::default();
+        let (_, msg) = grade.atualizar(&mut estado, &Event::MousePressed(pelicano::MouseButton::Left), area, Some(Point::new(466.0, 20.0)));
+        assert!(msg.is_none() && estado.dimensao.is_none(), "clicar onde seria a borda de C não arrasta nada");
+        let (_, msg) = grade.atualizar(&mut estado, &Event::MousePressed(pelicano::MouseButton::Left), area, Some(Point::new(360.0, 20.0)));
+        assert!(matches!(msg, Some(Msg::GradeCrescer(false))), "{msg:?}");
+    }
+
+    #[test]
     fn arrastar_divisoria_do_cabecalho_muda_a_largura_com_zoom() {
         crate::grade::definir_cabecalho_linha(100.0); // as posições do teste contam com 100 px
         let wb = Workbook::new();

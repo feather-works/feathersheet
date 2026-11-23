@@ -797,17 +797,20 @@ impl canvas::Program<Msg> for Grade<'_> {
             // Um botão de verdade: fundo claro da cor de destaque e o "+" nela, que se enxerga em qualquer zoom.
             let mais = |f: &mut Frame, centro: Point| {
                 let lado = MAIS - 6.0;
-                f.fill_rectangle(Point::new(centro.x - lado / 2.0, centro.y - lado / 2.0), Size::new(lado, lado), ativo.alpha(0.15));
+                f.fill_rectangle(Point::new(centro.x - lado / 2.0, centro.y - lado / 2.0), Size::new(lado, lado), ativo_cab.alpha(0.3));
                 f.fill_text(Text {
-                    content: "+".into(), position: centro, color: ativo, size: crate::compat::Pixels(20.0),
+                    content: "+".into(), position: centro, color: ativo_cab, size: crate::compat::Pixels(20.0),
                     horizontal_alignment: pelicano::Align::Center, vertical_alignment: pelicano::Align::Center, ..Text::default()
                 });
             };
             if let Some(x0) = x0 {
-                f.fill_rectangle(Point::new(x0, 0.0), Size::new((bounds.width - x0).max(0.0), bounds.height), bg);
+                // As barras de letras e de números continuam escuras até a borda; só as células somem.
+                f.fill_rectangle(Point::new(x0, CABECALHO_COLUNA), Size::new((bounds.width - x0).max(0.0), (bounds.height - CABECALHO_COLUNA).max(0.0)), bg);
+                // A barra das letras segue lisa, sem as letras das colunas que não existem.
+                f.fill_rectangle(Point::new(x0, 0.0), Size::new((bounds.width - x0).max(0.0), CABECALHO_COLUNA - 1.0), header);
             }
             if let Some(y0) = y0 {
-                f.fill_rectangle(Point::new(0.0, y0), Size::new(bounds.width, (bounds.height - y0).max(0.0)), bg);
+                f.fill_rectangle(Point::new(cabecalho_linha(), y0), Size::new((bounds.width - cabecalho_linha()).max(0.0), (bounds.height - y0).max(0.0)), bg);
                 mais(&mut f, Point::new(cabecalho_linha() / 2.0, y0 + MAIS / 2.0));
             }
             if let Some(x0) = x0 { mais(&mut f, Point::new(x0 + MAIS / 2.0, CABECALHO_COLUNA / 2.0)); }
@@ -1141,16 +1144,21 @@ impl Grade<'_> {
         Some((colunas.iter().find(|v| v.0 > lc).map(|v| v.1), linhas.iter().find(|v| v.0 > lr).map(|v| v.1)))
     }
 
+    /// Grade limitada: a coluna (ou linha) existe na tela? Fora dela não há borda para arrastar.
+    fn existe(&self, coluna: bool, i: u32) -> bool {
+        self.limite.is_none_or(|(lr, lc)| i <= if coluna { lc } else { lr })
+    }
+
     /// Clique depois do fim da grade limitada: `Some(Some(msg))` no "+", `Some(None)` no vazio (não seleciona
     /// nada), `None` dentro da grade.
     fn clique_fora_da_grade(&self, ponto: Point, tamanho: Size) -> Option<Option<Msg>> {
         let p = Point::new(ponto.x / self.zoom, ponto.y / self.zoom);
         let (colunas, linhas) = (self.colunas_visiveis(tamanho.width / self.zoom).0, self.linhas_visiveis(tamanho.height / self.zoom).0);
         let (x0, y0) = self.fim_da_grade(&colunas, &linhas)?;
-        if let Some(x0) = x0.filter(|&x0| p.x >= x0) {
+        if let Some(x0) = x0.filter(|&x0| p.x >= x0 + FOLGA_DIVISORIA) {
             return Some((p.y < CABECALHO_COLUNA && p.x < x0 + MAIS).then_some(Msg::GradeCrescer(false)));
         }
-        if let Some(y0) = y0.filter(|&y0| p.y >= y0) {
+        if let Some(y0) = y0.filter(|&y0| p.y >= y0 + FOLGA_DIVISORIA) {
             return Some((p.x < cabecalho_linha() && p.y < y0 + MAIS).then_some(Msg::GradeCrescer(true)));
         }
         None
@@ -1188,15 +1196,19 @@ impl Grade<'_> {
         if _state.alca.is_some() || local(cursor, bounds).is_some_and(|p| self.sobre_alca(p, bounds.size())) {
             return mouse::Interaction::Crosshair;
         }
+        // Depois do fim da grade limitada: seta comum; a mãozinha só no "+".
+        if let Some(fora) = local(cursor, bounds).and_then(|p| self.clique_fora_da_grade(p, bounds.size())) {
+            return if fora.is_some() { mouse::Interaction::Pointer } else { mouse::Interaction::default() };
+        }
         if let Some(p) = local(cursor, bounds) {
             let p = Point::new(p.x / self.zoom, p.y / self.zoom);
             let perto = |inicio: f32, tamanho: f32, ponto: f32| (ponto - (inicio + tamanho)).abs() <= FOLGA_DIVISORIA;
             if p.y < CABECALHO_COLUNA && p.x >= cabecalho_linha()
-                && self.colunas_visiveis(bounds.width / self.zoom).0.iter().any(|&(_, x, w)| perto(x, w, p.x)) {
+                && self.colunas_visiveis(bounds.width / self.zoom).0.iter().any(|&(c, x, w)| self.existe(true, c) && perto(x, w, p.x)) {
                 return mouse::Interaction::EwResize;
             }
             if p.x < cabecalho_linha() && p.y >= CABECALHO_COLUNA
-                && self.linhas_visiveis(bounds.height / self.zoom).0.iter().any(|&(_, y, h)| perto(y, h, p.y)) {
+                && self.linhas_visiveis(bounds.height / self.zoom).0.iter().any(|&(r, y, h)| self.existe(false, r) && perto(y, h, p.y)) {
                 return mouse::Interaction::NsResize;
             }
             // Sobre as células, a cruz grossa de planilha; a fina fica para a alça.
@@ -1363,8 +1375,8 @@ impl Grade<'_> {
                     if p.y < CABECALHO_COLUNA && p.x >= cabecalho_linha() {
                         let colunas = self.colunas_visiveis(bounds.width/self.zoom).0;
                         // Divisória: duplo clique ajusta ao conteúdo (lote se selecionada).
-                        if let Some(&(col, x, w)) = colunas.iter().find(|&&(_, x, w)|
-                            (p.x - (x + w)).abs() <= FOLGA_DIVISORIA) {
+                        if let Some(&(col, x, w)) = colunas.iter().find(|&&(c, x, w)|
+                            self.existe(true, c) && (p.x - (x + w)).abs() <= FOLGA_DIVISORIA) {
                             return (Captured::Yes, clique_divisoria(state, true, col, x, x + w));
                         }
                         for &(col, x, w) in &colunas {
@@ -1379,8 +1391,8 @@ impl Grade<'_> {
                     }
                     if p.x < cabecalho_linha() && p.y >= CABECALHO_COLUNA {
                         let linhas = self.linhas_visiveis(bounds.height/self.zoom).0;
-                        if let Some(&(row, y, h)) = linhas.iter().find(|&&(_, y, h)|
-                            (p.y - (y + h)).abs() <= FOLGA_DIVISORIA) {
+                        if let Some(&(row, y, h)) = linhas.iter().find(|&&(r, y, h)|
+                            self.existe(false, r) && (p.y - (y + h)).abs() <= FOLGA_DIVISORIA) {
                             return (Captured::Yes, clique_divisoria(state, false, row, y, y + h));
                         }
                         for &(row, y, h) in &linhas {

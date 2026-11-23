@@ -26,7 +26,7 @@
   seta além da borda). Clique no vazio não seleciona nada (`Grade::clique_fora_da_grade`). Escolha também nos
   Primeiros passos (Aparência ▸ Grade: Infinita/Limitada) e em Configurações. Preferência da pessoa
   (`grade_limitada`), não do arquivo. Teste `grade_limitada_tem_minimo_e_cresce_com_dados_selecao_e_mais`; fotos
-  conferidas (`FEATHERSHEET_CAPTURAR_GRADE_LIMITADA=1`). Limite: a rolagem continua livre além do fim (só fundo).
+  conferidas (`FEATHERSHEET_CAPTURAR_GRADE_LIMITADA=1`). Limite: a rolagem continua livre além do fim (só fundo). Ajuste do mesmo dia (pedido do usuário): as barras de letras e de números seguem escuras até a borda, o "+" na cor de destaque do cabeçalho, e depois do fim não há borda para arrastar nem cursor de célula (`Grade::existe`; teste `grade_limitada_nao_tem_borda_depois_do_fim`).
 - Reexibir coluna/linha devolve a largura/altura de antes de ocultar (voltava ao padrão; só o Ctrl+Z recuperava).
   `Sheet::dimensoes_ocultadas` (só na memória: inserir/excluir linhas ou colunas esquece; não vai para o `.fshz`,
   `// shortcut:`). No `.xlsx`, a coluna oculta sai com `hidden="1"` e a largura própria (saía `width="0"`), e a lida
