@@ -1,5 +1,7 @@
 # FeatherSheet
 
+[![Discord](https://img.shields.io/badge/Discord-Maragon.Dev-5865F2?logo=discord&logoColor=white)](https://discord.gg/b4Epb4eSSH)
+
 **The spreadsheet of the FeatherWorks suite, written in Rust with a native pelicano interface.**
 It opens huge files, calculates in parallel, takes formulas in Portuguese or English,
 and runs entirely on your machine: no account, no login, no telemetry (the only network call is the daily update check, which you can turn off).
