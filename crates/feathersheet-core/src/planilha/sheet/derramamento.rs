@@ -336,6 +336,12 @@ impl Sheet {
         d.matrizes.iter().map(|(&k, m)| area_de(k, m.height() as u32, m.width() as u32)).collect()
     }
 
+    /// Há matriz bloqueada (#DESPEJO!): a área fica guardada sem a matriz. O `.xlsx` grava a âncora com `cm`.
+    pub fn tem_derrame_bloqueado(&self) -> bool {
+        let d = self.derrame.borrow();
+        d.areas.keys().any(|k| !d.matrizes.contains_key(k))
+    }
+
     /// A área derramada que contém (row, col), âncora incluída.
     pub fn area_derramada_em(&self, row: u32, col: u32) -> Option<Rect> {
         let d = self.derrame.borrow();

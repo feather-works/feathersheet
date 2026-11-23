@@ -347,6 +347,15 @@ pub(crate) fn desfazer_xhhhh(texto: String) -> String {
 }
 
 #[cfg(test)]
+mod testes_dois_pontos {
+    #[test]
+    fn so_o_intervalo_fora_de_funcao_conta() {
+        assert!(super::dois_pontos_solto("A:A*2") && super::dois_pontos_solto("'Ab (1)'!B1:B9+1"));
+        assert!(!super::dois_pontos_solto("SUM(A1:B1)") && !super::dois_pontos_solto("\"a:b\"&A1"));
+    }
+}
+
+#[cfg(test)]
 mod testes_xhhhh {
     #[test]
     fn linha_e_celula_sem_r_seguem_a_anterior() {
@@ -421,11 +430,27 @@ pub(super) fn numero_da_celula(text: &str, xf: Option<&XfStyle>) -> String {
 /// interseção implícita: `=A:A*2` na linha 5 era `A5*2`. Embrulhada em `_xlfn.SINGLE`, como o Excel
 /// 365 grava o `@`, para não derramar. `None`: fica como está.
 pub(super) fn intersecao_legada(texto: &str, cm: bool, f_t: Option<&str>) -> Option<String> {
-    // Sem ":" não há intervalo (o filtro barato evita converter toda fórmula duas vezes).
-    if cm || f_t == Some("array") || !texto.contains(':') { return None; }
+    // Filtro barato: só o ":" fora de parênteses e de aspas pode ser intervalo solto. `SUM(A1:B1)`, a
+    // fórmula mais comum, não é convertida duas vezes.
+    if cm || f_t == Some("array") || !dois_pontos_solto(texto) { return None; }
     let pt = super::formula::formula_from_excel(texto);
     feathersheet_core::funcoes::fn_info::precisa_intersecao_legada(pt.trim_start_matches('='))
         .then(|| format!("_xlfn.SINGLE({texto})"))
+}
+
+fn dois_pontos_solto(texto: &str) -> bool {
+    let (mut nivel, mut aspas, mut apostrofo) = (0i32, false, false);
+    for b in texto.bytes() {
+        match b {
+            b'"' if !apostrofo => aspas = !aspas,
+            b'\'' if !aspas => apostrofo = !apostrofo,
+            b'(' if !aspas && !apostrofo => nivel += 1,
+            b')' if !aspas && !apostrofo => nivel -= 1,
+            b':' if !aspas && !apostrofo && nivel == 0 => return true,
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Texto de uma `<f>` comum (não compartilhada) como o motor recebe.

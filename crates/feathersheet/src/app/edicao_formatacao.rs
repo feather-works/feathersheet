@@ -407,11 +407,11 @@ impl App {
         // Fórmula copiada no FeatherSheet anda com o destino (`=A1` de B1
         // colada em B5 vira `=A5`), como no Excel; recortada vai como está.
         // Até 17/10/2026 o texto ia igual para qualquer lugar.
-        let desloca = copia.filter(|c| !c.recortada).map(|c| c.origem);
+        let desloca = copia.filter(|c| !c.recortada).map(|c| (c.origem, &c.linhas));
         let deslocar = |raw: &str, r: u32, c: u32, or: usize, oc: usize| -> String {
             match desloca {
-                Some((r0, c0)) if raw.starts_with('=') => feathersheet_core::operacoes::fill::shift_formula(
-                    raw, r as i32 - (r0 + or as u32) as i32, c as i32 - (c0 + oc as u32) as i32),
+                Some(((r0, c0), linhas)) if raw.starts_with('=') => feathersheet_core::operacoes::fill::shift_formula(
+                    raw, r as i32 - linhas.get(or).copied().unwrap_or(r0 + or as u32) as i32, c as i32 - (c0 + oc as u32) as i32),
                 _ => raw.to_owned(),
             }
         };

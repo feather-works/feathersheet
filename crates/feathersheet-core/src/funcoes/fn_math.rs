@@ -168,8 +168,12 @@ pub fn fn_int(args: &[Node], ev: &Evaluator<'_>) -> Computed {
         return Computed::Scalar(Value::Error(err));
     }
     match ev.number(&args[0]) {
-        // 15 algarismos antes, como o Excel: 0,1×3×10 é 2,9999999999999996 no binário e INT dá 3, não 2.
-        Ok(n) => Computed::Scalar(Value::Number(if n.is_finite() { crate::celulas::number::round_to_precision(n, 15).floor() } else { n.floor() })),
+        // Colado num inteiro (0,1×3×10 é 2,9999999999999996 no binário), o Excel dá o inteiro; longe dele,
+        // o piso de sempre (arredondar a 15 algarismos errava 123456789012345,6 e data-hora quase meia-noite).
+        Ok(n) => Computed::Scalar(Value::Number({
+            let r = n.round();
+            if (n - r).abs() <= r.abs().max(1.0) * 4.0 * f64::EPSILON { r } else { n.floor() }
+        })),
         Err(e) => Computed::Scalar(Value::Error(e)),
     }
 }
@@ -1860,5 +1864,9 @@ mod testes_int {
         assert_eq!(w.valor(0, 0, 0), Value::Number(3.0));
         assert_eq!(w.valor(0, 1, 0), Value::Number(2.0));
         assert_eq!(w.valor(0, 2, 0), Value::Number(-3.0));
+        w.escrever_celula(0, 3, 0, "=INT(123456789012345,6)".into());
+        w.escrever_celula(0, 4, 0, "=INT(46000,99999999988)".into());
+        assert_eq!(w.valor(0, 3, 0), Value::Number(123456789012345.0), "número grande não sobe");
+        assert_eq!(w.valor(0, 4, 0), Value::Number(46000.0), "data-hora quase meia-noite fica no dia");
     }
 }

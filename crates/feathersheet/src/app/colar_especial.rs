@@ -178,7 +178,7 @@ impl App {
             let aba = (Some(c.aba_origem) != self.workbook.aba(self.folha).map(|a| a.id))
                 .then(|| self.workbook.indice_do_id(c.aba_origem).and_then(|i| self.workbook.aba(i)))
                 .flatten().map(|a| format!("{}!", feathersheet_core::celulas::refs::quote_sheet(&a.sheet.name)));
-            (aba.unwrap_or_default(), c.origem)
+            (aba.unwrap_or_default(), c.origem, &c.linhas)
         })).flatten();
         let vazia = Origem { raw: "", valor: "", estilo: None };
         let fonte = |dr: usize, dc: usize| -> &Origem<'_> {
@@ -192,11 +192,11 @@ impl App {
             for dc in 0..plano.largura {
                 let (r, c) = (plano.r0 + dr as u32, plano.c0 + dc as u32);
                 let o = fonte(dr, dc);
-                if let Some((prefixo, (r0, c0))) = &vinculo {
+                if let Some((prefixo, (r0, c0), linhas)) = &vinculo {
                     let (or, oc) = if e.transpor { (dc % alt_o, dr % larg_o) } else { (dr % alt_o, dc % larg_o) };
                     if e.ignorar_branco && o.raw.is_empty() { continue; }
                     let estilo = aba.sheet.snapshot(r, c).and_then(|s| s.style);
-                    novas.push((r, c, Some(Snap { raw: format!("={prefixo}{}", cell_name(r0 + or as u32, c0 + oc as u32)), style: estilo })));
+                    novas.push((r, c, Some(Snap { raw: format!("={prefixo}{}", cell_name(linhas.get(or).copied().unwrap_or(r0 + or as u32), c0 + oc as u32)), style: estilo })));
                     continue;
                 }
                 if e.ignorar_branco && o.raw.is_empty() { continue; }

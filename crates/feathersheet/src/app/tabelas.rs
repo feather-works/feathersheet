@@ -506,6 +506,19 @@ mod testes_filtro_copiar {
     }
 
     #[test]
+    fn colar_copia_filtrada_desloca_pela_linha_de_onde_veio() {
+        let mut app = app_filtrado();
+        // C4 (linha do Caio) aponta para A4; na cópia ela é a 3ª linha, não a 4ª.
+        app.workbook.escrever_celula(0, 3, 2, "=A4".into());
+        let _ = app.update(Msg::IrPara("C1:C5".into()));
+        let texto = app.copiar_selecao().unwrap();
+        let _ = app.update(Msg::IrPara("E10".into()));
+        app.colar_modo(texto, crate::app::ModoColagem::Completa);
+        // Copiada de C4 para E12: oito linhas e duas colunas adiante, =A4 vira =C12 (antes dava =C13).
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(11, 4), "=C12");
+    }
+
+    #[test]
     fn excluir_linhas_com_filtro_apaga_so_as_visiveis() {
         let mut app = app_filtrado();
         let _ = app.update(Msg::SelecionarLinha(1));

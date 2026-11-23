@@ -4,6 +4,21 @@
 
 ## Depois da v0.3.5 (para a 0.3.6)
 
+- **Revisão do que entrou na 0.3.5** (23/11/2026, agente revisor): colar uma cópia filtrada deslocava as fórmulas
+  e o "Colar vínculo" pela posição na cópia, não pela linha de onde vieram (`AreaCopiada.linhas`); valor derramado
+  com a âncora numa linha escondida ia em branco; matriz bloqueada (#DESPEJO!) salva em `.xlsx` voltava embrulhada em
+  SINGLE (agora vai com `cm`, e o `metadata.xml` sai também só com bloqueadas: `Sheet::tem_derrame_bloqueado`);
+  `INT` voltou ao piso, só "encosta" no inteiro quando está a ~4 ulp dele (o arredondamento a 15 algarismos errava
+  123456789012345,6); data com ponto sai só na digitação/colagem (`sem_milhar_digitado`), não no `parse_literal`, para
+  um "05.03.2026" antigo do `.fshz` seguir texto; MCP ao vivo: o token tem teto de 256 bytes e a mensagem grande
+  demais recebe erro -32600; excluir linhas com filtro: falha no meio deixa o Ctrl+Z, status conta as visíveis, tudo
+  escondido não faz nada; o filtro barato da interseção legada exige ":" fora de parênteses. `.xlsb` refeito:
+  leitura por streaming (`worksheet_cells_reader`, sem a grade densa que estourava a memória), aba de gráfico vem
+  vazia, fórmula ilegível é contada (status) e não leva as outras, nome de aba ganha aspas, bits de "relativo"
+  que o calamine deixa na coluna (`$BTRM$1` = A1) desfeitos, duração `[h]:mm` e data negativa ficam número,
+  `sem_user` não corta `GetUser(`, pânico do calamine vira erro. Fica para depois: interseção legada dentro de
+  IF/ANO (`=SE(A1:A10>5;…)` de arquivo antigo ainda derrama) e excluir milhares de trechos filtrados numa operação só.
+
 - **Abrir `.xlsb`** (23/11/2026): `feathersheet-io/src/xlsb_read.rs` pelo crate `calamine` 0.38 (Rust puro, sem os
   recursos padrão). Vêm valores, datas (base 1904 convertida; entram como digitadas, com formato de data),
   fórmulas (convertidas pelo `formula_from_excel` do `.xlsx`; o `User(nome,…)` que o calamine escreve para função

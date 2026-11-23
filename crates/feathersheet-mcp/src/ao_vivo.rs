@@ -39,7 +39,11 @@ fn mensagem_de_foco(arquivos: &[String]) -> String {
 /// Atende cada linha de uma conexão com `tratar` (uma resposta por linha, quando há).
 fn atender_conexao(mut leitura: impl BufRead, mut escrita: impl Write, tratar: &(impl Fn(Value) -> Option<Value> + ?Sized)) {
     while let Some(linha) = crate::ler_linha(&mut leitura) {
-        let Ok(linha) = linha else { continue };
+        let Ok(linha) = linha else {
+            let erro = serde_json::json!({ "jsonrpc": "2.0", "id": null, "error": { "code": -32600, "message": format!("Mensagem grande demais ou inválida (limite de {} MB)", crate::MAX_MENSAGEM >> 20) } });
+            if writeln!(escrita, "{erro}").and_then(|()| escrita.flush()).is_err() { break; }
+            continue;
+        };
         let Ok(msg) = serde_json::from_str::<Value>(&linha) else { continue };
         if let Some(r) = tratar(msg) {
             if writeln!(escrita, "{r}").and_then(|()| escrita.flush()).is_err() {
@@ -160,7 +164,9 @@ mod tcp {
                     let Ok(leitura) = conexao.try_clone() else { return };
                     let mut leitura = BufReader::new(leitura);
                     let mut primeira = String::new();
-                    if leitura.read_line(&mut primeira).is_err() || primeira.trim() != token {
+                    // O token vem antes de qualquer autenticação: no máximo 256 bytes (sem teto, um programa
+                    // qualquer mandaria gigabytes sem "\n" e derrubaria o app).
+                    if std::io::Read::take(&mut leitura, 256).read_line(&mut primeira).is_err() || primeira.trim() != token {
                         return; // quem não sabe o token (outro programa na máquina) é largado
                     }
                     atender_conexao(leitura, conexao, &*tratar);

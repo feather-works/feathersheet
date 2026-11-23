@@ -2,58 +2,86 @@
 //! `.xlsx`) e nomes definidos. Não vem a formatação (cores, bordas, larguras) nem mesclas, gráficos e imagens:
 //! o `calamine` não lê isso no `.xlsb`. Gravar `.xlsb` não existe: o app abre como "sem arquivo" e o Ctrl+S
 //! pede onde salvar (`.xlsx` ou `.fshz`).
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsb};
-use feathersheet_core::celulas::refs::{parse_range_ref, MAX_COLS, MAX_ROWS};
+//!
+//! shortcut: fórmula compartilhada (coluna preenchida) e algumas referências de tabela não vêm do calamine: a
+//! célula fica com o valor. O status conta as fórmulas que não vieram.
+use calamine::{open_workbook_from_rs, DataRef, Reader, SheetType, Xlsb};
+use feathersheet_core::celulas::refs::{parse_range_ref, quote_sheet, MAX_COLS, MAX_ROWS};
 use feathersheet_core::celulas::values::{CellError, ErrorCode, Value};
 use feathersheet_core::planilha::workbook::Workbook;
 
 use crate::xlsx_read::formula::formula_from_excel;
 use crate::xlsx_read::sheet::format_date_serial;
 
-/// O `.xlsb` em `bytes` como pasta, já calculada.
-pub fn ler_xlsb(bytes: Vec<u8>) -> Result<Workbook, String> {
+/// O `.xlsb` em `bytes` como pasta já calculada, e quantas fórmulas não deu para ler.
+pub fn ler_xlsb(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
+    // Arquivo malformado faz o calamine fatiar fora do buffer (pânico): vira erro, não derruba o app.
+    std::panic::catch_unwind(move || ler(bytes))
+        .unwrap_or_else(|_| Err(feathersheet_core::tr!("XLSB: o arquivo está danificado.").into()))
+}
+
+fn ler(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     let mut xlsb: Xlsb<_> = open_workbook_from_rs(std::io::Cursor::new(bytes))
         .map_err(|e| feathersheet_core::trf!("XLSB: não deu para abrir ({e})."))?;
-    let nomes = xlsb.sheet_names().to_vec();
-    if nomes.is_empty() { return Err(feathersheet_core::tr!("XLSB sem abas.").into()); }
+    let abas: Vec<(String, bool)> = xlsb.sheets_metadata().iter().map(|s| (s.name.clone(), s.typ == SheetType::WorkSheet)).collect();
+    if abas.is_empty() { return Err(feathersheet_core::tr!("XLSB sem abas.").into()); }
+    // O calamine não põe aspas no nome da aba (`Vendas 2024!A1`): as que precisam ganham, da mais longa à mais curta.
+    let mut com_aspas: Vec<(String, String)> = abas.iter()
+        .map(|(n, _)| (format!("{n}!"), format!("{}!", quote_sheet(n))))
+        .filter(|(a, b)| a != b).collect();
+    com_aspas.sort_by_key(|(a, _)| std::cmp::Reverse(a.len()));
     let mut pasta = Workbook::new();
-    for (i, nome) in nomes.iter().enumerate() {
+    let mut perdidas = 0;
+    for (i, (nome, planilha)) in abas.iter().enumerate() {
         if i == 0 { pasta.renomear_aba(0, nome); } else { pasta.inserir_aba(nome.clone(), i); }
-        let valores = xlsb.worksheet_range(nome).map_err(|e| feathersheet_core::trf!("XLSB: aba '{nome}': {e}"))?;
-        let (r0, c0) = valores.start().unwrap_or((0, 0));
+        // Aba de gráfico ou de diálogo: fica a aba, vazia.
+        if !planilha { continue; }
         let aba = &mut pasta.aba_mut(i).ok_or("XLSB")?.sheet;
-        let mut datas: Vec<(u32, u32, String)> = Vec::new();
-        for (r, c, v) in valores.used_cells() {
-            let (r, c) = (r0 + r as u32, c0 + c as u32);
+        let Ok(mut leitor) = xlsb.worksheet_cells_reader(nome) else { continue };
+        while let Ok(Some(celula)) = leitor.next_cell() {
+            let (r, c) = celula.get_position();
             if r >= MAX_ROWS || c >= MAX_COLS { continue; }
-            match v {
-                Data::Int(n) => aba.set_cell_valor(r, c, Value::Number(*n as f64)),
-                Data::Float(n) => aba.set_cell_valor(r, c, Value::Number(*n)),
-                Data::String(s) => aba.set_cell_valor(r, c, Value::Text(s.clone())),
-                Data::Bool(b) => aba.set_cell_valor(r, c, Value::Bool(*b)),
-                Data::Error(e) => if let Some(code) = ErrorCode::from_code(&e.to_string()) {
+            match celula.get_value() {
+                DataRef::Int(n) => aba.set_cell_valor(r, c, Value::Number(*n as f64)),
+                DataRef::Float(n) => aba.set_cell_valor(r, c, Value::Number(*n)),
+                DataRef::String(s) => aba.set_cell_valor(r, c, Value::Text(s.clone())),
+                DataRef::SharedString(s) => aba.set_cell_valor(r, c, Value::Text((*s).to_string())),
+                DataRef::Bool(b) => aba.set_cell_valor(r, c, Value::Bool(*b)),
+                DataRef::Error(e) => if let Some(code) = ErrorCode::from_code(&e.to_string()) {
                     aba.set_cell_valor(r, c, Value::Error(CellError::new(code)));
                 },
-                // A data vai como o leitor de `.xlsx` a entrega: texto de data que o motor reconhece e formata.
-                Data::DateTime(d) => {
+                DataRef::DateTime(d) => {
                     // shortcut: o calamine não expõe a base 1904 (só no Debug); trocar quando houver método público.
-                    let base_1904 = format!("{d:?}").contains("is_1904: true");
-                    let n = d.as_f64() + if base_1904 { 1462.0 } else { 0.0 };
-                    let so_hora = d.is_duration() || n < 1.0;
-                    datas.push((r, c, format_date_serial(n, n.fract() != 0.0 && !so_hora, so_hora)));
+                    let n = d.as_f64() + if format!("{d:?}").contains("is_1904: true") { 1462.0 } else { 0.0 };
+                    if d.is_duration() || n < 0.0 {
+                        // [h]:mm de 36:00 é 1,5: como texto de hora perderia o dia.
+                        aba.set_cell_valor(r, c, Value::Number(n));
+                    } else {
+                        // Entra como se digitada: o motor reconhece "01/01/2021" e põe o formato de data.
+                        let so_hora = n < 1.0;
+                        aba.set_cell(r, c, &format_date_serial(n, n.fract() != 0.0 && !so_hora, so_hora));
+                    }
                 }
-                Data::DateTimeIso(s) | Data::DurationIso(s) => aba.set_cell_valor(r, c, Value::Text(s.clone())),
-                Data::Empty => {}
+                DataRef::DateTimeIso(s) | DataRef::DurationIso(s) => aba.set_cell_valor(r, c, Value::Text(s.clone())),
+                DataRef::Empty => {}
             }
         }
-        // Entram como se digitadas: o motor reconhece "01/01/2021" e põe o formato de data.
-        for (r, c, texto) in datas { pasta.escrever_celula(i, r, c, texto); }
-        if let Ok(formulas) = xlsb.worksheet_formula(nome) {
-            let (f0, g0) = formulas.start().unwrap_or((0, 0));
-            for (r, c, f) in formulas.used_cells() {
-                let (r, c) = (f0 + r as u32, g0 + c as u32);
-                if f.is_empty() || r >= MAX_ROWS || c >= MAX_COLS { continue; }
-                pasta.escrever_celula(i, r, c, formula_from_excel(&sem_user(f)));
+        drop(leitor);
+        let Ok(mut leitor) = xlsb.worksheet_cells_reader(nome) else { continue };
+        loop {
+            match leitor.next_formula() {
+                Ok(Some(f)) => {
+                    let (r, c) = f.get_position();
+                    let texto = f.get_value();
+                    if texto.is_empty() { perdidas += 1; continue; }
+                    if r >= MAX_ROWS || c >= MAX_COLS { continue; }
+                    let mut texto = relativas(&sem_user(texto));
+                    for (sem, com) in &com_aspas { texto = texto.replace(sem.as_str(), com); }
+                    aba.set_cell(r, c, &formula_from_excel(&texto));
+                }
+                Ok(None) => break,
+                // O registro da fórmula já foi consumido: a próxima célula segue.
+                Err(_) => perdidas += 1,
             }
         }
     }
@@ -69,29 +97,84 @@ pub fn ler_xlsb(bytes: Vec<u8>) -> Result<Workbook, String> {
         }
     }
     pasta.calcular_tudo();
-    Ok(pasta)
+    Ok((pasta, perdidas))
+}
+
+/// O calamine 0.38 deixa os bits de "relativo" (0x4000 coluna, 0x8000 linha) no número da coluna dos intervalos e
+/// das referências entre abas, e escreve tudo com `$`: `SOMA(A1:B2)` chega `SOMA($BTRM$1:$BTRN$2)`. Coluna acima de
+/// XFD (16384) só pode ser isso: desfaz. Só no formato `$COL$LIN`, que nome definido não tem.
+fn relativas(f: &str) -> String {
+    let b = f.as_bytes();
+    let mut saida = String::with_capacity(f.len());
+    let (mut i, mut aspas) = (0, false);
+    while i < b.len() {
+        if b[i] == b'"' { aspas = !aspas; }
+        if !aspas && b[i] == b'$' && (i == 0 || !(b[i - 1].is_ascii_alphanumeric() || b[i - 1] == b'_' || b[i - 1] == b'.')) {
+            let letras = b[i + 1..].iter().take_while(|c| c.is_ascii_uppercase()).count();
+            let j = i + 1 + letras;
+            if (1..=4).contains(&letras) && b.get(j) == Some(&b'$') {
+                let digitos = b[j + 1..].iter().take_while(|c| c.is_ascii_digit()).count();
+                let fim = j + 1 + digitos;
+                let livre = b.get(fim).is_none_or(|c| !(c.is_ascii_alphanumeric() || *c == b'_' || *c == b'('));
+                let coluna = f[i + 1..j].bytes().fold(0u32, |n, c| n * 26 + u32::from(c - b'A' + 1));
+                if digitos > 0 && livre && coluna > 16384 {
+                    let v = coluna - 1;
+                    let nome = feathersheet_core::celulas::refs::col_name(v & 0x3FFF);
+                    let (col_rel, lin_rel) = (v & 0x4000 != 0, v & 0x8000 != 0);
+                    saida.push_str(&format!("{}{nome}{}{}", if col_rel { "" } else { "$" }, if lin_rel { "" } else { "$" }, &f[j + 1..fim]));
+                    i = fim;
+                    continue;
+                }
+            }
+        }
+        let ch = f[i..].chars().next().unwrap_or(' ');
+        saida.push(ch);
+        i += ch.len_utf8();
+    }
+    saida
 }
 
 /// O `calamine` escreve função que não conhece como `User(_xlfn.CONCAT,"A","b")`: volta a `_xlfn.CONCAT("A","b")`.
+/// Só o `User(` que começa um nome (não o fim de `GetUser(`) e fora de texto entre aspas.
 fn sem_user(f: &str) -> String {
-    let mut s = f.to_string();
-    while let Some(i) = s.find("User(") {
-        let depois = &s[i + 5..];
-        let fim_nome = depois.find([',', ')']).unwrap_or(depois.len());
-        let nome = depois[..fim_nome].to_string();
-        let resto = &depois[fim_nome..];
-        let resto = resto.strip_prefix(',').unwrap_or(resto);
-        s = format!("{}{nome}({resto}", &s[..i]);
+    let mut saida = String::with_capacity(f.len());
+    let mut aspas = false;
+    let mut resto = f;
+    while let Some(ch) = resto.chars().next() {
+        let antes = saida.chars().last();
+        let comeca_nome = !antes.is_some_and(|a| a.is_alphanumeric() || a == '_' || a == '.');
+        if ch == '"' { aspas = !aspas; }
+        if !aspas && comeca_nome && resto.starts_with("User(") {
+            let depois = &resto[5..];
+            let fim = depois.find([',', ')']).unwrap_or(depois.len());
+            saida.push_str(&depois[..fim]);
+            saida.push('(');
+            resto = &depois[fim..];
+            resto = resto.strip_prefix(',').unwrap_or(resto);
+            continue;
+        }
+        saida.push(ch);
+        resto = &resto[ch.len_utf8()..];
     }
-    s
+    saida
 }
 
 #[cfg(test)]
 mod testes {
     #[test]
+    fn bits_de_relativo_saem_da_coluna() {
+        assert_eq!(super::relativas("SUM($BTRM$1:$BTRN$2)"), "SUM(A1:B2)");
+        assert_eq!(super::relativas("SUM($AVLI$1:$XFF$2)"), "SUM($A1:B$2)");
+        assert_eq!(super::relativas("Sheet2!$BTRM$1+$A$1"), "Sheet2!A1+$A$1", "coluna válida fica");
+        assert_eq!(super::relativas("\"$BTRM$1\""), "\"$BTRM$1\"", "texto fica");
+    }
+
+    #[test]
     fn user_volta_ao_nome_da_funcao() {
         assert_eq!(super::sem_user("User(_xlfn.CONCAT,\"A\",\"b\")"), "_xlfn.CONCAT(\"A\",\"b\")");
         assert_eq!(super::sem_user("1+User(X)"), "1+X()");
         assert_eq!(super::sem_user("SUM(A1:A3)"), "SUM(A1:A3)");
+        assert_eq!(super::sem_user("User(GetUser,A1)"), "GetUser(A1)", "nome que termina em User fica");
+        assert_eq!(super::sem_user("\"User(\"&A1"), "\"User(\"&A1", "dentro de aspas fica");
     }
 }

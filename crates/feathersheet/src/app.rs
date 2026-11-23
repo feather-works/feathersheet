@@ -611,6 +611,9 @@ struct AreaCopiada {
     /// Canto de cima à esquerda da origem: colar desloca as referências
     /// relativas pela distância até ele, como no Excel.
     origem: (u32, u32),
+    /// Linha de origem de cada linha da cópia: com filtro, as escondidas ficam de fora e a linha `i`
+    /// da cópia não é `origem.0 + i`.
+    linhas: Vec<u32>,
     /// Id da aba de onde veio (Colar vínculo aponta para ela).
     aba_origem: u32,
     /// Regras de validação que cobrem a área, recortadas nela e pela posição dentro dela

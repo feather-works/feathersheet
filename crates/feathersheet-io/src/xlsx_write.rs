@@ -882,6 +882,11 @@ impl Escritor<'_> {
         if matches!(valor, Value::Empty) && !formula && xf == 0 {
             return None;
         }
+        // Matriz bloqueada (#DESPEJO!) também é dinâmica: sem o `cm`, ao reabrir ela seria lida como fórmula
+        // antiga e embrulhada em SINGLE, mudando o resultado. Vai como o Excel 365 grava: matriz de uma célula.
+        if matriz.is_none() && formula && matches!(&valor, Value::Error(e) if e.code == feathersheet_core::celulas::values::ErrorCode::Spill) {
+            matriz = Some(feathersheet_core::celulas::refs::Rect::cell(row, col));
+        }
         let ingles = formula.then(|| formula_to_excel(raw));
         let f = ingles.as_deref().map_or(Formula::Nenhuma, Formula::Texto);
         let inicio = out.len();
@@ -889,7 +894,8 @@ impl Escritor<'_> {
         if let Some(a) = matriz {
             // `<c r="A1" ...>` -> com `cm="1"`; `<f>` -> `<f t="array" ref="A1:A5">`.
             let fim_ref = out[inicio..].find("\"").and_then(|i| out[inicio + i + 1..].find('"').map(|j| inicio + i + 1 + j + 1));
-            let trecho = out[inicio..].replacen("<f>", &format!("<f t=\"array\" ref=\"{}:{}\">", cell_name(a.r0, a.c0), cell_name(a.r1, a.c1)), 1);
+            let area = if (a.r0, a.c0) == (a.r1, a.c1) { cell_name(a.r0, a.c0) } else { format!("{}:{}", cell_name(a.r0, a.c0), cell_name(a.r1, a.c1)) };
+            let trecho = out[inicio..].replacen("<f>", &format!("<f t=\"array\" ref=\"{area}\">"), 1);
             out.truncate(inicio);
             out.push_str(&trecho);
             if let Some(f) = fim_ref {
@@ -1851,7 +1857,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     let nomes_das_abas = pasta.nomes();
     let n = nomes_das_abas.len();
     let ha_metadata = (0..n).any(|i| {
-        pasta.aba(i).is_some_and(|a| a.sheet.areas_derramadas().iter().any(|r| r.r0 != r.r1 || r.c0 != r.c1))
+        pasta.aba(i).is_some_and(|a| a.sheet.tem_derrame_bloqueado() || a.sheet.areas_derramadas().iter().any(|r| r.r0 != r.r1 || r.c0 != r.c1))
     });
     // Aba oculta vira `state="hidden"` (o modelo só tem bool: `veryHidden`
     // lido volta como `hidden`). O Excel exige ao menos uma aba visível e a

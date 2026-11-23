@@ -62,6 +62,10 @@ pub fn parse_literal(raw: &str) -> Literal {
 /// O analisador não muda com a língua: o arquivo guarda o texto digitado e é lido por ele
 /// (ideia do PR #162).
 pub fn sem_milhar_digitado(texto: &str, cfg: &super::locale::LocaleConfig) -> Option<String> {
+    // dd.mm.aaaa (Alemanha, Rússia…) vira dd/mm/aaaa, só na digitação e na colagem: o `.fshz` guarda o texto
+    // digitado e um "05.03.2026" antigo, que era texto, não pode virar data ao reabrir. Ano de 4 dígitos, para
+    // não pegar 1.234.567.
+    if let Some(data) = data_com_ponto(texto) { return Some(data); }
     let (mil, dec) = (cfg.thousands_separator, cfg.decimal_separator);
     // Francês: o milhar é espaço, e o texto copiado de outro programa traz o espaço que não quebra.
     let troca;
@@ -262,12 +266,17 @@ fn moeda(raw: &str) -> Option<f64> {
     Some(if negativo { -n } else { n })
 }
 
+/// `05.03.2026` → `05/03/2026` quando é uma data válida; `None` no resto.
+fn data_com_ponto(texto: &str) -> Option<String> {
+    let t = texto.trim();
+    if t.matches('.').count() != 2 || !t.rsplit('.').next().is_some_and(|a| a.len() == 4) { return None; }
+    let barra = t.replace('.', "/");
+    parse_date_text(&barra).map(|_| barra)
+}
+
 pub fn parse_date_text(texto: &str) -> Option<f64> {
-    // dd.mm.aaaa (Alemanha, Rússia…) como dd/mm/aaaa; só com ano de 4 dígitos, para não pegar 1.234.567.
-    let com_ponto = !texto.contains('/') && texto.matches('.').count() == 2
-        && texto.rsplit('.').next().is_some_and(|a| a.len() == 4);
-    let (ano, mes, dia) = if texto.contains('/') || com_ponto {
-        let p: Vec<&str> = texto.split(if com_ponto { '.' } else { '/' }).collect();
+    let (ano, mes, dia) = if texto.contains('/') {
+        let p: Vec<&str> = texto.split('/').collect();
         if p.len() != 3 || !(1..=2).contains(&p[0].len())
             || !(1..=2).contains(&p[1].len()) || !(2..=4).contains(&p[2].len())
             || !p.iter().all(|s| so_digitos(s)) { return None; }
@@ -330,10 +339,11 @@ mod testes_entrada {
 
     #[test]
     fn data_com_ponto_e_dia_mes_ano() {
-        assert_eq!(parse_date_text("05.03.2026"), Some(date_to_serial(2026, 3, 5)));
-        assert_eq!(parse_literal("05.03.2026").value, Value::Number(date_to_serial(2026, 3, 5)));
-        assert_eq!(parse_date_text("1.234.567"), None, "milhar não é data");
-        assert_eq!(parse_date_text("31.02.2026"), None);
+        let pt = crate::celulas::locale::LocaleConfig::pt_br();
+        assert_eq!(sem_milhar_digitado("05.03.2026", &pt).as_deref(), Some("05/03/2026"), "digitado vira data");
+        assert_eq!(parse_literal("05.03.2026").value, Value::Text("05.03.2026".into()), ".fshz antigo: segue texto");
+        assert_eq!(data_com_ponto("1.234.567"), None, "milhar não é data");
+        assert_eq!(data_com_ponto("31.02.2026"), None);
     }
 
     #[test]
@@ -394,9 +404,10 @@ mod testes_entrada {
         for (t, sai) in [("1.234", "1234"), ("-1.234,56", "-1234,56"), ("R$ 1.234.567", "R$ 1234567"), ("1.234%", "1234%")] {
             assert_eq!(sem_milhar_digitado(t, &pt).as_deref(), Some(sai), "{t}");
         }
-        for t in ["1,234", "1.5", "12.34", "0.169", "01.02.2025", "192.168.0.7", "=1.234"] {
+        for t in ["1,234", "1.5", "12.34", "0.169", "192.168.0.7", "=1.234"] {
             assert_eq!(sem_milhar_digitado(t, &pt), None, "{t}");
         }
+        assert_eq!(sem_milhar_digitado("01.02.2025", &pt).as_deref(), Some("01/02/2025"), "data com ponto");
         // Espanhol é como o português; em francês o milhar é espaço (comum ou o que não quebra).
         assert_eq!(sem_milhar_digitado("1.234,5", &LocaleConfig::es_es()).as_deref(), Some("1234,5"));
         let fr = LocaleConfig::fr_fr();

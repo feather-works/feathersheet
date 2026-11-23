@@ -288,12 +288,12 @@ impl App {
         // Vizinha de matriz derramada, sem a âncora na cópia: vai o valor,
         // como no Excel. Com a âncora junto, vai só a fórmula, que derrama
         // de novo no destino.
-        let derramada_sem_ancora = |r: u32, c: u32| aba.sheet.area_derramada_em(r, c)
-            .is_some_and(|a| (a.r0, a.c0) != (r, c) && !area.contains(a.r0, a.c0));
         let linhas_r: Vec<u32> = {
             let pular = super::tabelas::puladas_pelo_filtro(&aba.sheet);
             (area.r0..=area.r1).filter(|&r| !(so_visiveis && pular(r))).collect()
         };
+        let derramada_sem_ancora = |r: u32, c: u32| aba.sheet.area_derramada_em(r, c)
+            .is_some_and(|a| (a.r0, a.c0) != (r, c) && !(area.contains(a.r0, a.c0) && linhas_r.contains(&a.r0)));
         let pulou = linhas_r.len() as u32 != area.r1 - area.r0 + 1;
         // Posição de uma linha da origem na cópia (sem as linhas puladas).
         let na_copia = |r: u32| linhas_r.binary_search(&r).ok().map(|i| i as u32);
@@ -328,7 +328,7 @@ impl App {
             .map(|c| aba.sheet.col_widths.get(&c).copied()).collect();
         self.area_copiada = Some(AreaCopiada {
             texto: texto.clone(), celulas, valores, larguras,
-            origem: (area.r0, area.c0), aba_origem: aba.id, recortada: false,
+            origem: (area.r0, area.c0), linhas: linhas_r.clone(), aba_origem: aba.id, recortada: false,
             // shortcut: com linhas puladas pelo filtro a validação não vai junto (os intervalos dela
             // ficariam picados); fazer se pedirem.
             validacoes: if pulou { Vec::new() } else { super::validacao_ui::carregar_regras(aba.sheet.va.as_deref()).unwrap_or_default() }.into_iter()
@@ -558,6 +558,8 @@ impl App {
         Self::decodificar_com_separador(path, bytes, None)
     }
 
+    // shortcut: o leitor roda fora da janela e o status é montado no `instalar`; um arquivo por vez, então um
+    // contador global basta. Passar junto com a pasta se abrir dois ao mesmo tempo um dia.
     pub(super) fn decodificar_com_separador(path: &Path, bytes: Vec<u8>, separador: Option<char>) -> Result<(Workbook, usize), String> {
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
         let (workbook, folha) = if ext == "fshz" {
@@ -573,7 +575,9 @@ impl App {
             // XLSX e FSHZ acima continuam nos codecs nativos existentes.
             (feathersheet_io::csv_workbook::importar_csv_tsv_com_separador(bytes, ext == "tsv", separador)?, 0)
         } else if ext == "xlsb" {
-            (feathersheet_io::xlsb_read::ler_xlsb(bytes)?, 0)
+            let (pasta, perdidas) = feathersheet_io::xlsb_read::ler_xlsb(bytes)?;
+            XLSB_PERDIDAS.store(perdidas, std::sync::atomic::Ordering::Relaxed);
+            (pasta, 0)
         } else {
             return Err(tr!("Formato não suportado. Abra .fshz, .xlsx, .xlsm, .xlsb, .csv, .tsv ou .parquet.").into());
         };
@@ -644,7 +648,11 @@ impl App {
         if recuperacao {
             self.status = tr!("Cópia temporária recuperada. Use Salvar para criar o arquivo definitivo.").into();
         } else {
-            self.status = if ext == "xlsb" { trf!("Aberto: {} — do .xlsb vêm valores, fórmulas e nomes; a formatação, as mesclas e os gráficos não. Salve como .xlsx ou .fshz.", path.display()) } else { trf!("Aberto: {}", path.display()) };
+            self.status = if ext == "xlsb" {
+                let perdidas = XLSB_PERDIDAS.swap(0, std::sync::atomic::Ordering::Relaxed);
+                let base = trf!("Aberto: {} — do .xlsb vêm valores, fórmulas e nomes; a formatação, as mesclas e os gráficos não. Salve como .xlsx ou .fshz.", path.display());
+                if perdidas == 0 { base } else { format!("{base} {}", trf!("{perdidas} fórmulas não puderam ser lidas e ficaram só com o valor.")) }
+            } else { trf!("Aberto: {}", path.display()) };
             self.registrar_arquivo_recente(&path);
         }
         if ext == "xlsm" { self.ler_vba_do_xlsm(&path); } else { self.vba_pendente = None; }
@@ -1416,3 +1424,6 @@ mod testes_formato_sugerido {
         assert!(!app.salvando, "não gravou o .fshz sem a senha");
     }
 }
+
+/// Fórmulas do último `.xlsb` aberto que o calamine não leu (vão só com o valor).
+static XLSB_PERDIDAS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);

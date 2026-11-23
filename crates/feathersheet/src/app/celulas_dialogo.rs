@@ -87,9 +87,14 @@ impl App {
             }
             _ => vec![(at, quantas)],
         };
+        if trechos.is_empty() {
+            self.status = tr!("Todas as linhas selecionadas estão escondidas pelo filtro: nada a excluir.").into();
+            return;
+        }
+        let total: u32 = trechos.iter().map(|&(_, n)| n).sum();
         let foto = self.foto_antes_da_estrutura();
         let (mut tabela, mut mescla) = (Ok(()), Ok(()));
-        for &(ini, n) in trechos.iter().rev() {
+        for (feitos, &(ini, n)) in trechos.iter().rev().enumerate() {
             let feito = match (coluna, inserir) {
                 (false, true) => self.workbook.inserir_linhas(self.folha, ini, n),
                 (false, false) => self.workbook.excluir_linhas(self.folha, ini, n),
@@ -98,7 +103,8 @@ impl App {
             };
             if feito.is_none() {
                 self.status = tr!("Não foi possível alterar a estrutura").into();
-                self.guardar_foto_da_estrutura(foto, false);
+                // Trechos de baixo já saíram: a foto fica no Ctrl+Z para voltar a pasta inteira.
+                self.guardar_foto_da_estrutura(foto, feitos > 0);
                 return;
             }
             let t = tabelas::refluir(&mut self.workbook, self.folha, coluna, ini, n, !inserir);
@@ -115,6 +121,7 @@ impl App {
         let nome = if coluna { format!("{}:{}", col_name(at), col_name(at + quantas - 1)) }
             else { format!("{}:{}", at + 1, at + quantas) };
         self.status = match (tabela, mescla) {
+            (Ok(()), Ok(())) if total != quantas => trf!("{total} linhas visíveis excluídas (as escondidas pelo filtro ficaram)"),
             (Ok(()), Ok(())) => trf!("{} {nome} {}", if coluna { tr!("Colunas") } else { tr!("Linhas") },
                 if inserir { "inseridas" } else { tr!("excluídas") }),
             (Err(e), _) | (_, Err(e)) => trf!("Estrutura alterada; revise: {e}"),
