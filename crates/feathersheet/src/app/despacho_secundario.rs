@@ -476,6 +476,11 @@ impl App {
                 self.config.gravar();
                 Task::none()
             }
+            Msg::GradeLimitada(v) => {
+                self.config.grade_limitada = v;
+                self.config.gravar();
+                Task::none()
+            }
             Msg::Mover(dr,dc) => {
                 if !self.confirmar() { return Task::none(); }
                 let (linha, coluna) = self.passo_visivel((self.linha, self.coluna), dr as i64, dc as i64);

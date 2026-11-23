@@ -32,6 +32,8 @@ pub struct Configuracao {
     pub tamanho_fonte_grade: u16,
     /// Destaque visual da linha/coluna ativa — preferência por usuário, não por pasta.
     pub realce_eixos: bool,
+    /// Exibir ▸ Grade limitada (#164): além da última linha/coluna usada + 1, só o fundo.
+    pub grade_limitada: bool,
     /// Preferências de interface da planilha (não fazem parte do FSHZ).
     pub linhas_grade: bool,
     pub barra_formulas: bool,
@@ -168,7 +170,7 @@ impl Default for Configuracao {
             idioma: "pt-BR".into(), csv_detectar_separador: true, escuro: true, tema_auto: false, acento: 0, marca_personalizada: None, barra_propria: true,
             faixa_recolhida: false, faixa_aba: "inicio".into(), linhas_visiveis: 28, colunas_visiveis: 12, zoom: 100, zoom_minimo: 50, zoom_maximo: 200,
             fonte_grade: "sans".into(), tamanho_fonte_grade: 13,
-            realce_eixos: true, linhas_grade: true, barra_formulas: true,
+            realce_eixos: true, grade_limitada: false, linhas_grade: true, barra_formulas: true,
             mostrar_formulas: false, calculo_manual: false, funcoes_recentes: Vec::new(), fontes_recentes: Vec::new(), auto_salvar: false, intervalo_auto_salvar: 15, recuperacao_automatica: true, procurar_atualizacoes: true, ultima_procura_atualizacao: 0,
             limite_memoria_gb: 6,
             nucleos: 0,

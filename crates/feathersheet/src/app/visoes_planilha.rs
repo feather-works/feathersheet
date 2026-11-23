@@ -284,6 +284,12 @@ impl App {
             fonte_padrao: &self.config.fonte_grade,
             tamanho_fonte_padrao: self.config.tamanho_fonte_grade,
             realce_eixos: self.config.realce_eixos,
+            // Cresce sozinha: a margem de uma linha/coluna e a seleção ficam sempre dentro.
+            limite: self.config.grade_limitada.then(|| {
+                let (r, c) = self.workbook.aba(self.folha).map_or((0, 0), |a| (a.sheet.max_row, a.sheet.max_col));
+                let area = self.area_selecionada();
+                (r.max(area.r1).max(self.linha) + 1, c.max(area.c1).max(self.coluna) + 1)
+            }),
             zoom: self.config.zoom as f32 / 100.,
             ctrl_pressionado: self.ctrl_pressionado,
             rascunho: if self.editor_formula.ativo &&

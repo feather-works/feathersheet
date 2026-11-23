@@ -476,7 +476,7 @@ pub enum Msg {
     PreenchimentoRelampago,
     /// Inserir > Checkbox nas células selecionadas; clique numa caixa.
     CaixasInserir, CaixaAlternar(u32, u32),
-    Formatar(Formatacao), Estrutura(Estrutura), LinhasGrade(bool), MostrarZeros(bool), RealceEixos(bool),
+    Formatar(Formatacao), Estrutura(Estrutura), LinhasGrade(bool), MostrarZeros(bool), RealceEixos(bool), GradeLimitada(bool),
     EstiloMenu(String, Campo), AlternarEstilo(String), InserirMenu(Estrutura, bool),
     InserirFuncao(String), InserirSimbolo(String), MostrarCatalogoFuncoes, Formulas(formulas_ui::Evento), Inspecao(inspecao_ui::Evento),
     /// Pedido do MCP ao vivo e a foto que ele pediu.

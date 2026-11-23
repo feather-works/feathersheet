@@ -791,6 +791,17 @@ impl canvas::Program<Msg> for Grade<'_> {
         for (p, t, cor) in tracos_borda {
             f.fill_rectangle(p, t, cor);
         }
+        // Grade limitada (#164): depois da última linha/coluna, só o fundo (os dados não mudam).
+        if let Some((lim_r, lim_c)) = self.limite {
+            if let Some(&(_, x0, _)) = colunas_visiveis.iter().find(|v| v.0 > lim_c) {
+                f.fill_rectangle(Point::new(x0, CABECALHO_COLUNA),
+                    Size::new((bounds.width - x0).max(0.0), (bounds.height - CABECALHO_COLUNA).max(0.0)), fora);
+            }
+            if let Some(&(_, y0, _)) = linhas_visiveis.iter().find(|v| v.0 > lim_r) {
+                f.fill_rectangle(Point::new(cabecalho_linha(), y0),
+                    Size::new((bounds.width - cabecalho_linha()).max(0.0), (bounds.height - y0).max(0.0)), fora);
+            }
+        }
         // Numeração das linhas é desenhada uma única vez (não por coluna).
         for (il, &(r, y, desenhar_h)) in linhas_visiveis.iter().enumerate() {
             let h = alturas_inteiras[il];

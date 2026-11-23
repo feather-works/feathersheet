@@ -78,6 +78,8 @@ pub struct Grade<'a> {
     pub tamanho_fonte_padrao: u16,
     /// Realça linha e coluna da célula ativa, sem alterar dados ou estilos.
     pub realce_eixos: bool,
+    /// Grade limitada (#164): última linha e coluna desenhadas como células; o resto é fundo.
+    pub limite: Option<(u32, u32)>,
     pub zoom: f32,
     /// Ctrl+roda aplica zoom no corpo da grade, sem deslocar as linhas.
     pub ctrl_pressionado: bool,

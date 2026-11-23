@@ -415,6 +415,7 @@ impl App {
                     ]),
                     self.faixa_pilha(vec![
                         self.faixa_pequeno(tr!("Pintar linha/coluna"), "palette", Some(Msg::RealceEixos(!self.config.realce_eixos)), self.config.realce_eixos),
+                        self.faixa_pequeno(tr!("Grade limitada"), "table", Some(Msg::GradeLimitada(!self.config.grade_limitada)), self.config.grade_limitada),
                         self.faixa_lista(tr!("Tema"), "tema", TEMA, Some(if self.config.escuro { "Escuro" } else { "Claro" }), 91.),
                     ]),
                     // Monitor saía cortado como terceiro item embaixo da lista do Tema.

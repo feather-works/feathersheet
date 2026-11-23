@@ -4,6 +4,10 @@
 
 ## Depois da v0.3.4 (para a 0.3.5)
 
+- Exibir ▸ Grade limitada (#164, pedido de fora): depois da última linha/coluna usada (ou da seleção) mais uma de
+  margem, a grade vira fundo cinza; cresce ao escrever ou clicar na margem. Só visual (`Grade::limite`, preferência
+  `grade_limitada` da pessoa, não do arquivo); a rolagem continua livre e os cabeçalhos seguem numerados. Teste
+  `grade_limitada_vai_uma_alem_dos_dados_e_da_selecao`. Conserta também a contagem velha do `replica_atalhos_typescript`.
 - Reexibir coluna/linha devolve a largura/altura de antes de ocultar (voltava ao padrão; só o Ctrl+Z recuperava).
   `Sheet::dimensoes_ocultadas` (só na memória: inserir/excluir linhas ou colunas esquece; não vai para o `.fshz`,
   `// shortcut:`). No `.xlsx`, a coluna oculta sai com `hidden="1"` e a largura própria (saía `width="0"`), e a lida

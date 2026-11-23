@@ -71,7 +71,7 @@ pub fn montar(json:&Value)->Vec<Topico>{
 mod tests {
     use super::*;
     #[test] fn replica_atalhos_typescript() {
-        assert_eq!(FIXOS.len(),14);
+        assert_eq!(FIXOS.len(),16);
         assert_eq!(CONFIGURAVEIS.len(),24);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (id,_) in FIXOS {assert!(j["ajuda"]["atalhosFixos"][*id].is_string());}

@@ -20,7 +20,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
             workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0,
             linha_inicio: 0, coluna_inicio: 0,
             selecionada: (0, 0), area: Rect::cell(0, 0),
-            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false,
+            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false,limite: None,
             mostrar_formulas: false, zoom: 1.0, ctrl_pressionado: false,
             rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
         };
@@ -49,7 +49,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
             workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0,
             linha_inicio: 0, coluna_inicio: 0,
             selecionada: (0, 0), area: Rect::cell(0, 0),
-            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false,
+            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false,limite: None,
             mostrar_formulas: false, zoom: 1.0, ctrl_pressionado: false,
             rascunho: Some("=2+7"), refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
         };
@@ -68,7 +68,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
             workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0,
             linha_inicio: 0, coluna_inicio: 0,
             selecionada: (0, 0), area: Rect::cell(0, 0),
-            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false, mostrar_formulas: false,
+            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false,limite: None, mostrar_formulas: false,
             zoom: 1.0, ctrl_pressionado: true,
             rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
         };
@@ -108,7 +108,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
             workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0,
             linha_inicio: 0, coluna_inicio: 0,
             selecionada: (0, 0), area: Rect::cell(0, 0),
-            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false, mostrar_formulas: false,
+            escuro: false, cabecalho_escuro: false, linhas_grade: true, mostrar_zeros: true, realce_eixos: false,limite: None, mostrar_formulas: false,
             zoom: 2.0, ctrl_pressionado: false,
             rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
         };
@@ -167,7 +167,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
                 workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0,
                 linha_inicio: 0, coluna_inicio: 0,
                 selecionada: (11, 0), area: Rect::cell(11, 0),
-                escuro: false, cabecalho_escuro: false, linhas_grade, mostrar_zeros: true, realce_eixos: true, mostrar_formulas: false,
+                escuro: false, cabecalho_escuro: false, linhas_grade, mostrar_zeros: true, realce_eixos: true,limite: None, mostrar_formulas: false,
                 zoom: 1.0, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
             };
             let largura = largura(grade.workbook, grade.aba, 0);
@@ -213,7 +213,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
         wb.aba_mut(0).unwrap().sheet.row_heights.insert(0,0);
         wb.aba_mut(0).unwrap().sheet.col_widths.insert(0,0);
         let g = Grade { cache: cache_teste(), impressao: None, copiada: None, setas: &[], comentarios: Default::default(), circulos_validacao: &[], opcoes_coluna: None, areas_extras: &[], workbook:&wb, condicional:&condicional, eixos: eixos_teste(), aba:0,linha_inicio:0,coluna_inicio:0,
-            selecionada:(1,1),area:Rect::cell(1,1),escuro:false, cabecalho_escuro: false,linhas_grade:true, mostrar_zeros: true,realce_eixos:true, mostrar_formulas: false,zoom: 2.0, ctrl_pressionado: false, rascunho:None,refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0 };
+            selecionada:(1,1),area:Rect::cell(1,1),escuro:false, cabecalho_escuro: false,linhas_grade:true, mostrar_zeros: true,realce_eixos:true,limite: None, mostrar_formulas: false,zoom: 2.0, ctrl_pressionado: false, rascunho:None,refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0 };
         assert_eq!(g.celula_no_ponto(Point::new(200.,72.),Size::new(800.,500.)),Some((1,1)));
         assert_eq!(g.celula_no_ponto(Point::new(100.,72.),Size::new(800.,500.)),None);
     }
@@ -223,7 +223,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
         let condicional = RefCell::new(EstadoCondicional::default());
         let g = Grade { cache: cache_teste(), impressao: None, copiada: None, setas: &[], comentarios: Default::default(), circulos_validacao: &[], opcoes_coluna: None, areas_extras: &[],
             workbook:&wb, condicional:&condicional, eixos: eixos_teste(), aba:0,linha_inicio:200,coluna_inicio:26,
-            selecionada:(200,26),area:Rect::cell(200,26),escuro:false, cabecalho_escuro: false,linhas_grade:true, mostrar_zeros: true,realce_eixos:true, mostrar_formulas: false,zoom: 1.0, ctrl_pressionado: false, rascunho:None,refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0
+            selecionada:(200,26),area:Rect::cell(200,26),escuro:false, cabecalho_escuro: false,linhas_grade:true, mostrar_zeros: true,realce_eixos:true,limite: None, mostrar_formulas: false,zoom: 1.0, ctrl_pressionado: false, rascunho:None,refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0
         };
         assert_eq!(g.celula_no_ponto(Point::new(105.0,36.0),Size::new(800.0,500.0)),Some((200,26)));
         assert_eq!(g.celula_no_ponto(Point::new(230.0,65.0),Size::new(800.0,500.0)),Some((201,27)));
@@ -262,7 +262,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
                 workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0, linha_inicio: 0, coluna_inicio: MAX_COLS - 3,
                 selecionada: (0, MAX_COLS - 1),
                 area: Rect::cell(0, MAX_COLS - 1), escuro: false, cabecalho_escuro: false,
-                linhas_grade: true, mostrar_zeros: true, realce_eixos: true, mostrar_formulas: false, zoom, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
+                linhas_grade: true, mostrar_zeros: true, realce_eixos: true,limite: None, mostrar_formulas: false, zoom, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
             };
             let inicio = g.limite_direito_rolagem(largura_tela);
             assert!(inicio < MAX_COLS - 3, "deve mostrar mais colunas que XFB:XFD no zoom {zoom}");
@@ -290,7 +290,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
                 workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0, linha_inicio: MAX_ROWS - 1, coluna_inicio: 0,
                 selecionada: (MAX_ROWS - 1, 0),
                 area: Rect::cell(MAX_ROWS - 1, 0), escuro: false, cabecalho_escuro: false,
-                linhas_grade: true, mostrar_zeros: true, realce_eixos: true, mostrar_formulas: false, zoom, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
+                linhas_grade: true, mostrar_zeros: true, realce_eixos: true,limite: None, mostrar_formulas: false, zoom, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
             };
             let inicio = g.limite_inferior_rolagem(altura_tela);
             assert!(inicio < MAX_ROWS - 1, "deve mostrar outras linhas no zoom {zoom}");
@@ -330,7 +330,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
                 workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0, linha_inicio: MAX_ROWS - 1, coluna_inicio: 0,
                 selecionada: (MAX_ROWS - 1, 0),
                 area: Rect::cell(MAX_ROWS - 1, 0), escuro: false, cabecalho_escuro: false,
-                linhas_grade: true, mostrar_zeros: true, realce_eixos: true, mostrar_formulas: false, zoom, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
+                linhas_grade: true, mostrar_zeros: true, realce_eixos: true,limite: None, mostrar_formulas: false, zoom, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
             };
             let tela = Size::new(800.0, 580.0);
             let inicio = g.primeira_linha_visivel(tela.height);
@@ -366,7 +366,7 @@ fn eixos_teste() -> &'static RefCell<EstadoEixos> {
                     workbook: &wb, condicional: &condicional, eixos: eixos_teste(), aba: 0,
                     linha_inicio, coluna_inicio: 0,
                     selecionada: (0, 0), area: Rect::cell(0, 0), escuro: false, cabecalho_escuro: false,
-                    linhas_grade: true, mostrar_zeros: true, realce_eixos: true, mostrar_formulas: false, zoom, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
+                    linhas_grade: true, mostrar_zeros: true, realce_eixos: true,limite: None, mostrar_formulas: false, zoom, ctrl_pressionado: false, rascunho: None, refs_formula: Vec::new(), lista_aberta: false, lista_pagina: 0, lista_destaque: 0, fonte_padrao: "sans", tamanho_fonte_padrao: 13, congelar_linhas: 0, congelar_colunas: 0,
                 };
                 let barra = super::barras::ESPESSURA;
                 let tela = Size::new(largura_tela / zoom, altura_tela / zoom);
