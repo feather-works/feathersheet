@@ -351,6 +351,7 @@ mod testes_dois_pontos {
     #[test]
     fn so_o_intervalo_fora_de_funcao_conta() {
         assert!(super::dois_pontos_solto("A:A*2") && super::dois_pontos_solto("'Ab (1)'!B1:B9+1"));
+        assert!(super::dois_pontos_solto("(A1:A3)*10") && super::dois_pontos_solto("(A:A+B:B)/2"), "parêntese de agrupamento");
         assert!(!super::dois_pontos_solto("SUM(A1:B1)") && !super::dois_pontos_solto("\"a:b\"&A1"));
     }
 }
@@ -445,16 +446,22 @@ fn chama_escalar(texto: &str) -> bool {
 }
 
 fn dois_pontos_solto(texto: &str) -> bool {
-    let (mut nivel, mut aspas, mut apostrofo) = (0i32, false, false);
+    // Só o parêntese de chamada (`SUM(`) conta: o de agrupamento (`(A1:A3)*10`) deixa o intervalo solto.
+    let (mut pilha, mut nivel, mut aspas, mut apostrofo, mut antes) = (Vec::new(), 0i32, false, false, b' ');
     for b in texto.bytes() {
         match b {
             b'"' if !apostrofo => aspas = !aspas,
             b'\'' if !aspas => apostrofo = !apostrofo,
-            b'(' if !aspas && !apostrofo => nivel += 1,
-            b')' if !aspas && !apostrofo => nivel -= 1,
+            b'(' if !aspas && !apostrofo => {
+                let chamada = antes.is_ascii_alphanumeric() || antes == b'_' || antes == b'.';
+                pilha.push(chamada);
+                if chamada { nivel += 1; }
+            }
+            b')' if !aspas && !apostrofo => if pilha.pop() == Some(true) { nivel -= 1; },
             b':' if !aspas && !apostrofo && nivel == 0 => return true,
             _ => {}
         }
+        antes = b;
     }
     false
 }

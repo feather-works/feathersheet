@@ -19,6 +19,11 @@
   `sem_user` não corta `GetUser(`, pânico do calamine vira erro. Fica para depois: excluir milhares de trechos
   filtrados numa operação só (medido: 5000 trechos em 10 mil linhas com fórmulas = 2,5 s com a janela parada;
   pede `mover_estrutura` com vários cortes, que mexe em fórmulas, nomes, tabelas e mesclas de uma vez).
+- **Revisão das correções de 23/11** (agente revisor): `.xlsb` cortado (sem `BrtEndSheetData`) girava para sempre no
+  `next_formula` (erro de E/S agora encerra a aba); a aspa no nome da aba trocava `Vendas2024!` por `Vendas'2024'!`
+  (`com_aspas_no_nome` só troca no começo da referência e fora de aspas); o filtro barato do ":" deixava `(A1:A3)*10`
+  derramar (só parêntese de chamada conta); data com ponto voltou ao DATAVALOR, com hora (`05.03.2026 14:30`) e no CSV
+  sem língua detectada (`input::data_com_ponto` público).
 - **Interseção legada dentro de SE/ANO/MÊS/DIA/DIA.DA.SEMANA** (23/11/2026): `=SE(A1:A10>5;…)` de `.xlsx` antigo vale a
   linha da fórmula, como no Excel de antes do 365 (`functions::intersecao_nos_argumentos`; MAIOR/MENOR ficam de fora,
   querem o intervalo inteiro). O filtro barato da leitura deixa passar `IF(`/`YEAR(`… com ":".

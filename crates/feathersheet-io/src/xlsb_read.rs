@@ -76,10 +76,11 @@ fn ler(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
                     if texto.is_empty() { perdidas += 1; continue; }
                     if r >= MAX_ROWS || c >= MAX_COLS { continue; }
                     let mut texto = relativas(&sem_user(texto));
-                    for (sem, com) in &com_aspas { texto = texto.replace(sem.as_str(), com); }
+                    for (sem, com) in &com_aspas { texto = com_aspas_no_nome(&texto, sem, com); }
                     aba.set_cell(r, c, &formula_from_excel(&texto));
                 }
-                Ok(None) => break,
+                // Aba cortada (sem o registro de fim): a leitura falha de novo a cada volta.
+                Ok(None) | Err(calamine::XlsbError::Io(_)) => break,
                 // O registro da fórmula já foi consumido: a próxima célula segue.
                 Err(_) => perdidas += 1,
             }
@@ -98,6 +99,28 @@ fn ler(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     }
     pasta.calcular_tudo();
     Ok((pasta, perdidas))
+}
+
+/// Troca `sem` (`2024!`) por `com` (`'2024'!`) só onde ele começa uma referência: não dentro de
+/// `Vendas2024!` nem de texto entre aspas duplas.
+fn com_aspas_no_nome(f: &str, sem: &str, com: &str) -> String {
+    let mut saida = String::with_capacity(f.len() + 8);
+    let (mut i, mut aspas) = (0, false);
+    while i < f.len() {
+        let resto = &f[i..];
+        let antes = saida.chars().last();
+        let livre = !antes.is_some_and(|a| a.is_alphanumeric() || a == '_' || a == '.' || a == '\'');
+        if !aspas && livre && resto.starts_with(sem) {
+            saida.push_str(com);
+            i += sem.len();
+            continue;
+        }
+        let ch = resto.chars().next().unwrap_or(' ');
+        if ch == '"' { aspas = !aspas; }
+        saida.push(ch);
+        i += ch.len_utf8();
+    }
+    saida
 }
 
 /// O calamine 0.38 deixa os bits de "relativo" (0x4000 coluna, 0x8000 linha) no número da coluna dos intervalos e
@@ -167,6 +190,12 @@ mod testes {
         assert_eq!(super::relativas("SUM($AVLI$1:$XFF$2)"), "SUM($A1:B$2)");
         assert_eq!(super::relativas("Sheet2!$BTRM$1+$A$1"), "Sheet2!A1+$A$1", "coluna válida fica");
         assert_eq!(super::relativas("\"$BTRM$1\""), "\"$BTRM$1\"", "texto fica");
+    }
+
+    #[test]
+    fn aspas_so_no_nome_inteiro() {
+        assert_eq!(super::com_aspas_no_nome("2024!A1+Vendas2024!A1", "2024!", "'2024'!"), "'2024'!A1+Vendas2024!A1");
+        assert_eq!(super::com_aspas_no_nome("\"2024!\"&2024!B2", "2024!", "'2024'!"), "\"2024!\"&'2024'!B2");
     }
 
     #[test]

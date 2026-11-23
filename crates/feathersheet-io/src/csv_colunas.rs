@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::io::{BufRead, Read};
 
-use feathersheet_core::celulas::input::{parse_literal, sem_milhar_digitado};
+use feathersheet_core::celulas::input::{data_com_ponto, parse_literal, sem_milhar_digitado};
 use feathersheet_core::LocaleConfig;
 use feathersheet_core::celulas::refs::{MAX_COLS, MAX_ROWS};
 use feathersheet_core::celulas::values::Value;
@@ -340,7 +340,7 @@ impl<'a> Construtor<'a> {
             else if codigo_com_zero(t) { Classe::Texto }
             // A data mês/dia vira avulsa com o texto trocado por quem grava ([`sem_milhar_da_coluna`]).
             else if self.mes_primeiro && dia_e_mes_trocados(t).is_some() { Classe::Outra }
-            else if let Some(sem) = self.lingua.and_then(|l| sem_milhar_digitado(t, l)) {
+            else if let Some(sem) = self.lingua.and_then(|l| sem_milhar_digitado(t, l)).or_else(|| data_com_ponto(t)) {
                 // Milhar da língua da coluna tirado: o número vai direto; moeda e percentual
                 // seguem como avulsa, e quem grava tira o milhar de novo.
                 match classificar(&sem) { Classe::Numero(n) => Classe::Numero(n), _ => Classe::Outra }
@@ -587,7 +587,8 @@ pub(crate) fn sem_milhar_da_coluna(raw: &str, linguas: &[ColunaCsv], col: usize)
     let t = raw.trim();
     if t.starts_with('=') { return None; }
     if coluna.mes_primeiro { if let Some(d) = dia_e_mes_trocados(t) { return Some(d); } }
-    sem_milhar_digitado(t, coluna.lingua.as_ref()?)
+    // A data alemã (05.03.2026) vale também na coluna sem língua detectada.
+    coluna.lingua.as_ref().and_then(|l| sem_milhar_digitado(t, l)).or_else(|| data_com_ponto(t))
 }
 
 /// Escolhe o separador como o `feather_io::csv_lotes` (numa amostra de

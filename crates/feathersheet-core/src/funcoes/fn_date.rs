@@ -452,7 +452,9 @@ fn serial_de_texto(t: &str) -> Option<f64> {
         Some(i) => (&t[..i], Some(t[i + 1..].trim())),
         None => (t, None),
     };
-    if let Some(d) = crate::celulas::input::parse_date_text(data) {
+    // DATAVALOR("05.03.2026"): a data com ponto vale aqui também (só o `.fshz` não a lê, ver `data_com_ponto`).
+    let com_ponto = crate::celulas::input::data_com_ponto(data);
+    if let Some(d) = crate::celulas::input::parse_date_text(com_ponto.as_deref().unwrap_or(data)) {
         return match hora {
             None => Some(d),
             Some(h) => hora_de_texto(h).map(|f| d + f),

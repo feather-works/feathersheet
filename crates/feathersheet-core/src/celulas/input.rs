@@ -267,11 +267,14 @@ fn moeda(raw: &str) -> Option<f64> {
 }
 
 /// `05.03.2026` → `05/03/2026` quando é uma data válida; `None` no resto.
-fn data_com_ponto(texto: &str) -> Option<String> {
+/// Com hora depois de um espaço (`05.03.2026 14:30`), só a data troca.
+pub fn data_com_ponto(texto: &str) -> Option<String> {
     let t = texto.trim();
-    if t.matches('.').count() != 2 || !t.rsplit('.').next().is_some_and(|a| a.len() == 4) { return None; }
-    let barra = t.replace('.', "/");
-    parse_date_text(&barra).map(|_| barra)
+    let (data, hora) = t.split_once(' ').map_or((t, None), |(d, h)| (d, Some(h)));
+    if data.matches('.').count() != 2 || !data.rsplit('.').next().is_some_and(|a| a.len() == 4) { return None; }
+    let barra = data.replace('.', "/");
+    parse_date_text(&barra)?;
+    Some(match hora { Some(h) => format!("{barra} {h}"), None => barra })
 }
 
 pub fn parse_date_text(texto: &str) -> Option<f64> {
@@ -344,6 +347,7 @@ mod testes_entrada {
         assert_eq!(parse_literal("05.03.2026").value, Value::Text("05.03.2026".into()), ".fshz antigo: segue texto");
         assert_eq!(data_com_ponto("1.234.567"), None, "milhar não é data");
         assert_eq!(data_com_ponto("31.02.2026"), None);
+        assert_eq!(data_com_ponto("05.03.2026 14:30").as_deref(), Some("05/03/2026 14:30"), "com hora");
     }
 
     #[test]
