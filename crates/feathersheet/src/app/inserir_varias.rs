@@ -92,4 +92,15 @@ mod testes {
         assert_eq!(sheet.get_raw(8, 0), "depois", "cinco linhas entraram abaixo da linha 3");
         assert_eq!(sheet.get_raw(3, 0), "");
     }
+
+    #[test]
+    fn abaixo_de_um_bloco_entra_depois_dele_todo() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 7, 0, "depois".into());
+        let _ = app.update(Msg::SelecionarLinha(4));
+        let _ = app.update(Msg::EstenderLinha(6));
+        app.inserir_menu_n(Estrutura::InserirLinha, true, 3);
+        // Linhas 5–7 selecionadas (ativa na 5): as três entram abaixo da 7, não no meio do bloco.
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(10, 0), "depois");
+    }
 }

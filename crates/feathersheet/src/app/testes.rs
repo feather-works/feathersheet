@@ -1213,4 +1213,13 @@ fn grade_limitada_tem_minimo_e_cresce_com_dados_selecao_e_mais() {
     assert_eq!(app.grade().limite, Some((35, 12)), "o + do cabeçalho acrescenta uma coluna");
     let _ = app.update(Msg::GradeCrescer(true));
     assert_eq!(app.grade().limite, Some((36, 12)));
+    // Coluna inteira selecionada: nem a grade nem o + viram 100 milhões de linhas.
+    let _ = app.update(Msg::SelecionarColuna(2));
+    assert_eq!(app.grade().limite.map(|l| l.0), Some(36));
+    let _ = app.update(Msg::GradeCrescer(false));
+    assert_eq!(app.grade().limite, Some((36, 13)));
+    // A próxima linha oculta não conta: o + mostra a primeira visível.
+    if let Some(a) = app.workbook.aba_mut(0) { for r in 37..40 { a.sheet.row_heights.insert(r, 0); } }
+    let _ = app.update(Msg::GradeCrescer(true));
+    assert_eq!(app.grade().limite.map(|l| l.0), Some(40));
 }

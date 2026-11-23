@@ -478,10 +478,21 @@ impl App {
                 Task::none()
             }
             Msg::GradeCrescer(linha) => {
-                let a = self.area_selecionada();
-                if let (Some((lr, lc)), Some(id)) = (self.limite_da_grade(self.folha, a.r1.max(self.linha), a.c1.max(self.coluna)), self.workbook.aba(self.folha).map(|a| a.id)) {
-                    let novo = if linha { (lr + 1, lc) } else { (lr, lc + 1) };
-                    self.grade_extra.insert(id, novo);
+                let (r, c) = self.ponta_da_selecao_para_a_grade();
+                if let (Some((lr, lc)), Some(aba)) = (self.limite_da_grade(self.folha, r, c), self.workbook.aba(self.folha)) {
+                    // O limite vem da ponta da seleção sem coluna/linha inteira: os dois eixos cabem no extra.
+                    // A próxima linha/coluna oculta não aparece: anda até a primeira visível.
+                    let s = &aba.sheet;
+                    let novo = if linha {
+                        let mut r = lr + 1;
+                        while r < MAX_ROWS - 1 && s.linha_oculta(r) { r += 1; }
+                        (r, lc)
+                    } else {
+                        let mut c = lc + 1;
+                        while c < MAX_COLS - 1 && s.coluna_oculta(c) { c += 1; }
+                        (lr, c)
+                    };
+                    self.grade_extra.insert(aba.id, novo);
                 }
                 Task::none()
             }

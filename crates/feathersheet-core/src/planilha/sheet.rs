@@ -961,9 +961,9 @@ impl Sheet {
     /// Recalcula estas células (a resposta que elas pediram chegou) e quem
     /// depende delas.
     pub fn sujar_celulas(&self, chaves: &[u64]) {
-        for &k in chaves {
-            self.sujar_cascata(k);
-        }
+        // Uma cascata só: cada dependente é visitado uma vez (uma por chave era N² numa coluna de saldo
+        // acumulado de um milhão de linhas, no Recalcular tudo).
+        self.sujar_cascata_de(chaves.to_vec());
     }
 
     /// Recalcula as fórmulas que citam `nome` (uma função de macro acabou de

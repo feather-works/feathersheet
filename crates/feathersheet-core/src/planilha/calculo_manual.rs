@@ -71,6 +71,12 @@ impl Workbook {
     /// que está marcado; o valor guardado num arquivo de outro programa (um `#NAME?` de quando o nome
     /// ainda não existia) fica até alguém mexer na célula.
     pub fn calcular_tudo(&mut self) {
+        self.sujar_tudo();
+        self.calcular_agora();
+    }
+
+    /// Marca toda fórmula de toda aba para refazer, sem calcular (o app calcula em fundo).
+    pub fn sujar_tudo(&mut self) {
         for i in 0..self.len() {
             if let Some(aba) = self.aba(i) {
                 let mut chaves = Vec::new();
@@ -78,7 +84,6 @@ impl Workbook {
                 aba.sheet.sujar_celulas(&chaves);
             }
         }
-        self.calcular_agora();
     }
 
     /// Shift+F9: só a aba `indice`.

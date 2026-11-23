@@ -5428,6 +5428,7 @@
  "XLSX: '{caminho}' excede 4 GiB de XML descomprimido": "XLSX : '{caminho}' dépasse 4 Gio de XML décompressé",
  "XLSX: imagens nas células da aba '{nome}' passam de {} MB.": "XLSX : les images des cellules de la feuille '{nome}' dépassent {} Mo.",
  "XLSB sem abas.": "XLSB sans feuilles.",
+ "Espere o cálculo em andamento terminar para recalcular tudo.": "Attendez la fin du calcul en cours avant de tout recalculer.",
  "{perdidas} fórmulas não puderam ser lidas e ficaram só com o valor.": "{perdidas} formules n’ont pas pu être lues et n’ont gardé que leur valeur.",
  "Todas as linhas selecionadas estão escondidas pelo filtro: nada a excluir.": "Toutes les lignes sélectionnées sont masquées par le filtre : rien à supprimer.",
  "{total} linhas visíveis excluídas (as escondidas pelo filtro ficaram)": "{total} lignes visibles supprimées (celles masquées par le filtre sont restées)",

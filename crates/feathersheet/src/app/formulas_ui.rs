@@ -157,9 +157,19 @@ impl App {
             }
             Evento::CalcularTudo => {
                 self.formulas_menu = None;
-                let inicio = Instant::now();
-                self.workbook.calcular_tudo();
-                self.status = trf!("Pasta recalculada por inteiro em {} ms", inicio.elapsed().as_millis());
+                // Com um cálculo em fundo, `self.workbook` é só o espelho: o que se fizesse nele se perderia.
+                if self.calculo_rodando.is_some() {
+                    self.status = tr!("Espere o cálculo em andamento terminar para recalcular tudo.").into();
+                    return Task::none();
+                }
+                self.workbook.sujar_tudo();
+                // Fora da janela (regra 5); se o cálculo em fundo não puder começar (macro, gravação), calcula aqui.
+                self.calcular_em_fundo();
+                if self.calculo_rodando.is_none() {
+                    let inicio = Instant::now();
+                    self.workbook.calcular_agora();
+                    self.status = trf!("Pasta recalculada por inteiro em {} ms", inicio.elapsed().as_millis());
+                }
             }
             Evento::CalcularPlanilha => {
                 let inicio = Instant::now();

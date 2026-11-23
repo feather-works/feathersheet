@@ -19,6 +19,14 @@
   `sem_user` não corta `GetUser(`, pânico do calamine vira erro. Fica para depois: excluir milhares de trechos
   filtrados numa operação só (medido: 5000 trechos em 10 mil linhas com fórmulas = 2,5 s com a janela parada;
   pede `mover_estrutura` com vários cortes, que mexe em fórmulas, nomes, tabelas e mesclas de uma vez).
+- **Revisão do que saiu sem revisão na 0.3.5** (23/11/2026): Recalcular tudo era N² (uma cascata por fórmula;
+  `sujar_celulas` agora faz uma só) e rodava na janela (agora `sujar_tudo` + `calcular_em_fundo`, recusado com cálculo em
+  fundo rodando); inserir que empurraria célula para fora (XFD) é recusado no `mover_estrutura` (a chave caía na linha de
+  baixo); "Inserir linhas…" abaixo de um bloco entra depois dele todo, não no meio; grade limitada: coluna/linha inteira
+  selecionada não a faz infinita (`ponta_da_selecao_para_a_grade`), o "+" pula linha/coluna oculta, clique direito depois
+  do fim não abre menu; foto girada pelo EXIF guarda o perfil RGB, cai de qualidade antes de passar de 16 MiB e, a
+  flutuante, gira fora da janela; fuso do Windows arredondado a 15 min (a virada do minuto entre as duas leituras dava
+  UTC−03:01).
 - **Revisão das correções de 23/11** (agente revisor): `.xlsb` cortado (sem `BrtEndSheetData`) girava para sempre no
   `next_formula` (erro de E/S agora encerra a aba); a aspa no nome da aba trocava `Vendas2024!` por `Vendas'2024'!`
   (`com_aspas_no_nome` só troca no começo da referência e fora de aspas); o filtro barato do ":" deixava `(A1:A3)*10`

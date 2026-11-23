@@ -232,6 +232,9 @@ impl App {
                         }
                         let bytes = std::fs::read(&caminho)
                             .map_err(|e| trf!("Falha ao ler imagem: {e}"))?;
+                        // Girar a foto pelo EXIF decodifica e regrava: aqui, fora da janela. O `importar`
+                        // depois só lê o cabeçalho (a regravada não tem mais orientação).
+                        let bytes = imagens_importadas::girada_pelo_exif(&bytes).unwrap_or(bytes);
                         Ok::<_, String>((bytes, nome))
                     }).await {
                         Ok(Ok(imagem)) => Ok(Some(imagem)),

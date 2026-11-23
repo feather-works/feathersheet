@@ -955,6 +955,13 @@ impl Workbook {
         removing: bool,
     ) -> Option<Mudanca> {
         let sujo = self.abas.get(indice)?.sheet.used_rect();
+        // Inserir não empurra célula para fora da planilha (a chave passaria para a linha de baixo e
+        // sobrescreveria outra célula): o Excel recusa do mesmo jeito.
+        if !removing {
+            let (fim, max) = if coluna { (sujo.c1, crate::celulas::refs::MAX_COLS) } else { (sujo.r1, crate::celulas::refs::MAX_ROWS) };
+            let tem_depois = !self.abas[indice].sheet.is_empty() && fim >= at;
+            if tem_depois && u64::from(fim) + u64::from(count) >= u64::from(max) { return None; }
+        }
         if count == 0 {
             return self.mudar_com_alcance(indice, vec![sujo], None, |_| {});
         }

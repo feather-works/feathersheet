@@ -272,12 +272,17 @@ impl App {
 
     pub(super) fn inserir_menu(&mut self, acao: Estrutura, depois: bool) { self.inserir_menu_n(acao, depois, 1); }
 
-    /// Insere `n` linhas/colunas acima (ou abaixo, com `depois`) da célula ativa, num Ctrl+Z.
+    /// Insere `n` linhas/colunas acima (ou abaixo, com `depois`) da seleção, num Ctrl+Z. Com 5–7
+    /// selecionadas, "abaixo" é depois da 7 (pela célula ativa entrava no meio do bloco).
     pub(super) fn inserir_menu_n(&mut self, acao: Estrutura, depois: bool, n: u32) {
         self.confirmar();
+        let a = self.area_selecionada();
+        // Coluna (ou linha) inteira selecionada não tem borda útil no outro eixo: vale a célula ativa.
+        let (r0, r1) = if a.r1 >= MAX_ROWS - 1 { (self.linha, self.linha) } else { (a.r0, a.r1) };
+        let (c0, c1) = if a.c1 >= MAX_COLS - 1 { (self.coluna, self.coluna) } else { (a.c0, a.c1) };
         let (coluna, at) = match acao {
-            Estrutura::InserirLinha => (false, self.linha.saturating_add(u32::from(depois))),
-            Estrutura::InserirColuna => (true, self.coluna.saturating_add(u32::from(depois))),
+            Estrutura::InserirLinha => (false, if depois { r1.saturating_add(1) } else { r0 }),
+            Estrutura::InserirColuna => (true, if depois { c1.saturating_add(1) } else { c0 }),
             _ => return,
         };
         let foto = self.foto_antes_da_estrutura();

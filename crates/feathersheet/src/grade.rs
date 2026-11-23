@@ -1227,6 +1227,8 @@ impl Grade<'_> {
         match *event {
             Event::MousePressed(mouse::Button::Right) => {
                 if let Some(point) = local(cursor, bounds) {
+                    // Depois do fim da grade limitada não há célula, coluna nem linha para o menu.
+                    if self.clique_fora_da_grade(point, bounds.size()).is_some() { return (Captured::Yes, None); }
                     let p = Point::new(point.x / self.zoom, point.y / self.zoom);
                     // O menu é um overlay da área visível: clampa posição e
                     // tamanho ANTES de enviar o evento à App. As coordenadas

@@ -353,11 +353,21 @@ pub(crate) fn girada_pelo_exif(bytes: &[u8]) -> Option<Vec<u8>> {
     }
     let mut dec = image::codecs::jpeg::JpegDecoder::new(Cursor::new(bytes)).ok()?;
     let o = dec.orientation().ok().filter(|o| *o != image::metadata::Orientation::NoTransforms)?;
+    // O perfil de cor RGB vai junto (sem ele uma foto Display P3 fica com as cores lavadas).
+    let icc = dec.icc_profile().ok().flatten().filter(|p| p.get(16..20) == Some(&b"RGB "[..]));
     let mut img = image::DynamicImage::from_decoder(dec).ok()?;
     img.apply_orientation(o);
-    let mut saida = Vec::new();
-    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut saida, 92).encode_image(&img.to_rgb8()).ok()?;
-    Some(saida)
+    let rgb = img.to_rgb8();
+    // A regravação a 92 pode passar dos 16 MiB de uma foto que tinha 9 MB: tenta mais leve antes de recusar.
+    for qualidade in [92, 80, 65] {
+        use image::ImageEncoder;
+        let mut saida = Vec::new();
+        let mut e = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut saida, qualidade);
+        if let Some(p) = icc.clone() { let _ = e.set_icc_profile(p); }
+        e.write_image(&rgb, rgb.width(), rgb.height(), image::ExtendedColorType::Rgb8).ok()?;
+        if saida.len() <= MAX_BYTES { return Some(saida); }
+    }
+    None
 }
 
 /// Adiciona uma imagem real, com dimensões de exibição contidas e dados

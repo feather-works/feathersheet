@@ -269,6 +269,15 @@ impl App {
         })
     }
 
+    /// Até onde a seleção empurra a grade limitada. Coluna ou linha inteira (ou Ctrl+A) não empurra
+    /// naquele eixo, senão a grade virava 100 milhões de linhas enquanto a seleção durasse: vale a ativa.
+    pub(super) fn ponta_da_selecao_para_a_grade(&self) -> (u32, u32) {
+        let a = self.area_selecionada();
+        let r = if a.r1 >= MAX_ROWS - 1 { self.linha } else { a.r1.max(self.linha) };
+        let c = if a.c1 >= MAX_COLS - 1 { self.coluna } else { a.c1.max(self.coluna) };
+        (r, c)
+    }
+
     /// A aba ativa mostra os zeros (Exibir ▸ Zeros).
     pub(super) fn zeros_visiveis(&self) -> bool {
         !self.workbook.aba(self.folha).is_some_and(|a| self.zeros_ocultos.contains(&a.id))
@@ -296,7 +305,7 @@ impl App {
             fonte_padrao: &self.config.fonte_grade,
             tamanho_fonte_padrao: self.config.tamanho_fonte_grade,
             realce_eixos: self.config.realce_eixos,
-            limite: { let a = self.area_selecionada(); self.limite_da_grade(self.folha, a.r1.max(self.linha), a.c1.max(self.coluna)) },
+            limite: { let (r, c) = self.ponta_da_selecao_para_a_grade(); self.limite_da_grade(self.folha, r, c) },
             zoom: self.config.zoom as f32 / 100.,
             ctrl_pressionado: self.ctrl_pressionado,
             rascunho: if self.editor_formula.ativo &&

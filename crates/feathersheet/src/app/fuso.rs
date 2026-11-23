@@ -30,7 +30,10 @@ pub(crate) fn do_sistema() -> i32 {
         // SAFETY: as duas só preenchem a estrutura que passamos.
         let (mut local, mut utc): (SYSTEMTIME, SYSTEMTIME) = unsafe { (std::mem::zeroed(), std::mem::zeroed()) };
         unsafe { GetLocalTime(&mut local); GetSystemTime(&mut utc); }
-        return (minutos(&local) - minutos(&utc)) as i32;
+        // As duas leituras são separadas: se o minuto virar entre elas a conta sai 1 min fora (-181).
+        // Todo fuso do mundo é múltiplo de 15 min.
+        let bruto = minutos(&local) - minutos(&utc);
+        return ((bruto as f64 / 15.0).round() * 15.0) as i32;
     }
     #[allow(unreachable_code)]
     0
