@@ -35,6 +35,7 @@ pub const VERSOES: &[Versao] = &[
             "INT de uma conta que dá quase um inteiro (0,1×3×10) devolve o inteiro, como no Excel.",
             "Datas digitadas com ponto (05.03.2026) viram data.",
             "Nome definido com cara de endereço R1C1 (R, C2, R1C1) é recusado, porque o Excel não abriria o arquivo.",
+            "Dúvidas, defeitos ou melhorias? Fale com a gente: contato@maragon.dev",
         ],
     },
     Versao {
