@@ -4,6 +4,18 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **#166 investigado sem o usuário (24/11/2026)**, com o próprio `2026_03 tabela dinamica.fshz` (13,7 mi de linhas,
+  53 colunas; dinâmica de 12.664 linhas, 5 campos em Linhas, desvio padrão). Medido: conta inteira 7,3 s; gravar o
+  resultado vindo do fundo 80 ms; criar vazia µs; prévia do gráfico (SVG) 6–9 ms. Pela janela (captura + roteiro +
+  vídeo + `perf` + `gdb` com o app como filho): trocar de aba, Campos, Atualizar, Gráfico dinâmico e as opções do
+  gráfico não prendem a janela (o gdb mostrou a thread principal parada no laço de eventos; o "travamento" do
+  roteiro era a pergunta de salvar no `sair`). O caminho que prende: o **MCP ao vivo** recalculava na thread da
+  janela (`dinamica_ui/mcp.rs`), 7 s por pedido; agora `atualizar_pelo_mcp` manda a origem grande para a conta de
+  fundo (criar = vazia + fundo; atualizar todas = uma no fundo, as outras grandes esperam; com uma conta andando,
+  recusa com o motivo) e responde na hora. Teste `origem_grande_pelo_mcp_vai_para_o_fundo`. `FEATHERSHEET_VIGIA_STDERR=1`
+  manda as linhas `[tela] presa` também para o terminal. Visto e não resolvido: abrir o arquivo prende a janela
+  1,5 s na mensagem `Aberto`; "Mostrar páginas de filtro" ainda calcula cada página na janela.
+
 - **`.xlsm` gravado conferido sem Excel (24/11/2026)**: `scripts/conferir-xlsm/` (LibreOffice snap, perfil isolado em
   `~/snap/libreoffice/common`, Basic que abre o arquivo, lista os módulos importados, roda a macro e lê as células)
   e o `olevba` (oletools, num venv) como segundo leitor do `vbaProject.bin`. Arquivos de prova:

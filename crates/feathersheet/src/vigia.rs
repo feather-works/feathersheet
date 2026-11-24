@@ -38,8 +38,11 @@ pub fn nome_curto(v: &impl std::fmt::Debug) -> String {
 pub fn conferir(o_que: impl FnOnce() -> String, tempo: Duration) {
     let ms = tempo.as_millis();
     if ms >= LIMITE_MS {
+        let linha = format!("[tela] presa {ms} ms: {}", o_que());
+        // Para reproduzir sem a janela do F12 (captura de tela, roteiro): a linha vai também para o terminal.
+        if std::env::var_os("FEATHERSHEET_VIGIA_STDERR").is_some() { eprintln!("{linha}"); }
         if let Ok(mut fila) = TRAVADAS.lock() {
-            fila.push(format!("[tela] presa {ms} ms: {}", o_que()));
+            fila.push(linha);
         }
     }
 }

@@ -328,7 +328,24 @@ fn descrever(app: &App, aba: usize, d: &Json) -> String {
     format!("{} em {nome_aba}!{area} (origem {origem}){campos}", d["id"].as_str().unwrap_or("?"))
 }
 
+/// A resposta do MCP quando a conta foi para o fundo.
+const EM_FUNDO: &str = "a conta começou em segundo plano (origem grande); a aba mostra o progresso e o resultado entra sozinho. Use `listar` em alguns segundos para ver.";
+
 impl App {
+    /// Recalcula a dinâmica pedida pelo MCP. Origem grande vai para a conta de fundo, como na faixa: na thread da
+    /// janela, 13,7 milhões de linhas com desvio padrão levavam 7 s por pedido (#166). `true` = foi para o fundo.
+    fn atualizar_pelo_mcp(&mut self, aba: usize, e: &Estado) -> Result<bool, String> {
+        if !App::dinamica_vai_para_fundo(e) {
+            self.aplicar_com_resultado(aba, e, None)?;
+            return Ok(false);
+        }
+        if self.dinamica_fundo.ativo() {
+            return Err("Outra dinâmica ainda está calculando em segundo plano; peça de novo quando ela terminar.".into());
+        }
+        self.iniciar_dinamica_fundo(aba, e)?;
+        Ok(true)
+    }
+
     /// `sheet_dinamica`: `aba` e `origem` já resolvidos pelo MCP quando vieram.
     pub(in crate::app) fn dinamica_pelo_mcp(&mut self, args: &Json, origem: Option<(usize, Rect)>) -> Result<String, String> {
         let acao = args["acao"].as_str().unwrap_or("listar");
@@ -357,22 +374,48 @@ impl App {
                 }
                 e.nova_aba = args["nova_aba"].as_bool().unwrap_or(true);
                 e.fase = Fase::Campos;
+                // Origem grande: cria vazia (instantâneo) e a conta vai para o fundo, como na faixa (#166).
+                let grande = App::dinamica_vai_para_fundo(&e);
+                if grande {
+                    e.linhas.clear();
+                    e.colunas.clear();
+                    e.valores.clear();
+                }
                 self.dinamica = Some(e);
                 self.criar_dinamica_nativa();
                 if self.dinamica.take().is_some() {
                     return Err(self.status.clone());
                 }
                 let (aba, d) = todas(self).into_iter().last().ok_or("A dinâmica não foi gravada.")?;
+                if grande {
+                    let mut e = edicao::ler_estado(self, aba, &d)?;
+                    aplicar_args(self, &mut e, args)?;
+                    self.atualizar_pelo_mcp(aba, &e)?;
+                    return Ok(format!("Criada vazia ({}); {}", descrever(self, aba, &d), EM_FUNDO));
+                }
                 Ok(format!("{} Criada: {}", self.status, descrever(self, aba, &d)))
             }
             "editar" | "atualizar" if acao == "atualizar" && args.get("id").is_none_or(Json::is_null) => {
                 let mut feitas = Vec::new();
+                let (mut no_fundo, mut esperando) = (None, Vec::new());
                 for (aba, d) in todas(self) {
                     let e = edicao::ler_estado(self, aba, &d)?;
-                    self.aplicar_com_resultado(aba, &e, None)?;
-                    feitas.push(d["id"].as_str().unwrap_or("?").to_owned());
+                    let id = d["id"].as_str().unwrap_or("?").to_owned();
+                    // Uma conta de fundo por vez: as outras grandes esperam o próximo pedido.
+                    if App::dinamica_vai_para_fundo(&e) && (no_fundo.is_some() || self.dinamica_fundo.ativo()) {
+                        esperando.push(id);
+                    } else if self.atualizar_pelo_mcp(aba, &e)? {
+                        no_fundo = Some(id);
+                    } else {
+                        feitas.push(id);
+                    }
                 }
-                Ok(format!("{} dinâmica(s) atualizada(s): {}.", feitas.len(), feitas.join(", ")))
+                let mut texto = format!("{} dinâmica(s) atualizada(s): {}.", feitas.len(), feitas.join(", "));
+                if let Some(id) = no_fundo { texto.push_str(&format!(" {id}: {EM_FUNDO}")); }
+                if !esperando.is_empty() {
+                    texto.push_str(&format!(" Esperando a conta de fundo terminar (peça atualizar de novo depois): {}.", esperando.join(", ")));
+                }
+                Ok(texto)
             }
             "editar" | "atualizar" => {
                 let (aba, d) = achar(self)?;
@@ -380,7 +423,9 @@ impl App {
                 if acao == "editar" {
                     aplicar_args(self, &mut e, args)?;
                 }
-                self.aplicar_com_resultado(aba, &e, None)?;
+                if self.atualizar_pelo_mcp(aba, &e)? {
+                    return Ok(format!("{}: {EM_FUNDO}", d["id"].as_str().unwrap_or("?")));
+                }
                 let (aba, d) = achar(self)?;
                 Ok(format!("{} {}", if acao == "editar" { "Editada:" } else { "Atualizada:" }, descrever(self, aba, &d)))
             }
@@ -420,6 +465,29 @@ mod testes {
             }
         });
         app
+    }
+
+    /// #166: origem grande pedida pelo MCP não faz a conta na thread da janela; vai para o fundo e o MCP responde
+    /// na hora. Um segundo pedido com a conta ainda andando é recusado com o motivo.
+    #[test]
+    fn origem_grande_pelo_mcp_vai_para_o_fundo() {
+        let mut app = App::default();
+        let n = super::super::fundo::LINHAS_FUNDO + 10;
+        app.workbook.editar(0, |s| {
+            s.set_cell(0, 0, "Ramal");
+            s.set_cell(0, 1, "Nivel");
+            for r in 1..=n { s.set_cell(r, 0, if r % 2 == 0 { "A" } else { "B" }); s.set_cell(r, 1, "1"); }
+        });
+        let origem = Some((0, Rect::new(0, 0, n, 1)));
+        let t = app.dinamica_pelo_mcp(&json!({ "acao": "criar", "linhas": ["Ramal"],
+            "valores": [{ "campo": "Nivel", "como": "soma" }] }), origem).unwrap();
+        assert!(t.contains("segundo plano") && t.contains("Criada vazia"), "{t}");
+        assert!(app.dinamica_fundo.ativo(), "a conta está no fundo");
+        let id = app.dinamica_pelo_mcp(&json!({ "acao": "listar" }), None).unwrap();
+        let id = id.split_whitespace().next().unwrap().to_owned();
+        let erro = app.dinamica_pelo_mcp(&json!({ "acao": "editar", "id": id, "linhas": ["Ramal"],
+            "valores": [{ "campo": "Nivel", "como": "media" }] }), None).unwrap_err();
+        assert!(erro.contains("ainda está calculando"), "{erro}");
     }
 
     #[test]
