@@ -564,7 +564,8 @@ mod testes {
     fn exemplo() -> Option<PastaLida> {
         let caminho = concat!(env!("CARGO_MANIFEST_DIR"), "/../../exemplos/planilha-pesada.fshz");
         let bytes = std::fs::read(caminho).ok()?;
-        crate::fshz_read::ler_fshz(&bytes).ok()
+        // Arquivo presente que não abre é falha, não teste pulado (ficou assim escondido desde a v0.1).
+        Some(crate::fshz_read::ler_fshz(&bytes).expect("o exemplo do repositório tem de abrir"))
     }
 
     #[test]

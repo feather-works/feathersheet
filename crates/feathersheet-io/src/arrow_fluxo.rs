@@ -141,7 +141,8 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
             None => r.read_exact(&mut quatro).map_err(|e| format!("Bloco Arrow truncado: {e}"))?,
         }
         let mut tamanho = i32::from_le_bytes(quatro);
-        if tamanho == -1 {
+        let continuacao = tamanho == -1;
+        if continuacao {
             r.read_exact(&mut quatro).map_err(|e| format!("Bloco Arrow truncado: {e}"))?;
             tamanho = i32::from_le_bytes(quatro);
         }
@@ -166,19 +167,22 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
                             return Err(feathersheet_core::trf!("O arquivo declara células demais ({} campos × {linhas} linhas).", colunas.len() + 1));
                         }
                     }
-                    let mascara = vec![0u8; linhas.div_ceil(8)];
                     let int32 = campo.type_type() == Type::Int && campo.type_as_int().is_some_and(|i| i.bitWidth() == 32);
-                    colunas.push(match (planos.remove(&nome), campo.type_type()) {
-                        (Some(Plano::Num), Type::FloatingPoint) => ColunaArrow::NumBlocos(Montador::novo()),
-                        (Some(Plano::Txt(mapa)), _) if int32 => ColunaArrow::TxtBlocos(Montador::novo(), mapa),
-                        (Some(_), outro) => return Err(feathersheet_core::trf!("Tipo Arrow {outro:?} no campo \"{nome}\" não bate com a coluna")),
-                        (None, Type::FloatingPoint) => ColunaArrow::Float(vec![0.0; linhas], mascara),
-                        (None, Type::Int) if int32 => ColunaArrow::Int(vec![0; linhas], mascara),
-                        (None, outro) => return Err(feathersheet_core::trf!("Tipo Arrow {outro:?} no campo \"{nome}\" não é do .fshz")),
-                    });
+                    colunas.push(coluna_do_campo(&nome, campo.type_type() == Type::FloatingPoint, int32, &format!("{:?}", campo.type_type()), &mut planos, linhas)?);
                     nomes.push(nome);
                 }
                 pular(&mut r, corpo)?;
+            }
+            // O apache-arrow do app antigo (TypeScript) grava o esquema só no rodapé: o lote chega antes
+            // dele. Remonta o bloco na memória (arquivos dessa época são pequenos) e lê pelo rodapé.
+            MessageHeader::RecordBatch if nomes.is_empty() => {
+                let mut bloco = b"ARROW1".to_vec();
+                bloco.resize(6 + zeros, 0);
+                if continuacao { bloco.extend_from_slice(&[0xff; 4]); }
+                bloco.extend_from_slice(&tamanho.to_le_bytes());
+                bloco.extend_from_slice(&meta);
+                r.read_to_end(&mut bloco).map_err(|e| format!("Bloco Arrow truncado: {e}"))?;
+                return ler_pelo_rodape(bloco, linhas, planos);
             }
             MessageHeader::RecordBatch => {
                 let lote = msg.header_as_record_batch().ok_or_else(|| feathersheet_core::tr!("Lote Arrow inválido"))?;
@@ -265,6 +269,63 @@ pub(crate) fn ler_colunas_com_plano<R: Read>(origem: R, len: usize, linhas: u32,
         }
     }
     Ok(nomes.into_iter().zip(colunas).collect())
+}
+
+/// A coluna vazia de um campo do esquema, conforme o tipo e o [`Plano`].
+fn coluna_do_campo(nome: &str, float: bool, int32: bool, outro: &str, planos: &mut HashMap<String, Plano>, linhas: usize) -> Result<ColunaArrow, String> {
+    Ok(match (planos.remove(nome), float, int32) {
+        (Some(Plano::Num), true, _) => ColunaArrow::NumBlocos(Montador::novo()),
+        (Some(Plano::Txt(mapa)), _, true) => ColunaArrow::TxtBlocos(Montador::novo(), mapa),
+        (Some(_), ..) => return Err(feathersheet_core::trf!("Tipo Arrow {outro:?} no campo \"{nome}\" não bate com a coluna")),
+        (None, true, _) => ColunaArrow::Float(vec![0.0; linhas], vec![0u8; linhas.div_ceil(8)]),
+        (None, _, true) => ColunaArrow::Int(vec![0; linhas], vec![0u8; linhas.div_ceil(8)]),
+        (None, ..) => return Err(feathersheet_core::trf!("Tipo Arrow {outro:?} no campo \"{nome}\" não é do .fshz")),
+    })
+}
+
+/// O bloco inteiro lido pelo rodapé do formato de arquivo (esquema só no rodapé, como no app antigo).
+fn ler_pelo_rodape(bloco: Vec<u8>, linhas: usize, mut planos: HashMap<String, Plano>) -> Result<HashMap<String, ColunaArrow>, String> {
+    use arrow::array::{Array, Float64Array, Int32Array};
+    use arrow::datatypes::DataType;
+    let leitor = arrow::ipc::reader::FileReader::try_new(std::io::Cursor::new(bloco), None)
+        .map_err(|e| feathersheet_core::trf!("Bloco Arrow FSH3 inválido: {e}"))?;
+    let esquema = leitor.schema();
+    if (esquema.fields().len() as u64).saturating_mul(linhas as u64) > MAX_CELULAS_DECLARADAS {
+        return Err(feathersheet_core::trf!("O arquivo declara células demais ({} campos × {linhas} linhas).", esquema.fields().len()));
+    }
+    let mut colunas = esquema.fields().iter()
+        .map(|f| coluna_do_campo(f.name(), *f.data_type() == DataType::Float64, *f.data_type() == DataType::Int32, &format!("{}", f.data_type()), &mut planos, linhas))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut linha0 = 0usize;
+    for lote in leitor {
+        let lote = lote.map_err(|e| feathersheet_core::trf!("Bloco Arrow FSH3 inválido: {e}"))?;
+        for (coluna, dados) in colunas.iter_mut().zip(lote.columns()) {
+            for k in (0..dados.len()).filter(|&k| dados.is_valid(k) && linha0 + k < linhas) {
+                let linha = linha0 + k;
+                let num = || dados.as_any().downcast_ref::<Float64Array>().map(|a| a.value(k));
+                let int = || dados.as_any().downcast_ref::<Int32Array>().map(|a| a.value(k));
+                match coluna {
+                    ColunaArrow::Float(v, m) => if let Some(x) = num() { v[linha] = x; m[linha >> 3] |= 1 << (linha & 7); },
+                    ColunaArrow::Int(v, m) => if let Some(x) = int() { v[linha] = x; m[linha >> 3] |= 1 << (linha & 7); },
+                    ColunaArrow::NumBlocos(m) => if let Some(x) = num() { m.por(linha, x); },
+                    ColunaArrow::TxtBlocos(m, mapa) => {
+                        if let Some(&id) = int().and_then(|i| usize::try_from(i).ok()).and_then(|i| mapa.get(i)) {
+                            if id >= 0 { m.por(linha, id); }
+                        }
+                    }
+                }
+            }
+        }
+        linha0 += lote.num_rows();
+    }
+    for coluna in &mut colunas {
+        match coluna {
+            ColunaArrow::NumBlocos(m) => m.fechar(),
+            ColunaArrow::TxtBlocos(m, _) => m.fechar(),
+            _ => {}
+        }
+    }
+    Ok(esquema.fields().iter().map(|f| f.name().clone()).zip(colunas).collect())
 }
 
 #[cfg(test)]

@@ -4,6 +4,12 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **`.fshz` antigos voltam a abrir (#168; 24/11/2026)**: o apache-arrow do app TypeScript gravava o esquema só no
+  rodapé do bloco; o leitor em fluxo (`arrow_fluxo.rs`) via o lote antes do esquema e recusava. Agora, lote sem
+  esquema remonta o bloco na memória e lê pelo rodapé (`ler_pelo_rodape`, `FileReader` do arrow). O exemplo
+  `exemplos/planilha-pesada.fshz` era um desses e os testes que o usam se pulavam calados (`.ok()?`): agora falham.
+  Novidade para o `VERSOES` da 0.4.0: "Arquivos .fshz das primeiras versões voltam a abrir".
+
 - **Nova janela, Organizar tudo, Alternar janelas (#83; 24/11/2026)**, decidido sem o usuário: Exibir ▸ Janela.
   A Nova janela (`Auxiliar::NovaJanela`, `app/nova_janela.rs`) é uma vista da pasta noutra janela do sistema: abas
   no alto, a grade da aba escolhida com rolagem própria, imagens/formas/gráficos/tinta, ao vivo; reaproveita o
