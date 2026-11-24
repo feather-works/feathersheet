@@ -9,7 +9,7 @@ pub fn so_le(nome: &str, args: &Value) -> bool {
     match nome {
         "sheet_resumo" | "sheet_ler" | "sheet_formula" | "sheet_estatistica" | "sheet_amostra"
         | "sheet_localizar" | "sheet_tela" | "sheet_ver" => true,
-        "sheet_aba" | "sheet_nomes" | "sheet_proteger" => acao == "listar",
+        "sheet_aba" | "sheet_nomes" | "sheet_proteger" | "sheet_link" => acao == "listar",
         "sheet_macro" => matches!(acao, "listar" | "ler"),
         "sheet_filtrar" | "sheet_dinamica" | "sheet_condicional" | "sheet_validacao" | "sheet_grafico" | "sheet_botao" => acao == "listar",
         "sheet_formulario" => matches!(acao, "listar" | "ler"),

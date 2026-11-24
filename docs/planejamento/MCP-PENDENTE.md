@@ -73,7 +73,7 @@ O que mais se pede depois de dados e fórmulas.
 - [x] **Gráficos**: `sheet_grafico` (listar, criar, editar, remover). Conferido em 10/11 na lista de ferramentas.
 - [x] **Formatação condicional**: `sheet_condicional` (listar, criar, remover, limpar).
 - [x] **Validação de dados**: `sheet_validacao` (listar, criar, remover, limpar).
-- [ ] **Links** em células: inserir, remover, listar.
+- [x] **Links** em células (24/11/2026, `sheet_link`): listar, definir (texto opcional, um Ctrl+Z) e remover; mesma regra do app (`feathersheet_io::links`: web, `mailto:`, `#Aba!A1`).
 - [ ] **Imagens**: inserir imagem (arquivo ou `=IMAGEM`). Botões de macro já em `sheet_botao`.
 - [x] **Formulários das macros**: `sheet_formulario` (listar, ler, escrever, remover).
 

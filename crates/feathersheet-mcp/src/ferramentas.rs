@@ -29,6 +29,7 @@ pub fn chamar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
         "sheet_aba" => aba(h, args),
         "sheet_nomes" => nomes(h, args),
         "sheet_proteger" => proteger(h, args),
+        "sheet_link" => link(h, args),
         "sheet_desfazer" => desfazer(h, args),
         "sheet_formula" => formula(h, args),
         "sheet_abrir" => {
@@ -393,6 +394,58 @@ fn proteger(h: &mut dyn Hospede, args: &Json) -> Saida {
     Ok(conteudo(texto))
 }
 
+/// Hiperlinks de célula (o campo `link` do estilo, como Inserir ▸ Link): listar, definir (com texto opcional) e
+/// remover (o texto fica). Só web, `mailto:` e `#Aba!A1`, pela mesma regra do app (`feathersheet_io::links`).
+fn link(h: &mut dyn Hospede, args: &Json) -> Saida {
+    use feathersheet_core::celulas::estilo_parcial::{Campo, EstiloParcial};
+    let acao = arg_texto(args, "acao").unwrap_or("listar");
+    let (aba, area) = match args.get("intervalo") {
+        Some(_) => intervalo(h, args, "intervalo")?,
+        None => { let a = aba_do_arg(h, args)?; (a, h.pasta().aba(a).ok_or("Aba inexistente")?.sheet.used_rect()) }
+    };
+    let texto = match acao {
+        "listar" => {
+            let sheet = &h.pasta().aba(aba).ok_or("Aba inexistente")?.sheet;
+            let mut achados = Vec::new();
+            'fora: for r in area.r0..=area.r1.min(sheet.used_rect().r1) {
+                for c in area.c0..=area.c1.min(sheet.used_rect().c1) {
+                    if let Some(l) = sheet.estilo_resolvido(r, c).and_then(|e| e.link) {
+                        achados.push(format!("{}: {l}", cell_name(r, c)));
+                        if achados.len() >= 200 { achados.push("… (mais de 200)".into()); break 'fora; }
+                    }
+                }
+            }
+            if achados.is_empty() { "Nenhum hiperlink.".into() } else { achados.join("\n") }
+        }
+        "definir" => {
+            let destino = arg_texto(args, "endereco").ok_or("Falta `endereco` (https://…, mailto:… ou #Aba!A1).")?;
+            let link = feathersheet_io::links::link_do_estilo(destino)
+                .ok_or("Endereço recusado: use http://, https://, mailto:, www. ou #Aba!A1 (sem espaços).")?;
+            if (area.r1 - area.r0 + 1) as u64 * (area.c1 - area.c0 + 1) as u64 > MAX_ESCREVER {
+                return Err("Intervalo grande demais para links.".into());
+            }
+            let texto = arg_texto(args, "texto").map(str::to_owned);
+            let patch = EstiloParcial::from([("link".to_string(), Campo::Texto(link.clone()))]);
+            h.pasta_mut().editar(aba, |s| {
+                // Um Ctrl+Z: texto e link juntos, como no diálogo do app.
+                s.abrir_transacao();
+                if let Some(t) = &texto { s.set_cell(area.r0, area.c0, t); }
+                s.set_style(&area, &patch);
+                s.fechar_transacao();
+            });
+            format!("Link {link} em {}", nome_area(&area))
+        }
+        "remover" => {
+            let patch = EstiloParcial::from([("link".to_string(), Campo::Nulo)]);
+            h.pasta_mut().editar(aba, |s| s.set_style(&area, &patch));
+            format!("Links removidos de {} (o texto ficou)", nome_area(&area))
+        }
+        outra => return Err(format!("Ação desconhecida: {outra}. Use listar, definir ou remover.")),
+    };
+    if acao != "listar" { h.marcar_alterado(); }
+    Ok(conteudo(texto))
+}
+
 fn desfazer(h: &mut dyn Hospede, args: &Json) -> Saida {
     let refazer = arg_bool(args, "refazer", false);
     let aba = aba_do_arg(h, args)?;
@@ -509,6 +562,23 @@ mod testes {
         assert!(h.pasta.aba(0).unwrap().sheet.protegida());
         texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger", "senha": "s3gr3d0" })));
         assert!(!h.pasta.aba(0).unwrap().sheet.protegida());
+    }
+
+    /// `sheet_link`: define com texto (um Ctrl+Z), recusa esquema perigoso, lista e remove mantendo o texto.
+    #[test]
+    fn links_pelo_mcp() {
+        let mut h = Avulso::default();
+        assert!(chamar(&mut h, "sheet_link", &json!({ "acao": "definir", "intervalo": "A1", "endereco": "javascript:alert(1)" })).is_err());
+        texto(chamar(&mut h, "sheet_link", &json!({ "acao": "definir", "intervalo": "A1", "endereco": "www.exemplo.com", "texto": "Site" })));
+        texto(chamar(&mut h, "sheet_link", &json!({ "acao": "definir", "intervalo": "B2", "endereco": "#Planilha1!C3" })));
+        let lista = texto(chamar(&mut h, "sheet_link", &json!({ "acao": "listar" })));
+        assert!(lista.contains("A1: https://www.exemplo.com") && lista.contains("B2: #Planilha1!C3"), "{lista}");
+        assert_eq!(h.pasta.aba(0).unwrap().sheet.get_raw(0, 0), "Site");
+        texto(chamar(&mut h, "sheet_link", &json!({ "acao": "remover", "intervalo": "A1" })));
+        assert!(h.pasta.aba(0).unwrap().sheet.estilo_resolvido(0, 0).and_then(|e| e.link).is_none());
+        assert_eq!(h.pasta.aba(0).unwrap().sheet.get_raw(0, 0), "Site", "o texto fica");
+        texto(chamar(&mut h, "sheet_desfazer", &json!({})));
+        assert!(h.pasta.aba(0).unwrap().sheet.estilo_resolvido(0, 0).and_then(|e| e.link).is_some(), "Ctrl+Z volta o link");
     }
 
     #[test]

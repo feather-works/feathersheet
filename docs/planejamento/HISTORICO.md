@@ -4,6 +4,11 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **MCP `sheet_link`** (24/11/2026): listar, definir (com texto, num Ctrl+Z) e remover hiperlinks de célula. A regra
+  do que vira link (`normalizar_link`, `link_do_estilo`: só web, `mailto:` e `#Aba!A1`) saiu do app para
+  `feathersheet_io::links`, para a IA não gravar `javascript:` nem `file:`. Testes `links_pelo_mcp`,
+  `so_web_mailto_e_lugar_da_pasta`.
+
 - **MCP `sheet_proteger`** (24/11/2026): listar, proteger a aba (senha opcional, permissões pelo nome do Excel:
   `sort`, `autoFilter`…; permissão desconhecida é recusada com a lista) e desproteger conferindo a senha. O hash da
   senha (SHA-512 com sal e giros do Excel) saiu do app para `feathersheet_io::senha_planilha` (o app reexporta; tirou
