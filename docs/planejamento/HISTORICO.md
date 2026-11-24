@@ -4,6 +4,15 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Itens de filtro e segmentação em origem grande (24/11/2026)**: a lista lia só as primeiras 20 mil linhas; no
+  2026_03 a segmentação LINHA mostrava 1 de 13 itens (1, 2, 3, 30KM, LOCOM…). Ler a coluna inteira leva 0,66 s,
+  então `dinamica_ui/itens.rs` lê aos poucos (25 ms por pulso, `Evento::ItensPasso`, assinatura só enquanto lê),
+  guardado por (id da aba, versão, área, coluna); enquanto lê, a lista conta como cortada (sem filtro inclusivo) e,
+  ao terminar, a segmentação e o filtro aberto recebem a lista inteira. "Mostrar páginas de filtro" durante a
+  leitura diz que ainda está lendo (antes dizia "itens demais" com 3 itens). Conferido por foto no arquivo real.
+  Teste `item_depois_da_amostra_aparece_quando_a_leitura_termina`.
+  Novidade para o `VERSOES` da 0.4.0: "Segmentação e filtro de tabela dinâmica com milhões de linhas mostram todos os itens".
+
 - **#166 investigado sem o usuário (24/11/2026)**, com o próprio `2026_03 tabela dinamica.fshz` (13,7 mi de linhas,
   53 colunas; dinâmica de 12.664 linhas, 5 campos em Linhas, desvio padrão). Medido: conta inteira 7,3 s; gravar o
   resultado vindo do fundo 80 ms; criar vazia µs; prévia do gráfico (SVG) 6–9 ms. Pela janela (captura + roteiro +

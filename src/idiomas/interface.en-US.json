@@ -6286,5 +6286,6 @@
  "{sem_lugar} evento(s) editado(s) aqui não puderam ir para o VBA do .xlsm (aba sem codinome ou evento desconhecido).": "{sem_lugar} event(s) edited here could not go to the .xlsm VBA (sheet without a code name or unknown event).",
  "ajuda vba.{p} do conversor": "converter helper vba.{p}",
  "moeda": "currency",
- "percentual": "percentage"
+ "percentual": "percentage",
+ "Ainda lendo os itens do filtro na origem grande; tente de novo em um instante.": "Still reading the filter items in the large source; try again in a moment."
 }

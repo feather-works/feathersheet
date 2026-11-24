@@ -34,6 +34,13 @@ pub(in crate::app) struct Segmentacoes {
     cache: RefCell<Option<((usize, Vec<u32>), Vec<Cartao>)>>,
 }
 
+impl Segmentacoes {
+    /// Os cartões guardados não valem mais (ex.: a lista de itens de origem grande terminou de ser lida).
+    pub(super) fn esquecer(&self) {
+        self.cache.borrow_mut().take();
+    }
+}
+
 /// A definição da dinâmica `id` gravada na aba `destino`.
 fn meta_por_id(app: &App, destino: usize, id: &str) -> Option<Json> {
     let texto = app.workbook.aba(destino)?.sheet.dn.as_deref()?;

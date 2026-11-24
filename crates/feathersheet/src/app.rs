@@ -1118,6 +1118,8 @@ pub struct App {
     vinculos: vinculos::Estado,
     /// Segmentações de dados das dinâmicas: escolha do campo e cartões.
     segmentacao: dinamica_ui::Segmentacoes,
+    /// Itens de filtro e segmentação de origem grande, lidos aos poucos.
+    itens_filtro: dinamica_ui::ItensFiltro,
     /// O último título mandado a cada janela (o pelicano só troca quando pedido).
     titulos: RefCell<std::collections::HashMap<WindowId, String>>,
     /// O evento em andamento passou pelo `on_unhandled_event` (nenhum widget o usou).
@@ -1130,6 +1132,7 @@ impl Default for App {
             versoes_origem_dinamicas: Default::default(),
             vinculos: Default::default(),
             segmentacao: Default::default(),
+            itens_filtro: Default::default(),
             titulos: Default::default(),
             evento_livre: Default::default(),
             graficos: graficos::Estado::default(),
@@ -1711,6 +1714,9 @@ impl App {
             // Dinâmica grande: a leitura da origem anda aos pedaços, um por pulso.
             if self.dinamica_fundo.ativo() {
                 a_cada(16).map(|_| Msg::Dinamica(dinamica_ui::Evento::FundoPasso))
+            } else { Subscription::none() },
+            if self.itens_filtro.lendo() {
+                a_cada(16).map(|_| Msg::Dinamica(dinamica_ui::Evento::ItensPasso))
             } else { Subscription::none() },
             // Libera a thread da UI após cada lote, inclusive com 1M+ linhas.
             // Quando não existe conversão ativa, não mantém timer adicional.

@@ -333,41 +333,18 @@ pub(super) fn gravar_opcoes(meta: &mut Json, e: &Estado, mapa: Json) {
     meta["paginaTambem"] = json!(e.pagina_tambem);
 }
 
-/// Ordenação estável, eliminando duplicatas, com um teto de EXIBIÇÃO:
-/// não filtra valores que ficaram de fora da amostra.
+/// Os itens de um campo para o filtro e a segmentação: (chave, rótulo), ordenados e sem repetir, até
+/// [`itens::MAX_ITENS`]. `true` = lista cortada (itens demais, ou origem grande ainda sendo lida): a lista cortada
+/// nunca permite filtro inclusivo, senão os itens de fora sumiriam do resultado sem aviso. Origem grande é lida
+/// aos poucos fora deste pedido ([`itens`]); antes ficava só a amostra das primeiras 20 mil linhas (a segmentação
+/// LINHA do 2026_03 mostrava 1 de 13 itens).
 pub(super) fn opcoes_de_filtro(app: &App, e: &Estado, coluna: usize) -> (Vec<(String, String)>,bool) {
-    // Chave = o texto que o filtro compara; rótulo = como a célula aparece
-    // (data como data, não 46296).
-    let mut encontrados = std::collections::BTreeMap::new();
-    let aba = app.workbook.aba(e.folha_origem);
-    // Só uma amostra até 20 mil linhas e 160 valores distintos para não
-    // bloquear a UI. A lista cortada nunca permite filtro inclusivo:
-    // os valores não amostrados desapareceriam do resultado silenciosamente.
-    let ultima = e.origem.r1.min(e.origem.r0.saturating_add(20_000));
-    let mut cortado = ultima < e.origem.r1;
-    for r in (e.origem.r0 + 1)..=ultima {
-        if encontrados.len() >= 160 {
-            cortado = true;
-            break;
-        }
-        let valor = app.workbook.valor(e.folha_origem, r, coluna as u32);
-        let chave = if valor == Value::Empty { "(Vazio)".to_string() } else {
-            let txt = to_text(&valor);
-            if txt.trim().is_empty() { "(Vazio)".to_string() } else { txt }
-        };
-        if !encontrados.contains_key(&chave) {
-            let estilo = aba.and_then(|a| a.sheet.estilo_resolvido(r, coluna as u32));
-            // A chave fica como está (é o que o filtro salvo guarda); só o rótulo segue a língua.
-            let rotulo = match &valor {
-                _ if chave == "(Vazio)" => tr!("(Vazio)").to_owned(),
-                Value::Bool(b) => feathersheet_core::celulas::locale::texto_logico(*b),
-                Value::Error(e) => e.code.na_lingua(),
-                _ => feathersheet_core::planilha::bloco::texto_formatado(&valor, estilo.as_ref()),
-            };
-            encontrados.insert(chave, rotulo);
-        }
+    if e.origem.r1.saturating_sub(e.origem.r0) > itens::AMOSTRA {
+        return app.itens_filtro.opcoes(app, e, coluna);
     }
-    (encontrados.into_iter().collect(), cortado)
+    let mut leitura = itens::Leitura::nova(e.origem.r0 + 1);
+    itens::ler(app, e.folha_origem, coluna, e.origem.r1, &mut leitura, None);
+    (leitura.encontrados.into_iter().collect(), leitura.cortado)
 }
 
 pub(super) fn conferir_nomes_calculados(e: &Estado) -> Result<(), String> {

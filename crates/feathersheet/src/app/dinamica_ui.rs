@@ -22,6 +22,8 @@ mod faixa;
 mod agrupar_itens;
 mod itens_calculados;
 mod mcp;
+mod itens;
+pub(in crate::app) use itens::ItensFiltro;
 pub(in crate::app) mod fundo;
 #[cfg(test)]
 mod testes_arrasto;
@@ -37,6 +39,8 @@ pub enum EixoDinamica { Linhas, Colunas, Valores }
 pub enum Evento {
     /// Conta de fundo: mais um pedaço da leitura da origem (pulso).
     FundoPasso,
+    /// Um pulso da leitura dos itens de filtro em origem grande ([`itens`]).
+    ItensPasso,
     /// Conta de fundo terminou (geração, resultado).
     FundoPronto(u64, fundo::Pronto),
     Abrir,
@@ -657,6 +661,7 @@ impl App {
                 self.dinamica_fundo.soltar();
             }
             Evento::FundoPasso => return self.passo_dinamica_fundo(),
+            Evento::ItensPasso => self.passo_itens_filtro(),
             Evento::FundoPronto(geracao, pronto) => self.dinamica_fundo_pronta(geracao, pronto),
             Evento::Linha(i) => {
                 if let Some(e) = &mut self.dinamica {
@@ -1208,6 +1213,10 @@ impl App {
             return;
         };
         let (itens, cortado) = avancado::opcoes_de_filtro(self, &e, col);
+        if cortado && self.itens_filtro.lendo_coluna(self, &e, col) {
+            self.status = tr!("Ainda lendo os itens do filtro na origem grande; tente de novo em um instante.").into();
+            return;
+        }
         if cortado {
             self.status = tr!("O campo do filtro tem itens demais para uma aba por item.").into();
             return;
