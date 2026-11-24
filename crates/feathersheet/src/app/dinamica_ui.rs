@@ -119,6 +119,8 @@ pub enum Evento {
     MenuSub(Option<usize>),
     /// O mouse sobre a setinha ▾ (posição na janela): o menu abre ali.
     PonteiroMenu(pelicano::Point),
+    /// Botão direito num campo de uma área: o mesmo menu da setinha ▾, aberto onde clicou.
+    MenuItemEm(AreaDinamica, usize, pelicano::Point),
     MoverPara(AreaDinamica, usize, AreaDinamica),
     Reordenar(AreaDinamica, usize, i32),
     FiltroBusca(String),
@@ -964,6 +966,11 @@ impl App {
             },
             Evento::MenuSub(i) => if let Some(e) = &mut self.dinamica { e.ui.submenu = i; },
             Evento::PonteiroMenu(p) => if let Some(e) = &mut self.dinamica { e.ui.ponteiro_menu = p; },
+            Evento::MenuItemEm(area, i, p) => if let Some(e) = &mut self.dinamica {
+                e.ui.ponteiro_menu = p;
+                e.ui.menu_item = Some((area, i));
+                e.ui.submenu = None;
+            },
             Evento::MoverPara(de, i, para) => {
                 let col = self.dinamica.as_ref().and_then(|e| e.coluna_em(de, i));
                 if let Some(col) = col {

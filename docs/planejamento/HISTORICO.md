@@ -4,6 +4,11 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Dinâmica: botão direito no campo de uma área abre o menu dele** (#165, 24/11/2026; antes só a setinha ▾ abria):
+  `Evento::MenuItemEm` com o ponto do `on_right_press_at`, que segura o clique (o painel de fora não o recebe).
+  Teste `botao_direito_no_campo_abre_o_menu_onde_clicou`. Aberto junto: #166, a janela travou ~30 s no
+  `2026_03 tabela dinamica.fshz` (esperando o registro do vigia, F12, para saber qual mensagem segurou a tela).
+
 - **MCP `sheet_impressao`** (24/11/2026): listar/definir área de impressão (`""` limpa; coluna além da XFD é
   recusada), títulos que repetem, orientação, papel (A4, Carta, Ofício…) e ajustar a N páginas, no `pg` da aba (o
   mesmo que o `.xlsx` grava). Teste `configurar_pagina_pelo_mcp`.

@@ -206,6 +206,8 @@ impl App {
                         .no_wrap())
                         .padding([4, 6]).width(Length::FILL).clip(true))
                         .on_press(Msg::Dinamica(Evento::ArrastoInicio(coluna, Some((area, i)))))
+                        // Como no Excel: o botão direito no campo abre o menu dele.
+                        .on_right_press_at(move |p| Msg::Dinamica(Evento::MenuItemEm(area, i, p)))
                         .cursor_icon(pelicano::CursorIcon::Grab),
                     // O menu abre onde a setinha está: guarda o ponto do mouse
                     // só enquanto ele passa sobre ela.

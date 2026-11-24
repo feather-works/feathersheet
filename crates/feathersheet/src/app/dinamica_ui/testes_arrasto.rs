@@ -289,6 +289,21 @@ fn menu_da_setinha_agrupa_mover_para_num_submenu() {
     assert_eq!((e.ui.menu_item, e.ui.submenu), (None, None));
 }
 
+/// Botão direito num campo de Valores abre o menu dele no ponto do clique (antes não fazia nada).
+#[test]
+fn botao_direito_no_campo_abre_o_menu_onde_clicou() {
+    let mut app = app_com_dinamica();
+    assert!(!app.dinamica.as_ref().unwrap().valores.is_empty(), "o campo Valor entra em Valores");
+    let p = pelicano::Point::new(310.0, 420.0);
+    app.evento_dinamica(Evento::MenuItemEm(AreaDinamica::Valores, 0, p));
+    let e = app.dinamica.as_ref().unwrap();
+    assert_eq!((e.ui.menu_item, e.ui.ponteiro_menu), (Some((AreaDinamica::Valores, 0)), p));
+    assert!(!App::menu_do_item(e, AreaDinamica::Valores, 0).is_empty());
+    // Outro clique direito no mesmo campo continua aberto (não alterna como a setinha).
+    app.evento_dinamica(Evento::MenuItemEm(AreaDinamica::Valores, 0, p));
+    assert_eq!(app.dinamica.as_ref().unwrap().ui.menu_item, Some((AreaDinamica::Valores, 0)));
+}
+
 /// Quebra o tempo de uma troca de campo por etapa (arquivo pesado).
 #[test]
 #[ignore]
