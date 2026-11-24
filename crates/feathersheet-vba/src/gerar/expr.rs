@@ -32,9 +32,10 @@ impl Gerador<'_> {
                     _ => V::op(format!("!{}", self.como_bool(&v)), T::Bool, 15),
                 })
             }
-            Expr::Novo(c) => match self.criar_colecao(e) {
-                Some(js) => Ok(V::novo(js, T::Obj)),
-                None => Err(Motivo::novo(format!("New {c}"))),
+            Expr::Novo(c) => match (self.criar_colecao(e), self.classe(c)) {
+                (Some(js), _) => Ok(V::novo(js, T::Obj)),
+                (None, Some(k)) => Ok(V::novo(self.criar_objeto(k), T::Obj)),
+                (None, None) => Err(Motivo::novo(format!("New {c}"))),
             },
             Expr::TipoDe(..) => Err(Motivo::novo(feathersheet_core::tr!("TypeOf"))),
             Expr::Bang(..) => Err(Motivo::novo(feathersheet_core::tr!("acesso por nome (a!b)"))),
@@ -66,7 +67,7 @@ impl Gerador<'_> {
                 Tipo::Funcoes => Err(Motivo::novo(format!("WorksheetFunction ({n}) usada como valor"))),
                 Tipo::Shell => Err(Motivo::novo(format!("WScript.Shell ({n}) usado como valor"))),
                 Tipo::Word | Tipo::DocWord => Err(Motivo::novo(format!("o Word ({n}) usado como valor"))),
-                Tipo::Colecao => Ok(V::novo(v.js, T::Obj)),
+                Tipo::Colecao | Tipo::Objeto(_) => Ok(V::novo(v.js, T::Obj)),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
             };
         }
@@ -248,6 +249,9 @@ impl Gerador<'_> {
         if let Some(js) = self.var_colecao(base) {
             return self.membro_colecao(&js, nome, args);
         }
+        if let Some((js, c)) = self.var_objeto(base) {
+            return self.membro_classe(&js, c, nome, args);
+        }
         // `VBA.Len(x)`, `VBA.Mid(…)`.
         if matches!(base, Expr::Nome(b) if b.eq_ignore_ascii_case("vba")) {
             let vs = self.valores(args)?;
@@ -275,6 +279,13 @@ impl Gerador<'_> {
 
     /// Chama um procedimento do próprio VBA (pedindo para ele entrar na macro).
     pub fn chamar_proc(&mut self, r: RefProc, args: &[Arg]) -> R<V> {
+        // Método da própria classe chamado sem objeto: é do `$eu` atual.
+        let eu = self.p.e_classe(r.0).then(|| "$eu".to_string());
+        self.chamar_proc_de(r, args, eu)
+    }
+
+    /// [`Self::chamar_proc`] com o objeto (`$eu`) do método de classe como primeiro argumento.
+    pub fn chamar_proc_de(&mut self, r: RefProc, args: &[Arg], eu: Option<String>) -> R<V> {
         let nome = self.m.pedir(self.p, r);
         let proc = self.p.proc(r);
         let caixas = super::por_ref::caixas(proc);
@@ -301,6 +312,9 @@ impl Gerador<'_> {
         }
         while saida.last().is_some_and(|s| s == "undefined") {
             saida.pop();
+        }
+        if let Some(eu) = eu {
+            saida.insert(0, eu);
         }
         let t = match (&proc.tipo, proc.retorno.as_deref()) {
             (TipoProc::Sub | TipoProc::PropriedadeEscrever, _) => T::Var,

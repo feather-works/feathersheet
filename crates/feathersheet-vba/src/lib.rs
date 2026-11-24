@@ -27,6 +27,18 @@ pub fn converter_xlsm(bytes: &[u8], nome_do_arquivo: &str) -> Result<Conversao, 
 /// Converte módulos dados como texto (o `.bas`/`.cls` exportado pelo editor do Excel, ou o
 /// VBA colado): (nome do módulo, código). `abas` liga o codename ao nome da aba
 /// (`("Sheet8", "MAIN")`); módulo com o nome de um codename é tratado como módulo da aba.
+/// [`converter_texto`] com módulos de classe (`(nome, código)`).
+pub fn converter_texto_com_classes(modulos: &[(&str, &str)], classes: &[(&str, &str)]) -> Conversao {
+    let mut projeto = ProjetoVba::default();
+    for (nome, codigo) in modulos {
+        projeto.modulos.push(ModuloVba { nome: (*nome).to_string(), tipo: TipoDeModulo::Padrao, codigo: codigo.replace("\r\n", "\n") });
+    }
+    for (nome, codigo) in classes {
+        projeto.modulos.push(ModuloVba { nome: (*nome).to_string(), tipo: TipoDeModulo::Classe, codigo: codigo.replace("\r\n", "\n") });
+    }
+    gerar::converter(&projeto, "")
+}
+
 pub fn converter_texto(modulos: &[(&str, &str)], abas: &[(&str, &str)]) -> Conversao {
     let mapa: std::collections::HashMap<String, String> = abas.iter().map(|(c, n)| ((*c).to_string(), (*n).to_string())).collect();
     let modulos = modulos

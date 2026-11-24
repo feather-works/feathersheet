@@ -61,6 +61,11 @@ impl Programa {
         self.formularios.get(&form.to_lowercase())?.1.iter().find(|c| c.eq_ignore_ascii_case(nome)).map(String::as_str)
     }
 
+    /// O módulo `mi` é de classe (`Class1`), não o código de um formulário (que o VBA também guarda como classe).
+    pub fn e_classe(&self, mi: usize) -> bool {
+        self.modulos[mi].tipo == TipoDeModulo::Classe && self.formulario_do_modulo(mi).is_none()
+    }
+
     /// O formulário cujo código é o módulo `mi`.
     pub fn formulario_do_modulo(&self, mi: usize) -> Option<&str> {
         self.formulario(&self.modulos[mi].nome)
@@ -102,6 +107,8 @@ pub struct Macro {
     pub globais: HashMap<(usize, String), String>,
     /// Valor inicial das variáveis de módulo `As New Collection`/`Dictionary` (nome JS → código).
     pub novas: HashMap<String, String>,
+    /// As fábricas dos módulos de classe usados (`novo_Classe` → código).
+    pub fabricas: BTreeMap<String, String>,
     /// Nomes já usados no topo da macro (funções e variáveis de módulo).
     pub topo: BTreeSet<String>,
     pub pendencias: Vec<Pendencia>,
@@ -115,8 +122,19 @@ impl Macro {
         if let Some(n) = self.nomes.get(&r) {
             return n.clone();
         }
-        let base = js_nome(&p.proc(r).nome);
-        let nome = if self.topo.contains(&base) { js_nome(&format!("{}_{}", p.modulos[r.0].nome, p.proc(r).nome)) } else { base };
+        let proc = p.proc(r);
+        let nome = if p.e_classe(r.0) {
+            // Método de classe: sempre com a classe na frente; Get e Let/Set do mesmo nome não se chocam.
+            let tipo = match proc.tipo { crate::sintaxe::TipoProc::PropriedadeLer => "get_", crate::sintaxe::TipoProc::PropriedadeEscrever => "set_", _ => "" };
+            let base = js_nome(&format!("{}_{tipo}{}", p.modulos[r.0].nome, proc.nome));
+            let mut nome = base.clone();
+            let mut k = 2;
+            while self.topo.contains(&nome) { nome = format!("{base}{k}"); k += 1; }
+            nome
+        } else {
+            let base = js_nome(&proc.nome);
+            if self.topo.contains(&base) { js_nome(&format!("{}_{}", p.modulos[r.0].nome, proc.nome)) } else { base }
+        };
         self.topo.insert(nome.clone());
         self.nomes.insert(r, nome.clone());
         self.fila.push(r);
@@ -234,7 +252,7 @@ pub fn valor_inicial(t: &Tipo) -> &'static str {
         Tipo::Valor(T::Texto) => "''",
         Tipo::Valor(T::Num) => "0",
         Tipo::Valor(T::Bool) => "false",
-        Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta | Tipo::Impossivel(_) | Tipo::Funcoes | Tipo::Shell | Tipo::Word | Tipo::DocWord | Tipo::Colecao | Tipo::Valor(T::Obj) => "null",
+        Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta | Tipo::Impossivel(_) | Tipo::Funcoes | Tipo::Shell | Tipo::Word | Tipo::DocWord | Tipo::Colecao | Tipo::Objeto(_) | Tipo::Valor(T::Obj) => "null",
         Tipo::Valor(T::Var | T::Matriz) => "undefined",
     }
 }
@@ -290,6 +308,12 @@ impl Gerador<'_> {
     pub fn global(&mut self, nome: &str) -> Option<Var> {
         let chave = nome.to_lowercase();
         let m = &self.p.modulos[self.modulo].ast;
+        // No módulo de classe, a variável do módulo é campo do objeto (`$eu.x`).
+        if self.p.e_classe(self.modulo) {
+            if let Some(d) = m.variaveis.iter().find(|d| d.nome.to_lowercase() == chave).cloned() {
+                return Some(Var { js: format!("$eu.{}", js_nome(&d.nome)), tipo: self.tipo_de(d.tipo.as_deref()), matriz: d.dims.is_some(), por_ref: false });
+            }
+        }
         let d = m.variaveis.iter().chain(&m.constantes).find(|d| d.nome.to_lowercase() == chave)?.clone();
         let js = match self.m.globais.get(&(self.modulo, chave.clone())) {
             Some(j) => j.clone(),
@@ -299,14 +323,18 @@ impl Gerador<'_> {
                 self.m.topo.insert(j.clone());
                 self.m.globais.insert((self.modulo, chave), j.clone());
                 if d.novo {
-                    if let Some(nova) = d.tipo.as_deref().and_then(|t| self.criar_colecao(&Expr::Novo(t.to_string()))) {
+                    let nova = match d.tipo.as_deref().and_then(|t| self.classe(t)) {
+                        Some(c) => Some(self.criar_objeto(c)),
+                        None => d.tipo.as_deref().and_then(|t| self.criar_colecao(&Expr::Novo(t.to_string()))),
+                    };
+                    if let Some(nova) = nova {
                         self.m.novas.insert(j.clone(), nova);
                     }
                 }
                 j
             }
         };
-        Some(Var { js, tipo: tipo_declarado(d.tipo.as_deref()), matriz: d.dims.is_some(), por_ref: false })
+        Some(Var { js, tipo: self.tipo_de(d.tipo.as_deref()), matriz: d.dims.is_some(), por_ref: false })
     }
 
     /// Declara uma variável do procedimento (se ainda não existe) e devolve o nome JS.

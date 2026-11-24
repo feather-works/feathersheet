@@ -1,0 +1,54 @@
+Aduzona/Microsoft-Automation master 1. Macro/S2_RecordMacros_Start.xlsm
+AgureDa2019/ExcelVBA01_CreateSQL master MySQLテーブル定義ツール_v1.0.0.xlsm
+alefranzoni/vba-course main Cap. 03/SysGestion rev2.xlsm
+alexiob/umya_spreadsheet_ex main test/test_files/aaa.xlsm
+alitrack/barcode-vba-macro-only master QR-code-no-longer-stutters-nor-ends-prematurely-v05-quickfix2-1.xlsm
+AllenMattson/VBA-and-Excel-Books-and-PDFs master send pdf via outlook.xlsm
+Apress/programming-excel-w-vba master Ch01/AgeInYears.xlsm
+aVadim483/fast-excel-reader main tests/test_files/ooxml/family.xlsm
+Brucewuzhang/excel-vba-for-creative-problem-solving master course 1/Assignment 1/Assignment 1 - GRADER.xlsm
+cavo789/vba_excel_export_code master demo.xlsm
+chris-hendrix/excel-formula-print main FormulaPrintExample.xlsm
+cristianbuse/Excel-VBA-ProgressBar master ExcelVBA ProgressBar_Demo.xlsm
+cxwithyxy/Excel_JS_Runtime master dev/forDev.NET_MODE.DEBUG_MODE.xlsm
+elicec/FileBackup master VBA/终极目标格式 - 副本.xlsm
+fluidware/openpyxl master openpyxl/tests/test_data/reader/vba-test.xlsm
+Gagniuc/Binary-files-inside-EXCEL-VBA main test/test.xlsm
+gpolic/kmeans-excel master kmeans.xlsm
+hammer4/Unlock-Excel-VBA-Excel-Macros---Udemy-Course-by-Leila-Gharani master 02. Your First Macro/05. Overview Macros & Visual Basic Editor (VBE)/S2-RecordMacros.xlsm
+harumiWeb/xlflow main internal/vba/userforms/compiler/testdata/excel-authored/baseline.xlsm
+InvisibleRain/Tetris-in-Excel master Tetris.xlsm
+jdep20596/excel-vba master excel-vba.xlsm
+jpimbert/VBAToolKit master Templates/InitializedProject_DEV.xlsm
+judooochp/Moody.xlsm master Moody Excel To JavaScript.xlsm
+JWock82/xlFrame master Finite Element Analysis.xlsm
+kelfan/VBA master 14hourVbaTutorial/14-Hour VBA Course.xlsm
+khansaquib765-crypto/Call-Centre-Report main Call Center Project.xlsm
+krijnsent/crypto_vba master crypto_vba_example.xlsm
+kujirahand/chozetu-excel-vba main src/apx/procesure.xlsm
+lucianovidili/VBA-Excel-Macros master Actualizar Tasas/MacroACTUALIZAR_TASAS.xlsm
+malware-unicorn/MacOS_VBA_Macro master template-doc/Workbook1.xlsm
+marmeleiro/kintoneDataReaderforVBA master example/example.xlsm
+MaxOffice/VBA-Excel main packages/AmountToWords/Tests/AmountsToWords-Test.xlsm
+michaelneu/webxcel master example/webxcel.xlsm
+mohak85-git/ExcelVBA-ExcelMacros master Milestones/InvoiceGeneration/Invoice_Generator.xlsm
+Muszkamus/Excel-VBA-Excel-Macros main Spreadsheets/Milestones/InvoiceGeneration/Invoice_Generator.xlsm
+mygreen/xlsmapper master src/test/data/sample/dbentity.xlsm
+nunobrum/ExcelComparator main sheetcompare.xlsm
+nylen/vba-common-library master Testing.xlsm
+Osmiogrzesznik/Auto-Send-sms-excel master AUTOSENDsmsANDmail.xlsm
+OsSyLab/Excel-VBA-Macros main Advanced_Search&Filter/2.Advanced_Search&Filter_Demo.xlsm
+PacktPublishing/VBA-Automation-for-Excel-2019-Cookbook master Chapter01/01_VBA_Code.xlsm
+PerditionC/VBAChromeDevProtocol main dist/Examples.xlsm
+pSantosb/Hysys-connection-Excel-Matlab-Python-Unity main Dynamic/Excel/Connection.xlsm
+psychrometrics/psychrolib master tests/vba/test_psychrolib_ip.xlsm
+Rabadash8820/VbaModuleManager main test/excel.xlsm
+Roccouu/CustomMsgboxClass master project-dev/custommsgbox.xlsm
+rosg89/UnlockExcelVBAandExcelMacros-Udemy-Proyecto1 main TableOfContents.xlsm
+Rotifer/VBA master Sets.xlsm
+sagasu/excelPlayground master ExcelIterator.xlsm
+stevecalderone/Chemical-Engineering-Thermodynamics master PData.xlsm
+susiexia/Stock_Analysis_VBA-Excel-Macro master Challenge_green_stocks_VBA.xlsm
+Sven-Bo/Excel-VBA-DeepSeek-Integration main DeepSeek_Demo.xlsm
+Sven-Bo/gemini-excel-vba main Gemini_in_Excel_Demo.xlsm
+Sven-Bo/Integrate-ChatGPT-in-Excel-using-VBA master Demo_ChatGPT.xlsm

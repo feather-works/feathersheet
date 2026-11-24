@@ -2332,6 +2332,7 @@ name = "feathersheet-vba"
 version = "0.0.2"
 dependencies = [
  "cfb",
+ "encoding_rs",
  "falcao-sintaxe",
  "feathersheet-core",
  "quick-xml 0.39.4",

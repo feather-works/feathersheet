@@ -216,4 +216,6 @@ pub enum Tipo {
     DocWord,
     /// `Collection` ou `Scripting.Dictionary`: objeto JS do prelúdio (ver `gerar/colecao.rs`).
     Colecao,
+    /// Objeto de um módulo de classe do projeto (o índice do módulo; ver `gerar/classe.rs`).
+    Objeto(usize),
 }

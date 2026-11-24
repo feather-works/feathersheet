@@ -9,6 +9,7 @@
 //!   (`sheet.defineFunction`), para a célula que usava `=Extenso_Valor(A1)` continuar valendo.
 
 mod ajuda;
+mod classe;
 mod colecao;
 mod contexto;
 mod escrita;
@@ -128,11 +129,14 @@ fn escrever_proc(p: &Programa, m: &mut Macro, r: RefProc) -> Vec<String> {
         m.abas.insert(atual.clone(), atual_nome.clone().unwrap_or_default());
     }
     let mut g = Gerador { p, m, modulo: r.0, escopo: Escopo::default(), linhas: Vec::new(), nivel: 1, com: Vec::new(), lacos: Vec::new(), contador: 0, atual, atual_nome, rotulos: Vec::new(), pular_erro: false };
-    let params = parametros(&mut g, proc);
+    let mut params = parametros(&mut g, proc);
+    if p.e_classe(r.0) {
+        params.insert(0, "$eu".into());
+    }
     let funcao = matches!(proc.tipo, TipoProc::Funcao | TipoProc::PropriedadeLer);
     if funcao {
         g.escopo.funcao = Some(proc.nome.to_lowercase());
-        g.escopo.vars.insert("$r".into(), Var { js: "$r".into(), tipo: tipo_declarado(proc.retorno.as_deref()), matriz: false, por_ref: false });
+        g.escopo.vars.insert("$r".into(), Var { js: "$r".into(), tipo: g.tipo_de(proc.retorno.as_deref()), matriz: false, por_ref: false });
         if contexto::e_inteiro(proc.retorno.as_deref()) {
             g.escopo.inteiros.insert("$r".into());
         }
@@ -167,7 +171,7 @@ fn parametros(g: &mut Gerador, proc: &Proc) -> Vec<String> {
         .iter()
         .zip(caixas)
         .map(|(pr, caixa)| {
-            let tipo = tipo_declarado(pr.tipo.as_deref());
+            let tipo = g.tipo_de(pr.tipo.as_deref());
             let js = g.declarar(&pr.nome, tipo.clone(), pr.matriz);
             let mut no_corpo = js.clone();
             if let Some(v) = g.escopo.vars.get_mut(&pr.nome.to_lowercase()) {
@@ -236,6 +240,10 @@ fn montar_macro(p: &Programa, totais: &mut Totais, entrada: RefProc, cabecalho: 
     }
     if !m.abas.is_empty() {
         topo.push(m.abas.iter().map(|(var, nome)| format!("const {var} = wb.sheet({nome:?});")).collect::<Vec<_>>().join("\n"));
+    }
+    let fabricas: Vec<&String> = m.fabricas.values().filter(|f| !f.is_empty()).collect();
+    if !fabricas.is_empty() {
+        funcoes.extend(fabricas.into_iter().cloned());
     }
     let globais = declarar_globais(p, &m);
     if !globais.is_empty() {

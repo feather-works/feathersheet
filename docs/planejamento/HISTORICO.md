@@ -4,6 +4,18 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Bateria de `.xlsm` reais (#143; 24/11/2026)**, sem o usuário: `scripts/bateria-xlsm/` baixa 54 `.xlsm` de
+  repositórios públicos do GitHub (`fontes.txt`, um por repositório), converte cada um com o `converter_vba` e resume
+  por motivo. **Só converte**: rodar macro de terceiros foi barrado pela permissão (código alheio), então a meta "95%
+  rodando igual" é medida pela conversão. Achados: (1) projetos em GBK e 1254 não convertiam (#169: nome do módulo
+  pela página de código errada; agora pelos registros Unicode e `encoding_rs` para o fonte e a volta); (2) **módulos
+  de classe** eram a maior fatia do que não convertia → `gerar/classe.rs`: objeto JS com os campos, métodos como
+  `Classe_metodo($eu, …)` pela fila da macro, `novo_Classe()` com `Class_Initialize`, Get/Let/Set como
+  `Classe_get_x`/`Classe_set_x`, `Me` é `$eu`; formulário (também classe no VBA) fica de fora (`Programa::e_classe`).
+  Placar: 76,0% → 80,2% das instruções convertidas (15.913 → 18.989), 54 de 54 arquivos convertem. Testes
+  `modulo_de_classe_vira_objeto_com_metodos` e `modulo_de_classe_roda_no_motor` (roda no Falcão).
+  Novidade para o `VERSOES` da 0.4.0: "Macros VBA com módulos de classe e em qualquer página de código convertem".
+
 - **Gráfico dinâmico vai e volta no `.xlsx` (24/11/2026)**: o `pivotSource` do gráfico (id da dinâmica) sai como
   `<c:pivotSource><c:name>Aba!Nome</c:name><c:fmtId val="0"/></c:pivotSource>` (`xlsx_write_graficos::chart_space`,
   nome pelo `xlsx_write_dinamica::nomes_por_id`, que usa a mesma numeração das partes) e, na leitura, o nome

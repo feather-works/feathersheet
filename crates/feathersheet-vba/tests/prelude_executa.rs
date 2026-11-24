@@ -558,3 +558,23 @@ fn word_localizar_substituir_vira_docs_fill() {
         trocas: vec![("#NOME#".into(), "Ana".into()), ("#VALOR#".into(), "1234,5".into())],
         caminho: "/tmp/proj/saida/Ana.docx".into() }]);
 }
+
+/// Módulo de classe (#143): o objeto guarda os campos, o `Class_Initialize` roda, Get/Let e método funcionam.
+#[test]
+fn modulo_de_classe_roda_no_motor() {
+    let conta = "Private saldo_ As Double\nPublic dono As String\n\
+        Private Sub Class_Initialize()\n saldo_ = 10\nEnd Sub\n\
+        Public Property Get Saldo() As Double\n Saldo = saldo_\nEnd Property\n\
+        Public Property Let Saldo(v As Double)\n saldo_ = v\nEnd Property\n\
+        Public Sub Depositar(x As Double)\n Me.Saldo = Me.Saldo + x\nEnd Sub\n\
+        Public Function Dobro() As Double\n Dobro = saldo_ * 2\nEnd Function\n";
+    let modulo = "Sub T()\n Dim c As Conta, d As New Conta\n Set c = New Conta\n c.dono = \"Ana\"\n c.Depositar 5\n\
+        c.Saldo = c.Saldo + 1\n Range(\"A1\").Value = c.Dobro() & c.dono\n Range(\"A2\").Value = d.Saldo\nEnd Sub\n";
+    let c = feathersheet_vba::converter_texto_com_classes(&[("Módulo1", modulo)], &[("Conta", conta)]);
+    let js = c.macros.iter().find(|m| m.nome == "T").expect("macro").codigo.clone();
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(wb.valor(0, 0, 0), Value::Text("32Ana".into()));
+    assert_eq!(wb.valor(0, 1, 0), Value::Number(10.0), "cada objeto com os seus campos");
+}

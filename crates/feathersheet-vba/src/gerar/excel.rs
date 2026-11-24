@@ -148,6 +148,7 @@ impl Gerador<'_> {
                 Tipo::Word => Ok(Obj::Word),
                 Tipo::DocWord => Ok(Obj::DocWord(v.js.clone())),
                 Tipo::Colecao => Err(Motivo::novo(feathersheet_core::trf!("{n} é coleção, não objeto do Excel"))),
+                Tipo::Objeto(_) => Err(Motivo::novo(feathersheet_core::trf!("{n} é objeto de classe, não objeto do Excel"))),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
                 Tipo::Valor(_) => Err(Motivo::novo(feathersheet_core::trf!("{n} não é objeto do Excel"))),
             };

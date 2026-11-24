@@ -1,7 +1,7 @@
 //! Instruções e blocos. Uma instrução que não converte vira comentário com o VBA original
 //! e entra na lista de pendências — o resto do procedimento continua sendo convertido.
 
-use super::contexto::{e_inteiro, tipo_declarado, Gerador, Laco, Pendencia};
+use super::contexto::{e_inteiro, Gerador, Laco, Pendencia};
 use super::funcoes::num;
 use super::tipos::{Motivo, Obj, Tipo, R, T, V};
 use crate::sintaxe::{Caso, Decl, Expr, Instr, Op, TipoInstr};
@@ -185,8 +185,11 @@ impl Gerador<'_> {
         let mut saida = Vec::new();
         for d in decls {
             if d.novo {
-                // `Dim c As New Collection`: a coleção nasce no Dim.
-                let nova = d.tipo.as_deref().and_then(|t| self.criar_colecao(&Expr::Novo(t.to_string())));
+                // `Dim c As New Collection` / `As New Classe`: o objeto nasce no Dim.
+                let nova = match d.tipo.as_deref().and_then(|t| self.classe(t)) {
+                    Some(c) => Some(self.criar_objeto(c)),
+                    None => d.tipo.as_deref().and_then(|t| self.criar_colecao(&Expr::Novo(t.to_string()))),
+                };
                 if let Some(nova) = nova {
                     let js = self.var(&d.nome).map_or_else(|| d.nome.clone(), |v| v.js);
                     saida.push(format!("{js} = {nova};"));
@@ -261,6 +264,12 @@ impl Gerador<'_> {
                 }
             }
         }
+        // `obj.Propriedade = v`, `obj.campo = v`.
+        if let Expr::Membro(b, m) = alvo {
+            if let Some((js, c)) = self.var_objeto(b) {
+                return self.atribuir_classe(&js, c, m, valor);
+            }
+        }
         // `d.CompareMode = vbTextCompare`.
         if let Expr::Membro(b, m) = alvo {
             if let Some(js) = self.var_colecao(b).filter(|_| m.eq_ignore_ascii_case("comparemode")) {
@@ -314,6 +323,22 @@ impl Gerador<'_> {
         let chave = n.to_lowercase();
         // `Set c = New Collection`, `Set d = CreateObject("Scripting.Dictionary")`, `Set c = outra`,
         // `Set c = Nothing`: a variável passa a guardar coleção (mesmo declarada `As Object`).
+        // `Set obj = New Classe` / `Set obj = outro`: a variável passa a guardar objeto da classe.
+        if set {
+            if let Some(c) = self.classe_de_expr(valor) {
+                let atual = self.var(n).or_else(|| self.global(n));
+                let js = match atual {
+                    Some(v) if matches!(v.tipo, Tipo::Objeto(_) | Tipo::Impossivel(_) | Tipo::Valor(T::Var | T::Obj)) => {
+                        if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = Tipo::Objeto(c); }
+                        v.js
+                    }
+                    Some(_) => return Err(Motivo::novo(feathersheet_core::trf!("objeto da classe guardado em {n}, que tem outro tipo"))),
+                    None => self.declarar(n, Tipo::Objeto(c), false),
+                };
+                let v = self.valor(valor)?;
+                return Ok(format!("{js} = {};", v.js));
+            }
+        }
         if set {
             let nova = match self.criar_colecao(valor) {
                 Some(js) => Some(js),
@@ -403,7 +428,7 @@ impl Gerador<'_> {
             Tipo::Word | Tipo::DocWord if matches!(valor, Expr::Nada) => Ok(String::new()),
             Tipo::Word | Tipo::DocWord => Err(Motivo::novo(feathersheet_core::tr!("objeto do Word guardado em variável e trocado depois"))),
             // `Set c = FuncaoQueDevolveColecao()`.
-            Tipo::Colecao => Ok(format!("{} = {};", var.js, self.valor(valor)?.js)),
+            Tipo::Colecao | Tipo::Objeto(_) => Ok(format!("{} = {};", var.js, self.valor(valor)?.js)),
             Tipo::Impossivel(antes) if set && antes.starts_with("objeto do tipo") => {
                 // O `Set` diz o motivo melhor que o `As Object` (ex.: `CreateObject("WScript.Shell")`).
                 let m = self.motivo_do_objeto(valor);
@@ -534,6 +559,9 @@ impl Gerador<'_> {
     fn chamar_membro(&mut self, base: &Expr, m: &str, args: &[crate::sintaxe::Arg]) -> R<String> {
         if let Some(js) = self.var_colecao(base) {
             return self.chamar_colecao(&js, m, args);
+        }
+        if let Some((js, c)) = self.var_objeto(base) {
+            return self.chamar_classe(&js, c, m, args);
         }
         if let Expr::Nome(b) = base {
             if b.eq_ignore_ascii_case("debug") {
@@ -784,7 +812,7 @@ impl Gerador<'_> {
             match &i.k {
                 TipoInstr::Dim(ds) | TipoInstr::Const(ds) | TipoInstr::ReDim { decls: ds, .. } => {
                     for d in ds {
-                        let tipo = tipo_declarado(d.tipo.as_deref());
+                        let tipo = self.tipo_de(d.tipo.as_deref());
                         let js = self.declarar(&d.nome, tipo, d.dims.is_some());
                         if d.dims.is_none() && d.tipo.as_deref() == Some("date") {
                             self.escopo.datas.insert(js.clone());
