@@ -465,3 +465,14 @@ fn choose_espera_o_botao_e_roda_de_novo_com_a_escolha() {
     assert_eq!(wb.valor(0, 0, 0), Value::Number(2.));
     assert!(executar(&mut wb, 0, r#"app.choose("x", [9]);"#).erro.is_some());
 }
+
+/// `wb.cancelSave()` (o Cancel do Workbook_BeforeSave) chega ao app, mesmo com erro depois;
+/// sem ele, ou com pergunta ainda sem resposta, o arquivo é gravado.
+#[test]
+fn cancel_save_chega_ao_app() {
+    let mut wb = pasta_com_dados();
+    assert!(executar(&mut wb, 0, "wb.cancelSave();").cancelar_salvar);
+    assert!(executar(&mut wb, 0, "wb.cancelSave(); throw new Error('x');").cancelar_salvar);
+    assert!(!executar(&mut wb, 0, "sheet.set('A1', 1);").cancelar_salvar);
+    assert!(!executar(&mut wb, 0, "if (!confirm('Salvar?')) wb.cancelSave();").cancelar_salvar, "pergunta pendente não cancela");
+}

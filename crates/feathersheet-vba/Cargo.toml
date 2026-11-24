@@ -29,3 +29,4 @@ cognitive_complexity = "deny"
 [dev-dependencies]
 feathersheet-macros = { path = "../feathersheet-macros" }
 feathersheet-io = { path = "../feathersheet-io" }
+serde_json = "1"

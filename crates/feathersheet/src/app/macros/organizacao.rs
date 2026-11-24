@@ -18,14 +18,25 @@ pub(in crate::app) const EVENTOS_PLANILHA: [(&str, &str); 3] = [
     ("aoAtivar", "Ao ativar a aba"),
 ];
 
+/// Os eventos da pasta (Esta pasta de trabalho): o Workbook_Open e o Workbook_BeforeSave.
+pub(in crate::app) const EVENTOS_PASTA: [(&str, &str); 2] = [
+    ("aoAbrir", "Ao abrir a pasta"),
+    ("antesDeSalvar", "Antes de salvar"),
+];
+
+/// `Eventos/<aba>/<evento>`; o da pasta (aba vazia) é `Eventos/<evento>`, que nome
+/// de aba nenhum produz (aba não pode ter "/").
 pub(in crate::app) fn nome_evento(aba: &str, evento: &str) -> String {
-    format!("{PASTA_EVENTOS}{aba}/{evento}")
+    if aba.is_empty() { format!("{PASTA_EVENTOS}{evento}") } else { format!("{PASTA_EVENTOS}{aba}/{evento}") }
 }
 
-/// `Eventos/<aba>/<evento>` → (aba, evento), se o evento é conhecido.
+/// `Eventos/<aba>/<evento>` → (aba, evento), se o evento é conhecido; `Eventos/<evento>`
+/// → ("", evento) para os da pasta.
 pub(in crate::app) fn evento_do_nome(nome: &str) -> Option<(&str, &str)> {
     let resto = nome.strip_prefix(PASTA_EVENTOS)?;
-    let (aba, evento) = resto.rsplit_once('/')?;
+    let Some((aba, evento)) = resto.rsplit_once('/') else {
+        return EVENTOS_PASTA.iter().any(|(e, _)| *e == resto).then_some(("", resto));
+    };
     EVENTOS_PLANILHA.iter().any(|(e, _)| *e == evento).then_some((aba, evento))
         .filter(|(aba, _)| !aba.is_empty())
 }
@@ -34,6 +45,12 @@ pub(in crate::app) fn evento_do_nome(nome: &str) -> Option<(&str, &str)> {
 fn modelo_evento(aba: &str, evento: &str) -> String {
     // O "//" fica fora do texto traduzido (no dicionário, "//" é comentário).
     match evento {
+        "aoAbrir" => format!("// {}\n// {}\n",
+            tr!("Roda ao abrir o arquivo, depois de \"Ativar macros\" (o Workbook_Open do Excel)."),
+            tr!("Os módulos marcados \"Executar ao abrir\" rodam logo depois.")),
+        "antesDeSalvar" => format!("// {}\n// {}\n",
+            tr!("Roda antes de gravar o arquivo (Ctrl+S ou Salvar como)."),
+            tr!("wb.cancelSave() não deixa gravar; valores.comoSalvar é true no Salvar como.")),
         "aoAtivar" => format!("// {}\n", trf!("Roda quando alguém troca para a aba {}.", aba)),
         "aoSelecionar" => format!("// {}\n// {}\n",
             trf!("Roda quando a seleção muda na aba {} (no arrasto, ao soltar o mouse).", aba),
@@ -78,13 +95,18 @@ impl App {
     /// Clicar numa planilha no Explorador: abre o código do evento escolhido
     /// (o guardado ou o modelo, se ainda não existe).
     pub(in crate::app) fn abrir_evento_planilha(&mut self, aba: &str) {
+        // A pasta e as abas têm eventos diferentes: o escolhido que não existe aqui volta ao primeiro.
+        let lista: &[(&str, &str)] = if aba.is_empty() { &EVENTOS_PASTA } else { &EVENTOS_PLANILHA };
+        if !lista.iter().any(|(e, _)| *e == self.macro_visual.evento_planilha) {
+            self.macro_visual.evento_planilha = lista[0].0;
+        }
         let evento = self.macro_visual.evento_planilha;
         let nome = nome_evento(aba, evento);
         let codigo = self.macro_catalogo.obter(&nome).map(|m| m.code.clone())
             .unwrap_or_else(|| modelo_evento(aba, evento));
         self.macro_nome = nome;
         self.macro_codigo = pelicano::Content::with_text(&codigo);
-        self.macro_visual.documento = format!("planilha:{aba}");
+        self.macro_visual.documento = if aba.is_empty() { "pasta".into() } else { format!("planilha:{aba}") };
     }
 
     /// Guardar o evento: só com código de verdade; vazio (ou só o modelo)

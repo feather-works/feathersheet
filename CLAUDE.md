@@ -10,7 +10,7 @@ Outros planos: `docs/planejamento/` (ROADMAP, PARIDADE-EXCEL, AUDITORIA-2026-11-
 
 ## Estado
 
-- Última versão: **v0.3.5** (23/11/2026). O que entrar depois vai para a 0.3.6: anotar no topo do `HISTORICO.md`.
+- Última versão: **v0.3.5** (23/11/2026). O que entrar depois vai para a **0.4.0** (a 0.3.6 foi pulada): anotar no topo do `HISTORICO.md`. Versão só sai quando o usuário pedir.
 - Dependências só por tag/crates.io: pelicano 0.1.34, feather-ui v0.3.16, feather-charts v0.3.5, feather-io, Falcão
   (motor das macros). Mexer numa biblioteca junto: `[patch]` local provisório, trocar pela tag antes de lançar.
 - Línguas da interface: pt-BR, en-US, es-ES, fr-FR.

@@ -83,8 +83,12 @@ impl GatilhoMacro {
                     "aoMudar" => tr!("Ao mudar células"),
                     "aoAtivar" => tr!("Ao ativar aba"),
                     "aoSelecionar" => tr!("Ao selecionar células"),
+                    "aoAbrir" => tr!("Ao abrir a pasta"),
+                    "antesDeSalvar" => tr!("Antes de salvar"),
                     outro => outro,
                 };
+                // Evento da pasta: sem aba.
+                if aba.is_empty() { return nome.to_owned(); }
                 match intervalo {
                     Some(i) => trf!("{nome} · {aba}!{i}"),
                     None => trf!("{nome} · {aba}"),

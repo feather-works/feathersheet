@@ -238,7 +238,7 @@ impl App {
     }
 
     pub(super) fn guardar_modulo_macro(&mut self) {
-        if self.macro_visual.documento.starts_with("planilha:") {
+        if self.macro_visual.documento.starts_with("planilha:") || self.macro_visual.documento == "pasta" {
             self.guardar_evento_planilha();
             return;
         }
@@ -354,7 +354,11 @@ impl App {
                     self.macro_visual.renomeando = None;
                     self.abrir_evento_planilha(&aba);
                     return;
-                } else if nome != "pasta" && nome != "componente:previsao" {
+                } else if nome == "pasta" {
+                    self.macro_visual.renomeando = None;
+                    self.abrir_evento_planilha("");
+                    return;
+                } else if nome != "componente:previsao" {
                     return;
                 }
                 self.macro_visual.renomeando = None;
@@ -385,6 +389,8 @@ impl App {
                 self.macro_visual.evento_planilha = e;
                 if let Some(aba) = self.macro_visual.documento.strip_prefix("planilha:").map(str::to_owned) {
                     self.abrir_evento_planilha(&aba);
+                } else if self.macro_visual.documento == "pasta" {
+                    self.abrir_evento_planilha("");
                 }
             }
             EventoVisual::NovaPasta => self.nova_pasta_macro(),

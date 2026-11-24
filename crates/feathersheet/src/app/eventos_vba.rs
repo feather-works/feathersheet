@@ -3,8 +3,10 @@
 //! aba, com o endereço mudado em `valores.intervalo` (o `Target`), e
 //! `Worksheet_Activate` (aoAtivar) ao trocar para a aba e `Worksheet_SelectionChange`
 //! (aoSelecionar) quando a seleção muda na aba, com o endereço novo em
-//! `valores.intervalo` (no arrasto, só ao soltar). O `Workbook_Open`
-//! continua à mão: rodar código ao abrir um arquivo é o caso mais arriscado.
+//! `valores.intervalo` (no arrasto, só ao soltar). Da pasta (aba vazia): `aoAbrir`
+//! (o `Workbook_Open`) roda quando a pessoa clica em "Ativar macros" no arquivo recém-aberto,
+//! seguido dos módulos "Executar ao abrir"; `antesDeSalvar` (o `Workbook_BeforeSave`) roda
+//! antes do Salvar/Salvar como, e `wb.cancelSave()` não deixa gravar.
 //!
 //! O que uma macro escreve não dispara evento (seria laço sem fim).
 use super::*;
@@ -68,12 +70,18 @@ impl App {
         self.macro_rodou = false;
     }
 
-    fn rodar_evento(&mut self, aba: &str, evento: &str, alvo: Option<&str>) {
-        if self.macros_bloqueadas { return; }
-        let Some(e) = self.eventos_vba.iter()
-            .find(|e| e.evento == evento && e.aba.eq_ignore_ascii_case(aba)).cloned() else { return };
-        let Some(m) = self.macro_catalogo.obter(&e.modulo) else { return };
-        let mut codigo = m.code.clone();
+    /// `None`: não rodou (sem evento, macros bloqueadas) ou espera a resposta de uma pergunta.
+    fn rodar_evento(&mut self, aba: &str, evento: &str, alvo: Option<&str>) -> Option<feathersheet_macros::Resultado> {
+        self.rodar_evento_com(aba, evento, alvo, "")
+    }
+
+    /// `antes`: JavaScript que vai antes do código (os `valores` do evento).
+    fn rodar_evento_com(&mut self, aba: &str, evento: &str, alvo: Option<&str>, antes: &str) -> Option<feathersheet_macros::Resultado> {
+        if self.macros_bloqueadas { return None; }
+        let e = self.eventos_vba.iter()
+            .find(|e| e.evento == evento && e.aba.eq_ignore_ascii_case(aba)).cloned()?;
+        let m = self.macro_catalogo.obter(&e.modulo)?;
+        let mut codigo = format!("{antes}{}", m.code);
         if let Some(alvo) = alvo {
             codigo = format!("valores.intervalo={};\n{codigo}",
                 serde_json::to_string(alvo).unwrap_or_default());
@@ -83,13 +91,60 @@ impl App {
             feathersheet_core::diario::anotar(trf!("[evento] {evento} da aba {aba}{}",
                 alvo.map(|a| trf!(" em {a}")).unwrap_or_default()));
         }
-        if let Some(r) = self.rodar_macro(historico_macros::GatilhoMacro::Evento {
+        let r = self.rodar_macro(historico_macros::GatilhoMacro::Evento {
             evento: evento.to_owned(), aba: aba.to_owned(), intervalo: alvo.map(str::to_owned),
-        }, &e.modulo, &codigo, Vec::new()) {
-            if let Some(erro) = r.erro {
-                self.status = trf!("Evento {evento} da aba {aba}: {erro}. Escritas revertidas.");
+        }, &e.modulo, &codigo, Vec::new())?;
+        if let Some(erro) = &r.erro {
+            self.status = if aba.is_empty() { trf!("Evento {evento} da pasta: {erro}. Escritas revertidas.") }
+                else { trf!("Evento {evento} da aba {aba}: {erro}. Escritas revertidas.") };
+        }
+        Some(r)
+    }
+
+    /// "Ativar macros" no arquivo recém-aberto: o `aoAbrir` da pasta e depois os módulos
+    /// "Executar ao abrir", como o Workbook_Open e o Auto_Open do Excel. Uma vez por arquivo.
+    pub(super) fn rodar_ao_abrir(&mut self) {
+        if !std::mem::take(&mut self.ao_abrir_pendente) || self.macros_bloqueadas { return; }
+        let _ = self.rodar_evento("", "aoAbrir", None);
+        let automaticos: Vec<(String, String)> = self.macro_catalogo.macros.iter()
+            .filter(|m| m.auto).map(|m| (m.name.clone(), m.code.clone())).collect();
+        for (nome, codigo) in automaticos {
+            // Uma pergunta Sim/Não deixa a macro esperando: as outras não passam na frente dela.
+            if self.macro_pergunta.is_some() { break; }
+            let gatilho = historico_macros::GatilhoMacro::Evento { evento: "aoAbrir".into(), aba: String::new(), intervalo: None };
+            if let Some(feathersheet_macros::Resultado { erro: Some(erro), .. }) = self.rodar_macro(gatilho, &nome, &codigo, Vec::new()) {
+                self.status = trf!("Erro ao executar {nome}: {erro}. Escritas revertidas.");
             }
         }
+    }
+
+    /// Antes do Salvar (`como`: Salvar como): roda o `antesDeSalvar` da pasta. `false` = não
+    /// grava agora, porque a macro chamou `wb.cancelSave()` ou espera uma resposta (aí o
+    /// Salvar volta sozinho depois dela, por [`Self::salvar_depois_do_evento`]).
+    pub(super) fn antes_de_salvar(&mut self, como: bool) -> bool {
+        if std::mem::take(&mut self.salvar_sem_evento) { return true; }
+        let antes = format!("valores.comoSalvar={como};\n");
+        match self.rodar_evento_com("", "antesDeSalvar", None, &antes) {
+            Some(r) if r.cancelar_salvar => {
+                self.status = tr!("A macro Antes de salvar cancelou a gravação.").into();
+                false
+            }
+            Some(_) => true,
+            None if self.macro_pergunta.is_some() => {
+                self.salvar_apos_pergunta = Some(como);
+                false
+            }
+            None => true,
+        }
+    }
+
+    /// Depois da resposta à pergunta da macro: se era o `antesDeSalvar` e ele não cancelou, salva.
+    /// O `wb.cancelSave()` da continuação já desliga o pedido (`continuar_macro`).
+    pub(super) fn salvar_depois_do_evento(&mut self) -> Task<Msg> {
+        if self.macro_pergunta.is_some() { return Task::none(); }
+        let Some(como) = self.salvar_apos_pergunta.take() else { return Task::none() };
+        self.salvar_sem_evento = true;
+        self.update(if como { Msg::SalvarComo } else { Msg::Salvar })
     }
 }
 
@@ -296,5 +351,76 @@ mod testes {
         app.executar_macro();
         assert!(app.macro_saida.contains("desativadas"), "{}", app.macro_saida);
         assert!(app.aviso_macros, "rodar à mão reabre o aviso");
+    }
+
+    fn app_com_evento_da_pasta(evento: &str, codigo: &str) -> App {
+        let mut app = App::default();
+        app.macro_catalogo = Default::default();
+        let mut c = feather_macros::Catalogo::default();
+        c.macros.push(feather_macros::Macro {
+            name: crate::app::macros::organizacao::nome_evento("", evento), code: codigo.into(), auto: false });
+        assert!(app.persistir_modulos(c, "ok"));
+        assert_eq!(app.eventos_vba.len(), 1, "o módulo Eventos/<evento> liga o evento da pasta");
+        assert_eq!(app.eventos_vba[0].aba, "");
+        app
+    }
+
+    /// O Workbook_Open (aoAbrir) roda no "Ativar macros" do arquivo recém-aberto, uma vez,
+    /// e os módulos "Executar ao abrir" rodam depois dele; antes de ativar, nada.
+    #[test]
+    fn ao_abrir_roda_ao_ativar_macros_uma_vez_e_depois_os_automaticos() {
+        let mut app = app_com_evento_da_pasta("aoAbrir",
+            "sheet.set('A1', (Number(sheet.get('A1')) || 0) + 1);");
+        let mut c = app.macro_catalogo.clone();
+        c.macros.push(feather_macros::Macro { name: "Auto".into(), auto: true, code: "sheet.set('B1', sheet.get('A1'));".into() });
+        assert!(app.persistir_modulos(c, "ok"));
+        app.bloquear_macros_do_arquivo();
+        app.ao_abrir_pendente = app.macros_bloqueadas;
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Empty, "bloqueadas: não roda");
+        app.update(Msg::AtivarMacros);
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Number(1.0));
+        assert_eq!(app.workbook.valor(0, 0, 1), feathersheet_core::Value::Number(1.0), "o automático roda depois do aoAbrir");
+        app.macros_bloqueadas = true;
+        app.update(Msg::AtivarMacros);
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Number(1.0), "uma vez por arquivo aberto");
+    }
+
+    /// O antesDeSalvar (Workbook_BeforeSave) roda antes de gravar; `wb.cancelSave()` impede.
+    #[test]
+    fn antes_de_salvar_pode_cancelar_a_gravacao() {
+        let pasta = std::env::temp_dir().join(format!("fs_antes_salvar_{}", std::process::id()));
+        std::fs::create_dir_all(&pasta).unwrap();
+        let mut app = app_com_evento_da_pasta("antesDeSalvar",
+            "if (!sheet.get('B1')) wb.cancelSave(); else sheet.set('C1', valores.comoSalvar ? 'como' : 'ctrl+s');");
+        app.caminho = Some(pasta.join("a.fshz"));
+        let _ = app.update(Msg::Salvar);
+        assert!(!app.salvando, "cancelado: não grava");
+        assert!(app.status.contains("cancelou"), "{}", app.status);
+        app.workbook.escrever_celula(0, 0, 1, "ok".into());
+        let _ = app.update(Msg::Salvar);
+        assert!(app.salvando, "sem cancelar: grava");
+        assert_eq!(app.workbook.valor(0, 0, 2), feathersheet_core::Value::Text("ctrl+s".into()));
+        app.concluir_gravacao_teste(pasta.join("a.fshz"), false);
+        let _ = std::fs::remove_dir_all(&pasta);
+    }
+
+    /// A pergunta (MsgBox vbYesNo) no antesDeSalvar: o Salvar espera a resposta e volta sozinho
+    /// no "Sim"; no "Não" a macro cancela e nada é gravado.
+    #[test]
+    fn antes_de_salvar_com_pergunta_salva_depois_da_resposta() {
+        let pasta = std::env::temp_dir().join(format!("fs_antes_salvar_p_{}", std::process::id()));
+        std::fs::create_dir_all(&pasta).unwrap();
+        let mut app = app_com_evento_da_pasta("antesDeSalvar", "if (!confirm('Gravar?')) wb.cancelSave();");
+        app.caminho = Some(pasta.join("b.fshz"));
+        let _ = app.update(Msg::Salvar);
+        assert!(app.macro_pergunta.is_some() && !app.salvando);
+        let _ = app.update(Msg::MacroResponder(false));
+        assert!(!app.salvando, "Não: cancelado");
+        let _ = app.update(Msg::Salvar);
+        let _ = app.update(Msg::MacroResponder(true));
+        assert!(app.salvando, "Sim: o Salvar volta sozinho");
+        assert!(!app.salvar_sem_evento, "a marca é gasta");
+        app.concluir_gravacao_teste(pasta.join("b.fshz"), false);
+        let _ = std::fs::remove_dir_all(&pasta);
     }
 }

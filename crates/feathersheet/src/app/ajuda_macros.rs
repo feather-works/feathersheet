@@ -154,6 +154,7 @@ pub(crate) const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("sheet.pastePicture", "sheet.pastePicture(range, cell, { sheet? }) → .width / .height", "sheet.pastePicture(\"A1:D10\", \"F2\").width = 300;"),
         ("sheet.shape", "sheet.shape(name).text / .font({ bold, italic, size, color }) / .exists / .visible / .onAction / .left .top .width .height", "sheet.shape(\"TextBox 1\").font({ bold: true, color: \"#00b050\" });"),
         ("wb.saveSheetsAs", "wb.saveSheetsAs(sheets, path)", "wb.saveSheetsAs([\"Dados\", \"Resumo\"], \"saida/parcial.fshz\");"),
+        ("wb.cancelSave", "wb.cancelSave()", "if (!sheet.get(\"B2\")) { alert(\"Preencha o cliente\"); wb.cancelSave(); }"),
     ]),
     ("excel-app", &[
         ("app.batch", "app.batch(fn)", "app.batch(() => { sheet.set(\"A1\", 1); });"),
@@ -208,7 +209,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),151);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),152);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {

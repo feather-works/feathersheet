@@ -797,6 +797,12 @@ pub struct App {
     macro_programas: Option<macro_dialogo::ProgramasMacro>,
     /// Eventos do VBA instalados que rodam sozinhos (aoMudar, aoAtivar).
     eventos_vba: Vec<eventos_vba::EventoVba>,
+    /// Arquivo recém-aberto: o `aoAbrir` e os módulos "Executar ao abrir" rodam no "Ativar macros".
+    ao_abrir_pendente: bool,
+    /// O próximo Salvar já passou pelo `antesDeSalvar` (a pergunta dele foi respondida).
+    salvar_sem_evento: bool,
+    /// O `antesDeSalvar` espera a resposta de uma pergunta: `Some(salvar_como)`.
+    salvar_apos_pergunta: Option<bool>,
     /// A seleção (aba, linha, coluna, fim) que o evento aoSelecionar já viu.
     selecao_evento: (usize, u32, u32, (u32, u32)),
     /// Macros do arquivo aberto (eventos e botões) esperando a pessoa ativar.
@@ -1170,7 +1176,7 @@ impl Default for App {
             consolidar: None,
             filtro_avancado: None,
             inspecao_documento: None,
-            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), selecao_evento: (0, 0, 0, (0, 0)), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
+            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), ao_abrir_pendente: false, salvar_sem_evento: false, salvar_apos_pergunta: None, selecao_evento: (0, 0, 0, (0, 0)), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             senha_arquivo: None,
             senha_documento: None,

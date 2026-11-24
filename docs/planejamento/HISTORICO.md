@@ -2,7 +2,25 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
-## Depois da v0.3.5 (para a 0.3.6)
+## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
+
+- **Eventos da pasta: Workbook_Open e Workbook_BeforeSave** (24/11/2026, item da v0.4 das metas). `aoAbrir` roda quando
+  a pessoa clica em "Ativar macros" no arquivo recém-aberto (uma vez; a cópia de recuperação não conta,
+  `App::ao_abrir_pendente`), seguido dos módulos "Executar ao abrir" (`auto`), que **antes não rodavam nunca** apesar
+  de a tela e a Ajuda dizerem que sim. `antesDeSalvar` roda no começo do Salvar e do Salvar como
+  (`valores.comoSalvar`); `wb.cancelSave()` (novo na API, `Resultado::cancelar_salvar`) não deixa gravar. Pergunta
+  Sim/Não no evento: o Salvar espera e volta sozinho no "Sim" (`salvar_apos_pergunta`/`salvar_sem_evento`). O conversor
+  VBA leva `Workbook_BeforeSave(SaveAsUI, Cancel)` para esse evento, com o `Cancel` numa caixa ByRef. Os eventos
+  ficam em módulos `Eventos/<evento>` (pasta) e `Eventos/<aba>/<evento>`; o VBA importado agora usa esses nomes, então
+  **o evento continua valendo depois de salvar e reabrir** (antes era `Evento_…`, ligado só na sessão da importação).
+  No editor de macros, "Esta pasta de trabalho" deixou de ser um "Em breve" com seletor morto: é o editor dos dois
+  eventos, como o das abas. Captura `FEATHERSHEET_CAPTURAR_JANELA=eventos_pasta`. Testes:
+  `cancel_save_chega_ao_app` (macros), `before_save_com_cancel_cancela_a_gravacao` (vba),
+  `ao_abrir_roda_ao_ativar_macros_uma_vez_e_depois_os_automaticos`, `antes_de_salvar_pode_cancelar_a_gravacao`,
+  `antes_de_salvar_com_pergunta_salva_depois_da_resposta` (app). Fica de fora: Salvar cópia, o salvar do MCP e a
+  cópia de recuperação não disparam o evento (o Excel também não dispara no SaveCopyAs); BeforeClose não existe.
+  Novidade para o `VERSOES` da 0.4.0: "Macros ao abrir e antes de salvar — o Workbook_Open e o Workbook_BeforeSave
+  do Excel rodam aqui; Cancel = True não deixa gravar."
 
 - **Revisão do que entrou na 0.3.5** (23/11/2026, agente revisor): colar uma cópia filtrada deslocava as fórmulas
   e o "Colar vínculo" pela posição na cópia, não pela linha de onde vieram (`AreaCopiada.linhas`); valor derramado

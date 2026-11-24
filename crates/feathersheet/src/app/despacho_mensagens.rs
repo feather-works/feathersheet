@@ -845,6 +845,7 @@ impl App {
             Msg::Salvar => {
                 self.menu_aberto = false;
                 self.confirmar();
+                if !self.antes_de_salvar(false) { return Task::none(); }
                 // Pasta com senha num .fshz: o Ctrl+S gravaria tudo em claro. Pede onde salvar (sugere .xlsx).
                 if self.senha_documento.is_some() && self.caminho.as_ref().is_some_and(|p| !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("xlsx") || e.eq_ignore_ascii_case("xlsm"))) {
                     self.status = tr!("O .fshz não leva a senha: salve como .xlsx para o arquivo sair cifrado.").into();
@@ -868,7 +869,12 @@ impl App {
                 if let Some(path) = self.caminho.clone() { self.gravar(path) }
                 else { self.dialogo_salvar() }
             }
-            Msg::SalvarComo => { self.menu_aberto = false; self.confirmar(); self.dialogo_salvar() },
+            Msg::SalvarComo => {
+                self.menu_aberto = false;
+                self.confirmar();
+                if !self.antes_de_salvar(true) { return Task::none(); }
+                self.dialogo_salvar()
+            }
             Msg::MenuSalvarCopia => {
                 self.menu_aberto = false;
                 self.dialogo_salvar_copia()

@@ -501,3 +501,28 @@ fn copypicture_cola_a_imagem_e_ajusta_a_largura() {
     let c = converter_texto(&[("Módulo1", "Sub T()\n  Selection.Width = 5\nEnd Sub\n")], &[]);
     assert!(feathersheet_macros::executar(&mut wb, 0, &c.macros[0].codigo).erro.is_some());
 }
+
+/// Workbook_BeforeSave: `Cancel = True` vira `wb.cancelSave()`, e o SaveAsUI chega de `valores.comoSalvar`.
+#[test]
+fn before_save_com_cancel_cancela_a_gravacao() {
+    let vba = "Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)\n  Range(\"A1\").Value = SaveAsUI\n  If Range(\"B1\").Value = \"\" Then\n    MsgBox \"Preencha B1\"\n    Cancel = True\n  End If\nEnd Sub\n";
+    let c = converter_texto(&[("EstaPasta_de_trabalho", vba)], &[]);
+    let e = c.eventos.iter().find(|e| e.evento == "antesDeSalvar").expect("evento convertido");
+    assert!(e.aba.is_none(), "é da pasta");
+    let rodar = |b1: &str, como: bool| {
+        let mut wb = Workbook::new();
+        wb.editar(0, |s| { s.set_cell(0, 1, b1); });
+        let valores = serde_json::json!({ "comoSalvar": como }).as_object().unwrap().clone();
+        let r = feathersheet_macros::executar_com(&mut wb, 0, &e.codigo,
+            feathersheet_macros::Contexto { valores: Some(valores), ..Default::default() });
+        assert!(r.erro.is_none(), "{:?}\n{}", r.erro, e.codigo);
+        (r.cancelar_salvar, wb.valor(0, 0, 0), r.mensagens)
+    };
+    let (cancelou, a1, msgs) = rodar("", true);
+    assert!(cancelou, "{}", e.codigo);
+    assert_eq!(a1, Value::Bool(true));
+    assert_eq!(msgs, vec!["Preencha B1".to_string()]);
+    let (cancelou, a1, _) = rodar("ok", false);
+    assert!(!cancelou);
+    assert_eq!(a1, Value::Bool(false));
+}

@@ -3,7 +3,7 @@
 //! - Cada `Sub` sem parâmetro obrigatório vira **uma macro** (é o que um botão chama). O
 //!   runtime roda o módulo JS inteiro, isolado: por isso a macro leva junto todo
 //!   procedimento que ela chama, e termina chamando a `Sub` de entrada.
-//! - `Workbook_Open`, `Worksheet_Change` e `Worksheet_Activate` viram **eventos** (*Ao abrir*,
+//! - `Workbook_Open`, `Workbook_BeforeSave`, `Worksheet_Change` e `Worksheet_Activate` viram **eventos** (*Ao abrir*, *Antes de salvar*,
 //!   *Ao mudar células*, *Ao ativar*).
 //! - As `Function` públicas viram uma macro que as registra como **função de planilha**
 //!   (`sheet.defineFunction`), para a célula que usava `=Extenso_Valor(A1)` continuar valendo.
@@ -82,7 +82,7 @@ pub struct Conversao {
 }
 
 /// Os eventos que existem no FeatherSheet: (procedimento em minúsculas, tipo de módulo, evento).
-const EVENTOS: [(&str, TipoDeModulo, &str); 4] = [("workbook_open", TipoDeModulo::Pasta, "aoAbrir"), ("worksheet_change", TipoDeModulo::Aba, "aoMudar"), ("worksheet_activate", TipoDeModulo::Aba, "aoAtivar"), ("worksheet_selectionchange", TipoDeModulo::Aba, "aoSelecionar")];
+const EVENTOS: [(&str, TipoDeModulo, &str); 5] = [("workbook_open", TipoDeModulo::Pasta, "aoAbrir"), ("workbook_beforesave", TipoDeModulo::Pasta, "antesDeSalvar"), ("worksheet_change", TipoDeModulo::Aba, "aoMudar"), ("worksheet_activate", TipoDeModulo::Aba, "aoAtivar"), ("worksheet_selectionchange", TipoDeModulo::Aba, "aoSelecionar")];
 
 fn montar_programa(projeto: &ProjetoVba) -> Programa {
     let mut codenames = HashMap::new();
@@ -300,7 +300,17 @@ fn converter_eventos(p: &Programa, totais: &mut Totais, arquivo: &str, c: &mut C
             };
             let aba_js = js_nome(&m.nome);
             let alvo = if pr.params.is_empty() { String::new() } else { format!("valores.intervalo || {aba_js}.selection().address") };
-            let codigo = montar_macro(p, totais, (mi, pi), &cabecalho(&format!("{}.{}", m.nome, pr.nome), arquivo), |_, nome| format!("{nome}({alvo});"));
+            // BeforeSave(SaveAsUI, Cancel): o Cancel vai numa caixa (ByRef) e, marcado, vira `wb.cancelSave()`.
+            let antes_de_salvar = *evento == "antesDeSalvar";
+            let codigo = montar_macro(p, totais, (mi, pi), &cabecalho(&format!("{}.{}", m.nome, pr.nome), arquivo), |_, nome| {
+                if !antes_de_salvar { return format!("{nome}({alvo});"); }
+                let como = "valores.comoSalvar === true";
+                match pr.params.len() {
+                    0 => format!("{nome}();"),
+                    1 => format!("{nome}({como});"),
+                    _ => format!("const $cancelar = {{ $ref: 1, v: false }};\n{nome}({como}, $cancelar);\nif ($cancelar.v) wb.cancelSave();"),
+                }
+            });
             c.eventos.push(EventoGerado { aba: m.aba.clone(), evento, origem: format!("{}.{}", m.nome, pr.nome), codigo });
         }
     }

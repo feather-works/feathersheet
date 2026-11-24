@@ -32,14 +32,6 @@ const MENUS: [&str; 8] = [
     "Executar", "Depurar", "Ferramentas", "Ajuda",
 ];
 
-fn mensagem_visual<'a>(nome: &str) -> Element<'a, Msg> {
-    container(column![
-        text(nome.to_owned()).size(14),
-        text(tr!("Em breve.")).size(12),
-    ].spacing(8))
-        .padding(20).center()
-        .into()
-}
 fn event(e: EventoVisual) -> Option<Msg> { Some(Msg::MacroVisual(e)) }
 
 /// Módulos agrupados por pasta (`pasta/sub/nome`): pastas primeiro, em
@@ -122,8 +114,9 @@ fn arvore<'a>(app: &'a App, altura: Length) -> Element<'a, Msg> {
         ));
     }
     if aberto(GRUPO_PLANILHAS) {
+        let com_evento = app.eventos_vba.iter().any(|e| e.aba.is_empty());
         itens = itens.push(item_arvore(
-            tr!("Esta pasta de trabalho"), "window", 21.0,
+            tr!("Esta pasta de trabalho"), if com_evento { "bolt" } else { "window" }, 21.0,
             event(EventoVisual::Documento("pasta".into())),
             app.macro_visual.documento == "pasta",
         ));
@@ -332,9 +325,11 @@ fn codigo_evento_planilha<'a>(app: &'a App) -> Element<'a, Msg> {
         text(tr!("CÓDIGO DE EVENTOS")).size(11).color(cor_secundaria(escuro)),
         Space::new(Length::Fixed(10.0), 0.0),
     ].spacing(4).align(pelicano::Align::Center);
-    for (chave, rotulo) in super::organizacao::EVENTOS_PLANILHA {
-        let ligado = app.macro_catalogo.obter(&super::organizacao::nome_evento(
-            app.macro_visual.documento.trim_start_matches("planilha:"), chave)).is_some();
+    let pasta = app.macro_visual.documento == "pasta";
+    let aba = if pasta { "" } else { app.macro_visual.documento.trim_start_matches("planilha:") };
+    let lista = if pasta { &super::organizacao::EVENTOS_PASTA[..] } else { &super::organizacao::EVENTOS_PLANILHA[..] };
+    for &(chave, rotulo) in lista {
+        let ligado = app.macro_catalogo.obter(&super::organizacao::nome_evento(aba, chave)).is_some();
         eventos = eventos.push(botao_icone(tr!(rotulo), if ligado { "bolt" } else { "code" },
             event(EventoVisual::EventoPlanilha(chave)), app.macro_visual.evento_planilha == chave));
     }
@@ -344,30 +339,14 @@ fn codigo_evento_planilha<'a>(app: &'a App) -> Element<'a, Msg> {
     ].spacing(5).height(Length::FILL).into()
 }
 
-fn evento_planilha<'a>(app: &'a App) -> Element<'a, Msg> {
-    let seletor = "Open / BeforeClose";
-    container(column![
-        titulo(tr!("CÓDIGO DE EVENTOS"), app.config.escuro),
-        row![
-            botao_campo(tr!("(Geral)")),
-            botao_campo(seletor),
-            Space::new(Length::FILL, 0.0),
-            botao_icone(tr!("Eventos"), "bolt", None, false),
-        ].padding(7),
-        mensagem_visual(tr!("Eventos da pasta de trabalho")),
-    ]).width(Length::FILL).height(Length::FILL)
-        .style(estilo_area(app.config.escuro)).into()
-}
-
 fn centro<'a>(app: &'a App) -> Element<'a, Msg> {
     let c: Element<'a, Msg> = if app.macro_visual.documento == "componente:previsao" {
         super::designer_formulario::designer(app)
     } else if app.macro_visual.documento.starts_with("modulo:") {
         edicao_codigo(app)
-    } else if app.macro_visual.documento.starts_with("planilha:") {
-        codigo_evento_planilha(app)
     } else {
-        evento_planilha(app)
+        // Uma aba ou "Esta pasta de trabalho": o código dos eventos dela.
+        codigo_evento_planilha(app)
     };
     // 2 px no topo: a barra de abas alinha com o cabeçalho do Explorador.
     column![abas_documento(app), c].spacing(5).padding(pelicano::Padding { top: 2., ..Default::default() })

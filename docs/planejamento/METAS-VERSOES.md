@@ -365,9 +365,9 @@
 
 ## v0.4 — macros: VBA ⇄ JS sem problema
 
-- [ ] Eventos automáticos do VBA convertidos e rodando (Worksheet_Change,
-      SelectionChange, Activate, Workbook_Open com confirmação, BeforeSave).
-      *Parcial: Change, SelectionChange e Activate rodam; Workbook_Open ainda à mão; falta BeforeSave.*
+- [x] Eventos automáticos do VBA convertidos e rodando (Worksheet_Change,
+      SelectionChange, Activate, Workbook_Open com confirmação, BeforeSave). *(24/11/2026: Workbook_Open no
+      "Ativar macros", BeforeSave com Cancel; BeforeClose fica para depois.)*
 - [x] Formulários do VBA (UserForm) viram formulários do editor de macros (`feathersheet-vba/src/formulario.rs`,
       `importar_vba.rs::formulario_da_conversao`, #67).
 - [ ] Caminho de volta: macro JS → VBA, gravada no `.xlsm` (o Excel abre e roda).

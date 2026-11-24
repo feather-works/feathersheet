@@ -211,6 +211,12 @@ impl App {
     fn continuar_macro(&mut self, p: PerguntaMacro) {
         let Some(r) = self.rodar_macro_registrando(p.gatilho, &p.nome, &p.codigo, p.respostas, p.escolhas, p.textos,
             Some((p.historico, p.ms))) else { return };
+        // Era o antesDeSalvar esperando a resposta e ele cancelou: o Salvar não volta.
+        if r.cancelar_salvar && self.salvar_apos_pergunta.take().is_some() {
+            self.status = tr!("A macro Antes de salvar cancelou a gravação.").into();
+            self.trocar_selecao(self.linha, self.coluna);
+            return;
+        }
         self.macro_saida = r.saida.join("\n");
         self.status = match r.erro {
             Some(e) => trf!("Erro ao executar {}: {e}. Escritas revertidas.", p.nome),

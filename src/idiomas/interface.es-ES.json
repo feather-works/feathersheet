@@ -6212,5 +6212,13 @@
  "Salvo como .xlsx, mas {} ícone(s), WordArt ou SmartArt não vão neste formato: para mantê-los, salve também em .fshz.": "Guardado como .xlsx, pero {} icono(s), WordArt o SmartArt no van en este formato: para conservarlos, guarde también en .fshz.",
  "Recalcular tudo": "Recalcular todo",
  "Ctrl+Alt+F9: refaz todas as fórmulas, também as que nada mudou": "Ctrl+Alt+F9: rehace todas las fórmulas, también las que nada cambió",
- "Pasta recalculada por inteiro em {} ms": "Libro recalculado por completo en {} ms"
+ "Pasta recalculada por inteiro em {} ms": "Libro recalculado por completo en {} ms",
+ "Ao abrir a pasta": "Al abrir el libro",
+ "Antes de salvar": "Antes de guardar",
+ "Roda ao abrir o arquivo, depois de \"Ativar macros\" (o Workbook_Open do Excel).": "Se ejecuta al abrir el archivo, después de \"Habilitar macros\" (el Workbook_Open de Excel).",
+ "Os módulos marcados \"Executar ao abrir\" rodam logo depois.": "Los módulos marcados \"Ejecutar al abrir\" se ejecutan justo después.",
+ "Roda antes de gravar o arquivo (Ctrl+S ou Salvar como).": "Se ejecuta antes de guardar el archivo (Ctrl+S o Guardar como).",
+ "wb.cancelSave() não deixa gravar; valores.comoSalvar é true no Salvar como.": "wb.cancelSave() impide guardar; valores.comoSalvar es true en Guardar como.",
+ "Evento {evento} da pasta: {erro}. Escritas revertidas.": "Evento {evento} del libro: {erro}. Escrituras revertidas.",
+ "A macro Antes de salvar cancelou a gravação.": "La macro Antes de guardar canceló el guardado."
 }

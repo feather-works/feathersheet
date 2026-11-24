@@ -27,8 +27,8 @@ impl App {
             Msg::FiltroAvancado(evento) => self.evento_filtro_avancado(evento),
             Msg::InspetorDocumento(evento) => self.evento_inspetor_documento(evento),
             Msg::VbaImportar => self.importar_vba(),
-            Msg::MacroResponder(sim) => { self.responder_macro(sim); Task::none() }
-            Msg::MacroEscolher(i) => { self.escolher_na_macro(i); Task::none() }
+            Msg::MacroResponder(sim) => { self.responder_macro(sim); self.salvar_depois_do_evento() }
+            Msg::MacroEscolher(i) => { self.escolher_na_macro(i); self.salvar_depois_do_evento() }
             Msg::MacroDigitar(t) => { self.digitar_na_macro(t); Task::none() }
             Msg::MacroPulso => { self.conferir_macro_em_fundo(false); Task::none() }
             Msg::CalculoPulso => { self.conferir_calculo_em_fundo(false); Task::none() }
@@ -1069,6 +1069,7 @@ impl App {
             Msg::AtivarMacros => {
                 (self.macros_bloqueadas, self.aviso_macros) = (false, false);
                 self.status = tr!("Macros ativadas neste arquivo.").into();
+                self.rodar_ao_abrir();
                 Task::none()
             }
             Msg::ProgressoPulso => { progresso_abertura::animar(); Task::none() },
@@ -1448,6 +1449,16 @@ impl App {
                                     self.evento_macro_visual(macros::EventoVisual::Documento("planilha:Planilha1".into()));
                                     return self.alternar(Auxiliar::Macros);
                                 }
+                                // eventos_pasta: "Esta pasta de trabalho" com o Antes de salvar ligado.
+                                "eventos_pasta" => {
+                                    self.macro_catalogo = feather_macros::Catalogo { macros: vec![feather_macros::Macro {
+                                        name: "Eventos/antesDeSalvar".into(), auto: false,
+                                        code: "if (!sheet.get('B2')) { alert('Preencha o cliente'); wb.cancelSave(); }\n".into() }] };
+                                    self.sincronizar_eventos();
+                                    self.macro_visual.evento_planilha = "antesDeSalvar";
+                                    self.evento_macro_visual(macros::EventoVisual::Documento("pasta".into()));
+                                    return self.alternar(Auxiliar::Macros);
+                                }
                                 "monitor" => return self.alternar(Auxiliar::Monitor),
                                 // informacoes: ☰ Menu ▸ Informações com propriedades de exemplo.
                                 "informacoes" => {
@@ -1545,7 +1556,7 @@ impl App {
                                 Ok(j) if j.starts_with("novidades") => self.janelas.id(Auxiliar::Novidades),
                                 Ok("monitor") => self.janelas.id(Auxiliar::Monitor),
                                 Ok(j) if j.starts_with("config") => self.janelas.id(Auxiliar::Configuracoes),
-                                Ok("pastas_macros") => self.janelas.id(Auxiliar::Macros),
+                                Ok("pastas_macros" | "eventos_pasta") => self.janelas.id(Auxiliar::Macros),
                                 Ok(j) if j.starts_with("formatar") => self.janelas.id(Auxiliar::FormatarCelulas),
                                 Ok(j) if j.starts_with("openquery") => self.janelas.id(Auxiliar::OpenQuery),
                                 _ => None,

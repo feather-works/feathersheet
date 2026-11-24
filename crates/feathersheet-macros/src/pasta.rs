@@ -133,6 +133,8 @@ pub(crate) struct Acumulado {
     pub campos: Vec<(String, String, serde_json::Value)>,
     /// `sheet.hideComponent()`.
     pub fechar_formulario: bool,
+    /// `wb.cancelSave()`.
+    pub cancelar_salvar: bool,
     /// `app.shell(comando)`: o app pergunta à pessoa e só então roda.
     pub programas: Vec<String>,
     pub protecoes: Vec<PedidoProtecao>,

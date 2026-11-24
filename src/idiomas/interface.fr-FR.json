@@ -6212,5 +6212,13 @@
  "Salvo como .xlsx, mas {} ícone(s), WordArt ou SmartArt não vão neste formato: para mantê-los, salve também em .fshz.": "Enregistré en .xlsx, mais {} icône(s), WordArt ou SmartArt ne sont pas pris en charge par ce format : pour les garder, enregistrez aussi en .fshz.",
  "Recalcular tudo": "Tout recalculer",
  "Ctrl+Alt+F9: refaz todas as fórmulas, também as que nada mudou": "Ctrl+Alt+F9 : refait toutes les formules, même celles que rien n’a changées",
- "Pasta recalculada por inteiro em {} ms": "Classeur entièrement recalculé en {} ms"
+ "Pasta recalculada por inteiro em {} ms": "Classeur entièrement recalculé en {} ms",
+ "Ao abrir a pasta": "À l'ouverture du classeur",
+ "Antes de salvar": "Avant l'enregistrement",
+ "Roda ao abrir o arquivo, depois de \"Ativar macros\" (o Workbook_Open do Excel).": "S'exécute à l'ouverture du fichier, après « Activer les macros » (le Workbook_Open d'Excel).",
+ "Os módulos marcados \"Executar ao abrir\" rodam logo depois.": "Les modules marqués « Exécuter à l'ouverture » s'exécutent juste après.",
+ "Roda antes de gravar o arquivo (Ctrl+S ou Salvar como).": "S'exécute avant l'écriture du fichier (Ctrl+S ou Enregistrer sous).",
+ "wb.cancelSave() não deixa gravar; valores.comoSalvar é true no Salvar como.": "wb.cancelSave() empêche l'enregistrement ; valores.comoSalvar vaut true dans Enregistrer sous.",
+ "Evento {evento} da pasta: {erro}. Escritas revertidas.": "Événement {evento} du classeur : {erro}. Écritures annulées.",
+ "A macro Antes de salvar cancelou a gravação.": "La macro Avant l'enregistrement a annulé l'enregistrement."
 }

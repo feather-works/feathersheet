@@ -657,6 +657,8 @@ impl App {
         }
         if ext == "xlsm" { self.ler_vba_do_xlsm(&path); } else { self.vba_pendente = None; }
         self.bloquear_macros_do_arquivo();
+        // A cópia de recuperação não é "abrir o arquivo": o Workbook_Open não roda de novo.
+        self.ao_abrir_pendente = self.macros_bloqueadas && !recuperacao;
         super::objetos::esquecer_rasteres();
         self.adiantar_graficos();
         // A pasta lida na outra thread acabou de entrar: o que sobrou da leitura volta ao sistema.

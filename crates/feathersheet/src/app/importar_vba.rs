@@ -40,21 +40,23 @@ fn livre(catalogo: &feather_macros::Catalogo, base: &str, usados: &[String]) -> 
     nome
 }
 
-/// Os módulos que a conversão vira: um por macro, um por evento (com aviso
-/// de que não roda sozinho) e um com as pendências, se houver.
+/// Os módulos que a conversão vira: um por macro, um por evento (`Eventos/<aba>/<evento>`,
+/// que volta a valer ao reabrir o arquivo) e um com as pendências, se houver.
 pub(super) fn modulos_da_conversao(
     catalogo: &feather_macros::Catalogo, arquivo: &str, c: &Conversao,
 ) -> Vec<feather_macros::Macro> {
     let mut usados: Vec<String> = Vec::new();
     let mut saida = Vec::new();
-    let mut acrescentar = |base: String, code: String, saida: &mut Vec<feather_macros::Macro>| {
-        let name = livre(catalogo, &nome_modulo(&base), &usados);
+    // `exato`: o nome do evento (`Eventos/…`, que volta a valer ao reabrir) fica como está se livre.
+    let mut acrescentar_com = |base: String, exato: Option<String>, code: String, saida: &mut Vec<feather_macros::Macro>| {
+        let livre_exato = exato.filter(|n| livre(catalogo, n, &usados) == *n);
+        let name = livre_exato.unwrap_or_else(|| livre(catalogo, &nome_modulo(&base), &usados));
         usados.push(name.clone());
         saida.push(feather_macros::Macro { name, code, auto: false });
     };
     for m in &c.macros {
         let code = format!("// Convertida do VBA de {arquivo} (módulo {}).\n{}", m.modulo, m.codigo);
-        acrescentar(m.nome.clone(), code, &mut saida);
+        acrescentar_com(m.nome.clone(), None, code, &mut saida);
     }
     for e in &c.eventos {
         let onde = e.aba.as_deref().map_or("da pasta".to_string(), |a| format!("da aba {a}"));
@@ -64,9 +66,12 @@ pub(super) fn modulos_da_conversao(
                 "aoMudar" => tr!("Roda sozinho quando uma célula da aba muda (valores.intervalo é o endereço mudado)."),
                 "aoAtivar" => tr!("Roda sozinho quando a aba é aberta."),
                 "aoSelecionar" => tr!("Roda sozinho quando a seleção muda na aba (valores.intervalo é o endereço selecionado)."),
+                "aoAbrir" => tr!("Roda ao abrir o arquivo, depois de \"Ativar macros\" (o Workbook_Open do Excel)."),
+                "antesDeSalvar" => tr!("Roda antes de gravar o arquivo (Ctrl+S ou Salvar como)."),
                 _ => tr!("Não roda sozinho ao abrir o arquivo: execute à mão."),
             }, e.codigo);
-        acrescentar(format!("Evento_{}_{}", e.evento, e.aba.as_deref().unwrap_or(tr!("Pasta"))), code, &mut saida);
+        let exato = super::macros::organizacao::nome_evento(e.aba.as_deref().unwrap_or(""), e.evento);
+        acrescentar_com(format!("Evento_{}_{}", e.evento, e.aba.as_deref().unwrap_or(tr!("Pasta"))), Some(exato), code, &mut saida);
     }
     if !c.pendencias.is_empty() {
         let mut code = format!("// O que do VBA de {arquivo} não foi convertido (ou pode agir diferente).\n");
@@ -76,7 +81,7 @@ pub(super) fn modulos_da_conversao(
             let vba = p.vba.trim().lines().map(|l| format!("//     {l}")).collect::<Vec<_>>().join("\n");
             code.push_str(&format!("// [{tipo}] {} linha {}: {}\n{vba}\n", p.modulo, p.linha, p.motivo));
         }
-        acrescentar(format!("VBA_pendencias_{arquivo}"), code, &mut saida);
+        acrescentar_com(format!("VBA_pendencias_{arquivo}"), None, code, &mut saida);
     }
     saida
 }
@@ -318,7 +323,7 @@ impl App {
         }
         // Os eventos de aba rodam sozinhos: guarda qual módulo é de qual aba.
         self.eventos_vba = c.eventos.iter().enumerate().filter_map(|(i, e)| Some(eventos_vba::EventoVba {
-            aba: e.aba.clone()?, evento: e.evento.to_string(),
+            aba: e.aba.clone().unwrap_or_default(), evento: e.evento.to_string(),
             modulo: novos.get(c.macros.len() + i)?.name.clone(),
         })).collect();
         // Código de outro arquivo: os eventos só rodam depois de "Ativar macros" (auditoria de 04/11/2026).
@@ -367,8 +372,8 @@ mod testes {
         let mods = modulos_da_conversao(&catalogo, "Vendas 2026", &c);
         assert!(mods.iter().any(|m| m.name == "Ola_2"), "{:?}", mods.iter().map(|m| &m.name).collect::<Vec<_>>());
         assert!(mods.iter().all(|m| !m.auto), "nada roda sozinho");
-        assert!(mods.iter().any(|m| m.name.starts_with("Evento_") && m.code.contains("execute à mão")), "Workbook_Open continua à mão");
-        assert!(mods.iter().all(|m| m.name.chars().all(|ch| ch.is_alphanumeric() || ch == '_')));
+        assert!(mods.iter().any(|m| m.name == "Eventos/aoAbrir" && m.code.contains("Ativar macros")), "Workbook_Open vira o aoAbrir da pasta");
+        assert!(mods.iter().filter(|m| !m.name.starts_with("Eventos/")).all(|m| m.name.chars().all(|ch| ch.is_alphanumeric() || ch == '_')));
         // O conjunto passa na validação da biblioteca (nomes únicos, tamanho).
         catalogo.macros.extend(mods);
         let json = catalogo.exportar_json().unwrap();
