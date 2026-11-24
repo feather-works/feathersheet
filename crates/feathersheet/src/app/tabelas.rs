@@ -7,6 +7,7 @@ pub(in crate::app) mod totais;
 pub(in crate::app) mod totais_popup;
 pub(in crate::app) mod filtro_popup;
 pub(in crate::app) mod filtro_extra;
+mod mcp;
 pub(crate) use painel::Acao;
 pub(super) use migracao::{sob_celula, sob_qualquer, sob_id, renomear, redimensionar, estilo, Estilo, converter, filtrar, limpar_todos_filtros, ordenar, ordenar_por, reaplicar, crescer, crescer_colagem, distintos_lote, refluir, alternar_auto_filtro};
 
@@ -18,7 +19,7 @@ use feathersheet_core::{
 use pelicano::Color;
 use serde_json::{json, Value};
 
-fn listar(sheet: &Sheet) -> Result<Vec<Value>, String> {
+pub(super) fn listar(sheet: &Sheet) -> Result<Vec<Value>, String> {
     let Some(ref bruto) = sheet.tb else { return Ok(Vec::new()) };
     serde_json::from_str::<Vec<Value>>(bruto)
         .map_err(|_| tr!("Metadados de tabelas da aba estão inválidos; nada foi alterado.").into())

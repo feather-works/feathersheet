@@ -4,6 +4,12 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **MCP `sheet_tabela`** (24/11/2026, ao vivo): listar, criar (nome sugerido se faltar), renomear, estilo,
+  total por coluna (pela letra ou pelo título; liga a linha de totais e grava a conta num Ctrl+Z, como o botão),
+  redimensionar e converter. `Hospede::tabela` (avulso explica que precisa do app); `tabelas::listar` virou
+  `pub(super)`. Teste `tabela_pelo_mcp` (soma 31,75 na linha de totais). MCP também ganhou bloquear/desbloquear
+  células no `sheet_proteger`.
+
 - **MCP respeita a proteção** (24/11/2026; furo achado ao fazer o "proteger a pasta"): o `chamar` ganhou o portão da
   tela (marca o histórico das abas protegidas, roda, `examinar_protecao`; se tocou no proibido, `desfazer_ate` e a IA
   recebe o erro). Antes o avulso escrevia em célula bloqueada e o ao vivo respondia "feito" do que a tela desfazia.

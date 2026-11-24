@@ -58,6 +58,11 @@ pub trait Hospede {
     fn dinamica(&mut self, _args: &Value) -> Result<String, String> {
         Err("A tabela dinâmica usa o painel do aplicativo: abra o FeatherSheet (com o MCP ligado nas Configurações) e chame de novo. Sem o app, sheet_consulta agrupa e soma para outra aba.".into())
     }
+    /// Tabela (Ctrl+T; a regra mora no aplicativo): `acao` listar, criar, renomear, estilo, total,
+    /// redimensionar ou converter (em intervalo).
+    fn tabela(&mut self, _args: &Value) -> Result<String, String> {
+        Err("A tabela (Ctrl+T) usa as regras do aplicativo: abra o FeatherSheet (com o MCP ligado nas Configurações) e chame de novo.".into())
+    }
     /// O catálogo de macros mudou: o aplicativo recarrega o editor.
     fn macros_mudaram(&mut self) {}
     /// A pessoa liberou as macros deste arquivo? Ao vivo, com o arquivo ainda em

@@ -110,6 +110,11 @@ fn despachar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
         "sheet_grafico" => crate::grafico::grafico(h, args),
         "sheet_botao" => crate::botao::botao(h, args),
         "sheet_formulario" => crate::formulario::formulario(h, args),
+        "sheet_tabela" => {
+            let texto = h.tabela(args)?;
+            if !crate::permissoes::so_le("sheet_tabela", args) { h.marcar_alterado(); }
+            Ok(conteudo(texto))
+        }
         "sheet_dinamica" => {
             let texto = h.dinamica(args)?;
             if !crate::permissoes::so_le("sheet_dinamica", args) {

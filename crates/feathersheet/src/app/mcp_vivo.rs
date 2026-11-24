@@ -579,6 +579,12 @@ impl Hospede for HospedeApp<'_> {
         self.app.dinamica_pelo_mcp(args, origem)
     }
 
+    fn tabela(&mut self, args: &Json) -> Result<String, String> {
+        let aba = feathersheet_mcp::texto::aba_do_arg(self, args)?;
+        let area = args.get("intervalo").map(|_| feathersheet_mcp::texto::intervalo(self, args, "intervalo").map(|(_, r)| r)).transpose()?;
+        self.app.tabela_pelo_mcp(aba, args, area)
+    }
+
     fn macros_liberadas(&mut self) -> bool {
         self.app.macros_liberadas()
     }
@@ -793,6 +799,31 @@ mod testes {
         assert!(!erro && app.congelamento_atual() == (2, 1), "{t}");
         chamar(&mut app, "sheet_comando", json!({ "comando": "congelar", "args": { "linhas": 0, "colunas": 0 } }));
         assert_eq!(app.congelamento_atual(), (0, 0));
+    }
+
+    /// `sheet_tabela`: cria sobre dados, soma a coluna "Valor" na linha de totais (um Ctrl+Z), estilo, renomeia e
+    /// converte; erro claro para tabela e função que não existem.
+    #[test]
+    fn tabela_pelo_mcp() {
+        let mut app = App::default();
+        chamar(&mut app, "sheet_escrever", json!({ "celula": "A1", "valores": [["Item", "Valor"], ["a", 10.5], ["b", 20], ["c", 1.25]] }));
+        let (erro, t) = chamar(&mut app, "sheet_tabela", json!({ "acao": "criar", "intervalo": "A1:B4", "nome": "Vendas" }));
+        assert!(!erro, "{t}");
+        let (erro, t) = chamar(&mut app, "sheet_tabela", json!({ "acao": "total", "tabela": "vendas", "coluna": "Valor", "funcao": "soma" }));
+        assert!(!erro, "{t}");
+        let (_, lista) = chamar(&mut app, "sheet_tabela", json!({ "acao": "listar" }));
+        assert!(lista.contains("Vendas") && lista.contains("com totais"), "{lista}");
+        assert_eq!(app.workbook.valor(0, 4, 1), feathersheet_core::celulas::values::Value::Number(31.75), "soma na linha de totais");
+        assert!(chamar(&mut app, "sheet_tabela", json!({ "acao": "total", "tabela": "Vendas", "coluna": "B", "funcao": "mediana" })).0);
+        assert!(chamar(&mut app, "sheet_tabela", json!({ "acao": "estilo", "tabela": "Outra", "faixas": false })).0);
+        let (erro, t) = chamar(&mut app, "sheet_tabela", json!({ "acao": "estilo", "tabela": "Vendas", "faixas": false, "tema": "verde" }));
+        assert!(!erro, "{t}");
+        let (erro, t) = chamar(&mut app, "sheet_tabela", json!({ "acao": "renomear", "tabela": "Vendas", "novo_nome": "Vendas2026" }));
+        assert!(!erro, "{t}");
+        let (erro, t) = chamar(&mut app, "sheet_tabela", json!({ "acao": "converter", "tabela": "Vendas2026" }));
+        assert!(!erro, "{t}");
+        assert!(chamar(&mut app, "sheet_tabela", json!({ "acao": "listar" })).1.contains("Nenhuma"));
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(1, 0), "a", "os dados ficam");
     }
 
     #[test]

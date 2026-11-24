@@ -57,8 +57,9 @@ O que mais se pede depois de dados e fórmulas.
 
 ## Falta — objetos da planilha (prioridade média)
 
-- [ ] **Tabelas** (Ctrl+T): criar, renomear, estilo, faixas, linha de totais, redimensionar.
-      Conferir as ações de `app/tabelas.rs` e mover a regra para o motor onde ainda estiver na interface.
+- [x] **Tabelas** (24/11/2026, `sheet_tabela`, ao vivo): listar, criar, renomear, estilo (faixas, borda, tema,
+      totais), total por coluna, redimensionar, converter; as mesmas funções da faixa (`app/tabelas/mcp.rs`).
+      A regra continua no app (como filtro e dinâmica): sem o app, a ferramenta explica.
 - [x] **`sheet_dinamica`** (17/10, ao vivo): listar, criar (origem + linhas/colunas/valores pelo
       título ou letra, nova aba por padrão), editar, atualizar (uma ou todas) e excluir, pelo mesmo
       caminho do painel (`app/dinamica_ui/mcp.rs`). Sem o app explica e indica `sheet_consulta`.
