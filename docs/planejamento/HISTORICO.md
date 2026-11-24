@@ -4,6 +4,12 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Grupo de formas estica e gira inteiro (#79; 24/11/2026)**: esticar uma forma do grupo pelas alças escala as
+  outras na mesma proporção a partir da borda que ficou parada (`esticar_grupo`); girar pela alça ou por Girar 90°
+  roda cada forma em volta do centro do grupo e dá a elas o mesmo giro (`girar_grupo`). Sai o `shortcut:` antigo.
+  Teste `grupo_estica_e_gira_inteiro`. Ajuda F1 nas quatro línguas. Falta da #79: gravar o `grpSp` no `.xlsx`.
+  Novidade para o `VERSOES` da 0.4.0: "Esticar ou girar uma forma de um grupo leva o grupo inteiro".
+
 - **Linha do tempo da dinâmica (#145, parte; 24/11/2026)**, referência a Linha do Tempo do Excel: Inserir → Filtros →
   Linha do tempo (o botão era "em breve") e Ferramentas na aba Tabela Dinâmica. Escolhe um campo de data (formato
   data na 1ª linha de dados) e mostra um cartão com níveis Anos/Trimestres/Meses/Dias e a fileira de períodos

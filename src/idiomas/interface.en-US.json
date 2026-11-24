@@ -3797,6 +3797,7 @@
  "A origem desta dinâmica não tem campo de data (coluna com formato de data).": "This pivot table's source has no date field (a column formatted as date).",
  "O campo não tem nenhuma data.": "The field has no dates.",
  "Linha do tempo: escolha o campo de data": "Timeline: choose the date field",
+ "Grupo girado": "Group rotated",
  "a pasta {} não existe": "the folder {} does not exist",
  "aba de teste": "test sheet",
  "aba do cenário": "scenario sheet",

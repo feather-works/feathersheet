@@ -671,15 +671,19 @@ impl App {
                 } else {
                     "mover"
                 };
-                // Mover uma forma do grupo leva as outras junto; girar e redimensionar mexem só nela.
-                // shortcut: o grupo não gira nem estica como um todo (o Excel faz); fazer se pedirem.
-                if gesto == "mover" {
-                    if let Some(g) = grupo_de(o) {
-                        let (dx, dy) = (ret.x - antes.0.x, ret.y - antes.0.y);
-                        for outro in objetos.objetos.iter_mut().filter(|x| x.id != id && grupo_de(x) == Some(g)) {
-                            let r = outro.retangulo(&regua);
-                            outro.ancorar(Retangulo { x: r.x + dx, y: r.y + dy, ..r }, &regua);
+                // Forma de grupo: o gesto vale para o grupo inteiro, como no Excel (#79). Mover leva as outras,
+                // esticar escala o grupo a partir da borda que ficou parada, girar roda em volta do centro do grupo.
+                if let Some(g) = grupo_de(o) {
+                    match gesto {
+                        "mover" => {
+                            let (dx, dy) = (ret.x - antes.0.x, ret.y - antes.0.y);
+                            for outro in objetos.objetos.iter_mut().filter(|x| x.id != id && grupo_de(x) == Some(g)) {
+                                let r = outro.retangulo(&regua);
+                                outro.ancorar(Retangulo { x: r.x + dx, y: r.y + dy, ..r }, &regua);
+                            }
                         }
+                        "redimensionar" => esticar_grupo(&mut objetos, id, g, antes.0, ret, &regua),
+                        _ => girar_grupo(&mut objetos, id, g, antes.0, giro - antes.1, &regua),
                     }
                 }
                 let status = match gesto { "girar" => tr!("Forma girada"), "redimensionar" => tr!("Forma redimensionada"), _ => tr!("Forma movida") };
@@ -805,6 +809,20 @@ impl App {
             }
             Evento::Girar(g) => {
                 self.objetos.menu_faixa = None;
+                // Forma de grupo: o grupo inteiro gira 90° em volta do centro dele (#79).
+                let delta = match g { Giro::Direita90 => 90.0, Giro::Esquerda90 => -90.0, _ => 0.0 };
+                if let (Some((_, lidos)), Some((_, id)), Some(aba)) = (self.objetos_da_aba(), self.objetos.selecionado, self.workbook.aba(self.folha)) {
+                    if let Some(grupo) = lidos.objetos.iter().find(|o| o.id == id).and_then(grupo_de).filter(|_| delta != 0.0) {
+                        let regua = ReguaAba(&aba.sheet);
+                        let mut objetos = (*lidos).clone();
+                        let Some(o) = objetos.obter_mut(id) else { return Task::none() };
+                        let antes = o.retangulo(&regua);
+                        o.definir_giro(o.giro + delta);
+                        girar_grupo(&mut objetos, id, grupo, antes, delta, &regua);
+                        self.gravar_objetos(&objetos, trf!("{} (Ctrl+Z desfaz).", tr!("Grupo girado")));
+                        return Task::none();
+                    }
+                }
                 self.mudar_selecionado(tr!("Forma girada"), |o, _| match g {
                     Giro::Direita90 => o.definir_giro(o.giro + 90.0),
                     Giro::Esquerda90 => o.definir_giro(o.giro - 90.0),
@@ -1587,6 +1605,39 @@ impl App {
 
 #[cfg(test)]
 mod testes;
+
+/// A forma `id` do grupo `g` foi esticada de `antes` para `depois`: as outras do grupo escalam na mesma proporção a
+/// partir da borda que ficou parada (a alça puxada foi a do lado oposto), como esticar o grupo inteiro.
+fn esticar_grupo(objetos: &mut ObjetosAba, id: u64, g: u64, antes: Retangulo, depois: Retangulo, regua: &impl Regua) {
+    if antes.largura <= 0.0 || antes.altura <= 0.0 { return; }
+    let (sx, sy) = (depois.largura / antes.largura, depois.altura / antes.altura);
+    // A borda parada: a esquerda se o x não mudou, senão a direita (o mesmo em y).
+    let ax = if (depois.x - antes.x).abs() < 0.5 { antes.x } else { antes.x + antes.largura };
+    let ay = if (depois.y - antes.y).abs() < 0.5 { antes.y } else { antes.y + antes.altura };
+    for o in objetos.objetos.iter_mut().filter(|o| o.id != id && grupo_de(o) == Some(g)) {
+        let r = o.retangulo(regua);
+        o.ancorar(Retangulo { x: ax + (r.x - ax) * sx, y: ay + (r.y - ay) * sy, largura: r.largura * sx, altura: r.altura * sy }, regua);
+    }
+}
+
+/// A forma `id` do grupo `g` girou `delta` graus (estava em `antes`): o grupo inteiro gira em volta do centro dele;
+/// cada forma (a girada também) tem o centro levado pela rotação, e as outras ganham o mesmo giro.
+fn girar_grupo(objetos: &mut ObjetosAba, id: u64, g: u64, antes: Retangulo, delta: f32, regua: &impl Regua) {
+    if delta.abs() < 0.01 { return; }
+    let caixas: Vec<Retangulo> = objetos.objetos.iter().filter(|o| grupo_de(o) == Some(g))
+        .map(|o| if o.id == id { antes } else { o.retangulo(regua) }).collect();
+    let (x0, y0) = caixas.iter().fold((f32::MAX, f32::MAX), |(x, y), r| (x.min(r.x), y.min(r.y)));
+    let (x1, y1) = caixas.iter().fold((f32::MIN, f32::MIN), |(x, y), r| (x.max(r.x + r.largura), y.max(r.y + r.altura)));
+    let (px, py) = ((x0 + x1) / 2.0, (y0 + y1) / 2.0);
+    let (sen, cos) = delta.to_radians().sin_cos();
+    for o in objetos.objetos.iter_mut().filter(|o| grupo_de(o) == Some(g)) {
+        let r = if o.id == id { antes } else { o.retangulo(regua) };
+        let (cx, cy) = (r.x + r.largura / 2.0 - px, r.y + r.altura / 2.0 - py);
+        let (nx, ny) = (px + cx * cos - cy * sen, py + cx * sen + cy * cos);
+        o.ancorar(Retangulo { x: nx - r.largura / 2.0, y: ny - r.altura / 2.0, ..r }, regua);
+        if o.id != id { o.definir_giro(o.giro + delta); }
+    }
+}
 
 /// Grupo da forma (#79): guardado em `extras.grupo`, vai e volta no `.fshz` sem campo novo.
 pub(super) fn grupo_de(o: &ObjetoSolto) -> Option<u64> {

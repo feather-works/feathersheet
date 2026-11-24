@@ -533,6 +533,43 @@ fn agrupar_move_junto_e_desagrupar_solta() {
     assert!(super::grupo_de(lidos(&app).obter(a).unwrap()).is_some());
 }
 
+/// #79: esticar uma forma do grupo estica o grupo inteiro a partir da borda parada; girar uma forma (pela alça ou
+/// por Girar 90°) roda o grupo em volta do centro dele, e cada forma ganha o mesmo giro.
+#[test]
+fn grupo_estica_e_gira_inteiro() {
+    let mut app = app();
+    let a = criar(&mut app, "retangulo", Retangulo::novo(40.0, 40.0, 100.0, 60.0));
+    let b = criar(&mut app, "elipse", Retangulo::novo(200.0, 40.0, 100.0, 60.0));
+    let _ = app.update(Msg::Objetos(Evento::Selecionar(a)));
+    let _ = app.update(Msg::Objetos(Evento::SelecionarMais(b)));
+    let _ = app.update(Msg::Objetos(Evento::Agrupar));
+    let ret = |app: &App, id| lidos(app).obter(id).unwrap().retangulo(&ReguaAba(&app.workbook.aba(0).unwrap().sheet));
+    let perto = |r: Retangulo, x: f32, y: f32, l: f32, h: f32| (r.x - x).abs() < 1.0 && (r.y - y).abs() < 1.0
+        && (r.largura - l).abs() < 1.0 && (r.altura - h).abs() < 1.0;
+    // a dobra de largura puxando a borda direita (x parado em 40): b, a 160 px da borda, vai para 320 e dobra.
+    let _ = app.update(Msg::Objetos(Evento::Transformar { id: a, ret: Retangulo::novo(40.0, 40.0, 200.0, 60.0), giro: 0.0, medida: Medida::default() }));
+    let rb = ret(&app, b);
+    assert!(perto(rb, 360.0, 40.0, 200.0, 60.0), "{rb:?}");
+    // Girar a 180° pela alça: o grupo (x de 40 a 560, centro 300) troca de lado; b ganha o giro.
+    let _ = app.update(Msg::Objetos(Evento::Transformar { id: a, ret: ret(&app, a), giro: 180.0, medida: Medida::default() }));
+    let (ra, rb) = (ret(&app, a), ret(&app, b));
+    assert!(perto(ra, 360.0, 40.0, 200.0, 60.0) && perto(rb, 40.0, 40.0, 200.0, 60.0), "{ra:?} {rb:?}");
+    assert!((lidos(&app).obter(b).unwrap().giro - 180.0).abs() < 0.01);
+    // Girar 90° pelo menu, com a selecionada no grupo: as duas giram e trocam de lugar em volta do centro.
+    let _ = app.update(Msg::Objetos(Evento::Selecionar(a)));
+    let _ = app.update(Msg::Objetos(Evento::Girar(Giro::Direita90)));
+    let (oa, ob) = (lidos(&app).obter(a).unwrap().clone(), lidos(&app).obter(b).unwrap().clone());
+    assert!((oa.giro - 270.0).abs() < 0.01 && (ob.giro - 270.0).abs() < 0.01, "{} {}", oa.giro, ob.giro);
+    let (ra, rb) = (ret(&app, a), ret(&app, b));
+    assert!((ra.x - rb.x).abs() < 1.0 && (ra.y - rb.y).abs() > 100.0, "lado a lado vira um sobre o outro: {ra:?} {rb:?}");
+    // Forma solta continua girando sozinha.
+    let c = criar(&mut app, "retangulo", Retangulo::novo(600.0, 300.0, 50.0, 50.0));
+    let _ = app.update(Msg::Objetos(Evento::Selecionar(c)));
+    let _ = app.update(Msg::Objetos(Evento::Girar(Giro::Direita90)));
+    assert!((lidos(&app).obter(c).unwrap().giro - 90.0).abs() < 0.01);
+    assert!((lidos(&app).obter(b).unwrap().giro - 270.0).abs() < 0.01, "o grupo não mexe");
+}
+
 /// Texto alternativo: só imagem abre o diálogo; OK grava (aparado), em branco tira, Ctrl+Z volta.
 #[test]
 fn texto_alternativo_da_imagem() {

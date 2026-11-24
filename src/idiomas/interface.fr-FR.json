@@ -3797,6 +3797,7 @@
  "A origem desta dinâmica não tem campo de data (coluna com formato de data).": "La source de ce tableau croisé n'a pas de champ date (colonne au format date).",
  "O campo não tem nenhuma data.": "Le champ ne contient aucune date.",
  "Linha do tempo: escolha o campo de data": "Chronologie : choisissez le champ date",
+ "Grupo girado": "Groupe pivoté",
  "a pasta {} não existe": "le dossier {} n'existe pas",
  "aba de teste": "feuille de test",
  "aba do cenário": "feuille du scénario",
