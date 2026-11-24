@@ -216,7 +216,7 @@ impl App {
                         Auxiliar::OpenQuery => None,
                         Auxiliar::Inspecao => None,
                         Auxiliar::PrimeirosPassos | Auxiliar::Novidades => None,
-                        Auxiliar::Condicional | Auxiliar::Formulario => None,
+                        Auxiliar::Condicional | Auxiliar::Formulario | Auxiliar::NovaJanela => None,
                         // Outros painéis não respondem a F1/F12, somente a Esc.
                         Auxiliar::Macros => None,
                     };

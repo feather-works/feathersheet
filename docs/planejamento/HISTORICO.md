@@ -4,6 +4,17 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Nova janela, Organizar tudo, Alternar janelas (#83; 24/11/2026)**, decidido sem o usuário: Exibir ▸ Janela.
+  A Nova janela (`Auxiliar::NovaJanela`, `app/nova_janela.rs`) é uma vista da pasta noutra janela do sistema: abas
+  no alto, a grade da aba escolhida com rolagem própria, imagens/formas/gráficos/tinta, ao vivo; reaproveita o
+  `Painel` e o `desenhar_outro_painel` da janela dividida. Roda rola a vista; clique leva a principal à aba e
+  célula e a traz para a frente (`Msg::NaNovaJanela`). Organizar tudo: as duas lado a lado com metade da largura
+  da principal (Wayland não deixa mover). Alternar janelas: foco numa e noutra. `shortcut:` a nova janela não
+  edita no lugar. Teste `nova_janela_mostra_outra_aba_e_clique_leva_a_principal`. Ajuda F1 nas quatro línguas.
+  Com a divisão em quatro, a #83 está completa.
+  Novidade para o `VERSOES` da 0.4.0: "Nova janela da mesma pasta (para outro monitor), Organizar tudo e Alternar
+  janelas".
+
 - **Dividir em quatro (#83, parte; 24/11/2026)**: Exibir ▸ Janela ▸ Em quatro, grade 2×2. `painel_dividido.rs` passou
   de um painel extra para `outros: Vec<Painel>`, cada um com o seu `lugar` (0..3), e o ativo com `lugar_ativo`;
   clicar num outro troca os dois de papel e de lugar (`Msg::NoOutroPainel(i, …)`, `Msg::Dividir(Divisao)`). Mudar

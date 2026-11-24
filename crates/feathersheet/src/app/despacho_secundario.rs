@@ -1412,6 +1412,16 @@ impl App {
                         if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("busca_macros") {
                             return self.preparar_captura_busca_macros();
                         }
+                        // FEATHERSHEET_CAPTURAR_JANELA=nova_janela: duas abas com dados e a Nova janela na segunda (#83).
+                        if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("nova_janela") {
+                            for (r, t) in [(0, "Vendas"), (1, "120"), (2, "150")] { self.workbook.escrever_celula(self.folha, r, 0, t.into()); }
+                            let _ = self.update(Msg::AdicionarAba);
+                            for (r, t) in [(0, "Metas"), (1, "200"), (2, "260")] { self.workbook.escrever_celula(self.folha, r, 0, t.into()); }
+                            let _ = self.update(Msg::Aba(0));
+                            let tarefa = self.evento_nova_janela(nova_janela::Evento::Abrir);
+                            let _ = self.evento_nova_janela(nova_janela::Evento::Aba(1));
+                            return tarefa;
+                        }
                         // FEATHERSHEET_CAPTURAR_JANELA=relatorio_vba: VBA de exemplo convertido e o relatório aberto.
                         if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("relatorio_vba") {
                             return self.preparar_captura_relatorio_vba();
@@ -1584,6 +1594,7 @@ impl App {
                                 Ok("condicional") => self.janelas.id(Auxiliar::Condicional),
                                 Ok("dividir") => self.janelas.id(Auxiliar::DividirTexto),
                                 Ok("historico_macros" | "busca_macros" | "relatorio_vba") => self.janelas.id(Auxiliar::Macros),
+                                Ok("nova_janela") => self.janelas.id(Auxiliar::NovaJanela),
                                 Ok(j) if j.starts_with("primeiros") => self.janelas.id(Auxiliar::PrimeirosPassos),
                                 Ok(j) if j.starts_with("novidades") => self.janelas.id(Auxiliar::Novidades),
                                 Ok("monitor") => self.janelas.id(Auxiliar::Monitor),
@@ -1742,6 +1753,7 @@ impl App {
                     if self.janelas.tipo(id) == Some(Auxiliar::OpenQuery) { self.openquery = None; }
                     if self.janelas.tipo(id) == Some(Auxiliar::Condicional) { self.condicional_aberto = false; self.condicional_pegando = false; }
                     if self.janelas.tipo(id) == Some(Auxiliar::Formulario) { self.formulario_macro = None; }
+                    if self.janelas.tipo(id) == Some(Auxiliar::NovaJanela) { self.janela_extra = None; self.foco_na_nova = false; }
                     self.janelas.retirar(id); Task::none()
                 }
             }
@@ -1757,6 +1769,7 @@ impl App {
                     if self.janelas.tipo(id) == Some(Auxiliar::OpenQuery) { self.openquery = None; }
                     if self.janelas.tipo(id) == Some(Auxiliar::Condicional) { self.condicional_aberto = false; self.condicional_pegando = false; }
                     if self.janelas.tipo(id) == Some(Auxiliar::Formulario) { self.formulario_macro = None; }
+                    if self.janelas.tipo(id) == Some(Auxiliar::NovaJanela) { self.janela_extra = None; self.foco_na_nova = false; }
                     self.janelas.retirar(id); Task::window_of(id, pelicano::WindowCmd::Close)
                 }
             }

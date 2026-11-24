@@ -90,7 +90,7 @@
      "• Formato condicional (Inicio → Condicional): colorea celdas según una regla — mayor que, contiene texto, duplicados, fórmula personalizada, escala de color y barra de datos.",
      "• Colores alternados (Inicio → Estilos) rayan las filas; Estilos de celda aplica un estilo listo.",
      "• Inmovilizar (Mostrar → Inmovilizar) mantiene las primeras filas o columnas fijas mientras se desplaza.",
-     "• Dividir ventana (Mostrar → Ventana) muestra dos paneles, uno encima del otro (En paralelo: uno al lado del otro), cada uno con su hoja y su desplazamiento, con las imágenes, formas, gráficos y botones de esa hoja. Haga clic en un panel para usarlo y elija su hoja abajo; vuelva a pulsar el mismo botón para quedarse con un solo panel. En cuatro divide en cuatro paneles (dos arriba, dos abajo), cada uno con su hoja."
+     "• Dividir ventana (Mostrar → Ventana) muestra dos paneles, uno encima del otro (En paralelo: uno al lado del otro), cada uno con su hoja y su desplazamiento, con las imágenes, formas, gráficos y botones de esa hoja. Haga clic en un panel para usarlo y elija su hoja abajo; vuelva a pulsar el mismo botón para quedarse con un solo panel. En cuatro divide en cuatro paneles (dos arriba, dos abajo), cada uno con su hoja. Nueva ventana abre el mismo libro en una segunda ventana (para otro monitor): hojas arriba, desplazamiento propio, siempre en vivo; hacer clic en una celda lleva la ventana principal hasta ella, y la edición se hace en la principal. Organizar todo pone las dos lado a lado y Cambiar ventanas trae la otra al frente."
     ]
    },
    "tabelas": {

@@ -932,6 +932,8 @@ impl App {
             Msg::DestinoSalvar(None) => { self.pendente = None; Task::none() },
             Msg::Dividir(modo) => { self.alternar_divisao(modo); Task::none() }
             Msg::NoOutroPainel(i, m) => self.no_outro_painel(i, *m),
+            Msg::NovaJanela(e) => self.evento_nova_janela(e),
+            Msg::NaNovaJanela(m) => self.na_nova_janela(*m),
             Msg::TelaInteira => {
                 self.tela_inteira = !self.tela_inteira;
                 match self.janelas.principal {

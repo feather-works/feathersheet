@@ -32,7 +32,8 @@ milhar, datas, nomes de função) nas quatro línguas.
 
 ## Falta — interface (telas novas: confirmar antes)
 
-- [ ] #83: divisão em quatro feita (24/11); faltam Nova janela, Organizar tudo, Alternar janelas.
+- [x] #83: divisão em quatro, Nova janela, Organizar tudo e Alternar janelas (24/11). Limite: a nova janela é
+      vista (clique leva a principal à célula); editar nela fica para depois.
 - [x] #79: girar e esticar o grupo inteiro no app (24/11); o `grpSp` já ia e voltava no `.xlsx`. Issue completa.
 - [x] #80: Temas da página (24/11): Temas, Cores e Fontes, troca recolorindo células e formas, `.xlsx` ida e
       volta. Efeitos fica de fora (nada no app desenha efeitos de tema).

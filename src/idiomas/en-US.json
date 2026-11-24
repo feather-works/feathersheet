@@ -90,7 +90,7 @@
           "• Conditional formatting (Home → Conditional): colors cells by rule — greater than, contains text, duplicates, custom formula, color scale and data bar.",
           "• Banded colors (Home → Styles) stripes the rows; Cell styles applies a ready-made style.",
           "• Freeze (View → Freeze) keeps the first rows or columns in place while you scroll.",
-          "• Split (View → Window) shows two panes, one above the other (Side by side: next to each other), each with its own sheet and scrolling, including that sheet's pictures, shapes, charts and buttons. Click a pane to use it and pick its sheet at the bottom; click the same button again to go back to one pane. Four panes splits into four panes (two on top, two below), each with its own sheet."
+          "• Split (View → Window) shows two panes, one above the other (Side by side: next to each other), each with its own sheet and scrolling, including that sheet's pictures, shapes, charts and buttons. Click a pane to use it and pick its sheet at the bottom; click the same button again to go back to one pane. Four panes splits into four panes (two on top, two below), each with its own sheet. New window opens the same workbook in a second window (for another monitor): sheets at the top, its own scrolling, always live; clicking a cell in it takes the main window to that cell, and editing happens in the main window. Arrange all puts both side by side and Switch windows brings the other one to the front."
         ]
       },
       "tabelas": {

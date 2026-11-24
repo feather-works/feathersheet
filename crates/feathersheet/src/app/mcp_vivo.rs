@@ -223,17 +223,18 @@ fn auxiliar_por_nome(nome: &str) -> Option<Auxiliar> {
         "monitor" => Auxiliar::Monitor, "macros" => Auxiliar::Macros, "formatar" => Auxiliar::FormatarCelulas,
         "imprimir" => Auxiliar::Imprimir, "openquery" => Auxiliar::OpenQuery,
         "dividir" => Auxiliar::DividirTexto, "duplicados" => Auxiliar::RemoverDuplicados,
-        "condicional" => Auxiliar::Condicional, "formulario" => Auxiliar::Formulario,
+        "condicional" => Auxiliar::Condicional, "formulario" => Auxiliar::Formulario, "nova_janela" => Auxiliar::NovaJanela,
         _ => return None,
     })
 }
 
-const AUXILIARES: [(Auxiliar, &str); 12] = [
+const AUXILIARES: [(Auxiliar, &str); 13] = [
     (Auxiliar::Configuracoes, "Configurações"), (Auxiliar::Ajuda, "Ajuda"), (Auxiliar::Monitor, "Monitor"),
     (Auxiliar::Macros, "Editor de macros"), (Auxiliar::FormatarCelulas, "Formatar células"),
     (Auxiliar::DividirTexto, "Dividir texto"), (Auxiliar::RemoverDuplicados, "Remover duplicados"),
     (Auxiliar::Imprimir, "Imprimir"), (Auxiliar::OpenQuery, "FeatherQuery"), (Auxiliar::Inspecao, "Janela de inspeção"),
     (Auxiliar::Condicional, "Formatação condicional"), (Auxiliar::Formulario, "Formulário da macro"),
+    (Auxiliar::NovaJanela, "Nova janela"),
 ];
 
 /// O `App` visto pelas ferramentas. As tarefas que um comando gera (abrir

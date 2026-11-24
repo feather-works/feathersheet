@@ -107,6 +107,7 @@ mod novidades;
 mod aviso_xlsx;
 mod relatorio_vba;
 mod tema_pasta;
+mod nova_janela;
 mod excluir_aba;
 mod efeitos_imagem;
 mod imagens_importadas;
@@ -157,11 +158,11 @@ pub(crate) mod vinculos;
 use crate::condicional;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Auxiliar { Configuracoes, Ajuda, Monitor, Macros, FormatarCelulas, DividirTexto, RemoverDuplicados, Imprimir, OpenQuery, Inspecao, PrimeirosPassos, Novidades, Condicional, Formulario }
+pub enum Auxiliar { Configuracoes, Ajuda, Monitor, Macros, FormatarCelulas, DividirTexto, RemoverDuplicados, Imprimir, OpenQuery, Inspecao, PrimeirosPassos, Novidades, Condicional, Formulario, NovaJanela }
 impl Auxiliar {
-    const TODAS: [Auxiliar; 14] = [Self::Configuracoes, Self::Ajuda, Self::Monitor, Self::Macros, Self::FormatarCelulas,
+    const TODAS: [Auxiliar; 15] = [Self::Configuracoes, Self::Ajuda, Self::Monitor, Self::Macros, Self::FormatarCelulas,
         Self::DividirTexto, Self::RemoverDuplicados, Self::Imprimir, Self::OpenQuery, Self::Inspecao,
-        Self::PrimeirosPassos, Self::Novidades, Self::Condicional, Self::Formulario];
+        Self::PrimeirosPassos, Self::Novidades, Self::Condicional, Self::Formulario, Self::NovaJanela];
 }
 
 /// Opções da faixa Preencher, migradas dos gestos de preenchimento do TypeScript.
@@ -393,6 +394,10 @@ pub enum Msg {
     Dividir(painel_dividido::Divisao),
     /// Mensagem da grade do painel inativo: ele vira o ativo antes de tratá-la.
     NoOutroPainel(usize, Box<Msg>),
+    /// Exibir ▸ Janela ▸ Nova janela / Organizar tudo / Alternar janelas (#83).
+    NovaJanela(nova_janela::Evento),
+    /// Mensagem da grade da Nova janela.
+    NaNovaJanela(Box<Msg>),
     /// Arquivo > Renomear…: escolhe o novo nome e renomeia o arquivo no disco.
     RenomearArquivo, DestinoRenomear(Option<PathBuf>),
     MenuSalvarCopia, DestinoCopia(Option<PathBuf>),
@@ -869,6 +874,10 @@ pub struct App {
     zeros_ocultos: std::collections::HashSet<u32>,
     /// Exibir ▸ Janela ▸ Dividir (#83): o outro painel, com a aba e a rolagem dele.
     painel_dividido: Option<painel_dividido::PainelDividido>,
+    /// A vista da Nova janela (#83): aba, rolagem e célula dela.
+    janela_extra: Option<painel_dividido::Painel>,
+    /// Alternar janelas: a nova é a da frente.
+    foco_na_nova: bool,
     congelar_menu_aberto: bool,
     /// Aba Desenhar: ferramenta, canetas, seleção do laço e apagar em andamento.
     tinta: desenhar::EstadoTinta,
@@ -1215,6 +1224,8 @@ impl Default for App {
             congelados: std::collections::HashMap::new(),
             grade_oculta: std::collections::HashSet::new(), grade_extra: std::collections::HashMap::new(), zeros_ocultos: std::collections::HashSet::new(),
             painel_dividido: None,
+            janela_extra: None,
+            foco_na_nova: false,
             congelar_menu_aberto: false,
             tinta: Default::default(),
             objetos: Default::default(),
@@ -1463,6 +1474,7 @@ impl App {
             Some(Auxiliar::Condicional) => tr!("Formatação condicional — FeatherSheet").into(),
             Some(Auxiliar::Formulario) => self.formulario_macro.as_ref()
                 .map_or_else(|| tr!("Formulário").to_string(), |f| if f.form.titulo.trim().is_empty() { f.form.nome.clone() } else { f.form.titulo.clone() }),
+            Some(Auxiliar::NovaJanela) => format!("{}:2 — FeatherSheet", self.nome_documento()),
             None => format!("{}{} — FeatherSheet",
                 if self.alterado { "* " } else { "" }, self.nome_documento()),
         }
@@ -1521,6 +1533,7 @@ impl App {
             Auxiliar::PrimeirosPassos | Auxiliar::Novidades => Size::new(1100., 720.),
             Auxiliar::Condicional => Size::new(900., 620.),
             Auxiliar::Formulario => Size::new(392., 292.),
+            Auxiliar::NovaJanela => Size::new(1000., 700.),
         }
     }
     /// O objeto selecionado sobre a grade (forma ou ícone, gráfico, imagem
@@ -1883,6 +1896,7 @@ impl App {
                 Auxiliar::Novidades => self.view_novidades(),
                 Auxiliar::Condicional => self.view_condicional(),
                 Auxiliar::Formulario => self.view_formulario_macro(),
+                Auxiliar::NovaJanela => self.view_nova_janela(),
             };
             return if self.config.barra_propria {
                 cromo::janela_com_barra(&self.titulo(id), body, Self::acoes(id))

@@ -22,14 +22,14 @@ impl Divisao {
     }
 }
 
-/// Um painel que não é o ativo.
+/// Um painel que não é o ativo (também a vista da Nova janela).
 #[derive(Default)]
-struct Painel {
-    aba_id: u32,
-    linha_inicio: u32,
-    coluna_inicio: u32,
-    linha: u32,
-    coluna: u32,
+pub(super) struct Painel {
+    pub(super) aba_id: u32,
+    pub(super) linha_inicio: u32,
+    pub(super) coluna_inicio: u32,
+    pub(super) linha: u32,
+    pub(super) coluna: u32,
     /// Posição na janela: 0 e 1 (cima/baixo ou esquerda/direita); com quatro, 0 1 em cima e 2 3 embaixo.
     lugar: usize,
     /// Régua própria do painel: com abas diferentes, uma régua só seria refeita a cada quadro.
@@ -67,6 +67,10 @@ impl PainelDividido {
 }
 
 impl Painel {
+    pub(super) fn de(aba_id: u32, linha_inicio: u32, coluna_inicio: u32, linha: u32, coluna: u32) -> Painel {
+        Painel { aba_id, linha_inicio, coluna_inicio, linha, coluna, ..Default::default() }
+    }
+
     fn copia(&self) -> Painel {
         Painel { aba_id: self.aba_id, linha_inicio: self.linha_inicio, coluna_inicio: self.coluna_inicio,
             linha: self.linha, coluna: self.coluna, lugar: self.lugar, eixos: Default::default() }
@@ -163,7 +167,7 @@ impl App {
     }
 
     /// Um painel que não é o ativo: as células e as mesmas camadas da grade ativa, na ordem dela (a tinta por cima).
-    fn desenhar_outro_painel<'a>(&'a self, p: &'a Painel, indice: usize) -> Element<'a, Msg> {
+    pub(super) fn desenhar_outro_painel<'a>(&'a self, p: &'a Painel, indice: usize) -> Element<'a, Msg> {
         let (congelar_linhas, congelar_colunas) = self.congelados.get(&p.aba_id).copied().unwrap_or((0, 0));
         let base = self.grade();
         let outro = Grade {

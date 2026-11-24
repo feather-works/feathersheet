@@ -448,6 +448,11 @@ impl App {
                     self.faixa_grande(tr!("Dividir janela"), "layout-align-middle", Some(Msg::Dividir(Divisao::Horizontal)), self.janela_dividida(Divisao::Horizontal)),
                     self.faixa_grande(tr!("Lado a lado"), "layout-columns", Some(Msg::Dividir(Divisao::LadoALado)), self.janela_dividida(Divisao::LadoALado)),
                     self.faixa_grande(tr!("Em quatro"), "layout-grid", Some(Msg::Dividir(Divisao::Quatro)), self.janela_dividida(Divisao::Quatro)),
+                    self.faixa_pilha(vec![
+                        self.faixa_pequeno(tr!("Nova janela"), "window", Some(Msg::NovaJanela(nova_janela::Evento::Abrir)), self.janela_extra.is_some()),
+                        self.faixa_pequeno(tr!("Organizar tudo"), "layout-columns", Some(Msg::NovaJanela(nova_janela::Evento::Organizar)), false),
+                        self.faixa_pequeno(tr!("Alternar janelas"), "copy", Some(Msg::NovaJanela(nova_janela::Evento::Alternar)), false),
+                    ]),
                     self.faixa_grande(tr!("Modo micro"), "layout-rows", Some(Msg::FaixaMicro), self.config.faixa_micro),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Zoom"), self.faixa_linha(vec![

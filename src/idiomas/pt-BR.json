@@ -90,7 +90,7 @@
           "• Formatação condicional (Página Inicial → Condicional): pinta células por regra — maior que, contém texto, duplicados, fórmula própria, escala de cor e barra de dados.",
           "• Cores alternadas (Página Inicial → Estilos) listra as linhas; Estilos de célula aplica um estilo pronto.",
           "• Congelar (Exibir → Congelar) fixa as primeiras linhas ou colunas enquanto você rola.",
-          "• Dividir janela (Exibir → Janela) mostra dois painéis, um em cima do outro (Lado a lado: um ao lado do outro), cada um com a sua aba e a sua rolagem, com as imagens, formas, gráficos e botões de cada aba. Clique num painel para usá-lo e escolha a aba dele no rodapé; clique de novo no mesmo botão para voltar a um painel só. Em quatro divide em quatro painéis (dois em cima, dois embaixo), cada um com a sua aba."
+          "• Dividir janela (Exibir → Janela) mostra dois painéis, um em cima do outro (Lado a lado: um ao lado do outro), cada um com a sua aba e a sua rolagem, com as imagens, formas, gráficos e botões de cada aba. Clique num painel para usá-lo e escolha a aba dele no rodapé; clique de novo no mesmo botão para voltar a um painel só. Em quatro divide em quatro painéis (dois em cima, dois embaixo), cada um com a sua aba. Nova janela abre a mesma pasta numa segunda janela (para outro monitor): abas no alto, rolagem própria, tudo ao vivo; clicar numa célula dela leva a janela principal até a célula, e a edição é na principal. Organizar tudo põe as duas lado a lado e Alternar janelas traz a outra para a frente."
         ]
       },
       "tabelas": {
