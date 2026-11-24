@@ -102,7 +102,7 @@ O que mais se pede depois de dados e fórmulas.
 
 - [x] **Congelar painéis**, zoom e linhas de grade (24/11/2026): ao vivo, `sheet_comando` `congelar`, `zoom` {percentual} e `grade` {mostrar}; são estado da janela, então o modo avulso não tem. Falta o tema.
       (são estado da janela, não do arquivo).
-- [ ] **Impressão**: área de impressão, quebras, exportar PDF pelo produtor comum da suíte.
+- [x] **Configurar página** (24/11/2026, `sheet_impressao`): área de impressão, títulos que repetem, orientação, papel, ajustar. Falta: quebras de página e exportar PDF pelo MCP.
 - [x] **Proteção** (24/11/2026, `sheet_proteger`): listar, proteger aba com senha (formato do Excel) e permissões, desproteger conferindo a senha. Falta: proteger a pasta e bloquear/desbloquear células.
 - [ ] **Recentes e modelos**: abrir um recente, criar a partir de um modelo da tela inicial.
 

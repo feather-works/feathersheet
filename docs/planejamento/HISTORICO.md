@@ -4,6 +4,10 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **MCP `sheet_impressao`** (24/11/2026): listar/definir área de impressão (`""` limpa; coluna além da XFD é
+  recusada), títulos que repetem, orientação, papel (A4, Carta, Ofício…) e ajustar a N páginas, no `pg` da aba (o
+  mesmo que o `.xlsx` grava). Teste `configurar_pagina_pelo_mcp`.
+
 - **MCP ao vivo: `zoom` e `grade`** (24/11/2026) no `sheet_comando` (o `congelar` já existia; o `MCP-PENDENTE`
   estava desatualizado). Zoom respeita os limites das Configurações. Teste `zoom_e_grade_pelo_mcp`.
 

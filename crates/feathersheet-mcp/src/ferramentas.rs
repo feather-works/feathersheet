@@ -30,6 +30,7 @@ pub fn chamar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
         "sheet_nomes" => nomes(h, args),
         "sheet_proteger" => proteger(h, args),
         "sheet_link" => link(h, args),
+        "sheet_impressao" => impressao(h, args),
         "sheet_desfazer" => desfazer(h, args),
         "sheet_formula" => formula(h, args),
         "sheet_abrir" => {
@@ -446,6 +447,61 @@ fn link(h: &mut dyn Hospede, args: &Json) -> Saida {
     Ok(conteudo(texto))
 }
 
+/// Configurar página da aba (o `pg`, como Layout da Página): área de impressão, títulos que repetem, orientação,
+/// papel e ajustar a N páginas. Sem desfazer, como no Excel.
+fn impressao(h: &mut dyn Hospede, args: &Json) -> Saida {
+    use feathersheet_io::pagina_aba;
+    const PAPEIS: [(&str, u16); 6] = [("A4", 9), ("Carta", 1), ("Oficio", 5), ("A3", 8), ("A5", 11), ("Tabloide", 3)];
+    let aba = aba_do_arg(h, args)?;
+    let nome = h.pasta().nomes()[aba].clone();
+    let mut p = pagina_aba::ler(h.pasta().aba(aba).and_then(|a| a.sheet.pg.as_deref()));
+    let acao = arg_texto(args, "acao").unwrap_or("listar");
+    if acao == "definir" {
+        if let Some(t) = args.get("area").and_then(Json::as_str) {
+            pagina_aba::ler_area(&mut p, t);
+            // Coluna além da XFD (16384) ou linha além da 1.048.576 não existe no Excel.
+            let fora = p.areas.iter().any(|a| a[3] > 16_383 || a[2] > 1_048_575);
+            if !t.trim().is_empty() && (fora || p.areas.len() != t.split(',').count()) {
+                return Err(format!("Área de impressão inválida: {t} (ex.: A1:F40 ou A1:B9,D1:E9)."));
+            }
+        }
+        if let Some(t) = args.get("titulos").and_then(Json::as_str) {
+            p.titulos_linhas = None;
+            p.titulos_colunas = None;
+            pagina_aba::ler_titulos(&mut p, t);
+            if !t.trim().is_empty() && p.titulos_linhas.is_none() && p.titulos_colunas.is_none() {
+                return Err(format!("Títulos inválidos: {t} (linhas 1:2, colunas A:B ou os dois: 1:2,A:A)."));
+            }
+        }
+        if let Some(o) = arg_texto(args, "orientacao") {
+            p.paisagem = match o { "paisagem" => true, "retrato" => false, _ => return Err("orientacao: retrato ou paisagem.".into()) };
+        }
+        if let Some(t) = arg_texto(args, "papel") {
+            let sem_acento = t.replace(['í', 'Í'], "i");
+            p.papel = PAPEIS.iter().find(|(n, _)| n.eq_ignore_ascii_case(&sem_acento)).map(|(_, c)| *c)
+                .ok_or_else(|| format!("Papel desconhecido: {t}. Use {}.", PAPEIS.map(|(n, _)| n).join(", ")))?;
+        }
+        if let Some(v) = args.get("ajustar") {
+            p.ajustar = match v.as_array().map(|a| a.iter().map(|x| x.as_u64().and_then(|n| u16::try_from(n).ok())).collect::<Option<Vec<_>>>()) {
+                Some(Some(l)) if l.len() == 2 => Some([l[0], l[1]]),
+                _ if v.is_null() => None,
+                _ => return Err("ajustar: [largura, altura] em páginas (0 = automático), ou null.".into()),
+            };
+        }
+        let novo = pagina_aba::gravar(&p);
+        h.pasta_mut().editar(aba, |s| s.pg = novo);
+        h.marcar_alterado();
+    } else if acao != "listar" {
+        return Err(format!("Ação desconhecida: {acao}. Use listar ou definir."));
+    }
+    let papel = PAPEIS.iter().find(|(_, c)| *c == p.papel).map_or_else(|| format!("código {}", p.papel), |(n, _)| (*n).to_string());
+    Ok(conteudo(format!("{nome}: área {}; títulos {}; {}; papel {papel}; {}",
+        pagina_aba::texto_area(&p, &nome).unwrap_or_else(|| "a parte usada".into()),
+        pagina_aba::texto_titulos(&p, &nome).unwrap_or_else(|| "nenhum".into()),
+        if p.paisagem { "paisagem" } else { "retrato" },
+        match p.ajustar { Some([l, a]) => format!("ajustar a {l} × {a} páginas (0 = auto)"), None => format!("escala {}%", p.escala) })))
+}
+
 fn desfazer(h: &mut dyn Hospede, args: &Json) -> Saida {
     let refazer = arg_bool(args, "refazer", false);
     let aba = aba_do_arg(h, args)?;
@@ -579,6 +635,23 @@ mod testes {
         assert_eq!(h.pasta.aba(0).unwrap().sheet.get_raw(0, 0), "Site", "o texto fica");
         texto(chamar(&mut h, "sheet_desfazer", &json!({})));
         assert!(h.pasta.aba(0).unwrap().sheet.estilo_resolvido(0, 0).and_then(|e| e.link).is_some(), "Ctrl+Z volta o link");
+    }
+
+    /// `sheet_impressao`: área, títulos, paisagem, papel e ajustar vão para o `pg` (que o `.xlsx` grava); entrada ruim é recusada.
+    #[test]
+    fn configurar_pagina_pelo_mcp() {
+        let mut h = Avulso::default();
+        let t = texto(chamar(&mut h, "sheet_impressao", &json!({ "acao": "definir", "area": "A1:F40", "titulos": "1:1",
+            "orientacao": "paisagem", "papel": "Ofício", "ajustar": [1, 0] })));
+        assert!(t.contains("$A$1:$F$40") && t.contains("$1:$1") && t.contains("paisagem") && t.contains("Oficio") && t.contains("1 × 0"), "{t}");
+        let p = feathersheet_io::pagina_aba::ler(h.pasta.aba(0).unwrap().sheet.pg.as_deref());
+        assert_eq!((p.areas.clone(), p.titulos_linhas, p.paisagem, p.papel, p.ajustar), (vec![[0, 0, 39, 5]], Some([0, 0]), true, 5, Some([1, 0])));
+        for ruim in [json!({ "acao": "definir", "area": "zzz" }), json!({ "acao": "definir", "papel": "A9" }),
+                     json!({ "acao": "definir", "ajustar": [1] }), json!({ "acao": "definir", "orientacao": "torto" })] {
+            assert!(chamar(&mut h, "sheet_impressao", &ruim).is_err(), "{ruim}");
+        }
+        texto(chamar(&mut h, "sheet_impressao", &json!({ "acao": "definir", "area": "", "titulos": "" })));
+        assert!(feathersheet_io::pagina_aba::ler(h.pasta.aba(0).unwrap().sheet.pg.as_deref()).areas.is_empty());
     }
 
     #[test]
