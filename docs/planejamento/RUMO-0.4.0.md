@@ -34,7 +34,7 @@ milhar, datas, nomes de função) nas quatro línguas.
 - [ ] #83: divisão em quatro, Nova janela, Organizar tudo, Alternar janelas.
 - [ ] #79: girar e esticar o grupo inteiro no app.
 - [ ] #80: Temas da página (cores, fontes, efeitos).
-- [ ] Gerenciador de nomes: escolher a aba (Escopo) ao criar um nome.
+- [x] Gerenciador de nomes: escolher a aba (Escopo) ao criar um nome (24/11).
 - [ ] INT-11: ícone da seta no menu Orientação — depende de publicar a feather-ui nova (**pede ordem**).
 
 ## Falta — dinâmica e gráficos

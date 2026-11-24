@@ -4,6 +4,13 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Escopo ao criar um nome (24/11/2026)**, tela decidida sem o usuário (pedido dele: "não quero que nada dependa de
+  mim"), referência o "Novo nome" do Excel: no formulário Novo do Gerenciador, a lista Escopo (Pasta de trabalho e as
+  abas; aba chamada "Pasta de trabalho" vai entre aspas); editar mostra o escopo sem trocar, como o Excel.
+  `nomes_ui::Estado::escopo`, `Evento::Escopo(posição)`, conferido por foto (`_DIALOGO=nomes_novo`). Teste
+  `novo_nome_com_escopo_de_uma_aba` (=Taxa vale 0,1 na aba do escopo e 0,2 no resto). Ajuda F1 nas quatro línguas.
+  Novidade para o `VERSOES` da 0.4.0: "Gerenciador de nomes: escolha a aba (Escopo) ao criar um nome".
+
 - **Itens de filtro e segmentação em origem grande (24/11/2026)**: a lista lia só as primeiras 20 mil linhas; no
   2026_03 a segmentação LINHA mostrava 1 de 13 itens (1, 2, 3, 30KM, LOCOM…). Ler a coluna inteira leva 0,66 s,
   então `dinamica_ui/itens.rs` lê aos poucos (25 ms por pulso, `Evento::ItensPasso`, assinatura só enquanto lê),
@@ -22,8 +29,9 @@
   janela (`dinamica_ui/mcp.rs`), 7 s por pedido; agora `atualizar_pelo_mcp` manda a origem grande para a conta de
   fundo (criar = vazia + fundo; atualizar todas = uma no fundo, as outras grandes esperam; com uma conta andando,
   recusa com o motivo) e responde na hora. Teste `origem_grande_pelo_mcp_vai_para_o_fundo`. `FEATHERSHEET_VIGIA_STDERR=1`
-  manda as linhas `[tela] presa` também para o terminal. Visto e não resolvido: abrir o arquivo prende a janela
-  1,5 s na mensagem `Aberto`; "Mostrar páginas de filtro" ainda calcula cada página na janela.
+  manda as linhas `[tela] presa` também para o terminal. A trava de 1,5 s no `Aberto` não se repetiu medida por partes
+  (10,7 ms na janela; foi a máquina gravando vídeo e em swap). "Mostrar páginas de filtro" com origem grande é
+  recusado antes de calcular (a lista de itens fica cortada), então não chega a prender a janela.
 
 - **`.xlsm` gravado conferido sem Excel (24/11/2026)**: `scripts/conferir-xlsm/` (LibreOffice snap, perfil isolado em
   `~/snap/libreoffice/common`, Basic que abre o arquivo, lista os módulos importados, roda a macro e lê as células)

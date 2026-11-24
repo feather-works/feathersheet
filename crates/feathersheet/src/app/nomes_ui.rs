@@ -30,6 +30,8 @@ pub(super) struct Estado {
     /// Texto do campo "Refere-se a" (do escolhido ou do formulário).
     pub refere: String,
     pub modo: Modo,
+    /// Escopo do nome novo: `None` = a pasta inteira; `Some(aba)` = só naquela aba (como o "Escopo" do Excel).
+    pub escopo: Option<String>,
 }
 
 /// Ações do gerenciador além das mensagens antigas (`NomeCriar`…).
@@ -43,6 +45,8 @@ pub enum Evento {
     Refere(String),
     /// Grava o "Refere-se a" editado do nome escolhido.
     Aplicar,
+    /// Escopo do nome novo, pela posição na lista (0 = Pasta de trabalho, depois as abas).
+    Escopo(usize),
     /// Sai do formulário/confirmação e volta para a tabela.
     Voltar,
 }
@@ -279,6 +283,23 @@ impl App {
         area
     }
 
+    /// A lista do Escopo: "Pasta de trabalho" e as abas. Editando, só mostra o escopo do nome (não muda).
+    fn escolha_de_escopo<'a>(&self, estado: &Estado, novo: bool) -> Element<'a, Msg> {
+        let pasta = tr!("Pasta de trabalho").to_owned();
+        if !novo {
+            let atual = match &estado.modo { Modo::Editar(o) => self.linha_de_nome(o).and_then(|l| l.escopo), _ => None };
+            return text(atual.unwrap_or(pasta)).size(13).into();
+        }
+        // Uma aba chamada "Pasta de trabalho" vai entre aspas, para não se confundir com a pasta.
+        let abas = self.workbook.nomes().into_iter().map(|n| if n == pasta { format!("'{n}'") } else { n });
+        let opcoes: Vec<String> = std::iter::once(pasta.clone()).chain(abas).collect();
+        let atual = estado.escopo.as_ref().and_then(|a| self.workbook.indice_por_nome(a)).map_or(0, |i| i + 1);
+        let lista = opcoes.clone();
+        crate::compat::pick_list_vec(opcoes, lista.get(atual).cloned(), move |r: String| {
+            Msg::NomesEvento(Evento::Escopo(lista.iter().position(|x| *x == r).unwrap_or(0)))
+        }).width(Length::FILL).into()
+    }
+
     /// Grava o nome: intervalo, ou fórmula (`=0,1`, `=Vendas!$A$1*2`); com `escopo`, só naquela aba.
     fn gravar_nome(&mut self, nome: &str, alvo: &Result<Rect, String>, escopo: Option<&str>) {
         match (alvo, escopo) {
@@ -302,7 +323,12 @@ impl App {
         };
         if let Err(e) = validar_nome(&nome) { return erro(self, e); }
         let original = match &modo { Modo::Editar(o) => self.linha_de_nome(o), _ => None };
-        let escopo = original.as_ref().and_then(|o| o.escopo.clone());
+        // Editar mantém o escopo (o Excel também não deixa trocar); o nome novo usa o escolhido no formulário.
+        let escopo = match &original {
+            Some(o) => o.escopo.clone(),
+            None => self.nomes_modal.as_ref().and_then(|e| e.escopo.clone())
+                .filter(|aba| self.workbook.indice_por_nome(aba).is_some()),
+        };
         // Repetido: o mesmo nome no mesmo escopo (o da pasta e o de uma aba podem ter o mesmo nome).
         let duplicado = self.linhas_de_nomes().iter().any(|e| {
             e.nome.to_uppercase() == nome.to_uppercase() && e.escopo == escopo
@@ -432,6 +458,10 @@ impl App {
                     e.erro = None;
                 }
             }
+            Evento::Escopo(i) => {
+                let aba = i.checked_sub(1).and_then(|i| self.workbook.nomes().get(i).cloned());
+                if let Some(e) = &mut self.nomes_modal { e.escopo = aba; }
+            }
             Evento::Novo => {
                 let mut n = linhas.len() + 1;
                 while linhas.iter().any(|x| x.nome.to_uppercase() == format!("INTERVALO{n}")) { n += 1; }
@@ -439,6 +469,7 @@ impl App {
                 e.nome = format!("Intervalo{n}");
                 e.refere = texto_refere(&selecao);
                 e.modo = Modo::Novo;
+                e.escopo = None;
                 e.erro = None;
             }
             Evento::Editar => {
@@ -634,6 +665,8 @@ impl App {
                     rotulo(tr!("Nome")),
                     text_input(tr!("Ex.: receitas_2026"), &estado.nome)
                         .on_input(Msg::NomeAtualizar).on_submit(Msg::NomeCriar).padding(8).size(13),
+                    rotulo(tr!("Escopo")),
+                    self.escolha_de_escopo(estado, novo),
                     rotulo(tr!("Refere-se a")),
                     text_input("=Planilha1!$A$1:$B$10", &estado.refere)
                         .on_input(|t| Msg::NomesEvento(Evento::Refere(t)))
@@ -714,6 +747,33 @@ mod testes {
         assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(1, 2), "123");
         app.update(Msg::NomeRemover("RECEITAS".into()));
         assert!(app.workbook.nomeados().is_empty());
+    }
+
+    /// Escopo escolhido no "Novo nome": o nome vale só naquela aba; o mesmo nome na pasta continua possível.
+    #[test]
+    fn novo_nome_com_escopo_de_uma_aba() {
+        let mut app = App::default();
+        app.workbook.inserir_aba("Vendas", 1);
+        app.update(Msg::NomesAbrir(false));
+        app.update(Msg::NomesEvento(Evento::Novo));
+        app.update(Msg::NomeAtualizar("Taxa".into()));
+        app.update(Msg::NomesEvento(Evento::Refere("=0,1".into())));
+        app.update(Msg::NomesEvento(Evento::Escopo(2)));
+        app.update(Msg::NomeCriar);
+        let linhas = app.linhas_de_nomes();
+        assert!(linhas.iter().any(|l| l.nome == "Taxa" && l.escopo.as_deref() == Some("Vendas")), "{:?}", linhas.iter().map(|l| (&l.nome, &l.escopo)).collect::<Vec<_>>());
+        // O mesmo nome na pasta inteira não é duplicado.
+        app.update(Msg::NomesEvento(Evento::Novo));
+        app.update(Msg::NomeAtualizar("Taxa".into()));
+        app.update(Msg::NomesEvento(Evento::Refere("=0,2".into())));
+        app.update(Msg::NomeCriar);
+        assert!(app.nomes_modal.as_ref().unwrap().erro.is_none());
+        assert_eq!(app.linhas_de_nomes().iter().filter(|l| l.nome == "Taxa").count(), 2);
+        // Na aba Vendas, =Taxa é 0,1; na outra, 0,2.
+        app.workbook.escrever_celula(1, 0, 0, "=Taxa*100".into());
+        app.workbook.escrever_celula(0, 0, 0, "=Taxa*100".into());
+        assert_eq!(app.workbook.valor(1, 0, 0), feathersheet_core::Value::Number(10.0));
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Number(20.0));
     }
 
     #[test]
