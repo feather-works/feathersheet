@@ -27,6 +27,8 @@ enum Tipo {
     Aba,
     /// Um intervalo (`Range("A1")`).
     Faixa,
+    /// Verdadeiro/falso de fato (comparação, `Not`, `True`): vai direto no `If`/`And`/`Or`.
+    Logico,
 }
 
 struct V {
@@ -37,6 +39,7 @@ struct V {
 impl V {
     fn val(s: impl Into<String>) -> Self { V { s: s.into(), t: Tipo::Valor } }
     fn txt(s: impl Into<String>) -> Self { V { s: s.into(), t: Tipo::Texto } }
+    fn logico(s: impl Into<String>) -> Self { V { s: s.into(), t: Tipo::Logico } }
 }
 
 type R<T> = Result<T, String>;
@@ -63,15 +66,56 @@ struct Tradutor<'a> {
     tipos: HashMap<String, Tipo>,
     /// Algum número virou texto: o módulo ganha a função `JsTexto`.
     usa_js_texto: bool,
+    usa_js_verdade: bool,
+    usa_js_tamanho: bool,
     /// Traduzindo um evento: (procedimento VBA, cabeçalho com a assinatura do Excel).
     evento: Option<(&'a str, &'a str)>,
 }
 
 /// Valor → texto como o JavaScript faz (`"Total: " + 1234.5` dá `Total: 1234.5`): número com ponto em qualquer
 /// língua do Windows (o `&` e o `CStr` do VBA usariam a vírgula do pt-BR), lógico em minúsculas.
-const JS_TEXTO: &str = "Private Function JsTexto(v)\r\n    Select Case VarType(v)\r\n        Case 11\r\n            JsTexto = IIf(v, \"true\", \"false\")\r\n\
-        Case 2, 3, 4, 5, 6, 14\r\n            JsTexto = Replace(CStr(v), Mid(CStr(1.5), 2, 1), \".\")\r\n        Case Else\r\n            JsTexto = CStr(v)\r\n\
-    End Select\r\nEnd Function\r\n";
+const JS_TEXTO: &str = concat!(
+    "Private Function JsTexto(v)\r\n",
+    "    Select Case VarType(v)\r\n",
+    "        Case 11\r\n",
+    "            JsTexto = IIf(v, \"true\", \"false\")\r\n",
+    "        Case 2, 3, 4, 5, 6, 14\r\n",
+    "            JsTexto = Replace(CStr(v), Mid(CStr(1.5), 2, 1), \".\")\r\n",
+    "        Case Else\r\n",
+    "            JsTexto = CStr(v)\r\n",
+    "    End Select\r\n",
+    "End Function\r\n",
+);
+
+/// Verdadeiro/falso como o JS (`if (x)`, `!x`, `&&`): vazio, "", 0 e False são falsos. O `If` do VBA dá erro com
+/// texto, e o `Not`/`And` de número é bit a bit (`Not 10.5` é -11, que conta como verdadeiro).
+const JS_VERDADE: &str = concat!(
+    "Private Function JsVerdade(v) As Boolean\r\n",
+    "    Select Case VarType(v)\r\n",
+    "        Case 0, 1\r\n",
+    "            JsVerdade = False\r\n",
+    "        Case 8\r\n",
+    "            JsVerdade = (Len(v) > 0)\r\n",
+    "        Case 11\r\n",
+    "            JsVerdade = v\r\n",
+    "        Case 2, 3, 4, 5, 6, 14\r\n",
+    "            JsVerdade = (v <> 0)\r\n",
+    "        Case Else\r\n",
+    "            JsVerdade = True\r\n",
+    "    End Select\r\n",
+    "End Function\r\n",
+);
+
+/// `.length` de algo que pode ser vetor ou texto: o `Len` do VBA dá erro com vetor.
+const JS_TAMANHO: &str = concat!(
+    "Private Function JsTamanho(v) As Long\r\n",
+    "    If IsArray(v) Then\r\n",
+    "        JsTamanho = UBound(v) - LBound(v) + 1\r\n",
+    "    Else\r\n",
+    "        JsTamanho = Len(v)\r\n",
+    "    End If\r\n",
+    "End Function\r\n",
+);
 
 /// Traduz o módulo `js`. `nome` é o do Sub que recebe o código solto (fora de funções). `formula` converte uma
 /// fórmula da planilha (`=SOMA(A1;2,5)`) para o `.Formula` do Excel (`=SUM(A1,2.5)`).
@@ -98,7 +142,51 @@ pub fn traduzir_evento(js: &str, evento: &str, formula: &dyn Fn(&str) -> String)
     Some(traduzir_com(js, e.1, Some((e.1, e.2)), formula))
 }
 
+/// Uma macro convertida do VBA e editada aqui: só o que mudou volta. `original` é o JS da conversão daquele
+/// procedimento (o mesmo conversor, sobre o VBA de antes). As funções com o mesmo texto ficam de fora, para o VBA
+/// original (que funcionava) não ser trocado por uma tradução que pode ter trechos comentados; o código solto só
+/// vira Sub se mudou. Vazio = nada mudou.
+pub fn traduzir_mudancas(original: &str, editado: &str, nome: &str, formula: &dyn Fn(&str) -> String) -> Traducao {
+    let Some((funcoes_antes, soltos_antes)) = partes(original) else { return traduzir(editado, nome, formula) };
+    let Some((funcoes, soltos)) = partes(editado) else { return traduzir(editado, nome, formula) };
+    let mudadas: Vec<String> = funcoes.into_iter()
+        .filter(|(n, texto)| funcoes_antes.iter().all(|(a, t)| a != n || t != texto))
+        .map(|(n, _)| n).collect();
+    let filtro = Filtro { funcoes: mudadas, soltos: soltos != soltos_antes };
+    traduzir_filtrado(editado, nome, None, Some(&filtro), formula)
+}
+
+/// O que [`traduzir_mudancas`] deixa passar.
+struct Filtro {
+    funcoes: Vec<String>,
+    soltos: bool,
+}
+
+/// As funções de topo (nome, texto sem espaços nas pontas) e o código solto, para comparar duas versões.
+fn partes(js: &str) -> Option<(Vec<(String, String)>, String)> {
+    let (arv, lex) = falcao_sintaxe::analisar_script(js).ok()?;
+    let topo: Vec<NoId> = arv.lista(arv.corpo).to_vec();
+    let inicio: Vec<usize> = topo.iter().map(|&id| arv.posicao(id) as usize).collect();
+    let (mut funcoes, mut soltos) = (Vec::new(), String::new());
+    for (i, &id) in topo.iter().enumerate() {
+        let fim = inicio.get(i + 1).copied().unwrap_or(js.len());
+        let texto = js.get(inicio[i]..fim).unwrap_or("").trim().to_string();
+        match arv.no(id) {
+            No::DeclFuncao(f) => {
+                let nome = arv.funcao(*f).nome.map(|a| lex.atomos.texto(a).to_string()).unwrap_or_default();
+                funcoes.push((nome, texto));
+            }
+            _ => { soltos.push_str(&texto); soltos.push('\n'); }
+        }
+    }
+    Some((funcoes, soltos))
+}
+
 fn traduzir_com(js: &str, nome: &str, evento: Option<(&str, &str)>, formula: &dyn Fn(&str) -> String) -> Traducao {
+    traduzir_filtrado(js, nome, evento, None, formula)
+}
+
+fn traduzir_filtrado(js: &str, nome: &str, evento: Option<(&str, &str)>, filtro: Option<&Filtro>, formula: &dyn Fn(&str) -> String) -> Traducao {
     let (arv, lex) = match falcao_sintaxe::analisar_script(js) {
         Ok(x) => x,
         Err(e) => {
@@ -107,14 +195,16 @@ fn traduzir_com(js: &str, nome: &str, evento: Option<(&str, &str)>, formula: &dy
         }
     };
     let mut t = Tradutor { arv: &arv, lex: &lex, fonte: js, formula, saida: String::new(), pend: Vec::new(), recuo: 0,
-        proc: None, lacos: Vec::new(), tipos: HashMap::new(), usa_js_texto: false, evento };
+        proc: None, lacos: Vec::new(), tipos: HashMap::new(), usa_js_texto: false, usa_js_verdade: false, usa_js_tamanho: false, evento };
     let topo: Vec<NoId> = arv.lista(arv.corpo).to_vec();
     let (funcoes, soltos): (Vec<NoId>, Vec<NoId>) = topo.into_iter().filter(|&id| !t.e_preludio(id) && !t.e_cola_de_evento(id))
         .partition(|&id| matches!(arv.no(id), No::DeclFuncao(_)));
     let mut declaradas = Vec::new();
     for id in &funcoes {
         if let No::DeclFuncao(f) = arv.no(*id) {
-            if let Some(a) = arv.funcao(*f).nome { declaradas.push(lex.atomos.texto(a).to_string()); }
+            let nome_js = arv.funcao(*f).nome.map(|a| lex.atomos.texto(a).to_string());
+            if let Some(n) = &nome_js { declaradas.push(n.clone()); }
+            if filtro.is_some_and(|fl| !fl.funcoes.iter().any(|m| Some(m) == nome_js.as_ref())) { continue; }
             t.funcao(*f);
         }
     }
@@ -122,7 +212,7 @@ fn traduzir_com(js: &str, nome: &str, evento: Option<(&str, &str)>, formula: &dy
     let so_chama = |id: &NoId| matches!(arv.no(*id), No::Expressao(e) if matches!(arv.no(*e),
         No::Chamada { func, args, .. } if args.len == 0 && matches!(arv.no(*func), No::Nome(a) if declaradas.iter().any(|d| d == lex.atomos.texto(*a)))));
     let ja_tem_evento = evento.is_some_and(|(n, _)| declaradas.iter().any(|d| d.eq_ignore_ascii_case(n)));
-    if !soltos.is_empty() && !soltos.iter().all(so_chama) && !ja_tem_evento {
+    if !soltos.is_empty() && !soltos.iter().all(so_chama) && !ja_tem_evento && filtro.is_none_or(|fl| fl.soltos) {
         let n = t.nome_vba(nome);
         let n = if evento.is_none() && declaradas.iter().any(|d| t.nome_vba(d).eq_ignore_ascii_case(&n)) { format!("{n}_Principal") } else { n };
         t.proc = Some((n.clone(), false));
@@ -134,7 +224,9 @@ fn traduzir_com(js: &str, nome: &str, evento: Option<(&str, &str)>, formula: &dy
         t.linha("End Sub");
         t.proc = None;
     }
-    if t.usa_js_texto { t.linha(""); t.saida.push_str(JS_TEXTO); }
+    for (usa, ajuda) in [(t.usa_js_texto, JS_TEXTO), (t.usa_js_verdade, JS_VERDADE), (t.usa_js_tamanho, JS_TAMANHO)] {
+        if usa { t.linha(""); t.saida.push_str(ajuda); }
+    }
     Traducao { vba: t.saida, pendencias: t.pend }
 }
 
@@ -159,6 +251,13 @@ impl<'a> Tradutor<'a> {
         // O motivo é um texto fixo deste arquivo (ou montado com `.{p}`): passa pelo dicionário.
         let motivo = feathersheet_core::tr!(motivo);
         self.pend.push(feathersheet_core::trf!("linha {linha}: {motivo}: {trecho}"));
+    }
+
+    /// A condição como o JS a lê (ver [`JS_VERDADE`]); o que já é lógico vai direto.
+    fn verdade(&mut self, v: V) -> String {
+        if v.t == Tipo::Logico { return v.s; }
+        self.usa_js_verdade = true;
+        format!("JsVerdade({})", v.s)
     }
 
     /// O valor como texto do jeito do JS (ver [`JS_TEXTO`]).
@@ -331,7 +430,8 @@ impl<'a> Tradutor<'a> {
             }
             No::Enquanto { teste, corpo } => match self.expr(teste) {
                 Ok(c) => {
-                    self.linha(&format!("Do While {}", c.s));
+                    let c = self.verdade(c);
+                    self.linha(&format!("Do While {c}"));
                     self.lacos.push(false);
                     self.bloco(corpo);
                     self.lacos.pop();
@@ -345,7 +445,8 @@ impl<'a> Tradutor<'a> {
                     self.lacos.push(false);
                     self.bloco(corpo);
                     self.lacos.pop();
-                    self.linha(&format!("Loop While {}", c.s));
+                    let c = self.verdade(c);
+                    self.linha(&format!("Loop While {c}"));
                 }
                 Err(m) => self.pendente(id, &m),
             },
@@ -376,7 +477,8 @@ impl<'a> Tradutor<'a> {
     fn se(&mut self, id: NoId, senao: bool) {
         let No::Se { teste, sim, nao } = *self.arv.no(id) else { return };
         let c = match self.expr(teste) { Ok(c) => c, Err(m) => return self.pendente(id, &m) };
-        self.linha(&format!("{} {} Then", if senao { "ElseIf" } else { "If" }, c.s));
+        let c = self.verdade(c);
+        self.linha(&format!("{} {c} Then", if senao { "ElseIf" } else { "If" }));
         self.bloco(sim);
         if let Some(n) = nao.opcao() {
             if matches!(self.arv.no(n), No::Se { .. }) { return self.se(n, true); }
@@ -401,7 +503,8 @@ impl<'a> Tradutor<'a> {
         if let Some(i) = inicio.opcao() {
             if matches!(self.arv.no(i), No::Var { .. }) { self.instr(i) } else if let Err(m) = self.comando(i) { return self.pendente(id, &m) }
         }
-        let c = match teste.opcao().map(|t| self.expr(t)).transpose() { Ok(c) => c.map_or("True".into(), |c| c.s), Err(m) => return self.pendente(id, &m) };
+        let c = match teste.opcao().map(|t| self.expr(t)).transpose() { Ok(c) => c, Err(m) => return self.pendente(id, &m) };
+        let c = c.map_or_else(|| "True".to_string(), |c| self.verdade(c));
         self.linha(&format!("Do While {c}"));
         self.lacos.push(false);
         self.bloco(corpo);
@@ -663,8 +766,8 @@ impl<'a> Tradutor<'a> {
         match *self.arv.no(id) {
             No::Numero(n) => Ok(V::val(numero(n))),
             No::Texto(t) => Ok(V::txt(vba_texto(&self.texto(t)))),
-            No::Verdadeiro => Ok(V::val("True")),
-            No::Falso => Ok(V::val("False")),
+            No::Verdadeiro => Ok(V::logico("True")),
+            No::Falso => Ok(V::logico("False")),
             No::Nulo => Ok(V::val("Empty")),
             No::Paren(x) => { let v = self.expr(x)?; Ok(V { s: format!("({})", v.s), t: v.t }) }
             No::Nome(a) => {
@@ -699,7 +802,7 @@ impl<'a> Tradutor<'a> {
                 match op {
                     OpUnario::Menos => Ok(V::val(format!("-{}", par(&v.s)))),
                     OpUnario::Mais => Ok(V::val(format!("Val({})", v.s))),
-                    OpUnario::Nao => Ok(V::val(format!("Not {}", par(&v.s)))),
+                    OpUnario::Nao => { let c = self.verdade(v); Ok(V::logico(format!("Not {}", par(&c)))) }
                     _ => Err("operador unário sem equivalente (typeof, void, delete, ~)".into()),
                 }
             }
@@ -713,17 +816,21 @@ impl<'a> Tradutor<'a> {
                     return Ok(V::val(format!("{} + {}", par(&a.s), par(&b.s))));
                 }
                 let o = op_bin(op).ok_or("operador sem equivalente (in, instanceof, deslocamento)")?;
-                Ok(V::val(format!("{} {o} {}", par(&a.s), par(&b.s))))
+                let comparacao = matches!(o, "=" | "<>" | "<" | ">" | "<=" | ">=");
+                Ok(V { s: format!("{} {o} {}", par(&a.s), par(&b.s)), t: if comparacao { Tipo::Logico } else { Tipo::Valor } })
             }
             No::Logico { op, esq, dir } => {
                 let (a, b) = (self.expr(esq)?, self.expr(dir)?);
                 let o = match op { OpLogico::E => "And", OpLogico::Ou => "Or", OpLogico::Coalesce => return Err("?? (sem equivalente)".into()) };
-                Ok(V::val(format!("{} {o} {}", par(&a.s), par(&b.s))))
+                // shortcut: `x || "padrão"` do JS devolve o valor, aqui vira True/False; serve para condição, não para escolher valor.
+                let (x, y) = (self.verdade(a), self.verdade(b));
+                Ok(V::logico(format!("{} {o} {}", par(&x), par(&y))))
             }
             No::Condicional { teste, sim, nao } => {
                 let (c, a, b) = (self.expr(teste)?, self.expr(sim)?, self.expr(nao)?);
                 let t = if a.t == b.t { a.t } else { Tipo::Valor };
-                Ok(V { s: format!("IIf({}, {}, {})", c.s, a.s, b.s), t })
+                let c = self.verdade(c);
+                Ok(V { s: format!("IIf({c}, {}, {})", a.s, b.s), t })
             }
             No::Membro { obj, prop, .. } => self.membro(obj, &self.atomo(prop)),
             No::Indice { obj, prop, .. } => {
@@ -767,7 +874,9 @@ impl<'a> Tradutor<'a> {
             (Tipo::Faixa, "row") => Ok(V::val(format!("{}.Row", o.s))),
             (Tipo::Faixa, "column") => Ok(V::val(format!("{}.Column", o.s))),
             (Tipo::Aba, "name") => Ok(V::txt(format!("{}.Name", if o.s.is_empty() { "ActiveSheet" } else { &o.s }))),
-            (Tipo::Texto, "length") | (Tipo::Valor, "length") => Ok(V::val(format!("Len({})", o.s))),
+            (Tipo::Texto, "length") => Ok(V::val(format!("Len({})", o.s))),
+            // Pode ser vetor (`Array(...)`) ou texto: o `Len` do VBA dá erro com vetor.
+            (Tipo::Valor, "length") => { self.usa_js_tamanho = true; Ok(V::val(format!("JsTamanho({})", o.s))) }
             (Tipo::Valor, "v") => Ok(o),
             _ => Err(feathersheet_core::trf!("propriedade .{p}")),
         }
@@ -786,7 +895,7 @@ impl<'a> Tradutor<'a> {
             "faixaInt" => V::val(format!("CLng({})", a(0)?)),
             "n" => V::val(a(0)?),
             "str" => V::txt(format!("CStr({})", a(0)?)),
-            "eq" => V::val(format!("({} = {})", par(&a(0)?), par(&a(1)?))),
+            "eq" => V::logico(format!("({} = {})", par(&a(0)?), par(&a(1)?))),
             "cmp" => { let (x, y) = (par(&a(0)?), par(&a(1)?)); V::val(format!("IIf({x} < {y}, -1, IIf({x} > {y}, 1, 0))")) }
             "soma" => V::val(format!("({} + {})", par(&a(0)?), par(&a(1)?))),
             "cat" => V::txt(s.iter().map(|x| par(x)).collect::<Vec<_>>().join(" & ")),
@@ -804,7 +913,7 @@ impl<'a> Tradutor<'a> {
             "ubound" => V::val(format!("UBound({todos})")),
             "lbound" => V::val(format!("LBound({todos})")),
             "isNumeric" => V::val(format!("IsNumeric({todos})")),
-            "vazio" => V::val(format!("({} & \"\" = \"\")", par(&a(0)?))),
+            "vazio" => V::logico(format!("({} & \"\" = \"\")", par(&a(0)?))),
             "msgBox" => V::val(format!("MsgBox({todos})")),
             "linha" => V::val(format!("Range({}).Row", a(0)?)),
             _ => return Err(feathersheet_core::trf!("ajuda vba.{p} do conversor")),
@@ -824,7 +933,7 @@ impl<'a> Tradutor<'a> {
                     // Val lê ponto em qualquer Windows, como o Number do JS.
                     "Number" | "parseFloat" => Ok(V::val(format!("Val({})", a0()?))),
                     "parseInt" => Ok(V::val(format!("Int(Val({}))", a0()?))),
-                    "isNaN" => Ok(V::val(format!("(Not IsNumeric({}))", a0()?))),
+                    "isNaN" => Ok(V::logico(format!("(Not IsNumeric({}))", a0()?))),
                     _ => {
                         let nome = self.nome_vba(&n);
                         Ok(V::val(format!("{nome}({})", v.into_iter().map(|x| x.s).collect::<Vec<_>>().join(", "))))
@@ -1067,6 +1176,31 @@ mod testes {
         let t = traduzir_evento("if (!confirm(\"Fechar?\")) wb.cancelClose();", "antesDeFechar", &|f: &str| f.to_string()).unwrap();
         assert!(t.vba.contains("Private Sub Workbook_BeforeClose(Cancel As Boolean)") && t.vba.contains("Cancel = True"), "{}", t.vba);
         assert!(traduzir_evento("x", "aoVoar", &|f: &str| f.to_string()).is_none());
+    }
+
+    /// Achados ao rodar no LibreOffice: `Len(vetor)` dá erro e `Not 10.5` é -11 (verdadeiro).
+    #[test]
+    fn tamanho_de_vetor_e_verdadeiro_como_no_js() {
+        let t = vba("function F() { const p = [1, 2]; for (let i = 0; i < p.length; i++) { sheet.set(\"A1\", p[i]); } if (!sheet.get(\"A1\")) { alert(\"vazio\"); } if (sheet.get(\"B1\") && sheet.get(\"A1\") > 1) { alert(\"x\"); } const n = \"abc\".length; }");
+        assert!(t.vba.contains("To JsTamanho(p) - 1") && t.vba.contains("Private Function JsTamanho(v) As Long"), "{}", t.vba);
+        assert!(t.vba.contains("If Not (JsVerdade(Range(\"A1\").Value)) Then") || t.vba.contains("If Not JsVerdade(Range(\"A1\").Value) Then"), "{}", t.vba);
+        assert!(t.vba.contains("JsVerdade(Range(\"B1\").Value) And (Range(\"A1\").Value > 1)"), "a comparação vai direto: {}", t.vba);
+        assert!(t.vba.contains("n = Len(\"abc\")"), "texto continua Len: {}", t.vba);
+        assert!(t.vba.contains("        Case 2, 3, 4, 5, 6, 14\r\n") || !t.vba.contains("JsTexto"), "recuo das ajudas");
+    }
+
+    /// Macro convertida e editada: só a função nova/mudada volta; a intacta (que poderia ter trecho sem tradução,
+    /// como o Word da planilha real) e o código solto de sempre ficam com o VBA original.
+    #[test]
+    fn so_o_que_mudou_volta_para_o_vba() {
+        let original = "const Sheet8 = wb.sheet(\"MAIN\");\nfunction Gerar() {\n  const d = vba.wordDoc(\"x.docx\");\n}\nfunction Soma() {\n  sheet.set(\"A1\", 1);\n}\nGerar();\n";
+        let editado = original.replace("sheet.set(\"A1\", 1);", "sheet.set(\"A1\", 2);") + "function Nova() { sheet.set(\"B1\", 3); }\n";
+        let t = traduzir_mudancas(original, &editado, "Gerar", &|f: &str| f.to_string());
+        assert!(t.vba.contains("Sub Soma()") && t.vba.contains("Range(\"A1\").Value = 2") && t.vba.contains("Sub Nova()"), "{}", t.vba);
+        assert!(!t.vba.contains("Sub Gerar") && !t.vba.contains("Sheet8") && t.pendencias.is_empty(), "a intacta fica: {}\n{:?}", t.vba, t.pendencias);
+        assert!(traduzir_mudancas(original, original, "Gerar", &|f: &str| f.to_string()).vba.trim().is_empty());
+        let solto = format!("{original}sheet.set(\"C1\", 4);\n");
+        assert!(traduzir_mudancas(original, &solto, "Gerar", &|f: &str| f.to_string()).vba.contains("Range(\"C1\").Value = 4"));
     }
 
     #[test]

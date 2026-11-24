@@ -349,6 +349,7 @@ impl App {
         let mut catalogo = base;
         let n = novos.len();
         self.macros_do_vba.extend(novos.iter().map(marca_do_codigo));
+        self.macros_vba_originais.extend(novos.iter().map(|m| (m.name.clone(), m.code.clone())));
         catalogo.macros.extend(novos);
         if self.persistir_modulos(catalogo, &trf!("VBA de {arquivo} importado ({})", resumo(c))) {
             if !abrir_no_editor { return; }

@@ -4,6 +4,24 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **`.xlsm` gravado conferido sem Excel (24/11/2026)**: `scripts/conferir-xlsm/` (LibreOffice snap, perfil isolado em
+  `~/snap/libreoffice/common`, Basic que abre o arquivo, lista os módulos importados, roda a macro e lê as células)
+  e o `olevba` (oletools, num venv) como segundo leitor do `vbaProject.bin`. Arquivos de prova:
+  `gerar_xlsm_para_conferir_fora` (`--ignored`, `FEATHERSHEET_XLSM_SAIDA`). Resultado: os dois leem o projeto
+  (os 23 módulos da planilha real); a macro roda igual em pt-BR e en-US ("Total: 30.85", `Math.round(2.5)` = 3,
+  `toFixed`, `=SUM`). Achados e corrigidos:
+  1. `.length` de vetor virava `Len(vetor)` (erro no VBA) → `JsTamanho` (UBound−LBound+1 ou Len).
+  2. `!x`/`&&`/`||`/`if (x)` com valor não lógico: `Not 10.5` é -11 (verdadeiro) e `If "texto"` dá erro →
+     `JsVerdade` (falso: vazio, "", 0, False), comparação e `Not` seguem direto (`Tipo::Logico`).
+  3. **Grave**: macro convertida e editada voltava inteira; na planilha real, acrescentar um procedimento trocava o
+     `Botão1_Clique` (procuração no Word) por uma tradução com o Word comentado. Agora `traduzir_mudancas` compara
+     com a conversão original (`App::macros_vba_originais`, guardada ao instalar) e só volta função nova ou com texto
+     diferente, e o código solto se mudou; o módulo fica byte a byte com o original mais o procedimento novo.
+  Recuo das ajudas `JsTexto` corrigido (o `\` de continuação do Rust comia os espaços). Evento VBA não dispara no
+  LibreOffice por mudança feita pela API: os eventos foram conferidos só pela leitura (os dois leitores).
+  Testes `tamanho_de_vetor_e_verdadeiro_como_no_js`, `so_o_que_mudou_volta_para_o_vba` e a planilha real agora
+  exige o módulo igual ao original mais o procedimento novo.
+
 - **Atualização no Mac (#167, 24/11/2026)**: o roteiro baixava `FeatherSheet-macos.dmg` (404 desde a v0.3.3, que publica
   `FeatherSheet-<versão>-macos-intel.dmg` e `…-apple-silicon.dmg`) e conferia no `SHA256SUMS`, que não traz os
   `.dmg`. Agora `Instalacao::arquivo(versao)` monta o nome pela versão e pelo `target_arch` desta cópia e o Mac

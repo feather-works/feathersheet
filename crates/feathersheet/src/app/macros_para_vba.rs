@@ -81,7 +81,12 @@ impl App {
                     None => { sem_lugar += 1; continue; }
                 },
                 None if m.name.starts_with(macros::organizacao::PASTA_EVENTOS) => { sem_lugar += 1; continue; }
-                None => feathersheet_vba::js_para_vba::traduzir(&m.code, &nome, &formula),
+                // Convertida e editada: só as funções que mudaram (a intacta fica com o VBA original).
+                // shortcut: macro renomeada no editor perde o original e volta inteira, como antes.
+                None => match self.macros_vba_originais.get(&m.name) {
+                    Some(original) => feathersheet_vba::js_para_vba::traduzir_mudancas(original, &m.code, &nome, &formula),
+                    None => feathersheet_vba::js_para_vba::traduzir(&m.code, &nome, &formula),
+                },
             };
             for p in &t.pendencias {
                 self.monitor.registrar(feather_ui::monitor::Nivel::Aviso, tr!("Macros"), &trf!("[VBA] {}: {p}", m.name));
@@ -215,6 +220,7 @@ mod testes {
         let lidos = feathersheet_vba::ovba::ler_projeto(&app.workbook.vba.as_ref().unwrap().binario).unwrap();
         let m1 = lidos.iter().find(|m| m.nome == "Modulo1").unwrap();
         assert!(m1.codigo.contains("Range(\"A1\").Value = 1234.5") && m1.codigo.contains("MsgBox \"fica\""), "{}", m1.codigo);
+        assert_eq!(m1.codigo.matches("Sub Ola()").count(), 1, "sem Sub extra do código solto: {}", m1.codigo);
         let novo = lidos.iter().find(|m| m.nome == "Total").expect("módulo novo");
         assert!(novo.codigo.contains("Sub Total()") && novo.codigo.contains("Range(\"B1\").Value = Range(\"A1\").Value * 2"), "{}", novo.codigo);
     }
@@ -239,6 +245,56 @@ mod testes {
         assert!(planilha.codigo.contains("Private Sub Worksheet_Change(ByVal Target As Range)") && planilha.codigo.contains("Target.Address(False, False) = \"B2\""), "{}", planilha.codigo);
         let pasta = lidos.iter().find(|m| m.nome == "EstaPasta_de_trabalho").unwrap();
         assert!(pasta.codigo.contains("Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)") && pasta.codigo.contains("Cancel = True"), "{}", pasta.codigo);
+    }
+
+    /// Gera `.xlsm` para conferir fora daqui (LibreOffice, olevba): `FEATHERSHEET_XLSM_SAIDA=<pasta>`. Uma pasta
+    /// sem VBA com uma macro e dois eventos; com a planilha real do usuário, ela editada.
+    #[test]
+    #[ignore = "gera arquivos para conferência externa"]
+    fn gerar_xlsm_para_conferir_fora() {
+        let Ok(saida) = std::env::var("FEATHERSHEET_XLSM_SAIDA") else { return };
+        let saida = std::path::PathBuf::from(saida);
+        let mut app = App::default();
+        let aba = app.workbook.aba(0).unwrap().sheet.name.clone();
+        let mut cat = app.macro_catalogo.clone();
+        cat.macros.push(feather_macros::Macro { name: "Calcular".into(), auto: false, code: r#"function Calcular() {
+  const precos = [10.5, 20.25, 0.1];
+  let total = 0;
+  for (let i = 0; i < precos.length; i++) {
+    sheet.set("A" + (i + 1), precos[i]);
+    total += precos[i];
+  }
+  sheet.set("B1", total);
+  sheet.set("B2", "Total: " + total);
+  sheet.set("B3", Math.round(2.5));
+  sheet.set("B4", (30.75).toFixed(1));
+  sheet.setFormula("B5", "=SOMA(A1:A3)");
+  if (total > 30) { sheet.set("B6", "acima"); } else { sheet.set("B6", "abaixo"); }
+}
+"#.into() });
+        cat.macros.push(feather_macros::Macro { name: macros::organizacao::nome_evento(&aba, "aoMudar"), auto: false,
+            code: "if (valores.intervalo === \"C1\") { sheet.set(\"D1\", sheet.get(\"C1\") * 2); }".into() });
+        cat.macros.push(feather_macros::Macro { name: macros::organizacao::nome_evento("", "antesDeSalvar"), auto: false,
+            code: "if (!sheet.get(\"A1\")) wb.cancelSave();".into() });
+        assert!(app.persistir_modulos(cat, "teste"));
+        let destino = saida.join("novo.xlsm");
+        let _ = app.update(Msg::DestinoSalvar(Some(destino.clone())));
+        app.concluir_gravacao_teste(destino.clone(), false);
+        println!("{}\n{}", destino.display(), app.status);
+
+        let origem = std::path::PathBuf::from(format!("{}/Documentos/FeatherSheet/0 - Planilha de Informações -v6.0a.xlsm", std::env::var("HOME").unwrap()));
+        let Ok(bytes) = std::fs::read(&origem) else { return };
+        let mut app = App::default();
+        app.carregar(origem.clone(), bytes).unwrap();
+        if app.macro_catalogo.macros.is_empty() { app.ler_vba_do_xlsm(&origem); }
+        let mut cat = app.macro_catalogo.clone();
+        let alvo = cat.macros.iter_mut().find(|m| m.code.starts_with("// Convertida do VBA") && m.code.contains("function ")).unwrap();
+        alvo.code.push_str("\nfunction FeatherTeste() { sheet.set(\"Z1\", 1234.5); sheet.set(\"Z2\", \"R$ \" + (1234.5).toFixed(2)); }\n");
+        assert!(app.persistir_modulos(cat, "teste"));
+        let destino = saida.join("real.xlsm");
+        let _ = app.update(Msg::DestinoSalvar(Some(destino.clone())));
+        app.concluir_gravacao_teste(destino.clone(), false);
+        println!("{}\n{}", destino.display(), app.status);
     }
 
     /// A planilha real do usuário (só leitura): abrir, editar uma macro convertida, salvar em .xlsm numa pasta
@@ -269,6 +325,8 @@ mod testes {
             let d = depois.modulos.iter().find(|m| m.nome == a.nome).unwrap_or_else(|| panic!("sumiu {}", a.nome));
             if a.nome == modulo {
                 assert!(d.codigo.contains("Sub FeatherTeste()") && d.codigo.contains("1234.5"), "{nome_js}: {}", d.codigo);
+                // Só o procedimento novo entra: o resto do módulo (o Word da procuração) fica byte a byte.
+                assert_eq!(d.codigo.replace(&d.codigo[d.codigo.find("Sub FeatherTeste()").unwrap()..].split_inclusive("End Sub").next().unwrap().to_string(), "").trim_end(), a.codigo.trim_end(), "o resto de {} mudou", a.nome);
             } else {
                 assert_eq!(a.codigo, d.codigo, "{} mudou", a.nome);
             }
