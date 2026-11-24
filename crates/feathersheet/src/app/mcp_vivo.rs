@@ -160,6 +160,8 @@ const COMANDOS: &[(&str, &str)] = &[
     ("criar_da_selecao_confirmar", "botão Criar"),
     ("fechar", "fecha o menu ou diálogo aberto (Esc)"),
     ("congelar", "congela painéis na aba ativa: args {linhas: 1, colunas: 0} (até 30 × 16; 0 e 0 descongela)"),
+    ("zoom", "zoom da grade: args {percentual: 100} (dentro dos limites das Configurações)"),
+    ("grade", "linhas de grade da aba ativa: args {mostrar: true}"),
     ("selecionar_derramada", "Ctrl+/: seleciona a matriz derramada da célula ativa"),
     ("inspecao_abrir", "abre a Janela de inspeção"),
     ("inspecao_adicionar", "Adicionar inspeção (a seleção)"),
@@ -484,6 +486,15 @@ impl Hospede for HospedeApp<'_> {
                 let t = self.app.processar_teclado(id, keyboard::Key::Named(keyboard::key::Named::Escape), keyboard::Modifiers::empty());
                 self.tarefas.push(t);
             }
+            "zoom" => {
+                let p = args.get("percentual").and_then(Json::as_u64).ok_or("Falta `percentual` (ex.: 100).")?;
+                self.enviar(Msg::Zoom(p.min(u64::from(u16::MAX)) as u16));
+                extra = format!(" (zoom {}%)", self.app.config.zoom);
+            }
+            "grade" => {
+                let v = args.get("mostrar").and_then(Json::as_bool).ok_or("Falta `mostrar` (true ou false).")?;
+                self.enviar(Msg::LinhasGrade(v));
+            }
             "congelar" => self.app.definir_congelamento(numero("linhas").min(999) as u32, numero("colunas").min(999) as u32),
             "selecionar_derramada" => self.enviar(Msg::Formulas(F::SelecionarDerramada)),
             "inspecao_abrir" => if !self.app.janelas.aberta(Auxiliar::Inspecao) { self.enviar(Msg::Inspecao(I::Abrir)) },
@@ -782,6 +793,20 @@ mod testes {
         assert!(!erro && app.congelamento_atual() == (2, 1), "{t}");
         chamar(&mut app, "sheet_comando", json!({ "comando": "congelar", "args": { "linhas": 0, "colunas": 0 } }));
         assert_eq!(app.congelamento_atual(), (0, 0));
+    }
+
+    #[test]
+    fn zoom_e_grade_pelo_mcp() {
+        let mut app = App::default();
+        let (erro, t) = chamar(&mut app, "sheet_comando", json!({ "comando": "zoom", "args": { "percentual": 9999 } }));
+        assert!(!erro && app.config.zoom == app.config.zoom_maximo, "fica no limite: {t}");
+        chamar(&mut app, "sheet_comando", json!({ "comando": "zoom", "args": { "percentual": 80 } }));
+        assert_eq!(app.config.zoom, 80);
+        assert!(chamar(&mut app, "sheet_comando", json!({ "comando": "zoom", "args": {} })).0, "sem percentual é erro");
+        chamar(&mut app, "sheet_comando", json!({ "comando": "grade", "args": { "mostrar": false } }));
+        assert!(!app.linhas_grade);
+        chamar(&mut app, "sheet_comando", json!({ "comando": "grade", "args": { "mostrar": true } }));
+        assert!(app.linhas_grade);
     }
 
     #[test]

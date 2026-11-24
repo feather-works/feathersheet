@@ -100,7 +100,7 @@ O que mais se pede depois de dados e fórmulas.
 
 ## Falta — exibição e arquivo (prioridade baixa)
 
-- [ ] **Congelar painéis**, zoom, linhas de grade, tema: hoje só ao vivo, por `menu`/`tecla`
+- [x] **Congelar painéis**, zoom e linhas de grade (24/11/2026): ao vivo, `sheet_comando` `congelar`, `zoom` {percentual} e `grade` {mostrar}; são estado da janela, então o modo avulso não tem. Falta o tema.
       (são estado da janela, não do arquivo).
 - [ ] **Impressão**: área de impressão, quebras, exportar PDF pelo produtor comum da suíte.
 - [x] **Proteção** (24/11/2026, `sheet_proteger`): listar, proteger aba com senha (formato do Excel) e permissões, desproteger conferindo a senha. Falta: proteger a pasta e bloquear/desbloquear células.

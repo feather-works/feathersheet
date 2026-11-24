@@ -4,6 +4,9 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **MCP ao vivo: `zoom` e `grade`** (24/11/2026) no `sheet_comando` (o `congelar` já existia; o `MCP-PENDENTE`
+  estava desatualizado). Zoom respeita os limites das Configurações. Teste `zoom_e_grade_pelo_mcp`.
+
 - **VBA `Word.Application` → `docs.fill`** (24/11/2026): `CreateObject("Word.Application")`, `Documents.Open`/
   `Add(Template:=)`, `Content`/`Range.Find.Execute FindText:=, ReplaceWith:=` e o bloco `With .Find` (`.Text`,
   `.Replacement.Text`, `.Execute`), `SaveAs`/`SaveAs2`; `Visible`, `Close`, `Quit`, `ClearFormatting` e as opções da
