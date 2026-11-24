@@ -410,6 +410,19 @@ fn proteger(h: &mut dyn Hospede, args: &Json) -> Saida {
         };
         return Ok(conteudo(format!("{pasta}\n{}", linhas.join("\n"))));
     }
+    // Bloquear/desbloquear células (o "Bloqueada" de Formatar células ▸ Proteção): só vale com a aba protegida.
+    if let a @ ("bloquear" | "desbloquear") = acao {
+        let (aba, area) = intervalo(h, args, "intervalo")?;
+        if h.pasta().aba(aba).is_some_and(|x| x.sheet.protegida()) {
+            return Err("A aba está protegida: desproteja antes de mudar o que fica bloqueado (como no Excel).".into());
+        }
+        let patch = feathersheet_core::celulas::estilo_parcial::EstiloParcial::from([("locked".to_string(),
+            feathersheet_core::celulas::estilo_parcial::Campo::Logico(a == "bloquear"))]);
+        h.pasta_mut().editar(aba, |s| s.set_style(&area, &patch));
+        h.marcar_alterado();
+        return Ok(conteudo(format!("{} {} (vale quando a aba for protegida)", nome_area(&area),
+            if a == "bloquear" { "bloqueada" } else { "desbloqueada" })));
+    }
     if arg_texto(args, "alvo") == Some("pasta") {
         return proteger_pasta(h, acao, arg_texto(args, "senha").unwrap_or(""));
     }
@@ -442,7 +455,7 @@ fn proteger(h: &mut dyn Hospede, args: &Json) -> Saida {
             h.pasta_mut().editar(aba, |s| { s.desproteger(); });
             format!("Aba {nome} desprotegida.")
         }
-        outra => return Err(format!("Ação desconhecida: {outra}. Use listar, proteger ou desproteger.")),
+        outra => return Err(format!("Ação desconhecida: {outra}. Use listar, proteger, desproteger, bloquear ou desbloquear.")),
     };
     h.marcar_alterado();
     Ok(conteudo(texto))
@@ -743,10 +756,9 @@ mod testes {
         assert_eq!(h.pasta.aba(0).unwrap().sheet.get_raw(0, 0), "antes");
         assert!(chamar(&mut h, "sheet_estrutura", &json!({ "acao": "inserir", "eixo": "linhas", "intervalo": "2:2" })).is_err());
         // Célula desbloqueada antes de proteger: a IA escreve.
+        assert!(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desbloquear", "intervalo": "B2" })).is_err(), "protegida: desproteger antes");
         texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger" })));
-        let desbloq = feathersheet_core::celulas::estilo_parcial::EstiloParcial::from([("locked".to_string(),
-            feathersheet_core::celulas::estilo_parcial::Campo::Logico(false))]);
-        h.pasta.editar(0, |s| s.set_style(&feathersheet_core::celulas::refs::Rect::cell(1, 1), &desbloq));
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desbloquear", "intervalo": "B2" })));
         texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "proteger" })));
         texto(chamar(&mut h, "sheet_escrever", &json!({ "celula": "B2", "valores": [["livre"]] })));
         assert_eq!(h.pasta.aba(0).unwrap().sheet.get_raw(1, 1), "livre");
