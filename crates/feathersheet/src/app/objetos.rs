@@ -819,7 +819,8 @@ impl App {
                         let antes = o.retangulo(&regua);
                         o.definir_giro(o.giro + delta);
                         girar_grupo(&mut objetos, id, grupo, antes, delta, &regua);
-                        self.gravar_objetos(&objetos, trf!("{} (Ctrl+Z desfaz).", tr!("Grupo girado")));
+                        let status = tr!("Grupo girado");
+                        self.gravar_objetos(&objetos, trf!("{status} (Ctrl+Z desfaz)."));
                         return Task::none();
                     }
                 }
