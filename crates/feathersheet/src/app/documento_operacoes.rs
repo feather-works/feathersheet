@@ -799,6 +799,12 @@ impl App {
                     // Os dois avisos juntos: o dos ícones apagava o das macros.
                     self.status = if sem_macros { format!("{} {aviso}", self.status) } else { aviso };
                 }
+                // JavaScript não vai no formato do Excel: o que foi criado ou editado aqui se perde ao reabrir.
+                let fora = if formato_excel(&path).is_some() { self.macros_fora_do_excel() } else { 0 };
+                if fora > 0 {
+                    let aviso = trf!("{fora} macro(s) JavaScript criada(s) ou editada(s) aqui não vão no arquivo do Excel (ele roda só o VBA original): para guardá-las, salve também em .fshz.");
+                    self.status = format!("{} {aviso}", self.status);
+                }
                 if self.senha_documento.is_some() && formato_excel(&path).is_none() {
                     self.status = tr!("Salvo em .fshz, que não leva a senha: para proteger, salve como .xlsx.").into();
                 }

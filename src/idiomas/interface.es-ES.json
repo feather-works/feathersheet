@@ -6243,5 +6243,6 @@
  "Informe as trocas como objeto: { \"#NOME#\": \"Ana\" }": "Indique los reemplazos como objeto: { \"#NOME#\": \"Ana\" }",
  "o modelo {} não abriu: {e}": "la plantilla {} no se abrió: {e}",
  "objeto do Word guardado em variável e trocado depois": "objeto de Word guardado en una variable y cambiado después",
- "Word.{nome} (só abrir o modelo, Localizar e Substituir e Salvar como convertem)": "Word.{nome} (solo convierten abrir la plantilla, Buscar y reemplazar y Guardar como)"
+ "Word.{nome} (só abrir o modelo, Localizar e Substituir e Salvar como convertem)": "Word.{nome} (solo convierten abrir la plantilla, Buscar y reemplazar y Guardar como)",
+ "{fora} macro(s) JavaScript criada(s) ou editada(s) aqui não vão no arquivo do Excel (ele roda só o VBA original): para guardá-las, salve também em .fshz.": "{fora} macro(s) JavaScript creada(s) o editada(s) aquí no se guardan en el archivo de Excel (solo ejecuta el VBA original): para conservarlas, guarde también en .fshz."
 }

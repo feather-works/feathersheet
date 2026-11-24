@@ -4,6 +4,14 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Aviso: macro JavaScript não vai no `.xlsx`/`.xlsm`** (24/11/2026; furo achado ao olhar o "caminho de volta
+  JS → VBA"): o `.xlsm` regrava o `vbaProject.bin` original e o JavaScript só vive no `.fshz`, então macro criada
+  ou editada aqui sumia calada ao reabrir o `.xlsm`. Agora a conversão guarda a marca de cada módulo
+  (`App::macros_do_vba`, só na sessão) e o salvar em formato do Excel diz quantas não vão
+  (`macros_fora_do_excel`). Ajuda F1 (tópico VBA) nas quatro línguas. Teste
+  `macro_editada_ou_nova_nao_vai_para_o_excel_e_avisa`. O caminho de volta de verdade (gerar VBA a partir do JS e
+  gravar um `vbaProject.bin` novo) continua aberto: é decisão de escopo do usuário.
+
 - **MCP: PDF da aba** (24/11/2026, `sheet_impressao` acao `pdf`, ao vivo): a página da aba (papel, orientação,
   escala, margens, áreas) vira `ConfigPagina` como no Salvar PDF; gravação atômica; `shortcut:` gera na thread da
   janela, por isso o teto de 300 mil células (acima, a IA é mandada para Arquivo ▸ Imprimir). Teste `pdf_pelo_mcp`.

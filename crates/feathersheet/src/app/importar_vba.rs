@@ -93,6 +93,22 @@ fn veio_do_arquivo(m: &feather_macros::Macro, arquivo: &str) -> bool {
     [" (", ").", tr!(" não")].iter().any(|fim| linha.contains(&format!("VBA de {arquivo}{fim}")))
 }
 
+/// A marca do código de um módulo (para saber se ele mudou depois de convertido do VBA).
+fn marca_do_codigo(m: &feather_macros::Macro) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    m.code.hash(&mut h);
+    h.finish()
+}
+
+impl App {
+    /// Quantas macros JavaScript não vão para um arquivo do Excel: as criadas aqui e as convertidas do VBA e
+    /// editadas depois. O `.xlsx`/`.xlsm` não guarda JavaScript; o `.xlsm` leva só o VBA original.
+    pub(super) fn macros_fora_do_excel(&self) -> usize {
+        self.macro_catalogo.macros.iter().filter(|m| !self.macros_do_vba.contains(&marca_do_codigo(m))).count()
+    }
+}
+
 fn resumo(c: &Conversao) -> String {
     trf!("{} macro(s), {} evento(s), {} formulário(s), {} pendência(s)", c.macros.len(), c.eventos.len(), c.formularios.len(), c.pendencias.len())
 }
@@ -332,6 +348,7 @@ impl App {
         let primeiro = novos[0].clone();
         let mut catalogo = base;
         let n = novos.len();
+        self.macros_do_vba.extend(novos.iter().map(marca_do_codigo));
         catalogo.macros.extend(novos);
         if self.persistir_modulos(catalogo, &trf!("VBA de {arquivo} importado ({})", resumo(c))) {
             if !abrir_no_editor { return; }
@@ -360,6 +377,27 @@ mod testes {
         assert!(mods.iter().all(|m| veio_do_arquivo(m, "Vendas")), "{:?}", mods.iter().map(|m| m.code.lines().next()).collect::<Vec<_>>());
         assert!(mods.iter().all(|m| !veio_do_arquivo(m, "Vend")));
         assert!(!veio_do_arquivo(&feather_macros::Macro { name: "x".into(), code: "log(1)".into(), auto: false }, "Vendas"));
+    }
+
+    /// Convertidas e intactas não contam; editar uma ou criar outra conta, e salvar em .xlsx avisa.
+    #[test]
+    fn macro_editada_ou_nova_nao_vai_para_o_excel_e_avisa() {
+        let mut app = App::default();
+        let c = converter_texto(&[("Modulo1", "Sub Ola()\n  Range(\"A1\").Value = 1\nEnd Sub\n")], &[]);
+        app.instalar_vba("Vendas", &c, false);
+        assert_eq!(app.macros_fora_do_excel(), 0, "convertida e intacta: o VBA original equivale");
+        let mut cat = app.macro_catalogo.clone();
+        cat.macros[0].code.push_str("\nlog('mudei');");
+        cat.macros.push(feather_macros::Macro { name: "Nova".into(), code: "log(1)".into(), auto: false });
+        assert!(app.persistir_modulos(cat, "teste"));
+        assert_eq!(app.macros_fora_do_excel(), 2);
+        let dir = std::env::temp_dir().join(format!("fs-macros-excel-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let xlsx = dir.join("v.xlsx");
+        let _ = app.update(Msg::DestinoSalvar(Some(xlsx.clone())));
+        app.concluir_gravacao_teste(xlsx, false);
+        assert!(app.status.contains("2 macro(s) JavaScript"), "{}", app.status);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -797,6 +797,9 @@ pub struct App {
     macro_programas: Option<macro_dialogo::ProgramasMacro>,
     /// Eventos do VBA instalados que rodam sozinhos (aoMudar, aoAtivar).
     eventos_vba: Vec<eventos_vba::EventoVba>,
+    /// Marca do código de cada módulo convertido do VBA nesta sessão: o que não bate (macro nova ou editada)
+    /// não vai para o `.xlsx`/`.xlsm` (o Excel roda o VBA original) e quem salva é avisado.
+    macros_do_vba: std::collections::HashSet<u64>,
     /// Arquivo recém-aberto: o `aoAbrir` e os módulos "Executar ao abrir" rodam no "Ativar macros".
     ao_abrir_pendente: bool,
     /// O próximo Salvar já passou pelo `antesDeSalvar` (a pergunta dele foi respondida).
@@ -1179,7 +1182,7 @@ impl Default for App {
             consolidar: None,
             filtro_avancado: None,
             inspecao_documento: None,
-            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), ao_abrir_pendente: false, salvar_sem_evento: false, salvar_apos_pergunta: None, fechar_sem_evento: false, fechar_apos_pergunta: None, selecao_evento: (0, 0, 0, (0, 0)), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
+            vba_pendente: None, macro_pergunta: None, macro_rodando: None, calculo_rodando: None, formulario_macro: None, macro_valores: None, historico_macros: Default::default(), macro_mensagens: Vec::new(), macro_programas: None, eventos_vba: Vec::new(), macros_do_vba: Default::default(), ao_abrir_pendente: false, salvar_sem_evento: false, salvar_apos_pergunta: None, fechar_sem_evento: false, fechar_apos_pergunta: None, selecao_evento: (0, 0, 0, (0, 0)), macros_bloqueadas: false, aviso_macros: false, macro_rodou: false, profundidade_update: 0,
             protecao_modal: None,
             senha_arquivo: None,
             senha_documento: None,

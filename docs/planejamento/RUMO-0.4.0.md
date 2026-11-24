@@ -20,7 +20,8 @@ milhar, datas, nomes de função) nas quatro línguas.
 
 ## Falta — macros (o tema da 0.4)
 
-- [ ] Caminho de volta JS → VBA gravado no `.xlsm` (o Excel abre e roda) e teste de ida e volta.
+- [ ] Caminho de volta JS → VBA gravado no `.xlsm` (o Excel abre e roda) e teste de ida e volta. Hoje: o `.xlsm`
+      leva o VBA original e o salvar avisa quantas macros JS ficam de fora (24/11). **Escopo: decidir com o usuário.**
 - [ ] Relatório de conversão numa tela própria (hoje é o módulo de pendências). **Tela nova: confirmar.**
 - [ ] Bateria com pelo menos 50 `.xlsm` reais (#143); meta de 95% rodando igual.
 - [x] Integração com o FeatherDocs: `docs.fill` (modelo → `.docx`) e o conversor do `Word.Application` (mala
