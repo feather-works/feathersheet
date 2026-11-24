@@ -119,6 +119,8 @@ impl Gerador<'_> {
             // Rótulo que ninguém chama (ou já tratado pelo bloco): não faz nada.
             TipoInstr::Rotulo(_) => String::new(),
             TipoInstr::IrPara(n) if self.rotulos.contains(&n.to_lowercase()) => format!("break {};", rotulo_js(n)),
+            // `GoTo trata` de dentro do `try`: vai para o `catch` sem erro (o `Err.Number` fica 0, como no VBA).
+            TipoInstr::IrPara(n) if self.tratador.as_deref() == Some(n.to_lowercase().as_str()) => "throw { number: 0, message: '' }; // GoTo para o tratador de erro".into(),
             TipoInstr::IrPara(_) => return Err(Motivo::novo(feathersheet_core::tr!("GoTo para trás ou para dentro de um bloco (reescrever com laço ou if)"))),
             TipoInstr::EmErro(_) => return Err(Motivo::novo(feathersheet_core::tr!("On Error GoTo fora do começo do procedimento (reescrever com try/catch)"))),
             TipoInstr::Desconhecida(t) => return Err(Motivo::novo(motivo_da_desconhecida(t))),
@@ -143,7 +145,9 @@ impl Gerador<'_> {
         self.m.convertidas += 2;
         self.linha("try {");
         self.nivel += 1;
+        if let TipoInstr::Rotulo(r) = &corpo[k].k { self.tratador = Some(r.to_lowercase()); }
         self.com_rotulos(&corpo[i + 1..k]);
+        self.tratador = None;
         self.nivel -= 1;
         let guardar = self.ajuda("erro");
         self.linha("} catch ($erro) {");

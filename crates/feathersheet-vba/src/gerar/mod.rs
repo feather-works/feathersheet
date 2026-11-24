@@ -128,7 +128,7 @@ fn escrever_proc(p: &Programa, m: &mut Macro, r: RefProc) -> Vec<String> {
     if info.aba.is_some() {
         m.abas.insert(atual.clone(), atual_nome.clone().unwrap_or_default());
     }
-    let mut g = Gerador { p, m, modulo: r.0, escopo: Escopo::default(), linhas: Vec::new(), nivel: 1, com: Vec::new(), lacos: Vec::new(), contador: 0, atual, atual_nome, rotulos: Vec::new(), pular_erro: false };
+    let mut g = Gerador { p, m, modulo: r.0, escopo: Escopo::default(), linhas: Vec::new(), nivel: 1, com: Vec::new(), lacos: Vec::new(), contador: 0, atual, atual_nome, rotulos: Vec::new(), tratador: None, pular_erro: false };
     let mut params = parametros(&mut g, proc);
     if p.e_classe(r.0) {
         params.insert(0, "$eu".into());

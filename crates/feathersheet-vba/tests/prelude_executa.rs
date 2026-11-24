@@ -595,3 +595,16 @@ fn enum_constante_de_outro_modulo_e_if_de_compilacao_rodam() {
     // 100 + 6 + 16 + (0 Or 6)
     assert_eq!(wb.valor(0, 0, 0), Value::Number(128.0), "{js}");
 }
+
+/// `GoTo tratador` de dentro de um laço, com `On Error GoTo tratador` (#143): vai para o tratador com
+/// `Err.Number` 0, e o código depois do `GoTo` não roda.
+#[test]
+fn goto_para_o_tratador_de_erro_roda() {
+    let wb = roda(
+        "Sub T()\n  Dim i As Long\n  On Error GoTo trata\n  For i = 1 To 10\n    If i = 3 Then GoTo trata\n    Range(\"A1\").Value = i\n  Next i\n  Range(\"A2\").Value = \"não\"\n  Exit Sub\ntrata:\n  Range(\"A3\").Value = Err.Number\nEnd Sub\n",
+        "T",
+    );
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(2.0));
+    assert_eq!(wb.valor(0, 1, 0), Value::Empty);
+    assert_eq!(wb.valor(0, 2, 0), Value::Number(0.0));
+}

@@ -202,6 +202,8 @@ pub struct Gerador<'a> {
     pub atual_nome: Option<String>,
     /// Rótulos com bloco aberto (`rotulo_x: { … }`): um `GoTo x` vira `break rotulo_x;`.
     pub rotulos: Vec<String>,
+    /// O rótulo do `On Error GoTo` (minúsculo) enquanto escreve o `try`: um `GoTo` para ele vira `throw`.
+    pub tratador: Option<String>,
     /// Depois de `On Error Resume Next` (até o `On Error GoTo 0`): cada instrução vai num
     /// `try`, e o erro só fica anotado no `Err`.
     pub pular_erro: bool,

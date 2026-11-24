@@ -20,6 +20,9 @@
   e a compilação condicional (`sintaxe/precompilar.rs`: `#If/#ElseIf/#Else/#End If/#Const`, ramo do Windows 64 bits,
   linhas descartadas em branco). Placar 80,2% → 82,9% (20.225 convertidas). Teste
   `enum_constante_de_outro_modulo_e_if_de_compilacao_rodam`.
+  **Terceira rodada**: `GoTo trata` de dentro do `try` (o rótulo do `On Error GoTo trata`) vira
+  `throw { number: 0, message: '' }` e cai no `catch` com `Err.Number` 0, como no VBA (`Gerador::tratador`).
+  Placar 82,9% → 84,1%. Teste `goto_para_o_tratador_de_erro_roda`. Fica: rótulo do tratador dentro de `With`/`If`.
 
 - **Gráfico dinâmico vai e volta no `.xlsx` (24/11/2026)**: o `pivotSource` do gráfico (id da dinâmica) sai como
   `<c:pivotSource><c:name>Aba!Nome</c:name><c:fmtId val="0"/></c:pivotSource>` (`xlsx_write_graficos::chart_space`,
