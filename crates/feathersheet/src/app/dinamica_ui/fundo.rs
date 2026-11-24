@@ -111,6 +111,8 @@ pub(in crate::app) struct Fundo {
     lendo: Option<(usize, ColunaLida)>,
     trabalho: Option<Trabalho>,
     geracao: u64,
+    /// Outras dinâmicas esperando a vez (a segmentação ligada a várias): uma conta de fundo por vez.
+    fila: Vec<(usize, Estado)>,
 }
 
 impl Fundo {
@@ -120,7 +122,7 @@ impl Fundo {
 
     /// Solta as colunas lidas (painel fechado, nada em andamento).
     pub(in crate::app) fn soltar(&mut self) {
-        if self.trabalho.is_none() {
+        if self.trabalho.is_none() && self.fila.is_empty() {
             *self = Fundo { geracao: self.geracao, ..Fundo::default() };
         }
     }
@@ -151,6 +153,12 @@ impl App {
     /// Começa (ou recomeça, com os campos de agora) a conta de fundo.
     pub(super) fn iniciar_dinamica_fundo(&mut self, destino: usize, e: &Estado) -> Result<(), String> {
         avancado::conferir_nomes_calculados(e)?;
+        // Outra dinâmica já está na conta: esta espera a vez (a mesma dinâmica, editada de novo, recomeça).
+        if self.dinamica_fundo.trabalho.as_ref().is_some_and(|t| (t.destino, &t.estado.editando) != (destino, &e.editando)) {
+            self.dinamica_fundo.fila.retain(|(d, f)| (*d, &f.editando) != (destino, &e.editando));
+            self.dinamica_fundo.fila.push((destino, e.clone()));
+            return Ok(());
+        }
         let config = avancado::configuracao_avancada(e)?;
         let total = (e.origem.r1 - e.origem.r0 + 1) as usize;
         let largura = (e.origem.c1 - e.origem.c0 + 1) as usize;
@@ -246,6 +254,7 @@ impl App {
             Err(erro) => {
                 self.dinamica_fundo.trabalho = None;
                 self.status = erro;
+                self.proxima_da_fila();
                 return Task::none();
             }
         };
@@ -260,8 +269,24 @@ impl App {
         }, move |r| Msg::Dinamica(Evento::FundoPronto(geracao, Pronto(Arc::new(Mutex::new(r))))))
     }
 
+    /// Começa a próxima dinâmica da fila, se houver e nada estiver na conta.
+    fn proxima_da_fila(&mut self) {
+        while self.dinamica_fundo.trabalho.is_none() && !self.dinamica_fundo.fila.is_empty() {
+            let (destino, e) = self.dinamica_fundo.fila.remove(0);
+            if let Err(erro) = self.iniciar_dinamica_fundo(destino, &e) { self.status = erro; }
+        }
+    }
+
     /// A conta de fundo voltou: grava, se ainda é a conta mais nova.
     pub(super) fn dinamica_fundo_pronta(&mut self, geracao: u64, pronto: Pronto) {
+        self.gravar_dinamica_fundo(geracao, pronto);
+        self.proxima_da_fila();
+        if self.dinamica.is_none() {
+            self.dinamica_fundo.soltar();
+        }
+    }
+
+    fn gravar_dinamica_fundo(&mut self, geracao: u64, pronto: Pronto) {
         let Some(t) = self.dinamica_fundo.trabalho.take_if(|t| t.geracao == geracao) else { return };
         let Some(resultado) = pronto.0.lock().ok().and_then(|mut r| r.take()) else {
             self.status = tr!("A conta da tabela dinâmica falhou.").into();
@@ -280,9 +305,6 @@ impl App {
                 }
             }
             Err(erro) => self.status = erro,
-        }
-        if self.dinamica.is_none() {
-            self.dinamica_fundo.soltar();
         }
     }
 
@@ -328,6 +350,32 @@ mod testes {
         assert!(matches!(c.valor(5), Value::Number(n) if n.is_nan()));
         assert_eq!(c.valor(6), Value::Bool(true));
         assert_eq!(c.valor(8), Value::Empty, "fora da coluna");
+    }
+
+    /// Duas dinâmicas pedidas à conta de fundo (segmentação ligada): a segunda espera a vez em vez de tomar o
+    /// lugar da primeira; pedir de novo a que espera não a duplica; terminada a primeira, a fila anda.
+    #[test]
+    fn segunda_dinamica_espera_na_fila_da_conta_de_fundo() {
+        let mut app = App::default();
+        app.workbook.editar(0, |s| {
+            s.set_cell(0, 0, "Região"); s.set_cell(0, 1, "Valor");
+            s.set_cell(1, 0, "Norte"); s.set_cell(1, 1, "10");
+        });
+        app.fim_selecao = (1, 1);
+        app.evento_dinamica(Evento::Abrir);
+        let mut a = app.dinamica.clone().expect("painel");
+        a.editando = Some("a".into());
+        let mut b = a.clone();
+        b.editando = Some("b".into());
+        app.iniciar_dinamica_fundo(1, &a).unwrap();
+        app.iniciar_dinamica_fundo(2, &b).unwrap();
+        app.iniciar_dinamica_fundo(2, &b).unwrap();
+        assert_eq!(app.dinamica_fundo.trabalho.as_ref().unwrap().destino, 1, "a primeira continua");
+        assert_eq!(app.dinamica_fundo.fila.len(), 1);
+        app.dinamica_fundo.trabalho = None;
+        app.proxima_da_fila();
+        assert_eq!(app.dinamica_fundo.trabalho.as_ref().unwrap().destino, 2);
+        assert!(app.dinamica_fundo.fila.is_empty());
     }
 
     /// A mesma dinâmica pela conta de fundo e pela conta na tela.

@@ -278,6 +278,35 @@ impl App {
                     self.selecionar_faixa(AbaFaixa::Dinamica);
                 }
             }
+            // conexoes: uma segunda dinâmica da mesma origem, segmentação STATUS na primeira, ligada à segunda,
+            // "Execução" escolhido e as Conexões de relatório abertas (#145).
+            "conexoes" => {
+                let _ = self.evento_dinamica(Evento::Fechar);
+                let a = self.folha;
+                self.folha = 0;
+                self.trocar_selecao(0, 0);
+                self.fim_selecao = (dados.len() as u32 - 1, 4);
+                let _ = self.evento_dinamica(Evento::Abrir);
+                if let Some(e) = self.dinamica.as_mut() {
+                    let c0 = e.origem.c0 as usize;
+                    e.linhas = vec![c0];
+                    e.valores = vec![MedidaDinamica { coluna: c0 + 4, op: AgregacaoOp::Soma }];
+                }
+                let _ = self.evento_dinamica(Evento::Criar);
+                let _ = self.evento_dinamica(Evento::Fechar);
+                let b = self.folha;
+                let id = |app: &App, aba: usize| dinamicas_da_aba(app, aba).first().and_then(|d| d["id"].as_str().map(str::to_owned));
+                let (Some(id_a), Some(id_b)) = (id(self, a), id(self, b)) else { return };
+                self.folha = a;
+                if let Some(r) = dinamicas_da_aba(self, a).first().and_then(|d| retangulo_json(&d["areaResultado"])) {
+                    self.trocar_selecao(r.r1, r.c0);
+                }
+                for ev in [Evento::SegmentacaoInserir, Evento::SegmentacaoCampo(1),
+                    Evento::SegmentacaoConexoes(a, id_a.clone(), 1), Evento::SegmentacaoLigar(id_b),
+                    Evento::SegmentacaoItem(a, id_a.clone(), 1, "Execução".into())] {
+                    let _ = self.evento_dinamica(ev);
+                }
+            }
             "menu" | "resumir" => if let Some(e) = self.dinamica.as_mut() {
                 let (area, i, dx) = if modo == "menu" { (AreaDinamica::Linhas, 1, 160.0) } else { (AreaDinamica::Valores, 0, 330.0) };
                 e.ui.ponteiro_menu = pelicano::Point::new(painel_x + dx, topo + 520.0);

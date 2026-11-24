@@ -111,8 +111,9 @@ pub(super) fn ler_estado(app: &App, destino: usize, meta: &Json) -> Result<Estad
         com_grafico: false,
         segmentacoes: meta["segmentacoes"].as_array().map(|lista| lista.iter().filter_map(|s| {
             let coluna = usize::try_from(s["col"].as_u64()?).ok()?;
-            let sel = s["sel"].as_array()?.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect();
-            Some((coluna, sel))
+            let textos = |k: &str| s[k].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
+            s["sel"].as_array()?;
+            Some(Segmentacao { coluna, sel: textos("sel"), liga: textos("liga") })
         }).collect()).unwrap_or_default(),
         pagina_tambem: meta["paginaTambem"].as_array().map(|lista| lista.iter()
             .filter_map(|c| usize::try_from(c.as_u64()?).ok()).collect()).unwrap_or_default(),

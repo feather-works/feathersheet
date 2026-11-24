@@ -156,6 +156,11 @@ pub enum Evento {
     SegmentacaoItem(usize, String, usize, String),
     SegmentacaoLimpar(usize, String, usize),
     SegmentacaoRemover(usize, String, usize),
+    /// Conexões de relatório: abre a lista das outras dinâmicas da mesma origem.
+    SegmentacaoConexoes(usize, String, usize),
+    /// Liga ou desliga a dinâmica (id) à segmentação aberta em Conexões.
+    SegmentacaoLigar(String),
+    SegmentacaoFecharConexoes,
     /// Um botão da aba contextual "Tabela Dinâmica" (com ou sem o painel aberto).
     NaFaixa(Box<Evento>),
     /// Clique no funil de um filtro de relatório na grade (linha, coluna,
@@ -263,12 +268,21 @@ pub(super) struct Estado {
     atualizar_sozinha: bool,
     /// Criada pelo botão Gráfico dinâmico: ao criar, o gráfico vem junto.
     com_grafico: bool,
-    /// Segmentações de dados: (coluna do campo, itens escolhidos).
-    segmentacoes: Vec<(usize, Vec<String>)>,
+    /// Segmentações de dados desta dinâmica.
+    segmentacoes: Vec<Segmentacao>,
     /// Campos que são filtro de relatório e também estão em Linhas/Colunas
     /// (marcados na lista depois de ir para Filtros): o filtro continua em
     /// cima da tabela, em vez de virar só filtro de itens da linha.
     pagina_tambem: Vec<usize>,
+}
+
+/// Uma segmentação de dados: o campo (coluna da origem), os itens escolhidos e as outras dinâmicas da mesma
+/// origem que ela também filtra (as "Conexões de relatório" do Excel), pelo id.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(super) struct Segmentacao {
+    pub coluna: usize,
+    pub sel: Vec<String>,
+    pub liga: Vec<String>,
 }
 
 impl Estado {
@@ -1041,7 +1055,8 @@ impl App {
             Evento::AtualizarAgora(_) => {}
             Evento::FiltroNaGrade(r, c, x, y) => self.abrir_filtro_na_grade(r, c, (x, y)),
             evento @ (Evento::SegmentacaoInserir | Evento::SegmentacaoCampo(_) | Evento::SegmentacaoFecharEscolha
-                | Evento::SegmentacaoItem(..) | Evento::SegmentacaoLimpar(..) | Evento::SegmentacaoRemover(..)) =>
+                | Evento::SegmentacaoItem(..) | Evento::SegmentacaoLimpar(..) | Evento::SegmentacaoRemover(..)
+                | Evento::SegmentacaoConexoes(..) | Evento::SegmentacaoLigar(_) | Evento::SegmentacaoFecharConexoes) =>
                 self.evento_segmentacao(evento),
         }
         Task::none()

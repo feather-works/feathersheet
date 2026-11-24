@@ -4,6 +4,18 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Conexões de relatório da segmentação (#145, parte; 24/11/2026)**, referência o "Conexões de Relatório" do Excel:
+  botão de corrente no cartão da segmentação abre a lista das outras dinâmicas com a mesma origem (`fonte` igual),
+  cada uma marcável. A segmentação guarda `liga` (ids) no JSON da dinâmica (`dinamica_ui::Segmentacao`); escolher
+  ou limpar itens filtra as ligadas no mesmo campo (e o cartão delas acompanha), desligar ou apagar a segmentação
+  devolve a ligada inteira. A conta de fundo (origem grande) ganhou fila: uma dinâmica por vez, a mesma pedida de
+  novo recomeça (`Fundo::fila`, `proxima_da_fila`). Limite: o id da dinâmica é único só por aba (`shortcut:` em
+  `localizar_por_id`). Foto `FEATHERSHEET_CAPTURAR_DINAMICA=conexoes`. Testes
+  `segmentacao_ligada_filtra_outra_dinamica_da_mesma_origem`, `segunda_dinamica_espera_na_fila_da_conta_de_fundo`.
+  Ajuda F1 (tabelas) nas quatro línguas. Falta da #145: linha do tempo e `.xlsx` (precisa de arquivo do Excel).
+  Novidade para o `VERSOES` da 0.4.0: "Segmentação de dados filtra várias tabelas dinâmicas da mesma origem
+  (Conexões de relatório)".
+
 - **Relatório da conversão do VBA (24/11/2026)**, tela decidida sem o usuário, referência o Verificador de
   Compatibilidade do Excel: diálogo comum por cima do editor de macros (`app/relatorio_vba.rs`) com o resumo
   (macros, eventos, formulários, pendências) e duas seções, "Não convertido" e "Pode agir diferente", cada item com
