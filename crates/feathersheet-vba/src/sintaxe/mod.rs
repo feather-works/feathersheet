@@ -178,6 +178,8 @@ pub struct Modulo {
     pub externas: Vec<(String, usize)>,
     /// Os `Enum` do módulo (os membros estão em `constantes`).
     pub enums: Vec<String>,
+    /// Os `Type … End Type` (registros): nome e campos.
+    pub registros: Vec<(String, Vec<Decl>)>,
     /// Trechos de módulo que não entraram (`Type`, lixo): (linha, texto).
     pub ignorados: Vec<(usize, String)>,
 }

@@ -23,6 +23,9 @@
   **Terceira rodada**: `GoTo trata` de dentro do `try` (o rótulo do `On Error GoTo trata`) vira
   `throw { number: 0, message: '' }` e cai no `catch` com `Err.Number` 0, como no VBA (`Gerador::tratador`).
   Placar 82,9% → 84,1%. Teste `goto_para_o_tratador_de_erro_roda`. Fica: rótulo do tratador dentro de `With`/`If`.
+  **Quarta rodada**: `Type … End Type` vira módulo de classe sintético só com campos (`InfoModulo::registro`,
+  `Modulo::registros`); a variável (local, de módulo ou campo) já nasce com o objeto (`Gerador::inicial`).
+  `shortcut:` cópia por referência e sem matriz de registros. Placar 84,1% → 84,7%. Teste `type_do_vba_roda_no_motor`.
 
 - **Gráfico dinâmico vai e volta no `.xlsx` (24/11/2026)**: o `pivotSource` do gráfico (id da dinâmica) sai como
   `<c:pivotSource><c:name>Aba!Nome</c:name><c:fmtId val="0"/></c:pivotSource>` (`xlsx_write_graficos::chart_space`,

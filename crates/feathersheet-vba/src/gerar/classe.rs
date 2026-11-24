@@ -3,6 +3,8 @@
 //! módulo); cada método vira uma `function Classe_metodo($eu, …)` que entra na macro como qualquer
 //! procedimento (a fila de `Macro::pedir`), e `novo_Classe()` monta o objeto e roda o `Class_Initialize`.
 //! `Property Get`/`Let`/`Set` viram `Classe_get_x($eu)`/`Classe_set_x($eu, v)`.
+// `Type … End Type` usa a mesma estrutura (módulo sintético só com campos, `InfoModulo::registro`).
+// shortcut: o registro é copiado por referência (`a = b` no VBA copia os campos); sem matriz de registros.
 // shortcut: sem `Class_Terminate`, `Implements`, eventos de classe (`WithEvents`/`RaiseEvent`) nem `Is`/`TypeOf`
 // com a classe; o tipo do objeto se perde quando passa por função ou por `Variant` (o membro então vira pendência).
 
@@ -11,6 +13,14 @@ use super::tipos::{Motivo, Tipo, R, T, V};
 use crate::sintaxe::{Arg, Expr, TipoProc};
 
 impl Gerador<'_> {
+    /// O valor inicial de uma variável: o registro (`Type`) já nasce com os campos.
+    pub fn inicial(&mut self, tipo: &Tipo) -> String {
+        match tipo {
+            Tipo::Objeto(c) if self.p.modulos[*c].registro => self.criar_objeto(*c),
+            _ => valor_inicial(tipo).to_string(),
+        }
+    }
+
     /// O módulo de classe com esse nome.
     pub fn classe(&self, nome: &str) -> Option<usize> {
         (0..self.p.modulos.len()).find(|&i| self.p.e_classe(i) && self.p.modulos[i].nome.eq_ignore_ascii_case(nome))
@@ -40,11 +50,12 @@ impl Gerador<'_> {
                     (_, _, true) => "[]".to_string(),
                     (Tipo::Objeto(o), true, _) => self.criar_objeto(*o),
                     (_, true, _) => d.tipo.as_deref().and_then(|t| self.criar_colecao(&Expr::Novo(t.to_string()))).unwrap_or_else(|| "null".into()),
-                    _ => valor_inicial(&tipo).to_string(),
+                    _ => self.inicial(&tipo),
                 };
                 campos.push(format!("{}: {inicial}", js_nome(&d.nome)));
             }
-            let mut corpo = vec![format!("// Módulo de classe {classe}"), format!("function {nome}() {{"), format!("  const $eu = {{ {} }};", campos.join(", "))];
+            let origem = if self.p.modulos[c].registro { "Type" } else { "Módulo de classe" };
+            let mut corpo = vec![format!("// {origem} {classe}"), format!("function {nome}() {{"), format!("  const $eu = {{ {} }};", campos.join(", "))];
             if let Some(r) = self.metodo_da_classe(c, "class_initialize", &[TipoProc::Sub]) {
                 let ini = self.m.pedir(self.p, r);
                 corpo.push(format!("  {ini}($eu);"));

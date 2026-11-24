@@ -16,6 +16,8 @@ pub struct InfoModulo {
     pub ast: Modulo,
     /// No módulo de uma aba: o nome da aba (`"MAIN"`).
     pub aba: Option<String>,
+    /// Módulo sintético de um `Type … End Type`: classe só com campos, e a variável já nasce com o objeto.
+    pub registro: bool,
 }
 
 /// Todos os módulos, e onde achar cada procedimento.
@@ -329,7 +331,10 @@ impl Gerador<'_> {
                 let j = if self.m.topo.contains(&base) { js_nome(&format!("{}_{}", self.p.modulos[mi].nome, d.nome)) } else { base };
                 self.m.topo.insert(j.clone());
                 self.m.globais.insert((mi, chave), j.clone());
-                if d.novo {
+                if let Some(c) = d.tipo.as_deref().and_then(|t| self.classe(t)).filter(|&c| self.p.modulos[c].registro && d.dims.is_none()) {
+                    let novo = self.criar_objeto(c);
+                    self.m.novas.insert(j.clone(), novo);
+                } else if d.novo {
                     let nova = match d.tipo.as_deref().and_then(|t| self.classe(t)) {
                         Some(c) => Some(self.criar_objeto(c)),
                         None => d.tipo.as_deref().and_then(|t| self.criar_colecao(&Expr::Novo(t.to_string()))),

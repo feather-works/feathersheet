@@ -608,3 +608,15 @@ fn goto_para_o_tratador_de_erro_roda() {
     assert_eq!(wb.valor(0, 1, 0), Value::Empty);
     assert_eq!(wb.valor(0, 2, 0), Value::Number(0.0));
 }
+
+/// `Type … End Type` (#143): a variável local e a de módulo já nascem com os campos; ler e escrever campo roda.
+#[test]
+fn type_do_vba_roda_no_motor() {
+    let wb = roda(
+        "Private Type Ponto\n  x As Double\n  nome As String * 10\nEnd Type\nDim origem As Ponto\n\
+         Sub T()\n  Dim p As Ponto\n  p.x = 2.5\n  p.nome = \"P\"\n  origem.x = 1\n  Range(\"A1\").Value = p.x + origem.x\n  Range(\"A2\").Value = p.nome & Len(origem.nome)\nEnd Sub\n",
+        "T",
+    );
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(3.5));
+    assert_eq!(wb.valor(0, 1, 0), Value::Text("P0".into()));
+}

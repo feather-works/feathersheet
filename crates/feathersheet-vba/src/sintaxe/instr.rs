@@ -564,12 +564,23 @@ impl Analisador {
         Ok(())
     }
 
-    /// Pula `Type … End Type`.
-    fn pular_ate_fim_de(&mut self, p: &str) {
-        while !self.l.acabou() && !self.e_fim_de(p) {
-            self.l.i += 1;
+    /// `Type Nome … End Type`: os campos, um `campo As Tipo` por linha.
+    fn registro(&mut self, m: &mut Modulo) -> Res<()> {
+        let nome = self.l.nome()?;
+        self.ate_o_fim();
+        let mut campos = Vec::new();
+        loop {
+            self.pular_fins();
+            if self.l.acabou() { return Err(()); }
+            if self.e_fim_de("type") {
+                self.l.i += 2;
+                break;
+            }
+            campos.extend(self.decls(false)?);
+            self.ate_o_fim();
         }
-        self.l.i += 2;
+        m.registros.push((nome, campos));
+        Ok(())
     }
 
     fn item_do_modulo(&mut self, m: &mut Modulo) -> Res<()> {
@@ -588,10 +599,8 @@ impl Analisador {
             self.ate_o_fim();
         } else if self.l.aceita("enum") {
             self.enumeracao(m)?;
-        } else if self.l.e("type") {
-            let p = self.l.nome()?.to_lowercase();
-            self.pular_ate_fim_de(&p);
-            m.ignorados.push((linha, format!("{p} (bloco de módulo)")));
+        } else if self.l.aceita("type") {
+            self.registro(m)?;
         } else if self.l.aceita("const") {
             m.constantes.extend(self.decls(true)?);
         } else if self.l.aceita("dim") || matches!(self.l.olha(), Ficha::Nome(_)) && self.linha_anterior() == linha && self.l.i > 0 {

@@ -95,9 +95,16 @@ fn montar_programa(projeto: &ProjetoVba) -> Programa {
             if let Some(a) = &aba {
                 codenames.insert(m.nome.to_lowercase(), (js_nome(&m.nome), a.clone()));
             }
-            InfoModulo { nome: m.nome.clone(), tipo: m.tipo, linhas: m.codigo.lines().map(String::from).collect(), ast: analisar(&m.codigo), aba }
+            InfoModulo { nome: m.nome.clone(), tipo: m.tipo, linhas: m.codigo.lines().map(String::from).collect(), ast: analisar(&m.codigo), aba, registro: false }
         })
-        .collect();
+        .collect::<Vec<_>>();
+    // Cada `Type` vira um módulo de classe sintético só com os campos (ver `gerar/classe.rs`).
+    let mut modulos = modulos;
+    let registros: Vec<InfoModulo> = modulos.iter().flat_map(|m| m.ast.registros.iter()).map(|(nome, campos)| InfoModulo {
+        nome: nome.clone(), tipo: TipoDeModulo::Classe, linhas: Vec::new(), aba: None, registro: true,
+        ast: crate::sintaxe::Modulo { variaveis: campos.clone(), ..Default::default() },
+    }).collect();
+    modulos.extend(registros);
     // A aba cujo módulo não veio (VBA colado sem o módulo da aba) também é conhecida.
     for (c, nome) in &projeto.abas {
         codenames.entry(c.to_lowercase()).or_insert_with(|| (js_nome(c), nome.clone()));
@@ -148,7 +155,8 @@ fn escrever_proc(p: &Programa, m: &mut Macro, r: RefProc) -> Vec<String> {
     let mut saida = vec![format!("// {}.{} (linha {})", info.nome, proc.nome, proc.linha), format!("function {nome}({}) {{", params.join(", "))];
     saida.extend(proc.params.iter().zip(por_ref::caixas(proc)).filter(|(_, c)| *c).map(|(pr, _)| por_ref::embrulhar(&js_nome(&pr.nome))));
     saida.extend(conversoes_de_parametro(&mut g, proc));
-    let locais: Vec<String> = g.escopo.ordem[n_params..].iter().filter_map(|k| g.escopo.vars.get(k)).map(|v| format!("{} = {}", v.js, valor_inicial(&v.tipo))).collect();
+    let vars: Vec<Var> = g.escopo.ordem[n_params..].iter().filter_map(|k| g.escopo.vars.get(k)).cloned().collect();
+    let locais: Vec<String> = vars.iter().map(|v| format!("{} = {}", v.js, if v.matriz { valor_inicial(&v.tipo).to_string() } else { g.inicial(&v.tipo) })).collect();
     if !locais.is_empty() {
         saida.push(format!("  let {};", locais.join(", ")));
     }

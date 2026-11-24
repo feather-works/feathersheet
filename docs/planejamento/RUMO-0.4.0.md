@@ -25,7 +25,7 @@ milhar, datas, nomes de função) nas quatro línguas.
       verdade: só se o usuário tiver um à mão.
 - [x] Relatório de conversão numa tela própria (24/11): diálogo no editor de macros, referência o Verificador de
       Compatibilidade do Excel; o módulo de pendências continua.
-- [ ] Bateria com 54 `.xlsm` reais (#143) montada em `scripts/bateria-xlsm/` (24/11): 54/54 convertem, 84,1% das
+- [ ] Bateria com 54 `.xlsm` reais (#143) montada em `scripts/bateria-xlsm/` (24/11): 54/54 convertem, 84,7% das
       instruções; subir com os motivos do placar (CreateObject, GoTo para trás, GoSub…).
 - [x] Integração com o FeatherDocs: `docs.fill` (modelo → `.docx`) e o conversor do `Word.Application` (mala
       direta do VBA), 24/11.
