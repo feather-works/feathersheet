@@ -53,7 +53,8 @@ milhar, datas, nomes de função) nas quatro línguas.
 ## Falta — FeatherQuery e MCP
 
 - [ ] Escolher um arquivo direto como segunda fonte de Juntar/Acrescentar.
-- [ ] #94: tipo de dado clicável e script legível.
+- [ ] #94: tipo clicável, script legível, menu parado e nome/descrição das etapas já estavam; Moeda e Percentual
+      entraram em 24/11. Falta conferir na tela: divisões da faixa (item 3) e a prévia rolada atrás do modal (item 4).
 - [x] MCP: PDF, imagens, tabelas, proteger aba e pasta (com portão), links, congelar/zoom/grade, configurar página: feitos.
 
 ## Para decidir (usuário)

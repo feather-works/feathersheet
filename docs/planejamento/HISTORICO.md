@@ -4,6 +4,26 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Atualização no Mac (#167, 24/11/2026)**: o roteiro baixava `FeatherSheet-macos.dmg` (404 desde a v0.3.3, que publica
+  `FeatherSheet-<versão>-macos-intel.dmg` e `…-apple-silicon.dmg`) e conferia no `SHA256SUMS`, que não traz os
+  `.dmg`. Agora `Instalacao::arquivo(versao)` monta o nome pela versão e pelo `target_arch` desta cópia e o Mac
+  confere pelo `<arquivo>.dmg.sha256`. Teste em `roteiros_mostram_e_conferem_antes_de_instalar`. Quem está numa
+  versão antiga no Mac continua sem atualizar sozinho: precisa baixar a 0.4.0 à mão uma vez.
+
+- **FeatherQuery: tipos Moeda e Percentual (#94, 24/11/2026)**: o menu do 123/ABC ganhou Moeda e Percentual
+  (`TIPOS` em `openquery_ui/janela.rs`); o motor (`consulta/query.rs::converter`) lê dinheiro de qualquer língua
+  com `celulas::input::numero_de_moeda` (símbolo R$/US$/$/€/£ antes ou depois, espaço ou nbsp de milhar, sinal ou
+  parênteses; com ponto e vírgula o último é o decimal; um separador só é milhar se repete ou tem 3 algarismos
+  depois). Percentual: "15,5%" → 0,155; número sem "%" fica como está (como o Power Query). O cabeçalho mostra
+  `$`/`%`; M: `Currency.Type`/`Percentage.Type` nos dois sentidos. A aba carregada agora recebe também os formatos
+  das etapas de tipo (`formatos_das_etapas`; antes só os da fonte: data tipada na consulta chegava como 46322).
+  **Bug de dinheiro corrigido**: `parse_literal("$1,234.56")` dava 1,23456 (a vírgula virava decimal); com os dois
+  separadores, o último é o decimal. Testes `dinheiro_nas_quatro_linguas`, `tipar_moeda_e_percentual_le_as_quatro_linguas`,
+  `tipo_moeda_e_percentual_leem_as_linguas_e_a_aba_fica_formatada`. Ajuda F1 (FeatherQuery) nas quatro línguas.
+  Teste instável notado: `formato_personalizado::digitos_milhar_casas_e_texto_fixo` falhou 1 em 3 na suíte do
+  core (corrida com a língua global); sozinho passa.
+  Novidade para o `VERSOES` da 0.4.0: "FeatherQuery: tipos Moeda e Percentual, que leem valores escritos em qualquer língua".
+
 - **Eventos voltam para o VBA** (24/11/2026): `js_para_vba::traduzir_evento` (aoMudar, aoSelecionar, aoAtivar,
   aoAbrir, antesDeSalvar, antesDeFechar) com a assinatura do Excel; o evento convertido (função `Worksheet_Change`
   + chamada no fim + caixa `$cancelar`/`{ $ref, v }`) volta à forma de antes; `valores.intervalo` → `Target`,

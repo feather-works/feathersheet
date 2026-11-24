@@ -537,6 +537,31 @@ fn editor_avancado_cancela_e_recusa_codigo_invalido_sem_alterar_consulta() {
         assert_eq!(app.workbook.valor(destino, 1, 0), Value::Number(9.0));
     }
 
+    /// Moeda e percentual escritos em várias línguas viram número, e a aba carregada mostra o formato.
+    #[test]
+    fn tipo_moeda_e_percentual_leem_as_linguas_e_a_aba_fica_formatada() {
+        use feathersheet_core::celulas::style::NumberFormat;
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "Preço".into());
+        app.workbook.escrever_celula(0, 0, 1, "Taxa".into());
+        for (r, (v, t)) in [("1 234,56 €", "15,5 %"), ("US$ 2,500.00", "3.25 %"), ("(R$ 10,00)", "")].iter().enumerate() {
+            app.workbook.escrever_celula(0, r as u32 + 1, 0, (*v).into());
+            app.workbook.escrever_celula(0, r as u32 + 1, 1, (*t).into());
+        }
+        abrir_aba_para_teste(&mut app);
+        app.evento_openquery(Evento::Tipar(0, "moeda"));
+        app.evento_openquery(Evento::Tipar(1, "percentual"));
+        let e = app.openquery.as_ref().unwrap();
+        assert!(e.aviso_tipo.is_none(), "tudo converteu");
+        let col = |c: usize| e.resultado.linhas.iter().map(|l| l[c].clone()).collect::<Vec<_>>();
+        assert_eq!(col(0), [Value::Number(1234.56), Value::Number(2500.0), Value::Number(-10.0)]);
+        assert_eq!(col(1)[..2], [Value::Number(0.155), Value::Number(0.0325)]);
+        app.evento_openquery(Evento::Carregar);
+        let aba = &app.workbook.aba(1).unwrap().sheet;
+        assert_eq!(aba.get_style(1, 0).map(|s| s.format), Some(NumberFormat::Currency));
+        assert_eq!(aba.get_style(1, 1).map(|s| s.format), Some(NumberFormat::Percent));
+    }
+
     #[test]
     fn aviso_de_tipo_conta_o_que_nao_converteu_e_remove_so_essas_linhas() {
         let mut app = App::default();

@@ -903,6 +903,24 @@ fn converter(v: Value, para: &str) -> Value {
             },
         },
         "inteiro" => numero(&v).map(|n| Value::Number(n.trunc())).unwrap_or(Value::Empty),
+        // Texto de dinheiro de qualquer língua ("R$ 1.234,56", "$1,234.56", "1 234,56 €").
+        "moeda" => match &v {
+            Value::Number(_) => v,
+            Value::Text(t) => crate::celulas::input::numero_de_moeda(t).map(Value::Number).unwrap_or(Value::Empty),
+            _ => numero(&v).map(Value::Number).unwrap_or(Value::Empty),
+        },
+        // "15,5%" é 0,155; número sem "%" já é a fração (0,155), como no Power Query.
+        "percentual" => match &v {
+            Value::Number(_) => v,
+            Value::Text(t) => {
+                let t = t.trim();
+                match t.strip_suffix('%') {
+                    Some(s) => crate::celulas::input::numero_de_moeda(s).map(|n| Value::Number(n / 100.0)),
+                    None => crate::celulas::input::numero_de_moeda(t).map(Value::Number),
+                }.unwrap_or(Value::Empty)
+            }
+            _ => numero(&v).map(Value::Number).unwrap_or(Value::Empty),
+        },
         "decimal" | "numero" => numero(&v).map(Value::Number).unwrap_or(Value::Empty),
         "link" => {
             let s = string_js(&v);
@@ -945,6 +963,22 @@ fn pedaco_da_data(v: &Value, parte: &str) -> Value {
 
 #[cfg(test)]
 mod testes {
+
+    #[test]
+    fn tipar_moeda_e_percentual_le_as_quatro_linguas() {
+        use crate::celulas::values::Value as V;
+        let c = |t: &str, para: &str| converter(V::Text(t.into()), para);
+        assert_eq!(c("R$ 1.234,56", "moeda"), V::Number(1234.56));
+        assert_eq!(c("$1,234.56", "moeda"), V::Number(1234.56));
+        assert_eq!(c("1 234,56 €", "moeda"), V::Number(1234.56));
+        assert_eq!(c("(R$ 10,00)", "moeda"), V::Number(-10.0));
+        assert_eq!(c("dez reais", "moeda"), V::Empty);
+        assert_eq!(converter(V::Number(7.5), "moeda"), V::Number(7.5));
+        assert_eq!(c("15,5%", "percentual"), V::Number(0.155));
+        assert_eq!(c("12.5 %", "percentual"), V::Number(0.125));
+        assert_eq!(c("0,2", "percentual"), V::Number(0.2));
+        assert_eq!(converter(V::Number(0.3), "percentual"), V::Number(0.3));
+    }
     use super::*;
 
     #[test]

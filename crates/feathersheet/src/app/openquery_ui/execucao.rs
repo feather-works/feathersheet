@@ -376,8 +376,10 @@ impl App {
                 Ok(_) => {
                     // Data, hora, %… da fonte voltam com o formato (senão a aba mostra 46322).
                     let linhas = editor.resultado.linhas.len() as u32;
+                    // Os da fonte e os das etapas de tipo (data, moeda, %…), como a prévia mostra.
+                    let formatos = super::janela::formatos_das_etapas(&editor, &editor.resultado, editor.passos.len());
                     for (c, nome) in editor.resultado.cabecalho.iter().enumerate() {
-                        let Some(estilo) = editor.formatos.get(nome) else { continue };
+                        let Some(estilo) = formatos.get(nome) else { continue };
                         let mut patch = feathersheet_core::celulas::estilo_parcial::de_style(estilo);
                         patch.retain(|k, _| matches!(k.as_str(), "format" | "code" | "decimals"));
                         if linhas > 0 && !patch.is_empty() {

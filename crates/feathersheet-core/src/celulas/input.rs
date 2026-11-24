@@ -257,6 +257,10 @@ fn moeda(raw: &str) -> Option<f64> {
         texto = resto.trim();
     }
     if texto.is_empty() { return None; }
+    // "$1,234.56": com os dois separadores, o último é o decimal (antes virava 1,23456).
+    if texto.contains(',') && texto.contains('.') {
+        return com_separadores(texto).map(|n| if negativo { -n } else { n });
+    }
     let normalizado = if texto.contains(',') {
         texto.replace('.', "").replacen(',', ".", 1)
     } else if grupos_de_milhar(texto, '.') {
@@ -264,6 +268,52 @@ fn moeda(raw: &str) -> Option<f64> {
     } else { texto.to_owned() };
     let n = normalizado.parse::<f64>().ok().filter(|n| n.is_finite())?;
     Some(if negativo { -n } else { n })
+}
+
+/// Dinheiro escrito em qualquer das línguas do app, sem depender da língua: o símbolo antes ou depois
+/// (`R$`, `US$`, `$`, `€`, `£`), espaço (ou o que não quebra) de milhar, sinal ou parênteses. Com ponto e
+/// vírgula, o último é o decimal; com um só, ele é milhar quando aparece mais de uma vez ou tem três
+/// algarismos depois ("R$ 1.234" e "$1,234" são 1234; "1,50 €" e "$12.50" têm centavos).
+pub fn numero_de_moeda(raw: &str) -> Option<f64> {
+    let limpo = raw.replace(['\u{a0}', '\u{202f}'], " ");
+    let mut t = limpo.trim();
+    let mut negativo = false;
+    let sinal = |t: &mut &str, negativo: &mut bool| {
+        if let Some(r) = t.strip_prefix('-') { *negativo = !*negativo; *t = r.trim(); }
+        else if let Some(r) = t.strip_prefix('(').and_then(|r| r.strip_suffix(')')) { *negativo = !*negativo; *t = r.trim(); }
+    };
+    sinal(&mut t, &mut negativo);
+    for simbolo in ["R$", "r$", "US$", "$", "€", "£"] {
+        if let Some(r) = t.strip_prefix(simbolo) { t = r.trim(); break; }
+        if let Some(r) = t.strip_suffix(simbolo) { t = r.trim(); break; }
+    }
+    sinal(&mut t, &mut negativo);
+    let sem_espaco = t.replace(' ', "");
+    if sem_espaco.is_empty() || !sem_espaco.bytes().all(|b| b.is_ascii_digit() || b == b'.' || b == b',') { return None; }
+    com_separadores(&sem_espaco).map(|n| if negativo { -n } else { n })
+}
+
+/// Algarismos com `.`/`,` (sem sinal nem símbolo) como [`numero_de_moeda`] os lê.
+fn com_separadores(t: &str) -> Option<f64> {
+    let normal = match (t.rfind('.'), t.rfind(',')) {
+        (Some(p), Some(v)) => {
+            let (mil, i) = if p > v { (',', p) } else { ('.', v) };
+            let (inteiro, fracao) = (&t[..i], &t[i + 1..]);
+            if !(grupos_de_milhar(inteiro, mil) || so_digitos(inteiro)) || !so_digitos(fracao) || fracao.is_empty() { return None; }
+            format!("{}.{fracao}", inteiro.replace(mil, ""))
+        }
+        (Some(i), None) | (None, Some(i)) => {
+            let sep = t.as_bytes()[i] as char;
+            if t.matches(sep).count() > 1 || (t.len() - i - 1 == 3 && t[..i] != *"0") {
+                if !grupos_de_milhar(t, sep) { return None; }
+                t.replace(sep, "")
+            } else {
+                t.replace(sep, ".")
+            }
+        }
+        (None, None) => t.to_owned(),
+    };
+    normal.parse::<f64>().ok().filter(|n| n.is_finite())
 }
 
 /// `05.03.2026` → `05/03/2026` quando é uma data válida; `None` no resto.
@@ -382,6 +432,21 @@ mod testes_entrada {
         numero("$50.25", 50.25, Some(NumberFormat::Currency));
         numero("15,5%", 0.155, Some(NumberFormat::Percent));
         assert_eq!(parse_literal("50 R$").value, Value::Text("50 R$".into()));
+        // Os dois separadores: o último é o decimal.
+        numero("$1,234.56", 1234.56, Some(NumberFormat::Currency));
+        numero("R$ 1.234.567,89", 1234567.89, Some(NumberFormat::Currency));
+    }
+
+    #[test]
+    fn dinheiro_nas_quatro_linguas() {
+        for (t, n) in [("R$ 1.234,56", 1234.56), ("$1,234.56", 1234.56), ("1 234,56 €", 1234.56), ("1\u{a0}234,56\u{a0}€", 1234.56),
+            ("1.234,56 €", 1234.56), ("-R$ 10,00", -10.0), ("(US$ 2,500.00)", -2500.0), ("R$ -0,99", -0.99), ("£12.50", 12.5),
+            ("R$ 1.234", 1234.0), ("$1,234", 1234.0), ("1,50", 1.5), ("0.125", 0.125), ("1.234.567", 1234567.0), ("42", 42.0)] {
+            assert_eq!(numero_de_moeda(t), Some(n), "{t}");
+        }
+        for t in ["", "R$", "abc", "1.23.4", "12,34,5", "1,2.3,4", "R$ 12 abc"] {
+            assert_eq!(numero_de_moeda(t), None, "{t}");
+        }
     }
 
     /// Casos do PR #162 (ash-171): em inglês a vírgula é milhar ao digitar.

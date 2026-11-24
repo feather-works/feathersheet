@@ -490,7 +490,8 @@ impl App {
         let conteudo = self.previa_openquery(e, escuro);
         let mut centro = column![].spacing(5).width(Length::FILL).height(Length::FILL);
         if let Some(a) = &e.aviso_tipo {
-            let tipo = match a.para.as_str() { "data" | "dataHora" | "hora" => tr!("data"), "logico" => tr!("lógico"), _ => tr!("número") };
+            let tipo = match a.para.as_str() { "data" | "dataHora" | "hora" => tr!("data"), "logico" => tr!("lógico"),
+                "moeda" => tr!("moeda"), "percentual" => tr!("percentual"), _ => tr!("número") };
             let exemplos = a.exemplos.iter().map(|x| format!("\"{x}\"")).collect::<Vec<_>>().join(", ");
             centro = centro.push(container(row![
                 feather_ui::icones::icone("alert-triangle", 16.0),
@@ -992,9 +993,11 @@ fn barra_faixa<'a>(e: &Estado, escuro: bool) -> Element<'a, Msg> {
 }
 
 /// Os tipos, como o menu do ícone de tipo do Power Query.
-const TIPOS: [(&str, &str, &str); 7] = [
+const TIPOS: [(&str, &str, &str); 9] = [
     ("Número decimal", "math-function", "decimal"),
     ("Número inteiro", "list-numbers", "inteiro"),
+    ("Moeda", "currency-dollar", "moeda"),
+    ("Percentual", "percentage", "percentual"),
     ("Data", "timeline", "data"),
     ("Hora", "clock", "hora"),
     ("Data/Hora", "timeline", "dataHora"),
@@ -1013,23 +1016,33 @@ fn codigo_tipo(amostra: &'static str, formato: Option<&feathersheet_core::celula
         Some(F::Date) => "DATA",
         Some(F::Time) => "HORA",
         Some(F::Datetime) => "DT/H",
+        Some(F::Currency) => "$",
+        Some(F::Percent) => "%",
         _ => amostra,
     }
 }
 
 /// Formatos da fonte mais os das etapas de tipo até a etapa em prévia.
-// shortcut: a etapa de tipo liga pelo índice da coluna no resultado mostrado; colunas movidas depois dela podem trocar o formato.
 fn formatos_efetivos(e: &Estado, visual: &Tabela) -> Formatos {
+    formatos_das_etapas(e, visual, e.passo_previa.map_or(e.passos.len(), |i| (i + 1).min(e.passos.len())))
+}
+
+/// Formatos da fonte mais os das `ate` primeiras etapas de tipo (data, hora, moeda, %): a prévia e a aba
+/// carregada mostram o mesmo.
+// shortcut: a etapa de tipo liga pelo índice da coluna no resultado mostrado; colunas movidas depois dela podem trocar o formato.
+pub(super) fn formatos_das_etapas(e: &Estado, visual: &Tabela, ate: usize) -> Formatos {
     use feathersheet_core::celulas::style::{NumberFormat as F, Style};
     let mut f = e.formatos.clone();
-    let ate = e.passo_previa.map_or(e.passos.len(), |i| (i + 1).min(e.passos.len()));
-    for p in &e.passos[..ate] {
+    for p in &e.passos[..ate.min(e.passos.len())] {
         let Passo::Tipar { col, para, .. } = p else { continue };
         let Some(nome) = visual.cabecalho.get(*col) else { continue };
         let formato = match para.as_str() {
             "data" => F::Date,
             "hora" => F::Time,
             "dataHora" => F::Datetime,
+            // O símbolo e as casas vêm da língua do app (`Style::default()`), como na Formatar Células.
+            "moeda" => F::Currency,
+            "percentual" => F::Percent,
             _ => { f.remove(nome); continue; }
         };
         f.insert(nome.clone(), Style { format: formato, ..Style::default() });

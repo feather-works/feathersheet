@@ -6284,5 +6284,7 @@
  "{pendencias} trecho(s) não converteram e ficaram comentados: veja o monitor (F12).": "{pendencias} part(s) did not convert and were left as comments: see the monitor (F12).",
  "As macros JavaScript não foram para o VBA: {e}": "The JavaScript macros did not go into the VBA: {e}",
  "{sem_lugar} evento(s) editado(s) aqui não puderam ir para o VBA do .xlsm (aba sem codinome ou evento desconhecido).": "{sem_lugar} event(s) edited here could not go to the .xlsm VBA (sheet without a code name or unknown event).",
- "ajuda vba.{p} do conversor": "converter helper vba.{p}"
+ "ajuda vba.{p} do conversor": "converter helper vba.{p}",
+ "moeda": "currency",
+ "percentual": "percentage"
 }

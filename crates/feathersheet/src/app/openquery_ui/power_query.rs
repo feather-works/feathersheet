@@ -567,7 +567,9 @@ fn tipo(e: &E) -> Option<&'static str> {
     let nome = match e { E::Tipo(n) => n.as_str(), E::Id(n) => n.as_str(), _ => return None };
     Some(match nome {
         "text" | "Text.Type" => "texto",
-        "number" | "Number.Type" | "Currency.Type" | "Decimal.Type" | "Double.Type" | "Percentage.Type" | "Single.Type" => "decimal",
+        "number" | "Number.Type" | "Decimal.Type" | "Double.Type" | "Single.Type" => "decimal",
+        "Currency.Type" => "moeda",
+        "Percentage.Type" => "percentual",
         "Int64.Type" | "Int32.Type" | "Int16.Type" | "Int8.Type" | "Byte.Type" => "inteiro",
         "logical" | "Logical.Type" => "logico",
         "date" | "Date.Type" => "data",
@@ -1602,6 +1604,8 @@ impl Escritor<'_> {
                     Some("data") => "type date",
                     Some("dataHora") => "type datetime",
                     Some("hora") => "type time",
+                    Some("moeda") => "Currency.Type",
+                    Some("percentual") => "Percentage.Type",
                     _ => "type number",
                 };
                 Some(format!("Table.TransformColumnTypes({p}, {{{{{}, {t}}}}})", self.col(&arg(0))))
