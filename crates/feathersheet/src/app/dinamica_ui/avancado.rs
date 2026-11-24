@@ -23,6 +23,7 @@ pub(super) fn opcoes(e: &Estado) -> Opcoes {
         subtotal_embaixo: e.subtotal_embaixo,
         recolhidos: e.recolhidos.iter().cloned().collect(),
         filtros: e.filtros.iter().filter(|f| !f.valores.is_empty()).cloned().collect(),
+        periodos: e.linhas_tempo.iter().filter_map(|l| l.periodo()).collect(),
     }
 }
 
@@ -332,6 +333,11 @@ pub(super) fn gravar_opcoes(meta: &mut Json, e: &Estado, mapa: Json) {
         .map(|s| if s.liga.is_empty() { json!({"col": s.coluna, "sel": s.sel}) }
             else { json!({"col": s.coluna, "sel": s.sel, "liga": s.liga}) }).collect::<Vec<_>>());
     meta["paginaTambem"] = json!(e.pagina_tambem);
+    if e.linhas_tempo.is_empty() {
+        if let Some(m) = meta.as_object_mut() { m.remove("linhasTempo"); }
+    } else {
+        meta["linhasTempo"] = json!(e.linhas_tempo.iter().map(|l| l.json()).collect::<Vec<_>>());
+    }
 }
 
 /// Os itens de um campo para o filtro e a segmentação: (chave, rótulo), ordenados e sem repetir, até

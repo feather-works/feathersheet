@@ -59,6 +59,29 @@ pub struct Opcoes {
     pub recolhidos: HashSet<String>,
     /// Filtros de relatório. Coluna fora da lista = "(Tudo)".
     pub filtros: Vec<Filtro>,
+    /// Linhas do tempo: só ficam as linhas com a data da coluna dentro do período.
+    pub periodos: Vec<Periodo>,
+}
+
+/// O período escolhido numa linha do tempo: a coluna da origem (absoluta) e os dias (serial, inteiros) de
+/// `de` a `ate`, inclusive. Valor que não é número (texto, vazio) fica de fora, como no Excel.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Periodo {
+    pub coluna: usize,
+    pub de: f64,
+    pub ate: f64,
+}
+
+impl Opcoes {
+    /// A linha `r` passa pelos filtros e pelas linhas do tempo. `valor(r, c)` lê a coluna relativa à origem
+    /// (`c0` é a primeira coluna da origem).
+    fn passa(&self, r: usize, c0: usize, valor: &impl Fn(usize, usize) -> Value) -> bool {
+        self.filtros.iter().all(|f| f.valores.contains(&parse_date_key(&valor(r, f.coluna.saturating_sub(c0)), None)) != f.excluir)
+            && self.periodos.iter().all(|p| match valor(r, p.coluna.saturating_sub(c0)) {
+                Value::Number(n) => (p.de..=p.ate).contains(&n.floor()),
+                _ => false,
+            })
+    }
 }
 
 /// Um filtro de relatório: a coluna da origem (absoluta, como em `linhas`)
@@ -82,6 +105,7 @@ impl Opcoes {
             subtotal_embaixo: false,
             recolhidos: HashSet::new(),
             filtros: Vec::new(),
+            periodos: Vec::new(),
         }
     }
 
@@ -91,6 +115,7 @@ impl Opcoes {
             && !self.subtotais
             && self.recolhidos.is_empty()
             && self.filtros.is_empty()
+            && self.periodos.is_empty()
     }
 }
 
@@ -305,14 +330,9 @@ pub fn montar_com_extras(
     let padrao = extras.eh_padrao();
     // Mesmo sem dimensões de linha, filtros de relatório são aplicados
     // durante a varredura, sem armazenar os índices dos milhões de registros.
-    if padrao && n == 0 && !opcoes.filtros.is_empty() {
+    if padrao && n == 0 && !(opcoes.filtros.is_empty() && opcoes.periodos.is_empty()) {
         let c0 = config.origem.c0 as usize;
-        let matriz = montar_dinamica_filtrada(total_linhas, &valor, config, |r| {
-            opcoes.filtros.iter().all(|f| {
-                let chave = parse_date_key(&valor(r, f.coluna.saturating_sub(c0)), None);
-                f.valores.contains(&chave) != f.excluir
-            })
-        });
+        let matriz = montar_dinamica_filtrada(total_linhas, &valor, config, |r| opcoes.passa(r, c0, &valor));
         let linhas = mapa_antigo(&matriz, 0);
         return Resultado { matriz, linhas, colunas_de_rotulo: 1, caminhos: Vec::new(), chaves_colunas: Vec::new() };
     }
@@ -387,10 +407,8 @@ pub fn linhas_do_caminho(
     let rel = |c: usize| c.saturating_sub(config.origem.c0 as usize);
     let mut achadas = Vec::new();
     'linhas: for r in 1..total_linhas {
-        for f in &opcoes.filtros {
-            if f.valores.contains(&parse_date_key(&valor(r, rel(f.coluna)), None)) == f.excluir {
-                continue 'linhas;
-            }
+        if !opcoes.passa(r, config.origem.c0 as usize, &valor) {
+            continue 'linhas;
         }
         for (d, alvo) in alvo_linhas.iter().enumerate() {
             let (k, _) = chave_do_campo(&valor(r, rel(config.linhas[d])), d, &extras.linhas, config.agrupar_data);
@@ -552,10 +570,8 @@ fn montar_estruturado(
     let sep = SEPARADOR.to_string();
 
     'linhas: for r in 1..total_linhas {
-        for f in &opcoes.filtros {
-            if f.valores.contains(&parse_date_key(&valor(r, rel(f.coluna)), None)) == f.excluir {
-                continue 'linhas;
-            }
+        if !opcoes.passa(r, c0, &valor) {
+            continue 'linhas;
         }
         medidas.clear();
         for v in &config.valores {
@@ -1001,6 +1017,32 @@ mod testes {
         // O mesmo, dito ao contrário: sai o "novo".
         o.filtros[0] = Filtro { coluna: 3, valores: HashSet::from(["novo".to_string()]), excluir: true };
         assert_eq!(texto(&rodar(&o)), texto(&r));
+    }
+
+    /// Linha do tempo: só ficam as datas do período (dia inteiro: 45300,75 conta no dia 45300); texto e vazio
+    /// saem. Vale com e sem campo em Linhas.
+    #[test]
+    fn periodo_da_linha_do_tempo_filtra_pela_data() {
+        let n = Value::Number;
+        let t = |s: &str| Value::Text(s.into());
+        let d = vec![
+            vec![t("Data"), t("Loja"), t("Valor")],
+            vec![n(45299.0), t("A"), n(1.0)],
+            vec![n(45300.75), t("A"), n(2.0)],
+            vec![n(45301.0), t("B"), n(4.0)],
+            vec![t("sem data"), t("B"), n(8.0)],
+            vec![n(45302.0), t("B"), n(16.0)],
+        ];
+        let mut config = DinamicaConfig {
+            origem: Rect::new(0, 0, 5, 2), linhas: vec![1], colunas: vec![],
+            valores: vec![MedidaDinamica { coluna: 2, op: AgregacaoOp::Soma }], agrupar_data: None,
+        };
+        let o = Opcoes { periodos: vec![Periodo { coluna: 0, de: 45300.0, ate: 45301.0 }], ..Opcoes::antigas() };
+        let r = montar(d.len(), |r, c| d[r][c].clone(), &config, &o);
+        assert_eq!(texto(&r)[1..], [vec!["A".to_string(), "2".into()], vec!["B".into(), "4".into()], vec!["Total Geral".into(), "6".into()]]);
+        config.linhas.clear();
+        let r = montar(d.len(), |r, c| d[r][c].clone(), &config, &o);
+        assert_eq!(crate::celulas::values::to_number(r.matriz.at(1, 1)), Ok(6.0));
     }
 
     #[test]

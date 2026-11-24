@@ -187,7 +187,8 @@ impl App {
         let c0 = e.origem.c0 as usize;
         let mut colunas: HashSet<usize> = lidas.into_inner();
         colunas.extend(e.linhas.iter().chain(e.colunas.iter()).chain(e.valores.iter().map(|v| &v.coluna))
-            .chain(e.filtros.iter().map(|f| &f.coluna)).map(|c| c.saturating_sub(c0)));
+            .chain(e.filtros.iter().map(|f| &f.coluna)).chain(e.linhas_tempo.iter().map(|l| &l.coluna))
+            .map(|c| c.saturating_sub(c0)));
         let mut colunas: Vec<usize> = colunas.into_iter().filter(|&c| c < largura).collect();
         colunas.sort_unstable();
         self.dinamica_fundo.geracao += 1;

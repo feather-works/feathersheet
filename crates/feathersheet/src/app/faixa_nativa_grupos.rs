@@ -264,7 +264,8 @@ impl App {
                 grupos.push(self.faixa_grupo(tr!("Filtros"), self.faixa_linha(vec![
                     self.faixa_grande(tr!("Segmentação de dados"), "slicer",
                         Some(Msg::Dinamica(dinamica_ui::Evento::SegmentacaoInserir)), false),
-                    em_breve(self.faixa_grande(tr!("Linha do tempo"), "timeline", None, false), tr!("Em breve: linha do tempo de datas")),
+                    self.faixa_grande(tr!("Linha do tempo"), "timeline",
+                        Some(Msg::Dinamica(dinamica_ui::Evento::LinhaTempoInserir)), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Links"), self.faixa_linha(vec![
                     self.faixa_grande(tr!("Inserir link"), "link", Some(Msg::LinkEditar),

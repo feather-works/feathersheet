@@ -33,10 +33,12 @@ struct Cartao {
 pub(in crate::app) struct Segmentacoes {
     /// Escolhendo o campo da segmentação nova: (aba, id da dinâmica, campos).
     escolher: Option<(usize, String, Vec<(usize, String)>)>,
+    /// Escolhendo o campo de data da linha do tempo nova: (aba, id da dinâmica, campos de data).
+    pub(super) escolher_tempo: Option<(usize, String, Vec<(usize, String)>)>,
     /// Conexões de relatório abertas: (aba da dinâmica, id, coluna da segmentação).
     conexoes: Option<(usize, String, usize)>,
     /// Os cartões da aba, pela (aba, versões de todas as abas).
-    cache: RefCell<Option<((usize, Vec<u32>), Vec<Cartao>)>>,
+    cache: RefCell<Option<((usize, Vec<u32>), Vec<Cartao>, Vec<linha_tempo::CartaoTempo>)>>,
 }
 
 impl Segmentacoes {
@@ -76,7 +78,7 @@ fn mesma_origem(app: &App, destino: usize, id: &str) -> Vec<(String, String)> {
 }
 
 /// A definição da dinâmica `id` gravada na aba `destino`.
-fn meta_por_id(app: &App, destino: usize, id: &str) -> Option<Json> {
+pub(super) fn meta_por_id(app: &App, destino: usize, id: &str) -> Option<Json> {
     let texto = app.workbook.aba(destino)?.sheet.dn.as_deref()?;
     serde_json::from_str::<Vec<Json>>(texto).ok()?.into_iter().find(|d| d["id"].as_str() == Some(id))
 }
@@ -189,7 +191,7 @@ impl App {
     }
 
     /// Recalcula a dinâmica sem tirar a pessoa do lugar.
-    fn aplicar_sem_mover(&mut self, destino: usize, e: &Estado) {
+    pub(super) fn aplicar_sem_mover(&mut self, destino: usize, e: &Estado) {
         let lugar = (self.folha, self.linha, self.coluna, self.linha_inicio, self.coluna_inicio,
             self.fim_selecao, self.endereco.clone());
         let feito = self.aplicar_estado_na_dinamica(destino, e);
@@ -219,23 +221,28 @@ impl App {
         self.aplicar_sem_mover(destino, &e);
     }
 
-    /// Os cartões da aba ativa (guardados até alguma aba mudar).
+    /// Os cartões da aba ativa: segmentações e linhas do tempo (guardados até alguma aba mudar).
+    #[cfg(test)]
     fn cartoes_da_aba(&self) -> Vec<Cartao> {
+        self.cartoes_e_tempos().0
+    }
+
+    fn cartoes_e_tempos(&self) -> (Vec<Cartao>, Vec<linha_tempo::CartaoTempo>) {
         let chave = (self.folha, (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i)).map(|a| a.versao).collect::<Vec<_>>());
-        if let Some((k, cartoes)) = &*self.segmentacao.cache.borrow() {
+        if let Some((k, cartoes, tempos)) = &*self.segmentacao.cache.borrow() {
             if *k == chave {
-                return cartoes.clone();
+                return (cartoes.clone(), tempos.clone());
             }
         }
         let mut cartoes = Vec::new();
         let lista: Vec<Json> = self.workbook.aba(self.folha)
             .and_then(|a| a.sheet.dn.as_deref())
-            .filter(|t| t.contains("\"segmentacoes\""))
+            .filter(|t| t.contains("\"segmentacoes\"") || t.contains("\"linhasTempo\""))
             .and_then(|t| serde_json::from_str(t).ok())
             .unwrap_or_default();
-        for meta in lista {
+        for meta in &lista {
             if meta["segmentacoes"].as_array().is_none_or(|a| a.is_empty()) { continue; }
-            let Ok(e) = edicao::ler_estado(self, self.folha, &meta) else { continue };
+            let Ok(e) = edicao::ler_estado(self, self.folha, meta) else { continue };
             let id = meta["id"].as_str().unwrap_or_default().to_owned();
             for s in &e.segmentacoes {
                 let nome = e.nomes.get(s.coluna.saturating_sub(e.origem.c0 as usize)).cloned().unwrap_or_default();
@@ -244,19 +251,23 @@ impl App {
                     itens, ligadas: s.liga.len() });
             }
         }
-        *self.segmentacao.cache.borrow_mut() = Some((chave, cartoes.clone()));
-        cartoes
+        let tempos = self.cartoes_tempo(&lista);
+        *self.segmentacao.cache.borrow_mut() = Some((chave, cartoes.clone(), tempos.clone()));
+        (cartoes, tempos)
     }
 
     /// Os cartões das segmentações no canto de cima à direita da própria grade, abaixo
     /// das letras das colunas. Antes eram postos por conta (barra de título + faixa) e
     /// caíam por cima da barra de fórmulas e do aviso, e embaixo do painel do Gráfico.
     pub(in crate::app) fn grade_com_segmentacoes<'a>(&'a self, grade: Element<'a, Msg>) -> Element<'a, Msg> {
-        let cartoes = self.cartoes_da_aba();
-        if cartoes.is_empty() {
+        let (cartoes, tempos) = self.cartoes_e_tempos();
+        if cartoes.is_empty() && tempos.is_empty() {
             return grade;
         }
-        let mut pilha = column(Vec::<pelicano::Element<_>>::new()).spacing(8);
+        let mut pilha = column(Vec::<pelicano::Element<_>>::new()).spacing(8).align(pelicano::Align::End);
+        for t in tempos {
+            pilha = pilha.push(linha_tempo::cartao(t));
+        }
         for c in cartoes {
             pilha = pilha.push(cartao(c));
         }
@@ -296,6 +307,7 @@ impl App {
             ].spacing(8)).padding(12).width(Length::Fixed(320.0)).max_height(360.0).style(estilo_popup_menu);
             return pelicano::stack![base, container(janela).center()].height(Length::FILL).into();
         }
+        if self.segmentacao.escolher_tempo.is_some() { return self.sobrepor_escolha_tempo(base); }
         let Some((_, _, campos)) = &self.segmentacao.escolher else { return base };
         let mut lista = column(Vec::<pelicano::Element<_>>::new()).spacing(2);
         for (coluna, nome) in campos {

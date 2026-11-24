@@ -41,8 +41,8 @@ milhar, datas, nomes de função) nas quatro línguas.
 ## Falta — dinâmica e gráficos
 
 - [ ] Gráfico dinâmico completo: botões de campo, todos os tipos, ida e volta no `.xlsx`.
-- [ ] #145: segmentação ligada a várias dinâmicas (feito 24/11, Conexões de relatório) e linha do tempo; falta a
-      linha do tempo e a ida e volta no `.xlsx` (sem arquivo do Excel de exemplo).
+- [ ] #145: segmentação ligada a várias dinâmicas e linha do tempo feitas no app (24/11); falta só a ida e volta no
+      `.xlsx` (slicerCache/timelineCache do Excel; sem arquivo do Excel de exemplo para conferir).
 - [ ] Atualizar só o grupo que mudou; arrastar campo ≤ 100 ms com 1 milhão de linhas.
 - [ ] Metas de número da dinâmica (o usuário mede).
 

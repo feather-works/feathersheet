@@ -107,6 +107,10 @@ fn calcular(wb: &Workbook, destino: usize, indice: usize, meta: &Json) -> Option
         recolhidos: meta["recolhidos"].as_array().into_iter().flatten()
             .filter_map(|v| v.as_str().map(str::to_string)).collect(),
         filtros,
+        // Linhas do tempo (#145): o período escolhido, como o app grava.
+        periodos: meta["linhasTempo"].as_array().into_iter().flatten().filter_map(|t| Some(feathersheet_core::dinamica::dinamica_layout::Periodo {
+            coluna: t["col"].as_u64()? as usize, de: t["de"].as_f64()?, ate: t["ate"].as_f64()?,
+        })).collect(),
     };
     let extras: Extras = serde_json::from_value(meta["extras"].clone()).unwrap_or_default();
     let (r0, c0) = (origem.r0, origem.c0);

@@ -18,6 +18,7 @@ mod config_campo;
 mod detalhes;
 mod grafico_dinamico;
 mod segmentacao;
+mod linha_tempo;
 mod faixa;
 mod agrupar_itens;
 mod itens_calculados;
@@ -161,6 +162,14 @@ pub enum Evento {
     /// Liga ou desliga a dinâmica (id) à segmentação aberta em Conexões.
     SegmentacaoLigar(String),
     SegmentacaoFecharConexoes,
+    /// Linha do tempo (#145): inserir, escolher o campo de data, nível, período (de, até), limpar, apagar.
+    LinhaTempoInserir,
+    LinhaTempoFecharEscolha,
+    LinhaTempoCampo(usize),
+    LinhaTempoNivel(usize, String, usize, linha_tempo::Nivel),
+    LinhaTempoPeriodo(usize, String, usize, f64, f64),
+    LinhaTempoLimpar(usize, String, usize),
+    LinhaTempoRemover(usize, String, usize),
     /// Um botão da aba contextual "Tabela Dinâmica" (com ou sem o painel aberto).
     NaFaixa(Box<Evento>),
     /// Clique no funil de um filtro de relatório na grade (linha, coluna,
@@ -270,6 +279,8 @@ pub(super) struct Estado {
     com_grafico: bool,
     /// Segmentações de dados desta dinâmica.
     segmentacoes: Vec<Segmentacao>,
+    /// Linhas do tempo (campos de data) desta dinâmica.
+    linhas_tempo: Vec<linha_tempo::LinhaTempo>,
     /// Campos que são filtro de relatório e também estão em Linhas/Colunas
     /// (marcados na lista depois de ir para Filtros): o filtro continua em
     /// cima da tabela, em vez de virar só filtro de itens da linha.
@@ -617,6 +628,7 @@ impl App {
                     atualizar_sozinha: false,
                     com_grafico: false,
                     segmentacoes: Vec::new(),
+                    linhas_tempo: Vec::new(),
                     pagina_tambem: Vec::new(),
                 });
                 self.menu_aberto = false;
@@ -1058,6 +1070,9 @@ impl App {
                 | Evento::SegmentacaoItem(..) | Evento::SegmentacaoLimpar(..) | Evento::SegmentacaoRemover(..)
                 | Evento::SegmentacaoConexoes(..) | Evento::SegmentacaoLigar(_) | Evento::SegmentacaoFecharConexoes) =>
                 self.evento_segmentacao(evento),
+            evento @ (Evento::LinhaTempoInserir | Evento::LinhaTempoFecharEscolha | Evento::LinhaTempoCampo(_)
+                | Evento::LinhaTempoNivel(..) | Evento::LinhaTempoPeriodo(..) | Evento::LinhaTempoLimpar(..)
+                | Evento::LinhaTempoRemover(..)) => self.evento_linha_tempo(evento),
         }
         Task::none()
     }

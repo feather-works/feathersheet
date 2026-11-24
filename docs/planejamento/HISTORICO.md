@@ -4,6 +4,19 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Linha do tempo da dinâmica (#145, parte; 24/11/2026)**, referência a Linha do Tempo do Excel: Inserir → Filtros →
+  Linha do tempo (o botão era "em breve") e Ferramentas na aba Tabela Dinâmica. Escolhe um campo de data (formato
+  data na 1ª linha de dados) e mostra um cartão com níveis Anos/Trimestres/Meses/Dias e a fileira de períodos
+  (até 400, começando dois antes da escolha). Clique escolhe; outro clique estende a partir de um período sozinho;
+  o mesmo de novo limpa. O período vira `dinamica_layout::Periodo` nas opções (o motor compara o dia da data,
+  então vale para milhões de linhas; texto/vazio saem). Os três lugares que testavam filtros passaram a usar
+  `Opcoes::passa`. JSON `linhasTempo` (col, nivel, min, max, de, ate); a extensão das datas é lida ao inserir
+  (amostra acima de 50 mil linhas, `shortcut:` em `extensao`). `dinamica_importada` também aplica o período.
+  Foto `FEATHERSHEET_CAPTURAR_DINAMICA=tempo`. Testes `periodo_da_linha_do_tempo_filtra_pela_data` (motor),
+  `periodos_por_nivel_e_clique_que_estende`, `linha_do_tempo_filtra_a_dinamica_pelo_periodo`. Ajuda F1 nas quatro
+  línguas. Falta da #145: gravar/ler segmentação e linha do tempo no `.xlsx`.
+  Novidade para o `VERSOES` da 0.4.0: "Linha do tempo: filtre a tabela dinâmica por anos, trimestres, meses ou dias".
+
 - **Conexões de relatório da segmentação (#145, parte; 24/11/2026)**, referência o "Conexões de Relatório" do Excel:
   botão de corrente no cartão da segmentação abre a lista das outras dinâmicas com a mesma origem (`fonte` igual),
   cada uma marcável. A segmentação guarda `liga` (ids) no JSON da dinâmica (`dinamica_ui::Segmentacao`); escolher

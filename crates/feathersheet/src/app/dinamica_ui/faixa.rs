@@ -175,6 +175,7 @@ impl App {
         grupos.push(self.faixa_grupo(tr!("Ferramentas"), self.faixa_linha(vec![
             self.faixa_grande(tr!("Gráfico dinâmico"), "chart-bar", direto(Evento::GraficoDinamico), false),
             self.faixa_grande(tr!("Segmentação"), "filter", direto(Evento::SegmentacaoInserir), false),
+            self.faixa_grande(tr!("Linha do tempo"), "timeline", direto(Evento::LinhaTempoInserir), false),
             self.faixa_grande(tr!("Páginas do filtro"), "copy-plus", na(Evento::MostrarPaginas), false),
         ])));
         grupos
@@ -209,6 +210,7 @@ impl App {
     /// a lista do filtro aberta embaixo do funil de B1, ou o menu ▾ do campo
     /// STATUS (Linhas) com "Mover para ›" aberto, ou o de Valores com "Resumir por ›".
     pub(in crate::app) fn preparar_captura_dinamica(&mut self, modo: &str) {
+        if modo == "tempo" { return self.preparar_captura_linha_tempo(); }
         let dados = [["FONTE DE FINANCIAMENTO", "STATUS", "2024", "2025", "2026"],
             ["FECAM", "Concluído", "3", "1", "0"], ["FECAM", "Execução", "2", "4", "5"],
             ["Compensação", "Execução ", "1", "2", "2"], ["Compensação", "Em Espera", "0", "1", "3"],
