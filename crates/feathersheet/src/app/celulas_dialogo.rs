@@ -36,6 +36,38 @@ fn cruzam(a: &Rect, b: &Rect) -> bool {
     a.r0 <= b.r1 && b.r0 <= a.r1 && a.c0 <= b.c1 && b.c0 <= a.c1
 }
 
+/// O que [`aplicar_trechos`] fez: quantos trechos, se o motor recusou um, e os avisos de tabela e mescla.
+pub(super) struct TrechosAplicados {
+    pub feitos: usize,
+    pub falhou: bool,
+    pub tabela: Result<(), String>,
+    pub mescla: Result<(), String>,
+}
+
+/// Insere/exclui cada trecho `(início, quantas)`, de baixo para cima (os de cima não mudam de lugar),
+/// com tabelas, mesclas e minigráficos acompanhando. Só a pasta: roda na janela ou na outra thread.
+pub(super) fn aplicar_trechos(w: &mut Workbook, folha: usize, coluna: bool, inserir: bool, trechos: &[(u32, u32)],
+    andou: &dyn Fn(usize)) -> TrechosAplicados {
+    let mut r = TrechosAplicados { feitos: 0, falhou: false, tabela: Ok(()), mescla: Ok(()) };
+    for &(ini, n) in trechos.iter().rev() {
+        let feito = match (coluna, inserir) {
+            (false, true) => w.inserir_linhas(folha, ini, n),
+            (false, false) => w.excluir_linhas(folha, ini, n),
+            (true, true) => w.inserir_colunas(folha, ini, n),
+            (true, false) => w.excluir_colunas(folha, ini, n),
+        };
+        if feito.is_none() { r.falhou = true; return r; }
+        let t = tabelas::refluir(w, folha, coluna, ini, n, !inserir);
+        let m = mesclas::refluir(w, folha, coluna, ini, n, !inserir);
+        super::minigraficos_ui::refluir_minigraficos_na_pasta(w, folha, coluna, ini, n, !inserir);
+        if r.tabela.is_ok() { r.tabela = t; }
+        if r.mescla.is_ok() { r.mescla = m; }
+        r.feitos += 1;
+        andou(r.feitos);
+    }
+    r
+}
+
 impl App {
     fn abrir_celulas(&mut self, inserir: bool) {
         if !self.confirmar() { return; }
@@ -91,31 +123,25 @@ impl App {
             self.status = tr!("Todas as linhas selecionadas estão escondidas pelo filtro: nada a excluir.").into();
             return;
         }
-        // shortcut: um `excluir_linhas` por trecho, na thread da janela. Medido em 23/11/2026: 5000 trechos
-        // numa pasta de 10 mil linhas com fórmulas levam 2,5 s (release), e cresce com a pasta. Excluir
-        // várias faixas numa operação só do motor (`mover_estrutura` com vários cortes) quando alguém reclamar.
+        // Muitos trechos (lista filtrada grande): a exclusão vai para outra thread, com a pasta, e a janela
+        // mostra o andamento. Medido em 23/11/2026: 5000 trechos em 10 mil linhas com fórmulas = 2,5 s na janela.
+        // shortcut: um `excluir_linhas` por trecho (cada um corrige as fórmulas da pasta toda); cortar várias
+        // faixas numa operação só do motor (`mover_estrutura` com vários cortes) se o tempo em fundo incomodar.
         let total: u32 = trechos.iter().map(|&(_, n)| n).sum();
         let foto = self.foto_antes_da_estrutura();
-        let (mut tabela, mut mescla) = (Ok(()), Ok(()));
-        for (feitos, &(ini, n)) in trechos.iter().rev().enumerate() {
-            let feito = match (coluna, inserir) {
-                (false, true) => self.workbook.inserir_linhas(self.folha, ini, n),
-                (false, false) => self.workbook.excluir_linhas(self.folha, ini, n),
-                (true, true) => self.workbook.inserir_colunas(self.folha, ini, n),
-                (true, false) => self.workbook.excluir_colunas(self.folha, ini, n),
-            };
-            if feito.is_none() {
-                self.status = tr!("Não foi possível alterar a estrutura").into();
-                // Trechos de baixo já saíram: a foto fica no Ctrl+Z para voltar a pasta inteira.
-                self.guardar_foto_da_estrutura(foto, feitos > 0);
-                return;
-            }
-            let t = tabelas::refluir(&mut self.workbook, self.folha, coluna, ini, n, !inserir);
-            let m = mesclas::refluir(&mut self.workbook, self.folha, coluna, ini, n, !inserir);
-            self.refluir_minigraficos(self.folha, coluna, ini, n, !inserir);
-            if tabela.is_ok() { tabela = t; }
-            if mescla.is_ok() { mescla = m; }
+        let status_ok = trf!("{total} linhas visíveis excluídas (as escondidas pelo filtro ficaram)");
+        if !coluna && !inserir && trechos.len() >= super::calculo_em_fundo::TRECHOS_EM_FUNDO {
+            self.excluir_trechos_em_fundo(trechos, foto, status_ok);
+            return;
         }
+        let r = aplicar_trechos(&mut self.workbook, self.folha, coluna, inserir, &trechos, &|_| {});
+        if r.falhou {
+            self.status = tr!("Não foi possível alterar a estrutura").into();
+            // Trechos de baixo já saíram: a foto fica no Ctrl+Z para voltar a pasta inteira.
+            self.guardar_foto_da_estrutura(foto, r.feitos > 0);
+            return;
+        }
+        let (tabela, mescla) = (r.tabela, r.mescla);
         // Tabelas e mesclas reajustadas também guardam o "antes": um Ctrl+Z
         // as poria nas coordenadas velhas, com as células já deslocadas (#46).
         if let Some(aba) = self.workbook.aba_mut(self.folha) { aba.sheet.esquecer_historico(); }
@@ -124,7 +150,7 @@ impl App {
         let nome = if coluna { format!("{}:{}", col_name(at), col_name(at + quantas - 1)) }
             else { format!("{}:{}", at + 1, at + quantas) };
         self.status = match (tabela, mescla) {
-            (Ok(()), Ok(())) if total != quantas => trf!("{total} linhas visíveis excluídas (as escondidas pelo filtro ficaram)"),
+            (Ok(()), Ok(())) if total != quantas => status_ok,
             (Ok(()), Ok(())) => trf!("{} {nome} {}", if coluna { tr!("Colunas") } else { tr!("Linhas") },
                 if inserir { "inseridas" } else { tr!("excluídas") }),
             (Err(e), _) | (_, Err(e)) => trf!("Estrutura alterada; revise: {e}"),

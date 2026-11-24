@@ -6230,5 +6230,9 @@
  "Antes de fechar": "Antes de cerrar",
  "Roda antes de fechar a pasta (sair, Novo ou abrir outro arquivo), antes de perguntar se salva.": "Se ejecuta antes de cerrar el libro (salir, Nuevo o abrir otro archivo), antes de preguntar si se guarda.",
  "wb.cancelClose() não deixa fechar.": "wb.cancelClose() impide cerrar.",
- "A macro Antes de fechar não deixou fechar a pasta.": "La macro Antes de cerrar no dejó cerrar el libro."
+ "A macro Antes de fechar não deixou fechar a pasta.": "La macro Antes de cerrar no dejó cerrar el libro.",
+ "Excluindo as linhas visíveis…": "Eliminando las filas visibles…",
+ "Excluindo as linhas visíveis": "Eliminando las filas visibles",
+ "{feitos} de {} trechos de linhas visíveis": "{feitos} de {} tramos de filas visibles",
+ "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "La hoja vuelve cuando termine; Ctrl+Z lo deshace todo de una vez."
 }

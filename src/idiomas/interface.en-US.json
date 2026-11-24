@@ -6230,5 +6230,9 @@
  "Antes de fechar": "Before closing",
  "Roda antes de fechar a pasta (sair, Novo ou abrir outro arquivo), antes de perguntar se salva.": "Runs before the workbook closes (exit, New or opening another file), before asking whether to save.",
  "wb.cancelClose() não deixa fechar.": "wb.cancelClose() stops the close.",
- "A macro Antes de fechar não deixou fechar a pasta.": "The Before closing macro kept the workbook open."
+ "A macro Antes de fechar não deixou fechar a pasta.": "The Before closing macro kept the workbook open.",
+ "Excluindo as linhas visíveis…": "Deleting the visible rows…",
+ "Excluindo as linhas visíveis": "Deleting the visible rows",
+ "{feitos} de {} trechos de linhas visíveis": "{feitos} of {} runs of visible rows",
+ "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "The sheet comes back when it finishes; Ctrl+Z undoes it all at once."
 }

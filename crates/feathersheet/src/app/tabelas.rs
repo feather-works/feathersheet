@@ -531,6 +531,32 @@ mod testes_filtro_copiar {
         assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(1, 0), "Bia", "um Ctrl+Z volta tudo");
     }
 
+    /// Lista filtrada com centenas de trechos: a exclusão vai para outra thread (a janela não para), o resultado
+    /// é o mesmo do caminho na janela e um Ctrl+Z volta tudo.
+    #[test]
+    fn excluir_muitos_trechos_filtrados_vai_em_fundo_e_desfaz() {
+        let mut app = App::default();
+        let n = 2 * crate::app::calculo_em_fundo::TRECHOS_EM_FUNDO + 1;
+        // Linhas alternadas SP/RJ: filtrar SP deixa um trecho visível por linha de SP.
+        let linhas: Vec<String> = (0..n).map(|i| format!("[\"L{i}\",\"{}\"]", if i % 2 == 0 { "SP" } else { "RJ" })).collect();
+        let r = feathersheet_macros::executar(&mut app.workbook, 0, &format!(
+            r#"sheet.set("A1:B{}", [["Nome","UF"],{}]); sheet.autoFilter("A1:B{}", 2, "SP");"#, n + 1, linhas.join(","), n + 1));
+        assert!(r.erro.is_none(), "{:?}", r.erro);
+        assert!(super::aplicar_filtros_da_macro(&mut app.workbook, &r.filtros).is_empty());
+        let _ = app.update(Msg::SelecionarLinha(1));
+        let _ = app.update(Msg::EstenderLinha(n as u32));
+        app.aplicar_celulas(false, crate::app::celulas_dialogo::Opcao::Linhas);
+        assert!(app.calculo_rodando.is_none(), "o teste espera a pasta voltar");
+        assert!(app.status.contains("linhas visíveis excluídas"), "{}", app.status);
+        let s = &app.workbook.aba(0).unwrap().sheet;
+        let ficaram: Vec<String> = (1..=n as u32 / 2).map(|r| s.get_raw(r, 1)).collect();
+        assert!(ficaram.iter().all(|uf| uf == "RJ"), "só as RJ (escondidas) ficam: {ficaram:?}");
+        assert_eq!(s.get_raw(n as u32 / 2 + 1, 0), "", "as SP saíram");
+        let _ = app.update(Msg::Desfazer);
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(1, 0), "L0", "um Ctrl+Z volta tudo");
+        assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(n as u32, 0), format!("L{}", n - 1));
+    }
+
     #[test]
     fn ctrl_enter_com_filtro_nao_escreve_nas_linhas_escondidas() {
         let mut app = app_filtrado();

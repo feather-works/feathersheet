@@ -9,10 +9,24 @@ use std::sync::mpsc;
 /// Abaixo disto o cálculo preguiçoso das células visíveis dá conta.
 pub(super) const CELULAS_EM_FUNDO: usize = 200_000;
 
+/// Excluir linhas de uma lista filtrada com tantos trechos (ou mais) vai para outra thread.
+pub(super) const TRECHOS_EM_FUNDO: usize = 200;
+
 pub(in crate::app) struct CalculoRodando {
     inicio: std::time::Instant,
     recebe: mpsc::Receiver<Workbook>,
     parando: bool,
+    /// A pasta foi para excluir as linhas visíveis de uma lista filtrada, não para calcular.
+    exclusao: Option<ExclusaoEmFundo>,
+}
+
+/// O que a janela termina quando a exclusão em fundo devolve a pasta.
+pub(in crate::app) struct ExclusaoEmFundo {
+    foto: super::desfazer_estrutura::FotoAntes,
+    status_ok: String,
+    trechos: usize,
+    feitos: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    resultado: mpsc::Receiver<super::celulas_dialogo::TrechosAplicados>,
 }
 
 impl App {
@@ -34,7 +48,33 @@ impl App {
             let _ = envio.send(pasta);
         });
         self.status = tr!("Calculando as fórmulas…").into();
-        self.calculo_rodando = Some(CalculoRodando { inicio: std::time::Instant::now(), recebe, parando: false });
+        self.calculo_rodando = Some(CalculoRodando { inicio: std::time::Instant::now(), recebe, parando: false, exclusao: None });
+        #[cfg(test)]
+        self.conferir_calculo_em_fundo(true);
+    }
+
+    /// Exclui as linhas visíveis (`trechos`) de uma lista filtrada na outra thread; a janela mostra o espelho e
+    /// o andamento, e o Ctrl+Z (`foto`, tirada antes) é guardado quando a pasta volta.
+    pub(in crate::app) fn excluir_trechos_em_fundo(&mut self, trechos: Vec<(u32, u32)>, foto: super::desfazer_estrutura::FotoAntes, status_ok: String) {
+        use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
+        let espelho = super::macro_dialogo::em_fundo::espelho_da_pasta(&self.workbook);
+        let mut pasta = std::mem::replace(&mut self.workbook, espelho);
+        let (envio, recebe) = mpsc::channel();
+        let (envio_r, resultado) = mpsc::channel();
+        let feitos = Arc::new(AtomicUsize::new(0));
+        let (contador, folha, n) = (Arc::clone(&feitos), self.folha, trechos.len());
+        std::thread::spawn(move || {
+            // Pânico no meio: a pasta volta assim mesmo, e o Ctrl+Z (a foto) a desfaz inteira.
+            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| super::celulas_dialogo::aplicar_trechos(
+                &mut pasta, folha, false, false, &trechos, &|k| contador.store(k, Ordering::Relaxed))));
+            let r = r.unwrap_or(super::celulas_dialogo::TrechosAplicados {
+                feitos: contador.load(Ordering::Relaxed), falhou: true, tabela: Ok(()), mescla: Ok(()) });
+            let _ = envio_r.send(r);
+            let _ = envio.send(pasta);
+        });
+        self.status = tr!("Excluindo as linhas visíveis…").into();
+        self.calculo_rodando = Some(CalculoRodando { inicio: std::time::Instant::now(), recebe, parando: false,
+            exclusao: Some(ExclusaoEmFundo { foto, status_ok, trechos: n, feitos, resultado }) });
         #[cfg(test)]
         self.conferir_calculo_em_fundo(true);
     }
@@ -46,9 +86,28 @@ impl App {
         let Some(pasta) = pasta else { return };
         let segundos = c.inicio.elapsed().as_secs_f32();
         let parou = c.parando;
-        self.calculo_rodando = None;
+        let exclusao = self.calculo_rodando.take().and_then(|c| c.exclusao);
         self.workbook = pasta;
         self.cache_grade.desenho.clear();
+        if let Some(x) = exclusao {
+            let r = x.resultado.recv().unwrap_or(super::celulas_dialogo::TrechosAplicados {
+                feitos: 0, falhou: true, tabela: Ok(()), mescla: Ok(()) });
+            if r.falhou {
+                self.status = tr!("Não foi possível alterar a estrutura").into();
+                self.guardar_foto_da_estrutura(x.foto, r.feitos > 0);
+            } else {
+                // Como no caminho da janela (`aplicar_celulas`): o histórico da aba vira a foto.
+                if let Some(aba) = self.workbook.aba_mut(self.folha) { aba.sheet.esquecer_historico(); }
+                self.alterado = true;
+                self.status = match (r.tabela, r.mescla) {
+                    (Ok(()), Ok(())) => format!("{} ({segundos:.1} s)", x.status_ok),
+                    (Err(e), _) | (_, Err(e)) => trf!("Estrutura alterada; revise: {e}"),
+                };
+                self.guardar_foto_da_estrutura(x.foto, true);
+            }
+            self.trocar_selecao(self.linha, self.coluna);
+            return;
+        }
         self.status = if parou {
             trf!("Cálculo parado em {segundos:.1} s: o que faltou calcula quando a célula aparecer; Ctrl+Z desfaz o preenchimento.")
         } else { trf!("Fórmulas calculadas em {segundos:.1} s.") };
@@ -66,6 +125,16 @@ impl App {
 
     pub(in crate::app) fn sobrepor_calculo_rodando<'a>(&'a self, base: Element<'a, Msg>) -> Element<'a, Msg> {
         let Some(c) = &self.calculo_rodando else { return base };
+        if let Some(x) = &c.exclusao {
+            let feitos = x.feitos.load(std::sync::atomic::Ordering::Relaxed);
+            let corpo = pelicano::column![
+                text(trf!("{} s", c.inicio.elapsed().as_secs())).size(28),
+                text(trf!("{feitos} de {} trechos de linhas visíveis", x.trechos)).size(13),
+                text(tr!("A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.")).size(12).color(COR_TEXTO_MUTED()),
+            ].spacing(6);
+            return self.dialogo(tr!("Excluindo as linhas visíveis"), corpo)
+                .icone("trash").largura(420.0).clique_fora_fecha(false).sobre(base);
+        }
         let (feito, total) = feathersheet_core::paralelismo::andamento::agora();
         let milhoes = |n: u64| format!("{:.1}", n as f64 / 1e6).replace('.', ",");
         let corpo = pelicano::column![

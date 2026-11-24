@@ -4,6 +4,14 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Excluir linhas com filtro em fundo** (24/11/2026; o "fica para depois" da 0.3.5, que parava a janela 2,5 s com
+  5000 trechos): com 200 trechos ou mais (`TRECHOS_EM_FUNDO`), a exclusão vai para outra thread com a pasta, como o
+  cálculo em fundo (espelho na tela, diálogo "Excluindo as linhas visíveis" com o andamento, sem Parar); a foto do
+  Ctrl+Z é tirada antes, na janela. O laço dos trechos virou `celulas_dialogo::aplicar_trechos` (o mesmo na janela e
+  na thread), e o reflow dos minigráficos, `refluir_minigraficos_na_pasta`. Teste
+  `excluir_muitos_trechos_filtrados_vai_em_fundo_e_desfaz`. Continua um `excluir_linhas` por trecho (lento numa pasta
+  enorme, mas sem travar); cortar várias faixas numa operação do motor fica anotado como `shortcut:`.
+
 - **FeatherQuery: consulta que mescla/acrescenta outra consulta** (24/11/2026): a fonte adicional "Consulta: X" (o
   `mesclarConsultas` do Power Query importado) funcionava no editor, mas reabrir ou atualizar a consulta gravada dava
   "A fonte adicional 'Consulta: X' não existe mais": `fontes_extra_da_salva` só conhecia "Tabela: X" e abas. Agora

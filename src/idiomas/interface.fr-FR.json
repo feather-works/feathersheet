@@ -6230,5 +6230,9 @@
  "Antes de fechar": "Avant la fermeture",
  "Roda antes de fechar a pasta (sair, Novo ou abrir outro arquivo), antes de perguntar se salva.": "S'exécute avant la fermeture du classeur (quitter, Nouveau ou ouvrir un autre fichier), avant de demander s'il faut enregistrer.",
  "wb.cancelClose() não deixa fechar.": "wb.cancelClose() empêche la fermeture.",
- "A macro Antes de fechar não deixou fechar a pasta.": "La macro Avant la fermeture a empêché de fermer le classeur."
+ "A macro Antes de fechar não deixou fechar a pasta.": "La macro Avant la fermeture a empêché de fermer le classeur.",
+ "Excluindo as linhas visíveis…": "Suppression des lignes visibles…",
+ "Excluindo as linhas visíveis": "Suppression des lignes visibles",
+ "{feitos} de {} trechos de linhas visíveis": "{feitos} sur {} blocs de lignes visibles",
+ "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "La feuille revient à la fin ; Ctrl+Z annule tout d'un coup."
 }

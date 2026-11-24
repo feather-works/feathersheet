@@ -47,6 +47,15 @@ const ESTILOS: [(&str, &str); 6] = [
     ("#5F6368", "#0B57D0"), ("#E37400", "#5F6368"), ("#7B1FA2", "#1B873F"),
 ];
 
+/// O reflow dos minigráficos só com a pasta (também na thread da exclusão em fundo).
+pub(super) fn refluir_minigraficos_na_pasta(w: &mut Workbook, aba: usize, coluna: bool, at: u32, quantas: u32, removendo: bool) {
+    let mut grupos = minigraficos_aba::ler(w.aba(aba).and_then(|a| a.sheet.mg.as_deref()));
+    if grupos.is_empty() { return; }
+    feathersheet_core::operacoes::minigraficos::refluir(&mut grupos, coluna, at, quantas, removendo);
+    let novo = minigraficos_aba::gravar(&grupos);
+    w.editar(aba, |s| s.mg = novo);
+}
+
 impl App {
     fn minigraficos_da_aba(&self, aba: usize) -> Vec<Grupo> {
         minigraficos_aba::ler(self.workbook.aba(aba).and_then(|a| a.sheet.mg.as_deref()))
@@ -177,11 +186,7 @@ impl App {
     /// Inserir/excluir linhas ou colunas: os minigráficos da aba andam junto
     /// (sem desfazer, como as mesclas e tabelas: o histórico da aba é esquecido).
     pub(super) fn refluir_minigraficos(&mut self, aba: usize, coluna: bool, at: u32, quantas: u32, removendo: bool) {
-        let mut grupos = self.minigraficos_da_aba(aba);
-        if grupos.is_empty() { return; }
-        feathersheet_core::operacoes::minigraficos::refluir(&mut grupos, coluna, at, quantas, removendo);
-        let novo = minigraficos_aba::gravar(&grupos);
-        self.workbook.editar(aba, |s| s.mg = novo);
+        refluir_minigraficos_na_pasta(&mut self.workbook, aba, coluna, at, quantas, removendo);
     }
 
     /// O diálogo sozinho (testes).

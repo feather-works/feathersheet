@@ -16,6 +16,7 @@ milhar, datas, nomes de função) nas quatro línguas.
 - [x] Largura de antes de ocultar no `.fshz`; `enxugar.rs` conhece os campos novos da aba.
 - [x] Grupo de formas gravado no `.xlsx` (#79, parte).
 - [x] FeatherQuery: consulta que mescla/acrescenta outra consulta reabre e atualiza.
+- [x] Excluir linhas com filtro e muitos trechos vai para outra thread (a janela não para).
 
 ## Falta — macros (o tema da 0.4)
 
@@ -44,7 +45,8 @@ milhar, datas, nomes de função) nas quatro línguas.
 
 - [ ] Resultado direto na coluna (sem `calc.cache`), `.xlsx` com dados tipados, abrir sob demanda (`mmap`).
 - [ ] #142: recálculo.
-- [ ] Excluir milhares de trechos filtrados numa operação só (hoje 2,5 s com a janela parada).
+- [x] Excluir milhares de trechos filtrados sem parar a janela (em fundo, 24/11). Falta só ficar rápido numa
+      pasta enorme (vários cortes numa operação do motor).
 
 ## Falta — FeatherQuery e MCP
 
