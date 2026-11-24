@@ -216,6 +216,18 @@ pub fn estrutura(h: &mut dyn Hospede, args: &Json) -> Saida {
         None => return Err("Falta `eixo`: linhas ou colunas.".into()),
     };
     let (aba, area) = intervalo(h, args, "intervalo")?;
+    // Aba protegida: inserir/excluir não entram no desfazer, então o portão do `chamar` não os vê; confere antes.
+    {
+        use feathersheet_core::planilha::sheet::protecao::{Permissao as P, Recusa};
+        let precisa = match (acao, coluna) {
+            ("inserir", true) => Some(P::InserirColunas), ("inserir", false) => Some(P::InserirLinhas),
+            ("excluir", true) => Some(P::ExcluirColunas), ("excluir", false) => Some(P::ExcluirLinhas),
+            (_, true) => Some(P::FormatarColunas), (_, false) => Some(P::FormatarLinhas),
+        };
+        if let Some(p) = precisa.filter(|&p| h.pasta().aba(aba).is_some_and(|x| x.sheet.proibe(p))) {
+            return Err(format!("{} (aba protegida; desproteja com sheet_proteger).", Recusa::sem_permissao(p).0));
+        }
+    }
     let (a, b) = faixa(&area, coluna);
     let quantas = b - a + 1;
     let nome = eixo(coluna, a, b);

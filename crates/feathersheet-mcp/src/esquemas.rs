@@ -28,7 +28,7 @@ pub fn todas() -> Vec<Value> {
                 "escopo": { "type": "string", "description": "Aba onde o nome vale; sem ele, a pasta inteira" } }), &["acao"]),
         f("sheet_proteger", "Proteger planilha: listar, proteger (senha opcional; permitir = lista como sort, autoFilter, formatCells) ou desproteger (com a senha).",
             json!({ "acao": { "type": "string", "enum": ["listar", "proteger", "desproteger"] }, "senha": { "type": "string" },
-                "permitir": { "type": "array", "items": { "type": "string" } }, "aba": { "type": ["string", "integer"], "description": ABA } }), &["acao"]),
+                "permitir": { "type": "array", "items": { "type": "string" } }, "alvo": { "type": "string", "enum": ["aba", "pasta"], "description": "pasta = estrutura (abas não são criadas/excluídas/renomeadas)" }, "aba": { "type": ["string", "integer"], "description": ABA } }), &["acao"]),
         f("sheet_link", "Hiperlinks de célula: listar (no intervalo ou na aba), definir (endereco https://…, mailto:… ou #Aba!A1; texto opcional) ou remover (o texto fica).",
             json!({ "acao": { "type": "string", "enum": ["listar", "definir", "remover"] }, "intervalo": { "type": "string" },
                 "endereco": { "type": "string" }, "texto": { "type": "string" }, "aba": { "type": ["string", "integer"], "description": ABA } }), &["acao"]),

@@ -4,6 +4,15 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **MCP respeita a proteção** (24/11/2026; furo achado ao fazer o "proteger a pasta"): o `chamar` ganhou o portão da
+  tela (marca o histórico das abas protegidas, roda, `examinar_protecao`; se tocou no proibido, `desfazer_ate` e a IA
+  recebe o erro). Antes o avulso escrevia em célula bloqueada e o ao vivo respondia "feito" do que a tela desfazia.
+  `sheet_estrutura` confere a permissão antes (inserir/excluir não entram no desfazer); `sheet_aba`
+  criar/renomear/excluir recusa com a pasta protegida; `sheet_proteger` ganhou `alvo: "pasta"`. Teste
+  `protecao_vale_para_a_ia`. Fica como está: as macros escrevem em aba protegida de propósito (o
+  Unprotect → escrever → Protect do VBA convertido é aplicado no fim), e outras ferramentas que criam aba
+  (`sheet_consulta` com destino novo, dinâmica) ainda não conferem a proteção da estrutura.
+
 - **Dinâmica: botão direito no campo de uma área abre o menu dele** (#165, 24/11/2026; antes só a setinha ▾ abria):
   `Evento::MenuItemEm` com o ponto do `on_right_press_at`, que segura o clique (o painel de fora não o recebe).
   Teste `botao_direito_no_campo_abre_o_menu_onde_clicou`. Aberto junto: #166, a janela travou ~30 s no

@@ -20,7 +20,30 @@ pub const MAX_ESCREVER: u64 = 200_000;
 pub type Saida = Result<Vec<Json>, String>;
 
 /// Chama a ferramenta `nome`. Erro volta como texto para a IA corrigir o pedido.
+///
+/// Portão da proteção, como o da tela (`protecao_ui::vigiar_protecao`): o que a chamada deixou no desfazer de uma
+/// aba protegida é examinado pelo motor e, se a proteção não deixa, desfeito, e a IA recebe o erro (antes escrevia
+/// em célula bloqueada no modo avulso, e ao vivo ouvia "feito" de algo que a tela desfazia).
 pub fn chamar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
+    if crate::permissoes::so_le(nome, args) || matches!(nome, "sheet_proteger" | "sheet_desfazer") {
+        return despachar(h, nome, args);
+    }
+    let marcas: Vec<(u32, usize)> = (0..h.pasta().len()).filter_map(|i| h.pasta().aba(i))
+        .filter(|a| a.sheet.protegida()).map(|a| (a.id, a.sheet.profundidade_do_historico())).collect();
+    let saida = despachar(h, nome, args);
+    for (id, marca) in marcas {
+        let Some(i) = h.pasta().indice_do_id(id) else { continue };
+        let Some(aba) = h.pasta().aba(i) else { continue };
+        if let Some(recusa) = aba.sheet.examinar_protecao(marca) {
+            let nome_aba = aba.sheet.name.clone();
+            h.pasta_mut().editar(i, |s| s.desfazer_ate(marca));
+            return Err(format!("{} Nada foi alterado na aba {nome_aba} (protegida; desproteja com sheet_proteger).", recusa.0));
+        }
+    }
+    saida
+}
+
+fn despachar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
     match nome {
         "sheet_resumo" => resumo(h),
         "sheet_ler" => ler(h, args),
@@ -256,6 +279,10 @@ fn aba(h: &mut dyn Hospede, args: &Json) -> Saida {
     let acao = arg_texto(args, "acao").unwrap_or("listar");
     let nome = arg_texto(args, "nome");
     let indice = || indice_aba(h.pasta(), &Json::String(nome.unwrap_or("").into()));
+    // Proteger pasta de trabalho (estrutura): como na tela, abas não são criadas, renomeadas nem excluídas.
+    if matches!(acao, "criar" | "renomear" | "excluir") && h.pasta().propriedades.protecao_estrutura.is_some() {
+        return Err("A pasta de trabalho está protegida (estrutura): abas não podem ser criadas, renomeadas nem excluídas.".into());
+    }
     let texto = match acao {
         "listar" => {
             let nomes = h.pasta().nomes();
@@ -358,7 +385,14 @@ fn proteger(h: &mut dyn Hospede, args: &Json) -> Saida {
                 if p.senha.is_some() { "com senha" } else { "sem senha" },
                 p.permitidas.iter().map(|x| x.chave()).collect::<Vec<_>>().join(", ")),
         }).collect();
-        return Ok(conteudo(linhas.join("\n")));
+        let pasta = match &h.pasta().propriedades.protecao_estrutura {
+            None => "Pasta (estrutura): sem proteção".to_string(),
+            Some(p) => format!("Pasta (estrutura): protegida {}", if p.senha.is_some() { "com senha" } else { "sem senha" }),
+        };
+        return Ok(conteudo(format!("{pasta}\n{}", linhas.join("\n"))));
+    }
+    if arg_texto(args, "alvo") == Some("pasta") {
+        return proteger_pasta(h, acao, arg_texto(args, "senha").unwrap_or(""));
     }
     let aba = aba_do_arg(h, args)?;
     let nome = h.pasta().nomes()[aba].clone();
@@ -393,6 +427,30 @@ fn proteger(h: &mut dyn Hospede, args: &Json) -> Saida {
     };
     h.marcar_alterado();
     Ok(conteudo(texto))
+}
+
+/// Proteger pasta de trabalho (estrutura): abas não são criadas, excluídas, renomeadas, movidas nem ocultadas.
+fn proteger_pasta(h: &mut dyn Hospede, acao: &str, senha: &str) -> Saida {
+    let guardada = h.pasta().propriedades.protecao_estrutura.clone();
+    let texto = match acao {
+        "proteger" => {
+            if guardada.is_some() { return Err("A pasta já está protegida: desproteja antes.".into()); }
+            let senha = (!senha.is_empty()).then(|| feathersheet_io::senha_planilha::criar_senha(senha)).transpose()?;
+            h.pasta_mut().propriedades.protecao_estrutura = Some(feathersheet_core::planilha::workbook::ProtecaoPasta { senha });
+            "Pasta protegida: as abas não podem ser criadas, excluídas, renomeadas, movidas nem ocultadas."
+        }
+        "desproteger" => {
+            let Some(p) = guardada else { return Err("A pasta não está protegida.".into()) };
+            if let Some(g) = &p.senha {
+                if !feathersheet_io::senha_planilha::conferir(senha, g)? { return Err("Senha errada: a pasta continua protegida.".into()); }
+            }
+            h.pasta_mut().propriedades.protecao_estrutura = None;
+            "Pasta desprotegida."
+        }
+        outra => return Err(format!("Ação desconhecida: {outra}. Use listar, proteger ou desproteger.")),
+    };
+    h.marcar_alterado();
+    Ok(conteudo(texto.to_string()))
 }
 
 /// Hiperlinks de célula (o campo `link` do estilo, como Inserir ▸ Link): listar, definir (com texto opcional) e
@@ -652,6 +710,33 @@ mod testes {
         }
         texto(chamar(&mut h, "sheet_impressao", &json!({ "acao": "definir", "area": "", "titulos": "" })));
         assert!(feathersheet_io::pagina_aba::ler(h.pasta.aba(0).unwrap().sheet.pg.as_deref()).areas.is_empty());
+    }
+
+    /// Aba protegida: escrever em célula bloqueada e inserir linha são recusados (nada muda); desbloqueada passa;
+    /// pasta protegida não deixa criar aba.
+    #[test]
+    fn protecao_vale_para_a_ia() {
+        let mut h = Avulso::default();
+        texto(chamar(&mut h, "sheet_escrever", &json!({ "celula": "A1", "valores": [["antes"]] })));
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "proteger" })));
+        let e = chamar(&mut h, "sheet_escrever", &json!({ "celula": "A1", "valores": [["depois"]] })).unwrap_err();
+        assert!(e.contains("protegida"), "{e}");
+        assert_eq!(h.pasta.aba(0).unwrap().sheet.get_raw(0, 0), "antes");
+        assert!(chamar(&mut h, "sheet_estrutura", &json!({ "acao": "inserir", "eixo": "linhas", "intervalo": "2:2" })).is_err());
+        // Célula desbloqueada antes de proteger: a IA escreve.
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger" })));
+        let desbloq = feathersheet_core::celulas::estilo_parcial::EstiloParcial::from([("locked".to_string(),
+            feathersheet_core::celulas::estilo_parcial::Campo::Logico(false))]);
+        h.pasta.editar(0, |s| s.set_style(&feathersheet_core::celulas::refs::Rect::cell(1, 1), &desbloq));
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "proteger" })));
+        texto(chamar(&mut h, "sheet_escrever", &json!({ "celula": "B2", "valores": [["livre"]] })));
+        assert_eq!(h.pasta.aba(0).unwrap().sheet.get_raw(1, 1), "livre");
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "proteger", "alvo": "pasta", "senha": "x1" })));
+        assert!(chamar(&mut h, "sheet_aba", &json!({ "acao": "criar", "nome": "Nova" })).unwrap_err().contains("protegida"));
+        assert_eq!(h.pasta.len(), 1);
+        assert!(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger", "alvo": "pasta", "senha": "y" })).is_err());
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger", "alvo": "pasta", "senha": "x1" })));
+        texto(chamar(&mut h, "sheet_aba", &json!({ "acao": "criar", "nome": "Nova" })));
     }
 
     #[test]
