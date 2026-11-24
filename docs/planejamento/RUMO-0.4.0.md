@@ -33,7 +33,7 @@ milhar, datas, nomes de função) nas quatro línguas.
 ## Falta — interface (telas novas: confirmar antes)
 
 - [ ] #83: divisão em quatro, Nova janela, Organizar tudo, Alternar janelas.
-- [x] #79: girar e esticar o grupo inteiro no app (24/11). Falta só gravar o `grpSp` no `.xlsx`.
+- [x] #79: girar e esticar o grupo inteiro no app (24/11); o `grpSp` já ia e voltava no `.xlsx`. Issue completa.
 - [ ] #80: Temas da página (cores, fontes, efeitos).
 - [x] Gerenciador de nomes: escolher a aba (Escopo) ao criar um nome (24/11).
 - [ ] INT-11: ícone da seta no menu Orientação — depende de publicar a feather-ui nova (**pede ordem**).

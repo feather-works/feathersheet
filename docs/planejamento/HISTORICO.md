@@ -7,7 +7,7 @@
 - **Grupo de formas estica e gira inteiro (#79; 24/11/2026)**: esticar uma forma do grupo pelas alças escala as
   outras na mesma proporção a partir da borda que ficou parada (`esticar_grupo`); girar pela alça ou por Girar 90°
   roda cada forma em volta do centro do grupo e dá a elas o mesmo giro (`girar_grupo`). Sai o `shortcut:` antigo.
-  Teste `grupo_estica_e_gira_inteiro`. Ajuda F1 nas quatro línguas. Falta da #79: gravar o `grpSp` no `.xlsx`.
+  Teste `grupo_estica_e_gira_inteiro`. Ajuda F1 nas quatro línguas. Com o `grpSp` no `.xlsx` (já feito), a #79 está completa.
   Novidade para o `VERSOES` da 0.4.0: "Esticar ou girar uma forma de um grupo leva o grupo inteiro".
 
 - **Linha do tempo da dinâmica (#145, parte; 24/11/2026)**, referência a Linha do Tempo do Excel: Inserir → Filtros →
