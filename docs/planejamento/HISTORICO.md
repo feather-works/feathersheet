@@ -4,6 +4,9 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **MCP `sheet_imagem`** (24/11/2026, ao vivo): listar, inserir de arquivo (o mesmo `importar` do Inserir ▸
+  Imagem: PNG/JPEG, 16 MiB conferidos antes de ler, 64 por aba) e remover. Teste `imagem_pelo_mcp`.
+
 - **MCP `sheet_tabela`** (24/11/2026, ao vivo): listar, criar (nome sugerido se faltar), renomear, estilo,
   total por coluna (pela letra ou pelo título; liga a linha de totais e grava a conta num Ctrl+Z, como o botão),
   redimensionar e converter. `Hospede::tabela` (avulso explica que precisa do app); `tabelas::listar` virou

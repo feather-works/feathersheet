@@ -579,6 +579,11 @@ impl Hospede for HospedeApp<'_> {
         self.app.dinamica_pelo_mcp(args, origem)
     }
 
+    fn imagem(&mut self, aba: usize, args: &Json) -> Result<String, String> {
+        let celula = args.get("celula").map(|_| feathersheet_mcp::texto::intervalo(self, args, "celula").map(|(_, r)| (r.r0, r.c0))).transpose()?;
+        self.app.imagem_pelo_mcp(aba, args, celula)
+    }
+
     fn tabela(&mut self, args: &Json) -> Result<String, String> {
         let aba = feathersheet_mcp::texto::aba_do_arg(self, args)?;
         let area = args.get("intervalo").map(|_| feathersheet_mcp::texto::intervalo(self, args, "intervalo").map(|(_, r)| r)).transpose()?;
@@ -824,6 +829,28 @@ mod testes {
         assert!(!erro, "{t}");
         assert!(chamar(&mut app, "sheet_tabela", json!({ "acao": "listar" })).1.contains("Nenhuma"));
         assert_eq!(app.workbook.aba(0).unwrap().sheet.get_raw(1, 0), "a", "os dados ficam");
+    }
+
+    /// `sheet_imagem`: insere um PNG de arquivo na célula pedida, lista e remove; texto disfarçado de imagem é recusado.
+    #[test]
+    fn imagem_pelo_mcp() {
+        let dir = std::env::temp_dir().join(format!("fs-mcp-imagem-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let png = crate::app::imagens_importadas::rgba_para_png(4, 2, vec![0, 128, 255, 255].repeat(8)).unwrap();
+        std::fs::write(dir.join("logo.png"), png).unwrap();
+        std::fs::write(dir.join("falso.png"), b"nao sou imagem").unwrap();
+        let mut app = App::default();
+        let (erro, t) = chamar(&mut app, "sheet_imagem", json!({ "acao": "inserir", "arquivo": dir.join("logo.png"), "celula": "C3" }));
+        assert!(!erro && t.contains("C3"), "{t}");
+        let (_, lista) = chamar(&mut app, "sheet_imagem", json!({ "acao": "listar" }));
+        assert!(lista.contains("logo.png"), "{lista}");
+        assert!(chamar(&mut app, "sheet_imagem", json!({ "acao": "inserir", "arquivo": dir.join("falso.png") })).0);
+        assert!(chamar(&mut app, "sheet_imagem", json!({ "acao": "inserir", "arquivo": dir.join("nao-existe.png") })).0);
+        let id = lista.split(':').next().unwrap().to_string();
+        let (erro, t) = chamar(&mut app, "sheet_imagem", json!({ "acao": "remover", "id": id }));
+        assert!(!erro, "{t}");
+        assert!(chamar(&mut app, "sheet_imagem", json!({ "acao": "listar" })).1.contains("Nenhuma"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -423,6 +423,52 @@ pub(super) fn importar(
     Ok(id)
 }
 
+impl App {
+    /// `sheet_imagem` do MCP ao vivo: o mesmo `importar` do Inserir ▸ Imagem (PNG/JPEG, 16 MiB, 64 por aba).
+    pub(super) fn imagem_pelo_mcp(&mut self, aba: usize, args: &Value, celula: Option<(u32, u32)>) -> Result<String, String> {
+        let acao = args.get("acao").and_then(Value::as_str).unwrap_or("listar");
+        let sheet = &self.workbook.aba(aba).ok_or("Aba inexistente.")?.sheet;
+        let texto = match acao {
+            "listar" => {
+                let lista = itens(sheet)?;
+                if lista.is_empty() { return Ok("Nenhuma imagem nesta aba.".into()); }
+                return Ok(lista.iter().map(|i| {
+                    let p = Posicao::efetiva(i, sheet);
+                    format!("{}: {}{}", i["id"].as_str().unwrap_or("?"), i["name"].as_str().unwrap_or(""),
+                        p.map(|p| format!(" ({:.0} × {:.0} px)", p.width, p.height)).unwrap_or_default())
+                }).collect::<Vec<_>>().join("\n"));
+            }
+            "inserir" => {
+                let caminho = args.get("arquivo").and_then(Value::as_str).filter(|s| !s.trim().is_empty())
+                    .ok_or("Falta `arquivo` (caminho de um PNG ou JPEG).")?;
+                let caminho = std::path::Path::new(caminho.trim());
+                // Antes de ler: arquivo enorme não vai para a memória.
+                let tamanho = std::fs::metadata(caminho).map_err(|e| format!("Não abri {}: {e}", caminho.display()))?.len();
+                if tamanho > MAX_BYTES as u64 { return Err(tr!("Selecione uma imagem PNG/JPEG de até 16 MiB.").into()); }
+                let bytes = std::fs::read(caminho).map_err(|e| format!("Não li {}: {e}", caminho.display()))?;
+                let nome = caminho.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                let (linha, coluna) = celula.unwrap_or((self.linha, self.coluna));
+                let a = self.workbook.aba_mut(aba).ok_or("Aba inexistente.")?;
+                let id = importar(&mut a.sheet, &bytes, &nome, linha, coluna)?;
+                if let Some(imagem) = crate::compat::imagem_de_bytes(&bytes) {
+                    self.imagens_importadas.handles.borrow_mut().insert(id.clone(), imagem);
+                }
+                format!("Imagem {nome} inserida em {} (id {id})", feathersheet_core::celulas::refs::cell_name(linha, coluna))
+            }
+            "remover" => {
+                let id = args.get("id").and_then(Value::as_str).ok_or("Falta `id` (veja acao listar).")?;
+                let a = self.workbook.aba_mut(aba).ok_or("Aba inexistente.")?;
+                if !remover_imagem(&mut a.sheet, id)? { return Err(format!("Não há imagem {id} nesta aba.")); }
+                format!("Imagem {id} removida")
+            }
+            outra => return Err(format!("Ação desconhecida: {outra}. Use listar, inserir ou remover.")),
+        };
+        self.alterado = true;
+        self.invalidar_cache_objetos();
+        Ok(texto)
+    }
+}
+
 /// Converte pixels RGBA 8 bits (como o `arboard` entrega) em PNG. Reduz a
 /// imagem quando passa do limite de pixels da importação (ex.: print 4K).
 pub(super) fn rgba_para_png(largura: u32, altura: u32, rgba: Vec<u8>) -> Result<Vec<u8>, String> {

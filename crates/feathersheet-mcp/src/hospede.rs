@@ -63,6 +63,10 @@ pub trait Hospede {
     fn tabela(&mut self, _args: &Value) -> Result<String, String> {
         Err("A tabela (Ctrl+T) usa as regras do aplicativo: abra o FeatherSheet (com o MCP ligado nas Configurações) e chame de novo.".into())
     }
+    /// Imagens soltas sobre a grade (Inserir ▸ Imagem): `acao` listar, inserir (arquivo PNG/JPEG, celula) ou remover.
+    fn imagem(&mut self, _aba: usize, _args: &Value) -> Result<String, String> {
+        Err("As imagens usam o aplicativo: abra o FeatherSheet (com o MCP ligado nas Configurações) e chame de novo.".into())
+    }
     /// O catálogo de macros mudou: o aplicativo recarrega o editor.
     fn macros_mudaram(&mut self) {}
     /// A pessoa liberou as macros deste arquivo? Ao vivo, com o arquivo ainda em
