@@ -68,9 +68,10 @@ pub struct Resultado {
     pub campos: Vec<(String, String, Json)>,
     /// `sheet.hideComponent()`: fecha o formulário aberto.
     pub fechar_formulario: bool,
-    /// `wb.cancelSave()` (o `Cancel = True` do `Workbook_BeforeSave`): o app não grava.
-    /// Vale mesmo com erro depois dele, como no Excel, onde o Cancel já ficou marcado.
-    pub cancelar_salvar: bool,
+    /// `wb.cancelSave()`/`wb.cancelClose()` (o `Cancel = True` do `Workbook_BeforeSave` e do
+    /// `Workbook_BeforeClose`): o app não grava ou não fecha. Vale mesmo com erro depois dele, como no
+    /// Excel, onde o Cancel já ficou marcado.
+    pub cancelar: bool,
     /// `app.shell(comando)` (o `Shell` do VBA), na ordem. A macro não roda
     /// nada: o aplicativo mostra os comandos, pergunta, e só então roda.
     pub programas: Vec<String>,
@@ -277,8 +278,8 @@ impl HospedeiroMacros for HospedeiroSheet {
         } else if op == "fecharFormulario" {
             e.extra.fechar_formulario = true;
             Json::Null
-        } else if op == "cancelarSalvar" {
-            e.extra.cancelar_salvar = true;
+        } else if op == "cancelarEvento" {
+            e.extra.cancelar = true;
             Json::Null
         } else if op == "appStatus" {
             let mensagem = dados.get(0).and_then(Json::as_str)
@@ -938,7 +939,7 @@ pub fn executar_com(pasta: &mut Workbook, aba: usize, codigo: &str, contexto: Co
         formulario: if vale { extra.formulario } else { None },
         campos: if vale { extra.campos } else { Vec::new() },
         fechar_formulario: vale && extra.fechar_formulario,
-        cancelar_salvar: extra.pergunta.is_none() && extra.cancelar_salvar,
+        cancelar: extra.pergunta.is_none() && extra.cancelar,
         programas: if vale { extra.programas } else { Vec::new() },
         protecoes: if vale { extra.protecoes } else { Vec::new() },
         grades: if vale { extra.grades } else { Vec::new() },
@@ -1268,7 +1269,9 @@ const wb = {
     deleteSheet:s=>{__ft('apagarAba',[(typeof s==='object'?s:wb.sheet(s)).__id]);},
     renameSheet:(s,name)=>{__ft('renomearAba',[(typeof s==='object'?s:wb.sheet(s)).__id,String(name)]);},
     // No evento antesDeSalvar: o arquivo não é gravado (o Cancel = True do Workbook_BeforeSave).
-    cancelSave:()=>{__ft('cancelarSalvar',[]);}};
+    cancelSave:()=>{__ft('cancelarEvento',[]);},
+    // No evento antesDeFechar: a pasta não fecha (o Cancel = True do Workbook_BeforeClose).
+    cancelClose:()=>{__ft('cancelarEvento',[]);}};
 const app = {
     // O separador decimal da língua do app ("," em pt-BR): o CStr e o & do VBA convertido escrevem número com ele.
     get decimalSeparator(){return __ft('separadorDecimal',[]);},

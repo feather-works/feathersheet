@@ -6,7 +6,7 @@ uma interface web futura usará os motores via WebAssembly.
 
 **Histórico completo** (cada entrega, versão, medição e decisão até 20/11/2026): `docs/planejamento/HISTORICO.md`.
 Antes de mexer num recurso, procure o nome dele lá (`grep`): quase tudo tem nota de onde mora, limites e teste.
-Outros planos: `docs/planejamento/` (ROADMAP, PARIDADE-EXCEL, AUDITORIA-2026-11-13, MCP-PENDENTE, METAS-VERSOES).
+Lista do que falta para a 0.4.0: `docs/planejamento/RUMO-0.4.0.md`. Outros planos: `docs/planejamento/` (ROADMAP, PARIDADE-EXCEL, AUDITORIA-2026-11-13, MCP-PENDENTE, METAS-VERSOES).
 
 ## Estado
 

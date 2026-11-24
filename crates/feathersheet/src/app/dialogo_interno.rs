@@ -53,7 +53,10 @@ impl App {
                 let aba = self.nome_aba.clone();
                 self.workbook.definir_nome("Receitas", Rect::na_aba(1, 1, 12, 1, aba.clone()));
                 self.workbook.definir_nome("Taxa", Rect::na_aba(0, 4, 0, 4, aba.clone()));
-                self.workbook.definir_nome("Despesas", Rect::na_aba(1, 2, 12, 2, aba));
+                self.workbook.definir_nome("Despesas", Rect::na_aba(1, 2, 12, 2, aba.clone()));
+                // Um de valor (o Taxa vira conta) e um que vale só nesta aba.
+                self.workbook.definir_nome_formula("Taxa", "=0,1", None);
+                self.workbook.definir_nome_formula("Meta", "=Receitas*1,2", Some(&aba));
                 let _ = self.update(Msg::NomesAbrir(false));
                 self.update(Msg::NomesEvento(nomes_ui::Evento::Selecionar("Taxa".into())))
             }

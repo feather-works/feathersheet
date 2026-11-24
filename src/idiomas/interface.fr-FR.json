@@ -6220,5 +6220,15 @@
  "Roda antes de gravar o arquivo (Ctrl+S ou Salvar como).": "S'exécute avant l'écriture du fichier (Ctrl+S ou Enregistrer sous).",
  "wb.cancelSave() não deixa gravar; valores.comoSalvar é true no Salvar como.": "wb.cancelSave() empêche l'enregistrement ; valores.comoSalvar vaut true dans Enregistrer sous.",
  "Evento {evento} da pasta: {erro}. Escritas revertidas.": "Événement {evento} du classeur : {erro}. Écritures annulées.",
- "A macro Antes de salvar cancelou a gravação.": "La macro Avant l'enregistrement a annulé l'enregistrement."
+ "A macro Antes de salvar cancelou a gravação.": "La macro Avant l'enregistrement a annulé l'enregistrement.",
+ "Escopo": "Étendue",
+ "Fórmula inválida em \"Refere-se a\". Use uma referência (=Planilha1!$A$1) ou uma conta (=0,1).": "Formule non valide dans « Fait référence à ». Utilisez une référence (=Feuil1!$A$1) ou un calcul (=0,1).",
+ "O nome \"{}\" é um valor ou fórmula, não um intervalo: veja no Gerenciador de nomes.": "Le nom « {} » est une valeur ou une formule, pas une plage : voyez-le dans le Gestionnaire de noms.",
+ "Use os nomes em fórmulas, como =SOMA(receitas). \"Refere-se a\" aceita um intervalo ou uma conta, como =0,1.": "Utilisez les noms dans les formules, comme =SOMME(recettes). « Fait référence à » accepte une plage ou un calcul, comme =0,1.",
+ "o nome \"{name}\" depende dele mesmo": "le nom « {name} » dépend de lui-même",
+ "Grupo {}": "Groupe {}",
+ "Antes de fechar": "Avant la fermeture",
+ "Roda antes de fechar a pasta (sair, Novo ou abrir outro arquivo), antes de perguntar se salva.": "S'exécute avant la fermeture du classeur (quitter, Nouveau ou ouvrir un autre fichier), avant de demander s'il faut enregistrer.",
+ "wb.cancelClose() não deixa fechar.": "wb.cancelClose() empêche la fermeture.",
+ "A macro Antes de fechar não deixou fechar a pasta.": "La macro Avant la fermeture a empêché de fermer le classeur."
 }

@@ -4,6 +4,44 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **FeatherQuery: consulta que mescla/acrescenta outra consulta** (24/11/2026): a fonte adicional "Consulta: X" (o
+  `mesclarConsultas` do Power Query importado) funcionava no editor, mas reabrir ou atualizar a consulta gravada dava
+  "A fonte adicional 'Consulta: X' não existe mais": `fontes_extra_da_salva` só conhecia "Tabela: X" e abas. Agora
+  calcula X na hora (`resultado_da_salva`, mesmo limite de profundidade). Teste
+  `consulta_que_le_outra_consulta_reabre_e_atualiza`.
+- **MCP `sheet_nomes`** (24/11/2026): lista os nomes de valor/fórmula e os de uma aba; `definir` com `formula` (pt-BR,
+  conferida pelo parser) e `escopo`; `remover` com `escopo` tira o da aba. Teste `nomes_de_formula_e_de_aba_pelo_mcp`.
+
+- **Grupo de formas no `.xlsx`** (24/11/2026; sobra da #79, "as formas saem soltas"): formas com o mesmo `grupo`
+  vão num `xdr:grpSp` numa âncora só, a caixa do grupo cobrindo todas e cada forma com o `xfrm` dela em EMU (o espaço
+  dos filhos igual ao da caixa); a leitura já desfazia o `grpSp`. `xlsx_write_graficos::grupo_xml`, teste
+  `grupo_de_formas_vai_e_volta_pelo_xlsx`. Fica de fora (#79): girar e esticar o grupo como um todo no app.
+
+- **Nomes de valor/fórmula e nomes de uma aba só** (24/11/2026; era limite anotado na 0.3.5, "o `Nomeado` só tem
+  `area: Rect`"). Motor: `Workbook::nomes_formula` (`NomeFormula`: nome, fórmula na forma das células, aba de escopo,
+  árvore compilada); `Hospedeiro::nome_na_aba`/`formula_do_nome` e `EvalContext::resolve_name_formula`, o nome da aba
+  vence o da pasta; nome que é só referência (`=Plan2!$A$1:$A$3`) serve onde se pede referência (ÍNDICE, SUBTOTAL);
+  nome que depende dele mesmo dá `#NOME?` (limite de 64, `NOMES_ABERTOS`). Recálculo: quem usa nome já era sujo a cada
+  mudança (`sujar_externas_de`), então vale para os novos. Renomear aba e inserir/excluir linhas/colunas reescrevem o
+  texto (`reescrever_aba`, `adjust_for_structure`); intervalo e fórmula da pasta com o mesmo nome não convivem.
+  `.xlsx`: `read_formula_names` (o `read_names` deixou de ler os de `localSheetId`, que sobrescreviam o da pasta) e a
+  gravação com `localSheetId`; saíram do `nao_convertidos` (o Ctrl+S não pede mais "Salvar como" por eles). `.fshz`:
+  itens `{name, formula, scope}` na lista `names` (versão antiga ignora). `.xlsb`: os de fórmula entram (o calamine não
+  diz o escopo). Gerenciador de nomes: lista os dois tipos com a coluna **Escopo** (como no Excel), "Refere-se a"
+  aceita conta (`=0,1`, na língua da interface: `=0.1` em inglês), Aplicar mantém o escopo. A coluna Valor
+  trocava ponto por vírgula sempre (em inglês saía `0,12`): agora segue a língua. A caixa de nome digitando um nome
+  de fórmula ("Taxa") trocava-o por um intervalo da seleção: agora vai para o nome. Testes: `tests/nomes_formula.rs`
+  (6), `nomes_de_formula_e_de_aba_vao_e_voltam` (io), `nome_guarda_a_aba_do_intervalo`, três em `nomes_ui`. Fica de
+  fora: criar um nome de aba pelo Gerenciador (só os que vêm do Excel; editar mantém), referência relativa num nome
+  (vale como absoluta), referência sem aba num nome da pasta não anda ao inserir linhas. **Achado para decidir:** o
+  texto interno guarda o decimal como digitado (`=SUM(1,2,3.5)` → `=SUM(1;2;3.5)`, teste em `locale.rs`), e o
+  português mostra `3.5` com ponto; vale para células e nomes. Novidade para o `VERSOES`: "Nomes com valor ou fórmula
+  (Taxa = 0,1) e nomes de uma aba só, como no Excel: calculam, aparecem no Gerenciador e vão e voltam no .xlsx."
+- **Largura de antes de ocultar no `.fshz`** (24/11/2026; limite anotado na 0.3.5): campo `dh` da aba
+  (`(coluna?, índice, px)`), lido e gravado; reexibir depois de reabrir devolve a medida. Teste
+  `medida_de_antes_de_ocultar_sobrevive_ao_fshz`. O `enxugar.rs` (leitor dos `.fshz` antigos) não conhecia `oc`, `wp`,
+  `tp`, `pt`, `cm`, `lo` nem `co` e recusava esses arquivos (caíam no leitor lento, sem perda): entraram, com `dh`.
+
 - **Eventos da pasta: Workbook_Open e Workbook_BeforeSave** (24/11/2026, item da v0.4 das metas). `aoAbrir` roda quando
   a pessoa clica em "Ativar macros" no arquivo recém-aberto (uma vez; a cópia de recuperação não conta,
   `App::ao_abrir_pendente`), seguido dos módulos "Executar ao abrir" (`auto`), que **antes não rodavam nunca** apesar
@@ -18,9 +56,13 @@
   `cancel_save_chega_ao_app` (macros), `before_save_com_cancel_cancela_a_gravacao` (vba),
   `ao_abrir_roda_ao_ativar_macros_uma_vez_e_depois_os_automaticos`, `antes_de_salvar_pode_cancelar_a_gravacao`,
   `antes_de_salvar_com_pergunta_salva_depois_da_resposta` (app). Fica de fora: Salvar cópia, o salvar do MCP e a
-  cópia de recuperação não disparam o evento (o Excel também não dispara no SaveCopyAs); BeforeClose não existe.
-  Novidade para o `VERSOES` da 0.4.0: "Macros ao abrir e antes de salvar — o Workbook_Open e o Workbook_BeforeSave
-  do Excel rodam aqui; Cancel = True não deixa gravar."
+  cópia de recuperação não disparam o evento (o Excel também não dispara no SaveCopyAs). **BeforeClose** (mesmo dia):
+  `antesDeFechar` roda em `App::proteger` (sair, Novo, abrir outro, modelo, recuperar) antes do "salvar alterações?";
+  `wb.cancelClose()` mantém a pasta; com pergunta, fecha sozinho no "Sim"; a segunda passagem depois de gravar não
+  roda de novo (`fechar_sem_evento`). O campo do motor virou `Resultado::cancelar` (vale para os dois). Testes
+  `antes_de_fechar_pode_impedir_e_espera_a_resposta`, `before_close_com_cancel_impede_fechar`.
+  Novidade para o `VERSOES` da 0.4.0: "Macros ao abrir, antes de salvar e antes de fechar — o Workbook_Open, o
+  Workbook_BeforeSave e o Workbook_BeforeClose do Excel rodam aqui; Cancel = True não deixa gravar nem fechar."
 
 - **Revisão do que entrou na 0.3.5** (23/11/2026, agente revisor): colar uma cópia filtrada deslocava as fórmulas
   e o "Colar vínculo" pela posição na cópia, não pela linha de onde vieram (`AreaCopiada.linhas`); valor derramado

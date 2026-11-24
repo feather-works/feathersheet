@@ -125,10 +125,24 @@ fn figuras_da_aba(sheet: &Sheet, contador: &mut usize) -> (String, String, Vec<(
         midias.push((format!("xl/media/image{n}.{ext}"), bytes));
     }
     // As formas desenhadas (retângulo, seta, caixa de texto…): até 20/11/2026 sumiam ao gravar o .xlsx.
+    // As do mesmo grupo (Agrupar, ou o `grpSp` lido) vão juntas num `grpSp`; antes saíam soltas (#79).
     if let Ok(lista) = ObjetosAba::ler(sheet.ob.as_deref()) {
-        for (k, o) in lista.objetos.iter().filter(|o| o.tipo == TipoObjeto::Forma).enumerate() {
-            let _ = write!(ancoras, "<xdr:twoCellAnchor><xdr:from>{}</xdr:from><xdr:to>{}</xdr:to>{}<xdr:clientData/></xdr:twoCellAnchor>",
-                ponto(&o.de), ponto(&o.ate), forma_xml(o, 300_000 + k));
+        let formas: Vec<(usize, &crate::objetos_aba::ObjetoSolto)> =
+            lista.objetos.iter().filter(|o| o.tipo == TipoObjeto::Forma).enumerate().collect();
+        let grupo = |o: &crate::objetos_aba::ObjetoSolto| o.extras.get("grupo").and_then(serde_json::Value::as_u64);
+        let mut feitos = std::collections::HashSet::new();
+        for &(k, o) in &formas {
+            let membros: Vec<(usize, &crate::objetos_aba::ObjetoSolto)> = match grupo(o) {
+                Some(g) => formas.iter().filter(|(_, x)| grupo(x) == Some(g)).copied().collect(),
+                None => Vec::new(),
+            };
+            if membros.len() < 2 {
+                let _ = write!(ancoras, "<xdr:twoCellAnchor><xdr:from>{}</xdr:from><xdr:to>{}</xdr:to>{}<xdr:clientData/></xdr:twoCellAnchor>",
+                    ponto(&o.de), ponto(&o.ate), forma_xml(o, 300_000 + k, None));
+                continue;
+            }
+            if !feitos.insert(grupo(o)) { continue; }
+            ancoras.push_str(&grupo_xml(sheet, &membros, 350_000 + k, &ponto));
         }
     }
     (ancoras, rels, midias)
@@ -146,8 +160,33 @@ fn cor_drawingml(css: &str, transparencia: f32) -> String {
     }
 }
 
-/// Uma forma da camada de objetos como `xdr:sp` (a âncora dá o lugar; `xfrm` vazio como nas figuras).
-fn forma_xml(o: &crate::objetos_aba::ObjetoSolto, id: usize) -> String {
+/// EMU por pixel lógico (96 dpi).
+const EMU_PX: f64 = 9525.0;
+
+/// Formas de um grupo como `xdr:grpSp` numa âncora só: a caixa do grupo cobre todas, e cada forma
+/// leva a posição dela em EMU (o espaço dos filhos é o mesmo da caixa, `chOff`/`chExt` = `off`/`ext`).
+fn grupo_xml(sheet: &Sheet, membros: &[(usize, &crate::objetos_aba::ObjetoSolto)], id: usize,
+    ponto: &dyn Fn(&crate::objetos_aba::Ancora) -> String) -> String {
+    use crate::objetos_aba::{Ancora, ReguaSimples};
+    let regua = ReguaSimples(sheet);
+    let caixas: Vec<_> = membros.iter().map(|(_, o)| o.retangulo(&regua)).collect();
+    let x0 = caixas.iter().map(|r| r.x).fold(f32::MAX, f32::min);
+    let y0 = caixas.iter().map(|r| r.y).fold(f32::MAX, f32::min);
+    let x1 = caixas.iter().map(|r| r.x + r.largura).fold(f32::MIN, f32::max);
+    let y1 = caixas.iter().map(|r| r.y + r.altura).fold(f32::MIN, f32::max);
+    let emu = |v: f32| (f64::from(v) * EMU_PX).round() as i64;
+    let (ox, oy, cx, cy) = (emu(x0), emu(y0), emu(x1 - x0).max(1), emu(y1 - y0).max(1));
+    let filhos: String = membros.iter().zip(&caixas)
+        .map(|((k, o), r)| forma_xml(o, 300_000 + k, Some((emu(r.x), emu(r.y), emu(r.largura).max(1), emu(r.altura).max(1)))))
+        .collect();
+    format!("<xdr:twoCellAnchor><xdr:from>{}</xdr:from><xdr:to>{}</xdr:to><xdr:grpSp><xdr:nvGrpSpPr><xdr:cNvPr id=\"{id}\" name=\"{}\"/><xdr:cNvGrpSpPr/></xdr:nvGrpSpPr><xdr:grpSpPr><a:xfrm><a:off x=\"{ox}\" y=\"{oy}\"/><a:ext cx=\"{cx}\" cy=\"{cy}\"/><a:chOff x=\"{ox}\" y=\"{oy}\"/><a:chExt cx=\"{cx}\" cy=\"{cy}\"/></a:xfrm></xdr:grpSpPr>{filhos}</xdr:grpSp><xdr:clientData/></xdr:twoCellAnchor>",
+        ponto(&Ancora::em(x0, y0, &regua)), ponto(&Ancora::em(x1, y1, &regua)),
+        escape_xml(&feathersheet_core::trf!("Grupo {}", id - 349_999)))
+}
+
+/// Uma forma da camada de objetos como `xdr:sp`. Solta, a âncora dá o lugar (`xfrm` vazio como nas
+/// figuras); dentro de um grupo, `caixa` (x, y, largura, altura em EMU) é a posição dela.
+fn forma_xml(o: &crate::objetos_aba::ObjetoSolto, id: usize, caixa: Option<(i64, i64, i64, i64)>) -> String {
     use crate::objetos_aba::{AlinharH, AlinharV};
     use feather_shapes::tipo::TipoForma;
     // O id do catálogo (`seta-direita`) vira o `prstGeom`; a que veio do Office já é um.
@@ -169,6 +208,7 @@ fn forma_xml(o: &crate::objetos_aba::ObjetoSolto, id: usize) -> String {
     if o.giro != 0.0 { let _ = write!(xfrm, " rot=\"{}\"", (f64::from(o.giro) * 60_000.0).round() as i64); }
     if o.espelhar_h { xfrm.push_str(" flipH=\"1\""); }
     if o.espelhar_v { xfrm.push_str(" flipV=\"1\""); }
+    let (x, y, cx, cy) = caixa.unwrap_or_default();
     let nome = o.extras.get("nome").and_then(|v| v.as_str()).map_or_else(|| feathersheet_core::trf!("Forma {}", id - 299_999), str::to_owned);
     let macro_ = o.extras.get("macro_excel").and_then(|v| v.as_str()).unwrap_or("");
     let texto = o.texto.as_deref().filter(|t| !t.is_empty()).map_or(String::new(), |t| {
@@ -190,7 +230,7 @@ fn forma_xml(o: &crate::objetos_aba::ObjetoSolto, id: usize) -> String {
         format!("<xdr:txBody><a:bodyPr anchor=\"{anchor}\" rtlCol=\"0\"{}/><a:lstStyle/>{paragrafos}</xdr:txBody>", if f.sem_quebra { " wrap=\"none\"" } else { "" })
     });
     format!(
-        "<xdr:sp macro=\"{}\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"{id}\" name=\"{}\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm{xfrm}><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></a:xfrm><a:prstGeom prst=\"{prst}\"><a:avLst/></a:prstGeom>{preenchimento}{contorno}</xdr:spPr>{texto}</xdr:sp>",
+        "<xdr:sp macro=\"{}\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"{id}\" name=\"{}\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm{xfrm}><a:off x=\"{x}\" y=\"{y}\"/><a:ext cx=\"{cx}\" cy=\"{cy}\"/></a:xfrm><a:prstGeom prst=\"{prst}\"><a:avLst/></a:prstGeom>{preenchimento}{contorno}</xdr:spPr>{texto}</xdr:sp>",
         escape_xml(macro_), escape_xml(&nome))
 }
 
@@ -1269,6 +1309,42 @@ mod testes {
         assert_eq!((g.aparencia.preenchimento.as_deref(), g.aparencia.contorno.as_deref()), (Some("#ff8800"), Some("#112233")));
         assert_eq!(g.texto.as_deref(), Some("Olá <mundo>\nlinha 2"));
         assert_eq!((g.alinhar.h, g.fonte.as_ref().map(|f| (f.tamanho, f.negrito))), (AlinharH::Esquerda, Some((Some(14.0), true))));
+    }
+
+    /// Formas agrupadas vão num `grpSp` e voltam agrupadas, cada uma no lugar dela (#79); a solta segue solta.
+    #[test]
+    fn grupo_de_formas_vai_e_volta_pelo_xlsx() {
+        use crate::objetos_aba::{Ancora, ObjetosAba, ObjetoSolto, TipoObjeto};
+        let forma = |id: u64, de: (u32, u32), ate: (u32, u32), grupo: Option<u64>| {
+            let mut f = ObjetoSolto::novo_controle(crate::objetos_aba::ControleFormulario::novo(crate::objetos_aba::TipoControleForm::Botao),
+                Ancora { linha: de.0, coluna: de.1, dx: 0.0, dy: 0.0 }, Ancora { linha: ate.0, coluna: ate.1, dx: 0.0, dy: 0.0 });
+            (f.id, f.tipo, f.controle, f.forma) = (id, TipoObjeto::Forma, None, "retangulo".into());
+            if let Some(g) = grupo { f.extras.insert("grupo".into(), json!(g)); }
+            f
+        };
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 0, "x".into());
+        pasta.editar(0, |s| s.ob = ObjetosAba { objetos: vec![
+            forma(1, (1, 1), (3, 2), Some(7)), forma(2, (5, 3), (8, 4), Some(7)), forma(3, (10, 0), (12, 1), None),
+        ], ..Default::default() }.gravar());
+        let bytes = crate::xlsx_write::gerar_xlsx(&pasta).unwrap();
+        let desenho = {
+            let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes.clone())).unwrap();
+            let mut t = String::new();
+            std::io::Read::read_to_string(&mut z.by_name("xl/drawings/drawing1.xml").unwrap(), &mut t).unwrap();
+            t
+        };
+        bem_formado(&desenho);
+        assert_eq!(desenho.matches("<xdr:grpSp>").count(), 1, "{desenho}");
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();
+        let ob = ObjetosAba::ler(lida.aba(0).unwrap().sheet.ob.as_deref()).unwrap();
+        let formas: Vec<_> = ob.objetos.iter().filter(|o| o.tipo == TipoObjeto::Forma).collect();
+        assert_eq!(formas.len(), 3);
+        let g = |o: &ObjetoSolto| o.extras.get("grupo").and_then(serde_json::Value::as_u64);
+        assert!(g(formas[0]).is_some() && g(formas[0]) == g(formas[1]), "as duas voltam no mesmo grupo");
+        assert_eq!(g(formas[2]), None);
+        let lugar = |o: &ObjetoSolto| (o.de.linha, o.de.coluna, o.ate.linha, o.ate.coluna);
+        assert_eq!((lugar(formas[0]), lugar(formas[1]), lugar(formas[2])), ((1, 1, 3, 2), (5, 3, 8, 4), (10, 0, 12, 1)));
     }
 
     fn pasta_com_graficos(tipos: &[&str]) -> Workbook {

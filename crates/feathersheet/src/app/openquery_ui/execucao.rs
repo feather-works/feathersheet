@@ -31,10 +31,16 @@ impl App {
         Ok((nome, area, tabela))
     }
 
-    /// As fontes adicionais (juntar, acrescentar) de uma consulta gravada.
-    fn fontes_extra_da_salva(&self, dados: &serde_json::Value) -> Result<HashMap<String, Tabela>, String> {
+    /// As fontes adicionais (juntar, acrescentar) de uma consulta gravada. "Consulta: X" (mesclar com
+    /// outra consulta, como no Power Query importado) é o resultado de X, calculado agora.
+    fn fontes_extra_da_salva(&self, dados: &serde_json::Value, profundidade: u8) -> Result<HashMap<String, Tabela>, String> {
         let mut fontes = HashMap::new();
         for nome in registro::fontes_extra(dados) {
+            if let Some(outra) = nome.strip_prefix("Consulta: ") {
+                let tabela = self.resultado_da_salva(outra, profundidade + 1)?;
+                fontes.insert(nome, tabela);
+                continue;
+            }
             let (indice, area) = if let Some(tabela) = nome.strip_prefix("Tabela: ") {
                 tabelas_existentes(&self.workbook).into_iter()
                     .find(|(_, n, _)| n == tabela)
@@ -64,7 +70,7 @@ impl App {
             .ok_or_else(|| trf!("A consulta referenciada '{nome}' não existe mais"))?;
         let (_, _, fonte) = self.fonte_da_salva(&salva.dados, profundidade)?;
         let passos = json_passos::ler(&serde_json::to_string(&salva.dados["passos"]).map_err(|e| e.to_string())?)?;
-        executar_query_limitado(fonte, &passos, &self.fontes_extra_da_salva(&salva.dados)?, u64::MAX)
+        executar_query_limitado(fonte, &passos, &self.fontes_extra_da_salva(&salva.dados, profundidade)?, u64::MAX)
     }
 
     pub(super) fn abrir_consulta_salva(&mut self, id: &str) -> bool {
@@ -83,7 +89,7 @@ impl App {
                 .map_err(|e| e.to_string())?;
             estado.passos = json_passos::ler(&texto)?;
             estado.etapas_info = registro::etapas_info(&salva.dados);
-            estado.fontes = self.fontes_extra_da_salva(&salva.dados)?;
+            estado.fontes = self.fontes_extra_da_salva(&salva.dados, 0)?;
             estado.registrar_passos();
             // A consulta gravada abre sem Ctrl+Z para "nenhuma etapa".
             estado.esquecer_historico();
@@ -442,6 +448,38 @@ impl App {
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    /// Consulta que acrescenta (ou mescla) outra consulta gravada ("Consulta: Base", como vem do Power
+    /// Query importado): reabrir e atualizar recalculam a outra, em vez de dizer que a fonte sumiu.
+    #[test]
+    fn consulta_que_le_outra_consulta_reabre_e_atualiza() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "Valor".into());
+        for (r, v) in ["3", "1"].iter().enumerate() { app.workbook.escrever_celula(0, r as u32 + 1, 0, (*v).into()); }
+        abrir_aba_para_teste(&mut app);
+        app.evento_openquery(Evento::Nome("Base".into()));
+        app.evento_openquery(Evento::Destino(DestinoModo::ApenasConexao));
+        app.evento_openquery(Evento::Carregar);
+        let base = app.resultado_da_salva("Base", 0).unwrap();
+        abrir_aba_para_teste(&mut app);
+        let e = app.openquery.as_mut().unwrap();
+        e.nome = "Juntas".into();
+        e.fontes.insert("Consulta: Base".into(), base);
+        e.passos.push(Passo::Acrescentar { fonte: "Consulta: Base".into() });
+        e.recalcular();
+        assert_eq!(e.resultado.linhas.len(), 4, "{}", e.erro);
+        app.evento_openquery(Evento::Destino(DestinoModo::ApenasConexao));
+        app.evento_openquery(Evento::Carregar);
+        let id = registro::listar(&app.workbook).unwrap().into_iter()
+            .find(|s| s.dados["nome"] == "Juntas").unwrap().dados["id"].as_str().unwrap().to_owned();
+        // A origem muda: a outra consulta é recalculada junto.
+        app.workbook.escrever_celula(0, 2, 0, "7".into());
+        assert!(app.abrir_consulta_salva(&id), "{}", app.status);
+        assert!(app.openquery.as_ref().unwrap().fontes.contains_key("Consulta: Base"));
+        let r = app.resultado_da_salva("Juntas", 0).unwrap();
+        assert_eq!(r.linhas.len(), 4);
+        assert_eq!(r.linhas.iter().filter(|l| l[0] == Value::Number(7.0)).count(), 2, "{:?}", r.linhas);
+    }
 
     #[test]
     fn apenas_conexao_grava_receita_sem_criar_aba_nem_escrever_celulas() {

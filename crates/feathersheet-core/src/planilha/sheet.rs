@@ -241,8 +241,8 @@ pub struct Sheet {
     pub style_table: Vec<crate::celulas::style::Style>,
     pub col_widths: HashMap<u32, u32>,
     /// A largura (coluna, `true`) ou altura (linha) própria de antes de ocultar: reexibir devolve ela, como no
-    /// Excel. Só na memória; inserir ou excluir linhas/colunas esquece (os índices andam).
-    // shortcut: não vai para o .fshz; reabrir o arquivo e reexibir volta ao padrão. Gravar quando pedirem.
+    /// Excel. Vai para o `.fshz` (`dh`) e, das colunas, para o `.xlsx`; inserir ou excluir linhas/colunas
+    /// esquece (os índices andam).
     pub dimensoes_ocultadas: HashMap<(bool, u32), u32>,
     /// Largura das colunas sem largura própria (Formatar ▾ → Largura padrão),
     /// em pixels; `None` = a da grade.
@@ -2150,6 +2150,14 @@ pub trait Hospedeiro {
     fn aba(&self, nome: &str) -> Option<&Sheet>;
     /// O intervalo nomeado, já com a aba dele.
     fn nome(&self, nome: &str) -> Option<Rect>;
+    /// O nome visto de dentro da aba `aba` (o de escopo da aba vence o da pasta).
+    fn nome_na_aba(&self, nome: &str, _aba: Option<&str>) -> Option<Rect> {
+        self.nome(nome)
+    }
+    /// A fórmula de um nome de valor/fórmula (`Taxa` = `=0,1`), vista da aba `aba`.
+    fn formula_do_nome(&self, _nome: &str, _aba: Option<&str>) -> Option<crate::formula::ast::Node> {
+        None
+    }
     /// Se o nome é de uma função criada por macro (a interface a executa).
     fn funcao_externa(&self, _nome: &str) -> bool {
         false
@@ -2274,7 +2282,11 @@ impl<'a> EvalContext for SheetCtx<'a> {
     /// chegou lá) — por ora, todo nome vira `#NAME?`, o mesmo que o
     /// TypeScript mostra para um nome que não existe.
     fn resolve_name(&self, name: &str) -> Option<Rect> {
-        self.host.and_then(|h| h.nome(name))
+        self.host.and_then(|h| h.nome_na_aba(name, Some(&self.sheet.name)))
+    }
+
+    fn resolve_name_formula(&self, name: &str) -> Option<crate::formula::ast::Node> {
+        self.host.and_then(|h| h.formula_do_nome(name, Some(&self.sheet.name)))
     }
 
     /// A pergunta fica anotada na aba da fórmula; a interface responde depois.

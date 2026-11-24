@@ -125,7 +125,7 @@ impl App {
         if std::mem::take(&mut self.salvar_sem_evento) { return true; }
         let antes = format!("valores.comoSalvar={como};\n");
         match self.rodar_evento_com("", "antesDeSalvar", None, &antes) {
-            Some(r) if r.cancelar_salvar => {
+            Some(r) if r.cancelar => {
                 self.status = tr!("A macro Antes de salvar cancelou a gravação.").into();
                 false
             }
@@ -138,10 +138,32 @@ impl App {
         }
     }
 
+    /// Antes de fechar a pasta (sair, Novo, abrir outro): roda o `antesDeFechar`. `false` = não fecha
+    /// agora (`wb.cancelClose()`, ou espera uma resposta: aí fecha sozinho depois dela).
+    pub(super) fn antes_de_fechar(&mut self, alvo: Pendente) -> bool {
+        if std::mem::take(&mut self.fechar_sem_evento) { return true; }
+        match self.rodar_evento("", "antesDeFechar", None) {
+            Some(r) if r.cancelar => {
+                self.status = tr!("A macro Antes de fechar não deixou fechar a pasta.").into();
+                false
+            }
+            Some(_) => true,
+            None if self.macro_pergunta.is_some() => {
+                self.fechar_apos_pergunta = Some(alvo);
+                false
+            }
+            None => true,
+        }
+    }
+
     /// Depois da resposta à pergunta da macro: se era o `antesDeSalvar` e ele não cancelou, salva.
     /// O `wb.cancelSave()` da continuação já desliga o pedido (`continuar_macro`).
     pub(super) fn salvar_depois_do_evento(&mut self) -> Task<Msg> {
         if self.macro_pergunta.is_some() { return Task::none(); }
+        if let Some(alvo) = self.fechar_apos_pergunta.take() {
+            self.fechar_sem_evento = true;
+            return self.proteger(alvo);
+        }
         let Some(como) = self.salvar_apos_pergunta.take() else { return Task::none() };
         self.salvar_sem_evento = true;
         self.update(if como { Msg::SalvarComo } else { Msg::Salvar })
@@ -423,4 +445,29 @@ mod testes {
         app.concluir_gravacao_teste(pasta.join("b.fshz"), false);
         let _ = std::fs::remove_dir_all(&pasta);
     }
+
+    /// O antesDeFechar (Workbook_BeforeClose) roda antes do "salvar alterações?"; `wb.cancelClose()` impede
+    /// fechar (aqui, criar uma pasta nova); com pergunta, fecha sozinho depois do "Sim".
+    #[test]
+    fn antes_de_fechar_pode_impedir_e_espera_a_resposta() {
+        let mut app = app_com_evento_da_pasta("antesDeFechar", "if (sheet.get('A1') === 'travar') wb.cancelClose();");
+        app.workbook.escrever_celula(0, 0, 0, "travar".into());
+        app.alterado = false;
+        let _ = app.update(Msg::Novo);
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Text("travar".into()), "não fechou");
+        assert!(app.status.contains("não deixou"), "{}", app.status);
+        // Com pergunta: "Não" mantém a pasta; "Sim" fecha.
+        let mut app = app_com_evento_da_pasta("antesDeFechar", "if (!confirm('Fechar?')) wb.cancelClose();");
+        app.workbook.escrever_celula(0, 0, 0, "x".into());
+        app.alterado = false;
+        let _ = app.update(Msg::Novo);
+        assert!(app.macro_pergunta.is_some());
+        let _ = app.update(Msg::MacroResponder(false));
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Text("x".into()));
+        let _ = app.update(Msg::Novo);
+        let _ = app.update(Msg::MacroResponder(true));
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Empty, "Sim: a pasta nova entrou");
+        assert!(!app.fechar_sem_evento, "a marca é gasta");
+    }
 }
+

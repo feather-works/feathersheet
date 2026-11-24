@@ -516,7 +516,7 @@ fn before_save_com_cancel_cancela_a_gravacao() {
         let r = feathersheet_macros::executar_com(&mut wb, 0, &e.codigo,
             feathersheet_macros::Contexto { valores: Some(valores), ..Default::default() });
         assert!(r.erro.is_none(), "{:?}\n{}", r.erro, e.codigo);
-        (r.cancelar_salvar, wb.valor(0, 0, 0), r.mensagens)
+        (r.cancelar, wb.valor(0, 0, 0), r.mensagens)
     };
     let (cancelou, a1, msgs) = rodar("", true);
     assert!(cancelou, "{}", e.codigo);
@@ -525,4 +525,16 @@ fn before_save_com_cancel_cancela_a_gravacao() {
     let (cancelou, a1, _) = rodar("ok", false);
     assert!(!cancelou);
     assert_eq!(a1, Value::Bool(false));
+}
+
+/// Workbook_BeforeClose(Cancel): `Cancel = True` vira `wb.cancelClose()`.
+#[test]
+fn before_close_com_cancel_impede_fechar() {
+    let vba = "Private Sub Workbook_BeforeClose(Cancel As Boolean)\n  If Range(\"A1\").Value = \"\" Then Cancel = True\nEnd Sub\n";
+    let c = converter_texto(&[("EstaPasta_de_trabalho", vba)], &[]);
+    let e = c.eventos.iter().find(|e| e.evento == "antesDeFechar").expect("evento convertido");
+    let mut wb = Workbook::new();
+    assert!(feathersheet_macros::executar(&mut wb, 0, &e.codigo).cancelar, "{}", e.codigo);
+    wb.editar(0, |s| { s.set_cell(0, 0, "ok"); });
+    assert!(!feathersheet_macros::executar(&mut wb, 0, &e.codigo).cancelar);
 }

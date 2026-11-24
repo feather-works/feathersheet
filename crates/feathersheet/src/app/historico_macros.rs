@@ -85,6 +85,7 @@ impl GatilhoMacro {
                     "aoSelecionar" => tr!("Ao selecionar células"),
                     "aoAbrir" => tr!("Ao abrir a pasta"),
                     "antesDeSalvar" => tr!("Antes de salvar"),
+                    "antesDeFechar" => tr!("Antes de fechar"),
                     outro => outro,
                 };
                 // Evento da pasta: sem aba.

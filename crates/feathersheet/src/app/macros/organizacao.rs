@@ -19,9 +19,10 @@ pub(in crate::app) const EVENTOS_PLANILHA: [(&str, &str); 3] = [
 ];
 
 /// Os eventos da pasta (Esta pasta de trabalho): o Workbook_Open e o Workbook_BeforeSave.
-pub(in crate::app) const EVENTOS_PASTA: [(&str, &str); 2] = [
+pub(in crate::app) const EVENTOS_PASTA: [(&str, &str); 3] = [
     ("aoAbrir", "Ao abrir a pasta"),
     ("antesDeSalvar", "Antes de salvar"),
+    ("antesDeFechar", "Antes de fechar"),
 ];
 
 /// `Eventos/<aba>/<evento>`; o da pasta (aba vazia) é `Eventos/<evento>`, que nome
@@ -51,6 +52,9 @@ fn modelo_evento(aba: &str, evento: &str) -> String {
         "antesDeSalvar" => format!("// {}\n// {}\n",
             tr!("Roda antes de gravar o arquivo (Ctrl+S ou Salvar como)."),
             tr!("wb.cancelSave() não deixa gravar; valores.comoSalvar é true no Salvar como.")),
+        "antesDeFechar" => format!("// {}\n// {}\n",
+            tr!("Roda antes de fechar a pasta (sair, Novo ou abrir outro arquivo), antes de perguntar se salva."),
+            tr!("wb.cancelClose() não deixa fechar.")),
         "aoAtivar" => format!("// {}\n", trf!("Roda quando alguém troca para a aba {}.", aba)),
         "aoSelecionar" => format!("// {}\n// {}\n",
             trf!("Roda quando a seleção muda na aba {} (no arrasto, ao soltar o mouse).", aba),

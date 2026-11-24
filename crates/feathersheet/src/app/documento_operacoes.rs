@@ -773,7 +773,7 @@ impl App {
                 self.status = trf!("Cópia salva em: {}", path.display());
                 let _ = ms;
                 // Fechar pedido durante a cópia: pergunta de novo se ainda há alteração.
-                if let Some(p) = self.apos_gravar.take() { return self.proteger(p); }
+                if let Some(p) = self.apos_gravar.take() { self.fechar_sem_evento = true; return self.proteger(p); }
             }
             Ok(ms) => {
                 self.auto_salvar_ultimo_custo_ms = ms;
@@ -804,7 +804,7 @@ impl App {
                 }
                 self.avisar_textos_cortados(&path);
                 // O que foi digitado durante a gravação não está neste arquivo: `proteger` pergunta de novo.
-                if let Some(p) = self.apos_gravar.take() { return self.proteger(p); }
+                if let Some(p) = self.apos_gravar.take() { self.fechar_sem_evento = true; return self.proteger(p); }
             }
             Err(e) => {
                 if !copia { self.alterado = true; }
@@ -1008,6 +1008,8 @@ impl App {
     }
     pub(super) fn proteger(&mut self, alvo: Pendente) -> Task<Msg> {
         self.confirmar();
+        // O Workbook_BeforeClose vem antes do "salvar alterações?", como no Excel.
+        if !self.antes_de_fechar(alvo) { return Task::none(); }
         if self.salvando {
             // Fechar ou trocar de arquivo no meio da gravação perderia o salvamento.
             self.apos_gravar = Some(alvo);
@@ -1247,7 +1249,7 @@ impl App {
             Err(e) => self.status = e,
         }
         // Exportar não salva o documento: fechar pedido no meio volta a perguntar.
-        match self.apos_gravar.take() { Some(p) => self.proteger(p), None => Task::none() }
+        match self.apos_gravar.take() { Some(p) => { self.fechar_sem_evento = true; self.proteger(p) } None => Task::none() }
     }
 
     /// Pergunta o destino antes de percorrer as células; cancelar não faz IO.

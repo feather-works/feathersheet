@@ -89,12 +89,16 @@ fn ler(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
     for (nome, refere) in xlsb.defined_names() {
         if refere.contains("#REF!") || nome.starts_with("_xlfn.") { continue; }
         // `Plan1!$A$1:$A$6` ou `'Minha aba'!$A$1`: a aba vai no retângulo, o resto é o intervalo.
-        let refere = refere.replace('$', "");
-        let Some((aba, intervalo)) = refere.rsplit_once('!') else { continue };
-        let aba = aba.trim_matches('\'').replace("''", "'");
-        if let Some(mut area) = parse_range_ref(intervalo) {
-            area.sheet = Some(aba);
-            pasta.definir_nome_na_leitura(nome, area);
+        let limpo = refere.replace('$', "");
+        let area = limpo.rsplit_once('!').and_then(|(aba, intervalo)| {
+            let mut area = parse_range_ref(intervalo)?;
+            area.sheet = Some(aba.trim_matches('\'').replace("''", "'"));
+            Some(area)
+        });
+        match area {
+            Some(area) => pasta.definir_nome_na_leitura(nome, area),
+            // Valor ou fórmula (`0.1`, `Plan1!$A$1*2`). shortcut: o calamine não diz o escopo (aba) do nome.
+            None => pasta.definir_nome_formula_na_leitura(nome, &formula_from_excel(refere), None),
         }
     }
     pasta.calcular_tudo();

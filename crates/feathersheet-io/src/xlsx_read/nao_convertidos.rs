@@ -120,16 +120,7 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
     };
     let livro = xml::parse_xml(&entry_text(&mut z, "xl/workbook.xml")?).map_err(|e| e.to_string())?;
     let rels = sheet::read_rels(&entry_text(&mut z, "xl/_rels/workbook.xml.rels")?);
-    // Nome com valor ou fórmula (`=7`, `=Taxa*2`): o motor só guarda nome de intervalo e a leitura o deixa
-    // de fora. Nome igual em mais de uma aba (`localSheetId`): o motor tem um só, fica o último.
-    // `#REF!` é nome já quebrado no próprio Excel; não conta.
-    let lidos = sheet::read_names(&livro);
-    let candidatos = livro.child("definedNames").into_iter().flat_map(|d| d.children_named("definedName"))
-        .filter(|n| n.attr("function") != Some("1") && n.attr("name").is_some_and(|m| !sheet::eh_nome_de_pagina(m)))
-        .filter(|n| !n.text.contains("#REF!")).count();
-    somar(None, "Nome definido com valor ou fórmula", candidatos.saturating_sub(lidos.len()));
-    let mut vistos = std::collections::HashSet::new();
-    somar(None, "Nome definido repetido em outra aba", lidos.iter().filter(|n| !vistos.insert(n.name.to_uppercase())).count());
+    // Nome com valor/fórmula e nome de uma aba só são lidos e gravados (`read_formula_names`) desde 24/11/2026.
     for no in livro.child("sheets").into_iter().flat_map(|s| s.children_named("sheet")) {
         let (Some(nome), Some(alvo)) = (no.attr("name"), no.attr("r:id").and_then(|id| rels.get(id))) else { continue };
         let caminho = match alvo.strip_prefix('/') { Some(a) => a.to_owned(), None => format!("xl/{}", alvo.trim_start_matches("./")) };
@@ -226,8 +217,6 @@ mod testes {
             (Some("Vendas"), "Controle ActiveX", 2),
             (Some("Vendas"), "Filtro da planilha (fora de tabela)", 1),
             (Some("Vendas"), "Formatação condicional sem equivalente", 1),
-            (None, "Nome definido com valor ou fórmula", 2),
-            (None, "Nome definido repetido em outra aba", 1),
             (None, "Planilha de gráfico", 1),
             (None, "Preenchimento com hachura", 1),
             (None, "Preenchimento em degradê", 1),

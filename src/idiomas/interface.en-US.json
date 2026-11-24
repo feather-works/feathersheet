@@ -6220,5 +6220,15 @@
  "Roda antes de gravar o arquivo (Ctrl+S ou Salvar como).": "Runs before the file is written (Ctrl+S or Save as).",
  "wb.cancelSave() não deixa gravar; valores.comoSalvar é true no Salvar como.": "wb.cancelSave() stops the save; valores.comoSalvar is true in Save as.",
  "Evento {evento} da pasta: {erro}. Escritas revertidas.": "Workbook event {evento}: {erro}. Writes reverted.",
- "A macro Antes de salvar cancelou a gravação.": "The Before saving macro cancelled the save."
+ "A macro Antes de salvar cancelou a gravação.": "The Before saving macro cancelled the save.",
+ "Escopo": "Scope",
+ "Fórmula inválida em \"Refere-se a\". Use uma referência (=Planilha1!$A$1) ou uma conta (=0,1).": "Invalid formula in \"Refers to\". Use a reference (=Sheet1!$A$1) or a calculation (=0.1).",
+ "O nome \"{}\" é um valor ou fórmula, não um intervalo: veja no Gerenciador de nomes.": "The name \"{}\" is a value or formula, not a range: see it in the Name Manager.",
+ "Use os nomes em fórmulas, como =SOMA(receitas). \"Refere-se a\" aceita um intervalo ou uma conta, como =0,1.": "Use names in formulas, like =SUM(revenue). \"Refers to\" takes a range or a calculation, like =0.1.",
+ "o nome \"{name}\" depende dele mesmo": "the name \"{name}\" depends on itself",
+ "Grupo {}": "Group {}",
+ "Antes de fechar": "Before closing",
+ "Roda antes de fechar a pasta (sair, Novo ou abrir outro arquivo), antes de perguntar se salva.": "Runs before the workbook closes (exit, New or opening another file), before asking whether to save.",
+ "wb.cancelClose() não deixa fechar.": "wb.cancelClose() stops the close.",
+ "A macro Antes de fechar não deixou fechar a pasta.": "The Before closing macro kept the workbook open."
 }

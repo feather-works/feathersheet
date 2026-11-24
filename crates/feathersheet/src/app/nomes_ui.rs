@@ -2,7 +2,8 @@
 //! tabela Nome / Valor / Refere-se a, botões Novo, Editar e Excluir e o
 //! campo "Refere-se a" editável do nome escolhido. O motor guarda os nomes
 //! (`Workbook::definir_nome`); aqui só ficam o formulário e o desenho.
-//! O motor não tem escopo por aba: todo nome vale para a pasta inteira.
+//! Além dos intervalos, há os nomes de valor/fórmula (`Taxa` = `=0,1`) e os de uma aba só (Escopo),
+//! que vêm do Excel ou nascem aqui quando "Refere-se a" é uma conta.
 use super::*;
 use super::dialogo_interno::{dlg, Dialogo};
 
@@ -172,6 +173,22 @@ fn cortar(texto: &str, max: usize) -> String {
     }
 }
 
+/// Uma linha do gerenciador: um intervalo da pasta ([`feathersheet_core::planilha::workbook::Nomeado`]) ou um
+/// nome de valor/fórmula ou de uma aba só ([`feathersheet_core::planilha::workbook::NomeFormula`]).
+#[derive(Debug, Clone)]
+struct LinhaNome {
+    /// O que identifica a linha: `Nome` (da pasta) ou `Aba!Nome` (nome não tem "!").
+    chave: String,
+    nome: String,
+    escopo: Option<String>,
+    area: Option<Rect>,
+    formula: Option<String>,
+}
+
+fn chave_do_nome(nome: &str, escopo: Option<&str>) -> String {
+    match escopo { Some(aba) => format!("{aba}!{nome}"), None => nome.to_owned() }
+}
+
 impl App {
     /// Seleção exatamente igual a um nome definido: a caixa de nome mostra
     /// o nome, como no Excel. Enquanto o usuário digita, nada.
@@ -186,11 +203,58 @@ impl App {
         }).map(|n| n.nome)
     }
 
+    /// Os nomes que o gerenciador mostra: os intervalos da pasta e os de valor/fórmula ou de uma aba só.
+    fn linhas_de_nomes(&self) -> Vec<LinhaNome> {
+        let mut v: Vec<LinhaNome> = self.workbook.nomeados().into_iter().map(|n| LinhaNome {
+            chave: n.nome.clone(), nome: n.nome, escopo: None, area: Some(n.area), formula: None,
+        }).collect();
+        v.extend(self.workbook.nomes_formula().into_iter().map(|n| LinhaNome {
+            chave: chave_do_nome(&n.nome, n.aba.as_deref()), area: n.area(), formula: Some(n.formula.clone()),
+            nome: n.nome, escopo: n.aba,
+        }));
+        v.sort_by_key(|l| (l.nome.to_lowercase(), l.escopo.clone()));
+        v
+    }
+
+    fn linha_de_nome(&self, chave: &str) -> Option<LinhaNome> {
+        self.linhas_de_nomes().into_iter().find(|l| l.chave.eq_ignore_ascii_case(chave))
+    }
+
+    /// O "Refere-se a" de uma linha: o intervalo, ou a fórmula na língua da interface (`=0.1` em inglês).
+    fn refere_da_linha(&self, l: &LinhaNome) -> String {
+        match (&l.formula, &l.area) {
+            (Some(f), _) => self.formula_para_mostrar(f),
+            (None, Some(a)) => texto_refere(a),
+            (None, None) => String::new(),
+        }
+    }
+
+    /// "Refere-se a" digitado: um intervalo (`Ok(Ok(area))`) ou uma fórmula (`Ok(Err("=0,1"))`, na forma
+    /// interna). Uma fórmula que não compila é recusada com o motivo.
+    fn ler_refere_ou_formula(&self, texto: &str) -> Result<Result<Rect, String>, &'static str> {
+        let padrao = self.nome_aba.clone();
+        match ler_refere(&self.workbook, texto, &padrao) {
+            Ok(area) => Ok(Ok(area)),
+            Err(e) => {
+                let corpo = texto.trim().strip_prefix('=').unwrap_or(texto.trim()).trim();
+                // Sem "=" e sem cara de conta, era para ser uma referência: o erro dela explica melhor.
+                if corpo.is_empty() || (!texto.trim().starts_with('=') && corpo.chars().all(|c| c.is_alphanumeric() || "$:!'_ ".contains(c))) {
+                    return Err(e);
+                }
+                let formula = self.formula_para_gravar(&format!("={corpo}"), "");
+                match feathersheet_core::formula::parser::parse_formula(formula.strip_prefix('=').unwrap_or(&formula)) {
+                    Ok(_) => Ok(Err(formula)),
+                    Err(_) => Err(tr!("Fórmula inválida em \"Refere-se a\". Use uma referência (=Planilha1!$A$1) ou uma conta (=0,1).")),
+                }
+            }
+        }
+    }
+
     pub(super) fn abrir_nomes(&mut self, preencher: bool) -> Task<Msg> {
         if !self.confirmar() { return Task::none(); }
         self.menu_aberto = false;
         self.contexto = None;
-        let existentes = self.workbook.nomeados();
+        let existentes = self.linhas_de_nomes();
         let mut estado = Estado::default();
         if preencher {
             let mut n = existentes.len() + 1;
@@ -201,8 +265,8 @@ impl App {
             estado.modo = Modo::Novo;
             estado.refere = texto_refere(&self.area_selecionada_na_aba());
         } else if let Some(primeiro) = existentes.first() {
-            estado.selecionado = Some(primeiro.nome.clone());
-            estado.refere = texto_refere(&primeiro.area);
+            estado.selecionado = Some(primeiro.chave.clone());
+            estado.refere = self.refere_da_linha(primeiro);
         }
         self.nomes_modal = Some(estado);
         Task::none()
@@ -213,6 +277,16 @@ impl App {
         let mut area = self.area_selecionada();
         area.sheet = self.workbook.aba(self.folha).map(|a| a.sheet.name.clone());
         area
+    }
+
+    /// Grava o nome: intervalo, ou fórmula (`=0,1`, `=Vendas!$A$1*2`); com `escopo`, só naquela aba.
+    fn gravar_nome(&mut self, nome: &str, alvo: &Result<Rect, String>, escopo: Option<&str>) {
+        match (alvo, escopo) {
+            (Ok(area), None) => self.workbook.definir_nome(nome, area.clone()),
+            (Ok(area), Some(aba)) => self.workbook.definir_nome_formula(nome, &texto_refere(area), Some(aba)),
+            (Err(formula), _) => self.workbook.definir_nome_formula(nome, formula, escopo),
+        }
+        self.alterado = true;
     }
 
     /// Cria (modo Novo ou Lista) ou regrava (modo Editar) um nome. Sem
@@ -227,30 +301,28 @@ impl App {
             Task::none()
         };
         if let Err(e) = validar_nome(&nome) { return erro(self, e); }
-        let original = match &modo { Modo::Editar(o) => Some(o.clone()), _ => None };
-        let duplicado = self.workbook.nomeados().iter().any(|e| {
-            e.nome.to_uppercase() == nome.to_uppercase()
-                && original.as_ref().is_none_or(|o| o.to_uppercase() != nome.to_uppercase())
+        let original = match &modo { Modo::Editar(o) => self.linha_de_nome(o), _ => None };
+        let escopo = original.as_ref().and_then(|o| o.escopo.clone());
+        // Repetido: o mesmo nome no mesmo escopo (o da pasta e o de uma aba podem ter o mesmo nome).
+        let duplicado = self.linhas_de_nomes().iter().any(|e| {
+            e.nome.to_uppercase() == nome.to_uppercase() && e.escopo == escopo
+                && original.as_ref().is_none_or(|o| o.chave != e.chave)
         });
         if duplicado {
             return erro(self, tr!("Esse nome já existe. Escolha outro."));
         }
-        let area = if matches!(modo, Modo::Lista) || refere.trim().is_empty() {
-            self.area_selecionada_na_aba()
+        let alvo = if matches!(modo, Modo::Lista) || refere.trim().is_empty() {
+            Ok(self.area_selecionada_na_aba())
         } else {
-            let padrao = self.nome_aba.clone();
-            match ler_refere(&self.workbook, &refere, &padrao) {
+            match self.ler_refere_ou_formula(&refere) {
                 Ok(a) => a,
                 Err(e) => return erro(self, e),
             }
         };
         if let Some(o) = &original {
-            if o.to_uppercase() != nome.to_uppercase() {
-                self.workbook.remover_nome(o);
-            }
+            self.apagar_linha(o);
         }
-        self.workbook.definir_nome(&nome, area.clone());
-        self.alterado = true;
+        self.gravar_nome(&nome, &alvo, escopo.as_deref());
         self.status = if original.is_some() {
             trf!("Nome \"{nome}\" alterado.")
         } else {
@@ -258,25 +330,37 @@ impl App {
         };
         self.endereco = nome.clone();
         // Volta para a tabela com o nome criado escolhido.
+        let chave = chave_do_nome(&nome, escopo.as_deref());
+        let refere = self.linha_de_nome(&chave).map(|l| self.refere_da_linha(&l)).unwrap_or_default();
         if let Some(e) = &mut self.nomes_modal {
             e.modo = Modo::Lista;
             e.erro = None;
-            e.selecionado = Some(nome);
-            e.refere = texto_refere(&area);
+            e.selecionado = Some(chave);
+            e.refere = refere;
             e.nome.clear();
         }
         Task::none()
     }
 
-    pub(super) fn excluir_nome(&mut self, nome: &str) -> Task<Msg> {
-        if self.workbook.remover_nome(nome) {
+    fn apagar_linha(&mut self, l: &LinhaNome) -> bool {
+        match &l.escopo {
+            Some(aba) => self.workbook.remover_nome_formula(&l.nome, Some(aba)),
+            None => self.workbook.remover_nome(&l.nome),
+        }
+    }
+
+    /// Exclui pela chave da tabela (`Nome` ou `Aba!Nome`).
+    pub(super) fn excluir_nome(&mut self, chave: &str) -> Task<Msg> {
+        let Some(l) = self.linha_de_nome(chave) else { return Task::none() };
+        if self.apagar_linha(&l) {
+            let nome = l.nome.clone();
             self.alterado = true;
             self.status = trf!("Intervalo \"{nome}\" removido.");
             if self.endereco.to_uppercase() == nome.to_uppercase() {
                 self.endereco = cell_name(self.linha, self.coluna);
             }
             if let Some(e) = &mut self.nomes_modal {
-                if e.selecionado.as_ref().is_some_and(|s| s.to_uppercase() == nome.to_uppercase()) {
+                if e.selecionado.as_ref().is_some_and(|s| s.eq_ignore_ascii_case(chave)) {
                     e.selecionado = None;
                     e.refere.clear();
                 }
@@ -285,13 +369,26 @@ impl App {
         Task::none()
     }
 
-    pub(super) fn ir_para_nome(&mut self, nome: &str) -> Task<Msg> {
-        let Some(alvo) = self.workbook.nomeados().into_iter()
-            .find(|e| e.nome.to_uppercase() == nome.to_uppercase()) else {
+    /// Vai para o intervalo do nome (chave da tabela, ou o nome digitado na caixa de nome: o da aba
+    /// atual vence o da pasta). Nome de valor/fórmula não tem lugar: o status diz.
+    pub(super) fn ir_para_nome(&mut self, chave: &str) -> Task<Msg> {
+        let linhas = self.linhas_de_nomes();
+        let aba_atual = self.workbook.aba(self.folha).map(|a| a.sheet.name.clone());
+        let alvo = linhas.iter().find(|l| l.chave.eq_ignore_ascii_case(chave))
+            .or_else(|| linhas.iter().find(|l| l.nome.eq_ignore_ascii_case(chave) && l.escopo.is_some()
+                && l.escopo.as_deref().map(str::to_lowercase) == aba_atual.as_deref().map(str::to_lowercase)))
+            .or_else(|| linhas.iter().find(|l| l.nome.eq_ignore_ascii_case(chave) && l.escopo.is_none()));
+        let Some(alvo) = alvo.cloned() else {
+            let nome = chave;
             self.status = trf!("O intervalo \"{nome}\" não existe.");
             return Task::none();
         };
-        let folha = if let Some(nome_aba) = alvo.area.sheet.as_deref() {
+        let Some(area) = alvo.area.clone() else {
+            self.status = trf!("O nome \"{}\" é um valor ou fórmula, não um intervalo: veja no Gerenciador de nomes.", alvo.nome);
+            return Task::none();
+        };
+        let nome = alvo.nome.clone();
+        let folha = if let Some(nome_aba) = area.sheet.as_deref() {
             let Some(i) = self.workbook.nomes().iter()
                 .position(|s| s.to_lowercase() == nome_aba.to_lowercase()) else {
                 self.status = trf!("A aba do intervalo \"{nome}\" não existe.");
@@ -301,80 +398,93 @@ impl App {
         } else {
             self.folha
         };
-        if alvo.area.r1 >= MAX_ROWS || alvo.area.c1 >= MAX_COLS {
+        if area.r1 >= MAX_ROWS || area.c1 >= MAX_COLS {
             self.status = tr!("Esse intervalo excede os limites da planilha.").into();
             return Task::none();
         }
         if !self.confirmar() { return Task::none(); }
         self.folha = folha;
         self.nome_aba = self.workbook.nomes()[folha].clone();
-        let area = alvo.area.normalized();
+        let area = area.normalized();
         self.trocar_selecao(area.r0, area.c0);
         self.fim_selecao = (area.r1, area.c1);
-        self.endereco = alvo.nome.clone();
+        self.endereco = nome.clone();
         self.nomes_modal = None;
-        self.status = trf!("Selecionado: {}", alvo.nome);
+        self.status = trf!("Selecionado: {}", nome);
         Task::none()
     }
 
     pub(super) fn evento_nomes(&mut self, evento: Evento) -> Task<Msg> {
-        let nomes = self.workbook.nomeados();
-        let achar = |n: &str| nomes.iter().find(|e| e.nome.to_uppercase() == n.to_uppercase()).cloned();
+        let linhas = self.linhas_de_nomes();
+        let achar = |n: &str| linhas.iter().find(|e| e.chave.eq_ignore_ascii_case(n)).cloned();
+        let refere_de = |app: &App, l: &LinhaNome| app.refere_da_linha(l);
         let selecao = self.area_selecionada_na_aba();
-        let Some(e) = &mut self.nomes_modal else { return Task::none() };
+        let Some(estado) = &self.nomes_modal else { return Task::none() };
+        let selecionado = estado.selecionado.clone();
         match evento {
-            Evento::Selecionar(nome) => {
-                if let Some(n) = achar(&nome) {
-                    e.refere = texto_refere(&n.area);
-                    e.selecionado = Some(n.nome);
+            Evento::Selecionar(chave) => {
+                if let Some(n) = achar(&chave) {
+                    let refere = refere_de(self, &n);
+                    let Some(e) = &mut self.nomes_modal else { return Task::none() };
+                    e.refere = refere;
+                    e.selecionado = Some(n.chave);
                     e.modo = Modo::Lista;
                     e.erro = None;
                 }
             }
             Evento::Novo => {
-                let mut n = nomes.len() + 1;
-                while nomes.iter().any(|x| x.nome.to_uppercase() == format!("INTERVALO{n}")) { n += 1; }
+                let mut n = linhas.len() + 1;
+                while linhas.iter().any(|x| x.nome.to_uppercase() == format!("INTERVALO{n}")) { n += 1; }
+                let Some(e) = &mut self.nomes_modal else { return Task::none() };
                 e.nome = format!("Intervalo{n}");
                 e.refere = texto_refere(&selecao);
                 e.modo = Modo::Novo;
                 e.erro = None;
             }
             Evento::Editar => {
-                if let Some(n) = e.selecionado.as_deref().and_then(achar) {
+                if let Some(n) = selecionado.as_deref().and_then(achar) {
+                    let refere = refere_de(self, &n);
+                    let Some(e) = &mut self.nomes_modal else { return Task::none() };
                     e.nome = n.nome.clone();
-                    e.refere = texto_refere(&n.area);
-                    e.modo = Modo::Editar(n.nome);
+                    e.refere = refere;
+                    e.modo = Modo::Editar(n.chave);
                     e.erro = None;
                 }
             }
             Evento::Excluir => {
-                if let Some(n) = e.selecionado.clone() { e.modo = Modo::Excluir(n); }
+                let Some(e) = &mut self.nomes_modal else { return Task::none() };
+                if let Some(n) = selecionado { e.modo = Modo::Excluir(n); }
             }
             Evento::ExcluirConfirmar => {
-                if let Modo::Excluir(nome) = std::mem::take(&mut e.modo) {
-                    let _ = self.excluir_nome(&nome);
-                    let primeiro = self.workbook.nomeados().into_iter().next();
-                    if let (Some(e), Some(p)) = (&mut self.nomes_modal, primeiro) {
-                        e.selecionado = Some(p.nome);
-                        e.refere = texto_refere(&p.area);
+                let Some(e) = &mut self.nomes_modal else { return Task::none() };
+                if let Modo::Excluir(chave) = std::mem::take(&mut e.modo) {
+                    let _ = self.excluir_nome(&chave);
+                    let primeiro = self.linhas_de_nomes().into_iter().next();
+                    let refere = primeiro.as_ref().map(|p| self.refere_da_linha(p));
+                    if let (Some(e), Some(p), Some(r)) = (&mut self.nomes_modal, primeiro, refere) {
+                        e.selecionado = Some(p.chave);
+                        e.refere = r;
                     }
                 }
             }
             Evento::Refere(texto) => {
+                let Some(e) = &mut self.nomes_modal else { return Task::none() };
                 e.refere = texto;
                 e.erro = None;
             }
             Evento::Aplicar => {
-                let Some(nome) = e.selecionado.clone() else { return Task::none() };
-                let refere = e.refere.clone();
-                let padrao = self.nome_aba.clone();
-                match ler_refere(&self.workbook, &refere, &padrao) {
-                    Ok(area) => {
-                        let grafia = achar(&nome).map(|n| n.nome).unwrap_or(nome);
-                        self.workbook.definir_nome(&grafia, area.clone());
-                        self.alterado = true;
-                        self.status = trf!("Nome \"{grafia}\" agora se refere a {}.", texto_refere(&area));
-                        if let Some(e) = &mut self.nomes_modal { e.refere = texto_refere(&area); }
+                let Some(linha) = selecionado.as_deref().and_then(achar) else { return Task::none() };
+                let refere = estado.refere.clone();
+                match self.ler_refere_ou_formula(&refere) {
+                    Ok(alvo) => {
+                        // Trocar intervalo por fórmula (ou o contrário) num nome da pasta: o antigo sai.
+                        self.apagar_linha(&linha);
+                        self.gravar_nome(&linha.nome, &alvo, linha.escopo.as_deref());
+                        let novo = self.linha_de_nome(&linha.chave);
+                        let mostrado = novo.as_ref().map(|l| self.refere_da_linha(l)).unwrap_or_default();
+                        let grafia = &linha.nome;
+                        self.status = trf!("Nome \"{grafia}\" agora se refere a {}.", mostrado);
+                        if let Some(e) = &mut self.nomes_modal { e.refere = mostrado; }
                     }
                     Err(msg) => {
                         if let Some(e) = &mut self.nomes_modal { e.erro = Some(msg.into()); }
@@ -382,16 +492,39 @@ impl App {
                 }
             }
             Evento::Voltar => {
+                let refere = selecionado.as_deref().and_then(achar).map(|n| refere_de(self, &n));
+                let Some(e) = &mut self.nomes_modal else { return Task::none() };
                 e.modo = Modo::Lista;
                 e.erro = None;
-                if let Some(n) = e.selecionado.as_deref().and_then(achar) {
-                    e.refere = texto_refere(&n.area);
-                } else {
-                    e.refere.clear();
-                }
+                e.refere = refere.unwrap_or_default();
             }
         }
         Task::none()
+    }
+
+    /// Um valor como a grade mostra na língua da interface (vírgula decimal em português, ponto em inglês).
+    fn valor_na_lingua(&self, v: feathersheet_core::Value) -> String {
+        match v {
+            feathersheet_core::Value::Number(n) => {
+                let texto = feathersheet_core::celulas::values::to_text(&feathersheet_core::Value::Number(n));
+                texto.replace('.', &self.regionalizacao().decimal_separator.to_string())
+            }
+            feathersheet_core::Value::Bool(b) => feathersheet_core::celulas::locale::texto_logico(b),
+            feathersheet_core::Value::Error(e) => e.code.na_lingua(),
+            v => feathersheet_core::celulas::values::to_text(&v),
+        }
+    }
+
+    /// A coluna Valor de uma linha: o do intervalo ou o da fórmula, calculado na aba do escopo (ou na atual).
+    fn valor_da_linha(&self, l: &LinhaNome) -> String {
+        if let (None, Some(area)) = (&l.formula, &l.area) { return self.valor_do_nome(area); }
+        let aba = l.escopo.as_deref().and_then(|a| self.workbook.indice_por_nome(a)).unwrap_or(self.folha);
+        let formula = self.workbook.nomes_formula().into_iter()
+            .find(|n| n.nome.eq_ignore_ascii_case(&l.nome) && n.aba == l.escopo);
+        match formula.as_ref().and_then(|n| n.arvore()) {
+            Some(no) => self.valor_na_lingua(self.workbook.avaliar_em(aba, 0, 0, no)),
+            None => "#NOME?".into(),
+        }
     }
 
     /// O que a coluna Valor mostra: o valor da célula, ou `{a; b; …}`.
@@ -400,12 +533,7 @@ impl App {
             return "#REF!".into();
         };
         let n = area.normalized();
-        // Número com vírgula decimal, como a grade mostra em pt-BR.
-        let texto = |r, c| match self.workbook.valor(aba, r, c) {
-            feathersheet_core::Value::Number(n) =>
-                feathersheet_core::celulas::values::to_text(&feathersheet_core::Value::Number(n)).replace('.', ","),
-            v => feathersheet_core::celulas::values::to_text(&v),
-        };
+        let texto = |r, c| self.valor_na_lingua(self.workbook.valor(aba, r, c));
         if n.r0 == n.r1 && n.c0 == n.c1 {
             return texto(n.r0, n.c0);
         }
@@ -423,7 +551,7 @@ impl App {
     }
 
     fn tabela_nomes(&self, estado: &Estado) -> Element<'_, Msg> {
-        let nomes = self.workbook.nomeados();
+        let nomes = self.linhas_de_nomes();
         if nomes.is_empty() {
             return dlg::aviso_vazio(tr!("Nenhum nome definido. Use Novo para dar um nome à seleção atual."));
         }
@@ -431,22 +559,25 @@ impl App {
         let cabecalho = |t: &str| text(t.to_uppercase()).size(10.5).font(semibold).color(COR_TEXTO_MUTED());
         let titulo = container(row![
             cabecalho(tr!("Nome")).width(Length::Fill(3)),
-            cabecalho(tr!("Valor")).width(Length::Fill(3)),
+            cabecalho(tr!("Valor")).width(Length::Fill(2)),
             cabecalho(tr!("Refere-se a")).width(Length::Fill(4)),
+            cabecalho(tr!("Escopo")).width(Length::Fill(3)),
         ].spacing(10)).padding([4, 10]);
         let mut linhas = pelicano::column(Vec::<pelicano::Element<_>>::new()).spacing(1);
         for n in nomes {
-            let ativo = estado.selecionado.as_ref().is_some_and(|s| s.to_uppercase() == n.nome.to_uppercase());
+            let ativo = estado.selecionado.as_ref().is_some_and(|s| s.eq_ignore_ascii_case(&n.chave));
+            let escopo = n.escopo.clone().unwrap_or_else(|| tr!("Pasta de trabalho").to_owned());
             let linha = row![
                 text(cortar(&n.nome, 22)).size(12.5).width(Length::Fill(3)),
-                text(cortar(&self.valor_do_nome(&n.area), 24)).size(12.5).color(COR_TEXTO_MUTED())
-                    .width(Length::Fill(3)),
-                text(cortar(&texto_refere(&n.area), 30)).size(12.5).width(Length::Fill(4)),
+                text(cortar(&self.valor_da_linha(&n), 16)).size(12.5).color(COR_TEXTO_MUTED())
+                    .width(Length::Fill(2)),
+                text(cortar(&self.refere_da_linha(&n), 30)).size(12.5).width(Length::Fill(4)),
+                text(cortar(&escopo, 22)).size(12.5).color(COR_TEXTO_MUTED()).width(Length::Fill(3)),
             ].spacing(10).align(pelicano::Align::Center);
             linhas = linhas.push(
                 button(linha).width(Length::FILL).padding([6, 10])
                     .style(estilo_botao_pequeno(ativo))
-                    .on_press(Msg::NomesEvento(Evento::Selecionar(n.nome))),
+                    .on_press(Msg::NomesEvento(Evento::Selecionar(n.chave))),
             );
         }
         container(pelicano::column![
@@ -488,9 +619,8 @@ impl App {
                 }
                 corpo = corpo.push(pelicano::column![rotulo(tr!("Refere-se a")), campo].spacing(5));
                 if let Some(e) = erro { corpo = corpo.push(e); }
-                let atual = estado.selecionado.as_ref().and_then(|s| {
-                    self.workbook.nomeados().into_iter().find(|n| n.nome.to_uppercase() == s.to_uppercase())
-                }).map(|n| texto_refere(&n.area));
+                let atual = estado.selecionado.as_deref().and_then(|s| self.linha_de_nome(s))
+                    .map(|n| self.refere_da_linha(&n));
                 let mudou = atual.is_some_and(|a| a != estado.refere.trim());
                 self.dialogo(tr!("Gerenciador de nomes"), corpo)
                     .rodape_esquerda(dlg::botao_secundario(tr!("Ir para"),
@@ -524,8 +654,8 @@ impl App {
             }
         };
         d.icone("tag")
-            .subtitulo(tr!("Use os nomes em fórmulas, como =SOMA(receitas). Valem para a pasta inteira."))
-            .largura(640.0)
+            .subtitulo(tr!("Use os nomes em fórmulas, como =SOMA(receitas). \"Refere-se a\" aceita um intervalo ou uma conta, como =0,1."))
+            .largura(740.0)
             .ao_fechar(Msg::NomesFechar)
     }
 
@@ -654,4 +784,79 @@ mod testes {
         assert!(app.workbook.nomeados().is_empty());
         let _: Element<'_, Msg> = app.view_nomes().painel();
     }
+
+    /// "Refere-se a" com uma conta vira nome de valor (`Taxa` = `=0,1`), que calcula nas células;
+    /// a caixa de nome digitando "Taxa" vai para o nome, sem trocá-lo pela seleção.
+    #[test]
+    fn refere_se_a_com_conta_cria_nome_de_valor() {
+        let mut app = App::default();
+        app.workbook.escrever_celula(0, 0, 0, "1000".into());
+        app.update(Msg::NomesAbrir(true));
+        app.update(Msg::NomeAtualizar("Taxa".into()));
+        app.update(Msg::NomesEvento(Evento::Refere("=0,1".into())));
+        app.update(Msg::NomeCriar);
+        assert!(app.nomes_modal.as_ref().unwrap().erro.is_none(), "{:?}", app.nomes_modal.as_ref().unwrap().erro);
+        let n = app.workbook.nomes_formula();
+        assert_eq!((n[0].nome.as_str(), n[0].formula.as_str(), n[0].aba.as_deref()), ("Taxa", "=0,1", None));
+        assert!(app.workbook.nomeados().is_empty());
+        let linha = app.linha_de_nome("Taxa").unwrap();
+        assert_eq!(app.valor_da_linha(&linha), "0,1");
+        let _: Element<'_, Msg> = app.view_nomes().painel();
+        app.workbook.escrever_celula(0, 0, 1, "=A1*Taxa".into());
+        assert_eq!(app.workbook.valor(0, 0, 1), feathersheet_core::Value::Number(100.0));
+        // Conta inválida é recusada com o motivo.
+        app.update(Msg::NomesEvento(Evento::Refere("=0,1+".into())));
+        app.update(Msg::NomesEvento(Evento::Aplicar));
+        assert!(app.nomes_modal.as_ref().unwrap().erro.is_some());
+        app.update(Msg::NomesFechar);
+        app.update(Msg::IrPara("Taxa".into()));
+        assert_eq!(app.workbook.nomes_formula().len(), 1, "a caixa de nome não troca a fórmula por intervalo");
+        assert!(app.workbook.nomeados().is_empty());
+        assert!(app.status.contains("valor ou fórmula"), "{}", app.status);
+    }
+
+    /// Em inglês a conta aparece e é digitada com ponto decimal; o motor guarda com vírgula.
+    #[test]
+    fn nome_de_valor_em_ingles_mostra_e_le_ponto_decimal() {
+        let mut app = App::default();
+        app.config.idioma = "en-US".into();
+        app.workbook.definir_nome_formula("Taxa", "=0,1", None);
+        app.workbook.escrever_celula(0, 0, 0, "0,12".into());
+        app.workbook.definir_nome("Celula", Rect::na_aba(0, 0, 0, 0, "Planilha1"));
+        let taxa = app.linha_de_nome("Taxa").unwrap();
+        assert_eq!(app.refere_da_linha(&taxa), "=0.1");
+        assert_eq!(app.valor_da_linha(&taxa), "0.1");
+        assert_eq!(app.valor_da_linha(&app.linha_de_nome("Celula").unwrap()), "0.12", "a coluna Valor segue a língua");
+        app.update(Msg::NomesAbrir(false));
+        app.update(Msg::NomesEvento(Evento::Selecionar("Taxa".into())));
+        app.update(Msg::NomesEvento(Evento::Refere("=0.25".into())));
+        app.update(Msg::NomesEvento(Evento::Aplicar));
+        // Guardado como digitado (como nas células); o que importa é o valor e o que cada língua mostra.
+        app.workbook.escrever_celula(0, 1, 0, "=Taxa*4".into());
+        assert_eq!(app.workbook.valor(0, 1, 0), feathersheet_core::Value::Number(1.0));
+    }
+
+    /// Nome de uma aba só: aparece com a aba em Escopo, e mudar "Refere-se a" não o leva para a pasta.
+    #[test]
+    fn nome_de_aba_mantem_o_escopo_ao_aplicar_e_excluir() {
+        let mut app = App::default();
+        let plan2 = app.workbook.criar_aba("Plan2");
+        app.workbook.definir_nome_formula("Meta", "=10", None);
+        app.workbook.definir_nome_formula("Meta", "=20", Some("Plan2"));
+        app.update(Msg::NomesAbrir(false));
+        assert_eq!(app.linhas_de_nomes().len(), 2);
+        app.update(Msg::NomesEvento(Evento::Selecionar("Plan2!Meta".into())));
+        app.update(Msg::NomesEvento(Evento::Refere("=30".into())));
+        app.update(Msg::NomesEvento(Evento::Aplicar));
+        let _: Element<'_, Msg> = app.view_nomes().painel();
+        app.workbook.escrever_celula(plan2, 0, 0, "=Meta".into());
+        app.workbook.escrever_celula(0, 0, 0, "=Meta".into());
+        assert_eq!(app.workbook.valor(plan2, 0, 0), feathersheet_core::Value::Number(30.0));
+        assert_eq!(app.workbook.valor(0, 0, 0), feathersheet_core::Value::Number(10.0));
+        app.update(Msg::NomesEvento(Evento::Excluir));
+        app.update(Msg::NomesEvento(Evento::ExcluirConfirmar));
+        let n = app.workbook.nomes_formula();
+        assert_eq!((n.len(), n[0].aba.as_deref()), (1, None), "só o da aba saiu: {n:?}");
+    }
 }
+

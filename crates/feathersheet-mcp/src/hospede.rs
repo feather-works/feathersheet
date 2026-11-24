@@ -150,7 +150,7 @@ mod testes {
         let pasta = std::env::temp_dir().join(format!("fs-mcp-sobrescrita-{}", std::process::id()));
         std::fs::create_dir_all(&pasta).unwrap();
         let origem = pasta.join("a.xlsx");
-        // O .xlsx do próprio gravador, com um nome de valor (`Taxa` = 0,1) que a leitura deixa de fora.
+        // O .xlsx do próprio gravador, com uma conexão de dados externos que a leitura deixa de fora.
         let bytes = feathersheet_io::xlsx_write::gerar_xlsx(&Workbook::new()).unwrap();
         let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
         let mut saida = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
@@ -159,17 +159,12 @@ mod testes {
             let nome = f.name().to_owned();
             let mut texto = Vec::new();
             std::io::Read::read_to_end(&mut f, &mut texto).unwrap();
-            if nome == "xl/workbook.xml" {
-                let t = String::from_utf8(texto).unwrap();
-                let t = match t.find("<definedNames>") {
-                    Some(_) => t.replacen("<definedNames>", "<definedNames><definedName name=\"Taxa\">0.1</definedName>", 1),
-                    None => t.replacen("</sheets>", "</sheets><definedNames><definedName name=\"Taxa\">0.1</definedName></definedNames>", 1),
-                };
-                texto = t.into_bytes();
-            }
             saida.start_file(nome, zip::write::SimpleFileOptions::default()).unwrap();
             saida.write_all(&texto).unwrap();
         }
+        // Uma conexão de dados externos: o FeatherSheet não a converte, e gravar por cima a apagaria.
+        saida.start_file("xl/connections.xml", zip::write::SimpleFileOptions::default()).unwrap();
+        saida.write_all(b"<connections/>").unwrap();
         std::fs::write(&origem, saida.finish().unwrap().into_inner()).unwrap();
         let mut h = Avulso::default();
         h.abrir(&origem).unwrap();
@@ -179,7 +174,7 @@ mod testes {
         assert!(desvio.is_err(), "pasta/./a.xlsx é o mesmo a.xlsx");
         let outro = h.salvar(Some(&pasta.join("b.xlsx")));
         let _ = std::fs::remove_dir_all(&pasta);
-        assert!(erro.contains("Nome definido com valor ou fórmula"), "{erro}");
+        assert!(erro.contains("Conexão de dados externos"), "{erro}");
         assert!(outro.is_ok(), "{outro:?}");
     }
 }

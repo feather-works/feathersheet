@@ -717,7 +717,12 @@ impl App {
                 // O TypeScript tenta primeiro nomes existentes. Usar Unicode
                 // uppercase, como Workbook::definir_nome, preserva acentos.
                 let chave = entrada.to_uppercase();
-                if self.workbook.nomeados().iter().any(|n| n.nome.to_uppercase() == chave) {
+                // Nome de valor/fórmula (o da pasta ou o desta aba) também: senão digitar "Taxa" o trocaria
+                // por um intervalo da seleção.
+                let aba_atual = self.workbook.aba(self.folha).map(|a| a.sheet.name.to_lowercase());
+                if self.workbook.nomeados().iter().any(|n| n.nome.to_uppercase() == chave)
+                    || self.workbook.nomes_formula().iter().any(|n| n.nome.to_uppercase() == chave
+                        && n.aba.as_ref().is_none_or(|a| Some(a.to_lowercase()) == aba_atual)) {
                     return self.ir_para_nome(entrada);
                 }
                 let t = entrada.to_ascii_uppercase();

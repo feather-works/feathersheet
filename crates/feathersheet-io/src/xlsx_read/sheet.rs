@@ -248,36 +248,62 @@ pub(super) fn pagina_dos_nomes(book: &XmlNode, indice: usize, p: &mut crate::pag
     }
 }
 
+/// Os nomes da pasta que são um intervalo (`Vendas!$A$1:$B$9`). Os de uma aba só (`localSheetId`) e
+/// os de valor ou fórmula ficam para [`read_formula_names`].
 pub fn read_names(book: &XmlNode) -> Vec<DefinedName> {
     let mut out = Vec::new();
     let Some(defined) = book.child("definedNames") else { return out };
     for node in defined.children_named("definedName") {
-        if node.attr("function") == Some("1") {
+        if node.attr("function") == Some("1") || node.attr("localSheetId").is_some() {
             continue;
         }
         let Some(name) = node.attr("name") else { continue };
         // Da configuração de página da aba (`pagina_da_aba`), não nomes da pasta.
         if eh_nome_de_pagina(name) { continue; }
-        let text = node.text.trim();
-        let (sheet, area) = match text.rfind('!') {
-            Some(i) => (aba_do_nome(&text[..i]), &text[i + 1..]),
-            None => (None, text),
-        };
-        let area = area.replace('$', "");
-        let mut partes = area.splitn(2, ':');
-        let a = partes.next().unwrap_or("");
-        let b = partes.next();
-        let Some(start) = parse_cell_ref(a) else { continue };
-        let end = match b {
-            Some(bb) => match parse_cell_ref(bb) {
-                Some(e) => e,
-                None => continue,
-            },
-            None => super::refs::CellRef { row: start.row, col: start.col },
-        };
+        let Some((sheet, start, end)) = area_do_nome(node.text.trim()) else { continue };
         out.push(DefinedName { name: name.to_string(), r0: start.row, c0: start.col, r1: end.row, c1: end.col, sheet });
     }
     out
+}
+
+/// `Aba!$A$1:$B$2` (ou uma célula) → aba e pontas; `None` se não é só um intervalo.
+fn area_do_nome(text: &str) -> Option<(Option<String>, super::refs::CellRef, super::refs::CellRef)> {
+    let (sheet, area) = match text.rfind('!') {
+        Some(i) => (aba_do_nome(&text[..i]), &text[i + 1..]),
+        None => (None, text),
+    };
+    let area = area.replace('$', "");
+    let mut partes = area.splitn(2, ':');
+    let start = parse_cell_ref(partes.next().unwrap_or(""))?;
+    let end = match partes.next() {
+        Some(bb) => parse_cell_ref(bb)?,
+        None => super::refs::CellRef { row: start.row, col: start.col },
+    };
+    Some((sheet, start, end))
+}
+
+/// Um nome de valor/fórmula ou de uma aba só, com o texto do Excel (`0.1`, `Vendas!$A$1*2`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct NomeFormulaLido {
+    pub name: String,
+    pub text: String,
+    /// O `localSheetId`: a posição da aba onde o nome vale.
+    pub local: Option<usize>,
+}
+
+/// Os nomes que o [`read_names`] deixa de fora: de uma aba só e de valor ou fórmula. O que o Excel já
+/// marca como quebrado (`#REF!`), as funções de macro antigas e os nomes ocultos dos gráficos novos não.
+pub fn read_formula_names(book: &XmlNode) -> Vec<NomeFormulaLido> {
+    let Some(defined) = book.child("definedNames") else { return Vec::new() };
+    defined.children_named("definedName").filter_map(|node| {
+        let name = node.attr("name")?;
+        let text = node.text.trim();
+        if node.attr("function") == Some("1") || eh_nome_de_pagina(name) || name.starts_with("_xlchart.")
+            || text.is_empty() || text.contains("#REF!") { return None; }
+        let local = node.attr("localSheetId").and_then(|v| v.parse().ok());
+        (local.is_some() || area_do_nome(text).is_none())
+            .then(|| NomeFormulaLido { name: name.to_owned(), text: text.to_owned(), local })
+    }).collect()
 }
 
 pub(super) struct SharedFormula {
@@ -864,9 +890,18 @@ mod testes_nomes {
             <definedName name="Eixo">'2. Eixo - Ações'!$C$6</definedName>
             <definedName name="Velho">#REF!</definedName>
             <definedName name="Solto">$B$3</definedName>
+            <definedName name="Taxa">0.1</definedName>
+            <definedName name="Bonus">Vendas!$A$1*2</definedName>
+            <definedName name="Meta" localSheetId="1">Plan2!$A$1</definedName>
         </definedNames></workbook>"#).unwrap();
         let n = read_names(&book);
-        assert_eq!(n.len(), 3);
+        assert_eq!(n.len(), 3, "o de aba e os de fórmula ficam de fora");
+        let f = read_formula_names(&book);
+        assert_eq!(f, vec![
+            NomeFormulaLido { name: "Taxa".into(), text: "0.1".into(), local: None },
+            NomeFormulaLido { name: "Bonus".into(), text: "Vendas!$A$1*2".into(), local: None },
+            NomeFormulaLido { name: "Meta".into(), text: "Plan2!$A$1".into(), local: Some(1) },
+        ]);
         assert_eq!((n[0].r0, n[0].c0, n[0].r1, n[0].sheet.as_deref()), (1, 16, 11, Some("inversores")));
         assert_eq!(n[1].sheet.as_deref(), Some("2. Eixo - Ações"));
         assert_eq!(n[2].sheet, None);

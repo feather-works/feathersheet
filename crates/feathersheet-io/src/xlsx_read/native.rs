@@ -884,6 +884,15 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         area.sheet = n.sheet;
         workbook.definir_nome_na_leitura(&n.name, area);
     }
+    // Valor/fórmula e nome de uma aba só: a fórmula passa pela mesma conversão das células (`0.1` → `0,1`).
+    let nomes_abas = workbook.nomes();
+    for n in sheet::read_formula_names(&book) {
+        let aba = match n.local {
+            Some(i) => match nomes_abas.get(i) { Some(a) => Some(a.as_str()), None => continue },
+            None => None,
+        };
+        workbook.definir_nome_formula_na_leitura(&n.name, &super::formula::formula_from_excel(&n.text), aba);
+    }
     super::vinculos::instalar(&mut workbook, externos);
     // Dinâmica sem resultado nas células (Google Planilhas, `refreshOnLoad`)
     // é calculada aqui; com resultado, só ganha a área para o painel editar.

@@ -65,6 +65,51 @@ pub struct Nomeado {
     pub area: Rect,
 }
 
+/// Nome definido que não cabe no [`Nomeado`]: valor ou fórmula (`Taxa` = `=0,1`, `=Vendas!$A$1*2`)
+/// ou de escopo de uma aba (o `localSheetId` do Excel, o mesmo nome em duas abas).
+#[derive(Debug, Clone, PartialEq)]
+pub struct NomeFormula {
+    pub nome: String,
+    /// Com o "=", na forma das fórmulas das células.
+    pub formula: String,
+    /// A aba onde o nome vale; `None` = a pasta inteira.
+    pub aba: Option<String>,
+    /// A árvore da fórmula; `None` se ela não compila (o nome dá `#NOME?`).
+    arvore: Option<crate::formula::ast::Node>,
+}
+
+impl NomeFormula {
+    pub fn novo(nome: &str, formula: &str, aba: Option<&str>) -> Self {
+        let formula = if formula.starts_with('=') { formula.to_owned() } else { format!("={formula}") };
+        let arvore = crate::formula::parser::parse_formula(&formula[1..]).ok();
+        NomeFormula { nome: nome.trim().to_owned(), formula, aba: aba.map(str::to_owned), arvore }
+    }
+
+    /// A área, quando a fórmula é só uma referência (`=Vendas!$A$1:$B$9`): aí o nome serve onde
+    /// se pede referência (ÍNDICE, DESLOC, SUBTOTAL), como um [`Nomeado`].
+    pub fn area(&self) -> Option<Rect> {
+        use crate::formula::ast::Node;
+        match self.arvore.as_ref()? {
+            Node::Ref { row, col, sheet, .. } => Some(Rect { r0: *row, c0: *col, r1: *row, c1: *col, sheet: sheet.clone() }),
+            Node::Range { r0, c0, r1, c1, sheet } => Some(Rect { r0: *r0, c0: *c0, r1: *r1, c1: *c1, sheet: sheet.clone() }),
+            _ => None,
+        }
+    }
+
+    /// A árvore da fórmula, para avaliar fora de uma célula (a coluna Valor do Gerenciador de nomes).
+    pub fn arvore(&self) -> Option<&crate::formula::ast::Node> {
+        self.arvore.as_ref()
+    }
+
+    fn vale_na_aba(&self, aba: Option<&str>) -> bool {
+        match (&self.aba, aba) {
+            (None, _) => true,
+            (Some(a), Some(b)) => crate::planilha::sheet::mesmo_nome(a, b),
+            (Some(_), None) => false,
+        }
+    }
+}
+
 /// Propriedades do arquivo (no Excel, Arquivo → Informações): quem criou,
 /// quem alterou por último e a organização. A interface preenche com os
 /// "Seus dados" das Configurações; nada sai do computador.
@@ -126,6 +171,8 @@ pub struct Workbook {
     proximo_id: u32,
     /// Os intervalos nomeados, pela chave em maiúscula (como o TypeScript).
     nomeados: HashMap<String, Nomeado>,
+    /// Nomes com valor/fórmula ou de uma aba só ([`NomeFormula`]); são poucos, então uma lista.
+    nomes_formula: Vec<NomeFormula>,
     /// As outras pastas que as fórmulas citam (`'[plan_b.plz]Aba'!A1`),
     /// só com valores. Ver [`crate::planilha::vinculo`].
     externos: crate::planilha::vinculo::Externos,
@@ -200,6 +247,7 @@ impl Workbook {
             abas: Vec::new(),
             proximo_id: 1,
             nomeados: HashMap::new(),
+            nomes_formula: Vec::new(),
             externos: crate::planilha::vinculo::Externos::default(),
             funcoes_externas: std::collections::HashSet::new(),
             manual: false,
@@ -542,6 +590,11 @@ impl Workbook {
         }
         self.hist_abas = HistoricoAbas::default();
         let antigo = std::mem::replace(&mut self.abas[indice].sheet.name, limpo.to_string());
+        for n in &mut self.nomes_formula {
+            if n.aba.as_deref().is_some_and(|a| a.eq_ignore_ascii_case(&antigo)) { n.aba = Some(limpo.to_owned()); }
+            let texto = reescrever_aba(&n.formula, &antigo, limpo);
+            if texto != n.formula { *n = NomeFormula::novo(&n.nome, &texto, n.aba.as_deref()); }
+        }
         for i in 0..self.abas.len() {
             let mut edicoes = Vec::new();
             self.abas[i].sheet.for_each_formula(&mut |row, col, raw| {
@@ -583,6 +636,7 @@ impl Workbook {
     /// `isValidName` no frontend TypeScript ou `nomes_ui::validar_nome` na GUI Iced.
     pub fn definir_nome(&mut self, nome: &str, area: Rect) {
         let limpo = nome.trim().to_string();
+        self.nomes_formula.retain(|n| !(n.aba.is_none() && n.nome.eq_ignore_ascii_case(&limpo)));
         self.nomeados.insert(limpo.to_uppercase(), Nomeado { nome: limpo, area });
         self.depois_de_mudar(usize::MAX);
     }
@@ -592,15 +646,56 @@ impl Workbook {
     /// ~6 s num `.xlsx` com milhões de fórmulas (#136).
     pub fn definir_nome_na_leitura(&mut self, nome: &str, area: Rect) {
         let limpo = nome.trim().to_string();
+        self.nomes_formula.retain(|n| !(n.aba.is_none() && n.nome.eq_ignore_ascii_case(&limpo)));
         self.nomeados.insert(limpo.to_uppercase(), Nomeado { nome: limpo, area });
     }
 
+    /// Tira o nome da pasta, seja intervalo ou fórmula (os de uma aba só: [`Self::remover_nome_formula`]).
     pub fn remover_nome(&mut self, nome: &str) -> bool {
-        let saiu = self.nomeados.remove(&nome.trim().to_uppercase()).is_some();
+        let antes = self.nomes_formula.len();
+        self.nomes_formula.retain(|n| !(n.aba.is_none() && n.nome.eq_ignore_ascii_case(nome.trim())));
+        let saiu = self.nomeados.remove(&nome.trim().to_uppercase()).is_some() || self.nomes_formula.len() != antes;
         if saiu {
             self.depois_de_mudar(usize::MAX);
         }
         saiu
+    }
+
+    /// Define (ou redefine) um nome de valor/fórmula ou de escopo de aba ([`NomeFormula`]).
+    /// Um da pasta (`aba: None`) com o nome de um intervalo substitui o intervalo.
+    pub fn definir_nome_formula(&mut self, nome: &str, formula: &str, aba: Option<&str>) {
+        self.definir_nome_formula_na_leitura(nome, formula, aba);
+        self.depois_de_mudar(usize::MAX);
+    }
+
+    /// [`Self::definir_nome_formula`] sem sujar as fórmulas (abertura do arquivo).
+    pub fn definir_nome_formula_na_leitura(&mut self, nome: &str, formula: &str, aba: Option<&str>) {
+        let novo = NomeFormula::novo(nome, formula, aba);
+        if novo.aba.is_none() { self.nomeados.remove(&novo.nome.to_uppercase()); }
+        self.nomes_formula.retain(|n| !(n.nome.eq_ignore_ascii_case(&novo.nome) && n.aba.as_deref().map(str::to_lowercase) == novo.aba.as_deref().map(str::to_lowercase)));
+        self.nomes_formula.push(novo);
+    }
+
+    pub fn remover_nome_formula(&mut self, nome: &str, aba: Option<&str>) -> bool {
+        let antes = self.nomes_formula.len();
+        self.nomes_formula.retain(|n| !(n.nome.eq_ignore_ascii_case(nome.trim()) && n.aba.as_deref().map(str::to_lowercase) == aba.map(str::to_lowercase)));
+        let saiu = self.nomes_formula.len() != antes;
+        if saiu { self.depois_de_mudar(usize::MAX); }
+        saiu
+    }
+
+    /// Os nomes de valor/fórmula ou de aba, na ordem alfabética (os da pasta antes).
+    pub fn nomes_formula(&self) -> Vec<NomeFormula> {
+        let mut v = self.nomes_formula.clone();
+        v.sort_by_key(|n| (n.nome.to_lowercase(), n.aba.clone()));
+        v
+    }
+
+    /// O nome visto da aba `aba`: o dela primeiro, depois o da pasta.
+    fn nome_formula_em(&self, nome: &str, aba: Option<&str>) -> Option<&NomeFormula> {
+        let nome = nome.trim();
+        self.nomes_formula.iter().find(|n| n.aba.is_some() && n.vale_na_aba(aba) && n.nome.eq_ignore_ascii_case(nome))
+            .or_else(|| self.nomes_formula.iter().find(|n| n.aba.is_none() && n.nome.eq_ignore_ascii_case(nome)))
     }
 
     /// Os nomes, na ordem alfabética.
@@ -1028,6 +1123,15 @@ impl Workbook {
         // 2) o deslocamento.
         self.abas[indice].sheet.deslocar(coluna, at, count, removing);
         self.deslocar_nomeados(&nome, coluna, at, count, removing);
+        // shortcut: referência sem aba num nome da pasta não anda (não se sabe de qual aba é), como no deslocar_nomeados.
+        for n in &mut self.nomes_formula {
+            let propria = n.aba.clone().unwrap_or_default();
+            let texto = crate::formula::formula_text::adjust_for_structure(&n.formula, crate::formula::formula_text::StructureAdjustOptions {
+                axis: if coluna { crate::formula::formula_text::Axis::Col } else { crate::formula::formula_text::Axis::Row },
+                at: at as i32, count: count as i32, removing, sheet: &nome, own_sheet: &propria,
+            });
+            if texto != n.formula { *n = NomeFormula::novo(&n.nome, &texto, n.aba.as_deref()); }
+        }
 
         // 3) o texto, na posição nova.
         let eixo = if coluna { crate::formula::formula_text::Axis::Col } else { crate::formula::formula_text::Axis::Row };
@@ -1358,10 +1462,26 @@ impl Hospedeiro for Workbook {
     }
 
     fn nome(&self, nome: &str) -> Option<Rect> {
+        self.nome_na_aba(nome, None)
+    }
+
+    /// O nome da aba (escopo) vence o da pasta, como no Excel.
+    fn nome_na_aba(&self, nome: &str, aba: Option<&str>) -> Option<Rect> {
         if let Some(r) = self.resolver_estruturada(nome) {
             return Some(r);
         }
+        if let Some(n) = self.nome_formula_em(nome, aba).filter(|n| n.aba.is_some()) {
+            return n.area();
+        }
         self.nomeados.get(&nome.to_uppercase()).map(|n| n.area.clone())
+            .or_else(|| self.nome_formula_em(nome, aba).and_then(NomeFormula::area))
+    }
+
+    fn formula_do_nome(&self, nome: &str, aba: Option<&str>) -> Option<crate::formula::ast::Node> {
+        let n = self.nome_formula_em(nome, aba)?;
+        // O intervalo da pasta com o mesmo nome vence a fórmula da pasta (não acontece: definir troca um pelo outro).
+        if n.aba.is_none() && self.nomeados.contains_key(&nome.to_uppercase()) { return None; }
+        n.arvore.clone()
     }
 
     fn funcao_externa(&self, nome: &str) -> bool {

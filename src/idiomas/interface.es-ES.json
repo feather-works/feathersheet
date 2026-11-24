@@ -6220,5 +6220,15 @@
  "Roda antes de gravar o arquivo (Ctrl+S ou Salvar como).": "Se ejecuta antes de guardar el archivo (Ctrl+S o Guardar como).",
  "wb.cancelSave() não deixa gravar; valores.comoSalvar é true no Salvar como.": "wb.cancelSave() impide guardar; valores.comoSalvar es true en Guardar como.",
  "Evento {evento} da pasta: {erro}. Escritas revertidas.": "Evento {evento} del libro: {erro}. Escrituras revertidas.",
- "A macro Antes de salvar cancelou a gravação.": "La macro Antes de guardar canceló el guardado."
+ "A macro Antes de salvar cancelou a gravação.": "La macro Antes de guardar canceló el guardado.",
+ "Escopo": "Ámbito",
+ "Fórmula inválida em \"Refere-se a\". Use uma referência (=Planilha1!$A$1) ou uma conta (=0,1).": "Fórmula no válida en \"Se refiere a\". Use una referencia (=Hoja1!$A$1) o un cálculo (=0,1).",
+ "O nome \"{}\" é um valor ou fórmula, não um intervalo: veja no Gerenciador de nomes.": "El nombre \"{}\" es un valor o fórmula, no un rango: véalo en el Administrador de nombres.",
+ "Use os nomes em fórmulas, como =SOMA(receitas). \"Refere-se a\" aceita um intervalo ou uma conta, como =0,1.": "Use los nombres en fórmulas, como =SUMA(ingresos). \"Se refiere a\" acepta un rango o un cálculo, como =0,1.",
+ "o nome \"{name}\" depende dele mesmo": "el nombre \"{name}\" depende de sí mismo",
+ "Grupo {}": "Grupo {}",
+ "Antes de fechar": "Antes de cerrar",
+ "Roda antes de fechar a pasta (sair, Novo ou abrir outro arquivo), antes de perguntar se salva.": "Se ejecuta antes de cerrar el libro (salir, Nuevo o abrir otro archivo), antes de preguntar si se guarda.",
+ "wb.cancelClose() não deixa fechar.": "wb.cancelClose() impide cerrar.",
+ "A macro Antes de fechar não deixou fechar a pasta.": "La macro Antes de cerrar no dejó cerrar el libro."
 }

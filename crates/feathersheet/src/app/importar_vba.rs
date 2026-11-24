@@ -68,6 +68,7 @@ pub(super) fn modulos_da_conversao(
                 "aoSelecionar" => tr!("Roda sozinho quando a seleção muda na aba (valores.intervalo é o endereço selecionado)."),
                 "aoAbrir" => tr!("Roda ao abrir o arquivo, depois de \"Ativar macros\" (o Workbook_Open do Excel)."),
                 "antesDeSalvar" => tr!("Roda antes de gravar o arquivo (Ctrl+S ou Salvar como)."),
+                "antesDeFechar" => tr!("Roda antes de fechar a pasta (sair, Novo ou abrir outro arquivo), antes de perguntar se salva."),
                 _ => tr!("Não roda sozinho ao abrir o arquivo: execute à mão."),
             }, e.codigo);
         let exato = super::macros::organizacao::nome_evento(e.aba.as_deref().unwrap_or(""), e.evento);

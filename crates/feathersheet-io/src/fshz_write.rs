@@ -163,6 +163,9 @@ pub struct AbaBruta {
     pub w: Vec<(u32, u32)>,
     #[serde(default)]
     pub h: Vec<(u32, u32)>,
+    /// Medida de antes de ocultar: (coluna?, índice, px). Reexibir devolve ela.
+    #[serde(default)]
+    pub dh: Vec<(bool, u32, u32)>,
     #[serde(default)]
     pub g: Option<Json>,
     #[serde(default)]
@@ -325,6 +328,8 @@ struct AbaMeta<'a> {
     w: Vec<(u32, u32)>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     h: Vec<(u32, u32)>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    dh: Vec<(bool, u32, u32)>,
     #[serde(skip_serializing_if = "Option::is_none")]
     g: Option<Json>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -662,6 +667,7 @@ fn montar_aba<'a>(aba: &'a AbaBruta, estilos: &mut TabelaDeEstilos) -> (AbaMeta<
         co: aba.co,
         w: aba.w.clone(),
         h: aba.h.clone(),
+        dh: aba.dh.clone(),
         g: aba.g.clone(),
         pr: aba.pr.clone(),
         r: aba.r.clone(),
@@ -999,6 +1005,7 @@ mod testes {
                 tc: None,
                 oc: false,
                 wp: None,
+                dh: Vec::new(),
                 tp: None,
                 pt: None,
                 cm: None,
@@ -1068,6 +1075,7 @@ mod testes {
                 tc: None,
                 oc: false,
                 wp: None,
+                dh: Vec::new(),
                 tp: None,
                 pt: None,
                 cm: None,
@@ -1146,6 +1154,7 @@ mod testes {
                 tc: None,
                 oc: false,
                 wp: None,
+                dh: Vec::new(),
                 tp: None,
                 pt: None,
                 cm: None,
@@ -1209,6 +1218,7 @@ mod testes {
                 tc: None,
                 oc: false,
                 wp: None,
+                dh: Vec::new(),
                 tp: None,
                 pt: None,
                 cm: None,
@@ -1283,6 +1293,7 @@ mod testes {
                 tc: None,
                 oc: false,
                 wp: None,
+                dh: Vec::new(),
                 tp: None,
                 pt: None,
                 cm: None,
@@ -1362,6 +1373,7 @@ mod testes {
                 tc: None,
                 oc: false,
                 wp: None,
+                dh: Vec::new(),
                 tp: None,
                 pt: None,
                 cm: None,

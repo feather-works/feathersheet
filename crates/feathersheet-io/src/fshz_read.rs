@@ -87,6 +87,8 @@ struct AbaMetaLida {
     #[serde(default)]
     h: Vec<(u32, f64)>,
     #[serde(default)]
+    dh: Vec<(bool, u32, u32)>,
+    #[serde(default)]
     g: Option<Json>,
     #[serde(default)]
     pr: Option<Json>,
@@ -222,6 +224,8 @@ pub struct AbaLida {
     pub tc: Option<String>,
     pub oc: bool,
     pub wp: Option<u32>,
+    /// Medida de antes de ocultar (ver `AbaBruta::dh`).
+    pub dh: Vec<(bool, u32, u32)>,
     pub tp: Option<Json>,
     pub pt: Option<Json>,
     pub cm: Option<Json>,
@@ -456,6 +460,7 @@ fn montar_aba_lida_com_pool(aba: AbaMetaLida, estilos: &std::sync::Arc<Vec<Json>
         tc: aba.tc,
         oc: aba.oc,
         wp: aba.wp,
+        dh: aba.dh,
         tp: aba.tp,
         pt: aba.pt,
         cm: aba.cm,
@@ -759,6 +764,7 @@ mod testes {
             tc: None,
             oc: false,
             wp: None,
+            dh: Vec::new(),
             tp: None,
             pt: None,
             cm: None,

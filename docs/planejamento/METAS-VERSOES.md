@@ -347,7 +347,8 @@
       pasta inteira (junta os arquivos, `importador::ler_pasta`), outra consulta (Referenciar).
       Web/API só por pedido explícito. (06/11/2026)
 - [ ] Juntar (todos os tipos de join) e acrescentar entre fontes diferentes.
-      *Parcial: acrescentar feito; os 6 joins no motor e no assistente; falta juntar fontes de arquivos diferentes.*
+      *Parcial: acrescentar feito; os 6 joins no motor e no assistente; juntar com outra consulta gravada (que
+      pode ler um arquivo) atualiza desde 24/11/2026; falta escolher um arquivo direto como segunda fonte.*
 - [x] Tipos detectados por coluna, com aviso das linhas que não converteram (faixa amarela,
       remover ou trocar por 0; `Tipar.erros`). (06/11/2026)
 - [x] Desfazer por passo (Ctrl+Z/Ctrl+Y na janela da consulta). (06/11/2026)
@@ -367,7 +368,7 @@
 
 - [x] Eventos automáticos do VBA convertidos e rodando (Worksheet_Change,
       SelectionChange, Activate, Workbook_Open com confirmação, BeforeSave). *(24/11/2026: Workbook_Open no
-      "Ativar macros", BeforeSave com Cancel; BeforeClose fica para depois.)*
+      "Ativar macros", BeforeSave e BeforeClose com Cancel.)*
 - [x] Formulários do VBA (UserForm) viram formulários do editor de macros (`feathersheet-vba/src/formulario.rs`,
       `importar_vba.rs::formulario_da_conversao`, #67).
 - [ ] Caminho de volta: macro JS → VBA, gravada no `.xlsm` (o Excel abre e roda).

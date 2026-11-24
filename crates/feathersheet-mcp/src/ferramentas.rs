@@ -290,25 +290,50 @@ fn aba(h: &mut dyn Hospede, args: &Json) -> Saida {
 
 fn nomes(h: &mut dyn Hospede, args: &Json) -> Saida {
     let acao = arg_texto(args, "acao").unwrap_or("listar");
+    // `escopo`: a aba onde o nome vale (o `localSheetId` do Excel); sem ele, a pasta inteira.
+    let escopo = match arg_texto(args, "escopo") {
+        Some(a) => Some(h.pasta().nomes()[indice_aba(h.pasta(), &Json::String(a.to_owned()))?].clone()),
+        None => None,
+    };
     let texto = match acao {
         "listar" => {
-            let lista: Vec<String> = h.pasta().nomeados().into_iter().map(|n| format!("{} = {}{}", n.nome,
+            let mut lista: Vec<String> = h.pasta().nomeados().into_iter().map(|n| format!("{} = {}{}", n.nome,
                 n.area.sheet.as_deref().map(|a| format!("{a}!")).unwrap_or_default(), nome_area(&n.area))).collect();
+            lista.extend(h.pasta().nomes_formula().into_iter().map(|n| format!("{} = {}{}", n.nome, formula_exibida(&n.formula),
+                n.aba.map(|a| format!(" (só na aba {a})")).unwrap_or_default())));
             if lista.is_empty() { "Nenhum nome definido.".into() } else { lista.join("\n") }
         }
+        // Com `formula` (`=0,1`, `=Vendas!$A$1*2`, em pt-BR) é nome de valor/fórmula; com `intervalo`, de intervalo.
         "definir" => {
             let nome = arg_texto(args, "nome").ok_or("Falta `nome`.")?;
+            if let Some(f) = arg_texto(args, "formula") {
+                let f = conteudo_da_ia(&Json::String(if f.starts_with('=') { f.to_owned() } else { format!("={f}") }));
+                feathersheet_core::formula::parser::parse_formula(&f[1..]).map_err(|e| format!("Fórmula inválida: {}", e.message))?;
+                h.pasta_mut().definir_nome_formula(nome, &f, escopo.as_deref());
+                h.marcar_alterado();
+                return Ok(conteudo(format!("{nome} = {}{}", formula_exibida(&f),
+                    escopo.map(|a| format!(" (só na aba {a})")).unwrap_or_default())));
+            }
             let (aba, mut area) = intervalo(h, args, "intervalo")?;
             area.sheet = Some(h.pasta().nomes()[aba].clone());
             let pasta = h.pasta_mut();
-            pasta.remover_nome(nome);
-            pasta.definir_nome(nome, area.clone());
+            if let Some(a) = &escopo {
+                let texto = format!("={}!{}", feathersheet_core::celulas::refs::quote_sheet(area.sheet.as_deref().unwrap_or_default()), nome_area(&area));
+                pasta.definir_nome_formula(nome, &texto, Some(a));
+            } else {
+                pasta.remover_nome(nome);
+                pasta.definir_nome(nome, area.clone());
+            }
             h.marcar_alterado();
             format!("{nome} = {}!{}", h.pasta().nomes()[aba], nome_area(&area))
         }
         "remover" => {
             let nome = arg_texto(args, "nome").ok_or("Falta `nome`.")?;
-            if !h.pasta_mut().remover_nome(nome) { return Err(format!("Não existe o nome \"{nome}\".")); }
+            let saiu = match &escopo {
+                Some(a) => h.pasta_mut().remover_nome_formula(nome, Some(a)),
+                None => h.pasta_mut().remover_nome(nome),
+            };
+            if !saiu { return Err(format!("Não existe o nome \"{nome}\".")); }
             h.marcar_alterado();
             format!("Nome \"{nome}\" removido")
         }
@@ -396,6 +421,27 @@ mod testes {
 
     fn texto(r: Saida) -> String {
         r.unwrap()[0]["text"].as_str().unwrap().to_string()
+    }
+
+    /// `sheet_nomes` com fórmula e escopo: a IA cria `Taxa = 0,1` e um nome de uma aba só, lista e remove.
+    #[test]
+    fn nomes_de_formula_e_de_aba_pelo_mcp() {
+        let mut h = Avulso::default();
+        h.pasta.criar_aba("Plan2");
+        h.pasta.escrever_celula(0, 0, 0, "1000".into());
+        texto(chamar(&mut h, "sheet_nomes", &json!({ "acao": "definir", "nome": "Taxa", "formula": "=0,1" })));
+        texto(chamar(&mut h, "sheet_nomes", &json!({ "acao": "definir", "nome": "Meta", "formula": "20", "escopo": "Plan2" })));
+        h.pasta.escrever_celula(0, 0, 1, "=A1*Taxa".into());
+        h.pasta.escrever_celula(1, 0, 0, "=Meta".into());
+        assert_eq!(h.pasta.valor(0, 0, 1), feathersheet_core::Value::Number(100.0));
+        assert_eq!(h.pasta.valor(1, 0, 0), feathersheet_core::Value::Number(20.0));
+        let lista = texto(chamar(&mut h, "sheet_nomes", &json!({ "acao": "listar" })));
+        assert!(lista.contains("Taxa = =0,1") && lista.contains("Meta = =20 (só na aba Plan2)"), "{lista}");
+        assert!(chamar(&mut h, "sheet_nomes", &json!({ "acao": "definir", "nome": "X", "formula": "=1+" })).is_err());
+        assert!(chamar(&mut h, "sheet_nomes", &json!({ "acao": "remover", "nome": "Meta" })).is_err(), "o da aba pede o escopo");
+        texto(chamar(&mut h, "sheet_nomes", &json!({ "acao": "remover", "nome": "Meta", "escopo": "Plan2" })));
+        texto(chamar(&mut h, "sheet_nomes", &json!({ "acao": "remover", "nome": "Taxa" })));
+        assert!(h.pasta.nomes_formula().is_empty());
     }
 
     #[test]

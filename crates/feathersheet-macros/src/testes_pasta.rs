@@ -471,8 +471,9 @@ fn choose_espera_o_botao_e_roda_de_novo_com_a_escolha() {
 #[test]
 fn cancel_save_chega_ao_app() {
     let mut wb = pasta_com_dados();
-    assert!(executar(&mut wb, 0, "wb.cancelSave();").cancelar_salvar);
-    assert!(executar(&mut wb, 0, "wb.cancelSave(); throw new Error('x');").cancelar_salvar);
-    assert!(!executar(&mut wb, 0, "sheet.set('A1', 1);").cancelar_salvar);
-    assert!(!executar(&mut wb, 0, "if (!confirm('Salvar?')) wb.cancelSave();").cancelar_salvar, "pergunta pendente não cancela");
+    assert!(executar(&mut wb, 0, "wb.cancelSave();").cancelar);
+    assert!(executar(&mut wb, 0, "wb.cancelClose();").cancelar);
+    assert!(executar(&mut wb, 0, "wb.cancelSave(); throw new Error('x');").cancelar);
+    assert!(!executar(&mut wb, 0, "sheet.set('A1', 1);").cancelar);
+    assert!(!executar(&mut wb, 0, "if (!confirm('Salvar?')) wb.cancelSave();").cancelar, "pergunta pendente não cancela");
 }

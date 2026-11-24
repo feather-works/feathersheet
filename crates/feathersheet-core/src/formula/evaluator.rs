@@ -68,6 +68,11 @@ pub trait EvalContext {
     /// Intervalo nomeado, ou `None` se o nome não existir.
     fn resolve_name(&self, name: &str) -> Option<Rect>;
 
+    /// A fórmula de um nome de valor/fórmula (`Taxa` = `=0,1`), quando ele não é intervalo.
+    fn resolve_name_formula(&self, _name: &str) -> Option<Node> {
+        None
+    }
+
     /// Se o nome é de uma função criada por macro. Quem executa é a
     /// interface, e o valor chega como o de uma pergunta assíncrona.
     fn funcao_externa(&self, _nome: &str) -> bool {
@@ -151,6 +156,27 @@ pub fn sheet_rect() -> Rect {
 /// (`ÉOMITIDO`). Começa com um caractere que nenhum nome digitado tem.
 pub fn marca_omitido(param: &str) -> String {
     format!("\u{1}OMITIDO:{}", param.to_uppercase())
+}
+
+thread_local! {
+    /// Quantos nomes de fórmula estão sendo avaliados um dentro do outro: `A` = `=B+1` e `B` = `=A+1`
+    /// não podem girar para sempre.
+    static NOMES_ABERTOS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// O valor de um nome de fórmula (`Taxa` = `=0,1`), com o ambiente limpo (o `LET` de quem usa o nome
+/// não vaza para dentro dele) e a mesma célula (`LIN()` sem argumento).
+fn avaliar_nome_formula(ev: &Evaluator<'_>, name: &str, no: &Node) -> Computed {
+    const LIMITE: u32 = 64;
+    let fundo = NOMES_ABERTOS.with(|n| { let v = n.get() + 1; n.set(v); v });
+    let r = if fundo > LIMITE {
+        Computed::Scalar(Value::Error(CellError::com_motivo(ErrorCode::Name,
+            crate::trf!("o nome \"{name}\" depende dele mesmo"))))
+    } else {
+        Evaluator { ctx: ev.ctx, env: HashMap::new(), here: ev.here }.eval_array(no)
+    };
+    NOMES_ABERTOS.with(|n| n.set(n.get() - 1));
+    r
 }
 
 pub struct Evaluator<'a> {
@@ -337,10 +363,13 @@ impl<'a> Evaluator<'a> {
                 }
                 match self.ctx.resolve_name(name) {
                     Some(rect) => self.matrix_of(&rect),
-                    None => Computed::Scalar(Value::Error(CellError::com_motivo(
-                        ErrorCode::Name,
-                        crate::trf!("\"{name}\" não existe"),
-                    ))),
+                    None => match self.ctx.resolve_name_formula(name) {
+                        Some(no) => avaliar_nome_formula(self, name, &no),
+                        None => Computed::Scalar(Value::Error(CellError::com_motivo(
+                            ErrorCode::Name,
+                            crate::trf!("\"{name}\" não existe"),
+                        ))),
+                    },
                 }
             }
             Node::Array { rows } => Computed::Matrix(Matrix::new(

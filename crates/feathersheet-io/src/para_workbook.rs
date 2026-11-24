@@ -117,6 +117,11 @@ fn montar(lida: &PastaLida, colunas: Option<Vec<ColunasDaAba>>) -> Workbook {
 pub fn nomes_de_json(pasta: &mut Workbook, nomes: &serde_json::Value) {
     for n in nomes.as_array().into_iter().flatten() {
         let Some(nome) = n.get("name").and_then(|v| v.as_str()) else { continue };
+        // Nome de valor/fórmula ou de uma aba só: `{ name, formula, scope? }`.
+        if let Some(formula) = n.get("formula").and_then(|v| v.as_str()) {
+            pasta.definir_nome_formula(nome, formula, n.get("scope").and_then(|v| v.as_str()));
+            continue;
+        }
         let Some(r) = n.get("rect") else { continue };
         let lado = |k: &str| r.get(k).and_then(|v| v.as_f64()).map(|x| x.max(0.0) as u32);
         let (Some(r0), Some(c0), Some(r1), Some(c1)) = (lado("r0"), lado("c0"), lado("r1"), lado("c1")) else {
@@ -191,6 +196,10 @@ pub fn nomes_para_json(pasta: &Workbook) -> serde_json::Value {
                 }
                 serde_json::json!({ "name": n.nome, "rect": rect })
             })
+            .chain(pasta.nomes_formula().into_iter().map(|n| match n.aba {
+                Some(aba) => serde_json::json!({ "name": n.nome, "formula": n.formula, "scope": aba }),
+                None => serde_json::json!({ "name": n.nome, "formula": n.formula }),
+            }))
             .collect(),
     )
 }
@@ -384,6 +393,7 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
     for (row, altura) in &aba.h {
         sheet.row_heights.insert(*row, *altura as u32);
     }
+    sheet.dimensoes_ocultadas.extend(aba.dh.iter().map(|&(coluna, i, px)| ((coluna, i), px)));
 }
 
 /// Passos 2 a 4 do [`carregar_aba`]: números, textos e fórmulas empacotadas.
@@ -748,6 +758,7 @@ mod testes {
                 tc: None,
                 oc: false,
                 wp: None,
+                dh: Vec::new(),
                 tp: None,
                 pt: None,
                 cm: None,
@@ -850,6 +861,7 @@ mod testes {
                 tc: None,
                 oc: false,
                 wp: None,
+                dh: Vec::new(),
                 tp: None,
                 pt: None,
                 cm: None,

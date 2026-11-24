@@ -213,6 +213,8 @@ fn montar_aba_bruta(sheet: &Sheet) -> AbaBruta {
 
     let mut h: Vec<(u32, u32)> = sheet.row_heights.iter().map(|(&r, &h)| (r, h)).collect();
     h.sort_by_key(|(r, _)| *r);
+    let mut dh: Vec<(bool, u32, u32)> = sheet.dimensoes_ocultadas.iter().map(|(&(c, i), &px)| (c, i, px)).collect();
+    dh.sort_unstable();
 
     AbaBruta {
         n: sheet.name.clone(),
@@ -226,6 +228,7 @@ fn montar_aba_bruta(sheet: &Sheet) -> AbaBruta {
         co: sheet.colunas_ocultas_desde,
         w,
         h,
+        dh,
         g: parse_json_opt(&sheet.g),
         pr: parse_json_opt(&sheet.pr),
         r: parse_json_opt(&sheet.r),
@@ -685,6 +688,61 @@ mod testes {
         let aba = &de_volta.aba(0).unwrap().sheet;
         assert_eq!(aba.topicos, esperado);
         assert_eq!(aba.row_heights.get(&2), Some(&0), "o recolhido continua oculto");
+    }
+
+    /// Nome de valor/fórmula e nome de uma aba só: ida e volta pelo `.fshz` e pelo `.xlsx`, calculando
+    /// igual. No `.xlsx` a fórmula vai no formato do Excel (`0.1`, `,`) e volta no nosso (`0,1`, `;`).
+    #[test]
+    fn nomes_de_formula_e_de_aba_vao_e_voltam() {
+        let mut wb = Workbook::new();
+        let plan2 = wb.criar_aba("Plan2");
+        wb.escrever_celula(0, 0, 0, "1000".into());
+        wb.definir_nome_formula("Taxa", "=0,1", None);
+        wb.definir_nome_formula("Teto", "=MÁXIMO(Planilha1!$A$1;5)", None);
+        wb.definir_nome_formula("Meta", "=20", Some("Plan2"));
+        wb.escrever_celula(0, 0, 1, "=A1*Taxa+Teto".into());
+        wb.escrever_celula(plan2, 0, 0, "=Meta".into());
+        let conferir = |w: &Workbook, de: &str| {
+            assert_eq!(w.valor(0, 0, 1), feathersheet_core::Value::Number(1100.0), "{de}: {:?}", w.nomes_formula());
+            assert_eq!(w.valor(1, 0, 0), feathersheet_core::Value::Number(20.0), "{de}");
+            let n = w.nomes_formula();
+            assert!(n.iter().any(|n| n.nome == "Taxa" && n.formula == "=0,1" && n.aba.is_none()), "{de}: {n:?}");
+            assert!(n.iter().any(|n| n.nome == "Meta" && n.aba.as_deref() == Some("Plan2")), "{de}: {n:?}");
+        };
+        conferir(&wb, "memória");
+        let fshz = crate::para_workbook::para_workbook(&crate::fshz_read::ler_fshz(&pasta_gravar_bytes(&wb, 0).unwrap()).unwrap());
+        conferir(&fshz, ".fshz");
+        let xlsx = crate::xlsx_write::gerar_xlsx(&wb).unwrap();
+        let texto = {
+            let mut z = zip::ZipArchive::new(std::io::Cursor::new(xlsx.clone())).unwrap();
+            let mut t = String::new();
+            std::io::Read::read_to_string(&mut z.by_name("xl/workbook.xml").unwrap(), &mut t).unwrap();
+            t
+        };
+        assert!(texto.contains(r#"<definedName name="Taxa">0.1</definedName>"#), "{texto}");
+        assert!(texto.contains(r#"<definedName name="Meta" localSheetId="1">20</definedName>"#), "{texto}");
+        assert!(texto.contains("MAX(Planilha1!$A$1,5)"), "{texto}");
+        let (de_volta, _) = crate::xlsx_read::ler_xlsx_workbook(xlsx).unwrap();
+        conferir(&de_volta, ".xlsx");
+    }
+
+    #[test]
+    fn medida_de_antes_de_ocultar_sobrevive_ao_fshz() {
+        let mut wb = Workbook::new();
+        wb.editar(0, |s| {
+            s.col_widths.insert(2, 140);
+            s.row_heights.insert(4, 33);
+            s.alterar_visibilidade_dimensoes(true, true, 2, 2).unwrap();
+            s.alterar_visibilidade_dimensoes(false, true, 4, 4).unwrap();
+        });
+        let bytes = pasta_gravar_bytes(&wb, 0).expect("grava fshz");
+        let mut volta = crate::para_workbook::para_workbook(&crate::fshz_read::ler_fshz(&bytes).unwrap());
+        let s = &volta.aba(0).unwrap().sheet;
+        assert_eq!(s.col_widths.get(&2), Some(&0), "segue oculta");
+        assert_eq!(s.dimensoes_ocultadas.get(&(true, 2)), Some(&140));
+        assert_eq!(s.dimensoes_ocultadas.get(&(false, 4)), Some(&33));
+        volta.editar(0, |s| { s.alterar_visibilidade_dimensoes(true, false, 2, 2).unwrap(); });
+        assert_eq!(volta.aba(0).unwrap().sheet.col_widths.get(&2), Some(&140), "reexibir depois de reabrir devolve a largura");
     }
 
     #[test]
