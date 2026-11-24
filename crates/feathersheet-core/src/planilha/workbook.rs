@@ -684,9 +684,12 @@ impl Workbook {
         saiu
     }
 
-    /// Os nomes de valor/fórmula ou de aba, na ordem alfabética (os da pasta antes).
+    /// Os nomes de valor/fórmula ou de aba, na ordem alfabética (os da pasta antes). O de uma aba que foi
+    /// excluída não aparece (nem vai para o arquivo); se a aba voltar (desfazer), ele volta junto.
     pub fn nomes_formula(&self) -> Vec<NomeFormula> {
-        let mut v = self.nomes_formula.clone();
+        let mut v: Vec<NomeFormula> = self.nomes_formula.iter()
+            .filter(|n| n.aba.as_deref().is_none_or(|a| self.abas.iter().any(|x| crate::planilha::sheet::mesmo_nome(&x.sheet.name, a))))
+            .cloned().collect();
         v.sort_by_key(|n| (n.nome.to_lowercase(), n.aba.clone()));
         v
     }

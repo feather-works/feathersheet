@@ -95,3 +95,14 @@ fn intervalo_e_formula_da_pasta_com_o_mesmo_nome_nao_convivem() {
     assert!(wb.remover_nome("taxa"), "remover tira o da pasta");
     assert_eq!(wb.nomes_formula().len(), 1, "o da aba fica");
 }
+
+#[test]
+fn nome_de_aba_excluida_some_e_volta_com_a_aba() {
+    let mut wb = Workbook::new();
+    let plan2 = wb.criar_aba("Plan2");
+    wb.definir_nome_formula("Meta", "=20", Some("Plan2"));
+    let aba = wb.retirar_aba(plan2).unwrap();
+    assert!(wb.nomes_formula().is_empty(), "a aba saiu, o nome dela não aparece");
+    wb.devolver_aba(plan2, aba);
+    assert_eq!(wb.nomes_formula().len(), 1, "desfazer traz o nome de volta");
+}
