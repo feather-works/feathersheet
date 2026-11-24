@@ -29,6 +29,14 @@ echo "FeatherSheet $versao → $saida"
 
 # O binário pede a glibc de onde foi compilado: num Debian 12 (2.36) ele roda no Ubuntu 22.04+,
 # Debian 12+ e Mint 21+ (aqui seria a 2.43, só Ubuntu 26.04+). A imagem é a do FeatherNotes/FeatherDocs.
+# Apaga uma pasta criada com mktemp -d; qualquer outro caminho é recusado (variável vazia não vira "/").
+apagar_temporaria() {
+  case "$1" in
+    "${TMPDIR:-/tmp}"/tmp.*|/tmp/tmp.*) find "$1" -depth -delete ;;
+    *) echo "apagar_temporaria: recusado: '$1'" >&2; return 1 ;;
+  esac
+}
+
 compilar_linux() {
   local motor; motor="$(command -v podman || command -v docker || true)"
   if [[ -z $motor || -n ${SEM_CONTEINER:-} ]]; then
@@ -40,7 +48,7 @@ compilar_linux() {
   if ! "$motor" image inspect feathernotes-debian12 >/dev/null 2>&1; then
     "$motor" build -t feathernotes-debian12 -f - "$pacote" <<'IMG'
 FROM docker.io/library/debian:12
-RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev curl ca-certificates git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev curl ca-certificates git && apt-get clean && find /var/lib/apt/lists -mindepth 1 -delete
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
 ENV PATH=/root/.cargo/bin:$PATH
 IMG
@@ -98,7 +106,7 @@ EOF
   cp "$d/DEBIAN/postinst" "$d/DEBIAN/postrm"
   chmod 755 "$d/DEBIAN/postinst" "$d/DEBIAN/postrm"
   dpkg-deb --root-owner-group --build "$d" "$saida/feathersheet_${versao}_amd64.deb" >/dev/null
-  rm -rf "$d"
+  apagar_temporaria "$d"
 
   # .tar.gz portátil: o executável, o atalho, os ícones e um instalar.sh para a pasta do usuário.
   local t; t="$(mktemp -d)/feathersheet-$versao"
@@ -125,7 +133,7 @@ echo "FeatherSheet instalado. Procure por \"FeatherSheet\" no menu de aplicativo
 EOF
   chmod 755 "$t/instalar.sh"
   tar -C "$(dirname "$t")" -czf "$saida/feathersheet-$versao-linux-x86_64.tar.gz" "feathersheet-$versao"
-  rm -rf "$(dirname "$t")"
+  apagar_temporaria "$(dirname "$t")"
 }
 
 windows() {

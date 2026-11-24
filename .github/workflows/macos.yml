@@ -101,7 +101,8 @@ jobs:
 
           # .dmg com o atalho para Aplicativos.
           ln -s /Applications dist-mac/Applications
-          rm -rf "$icones"
+          # O .iconset só tem os PNG gerados acima: apaga-os e a pasta, sem apagar recursivo.
+          rm -f "$icones"/*.png && rmdir "$icones"
           dmg="FeatherSheet-${versao}-macos-${{ matrix.nome }}.dmg"
           hdiutil create -volname "FeatherSheet ${versao}" -srcfolder dist-mac -ov -format UDZO "$dmg"
           shasum -a 256 "$dmg" > "$dmg.sha256"
