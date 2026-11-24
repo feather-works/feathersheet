@@ -6241,5 +6241,7 @@
  "Uma parte do modelo ({nome}) passa de 64 MB.": "Una parte de la plantilla ({nome}) supera los 64 MB.",
  "O destino não pode ser o próprio modelo": "El destino no puede ser la propia plantilla",
  "Informe as trocas como objeto: { \"#NOME#\": \"Ana\" }": "Indique los reemplazos como objeto: { \"#NOME#\": \"Ana\" }",
- "o modelo {} não abriu: {e}": "la plantilla {} no se abrió: {e}"
+ "o modelo {} não abriu: {e}": "la plantilla {} no se abrió: {e}",
+ "objeto do Word guardado em variável e trocado depois": "objeto de Word guardado en una variable y cambiado después",
+ "Word.{nome} (só abrir o modelo, Localizar e Substituir e Salvar como convertem)": "Word.{nome} (solo convierten abrir la plantilla, Buscar y reemplazar y Guardar como)"
 }

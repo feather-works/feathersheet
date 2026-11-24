@@ -383,6 +383,11 @@ impl Gerador<'_> {
             let apelido = match self.objeto(valor) {
                 Ok(Obj::FuncoesDaPlanilha) => Some(Tipo::Funcoes),
                 Ok(Obj::Shell) => Some(Tipo::Shell),
+                Ok(Obj::Word) => Some(Tipo::Word),
+                Ok(Obj::DocWord(js)) => {
+                    if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = Tipo::DocWord; }
+                    return Ok(format!("{} = {js};", var.js));
+                }
                 _ => None,
             };
             if let Some(t) = apelido {
@@ -395,6 +400,8 @@ impl Gerador<'_> {
             // `Set sh = Nothing` no fim: nada a soltar.
             Tipo::Shell if matches!(valor, Expr::Nada) => Ok(String::new()),
             Tipo::Shell => Err(Motivo::novo(feathersheet_core::tr!("WScript.Shell guardado em variável e trocado depois"))),
+            Tipo::Word | Tipo::DocWord if matches!(valor, Expr::Nada) => Ok(String::new()),
+            Tipo::Word | Tipo::DocWord => Err(Motivo::novo(feathersheet_core::tr!("objeto do Word guardado em variável e trocado depois"))),
             // `Set c = FuncaoQueDevolveColecao()`.
             Tipo::Colecao => Ok(format!("{} = {};", var.js, self.valor(valor)?.js)),
             Tipo::Impossivel(antes) if set && antes.starts_with("objeto do tipo") => {

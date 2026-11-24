@@ -53,6 +53,11 @@ impl Gerador<'_> {
             },
             Obj::Aba(aba, nome) => self.escrever_na_aba(&aba, nome, &n, valor),
             Obj::Janela => self.escrever_na_janela(&n, valor),
+            Obj::Word if matches!(n.as_str(), "visible" | "displayalerts" | "screenupdating") => Ok(String::new()),
+            Obj::BuscaWord(js) if n == "text" => { let v = self.valor(valor)?; Ok(format!("{js}.find.text = {};", self.como_texto(&v))) }
+            Obj::SubstWord(js) if n == "text" => { let v = self.valor(valor)?; Ok(format!("{js}.find.replacementText = {};", self.como_texto(&v))) }
+            // Opções da busca (`.Forward`, `.Wrap`, `.MatchCase`…): a troca é sempre do documento inteiro, como wdReplaceAll.
+            Obj::BuscaWord(_) => Ok(String::new()),
             Obj::Forma(js) => match n.as_str() {
                 "text" | "caption" => {
                     let v = self.valor(valor)?;
@@ -515,6 +520,23 @@ impl Gerador<'_> {
             // `Run(comando, [janela], [esperar])`: o app mostra o comando e pergunta antes.
             Obj::Shell if n == "run" => Ok(format!("app.shell(String({}));", self.arg_js(args, &["command"], 0)?)),
             Obj::Shell => Err(Motivo::novo(feathersheet_core::trf!("WScript.Shell.{nome} (só o Run converte)"))),
+            // Fechar o Word, mostrar a janela, ativar: sem efeito (o documento é gravado no SaveAs).
+            Obj::Word | Obj::DocWord(_) if matches!(n.as_str(), "quit" | "close" | "activate") => Ok(String::new()),
+            Obj::BuscaWord(_) | Obj::SubstWord(_) if n == "clearformatting" => Ok(String::new()),
+            Obj::DocWord(js) if matches!(n.as_str(), "saveas" | "saveas2") =>
+                Ok(format!("{js}.saveAs(String({}));", self.arg_js(args, &["filename"], 0)?)),
+            // `Execute(FindText, …, ReplaceWith (10º), Replace (11º))`; sem argumentos, vale o `.Text` do With.
+            Obj::BuscaWord(js) if n == "execute" => {
+                let de = Self::arg_de(args, &["findtext"], 0);
+                let para = Self::arg_de(args, &["replacewith"], 9);
+                let texto = |s: &mut Self, e: Option<Expr>| -> R<String> {
+                    Ok(match e { Some(e) => { let v = s.valor(&e)?; s.como_texto(&v) } None => "undefined".into() })
+                };
+                let (de, para) = (texto(self, de)?, texto(self, para)?);
+                Ok(format!("{js}.find.execute({de}, {para});"))
+            }
+            Obj::Word | Obj::DocumentosWord | Obj::DocWord(_) | Obj::BuscaWord(_) | Obj::SubstWord(_) =>
+                Err(Motivo::novo(feathersheet_core::trf!("Word.{nome} (só abrir o modelo, Localizar e Substituir e Salvar como convertem)"))),
             Obj::Pastas if n == "open" => Err(Motivo::novo(feathersheet_core::tr!("abrir outra pasta de trabalho (Workbooks.Open)"))),
             Obj::Pastas => Err(Motivo::novo(feathersheet_core::trf!("Workbooks.{nome} (só Set x = Workbooks.Add converte)"))),
             Obj::AbaNova(p, i) if n == "delete" => Ok(format!("{p}.abas.splice({i} - 1, 1);")),

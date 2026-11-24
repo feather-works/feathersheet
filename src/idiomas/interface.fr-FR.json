@@ -6241,5 +6241,7 @@
  "Uma parte do modelo ({nome}) passa de 64 MB.": "Une partie du modèle ({nome}) dépasse 64 Mo.",
  "O destino não pode ser o próprio modelo": "La destination ne peut pas être le modèle lui-même",
  "Informe as trocas como objeto: { \"#NOME#\": \"Ana\" }": "Indiquez les remplacements sous forme d'objet : { \"#NOME#\": \"Ana\" }",
- "o modelo {} não abriu: {e}": "le modèle {} ne s'est pas ouvert : {e}"
+ "o modelo {} não abriu: {e}": "le modèle {} ne s'est pas ouvert : {e}",
+ "objeto do Word guardado em variável e trocado depois": "objet Word stocké dans une variable puis changé",
+ "Word.{nome} (só abrir o modelo, Localizar e Substituir e Salvar como convertem)": "Word.{nome} (seuls l'ouverture du modèle, Rechercher et remplacer et Enregistrer sous sont convertis)"
 }

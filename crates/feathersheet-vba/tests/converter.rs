@@ -87,11 +87,11 @@ fn ultima_linha_usa_getlastrow() {
 
 #[test]
 fn o_que_nao_converte_vira_comentario_e_pendencia() {
-    let vba = "Sub Gerar()\n  Dim Word As Object\n  Set Word = CreateObject(\"Word.Application\")\n  Word.Visible = True\n  Range(\"A1\") = 1\n  Kill \"c:\\x.docx\"\nEnd Sub\n";
+    let vba = "Sub Gerar()\n  Dim Word As Object\n  Set Word = CreateObject(\"Outlook.Application\")\n  Word.Visible = True\n  Range(\"A1\") = 1\n  Kill \"c:\\x.docx\"\nEnd Sub\n";
     let c = converter_texto(&[("Módulo1", vba)], &[]);
     let js = &c.macros[0].codigo;
     assert!(js.contains("// VBA não convertido (automação de outro programa (CreateObject)):"), "{js}");
-    assert!(js.contains("//   Set Word = CreateObject(\"Word.Application\")"));
+    assert!(js.contains("//   Set Word = CreateObject(\"Outlook.Application\")"));
     assert!(js.contains("sheet.set(\"A1\", 1);"), "o resto continua: {js}");
     let motivos: Vec<&str> = c.pendencias.iter().map(|p| p.motivo.as_str()).collect();
     assert_eq!(motivos, ["automação de outro programa (CreateObject)", "automação de outro programa (CreateObject)", "acesso a arquivo"], "{:#?}", c.pendencias);

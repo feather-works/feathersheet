@@ -538,3 +538,23 @@ fn before_close_com_cancel_impede_fechar() {
     wb.editar(0, |s| { s.set_cell(0, 0, "ok"); });
     assert!(!feathersheet_macros::executar(&mut wb, 0, &e.codigo).cancelar);
 }
+
+/// O `Word.Application` da mala direta (abrir o modelo, Localizar e Substituir nas duas formas, Salvar como) vira
+/// `docs.fill`; número vai como o CStr do VBA (vírgula em português), não com ponto.
+#[test]
+fn word_localizar_substituir_vira_docs_fill() {
+    let vba = "Sub T()\n  Dim wd As Object, doc As Object\n  Set wd = CreateObject(\"Word.Application\")\n  wd.Visible = False\n  Set doc = wd.Documents.Open(ThisWorkbook.Path & \"\\modelo.docx\")\n  doc.Content.Find.Execute FindText:=\"#NOME#\", ReplaceWith:=Range(\"A1\").Value, Replace:=2\n  With doc.Content.Find\n    .ClearFormatting\n    .Text = \"#VALOR#\"\n    .Replacement.Text = Range(\"B1\").Value\n    .Forward = True\n    .Execute Replace:=2\n  End With\n  doc.SaveAs2 ThisWorkbook.Path & \"\\saida\\\" & Range(\"A1\").Value & \".docx\"\n  doc.Close\n  wd.Quit\n  Set wd = Nothing\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").unwrap().codigo.clone();
+    assert!(!js.contains("// VBA não convertido ("), "{js}");
+    let mut wb = Workbook::new();
+    wb.escrever_celula(0, 0, 0, "Ana".into());
+    wb.escrever_celula(0, 0, 1, "1234,5".into());
+    let ctx = feathersheet_macros::Contexto { arquivo: Some("/tmp/proj/P.xlsm".into()), ..Default::default() };
+    let r = feathersheet_macros::executar_com(&mut wb, 0, &js, ctx);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(r.arquivos, vec![feathersheet_macros::PedidoArquivo::Docx {
+        modelo: "/tmp/proj/modelo.docx".into(),
+        trocas: vec![("#NOME#".into(), "Ana".into()), ("#VALOR#".into(), "1234,5".into())],
+        caminho: "/tmp/proj/saida/Ana.docx".into() }]);
+}

@@ -106,6 +106,9 @@ impl Gerador<'_> {
         if create && matches!(args.first().and_then(|a| a.valor.as_ref()), Some(Expr::Texto(t)) if t.eq_ignore_ascii_case("wscript.shell")) {
             return Ok(Obj::Shell);
         }
+        if create && matches!(args.first().and_then(|a| a.valor.as_ref()), Some(Expr::Texto(t)) if t.eq_ignore_ascii_case("word.application")) {
+            return Ok(Obj::Word);
+        }
         if let Expr::Nome(n) = f {
             let implicito = self.obj_implicito();
             match n.to_lowercase().as_str() {
@@ -142,6 +145,8 @@ impl Gerador<'_> {
                 Tipo::NovaPasta => Ok(Obj::NovaPasta(v.js.clone())),
                 Tipo::Funcoes => Ok(Obj::FuncoesDaPlanilha),
                 Tipo::Shell => Ok(Obj::Shell),
+                Tipo::Word => Ok(Obj::Word),
+                Tipo::DocWord => Ok(Obj::DocWord(v.js.clone())),
                 Tipo::Colecao => Err(Motivo::novo(feathersheet_core::trf!("{n} é coleção, não objeto do Excel"))),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
                 Tipo::Valor(_) => Err(Motivo::novo(feathersheet_core::trf!("{n} não é objeto do Excel"))),
@@ -205,6 +210,17 @@ impl Gerador<'_> {
             Obj::Ordem(aba) if matches!(n.as_str(), "sortfields" | "sort") => Ok(Obj::Ordem(aba)),
             Obj::Janela => Ok(Obj::Janela),
             Obj::Shell => Err(Motivo::novo(feathersheet_core::trf!("WScript.Shell.{nome} (só o Run converte)"))),
+            Obj::Word if n == "documents" => Ok(Obj::DocumentosWord),
+            // `Documents.Open(modelo)` e `Documents.Add(Template:=modelo)`: o documento novo nasce do modelo.
+            Obj::DocumentosWord if matches!(n.as_str(), "open" | "add") => {
+                let modelo = self.arg_js(args, if n == "open" { &["filename"] } else { &["template"] }, 0)?;
+                Ok(Obj::DocWord(format!("vba.{}(String({modelo}))", self.ajuda("wordDoc"))))
+            }
+            Obj::DocWord(js) if matches!(n.as_str(), "content" | "range") => Ok(Obj::DocWord(js)),
+            Obj::DocWord(js) if n == "find" => Ok(Obj::BuscaWord(js)),
+            Obj::BuscaWord(js) if n == "replacement" => Ok(Obj::SubstWord(js)),
+            Obj::Word | Obj::DocumentosWord | Obj::DocWord(_) | Obj::BuscaWord(_) | Obj::SubstWord(_) =>
+                Err(Motivo::novo(feathersheet_core::trf!("Word.{nome} (só abrir o modelo, Localizar e Substituir e Salvar como convertem)"))),
             Obj::Pastas => match n.as_str() {
                 "add" => Ok(Obj::NovaPasta(format!("vba.{}()", self.ajuda("novaPasta")))),
                 "open" => Err(Motivo::novo(feathersheet_core::tr!("abrir outra pasta de trabalho (Workbooks.Open)"))),

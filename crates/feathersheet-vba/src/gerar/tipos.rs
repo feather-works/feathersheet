@@ -160,6 +160,16 @@ pub enum Obj {
     FonteForma(String),
     /// `CreateObject("WScript.Shell")`.
     Shell,
+    /// `CreateObject("Word.Application")`: só serve para abrir o modelo (`.Documents.Open`).
+    Word,
+    /// `wd.Documents`.
+    DocumentosWord,
+    /// Um documento do Word aberto de um modelo (código JS do `vba.wordDoc(modelo)`); `.Content`/`.Range` é ele mesmo.
+    DocWord(String),
+    /// `doc.Content.Find` (o Localizar e Substituir).
+    BuscaWord(String),
+    /// `.Find.Replacement`.
+    SubstWord(String),
 }
 
 /// A parte de um intervalo.
@@ -200,6 +210,10 @@ pub enum Tipo {
     Funcoes,
     /// `Set sh = CreateObject("WScript.Shell")`: o `.Run` vira `app.shell` (pergunta antes de rodar).
     Shell,
+    /// `Set wd = CreateObject("Word.Application")`: apelido, como o Shell.
+    Word,
+    /// `Set doc = wd.Documents.Open(modelo)`: a variável guarda o `vba.wordDoc`; o `SaveAs` vira `docs.fill`.
+    DocWord,
     /// `Collection` ou `Scripting.Dictionary`: objeto JS do prelúdio (ver `gerar/colecao.rs`).
     Colecao,
 }

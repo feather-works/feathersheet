@@ -4,6 +4,13 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **VBA `Word.Application` → `docs.fill`** (24/11/2026): `CreateObject("Word.Application")`, `Documents.Open`/
+  `Add(Template:=)`, `Content`/`Range.Find.Execute FindText:=, ReplaceWith:=` e o bloco `With .Find` (`.Text`,
+  `.Replacement.Text`, `.Execute`), `SaveAs`/`SaveAs2`; `Visible`, `Close`, `Quit`, `ClearFormatting` e as opções da
+  busca não fazem nada. Ajuda `vba.wordDoc` junta as trocas; o `SaveAs` chama `docs.fill`. O texto da troca passa
+  pelo CStr do VBA (`vba.str`: vírgula em português). O resto do Word continua pendência. Teste
+  `word_localizar_substituir_vira_docs_fill`; o exemplo de "não converte" do `converter.rs` passou a ser o Outlook.
+
 - **Macro `docs.fill(modelo, trocas, destino)`** (24/11/2026, primeiro passo da integração com o FeatherDocs): um
   `.docx` novo a partir de um modelo do Word, trocando marcadores (`#NOME#`) como o Localizar e Substituir. A troca é
   no XML (`feathersheet_io::docx_modelo`): corpo, cabeçalhos, rodapés e notas; marcador que o Word quebrou em vários

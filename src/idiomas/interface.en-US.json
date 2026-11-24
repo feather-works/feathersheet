@@ -6241,5 +6241,7 @@
  "Uma parte do modelo ({nome}) passa de 64 MB.": "A part of the template ({nome}) is over 64 MB.",
  "O destino não pode ser o próprio modelo": "The output cannot be the template itself",
  "Informe as trocas como objeto: { \"#NOME#\": \"Ana\" }": "Give the replacements as an object: { \"#NOME#\": \"Ana\" }",
- "o modelo {} não abriu: {e}": "the template {} did not open: {e}"
+ "o modelo {} não abriu: {e}": "the template {} did not open: {e}",
+ "objeto do Word guardado em variável e trocado depois": "Word object stored in a variable and changed later",
+ "Word.{nome} (só abrir o modelo, Localizar e Substituir e Salvar como convertem)": "Word.{nome} (only opening the template, Find and Replace and Save as convert)"
 }

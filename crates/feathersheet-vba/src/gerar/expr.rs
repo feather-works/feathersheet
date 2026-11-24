@@ -65,6 +65,7 @@ impl Gerador<'_> {
                 Tipo::NovaPasta => Err(Motivo::novo(format!("a pasta {n} usada como valor"))),
                 Tipo::Funcoes => Err(Motivo::novo(format!("WorksheetFunction ({n}) usada como valor"))),
                 Tipo::Shell => Err(Motivo::novo(format!("WScript.Shell ({n}) usado como valor"))),
+                Tipo::Word | Tipo::DocWord => Err(Motivo::novo(format!("o Word ({n}) usado como valor"))),
                 Tipo::Colecao => Ok(V::novo(v.js, T::Obj)),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
             };
