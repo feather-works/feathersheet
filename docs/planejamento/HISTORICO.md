@@ -30,6 +30,12 @@
   vira objeto dinâmico (`gerar/dinamico.rs`): `x(k)` → `vba.item`, `x.Count`/`x.Exists(k)` → `vba.membro`, e
   `Variant` com chave de texto (`v("nome")`) também. Corrigido junto: `Set NomeDaFuncao = objeto` virava variável local
   em vez do retorno. Placar 84,7% → 87,2%. Teste `objeto_de_funcao_do_projeto_roda_como_dicionario`.
+  **Sexta rodada**: `On Error GoTo trata` dentro de um `If` do topo (`If DEPURAR Then On Error GoTo 0 Else On Error
+  GoTo trata`) abre o `try`, e outro `On Error GoTo trata` dentro dele vira nada (11 dos 54 arquivos tinham);
+  o teto do analisador de expressões passou a ser de **profundidade** (512, o que protege a pilha da #129) e não de
+  nós (agora 20 mil): matriz de 17 `Array(…)` de 31 números numa linha com `_` converte; `m(1)(2)` num `Variant`
+  vira item de item. Placar 87,2% → 87,3%. Testes `on_error_goto_dentro_de_if_e_repetido_roda`,
+  `matriz_de_matrizes_larga_converte`; `vba_aninhado_demais_nao_derruba_e_o_normal_continua` segue passando.
 
 - **Gráfico dinâmico vai e volta no `.xlsx` (24/11/2026)**: o `pivotSource` do gráfico (id da dinâmica) sai como
   `<c:pivotSource><c:name>Aba!Nome</c:name><c:fmtId val="0"/></c:pivotSource>` (`xlsx_write_graficos::chart_space`,

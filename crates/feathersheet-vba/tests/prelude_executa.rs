@@ -640,3 +640,17 @@ fn objeto_de_funcao_do_projeto_roda_como_dicionario() {
     assert_eq!(wb.valor(0, 2, 0), Value::Text("sim".into()));
     assert_eq!(wb.valor(0, 3, 0), Value::Number(1.0));
 }
+
+/// `If DEPURAR Then On Error GoTo 0 Else On Error GoTo trata` e um segundo `On Error GoTo trata` (#143): o erro
+/// cai no tratador.
+#[test]
+fn on_error_goto_dentro_de_if_e_repetido_roda() {
+    let wb = roda(
+        "Const DEPURAR = False\nSub T()\n  If DEPURAR Then On Error GoTo 0 Else On Error GoTo trata\n  Range(\"A1\").Value = 1\n\
+         On Error GoTo trata\n  Err.Raise 5\n  Range(\"A2\").Value = \"não\"\n  Exit Sub\ntrata:\n  Range(\"A3\").Value = Err.Number\nEnd Sub\n",
+        "T",
+    );
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(1.0));
+    assert_eq!(wb.valor(0, 1, 0), Value::Empty);
+    assert_eq!(wb.valor(0, 2, 0), Value::Number(5.0));
+}

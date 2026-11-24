@@ -15,10 +15,13 @@ pub(super) struct Leitor {
     pub nos: u32,
 }
 
-/// Teto de nós de uma expressão (#129): também limita a profundidade da árvore, que o
-/// gerador percorre recursivamente. Macro de verdade não chega perto (a linha do VBA
-/// tem no máximo 1023 caracteres).
-const MAX_NOS: u32 = 512;
+/// Teto da profundidade da árvore de uma expressão (#129), que o gerador percorre
+/// recursivamente: cada `(`, `-`, `Not`, operador encadeado (`a + b + c`) e membro
+/// encadeado (`a.b.c`) conta um nível.
+const MAX_PROFUNDIDADE: u32 = 512;
+/// Teto de nós de uma expressão. Larga e rasa é macro de verdade: a linha lógica do VBA vai a
+/// ~25 mil caracteres com `_`, como uma matriz de 17 `Array(…)` de 31 números (bateria #143).
+const MAX_NOS: u32 = 20_000;
 
 /// Erro de análise: a instrução vira `Desconhecida`.
 pub(super) type Res<T> = Result<T, ()>;
@@ -109,7 +112,7 @@ impl Leitor {
     /// Conta um nó; passou do teto, a instrução vira `Desconhecida`.
     fn no(&mut self) -> Res<()> {
         self.nos += 1;
-        if self.nos > MAX_NOS { Err(()) } else { Ok(()) }
+        if self.nos > MAX_NOS || self.profundidade > MAX_PROFUNDIDADE { Err(()) } else { Ok(()) }
     }
 
     /// O operador binário na posição atual e a força dele (maior = liga mais).
@@ -144,16 +147,24 @@ impl Leitor {
 
     fn binaria(&mut self, minimo: u8) -> Res<Expr> {
         let mut esq = self.unaria()?;
-        while let Some((op, forca)) = self.operador() {
+        // Cada operador encadeado aprofunda a árvore à esquerda.
+        let mut niveis = 0;
+        let r = loop {
+            let Some((op, forca)) = self.operador() else { break Ok(()) };
             if forca < minimo {
-                break;
+                break Ok(());
             }
             self.i += 1;
+            niveis += 1;
+            self.profundidade += 1;
             // `^` é associativo à esquerda no VBA, como os outros.
-            let dir = self.binaria(forca + 1)?;
-            esq = Expr::Bin(op, Box::new(esq), Box::new(dir));
-        }
-        Ok(esq)
+            match self.binaria(forca + 1) {
+                Ok(dir) => esq = Expr::Bin(op, Box::new(esq), Box::new(dir)),
+                Err(()) => break Err(()),
+            }
+        };
+        self.profundidade -= niveis;
+        r.map(|()| esq)
     }
 
     fn unaria(&mut self) -> Res<Expr> {
@@ -185,20 +196,27 @@ impl Leitor {
             self.nos = 0;
         }
         let mut e = self.primaria()?;
-        loop {
-            self.no()?;
-            if self.aceita_op(".") {
-                e = Expr::Membro(Box::new(e), self.nome()?);
+        // Cada membro/chamada encadeado aprofunda a árvore.
+        let mut niveis = 0;
+        let r: Res<()> = loop {
+            if self.no().is_err() { break Err(()); }
+            niveis += 1;
+            self.profundidade += 1;
+            let passo = if self.aceita_op(".") {
+                self.nome().map(|n| e = Expr::Membro(Box::new(std::mem::replace(&mut e, Expr::Nada)), n))
             } else if self.e_op("(") {
                 self.i += 1;
-                e = Expr::Chamada(Box::new(e), self.argumentos(")")?);
+                self.argumentos(")").map(|a| e = Expr::Chamada(Box::new(std::mem::replace(&mut e, Expr::Nada)), a))
             } else if self.e_op("!") && matches!(self.olha_em(1), Ficha::Nome(_)) {
                 self.i += 1;
-                e = Expr::Bang(Box::new(e), self.nome()?);
+                self.nome().map(|n| e = Expr::Bang(Box::new(std::mem::replace(&mut e, Expr::Nada)), n))
             } else {
-                return Ok(e);
-            }
-        }
+                break Ok(());
+            };
+            if passo.is_err() { break Err(()); }
+        };
+        self.profundidade -= niveis;
+        r.map(|()| e)
     }
 
     fn primaria(&mut self) -> Res<Expr> {

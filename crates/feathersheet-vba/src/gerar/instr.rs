@@ -26,6 +26,17 @@ fn rotulo_js(r: &str) -> String {
 }
 
 /// A instrução (ou algo dentro dela) faz `GoTo rotulo`.
+/// Os rótulos de `On Error GoTo x` desta instrução (solta ou nos ramos de um `If`).
+fn emerro_goto(i: &Instr) -> Vec<String> {
+    let goto = |t: &str| t.strip_prefix("goto ").filter(|n| *n != "0" && *n != "-1").map(str::to_owned);
+    match &i.k {
+        TipoInstr::EmErro(t) => goto(t).into_iter().collect(),
+        TipoInstr::Se { ramos, senao } => ramos.iter().flat_map(|(_, c)| c.iter()).chain(senao.iter().flatten())
+            .filter_map(|x| match &x.k { TipoInstr::EmErro(t) => goto(t), _ => None }).collect(),
+        _ => Vec::new(),
+    }
+}
+
 fn chama(i: &Instr, rotulo: &str) -> bool {
     let em = |c: &[Instr]| c.iter().any(|x| chama(x, rotulo));
     match &i.k {
@@ -122,6 +133,8 @@ impl Gerador<'_> {
             // `GoTo trata` de dentro do `try`: vai para o `catch` sem erro (o `Err.Number` fica 0, como no VBA).
             TipoInstr::IrPara(n) if self.tratador.as_deref() == Some(n.to_lowercase().as_str()) => "throw { number: 0, message: '' }; // GoTo para o tratador de erro".into(),
             TipoInstr::IrPara(_) => return Err(Motivo::novo(feathersheet_core::tr!("GoTo para trás ou para dentro de um bloco (reescrever com laço ou if)"))),
+            // Outro `On Error GoTo trata` dentro do `try` do mesmo tratador: já está protegido.
+            TipoInstr::EmErro(t) if self.tratador.as_deref().is_some_and(|r| t.strip_prefix("goto ") == Some(r)) => String::new(),
             TipoInstr::EmErro(_) => return Err(Motivo::novo(feathersheet_core::tr!("On Error GoTo fora do começo do procedimento (reescrever com try/catch)"))),
             TipoInstr::Desconhecida(t) => return Err(Motivo::novo(motivo_da_desconhecida(t))),
             _ => unreachable!("blocos vão por instrucao()"),
@@ -135,18 +148,20 @@ impl Gerador<'_> {
     /// de um bloco rotulado que termina no `fim:`.
     pub fn corpo_do_proc(&mut self, corpo: &[Instr]) {
         let rotulo_em = |nome: &str| corpo.iter().position(|i| matches!(&i.k, TipoInstr::Rotulo(r) if r.eq_ignore_ascii_case(nome)));
-        let tratador = corpo.iter().enumerate().find_map(|(i, x)| match &x.k {
-            TipoInstr::EmErro(t) => t.strip_prefix("goto ").filter(|n| *n != "0" && *n != "-1")
-                .and_then(rotulo_em).filter(|&k| k > i).map(|k| (i, k)),
-            _ => None,
+        // O primeiro `On Error GoTo trata` (solto ou num `If` do topo, como
+        // `If DEPURAR Then On Error GoTo 0 Else On Error GoTo trata`) com `trata:` no topo, depois dele.
+        let tratador = corpo.iter().enumerate().find_map(|(i, x)| {
+            emerro_goto(x).into_iter().filter_map(|n| rotulo_em(&n)).find(|&k| k > i).map(|k| (i, k))
         });
         let Some((i, k)) = tratador else { return self.com_rotulos(corpo) };
+        // O `On Error` solto sai; o `If` com ele entra no `try` (o `On Error` de dentro vira nada).
+        let solto = matches!(corpo[i].k, TipoInstr::EmErro(_));
         self.com_rotulos(&corpo[..i]);
         self.m.convertidas += 2;
         self.linha("try {");
         self.nivel += 1;
         if let TipoInstr::Rotulo(r) = &corpo[k].k { self.tratador = Some(r.to_lowercase()); }
-        self.com_rotulos(&corpo[i + 1..k]);
+        self.com_rotulos(&corpo[if solto { i + 1 } else { i }..k]);
         self.tratador = None;
         self.nivel -= 1;
         let guardar = self.ajuda("erro");

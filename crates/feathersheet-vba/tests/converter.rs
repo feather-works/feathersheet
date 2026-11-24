@@ -263,3 +263,13 @@ fn selection_onaction_da_forma_selecionada_e_vba_createobject() {
     assert!(js.contains(".onAction = \"Gerar\"") && js.contains("formaSel()"), "{js}");
     assert!(js.contains("app.shell(String(\"notepad.exe\"))"), "{js}");
 }
+
+/// Expressão larga e rasa (bateria #143): 17 `Array(…)` de 31 números numa linha com `_` converte; o teto é de
+/// profundidade, não de tamanho.
+#[test]
+fn matriz_de_matrizes_larga_converte() {
+    let linha = format!("Array({})", (0..31).map(|i| format!("{i}.5")).collect::<Vec<_>>().join(", "));
+    let vba = format!("Sub T()\n  Dim m\n  m = Array( _\n{} _\n  )\n  Range(\"A1\").Value = m(16)(30)\nEnd Sub\n", vec![linha; 17].join(", _\n"));
+    let c = converter_texto(&[("Módulo1", &vba)], &[]);
+    assert!(c.pendencias.iter().all(|p| p.aviso), "{:#?}", c.pendencias);
+}

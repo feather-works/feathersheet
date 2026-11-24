@@ -137,6 +137,17 @@ impl Gerador<'_> {
         if let Some(base) = self.dinamico(f) {
             return self.item_dinamico(&base, args);
         }
+        // `m(1)(2)`: item de matriz dentro de matriz (ou de dicionário) num `Variant`.
+        if let Expr::Chamada(g, _) = f {
+            let raiz_variant = match &**g {
+                Expr::Nome(n) => self.var(n).or_else(|| self.global(n)).is_some_and(|v| v.matriz || matches!(v.tipo, Tipo::Valor(T::Var | T::Matriz))),
+                _ => false,
+            };
+            if raiz_variant {
+                let dentro = self.valor(f)?;
+                return self.item_dinamico(&dentro.js, args);
+            }
+        }
         match f {
             Expr::Nome(n) => self.chamada_por_nome(n, args),
             Expr::Membro(base, nome) => self.membro(base, nome, args),
