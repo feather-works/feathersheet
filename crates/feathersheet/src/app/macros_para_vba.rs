@@ -67,30 +67,37 @@ impl App {
         let originais = self.workbook.vba.as_ref()
             .and_then(|v| feathersheet_vba::ovba::ler_projeto(&v.binario).ok()).unwrap_or_default();
         let mut modulos: Vec<ModuloNovo> = Vec::new();
-        let (mut levadas, mut eventos, mut pendencias) = (Vec::new(), 0, 0);
+        let (mut levadas, mut sem_lugar, mut pendencias) = (Vec::new(), 0, 0);
+        // (aba do evento, "" = a pasta; o VBA traduzido do evento).
+        let mut eventos: Vec<(String, String)> = Vec::new();
         for m in &fora {
-            if m.name.starts_with(macros::organizacao::PASTA_EVENTOS) { eventos += 1; continue; }
             // O módulo de pendências da conversão é só comentário: não volta.
             if m.code.starts_with("// O que do VBA de") { continue; }
+            let evento = macros::organizacao::evento_do_nome(&m.name);
             let nome = nome_vba(&m.name);
-            let t = feathersheet_vba::js_para_vba::traduzir(&m.code, &nome, &formula);
+            let t = match evento {
+                Some((_, ev)) => match feathersheet_vba::js_para_vba::traduzir_evento(&m.code, ev, &formula) {
+                    Some(t) => t,
+                    None => { sem_lugar += 1; continue; }
+                },
+                None if m.name.starts_with(macros::organizacao::PASTA_EVENTOS) => { sem_lugar += 1; continue; }
+                None => feathersheet_vba::js_para_vba::traduzir(&m.code, &nome, &formula),
+            };
             for p in &t.pendencias {
                 self.monitor.registrar(feather_ui::monitor::Nivel::Aviso, tr!("Macros"), &trf!("[VBA] {}: {p}", m.name));
             }
             pendencias += t.pendencias.len();
+            if let Some((aba, _)) = evento {
+                eventos.push((aba.to_string(), t.vba));
+                levadas.push(m);
+                continue;
+            }
             let origem = modulo_de_origem(&m.code)
                 .and_then(|o| originais.iter().find(|x| x.nome.eq_ignore_ascii_case(&o)).map(|x| x.nome.clone()));
             match origem {
                 // Editada: os procedimentos dela trocam os de mesmo nome dentro do módulo de onde veio.
                 Some(o) => {
-                    let pos = match modulos.iter().position(|x| x.nome == o) {
-                        Some(i) => i,
-                        None => {
-                            let codigo = originais.iter().find(|x| x.nome == o).map(|x| sem_atributos(&x.codigo)).unwrap_or_default();
-                            modulos.push(ModuloNovo { nome: o.clone(), codigo });
-                            modulos.len() - 1
-                        }
-                    };
+                    let pos = posicao_do_modulo(&mut modulos, &originais, &o);
                     for (proc, bloco) in procedimentos(&t.vba) {
                         modulos[pos].codigo = trocar_procedimento(&modulos[pos].codigo, &proc, &bloco);
                     }
@@ -107,19 +114,29 @@ impl App {
             }
             levadas.push(m);
         }
-        if modulos.is_empty() {
-            return (eventos > 0).then(|| trf!("{eventos} evento(s) editado(s) aqui ainda não vão para o VBA do .xlsm."));
+        if levadas.is_empty() {
+            return (sem_lugar > 0).then(|| trf!("{sem_lugar} evento(s) editado(s) aqui não puderam ir para o VBA do .xlsm (aba sem codinome ou evento desconhecido)."));
         }
-        let gravado = match self.workbook.vba.as_ref() {
-            Some(v) => feathersheet_vba::ovba_projeto::alterar_projeto(&v.binario, &modulos).map(|b| (b, v.nome_pasta.clone(), v.nomes_abas.clone())),
-            None => {
-                let abas: Vec<(u32, String)> = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i))
-                    .enumerate().map(|(i, a)| (a.id, format!("Planilha{}", i + 1))).collect();
-                let nomes: Vec<String> = abas.iter().map(|(_, n)| n.clone()).collect();
-                feathersheet_vba::ovba_projeto::projeto_novo("EstaPasta_de_trabalho", &nomes, &modulos)
-                    .map(|b| (b, "EstaPasta_de_trabalho".to_string(), abas))
+        let gravado = self.gravar_projeto(&modulos).and_then(|(binario, nome_pasta, nomes_abas)| {
+            if eventos.is_empty() { return Ok((binario, nome_pasta, nomes_abas)); }
+            // Os eventos vão para o módulo de documento: o da pasta ou o da aba (pelo codinome).
+            let atuais = feathersheet_vba::ovba::ler_projeto(&binario)?;
+            let mut docs: Vec<ModuloNovo> = Vec::new();
+            for (aba, vba) in &eventos {
+                let modulo = if aba.is_empty() { Some(nome_pasta.clone()) } else {
+                    (0..self.workbook.len()).find(|&i| self.workbook.aba(i).is_some_and(|a| a.sheet.name == *aba))
+                        .and_then(|i| self.workbook.aba(i)).map(|a| a.id)
+                        .and_then(|id| nomes_abas.iter().find(|(x, _)| *x == id).map(|(_, c)| c.clone()))
+                };
+                let Some(modulo) = modulo.filter(|m| atuais.iter().any(|x| x.nome.eq_ignore_ascii_case(m))) else { sem_lugar += 1; continue };
+                let pos = posicao_do_modulo(&mut docs, &atuais, &modulo);
+                for (proc, bloco) in procedimentos(vba) {
+                    docs[pos].codigo = trocar_procedimento(&docs[pos].codigo, &proc, &bloco);
+                }
             }
-        };
+            let binario = if docs.is_empty() { binario } else { feathersheet_vba::ovba_projeto::alterar_projeto(&binario, &docs)? };
+            Ok((binario, nome_pasta, nomes_abas))
+        });
         match gravado {
             Ok((binario, nome_pasta, nomes_abas)) => {
                 self.workbook.vba = Some(feathersheet_core::planilha::workbook::ProjetoVba { binario, nome_pasta, nomes_abas });
@@ -127,12 +144,37 @@ impl App {
                 self.macros_do_vba.extend(levadas.iter().map(|m| importar_vba::marca_do_codigo(m)));
                 let mut s = trf!("{} macro(s) JavaScript foram para o VBA do .xlsm (o Excel recompila ao abrir).", levadas.len());
                 if pendencias > 0 { s.push(' '); s.push_str(&trf!("{pendencias} trecho(s) não converteram e ficaram comentados: veja o monitor (F12).")); }
-                if eventos > 0 { s.push(' '); s.push_str(&trf!("{eventos} evento(s) editado(s) aqui ainda não vão para o VBA do .xlsm.")); }
+                if sem_lugar > 0 { s.push(' '); s.push_str(&trf!("{sem_lugar} evento(s) editado(s) aqui não puderam ir para o VBA do .xlsm (aba sem codinome ou evento desconhecido).")); }
                 Some(s)
             }
             Err(e) => Some(trf!("As macros JavaScript não foram para o VBA: {e}")),
         }
     }
+
+    /// Troca/acrescenta os módulos no projeto da pasta, ou cria um projeto (codinomes `EstaPasta_de_trabalho` e
+    /// `PlanilhaN`) se ela não tinha VBA. (binário, codinome da pasta, codinomes das abas).
+    fn gravar_projeto(&self, modulos: &[ModuloNovo]) -> Result<(Vec<u8>, String, Vec<(u32, String)>), String> {
+        match self.workbook.vba.as_ref() {
+            Some(v) if modulos.is_empty() => Ok((v.binario.clone(), v.nome_pasta.clone(), v.nomes_abas.clone())),
+            Some(v) => feathersheet_vba::ovba_projeto::alterar_projeto(&v.binario, modulos).map(|b| (b, v.nome_pasta.clone(), v.nomes_abas.clone())),
+            None => {
+                let abas: Vec<(u32, String)> = (0..self.workbook.len()).filter_map(|i| self.workbook.aba(i))
+                    .enumerate().map(|(i, a)| (a.id, format!("Planilha{}", i + 1))).collect();
+                let nomes: Vec<String> = abas.iter().map(|(_, n)| n.clone()).collect();
+                feathersheet_vba::ovba_projeto::projeto_novo("EstaPasta_de_trabalho", &nomes, modulos)
+                    .map(|b| (b, "EstaPasta_de_trabalho".to_string(), abas))
+            }
+        }
+    }
+}
+
+/// A posição do módulo `nome` em `modulos`, acrescentando (com o código atual de `originais`) se ainda não está.
+fn posicao_do_modulo(modulos: &mut Vec<ModuloNovo>, originais: &[feathersheet_vba::ModuloVba], nome: &str) -> usize {
+    if let Some(i) = modulos.iter().position(|x| x.nome.eq_ignore_ascii_case(nome)) { return i; }
+    let original = originais.iter().find(|x| x.nome.eq_ignore_ascii_case(nome));
+    let codigo = original.map(|x| sem_atributos(&x.codigo)).unwrap_or_default();
+    modulos.push(ModuloNovo { nome: original.map_or_else(|| nome.to_string(), |x| x.nome.clone()), codigo });
+    modulos.len() - 1
 }
 
 #[cfg(test)]
@@ -175,6 +217,28 @@ mod testes {
         assert!(m1.codigo.contains("Range(\"A1\").Value = 1234.5") && m1.codigo.contains("MsgBox \"fica\""), "{}", m1.codigo);
         let novo = lidos.iter().find(|m| m.nome == "Total").expect("módulo novo");
         assert!(novo.codigo.contains("Sub Total()") && novo.codigo.contains("Range(\"B1\").Value = Range(\"A1\").Value * 2"), "{}", novo.codigo);
+    }
+
+    /// Evento editado aqui (aba e pasta) vai para o módulo de documento com a assinatura do Excel, numa pasta que
+    /// nem tinha VBA.
+    #[test]
+    fn evento_editado_vai_para_o_modulo_da_aba_e_da_pasta() {
+        let mut app = App::default();
+        let aba = app.workbook.aba(0).unwrap().sheet.name.clone();
+        let mut cat = app.macro_catalogo.clone();
+        cat.macros.push(feather_macros::Macro { name: macros::organizacao::nome_evento(&aba, "aoMudar"),
+            code: "if (valores.intervalo === \"B2\") { sheet.set(\"C2\", sheet.get(\"B2\") * 2); }".into(), auto: false });
+        cat.macros.push(feather_macros::Macro { name: macros::organizacao::nome_evento("", "antesDeSalvar"),
+            code: "if (!sheet.get(\"A1\")) wb.cancelSave();".into(), auto: false });
+        assert!(app.persistir_modulos(cat, "teste"));
+        let resumo = app.levar_macros_para_o_vba().unwrap();
+        assert!(resumo.contains("2 macro(s)") && !resumo.contains("evento(s) editado(s)"), "{resumo}");
+        let lidos = feathersheet_vba::ovba::ler_projeto(&app.workbook.vba.as_ref().unwrap().binario).unwrap();
+        let planilha = lidos.iter().find(|m| m.nome == "Planilha1").unwrap();
+        assert_eq!(planilha.tipo, feathersheet_vba::TipoDeModulo::Aba);
+        assert!(planilha.codigo.contains("Private Sub Worksheet_Change(ByVal Target As Range)") && planilha.codigo.contains("Target.Address(False, False) = \"B2\""), "{}", planilha.codigo);
+        let pasta = lidos.iter().find(|m| m.nome == "EstaPasta_de_trabalho").unwrap();
+        assert!(pasta.codigo.contains("Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)") && pasta.codigo.contains("Cancel = True"), "{}", pasta.codigo);
     }
 
     /// A planilha real do usuário (só leitura): abrir, editar uma macro convertida, salvar em .xlsm numa pasta

@@ -63,6 +63,8 @@ struct Tradutor<'a> {
     tipos: HashMap<String, Tipo>,
     /// Algum número virou texto: o módulo ganha a função `JsTexto`.
     usa_js_texto: bool,
+    /// Traduzindo um evento: (procedimento VBA, cabeçalho com a assinatura do Excel).
+    evento: Option<(&'a str, &'a str)>,
 }
 
 /// Valor → texto como o JavaScript faz (`"Total: " + 1234.5` dá `Total: 1234.5`): número com ponto em qualquer
@@ -74,6 +76,29 @@ const JS_TEXTO: &str = "Private Function JsTexto(v)\r\n    Select Case VarType(v
 /// Traduz o módulo `js`. `nome` é o do Sub que recebe o código solto (fora de funções). `formula` converte uma
 /// fórmula da planilha (`=SOMA(A1;2,5)`) para o `.Formula` do Excel (`=SUM(A1,2.5)`).
 pub fn traduzir(js: &str, nome: &str, formula: &dyn Fn(&str) -> String) -> Traducao {
+    traduzir_com(js, nome, None, formula)
+}
+
+/// Os eventos do JS (`aoMudar`…) e o procedimento VBA de cada um, com a assinatura que o Excel exige.
+pub const EVENTOS: [(&str, &str, &str); 6] = [
+    ("aoMudar", "Worksheet_Change", "Private Sub Worksheet_Change(ByVal Target As Range)"),
+    ("aoSelecionar", "Worksheet_SelectionChange", "Private Sub Worksheet_SelectionChange(ByVal Target As Range)"),
+    ("aoAtivar", "Worksheet_Activate", "Private Sub Worksheet_Activate()"),
+    ("aoAbrir", "Workbook_Open", "Private Sub Workbook_Open()"),
+    ("antesDeSalvar", "Workbook_BeforeSave", "Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)"),
+    ("antesDeFechar", "Workbook_BeforeClose", "Private Sub Workbook_BeforeClose(Cancel As Boolean)"),
+];
+
+/// Um módulo de evento (`Eventos/<aba>/aoMudar`): o código vira o procedimento do evento no módulo da aba ou da
+/// pasta. `valores.intervalo` é o `Target`, `valores.comoSalvar` o `SaveAsUI`, e `wb.cancelSave()`/`cancelClose()`
+/// é o `Cancel = True`. O convertido do VBA (a função `Worksheet_Change(Target)` e a chamada no fim) volta à forma
+/// de antes.
+pub fn traduzir_evento(js: &str, evento: &str, formula: &dyn Fn(&str) -> String) -> Option<Traducao> {
+    let e = EVENTOS.iter().find(|(n, _, _)| *n == evento)?;
+    Some(traduzir_com(js, e.1, Some((e.1, e.2)), formula))
+}
+
+fn traduzir_com(js: &str, nome: &str, evento: Option<(&str, &str)>, formula: &dyn Fn(&str) -> String) -> Traducao {
     let (arv, lex) = match falcao_sintaxe::analisar_script(js) {
         Ok(x) => x,
         Err(e) => {
@@ -82,9 +107,9 @@ pub fn traduzir(js: &str, nome: &str, formula: &dyn Fn(&str) -> String) -> Tradu
         }
     };
     let mut t = Tradutor { arv: &arv, lex: &lex, fonte: js, formula, saida: String::new(), pend: Vec::new(), recuo: 0,
-        proc: None, lacos: Vec::new(), tipos: HashMap::new(), usa_js_texto: false };
+        proc: None, lacos: Vec::new(), tipos: HashMap::new(), usa_js_texto: false, evento };
     let topo: Vec<NoId> = arv.lista(arv.corpo).to_vec();
-    let (funcoes, soltos): (Vec<NoId>, Vec<NoId>) = topo.into_iter().filter(|&id| !t.e_preludio(id))
+    let (funcoes, soltos): (Vec<NoId>, Vec<NoId>) = topo.into_iter().filter(|&id| !t.e_preludio(id) && !t.e_cola_de_evento(id))
         .partition(|&id| matches!(arv.no(id), No::DeclFuncao(_)));
     let mut declaradas = Vec::new();
     for id in &funcoes {
@@ -96,11 +121,13 @@ pub fn traduzir(js: &str, nome: &str, formula: &dyn Fn(&str) -> String) -> Tradu
     // `Ola();` no fim só roda a função quando a macro roda; no Excel a pessoa roda o Sub direto.
     let so_chama = |id: &NoId| matches!(arv.no(*id), No::Expressao(e) if matches!(arv.no(*e),
         No::Chamada { func, args, .. } if args.len == 0 && matches!(arv.no(*func), No::Nome(a) if declaradas.iter().any(|d| d == lex.atomos.texto(*a)))));
-    if !soltos.is_empty() && !soltos.iter().all(so_chama) {
+    let ja_tem_evento = evento.is_some_and(|(n, _)| declaradas.iter().any(|d| d.eq_ignore_ascii_case(n)));
+    if !soltos.is_empty() && !soltos.iter().all(so_chama) && !ja_tem_evento {
         let n = t.nome_vba(nome);
-        let n = if declaradas.iter().any(|d| t.nome_vba(d).eq_ignore_ascii_case(&n)) { format!("{n}_Principal") } else { n };
+        let n = if evento.is_none() && declaradas.iter().any(|d| t.nome_vba(d).eq_ignore_ascii_case(&n)) { format!("{n}_Principal") } else { n };
         t.proc = Some((n.clone(), false));
-        t.linha(&format!("Sub {n}()"));
+        let cabeca = evento.map_or_else(|| format!("Sub {n}()"), |(_, c)| c.to_string());
+        t.linha(&cabeca);
         t.recuo += 1;
         for id in soltos { t.instr(id); }
         t.recuo -= 1;
@@ -164,6 +191,20 @@ impl<'a> Tradutor<'a> {
             if matches!(self.arv.no(*alvo), No::Nome(a) if self.lex.atomos.texto(*a) == "vba")))
     }
 
+    /// No módulo de evento convertido do VBA: a chamada do fim (`Worksheet_Change(valores.intervalo…)`), a caixa
+    /// do `Cancel` (`$cancelar`) e o apelido do codinome (`const Planilha1 = wb.sheet(…)`, que no VBA já existe).
+    fn e_cola_de_evento(&self, id: NoId) -> bool {
+        if self.evento.is_none() { return false; }
+        let texto = self.trecho(id);
+        if texto.contains("$cancelar") { return true; }
+        match *self.arv.no(id) {
+            No::Expressao(e) => matches!(*self.arv.no(e), No::Chamada { func, .. }
+                if matches!(*self.arv.no(func), No::Nome(a) if self.evento.is_some_and(|(n, _)| self.lex.atomos.texto(a).eq_ignore_ascii_case(n)))),
+            No::Var { .. } => texto.contains("= wb.sheet("),
+            _ => false,
+        }
+    }
+
     fn funcao(&mut self, f: falcao_sintaxe::arvore::FuncaoId) {
         let func = self.arv.funcao(f).clone();
         let nome = func.nome.map(|a| self.atomo(a)).unwrap_or_else(|| "SemNome".into());
@@ -177,7 +218,10 @@ impl<'a> Tradutor<'a> {
         }
         let e_funcao = self.arv.lista(func.corpo).iter().any(|&id| self.devolve_valor(id));
         let tipo = if e_funcao { "Function" } else { "Sub" };
-        self.linha(&format!("{tipo} {nome}({})", params.join(", ")));
+        match self.evento.filter(|(n, _)| n.eq_ignore_ascii_case(&nome)) {
+            Some((_, cabeca)) => self.linha(cabeca),
+            None => self.linha(&format!("{tipo} {nome}({})", params.join(", "))),
+        }
         let antes = std::mem::take(&mut self.tipos);
         self.proc = Some((nome, e_funcao));
         self.recuo += 1;
@@ -259,6 +303,8 @@ impl<'a> Tradutor<'a> {
                     }
                 }
             }
+            // `if (!Cancel?.$ref) Cancel = { $ref: 1, v: Cancel }`: a caixa do ByRef; no VBA o parâmetro já é ByRef.
+            No::Se { .. } if self.trecho(id).contains("$ref") => {}
             No::Se { .. } => self.se(id, false),
             No::Para { inicio, teste, passo, corpo } => self.para(id, inicio, teste, passo, corpo),
             No::ParaDe { esq, dir, corpo, .. } => {
@@ -447,6 +493,13 @@ impl<'a> Tradutor<'a> {
                 self.linha(&format!("{a} = {a} {} 1", if incremento { "+" } else { "-" }));
                 Ok(())
             }
+            No::Chamada { func, args, .. } if self.evento.is_some() && matches!(*self.arv.no(func), No::Membro { obj, prop, .. }
+                if matches!(*self.arv.no(obj), No::Nome(a) if self.lex.atomos.texto(a) == "wb")
+                    && matches!(self.lex.atomos.texto(prop), "cancelSave" | "cancelClose")) => {
+                let _ = args;
+                self.linha("Cancel = True");
+                Ok(())
+            }
             No::Chamada { func, args, .. } => self.chamada_comando(func, args),
             No::Paren(x) => self.comando(x),
             _ => {
@@ -468,6 +521,8 @@ impl<'a> Tradutor<'a> {
             No::Membro { obj, prop, .. } => {
                 let p = self.atomo(prop);
                 let o = self.expr(obj)?;
+                // `Cancel.v = true`: a caixa do ByRef do conversor; no VBA é o próprio parâmetro.
+                if p == "v" && o.t == Tipo::Valor { return Ok((o.s, Tipo::Valor)); }
                 if o.t != Tipo::Faixa { return Err(feathersheet_core::trf!("atribuir .{p}")); }
                 match p.as_str() {
                     "value" => Ok((format!("{}.Value", o.s), Tipo::Valor)),
@@ -676,6 +731,16 @@ impl<'a> Tradutor<'a> {
                 Ok(V::val(format!("{}({})", o.s, i.s)))
             }
             No::Chamada { func, args, .. } => self.expr_chamada(func, args),
+            // `{ $ref: 1, v: x }`: a caixa do ByRef do conversor vale o `x`.
+            No::Objeto(l) => {
+                let props = self.arv.lista(l).to_vec();
+                let v = props.iter().find_map(|&p| match *self.arv.no(p) {
+                    No::Propriedade { chave: Chave::Atomo(a), valor, .. } if self.lex.atomos.texto(a) == "v" => Some(valor),
+                    _ => None,
+                });
+                let tem_ref = props.iter().any(|&p| matches!(*self.arv.no(p), No::Propriedade { chave: Chave::Atomo(a), .. } if self.lex.atomos.texto(a) == "$ref"));
+                match (tem_ref, v) { (true, Some(v)) => self.expr(v), _ => Err("objeto literal".into()) }
+            }
             _ => Err("expressão sem equivalente".into()),
         }
     }
@@ -687,6 +752,8 @@ impl<'a> Tradutor<'a> {
                 ("sheet", "lastRow") => return Ok(V::val("(ActiveSheet.UsedRange.Row + ActiveSheet.UsedRange.Rows.Count - 1)")),
                 ("sheet", "lastColumn") => return Ok(V::val("(ActiveSheet.UsedRange.Column + ActiveSheet.UsedRange.Columns.Count - 1)")),
                 ("sheet", "name") => return Ok(V::txt("ActiveSheet.Name")),
+                ("valores", "intervalo") if self.evento.is_some() => return Ok(V::txt("Target.Address(False, False)")),
+                ("valores", "comoSalvar") if self.evento.is_some() => return Ok(V::val("SaveAsUI")),
                 ("wb", "path") => return Ok(V::txt("ThisWorkbook.Path")),
                 ("wb", "name") => return Ok(V::txt("ThisWorkbook.Name")),
                 _ => {}
@@ -701,8 +768,47 @@ impl<'a> Tradutor<'a> {
             (Tipo::Faixa, "column") => Ok(V::val(format!("{}.Column", o.s))),
             (Tipo::Aba, "name") => Ok(V::txt(format!("{}.Name", if o.s.is_empty() { "ActiveSheet" } else { &o.s }))),
             (Tipo::Texto, "length") | (Tipo::Valor, "length") => Ok(V::val(format!("Len({})", o.s))),
+            (Tipo::Valor, "v") => Ok(o),
             _ => Err(feathersheet_core::trf!("propriedade .{p}")),
         }
+    }
+
+    /// As ajudas `vba.*` que o conversor de ida usa imitam funções do próprio VBA: voltam para elas.
+    fn ajuda_vba(&mut self, p: &str, args: falcao_sintaxe::arvore::Lista) -> R<V> {
+        let v = self.args(args)?;
+        let s: Vec<String> = v.iter().map(|x| x.s.clone()).collect();
+        let a = |i: usize| s.get(i).cloned().ok_or_else(|| feathersheet_core::trf!("{p} sem argumento"));
+        let todos = s.join(", ");
+        Ok(match p {
+            "celula" => V { s: format!("Cells({}, {})", a(0)?, a(1)?), t: Tipo::Faixa },
+            "faixa" => V { s: format!("Range({}, {})", a(0)?, a(1)?), t: Tipo::Faixa },
+            "cint" => V::val(format!("CInt({})", a(0)?)),
+            "faixaInt" => V::val(format!("CLng({})", a(0)?)),
+            "n" => V::val(a(0)?),
+            "str" => V::txt(format!("CStr({})", a(0)?)),
+            "eq" => V::val(format!("({} = {})", par(&a(0)?), par(&a(1)?))),
+            "cmp" => { let (x, y) = (par(&a(0)?), par(&a(1)?)); V::val(format!("IIf({x} < {y}, -1, IIf({x} > {y}, 1, 0))")) }
+            "soma" => V::val(format!("({} + {})", par(&a(0)?), par(&a(1)?))),
+            "cat" => V::txt(s.iter().map(|x| par(x)).collect::<Vec<_>>().join(" & ")),
+            "mod" => V::val(format!("({} Mod {})", par(&a(0)?), par(&a(1)?))),
+            "mid" => V::txt(format!("Mid({todos})")),
+            "len" => V::val(format!("Len({todos})")),
+            "trim" => V::txt(format!("Trim({todos})")),
+            "left" => V::txt(format!("Left({todos})")),
+            "right" => V::txt(format!("Right({todos})")),
+            "replace" => V::txt(format!("Replace({todos})")),
+            "split" => V::val(format!("Split({todos})")),
+            "instr" => V::val(format!("InStr({todos})")),
+            // Round do VBA é bancário (2,5 → 2), como a ajuda que o conversor usava.
+            "round" => V::val(format!("Round({todos})")),
+            "ubound" => V::val(format!("UBound({todos})")),
+            "lbound" => V::val(format!("LBound({todos})")),
+            "isNumeric" => V::val(format!("IsNumeric({todos})")),
+            "vazio" => V::val(format!("({} & \"\" = \"\")", par(&a(0)?))),
+            "msgBox" => V::val(format!("MsgBox({todos})")),
+            "linha" => V::val(format!("Range({}).Row", a(0)?)),
+            _ => return Err(feathersheet_core::trf!("ajuda vba.{p} do conversor")),
+        })
     }
 
     fn expr_chamada(&mut self, func: NoId, args: falcao_sintaxe::arvore::Lista) -> R<V> {
@@ -748,6 +854,9 @@ impl<'a> Tradutor<'a> {
                             _ => return Err(format!("Math.{p}")),
                         }));
                     }
+                    if base == "vba" {
+                        return self.ajuda_vba(&p, args);
+                    }
                     if base == "wb" && p == "sheet" {
                         let v = self.args(args)?;
                         return Ok(V { s: format!("Worksheets({})", v.first().map(|x| x.s.clone()).ok_or("wb.sheet sem nome")?), t: Tipo::Aba });
@@ -758,7 +867,7 @@ impl<'a> Tradutor<'a> {
                 let a = |i: usize| v.get(i).map(|x| x.s.clone()).ok_or_else(|| feathersheet_core::trf!("{p} sem argumento"));
                 let f = |s: &str| faixa(&o.s, s);
                 Ok(match (o.t, p.as_str()) {
-                    (Tipo::Aba, "get") => V::val(format!("{}.Value", f(&a(0)?))),
+                    (Tipo::Aba, "get" | "value") => V::val(format!("{}.Value", f(&a(0)?))),
                     (Tipo::Aba, "getText") => V::txt(format!("{}.Text", f(&a(0)?))),
                     (Tipo::Aba, "range") => V { s: f(&a(0)?), t: Tipo::Faixa },
                     (Tipo::Aba, "cell") => {
@@ -804,7 +913,14 @@ impl<'a> Tradutor<'a> {
 
 /// `Range(a)` na aba (vazia = a ativa).
 fn faixa(aba: &str, end: &str) -> String {
-    if aba.is_empty() { format!("Range({end})") } else { format!("{aba}.Range({end})") }
+    // `vba.celula(l, c)`/`vba.faixa(a, b)` já são o objeto (`Cells(l, c)`): só ganha a aba.
+    let objeto = end.starts_with("Cells(") || end.starts_with("Range(");
+    match (aba.is_empty(), objeto) {
+        (true, true) => end.to_string(),
+        (false, true) => format!("{aba}.{end}"),
+        (true, false) => format!("Range({end})"),
+        (false, false) => format!("{aba}.Range({end})"),
+    }
 }
 
 fn par(s: &str) -> String {
@@ -927,6 +1043,30 @@ mod testes {
         assert!(!t.vba.contains("Call Ola"), "{}", t.vba);
         let t = vba("function Macro1() { alert('a'); }\nMacro1(); alert('depois');");
         assert!(t.vba.contains("Sub Macro1_Principal()"), "nome colidindo: {}", t.vba);
+    }
+
+    /// O evento convertido do VBA (função + chamada no fim + caixa do Cancel) volta com a assinatura do Excel.
+    #[test]
+    fn evento_convertido_volta_com_a_assinatura_do_excel() {
+        let js = "const Planilha1 = wb.sheet(\"Dados\");\nfunction Worksheet_Change(Target) {\n  if (vba.eq(Target, \"A1\")) { vba.msgBox(\"mudou\"); }\n}\nWorksheet_Change(valores.intervalo || Planilha1.selection().address);\n";
+        let t = traduzir_evento(js, "aoMudar", &|f: &str| f.to_string()).unwrap();
+        assert!(t.pendencias.is_empty(), "{:?}\n{}", t.pendencias, t.vba);
+        assert!(t.vba.starts_with("Private Sub Worksheet_Change(ByVal Target As Range)") && t.vba.contains("If (Target = \"A1\") Then") && t.vba.contains("MsgBox(\"mudou\")"), "{}", t.vba);
+        assert!(!t.vba.contains("Planilha1") && t.vba.matches("End Sub").count() == 1, "um procedimento só: {}", t.vba);
+        let salvar = "function Workbook_BeforeSave(SaveAsUI, Cancel) {\n  if (!Cancel?.$ref) Cancel = { $ref: 1, v: Cancel };\n  if (vba.eq(sheet.value(\"B2\"), \"\")) { Cancel.v = true; }\n}\nconst $cancelar = { $ref: 1, v: false };\nWorkbook_BeforeSave(valores.comoSalvar === true, $cancelar);\nif ($cancelar.v) wb.cancelSave();\n";
+        let t = traduzir_evento(salvar, "antesDeSalvar", &|f: &str| f.to_string()).unwrap();
+        assert!(t.pendencias.is_empty(), "{:?}\n{}", t.pendencias, t.vba);
+        assert!(t.vba.contains("Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)") && t.vba.contains("If (Range(\"B2\").Value = \"\") Then") && t.vba.contains("Cancel = True"), "{}", t.vba);
+    }
+
+    /// Evento escrito aqui (sem função): o código vira o corpo do evento; `valores.intervalo` é o Target.
+    #[test]
+    fn evento_escrito_aqui_vira_o_corpo() {
+        let t = traduzir_evento("if (valores.intervalo === \"B2\") { sheet.set(\"C2\", sheet.get(\"B2\") * 1.1); }\n", "aoMudar", &|f: &str| f.to_string()).unwrap();
+        assert!(t.vba.starts_with("Private Sub Worksheet_Change(ByVal Target As Range)") && t.vba.contains("If Target.Address(False, False) = \"B2\" Then"), "{}", t.vba);
+        let t = traduzir_evento("if (!confirm(\"Fechar?\")) wb.cancelClose();", "antesDeFechar", &|f: &str| f.to_string()).unwrap();
+        assert!(t.vba.contains("Private Sub Workbook_BeforeClose(Cancel As Boolean)") && t.vba.contains("Cancel = True"), "{}", t.vba);
+        assert!(traduzir_evento("x", "aoVoar", &|f: &str| f.to_string()).is_none());
     }
 
     #[test]

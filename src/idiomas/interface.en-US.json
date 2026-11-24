@@ -6280,8 +6280,9 @@
  "linha {linha}: {motivo}: {trecho}": "line {linha}: {motivo}: {trecho}",
  "fórmula montada na macro foi como FormulaLocal: no Excel, ela precisa estar na língua do Excel": "a formula built in the macro went as FormulaLocal: in Excel, it must be in Excel's language",
  "[VBA] {}: {p}": "[VBA] {}: {p}",
- "{eventos} evento(s) editado(s) aqui ainda não vão para o VBA do .xlsm.": "{eventos} event(s) edited here do not go to the .xlsm VBA yet.",
  "{} macro(s) JavaScript foram para o VBA do .xlsm (o Excel recompila ao abrir).": "{} JavaScript macro(s) went into the .xlsm VBA (Excel recompiles on opening).",
  "{pendencias} trecho(s) não converteram e ficaram comentados: veja o monitor (F12).": "{pendencias} part(s) did not convert and were left as comments: see the monitor (F12).",
- "As macros JavaScript não foram para o VBA: {e}": "The JavaScript macros did not go into the VBA: {e}"
+ "As macros JavaScript não foram para o VBA: {e}": "The JavaScript macros did not go into the VBA: {e}",
+ "{sem_lugar} evento(s) editado(s) aqui não puderam ir para o VBA do .xlsm (aba sem codinome ou evento desconhecido).": "{sem_lugar} event(s) edited here could not go to the .xlsm VBA (sheet without a code name or unknown event).",
+ "ajuda vba.{p} do conversor": "converter helper vba.{p}"
 }

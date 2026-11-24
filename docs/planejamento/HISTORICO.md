@@ -4,6 +4,16 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Eventos voltam para o VBA** (24/11/2026): `js_para_vba::traduzir_evento` (aoMudar, aoSelecionar, aoAtivar,
+  aoAbrir, antesDeSalvar, antesDeFechar) com a assinatura do Excel; o evento convertido (função `Worksheet_Change`
+  + chamada no fim + caixa `$cancelar`/`{ $ref, v }`) volta à forma de antes; `valores.intervalo` → `Target`,
+  `valores.comoSalvar` → `SaveAsUI`, `wb.cancelSave/cancelClose()` → `Cancel = True`. O app põe o evento no
+  módulo de documento (o da pasta ou o da aba pelo codinome; pasta sem VBA ganha projeto novo antes). O tradutor
+  também entende as ajudas `vba.*` que o conversor de ida mais usa (celula, cint, eq, faixa, n, mid, cat, str,
+  len, soma, mod, msgBox, trim, cmp, replace, split, round bancário…) e `sheet.value`. Testes
+  `evento_convertido_volta_com_a_assinatura_do_excel`, `evento_escrito_aqui_vira_o_corpo`,
+  `evento_editado_vai_para_o_modulo_da_aba_e_da_pasta`.
+
 - **Caminho de volta JS → VBA, etapa 5: Salvar `.xlsm`** (24/11/2026, `app/macros_para_vba.rs`): antes do
   retrato, as macros fora do VBA (`macros_fora_do_excel`) são traduzidas; a editada troca só os procedimentos dela
   no módulo VBA de origem (`// Convertida do VBA de X (módulo M).`); a criada aqui vira módulo novo (nome sem `/`,
