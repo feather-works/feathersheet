@@ -1272,6 +1272,11 @@ const wb = {
     cancelSave:()=>{__ft('cancelarEvento',[]);},
     // No evento antesDeFechar: a pasta não fecha (o Cancel = True do Workbook_BeforeClose).
     cancelClose:()=>{__ft('cancelarEvento',[]);}};
+// Documentos do Word: um .docx novo a partir de um modelo, trocando marcadores (mala direta = um fill por linha).
+// Valores viram texto com String(); moeda e data como aparecem na célula: sheet.getText("B2").
+const docs = {
+    fill:(model,replacements,path)=>{const t={};for(const k of Object.keys(replacements||{})){const v=replacements[k];
+        t[String(k)]=v==null?'':String(v);}__ft('preencherDocx',[String(model),t,String(path)]);}};
 const app = {
     // O separador decimal da língua do app ("," em pt-BR): o CStr e o & do VBA convertido escrevem número com ele.
     get decimalSeparator(){return __ft('separadorDecimal',[]);},

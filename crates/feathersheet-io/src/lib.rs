@@ -50,6 +50,7 @@ pub mod xlsx_write;
 pub mod xlsx_senha;
 pub mod senha_planilha;
 pub mod links;
+pub mod docx_modelo;
 mod xlsx_write_controles;
 mod xlsx_validacao_custom;
 mod xlsx_write_condicional;

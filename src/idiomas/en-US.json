@@ -440,6 +440,7 @@
       "wb.saveSheetsAs": "Saves a new workbook with only the given sheets (list of names or numbers), as `.xlsx` or `.fshz`. The path is relative to the open file's folder (`\\` becomes `/`).",
       "wb.cancelSave": "In the Before saving event (ThisWorkbook, in the macro editor): the file is not written, like `Cancel = True` in `Workbook_BeforeSave`. `valores.comoSalvar` is `true` when it came from Save as.",
       "wb.cancelClose": "In the Before closing event (ThisWorkbook): the workbook stays open, like `Cancel = True` in `Workbook_BeforeClose`. Applies to exit, New and opening another file.",
+      "docs.fill": "Creates a `.docx` from a Word template, replacing each marker with the text (Word's Find and Replace), keeping the template's styles, tables and images. A marker Word split into pieces is still found. The template and the output stay in the workbook's folder. For currency, dates and decimals as the cell shows them, use `sheet.getText(\"C2\")` (a number passed directly comes out with a point). Mail merge: one `docs.fill` per row.",
       "app.batch": "Runs the block. The macro already runs in a single transaction (one Ctrl+Z undoes it all); it exists so code converted from VBA (`ScreenUpdating`) stays the same.",
       "app.calculate": "Recalculates the sheet.",
       "app.status": "Message on the bottom bar.",

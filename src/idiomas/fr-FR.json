@@ -440,6 +440,7 @@
       "wb.saveSheetsAs": "Enregistre un nouveau classeur contenant uniquement les feuilles indiquées (liste de noms ou de numéros), en `.xlsx` ou `.fshz`. Le chemin est relatif au dossier du fichier ouvert (`\\` devient `/`).",
       "wb.cancelSave": "Dans l'événement Avant l'enregistrement (Ce classeur, dans l'éditeur de macros) : le fichier n'est pas écrit, comme le `Cancel = True` du `Workbook_BeforeSave`. `valores.comoSalvar` vaut `true` quand il vient d'Enregistrer sous.",
       "wb.cancelClose": "Dans l'événement Avant la fermeture (Ce classeur) : le classeur reste ouvert, comme le `Cancel = True` du `Workbook_BeforeClose`. Vaut pour quitter, Nouveau et ouvrir un autre fichier.",
+      "docs.fill": "Crée un `.docx` à partir d'un modèle Word en remplaçant chaque marqueur par le texte (le Rechercher et remplacer de Word), en gardant intacts les styles, tableaux et images du modèle. Un marqueur que Word a coupé en morceaux est trouvé aussi. Le modèle et la destination restent dans le dossier du classeur. Pour la devise, la date et les décimales telles que la cellule les affiche, utilisez `sheet.getText(\"C2\")` (un nombre passé directement sort avec un point). Publipostage : un `docs.fill` par ligne.",
       "app.batch": "Exécute le bloc. La macro s'exécute déjà en une seule transaction (un Ctrl+Z annule tout) ; elle existe pour que le code converti depuis VBA (`ScreenUpdating`) reste identique.",
       "app.calculate": "Recalcule la feuille.",
       "app.status": "Message dans la barre du bas.",

@@ -440,6 +440,7 @@
    "wb.saveSheetsAs": "Guarda un libro nuevo solo con las hojas indicadas (lista de nombres o números), como `.xlsx` o `.fshz`. La ruta es relativa a la carpeta del archivo abierto (`\\` se convierte en `/`).",
    "wb.cancelSave": "En el evento Antes de guardar (Este libro, en el editor de macros): el archivo no se guarda, como el `Cancel = True` del `Workbook_BeforeSave`. `valores.comoSalvar` es `true` cuando viene de Guardar como.",
    "wb.cancelClose": "En el evento Antes de cerrar (Este libro): el libro no se cierra, como el `Cancel = True` del `Workbook_BeforeClose`. Vale para salir, Nuevo y abrir otro archivo.",
+   "docs.fill": "Crea un `.docx` a partir de una plantilla de Word sustituyendo cada marcador por el texto (el Buscar y reemplazar de Word), con los estilos, tablas e imágenes de la plantilla intactos. También encuentra el marcador que Word partió en trozos. La plantilla y el destino quedan en la carpeta de la hoja. Para moneda, fecha y decimales como se ven en la celda, use `sheet.getText(\"C2\")` (un número pasado directamente sale con punto). Combinación de correspondencia: un `docs.fill` por fila.",
    "app.batch": "Ejecuta el bloque. La macro ya corre en una sola transacción (un Ctrl+Z la deshace toda); existe para que el código convertido de VBA (`ScreenUpdating`) siga igual.",
    "app.calculate": "Recalcula la hoja.",
    "app.status": "Mensaje en la barra inferior.",

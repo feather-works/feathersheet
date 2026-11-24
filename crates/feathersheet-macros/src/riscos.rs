@@ -7,7 +7,7 @@
 /// Palavras achadas no código, sem repetir.
 #[derive(Debug, Default, PartialEq)]
 pub struct Riscos {
-    /// Chamadas que gravam arquivo (`exportPdf`, `saveSheetsAs`, `saveAs`).
+    /// Chamadas que gravam arquivo (`exportPdf`, `saveSheetsAs`, `saveAs`, `docs.fill`).
     pub grava: Vec<&'static str>,
     /// Chamadas que pedem para rodar programa (`app.shell`).
     pub executa: Vec<&'static str>,
@@ -20,7 +20,7 @@ pub struct Riscos {
     pub binario: Vec<String>,
 }
 
-const GRAVA: &[&str] = &["exportPdf", "saveSheetsAs", "saveAs"];
+const GRAVA: &[&str] = &["exportPdf", "saveSheetsAs", "saveAs", "fill"];
 const EXECUTA: &[&str] = &["shell"];
 const VBA_FORA: &[&str] = &["Shell", "CreateObject", "GetObject", "Declare", "URLDownloadToFile",
     "WScript", "PowerShell", "SendKeys"];

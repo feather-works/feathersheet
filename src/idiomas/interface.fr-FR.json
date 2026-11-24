@@ -6234,5 +6234,12 @@
  "Excluindo as linhas visíveis…": "Suppression des lignes visibles…",
  "Excluindo as linhas visíveis": "Suppression des lignes visibles",
  "{feitos} de {} trechos de linhas visíveis": "{feitos} sur {} blocs de lignes visibles",
- "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "La feuille revient à la fin ; Ctrl+Z annule tout d'un coup."
+ "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "La feuille revient à la fin ; Ctrl+Z annule tout d'un coup.",
+ "O modelo .docx passa de 64 MB.": "Le modèle .docx dépasse 64 Mo.",
+ "O modelo não é um .docx (não abriu como ZIP).": "Le modèle n'est pas un .docx (il ne s'ouvre pas en ZIP).",
+ "O modelo não é um .docx (falta o word/document.xml).": "Le modèle n'est pas un .docx (word/document.xml manque).",
+ "Uma parte do modelo ({nome}) passa de 64 MB.": "Une partie du modèle ({nome}) dépasse 64 Mo.",
+ "O destino não pode ser o próprio modelo": "La destination ne peut pas être le modèle lui-même",
+ "Informe as trocas como objeto: { \"#NOME#\": \"Ana\" }": "Indiquez les remplacements sous forme d'objet : { \"#NOME#\": \"Ana\" }",
+ "o modelo {} não abriu: {e}": "le modèle {} ne s'est pas ouvert : {e}"
 }

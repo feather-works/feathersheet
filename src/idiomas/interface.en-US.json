@@ -6234,5 +6234,12 @@
  "Excluindo as linhas visíveis…": "Deleting the visible rows…",
  "Excluindo as linhas visíveis": "Deleting the visible rows",
  "{feitos} de {} trechos de linhas visíveis": "{feitos} of {} runs of visible rows",
- "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "The sheet comes back when it finishes; Ctrl+Z undoes it all at once."
+ "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "The sheet comes back when it finishes; Ctrl+Z undoes it all at once.",
+ "O modelo .docx passa de 64 MB.": "The .docx template is over 64 MB.",
+ "O modelo não é um .docx (não abriu como ZIP).": "The template is not a .docx (it did not open as ZIP).",
+ "O modelo não é um .docx (falta o word/document.xml).": "The template is not a .docx (word/document.xml is missing).",
+ "Uma parte do modelo ({nome}) passa de 64 MB.": "A part of the template ({nome}) is over 64 MB.",
+ "O destino não pode ser o próprio modelo": "The output cannot be the template itself",
+ "Informe as trocas como objeto: { \"#NOME#\": \"Ana\" }": "Give the replacements as an object: { \"#NOME#\": \"Ana\" }",
+ "o modelo {} não abriu: {e}": "the template {} did not open: {e}"
 }

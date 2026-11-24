@@ -6234,5 +6234,12 @@
  "Excluindo as linhas visíveis…": "Eliminando las filas visibles…",
  "Excluindo as linhas visíveis": "Eliminando las filas visibles",
  "{feitos} de {} trechos de linhas visíveis": "{feitos} de {} tramos de filas visibles",
- "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "La hoja vuelve cuando termine; Ctrl+Z lo deshace todo de una vez."
+ "A planilha volta quando terminar; Ctrl+Z desfaz tudo de uma vez.": "La hoja vuelve cuando termine; Ctrl+Z lo deshace todo de una vez.",
+ "O modelo .docx passa de 64 MB.": "La plantilla .docx supera los 64 MB.",
+ "O modelo não é um .docx (não abriu como ZIP).": "La plantilla no es un .docx (no se abrió como ZIP).",
+ "O modelo não é um .docx (falta o word/document.xml).": "La plantilla no es un .docx (falta word/document.xml).",
+ "Uma parte do modelo ({nome}) passa de 64 MB.": "Una parte de la plantilla ({nome}) supera los 64 MB.",
+ "O destino não pode ser o próprio modelo": "El destino no puede ser la propia plantilla",
+ "Informe as trocas como objeto: { \"#NOME#\": \"Ana\" }": "Indique los reemplazos como objeto: { \"#NOME#\": \"Ana\" }",
+ "o modelo {} não abriu: {e}": "la plantilla {} no se abrió: {e}"
 }

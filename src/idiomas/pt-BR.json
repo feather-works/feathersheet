@@ -440,6 +440,7 @@
       "wb.saveSheetsAs": "Salva uma pasta nova só com as abas indicadas (lista de nomes ou números), em `.xlsx` ou `.fshz`. O caminho é relativo à pasta do arquivo aberto (`\\` vira `/`).",
       "wb.cancelSave": "No evento Antes de salvar (Esta pasta de trabalho, no editor de macros): o arquivo não é gravado, como o `Cancel = True` do `Workbook_BeforeSave`. `valores.comoSalvar` é `true` quando veio do Salvar como.",
       "wb.cancelClose": "No evento Antes de fechar (Esta pasta de trabalho): a pasta não fecha, como o `Cancel = True` do `Workbook_BeforeClose`. Vale para sair, Novo e abrir outro arquivo.",
+      "docs.fill": "Cria um `.docx` a partir de um modelo do Word trocando cada marcador pelo texto (o Localizar e Substituir do Word), com estilos, tabelas e imagens do modelo intactos. Marcador quebrado pelo Word em pedaços também é achado. Modelo e destino ficam na pasta da planilha. Para moeda, data e decimal como aparecem na célula, use `sheet.getText(\"C2\")` (número passado direto sai com ponto). Mala direta: um `docs.fill` por linha.",
       "app.batch": "Roda o bloco. A macro já roda numa transação só (um Ctrl+Z desfaz tudo); existe para o código convertido do VBA (`ScreenUpdating`) continuar igual.",
       "app.calculate": "Recalcula a aba.",
       "app.status": "Mensagem na barra de baixo.",

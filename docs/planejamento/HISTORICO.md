@@ -4,6 +4,16 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Macro `docs.fill(modelo, trocas, destino)`** (24/11/2026, primeiro passo da integração com o FeatherDocs): um
+  `.docx` novo a partir de um modelo do Word, trocando marcadores (`#NOME#`) como o Localizar e Substituir. A troca é
+  no XML (`feathersheet_io::docx_modelo`): corpo, cabeçalhos, rodapés e notas; marcador que o Word quebrou em vários
+  `<w:t>` é achado (dentro do parágrafo); o resto do arquivo sai byte a byte; teto de 64 MB. Modelo e destino na pasta
+  da planilha (mesma gaiola do `exportPdf`), conta no aviso "Ativar macros" (`fill` em `GRAVA`). Moeda/data: a Ajuda
+  manda usar `sheet.getText()` (o valor passado direto vira `String()`, com ponto). Ajuda F1 nas quatro línguas.
+  Testes `docx_modelo::*`, `preencher_docx_fica_anotado_e_recusa_fora_da_pasta`, `macro_preenche_modelo_docx_na_pasta`.
+  Falta: o conversor do `Word.Application` do VBA para `docs.fill` e o caso da "Planilha de Informações".
+  Novidade para o `VERSOES` da 0.4.0: "Macros geram documentos do Word a partir de um modelo (docs.fill)".
+
 - **MCP `sheet_link`** (24/11/2026): listar, definir (com texto, num Ctrl+Z) e remover hiperlinks de célula. A regra
   do que vira link (`normalizar_link`, `link_do_estilo`: só web, `mailto:` e `#Aba!A1`) saiu do app para
   `feathersheet_io::links`, para a IA não gravar `javascript:` nem `file:`. Testes `links_pelo_mcp`,

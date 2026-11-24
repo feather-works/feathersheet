@@ -104,6 +104,22 @@ fn pedidos_de_arquivo_ficam_anotados_com_caminho_resolvido() {
     ]);
 }
 
+/// `docs.fill`: trocas na ordem escrita, caminhos na pasta do arquivo, `.docx` posto se faltar, valores viram texto, moeda pelo getText.
+#[test]
+fn preencher_docx_fica_anotado_e_recusa_fora_da_pasta() {
+    let mut wb = pasta_com_dados();
+    let ctx = || Contexto { arquivo: Some("/tmp/proj/P.xlsm".into()), ..Default::default() };
+    let r = executar_com(&mut wb, 0, r##"docs.fill("modelos/procuracao", { "#NOME#": "Ana", "#N#": 3, "#X#": null }, "saida/Ana.docx");"##, ctx());
+    assert!(r.erro.is_none(), "{:?}", r.erro);
+    assert_eq!(r.arquivos, vec![PedidoArquivo::Docx { modelo: "/tmp/proj/modelos/procuracao.docx".into(),
+        trocas: vec![("#NOME#".into(), "Ana".into()), ("#N#".into(), "3".into()), ("#X#".into(), String::new())],
+        caminho: "/tmp/proj/saida/Ana.docx".into() }]);
+    for ruim in [r#"docs.fill("/etc/m.docx", {}, "a.docx")"#, r#"docs.fill("m.docx", {}, "../a.docx")"#,
+                 r#"docs.fill("m.docx", {}, "m.docx")"#, r#"docs.fill("m.docx", {}, "a.pdf")"#] {
+        assert!(executar_com(&mut wb, 0, ruim, ctx()).erro.is_some(), "{ruim}");
+    }
+}
+
 #[test]
 fn pedido_de_arquivo_fora_da_pasta_do_documento_e_recusado() {
     let mut wb = pasta_com_dados();

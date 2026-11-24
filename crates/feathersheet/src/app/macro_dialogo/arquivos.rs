@@ -92,6 +92,11 @@ impl App {
                         .and_then(|ix| bytes_da_pasta(&pasta_com_abas(&self.workbook, &ix), caminho));
                     ("abas", caminho, bytes)
                 }
+                PedidoArquivo::Docx { modelo, trocas, caminho } => {
+                    let bytes = std::fs::read(modelo).map_err(|e| trf!("o modelo {} não abriu: {e}", modelo.display()))
+                        .and_then(|m| feathersheet_io::docx_modelo::preencher(&m, trocas).map(|(b, _)| b));
+                    ("Word", caminho, bytes)
+                }
             };
             match bytes.and_then(|b| gravar(caminho, &b).map(|()| b.len())) {
                 Ok(n) => {
@@ -120,6 +125,28 @@ mod testes {
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         p
+    }
+
+    /// `docs.fill` com o modelo na pasta da planilha: o `.docx` novo sai com o marcador trocado pelo texto que a
+    /// célula mostra (moeda pelo `getText`); modelo que falta vira falha, sem derrubar o resto.
+    #[test]
+    fn macro_preenche_modelo_docx_na_pasta() {
+        let dir = pasta_temporaria("docx");
+        let modelo = feathersheet_io::zip_write::zipar(vec![("word/document.xml".into(),
+            b"<w:document><w:body><w:p><w:r><w:t>Valor: #V#</w:t></w:r></w:p></w:body></w:document>".to_vec())]).unwrap();
+        std::fs::write(dir.join("modelo.docx"), modelo).unwrap();
+        let mut app = App::default();
+        app.caminho = Some(dir.join("Origem.fshz"));
+        let pedidos = vec![
+            PedidoArquivo::Docx { modelo: dir.join("modelo.docx"), trocas: vec![("#V#".into(), "R$ 1.234,50".into())], caminho: dir.join("saida.docx") },
+            PedidoArquivo::Docx { modelo: dir.join("falta.docx"), trocas: vec![], caminho: dir.join("b.docx") },
+        ];
+        let (gravados, falhas) = app.gravar_arquivos_da_macro(&pedidos);
+        assert_eq!((gravados.len(), falhas.len()), (1, 1), "{falhas:?}");
+        let mut z = zip::ZipArchive::new(std::fs::File::open(dir.join("saida.docx")).unwrap()).unwrap();
+        let mut xml = String::new();
+        std::io::Read::read_to_string(&mut z.by_name("word/document.xml").unwrap(), &mut xml).unwrap();
+        assert!(xml.contains("Valor: R$ 1.234,50"), "{xml}");
     }
 
     #[test]

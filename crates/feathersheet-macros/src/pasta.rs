@@ -16,6 +16,9 @@ pub enum PedidoArquivo {
     /// `wb.saveSheetsAs(abas, caminho)`: uma pasta nova só com estas abas,
     /// em `.xlsx` ou `.fshz` (pela extensão).
     Abas { abas: Vec<u32>, caminho: PathBuf },
+    /// `docs.fill(modelo, trocas, destino)`: um `.docx` novo a partir do modelo, trocando cada marcador pelo texto
+    /// (o Localizar e Substituir do Word). Os dois caminhos ficam na pasta do arquivo.
+    Docx { modelo: PathBuf, trocas: Vec<(String, String)>, caminho: PathBuf },
 }
 
 /// `sheet.protect(senha, permissões)` / `sheet.unprotect(senha)`: o aplicativo aplica
@@ -157,7 +160,7 @@ const LIMITE_TEXTO: usize = 4096;
 
 /// As operações desta parte (consultadas antes de montar a lista de abas).
 pub(crate) const OPERACOES: &[&str] = &["alerta", "confirmar", "ativar", "abaAtiva",
-    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher", "perguntarTexto", "separadorDecimal", "colarImagem", "tamanhoImagem"];
+    "selecaoInicial", "definirNome", "arquivo", "exportarPdf", "salvarAbas", "preencherDocx", "programa", "protecao", "grade", "abrirLink", "filtro", "formaPosicao", "escolher", "perguntarTexto", "separadorDecimal", "colarImagem", "tamanhoImagem"];
 
 /// O caminho pedido pela macro, absoluto. `\` do VBA vira `/` fora do
 /// Windows; o relativo vale a partir da pasta do arquivo aberto. Sem
@@ -226,6 +229,19 @@ fn pedido_de_arquivo(op: &str, dados: &Json, a: &mut Acumulado, nomes_abas: &[St
     if a.arquivos.len() >= LIMITE_ARQUIVOS {
         return Err(feathersheet_core::trf!("Limite de {LIMITE_ARQUIVOS} arquivos por execução"));
     }
+    if op == "preencherDocx" {
+        let arquivo = a.contexto.arquivo.as_deref();
+        let modelo = com_extensao(resolver_caminho(&texto(dados, 0), arquivo)?, &["docx"])?;
+        let caminho = com_extensao(resolver_caminho(&texto(dados, 2), arquivo)?, &["docx"])?;
+        if caminho == modelo { return Err(feathersheet_core::tr!("O destino não pode ser o próprio modelo").into()); }
+        let lista = dados[1].as_object().ok_or_else(|| feathersheet_core::tr!("Informe as trocas como objeto: { \"#NOME#\": \"Ana\" }"))?;
+        // A macro converte cada valor com String() (número sai com ponto): para moeda/data, use sheet.getText().
+        let trocas = lista.iter().filter(|(de, _)| !de.is_empty())
+            .map(|(de, v)| (de.clone(), match v { Json::String(s) => s.clone(), Json::Null => String::new(), x => x.to_string() }))
+            .collect();
+        a.arquivos.push(PedidoArquivo::Docx { modelo, trocas, caminho });
+        return Ok(Json::Null);
+    }
     let caminho = resolver_caminho(&texto(dados, 1), a.contexto.arquivo.as_deref())?;
     let pedido = if op == "exportarPdf" {
         let aba = dados[0].as_u64().and_then(|id| ids.iter().position(|&x| u64::from(x) == id))
@@ -258,7 +274,7 @@ pub(crate) fn executar(
     op: &str, dados: &Json, a: &mut Acumulado, nomes_abas: &[String], ids: &[u32], aba_ativa: usize,
 ) -> Option<Result<Json, String>> {
     Some(match op {
-        "exportarPdf" | "salvarAbas" => pedido_de_arquivo(op, dados, a, nomes_abas, ids),
+        "exportarPdf" | "salvarAbas" | "preencherDocx" => pedido_de_arquivo(op, dados, a, nomes_abas, ids),
         "alerta" => {
             if a.mensagens.len() < 200 { a.mensagens.push(texto(dados, 0)); }
             Ok(Json::Null)
