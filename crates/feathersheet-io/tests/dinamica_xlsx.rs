@@ -347,3 +347,24 @@ fn tema_da_dinamica_vai_e_volta() {
         assert_eq!(d["tema"], tema);
     }
 }
+
+/// Gráfico dinâmico: o `pivotSource` vai como `<c:pivotSource>` com `Aba!Nome` da dinâmica e volta ligado ao
+/// id que a dinâmica ganha na leitura.
+#[test]
+fn grafico_dinamico_vai_e_volta_ligado_a_dinamica() {
+    let mut w = com_dinamica(&meta(json!({"nome": "Vendas por região"})));
+    let grafico = json!([{"id": "g1", "type": "column", "title": "Vendas", "range": {"r0": 0, "c0": 0, "r1": 3, "c1": 1},
+        "seriesInColumns": true, "hasHeaders": true, "hasCategoryLabels": true, "pivotSource": "dinamica_nativa_1_1",
+        "position": {"x": 300, "y": 20, "width": 400, "height": 260}}]);
+    w.aba_mut(1).unwrap().sheet.alterar_graficos(Some(grafico.to_string()), false);
+    let p = partes(&w);
+    let xml = p.iter().find(|(n, _)| n.starts_with("xl/charts/chart")).map(|(_, x)| x).expect("parte do gráfico");
+    bem_formado("chart", xml);
+    assert!(xml.contains("<c:pivotSource><c:name>Resumo!Vendas por região</c:name>"), "{xml}");
+    let (lida, _) = ler_xlsx_workbook(gerar_xlsx(&w).expect("gravar")).expect("ler");
+    let aba = lida.aba(1).unwrap();
+    let dn: Vec<Json> = serde_json::from_str(aba.sheet.dn.as_deref().expect("dinâmica")).unwrap();
+    let graficos = feathersheet_io::graficos_salvos::listar(&aba.sheet).unwrap();
+    assert_eq!(graficos.len(), 1);
+    assert_eq!(graficos[0]["pivotSource"], dn[0]["id"], "o gráfico volta ligado à dinâmica");
+}

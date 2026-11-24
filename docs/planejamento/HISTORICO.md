@@ -4,6 +4,12 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Gráfico dinâmico vai e volta no `.xlsx` (24/11/2026)**: o `pivotSource` do gráfico (id da dinâmica) sai como
+  `<c:pivotSource><c:name>Aba!Nome</c:name><c:fmtId val="0"/></c:pivotSource>` (`xlsx_write_graficos::chart_space`,
+  nome pelo `xlsx_write_dinamica::nomes_por_id`, que usa a mesma numeração das partes) e, na leitura, o nome
+  (`[Arquivo]Aba!Nome`) acha a dinâmica lida e o gráfico volta ligado ao id dela. `shortcut:` sem o nome do arquivo
+  entre colchetes e sem conferir no Excel. Teste `grafico_dinamico_vai_e_volta_ligado_a_dinamica`.
+
 - **`.fshz` antigos voltam a abrir (#168; 24/11/2026)**: o apache-arrow do app TypeScript gravava o esquema só no
   rodapé do bloco; o leitor em fluxo (`arrow_fluxo.rs`) via o lote antes do esquema e recusava. Agora, lote sem
   esquema remonta o bloco na memória e lê pelo rodapé (`ler_pelo_rodape`, `FileReader` do arrow). O exemplo

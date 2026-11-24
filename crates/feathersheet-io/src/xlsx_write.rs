@@ -1779,6 +1779,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     let mut desenhos: Vec<(usize, String, Option<String>)> = Vec::new();
     // Gráficos (`xl/charts/…`), no mesmo desenho da aba: `xlsx_write_graficos`.
     let mut partes_graficos: Vec<crate::xlsx_write_graficos::ParteGrafico> = Vec::new();
+    let dinamicas_por_id = crate::xlsx_write_dinamica::nomes_por_id(pasta);
     let mut contador_graficos = 0usize;
     let mut nomes_graficos = Vec::new();
     let mut midias: Vec<(String, Vec<u8>)> = Vec::new();
@@ -1808,7 +1809,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         }
         let tn = pasta.aba(i).and_then(|a| a.sheet.tn.as_deref());
         let tinta = crate::tinta_aba::desenho_xlsx(tn);
-        if let Some(desenho) = crate::xlsx_write_graficos::desenho_da_aba(pasta, i, tinta, &mut contador_graficos, &mut nomes_graficos) {
+        if let Some(desenho) = crate::xlsx_write_graficos::desenho_da_aba(pasta, i, tinta, &mut contador_graficos, &mut nomes_graficos, &dinamicas_por_id) {
             // `drawing` vem depois de `hyperlinks` no CT_Worksheet.
             if let Some(fim) = xml.rfind("</worksheet>") {
                 xml.insert_str(fim, "<drawing r:id=\"rIdTinta\"/>");

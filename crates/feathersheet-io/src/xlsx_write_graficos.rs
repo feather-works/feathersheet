@@ -600,6 +600,8 @@ struct Aparencia {
     eixo_y: String,
     eixos: bool,
     fundo: Option<String>,
+    /// Gráfico dinâmico: `Aba!Nome` da dinâmica.
+    dinamica: Option<String>,
 }
 
 fn aparencia(v: &serde_json::Value, cfg: &ChartConfig) -> Aparencia {
@@ -624,6 +626,7 @@ fn aparencia(v: &serde_json::Value, cfg: &ChartConfig) -> Aparencia {
         eixo_y: txt("eixo_y"),
         eixos: nativo["eixos"].as_bool().unwrap_or(true),
         fundo: nativo["fundo"].as_str().filter(|s| crate::xlsx_write::para_argb_pub(s).is_some()).map(str::to_string),
+        dinamica: None,
     }
 }
 
@@ -969,8 +972,14 @@ fn area_de_plotagem(cfg: &ChartConfig, ex: &Extraido, ap: &Aparencia, pizza_seri
 
 fn chart_space(plot: &str, ap: &Aparencia, legenda_sem: &[usize], so_visiveis: bool) -> String {
     let mut o = format!(
-        "{XML_DECL}<c:chartSpace xmlns:c=\"{NS_C}\" xmlns:a=\"{NS_A}\" xmlns:r=\"{NS_R}\"><c:date1904 val=\"0\"/><c:lang val=\"pt-BR\"/><c:roundedCorners val=\"0\"/><c:chart>"
+        "{XML_DECL}<c:chartSpace xmlns:c=\"{NS_C}\" xmlns:a=\"{NS_A}\" xmlns:r=\"{NS_R}\"><c:date1904 val=\"0\"/><c:lang val=\"pt-BR\"/><c:roundedCorners val=\"0\"/>"
     );
+    // shortcut: sem o nome do arquivo entre colchetes (o gravador não sabe o destino); conferido só na nossa
+    // leitura, não no Excel (o usuário não tem mais). Se o Excel recusar o vínculo, o gráfico fica estático.
+    if let Some(d) = &ap.dinamica {
+        let _ = write!(o, "<c:pivotSource><c:name>{}</c:name><c:fmtId val=\"0\"/></c:pivotSource>", crate::xlsx_write::escape_xml(d));
+    }
+    o.push_str("<c:chart>");
     match &ap.titulo {
         Some(t) => {
             let _ = write!(
@@ -1205,7 +1214,7 @@ fn graficos_da_aba(sheet: &Sheet) -> Vec<serde_json::Value> {
 /// `tinta`, o `drawingN.xml` pronto). `contador` numera as partes dos
 /// gráficos na pasta inteira; `nomes` junta os intervalos dos `_xlchart.v1.N` da pasta inteira.
 /// `None` quando a aba não tem nada a desenhar.
-pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>, contador: &mut usize, nomes: &mut Vec<String>) -> Option<DesenhoAba> {
+pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>, contador: &mut usize, nomes: &mut Vec<String>, dinamicas: &std::collections::HashMap<String, String>) -> Option<DesenhoAba> {
     let viva = pasta.aba(aba)?;
     let sheet = &viva.sheet;
     let lista = graficos_da_aba(sheet);
@@ -1231,7 +1240,8 @@ pub(crate) fn desenho_da_aba(pasta: &Workbook, aba: usize, tinta: Option<String>
         let papeis: Vec<u32> = serde_json::from_value(v["_featherNative"]["papeis"].clone()).unwrap_or_default();
         let ordem = feathersheet_core::grafico::chart::ordem_dos_papeis(cfg.tipo, &cfg.style.hidden_series, &papeis, ex.series.len());
         ex.series = ordem.into_iter().map(|i| ex.series[i].clone()).collect();
-        let ap = aparencia(v, &cfg);
+        let mut ap = aparencia(v, &cfg);
+        ap.dinamica = v["pivotSource"].as_str().and_then(|id| dinamicas.get(id)).cloned();
         // O app grava "2 — Meta" (posição a partir de 1), não um número.
         let pizza = v["_featherPieSeries"].as_str()
             .and_then(|s| s.split(" — ").next())
@@ -1409,7 +1419,7 @@ mod testes {
     fn referencias_e_cache_das_series() {
         let wb = pasta_com_graficos(&["column"]);
         let mut n = 0;
-        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new()).unwrap();
+        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new(), &Default::default()).unwrap();
         let g = &d.partes[0].xml;
         assert!(g.contains("<c:f>'Dados e Gráficos'!$A$2:$A$5</c:f>"), "{g}");
         assert!(g.contains("<c:f>'Dados e Gráficos'!$B$1</c:f>"));
@@ -1431,7 +1441,7 @@ mod testes {
         ];
         let wb = pasta_com_graficos(&tipos);
         let mut n = 0;
-        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new()).unwrap();
+        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new(), &Default::default()).unwrap();
         bem_formado(&d.xml);
         bem_formado(d.rels.as_deref().unwrap());
         // 26 gráficos; cascata e histograma levam chartEx + reserva.
@@ -1472,7 +1482,7 @@ mod testes {
             s.g = Some(serde_json::to_string(&lista).unwrap());
         });
         let mut n = 0;
-        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new()).unwrap();
+        let d = desenho_da_aba(&wb, 0, None, &mut n, &mut Vec::new(), &Default::default()).unwrap();
         let rosca = &d.partes[0].xml;
         bem_formado(rosca);
         assert!(rosca.contains("<c:doughnutChart><c:varyColors val=\"1\"/>"), "{rosca}");

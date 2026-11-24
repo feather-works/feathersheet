@@ -738,16 +738,16 @@ fn todo_tema_da_dinamica_tem_estilo_do_excel() {
 /// na pasta inteira (o `cacheId` é o mesmo número). Definição que o Excel
 /// não representa (origem sumida, só campos calculados...) fica de fora:
 /// a aba continua com as células do resultado, como antes.
-pub(crate) fn da_aba(pasta: &Workbook, indice: usize, contador: &mut usize) -> Vec<ParteDinamica> {
+/// As dinâmicas da aba que vão para o `.xlsx`, com o número da parte e o nome (único na aba) que recebem.
+fn nomeadas(pasta: &Workbook, indice: usize, contador: &mut usize) -> Vec<(Json, Plano, usize, String)> {
     let Some(raw) = pasta.aba(indice).and_then(|a| a.sheet.dn.as_deref()) else { return Vec::new() };
     let Ok(lista) = serde_json::from_str::<Vec<Json>>(raw) else { return Vec::new() };
     let mut nomes_na_aba: HashSet<String> = HashSet::new();
     let mut saida = Vec::new();
-    for meta in &lista {
-        let Some(p) = plano(pasta, indice, meta) else { continue };
+    for meta in lista {
+        let Some(p) = plano(pasta, indice, &meta) else { continue };
         *contador += 1;
         let n = *contador;
-        // O nome da dinâmica é único na aba.
         let base = p.nome.clone().unwrap_or_else(|| feathersheet_core::trf!("Tabela dinâmica{n}"));
         let mut nome = base.clone();
         let mut k = 2;
@@ -755,6 +755,27 @@ pub(crate) fn da_aba(pasta: &Workbook, indice: usize, contador: &mut usize) -> V
             nome = format!("{base} {k}");
             k += 1;
         }
+        saida.push((meta, p, n, nome));
+    }
+    saida
+}
+
+/// Id da dinâmica → `Aba!Nome` como o `.xlsx` a chama (para o `pivotSource` dos gráficos dinâmicos).
+pub(crate) fn nomes_por_id(pasta: &Workbook) -> std::collections::HashMap<String, String> {
+    let mut contador = 0;
+    let mut mapa = std::collections::HashMap::new();
+    for i in 0..pasta.len() {
+        let aba = pasta.aba(i).map(|a| a.sheet.name.clone()).unwrap_or_default();
+        for (meta, _, _, nome) in nomeadas(pasta, i, &mut contador) {
+            if let Some(id) = meta["id"].as_str() { mapa.insert(id.to_owned(), format!("{aba}!{nome}")); }
+        }
+    }
+    mapa
+}
+
+pub(crate) fn da_aba(pasta: &Workbook, indice: usize, contador: &mut usize) -> Vec<ParteDinamica> {
+    let mut saida = Vec::new();
+    for (_, p, n, nome) in nomeadas(pasta, indice, contador) {
         let nomes = nomes_dos_campos(pasta, p.folha, p.origem);
         let mut itens: Vec<Option<Itens>> = (0..nomes.len()).map(|_| None).collect();
         let enumerados = p.linhas.iter().chain(&p.colunas).copied().chain(p.filtros.iter().map(|f| f.campo));

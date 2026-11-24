@@ -756,6 +756,16 @@ fn anexar_elementos(
                             }
                         }
 
+                        // Gráfico dinâmico: `<c:pivotSource><c:name>[Pasta1.xlsx]Planilha1!Tabela dinâmica1`.
+                        let dinamica_ligada = root.child("pivotSource").and_then(|p| p.child("name")).and_then(|n| {
+                            let texto = n.text.trim();
+                            let (aba, nome) = texto.rsplit_once('!')?;
+                            let aba = aba.rsplit_once(']').map_or(aba, |(_, a)| a).trim_matches('\'');
+                            sheets.iter().filter(|s| s.name.eq_ignore_ascii_case(aba)).chain(sheets.iter())
+                                .flat_map(|s| s.dinamicas.iter())
+                                .find(|d| d["nome"].as_str() == Some(nome))
+                                .and_then(|d| d["id"].as_str().map(str::to_owned))
+                        });
                         let target_sheet = if let Some(l) = lugar {
                             sheets.get_mut(l.aba)
                         } else if let Some(ref sheet_name) = target_sheet_name {
@@ -822,6 +832,7 @@ fn anexar_elementos(
                                     chart_json["_featherNative"]["papeis"] = serde_json::json!(papeis);
                                 }
                             }
+                            if let Some(id) = &dinamica_ligada { chart_json["pivotSource"] = serde_json::json!(id); }
                             // `<c:plotVisOnly val="1"/>`: o Excel não desenha a linha escondida pelo filtro.
                             if chart_node.child("plotVisOnly").is_some_and(|n| !matches!(n.attr("val"), Some("0") | Some("false"))) {
                                 chart_json["plotVisOnly"] = serde_json::json!(true);
