@@ -86,11 +86,19 @@ pub fn traduzir(js: &str, nome: &str, formula: &dyn Fn(&str) -> String) -> Tradu
     let topo: Vec<NoId> = arv.lista(arv.corpo).to_vec();
     let (funcoes, soltos): (Vec<NoId>, Vec<NoId>) = topo.into_iter().filter(|&id| !t.e_preludio(id))
         .partition(|&id| matches!(arv.no(id), No::DeclFuncao(_)));
+    let mut declaradas = Vec::new();
     for id in &funcoes {
-        if let No::DeclFuncao(f) = arv.no(*id) { t.funcao(*f); }
+        if let No::DeclFuncao(f) = arv.no(*id) {
+            if let Some(a) = arv.funcao(*f).nome { declaradas.push(lex.atomos.texto(a).to_string()); }
+            t.funcao(*f);
+        }
     }
-    if !soltos.is_empty() {
+    // `Ola();` no fim só roda a função quando a macro roda; no Excel a pessoa roda o Sub direto.
+    let so_chama = |id: &NoId| matches!(arv.no(*id), No::Expressao(e) if matches!(arv.no(*e),
+        No::Chamada { func, args, .. } if args.len == 0 && matches!(arv.no(*func), No::Nome(a) if declaradas.iter().any(|d| d == lex.atomos.texto(*a)))));
+    if !soltos.is_empty() && !soltos.iter().all(so_chama) {
         let n = t.nome_vba(nome);
+        let n = if declaradas.iter().any(|d| t.nome_vba(d).eq_ignore_ascii_case(&n)) { format!("{n}_Principal") } else { n };
         t.proc = Some((n.clone(), false));
         t.linha(&format!("Sub {n}()"));
         t.recuo += 1;
@@ -121,6 +129,8 @@ impl<'a> Tradutor<'a> {
         let trecho = self.trecho(id);
         let linha = self.fonte[..(self.arv.posicao(id) as usize).min(self.fonte.len())].matches('\n').count() + 1;
         self.linha(&format!("' JS não convertido ({motivo}): {trecho}"));
+        // O motivo é um texto fixo deste arquivo (ou montado com `.{p}`): passa pelo dicionário.
+        let motivo = feathersheet_core::tr!(motivo);
         self.pend.push(feathersheet_core::trf!("linha {linha}: {motivo}: {trecho}"));
     }
 
@@ -458,12 +468,12 @@ impl<'a> Tradutor<'a> {
             No::Membro { obj, prop, .. } => {
                 let p = self.atomo(prop);
                 let o = self.expr(obj)?;
-                if o.t != Tipo::Faixa { return Err(format!("atribuir .{p}")); }
+                if o.t != Tipo::Faixa { return Err(feathersheet_core::trf!("atribuir .{p}")); }
                 match p.as_str() {
                     "value" => Ok((format!("{}.Value", o.s), Tipo::Valor)),
                     "formula" => Ok((format!("{}.Formula", o.s), Tipo::Texto)),
                     "numberFormat" => Ok((format!("{}.NumberFormat", o.s), Tipo::Texto)),
-                    _ => Err(format!("atribuir .{p} de intervalo")),
+                    _ => Err(feathersheet_core::trf!("atribuir .{p} de intervalo")),
                 }
             }
             _ => Err("atribuição a algo que não é variável".into()),
@@ -493,7 +503,7 @@ impl<'a> Tradutor<'a> {
             }
             let o = self.expr(obj)?;
             let v = self.args(args)?;
-            let a = |i: usize| v.get(i).map(|x| x.s.clone()).ok_or_else(|| format!("{p} sem argumento"));
+            let a = |i: usize| v.get(i).map(|x| x.s.clone()).ok_or_else(|| feathersheet_core::trf!("{p} sem argumento"));
             match (o.t, p.as_str()) {
                 (Tipo::Aba, "set" | "write") => {
                     if let (Some(&end), Some(&valor)) = (lista.first(), lista.get(1)) {
@@ -691,7 +701,7 @@ impl<'a> Tradutor<'a> {
             (Tipo::Faixa, "column") => Ok(V::val(format!("{}.Column", o.s))),
             (Tipo::Aba, "name") => Ok(V::txt(format!("{}.Name", if o.s.is_empty() { "ActiveSheet" } else { &o.s }))),
             (Tipo::Texto, "length") | (Tipo::Valor, "length") => Ok(V::val(format!("Len({})", o.s))),
-            _ => Err(format!("propriedade .{p}")),
+            _ => Err(feathersheet_core::trf!("propriedade .{p}")),
         }
     }
 
@@ -745,7 +755,7 @@ impl<'a> Tradutor<'a> {
                 }
                 let o = self.expr(obj)?;
                 let v = self.args(args)?;
-                let a = |i: usize| v.get(i).map(|x| x.s.clone()).ok_or_else(|| format!("{p} sem argumento"));
+                let a = |i: usize| v.get(i).map(|x| x.s.clone()).ok_or_else(|| feathersheet_core::trf!("{p} sem argumento"));
                 let f = |s: &str| faixa(&o.s, s);
                 Ok(match (o.t, p.as_str()) {
                     (Tipo::Aba, "get") => V::val(format!("{}.Value", f(&a(0)?))),
@@ -784,7 +794,7 @@ impl<'a> Tradutor<'a> {
                         let mascara = if casas == 0 { "0".to_string() } else { format!("0.{}", "0".repeat(casas)) };
                         V::txt(format!("Replace(Format({}, \"{mascara}\"), Mid(CStr(1.5), 2, 1), \".\")", o.s))
                     }
-                    _ => return Err(format!("método .{p}()")),
+                    _ => return Err(feathersheet_core::trf!("método .{p}()")),
                 })
             }
             _ => Err("chamada de algo que não é nome nem método".into()),
@@ -908,6 +918,15 @@ mod testes {
         assert!(t.vba.contains("Range(\"A1\").Value = 1"));
         let ruim = vba("function (");
         assert!(ruim.vba.starts_with("' function (") && ruim.pendencias.len() == 1);
+    }
+
+    #[test]
+    fn chamada_solta_da_propria_funcao_nao_vira_sub() {
+        let t = vba("function Ola() { alert('oi'); }\nOla();");
+        assert_eq!(t.vba.matches("Sub Ola()").count(), 1, "{}", t.vba);
+        assert!(!t.vba.contains("Call Ola"), "{}", t.vba);
+        let t = vba("function Macro1() { alert('a'); }\nMacro1(); alert('depois');");
+        assert!(t.vba.contains("Sub Macro1_Principal()"), "nome colidindo: {}", t.vba);
     }
 
     #[test]

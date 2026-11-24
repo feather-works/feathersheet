@@ -725,6 +725,8 @@ impl App {
             self.status = tr!("Aguarde: o salvamento anterior ainda está em andamento.").into();
             return Task::none();
         }
+        // `.xlsm`: as macros JS criadas ou editadas aqui vão para o VBA antes do retrato.
+        self.resumo_vba = if formato_excel(&path) == Some(true) { self.levar_macros_para_o_vba() } else { None };
         let pasta = feathersheet_io::da_workbook::da_workbook(&self.workbook, self.folha as u32);
         self.salvando = true;
         if !copia {
@@ -799,8 +801,9 @@ impl App {
                     // Os dois avisos juntos: o dos ícones apagava o das macros.
                     self.status = if sem_macros { format!("{} {aviso}", self.status) } else { aviso };
                 }
-                // JavaScript não vai no formato do Excel: o que foi criado ou editado aqui se perde ao reabrir.
-                let fora = if formato_excel(&path).is_some() { self.macros_fora_do_excel() } else { 0 };
+                if let Some(r) = self.resumo_vba.take() { self.status = format!("{} {r}", self.status); }
+                // JavaScript não vai no .xlsx: o que foi criado ou editado aqui se perde ao reabrir.
+                let fora = if formato_excel(&path) == Some(false) { self.macros_fora_do_excel() } else { 0 };
                 if fora > 0 {
                     let aviso = trf!("{fora} macro(s) JavaScript criada(s) ou editada(s) aqui não vão no arquivo do Excel (ele roda só o VBA original): para guardá-las, salve também em .fshz.");
                     self.status = format!("{} {aviso}", self.status);

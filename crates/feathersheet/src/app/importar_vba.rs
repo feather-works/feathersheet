@@ -94,7 +94,7 @@ fn veio_do_arquivo(m: &feather_macros::Macro, arquivo: &str) -> bool {
 }
 
 /// A marca do código de um módulo (para saber se ele mudou depois de convertido do VBA).
-fn marca_do_codigo(m: &feather_macros::Macro) -> u64 {
+pub(super) fn marca_do_codigo(m: &feather_macros::Macro) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
     m.code.hash(&mut h);
@@ -292,7 +292,7 @@ impl App {
         }
     }
 
-    fn instalar_vba(&mut self, arquivo: &str, c: &Conversao, abrir_no_editor: bool) {
+    pub(super) fn instalar_vba(&mut self, arquivo: &str, c: &Conversao, abrir_no_editor: bool) {
         // Reabrir o mesmo arquivo substitui os módulos dele em vez de
         // acrescentar cópias "_2" (cada módulo diz na 1ª linha de onde veio).
         let mut base = self.macro_catalogo.clone();

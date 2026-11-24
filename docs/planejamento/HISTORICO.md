@@ -4,6 +4,17 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Caminho de volta JS → VBA, etapa 5: Salvar `.xlsm`** (24/11/2026, `app/macros_para_vba.rs`): antes do
+  retrato, as macros fora do VBA (`macros_fora_do_excel`) são traduzidas; a editada troca só os procedimentos dela
+  no módulo VBA de origem (`// Convertida do VBA de X (módulo M).`); a criada aqui vira módulo novo (nome sem `/`,
+  31 letras, único); pasta sem VBA ganha `projeto_novo` (codinomes `EstaPasta_de_trabalho`/`PlanilhaN`); eventos
+  editados ainda ficam de fora, com aviso. Pendências da tradução vão para o monitor (F12) e o status resume.
+  O tradutor não cria mais um Sub para o `Ola();` solto que só chama a própria função. Ajuda F1 (tópico VBA) nas
+  quatro línguas reescrita. Testes `salvar_xlsm_leva_a_editada_e_a_nova_para_o_vba` e, com a planilha real
+  (`--ignored`), `planilha_real_editada_vai_e_volta_pelo_xlsm` (o procedimento novo no módulo de origem, todos os
+  outros módulos e formulários iguais, o `.xlsm` reabre). **Conferir no Excel de verdade: com o usuário.**
+  Novidade para o `VERSOES` da 0.4.0: "Macros editadas ou criadas no FeatherSheet voltam para o VBA ao salvar em .xlsm".
+
 - **Caminho de volta JS → VBA, etapa 4: o tradutor** (24/11/2026, `feathersheet_vba::js_para_vba`, lê o JS com
   o `falcao-sintaxe`, mesma tag do motor): funções (Sub/Function), `let/const`, `if/else if`, `for` simples →
   `For…To…Step`, outros → `Do While`, `for…of`, `while`, `do…while`, `switch` → `Select Case`, `break` →
