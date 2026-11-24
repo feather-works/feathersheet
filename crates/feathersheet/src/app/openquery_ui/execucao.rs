@@ -41,6 +41,11 @@ impl App {
                 fontes.insert(nome, tabela);
                 continue;
             }
+            if nome.starts_with("Arquivo: ") {
+                let tabela = registro::fonte_de_arquivo(dados, &nome)?;
+                fontes.insert(nome, tabela);
+                continue;
+            }
             let (indice, area) = if let Some(tabela) = nome.strip_prefix("Tabela: ") {
                 tabelas_existentes(&self.workbook).into_iter()
                     .find(|(_, n, _)| n == tabela)
@@ -194,6 +199,7 @@ impl App {
                 &editor.origem, &nome_aba, &area, &adicionais,
             )?;
             registro::gravar_etapas_info(&mut reg, &editor.etapas_info, editor.passos.len());
+            registro::gravar_fontes_de_arquivo(&mut reg, &editor.fontes);
             reg["destino"]["modo"] = serde_json::json!("apenas_conexao");
             reg["_feather"]["areaSaida"] = serde_json::Value::Null;
             reg["status"]["linhasAfetadas"] = serde_json::json!(0);
@@ -322,6 +328,7 @@ impl App {
                 &area_saida, &adicionais
             )?;
             registro::gravar_etapas_info(&mut reg, &editor.etapas_info, editor.passos.len());
+            registro::gravar_fontes_de_arquivo(&mut reg, &editor.fontes);
             if editor.destino_modo == DestinoModo::AbaAtual {
                 reg["destino"]["modo"] = serde_json::json!("aba_atual");
             }

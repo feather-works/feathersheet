@@ -786,3 +786,40 @@ fn m_colado_no_editor_avancado_aplica_ou_para_no_que_nao_converte() {
     assert!(!editor.aviso_avancado.is_empty());
     assert_eq!(editor.passos.len(), 1, "a consulta anterior não mudou");
 }
+
+/// Arquivo como segunda fonte de Juntar: a principal não muda, o arquivo entra em Fontes adicionais e vai inteiro
+/// no registro; atualizar a consulta salva junta de novo sem ler o disco.
+#[test]
+fn arquivo_como_segunda_fonte_vai_e_volta_na_consulta_salva() {
+    use feathersheet_core::consulta::query::IndiceColuna;
+    let mut app = App::default();
+    for (r, (p, q)) in [("Produto", "Qtd"), ("A", "2"), ("B", "4")].iter().enumerate() {
+        app.workbook.escrever_celula(0, r as u32, 0, (*p).into());
+        app.workbook.escrever_celula(0, r as u32, 1, (*q).into());
+    }
+    abrir_aba_para_teste(&mut app);
+    {
+        let e = app.openquery.as_mut().unwrap();
+        e.importar_como_fonte = true;
+        e.importacao_pendente = Some(77);
+    }
+    let precos = Tabela { cabecalho: vec!["Produto".into(), "Preço".into()],
+        linhas: vec![vec![Value::Text("A".into()), Value::Number(1.5)], vec![Value::Text("B".into()), Value::Number(2.25)]] };
+    app.evento_openquery(Evento::ArquivoLido(77, Ok((precos, "Arquivo: precos.csv".into()))));
+    let e = app.openquery.as_mut().unwrap();
+    assert_eq!(e.fonte.cabecalho, ["Produto", "Qtd"], "a principal não muda");
+    assert!(e.fontes.contains_key("Arquivo: precos.csv"));
+    assert!(!e.importar_como_fonte);
+    e.passos.push(Passo::Juntar { fonte: "Arquivo: precos.csv".into(), esquerda: IndiceColuna::Single(0),
+        direita: IndiceColuna::Single(0), modo: Some("esquerda".into()), semelhanca: None });
+    e.recalcular();
+    app.evento_openquery(Evento::Carregar);
+    let id = registro::listar(&app.workbook).unwrap()[0].dados["id"].as_str().unwrap().to_owned();
+    assert!(registro::listar(&app.workbook).unwrap()[0].dados["_feather"]["fontesArquivo"]["Arquivo: precos.csv"].is_object());
+    // A origem muda e a consulta é atualizada: o arquivo vem da foto guardada.
+    app.workbook.escrever_celula(0, 2, 1, "10".into());
+    app.atualizar_consulta_salva(&id);
+    let destino = app.workbook.len() - 1;
+    let texto: Vec<String> = (0..3).flat_map(|r| (0..4).map(move |c| (r, c))).map(|(r, c)| app.workbook.aba(destino).unwrap().sheet.get_raw(r, c)).collect();
+    assert!(texto.iter().any(|t| t == "10") && texto.iter().any(|t| t == "2.25"), "{texto:?} / {}", app.status);
+}

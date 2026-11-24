@@ -2981,7 +2981,6 @@
  "Previsão": "Prévision",
  "Primeira linha é cabeçalho": "La première ligne est un en-tête",
  "Primeira versão pública": "Première version publique",
- "Primeiro adicione outra aba em Fontes adicionais, na lateral esquerda.": "Ajoutez d'abord une autre feuille dans Sources supplémentaires, sur le côté gauche.",
  "Primeiro valor numérico": "Première valeur numérique",
  "Primeiros": "Premiers",
  "Primeiros passos": "Premiers pas",
@@ -6287,5 +6286,9 @@
  "ajuda vba.{p} do conversor": "aide vba.{p} du convertisseur",
  "moeda": "monétaire",
  "percentual": "pourcentage",
- "Ainda lendo os itens do filtro na origem grande; tente de novo em um instante.": "Lecture des éléments du filtre dans la grande source en cours ; réessayez dans un instant."
+ "Ainda lendo os itens do filtro na origem grande; tente de novo em um instante.": "Lecture des éléments du filtre dans la grande source en cours ; réessayez dans un instant.",
+ "FeatherQuery: {origem} adicionado como fonte ({linhas} linhas)": "FeatherQuery : {origem} ajouté comme source ({linhas} lignes)",
+ "Arquivo…": "Fichier…",
+ "Adicione outra aba em Fontes adicionais, na lateral esquerda, ou escolha um arquivo.": "Ajoutez une autre feuille dans Sources supplémentaires, à gauche, ou choisissez un fichier.",
+ "A fonte adicional '{nome}' não foi guardada na consulta; escolha o arquivo de novo": "La source supplémentaire « {nome} » n'a pas été enregistrée dans la requête ; choisissez de nouveau le fichier"
 }

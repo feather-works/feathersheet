@@ -2977,7 +2977,6 @@
  "Previsão": "Previsión",
  "Primeira linha é cabeçalho": "La primera fila es un encabezado",
  "Primeira versão pública": "Primera versión pública",
- "Primeiro adicione outra aba em Fontes adicionais, na lateral esquerda.": "Primero agregue otra hoja en Orígenes adicionales, en el lateral izquierdo.",
  "Primeiro valor numérico": "Primer valor numérico",
  "Primeiros": "Primeros",
  "Primeiros passos": "Primeros pasos",
@@ -6287,5 +6286,9 @@
  "ajuda vba.{p} do conversor": "ayuda vba.{p} del conversor",
  "moeda": "moneda",
  "percentual": "porcentaje",
- "Ainda lendo os itens do filtro na origem grande; tente de novo em um instante.": "Aún se están leyendo los elementos del filtro en el origen grande; inténtelo de nuevo en un momento."
+ "Ainda lendo os itens do filtro na origem grande; tente de novo em um instante.": "Aún se están leyendo los elementos del filtro en el origen grande; inténtelo de nuevo en un momento.",
+ "FeatherQuery: {origem} adicionado como fonte ({linhas} linhas)": "FeatherQuery: {origem} añadido como origen ({linhas} filas)",
+ "Arquivo…": "Archivo…",
+ "Adicione outra aba em Fontes adicionais, na lateral esquerda, ou escolha um arquivo.": "Añada otra hoja en Orígenes adicionales, a la izquierda, o elija un archivo.",
+ "A fonte adicional '{nome}' não foi guardada na consulta; escolha o arquivo de novo": "El origen adicional '{nome}' no se guardó en la consulta; elija el archivo de nuevo"
 }

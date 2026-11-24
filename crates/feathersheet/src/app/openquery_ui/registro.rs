@@ -131,6 +131,22 @@ fn origem_interna(o: &str) -> String {
 pub(super) fn area_saida(reg: &Json) -> Option<Rect> {
     ler_area(&reg["_feather"]["areaSaida"])
 }
+/// As fontes adicionais vindas de arquivo vão inteiras no registro (`_feather.fontesArquivo`): ao atualizar, são
+/// relidas daqui, nunca do disco sem a pessoa pedir (como a fonte principal de arquivo).
+pub(super) fn gravar_fontes_de_arquivo(reg: &mut Json, fontes: &std::collections::HashMap<String, Tabela>) {
+    let mapa: serde_json::Map<String, Json> = fontes.iter()
+        .filter(|(n, _)| n.starts_with("Arquivo: "))
+        .map(|(n, t)| (n.clone(), serializar_tabela(t))).collect();
+    if !mapa.is_empty() { reg["_feather"]["fontesArquivo"] = Json::Object(mapa); }
+}
+
+/// A foto de uma fonte adicional de arquivo ([`gravar_fontes_de_arquivo`]).
+pub(super) fn fonte_de_arquivo(reg: &Json, nome: &str) -> Result<Tabela, String> {
+    let foto = reg["_feather"]["fontesArquivo"].get(nome)
+        .ok_or_else(|| trf!("A fonte adicional '{nome}' não foi guardada na consulta; escolha o arquivo de novo"))?;
+    fonte_snapshot(&json!({ "fonte": foto }))
+}
+
 pub(super) fn fontes_extra(reg: &Json) -> Vec<String> {
     reg["_feather"]["fontesAdicionais"].as_array().into_iter()
         .flatten().filter_map(Json::as_str).map(str::to_owned).collect()

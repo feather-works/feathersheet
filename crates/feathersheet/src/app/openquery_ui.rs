@@ -32,7 +32,7 @@ pub(super) fn formatos_da_fonte(wb: &Workbook, aba: usize, area: &Rect, cabecalh
 mod json_passos;
 mod registro;
 mod execucao;
-mod assistentes;
+pub(super) mod assistentes;
 mod importador;
 mod banco;
 mod vinculo;
@@ -100,6 +100,8 @@ pub enum Evento {
     AtualizarFonte,
     Assistente(assistentes::Evento),
     ImportarArquivo,
+    /// Escolhe um arquivo como fonte adicional (segunda fonte de Juntar/Acrescentar), sem trocar a principal.
+    ArquivoComoFonte,
     MostrarWeb,
     UrlWeb(String),
     ImportarWeb,
@@ -283,6 +285,8 @@ pub(super) struct Estado {
     tabela_previa: Option<Tabela>,
     importacao_pendente: Option<u64>,
     importacao_preservar: bool,
+    /// A importação em andamento é uma fonte adicional ([`Evento::ArquivoComoFonte`]).
+    importar_como_fonte: bool,
     entrada_manual: Content,
     mostrar_manual: bool,
     aba_faixa: AbaFaixa,
@@ -436,7 +440,7 @@ impl Estado {
             acoes_consulta: None, pastas_recolhidas: Default::default(), pastas_vazias: Vec::new(),
             assistente: None,
             passo_previa: None, tabela_previa: None,
-            importacao_pendente: None, importacao_preservar: false,
+            importacao_pendente: None, importacao_preservar: false, importar_como_fonte: false,
             entrada_manual: Content::with_text("Coluna1;Coluna2\nValor;10"),
             mostrar_manual: false,
             aba_faixa: AbaFaixa::Inicio,
@@ -1515,8 +1519,15 @@ impl App {
                     Err(erro) => Msg::OpenQuery(Evento::ArquivoLido(ticket, Err(erro))),
                 });
             }
+            Evento::ArquivoComoFonte => {
+                let Some(editor) = &mut self.openquery else { return Task::none() };
+                editor.importar_como_fonte = true;
+                editor.filtro_arquivo = None;
+                return self.evento_openquery(Evento::ImportarArquivo);
+            }
             Evento::ImportarArquivo | Evento::ReimportarArquivo => {
                 let Some(editor) = &mut self.openquery else { return Task::none() };
+                if matches!(evento, Evento::ReimportarArquivo) { editor.importar_como_fonte = false; }
                 editor.limpar_previa_web();
                 editor.importacao_preservar = matches!(evento, Evento::ReimportarArquivo);
                 let ticket = IMPORTACAO_SEQ.fetch_add(1, Ordering::Relaxed);
@@ -1547,7 +1558,7 @@ impl App {
                     return Task::none();
                 }
                 let Some(caminho) = arquivo else {
-                    if let Some(e) = &mut self.openquery { e.importacao_pendente = None; e.item_pedido = None; }
+                    if let Some(e) = &mut self.openquery { e.importacao_pendente = None; e.item_pedido = None; e.importar_como_fonte = false; }
                     return Task::none();
                 };
                 // `.iqy` do Excel: é uma consulta Web; o arquivo só diz o endereço e a tabela.
@@ -1624,10 +1635,23 @@ impl App {
                 let Some(editor) = &mut self.openquery else { return Task::none() };
                 if editor.importacao_pendente != Some(ticket) { return Task::none(); }
                 editor.importacao_pendente = None;
+                let como_fonte = std::mem::take(&mut editor.importar_como_fonte);
                 match resultado {
                     Err(erro) => {
                         editor.erro = erro.clone();
                         self.status = trf!("FeatherQuery: {erro}");
+                    }
+                    // Fonte adicional: entra em `fontes` (e já fica escolhida no assistente); a principal não muda.
+                    Ok((fonte, origem)) if como_fonte => {
+                        if !editor.fontes.contains_key(&origem) && editor.fontes.len() >= 4 {
+                            editor.erro = tr!("Limite de quatro fontes adicionais").into();
+                            return Task::none();
+                        }
+                        let linhas = fonte.linhas.len();
+                        editor.fontes.insert(origem.clone(), fonte);
+                        if let Some(a) = &mut editor.assistente { a.escolher_fonte(&origem); }
+                        editor.recalcular();
+                        self.status = trf!("FeatherQuery: {origem} adicionado como fonte ({linhas} linhas)");
                     }
                     Ok((fonte, origem)) => {
                         let preservar = editor.importacao_preservar;

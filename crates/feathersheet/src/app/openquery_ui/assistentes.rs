@@ -27,6 +27,14 @@ impl std::fmt::Display for OpcaoColuna {
     }
 }
 
+impl Estado {
+    /// A fonte secundária escolhida (a recém-adicionada por arquivo).
+    pub(super) fn escolher_fonte(&mut self, nome: &str) {
+        self.fonte = Some(nome.to_owned());
+        self.direita = vec![0];
+    }
+}
+
 pub(super) struct Estado {
     tipo: Tipo,
     fonte: Option<String>,
@@ -215,10 +223,15 @@ impl App {
                     .style(estilo_botao_pequeno(marcada))
                     .padding([4.0, 8.0]));
             }
+            // Ou um arquivo (CSV, Excel, JSON, Parquet…) direto, sem passar por uma aba.
+            fontes = fontes.push(button(row![feather_ui::icones::icone("file-plus", 13.0), text(tr!("Arquivo…")).size(TAM_TEXTO)].spacing(4))
+                .on_press(Msg::OpenQuery(super::Evento::ArquivoComoFonte))
+                .style(estilo_botao_pequeno(false))
+                .padding([4.0, 8.0]));
             corpo = corpo.push(secao_oq(tr!("Fonte secundária"))).push(fontes);
             if editor.fontes.is_empty() {
                 corpo = corpo.push(legenda_oq(
-                    tr!("Primeiro adicione outra aba em Fontes adicionais, na lateral esquerda.")
+                    tr!("Adicione outra aba em Fontes adicionais, na lateral esquerda, ou escolha um arquivo.")
                 ));
             }
         }

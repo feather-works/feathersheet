@@ -4,6 +4,14 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **FeatherQuery: arquivo como segunda fonte de Mesclar/Acrescentar (24/11/2026)**: botão "Arquivo…" na Fonte
+  secundária do assistente (`Evento::ArquivoComoFonte` marca `importar_como_fonte`; a leitura é a mesma da fonte
+  principal, em tarefa separada, e a tabela entra em `fontes` como "Arquivo: nome" e já fica escolhida). A foto vai
+  no registro (`_feather.fontesArquivo`, `registro::gravar_fontes_de_arquivo`/`fonte_de_arquivo`) e Atualizar relê
+  dela, nunca o disco sem pedir. Foto `_JANELA=openquery:juntar`. Teste
+  `arquivo_como_segunda_fonte_vai_e_volta_na_consulta_salva`. Ajuda F1 nas quatro línguas.
+  Novidade para o `VERSOES` da 0.4.0: "FeatherQuery: mescle ou acrescente direto com um arquivo, sem passar por uma aba".
+
 - **Escopo ao criar um nome (24/11/2026)**, tela decidida sem o usuário (pedido dele: "não quero que nada dependa de
   mim"), referência o "Novo nome" do Excel: no formulário Novo do Gerenciador, a lista Escopo (Pasta de trabalho e as
   abas; aba chamada "Pasta de trabalho" vai entre aspas); editar mostra o escopo sem trocar, como o Excel.

@@ -1372,6 +1372,8 @@ impl App {
                                 let _ = self.evento_openquery(openquery_ui::Evento::Submenu(Some(0)));
                             } else if resto == ":digitar" {
                                 let _ = self.evento_openquery(openquery_ui::Evento::AbaCentro(2));
+                            } else if resto == ":juntar" {
+                                let _ = self.evento_openquery(openquery_ui::Evento::Assistente(openquery_ui::assistentes::Evento::Abrir(openquery_ui::assistentes::Tipo::Juntar)));
                             } else if resto == ":tabela" {
                                 let _ = self.evento_openquery(openquery_ui::Evento::MostrarTabelas);
                             } else if resto == ":web" {
