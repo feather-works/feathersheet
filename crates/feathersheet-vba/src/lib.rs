@@ -11,6 +11,7 @@ pub mod lexico;
 pub mod ovba;
 pub mod ovba_gravar;
 pub mod ovba_projeto;
+pub mod js_para_vba;
 pub mod sintaxe;
 pub mod xlsm;
 

@@ -4,6 +4,20 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Caminho de volta JS → VBA, etapa 4: o tradutor** (24/11/2026, `feathersheet_vba::js_para_vba`, lê o JS com
+  o `falcao-sintaxe`, mesma tag do motor): funções (Sub/Function), `let/const`, `if/else if`, `for` simples →
+  `For…To…Step`, outros → `Do While`, `for…of`, `while`, `do…while`, `switch` → `Select Case`, `break` →
+  `Exit For/Do`, `sheet.get/set/range/cell/getText/getLastRow/setFormula/setNumberFormat/clear…`, `wb.sheet`,
+  matriz literal no `set` (uma célula por linha), `alert/confirm/prompt/log`, `Math.*`, métodos de texto e o
+  `docs.fill` (vira o Word por `CreateObject`). Cuidados de língua: número no código com ponto; fórmula fixa pelo
+  `.Formula` em inglês (a conversão do `.xlsx`, passada por quem chama), calculada pelo `.FormulaLocal` com aviso;
+  `Math.round` como `Int(x + 0.5)` (o `Round` do VBA é bancário); número juntado a texto pela função `JsTexto`
+  do próprio módulo (ponto em qualquer Windows, como o JS; o `&` do VBA poria vírgula em pt-BR); `toFixed`
+  idem. O que não converte vira `' JS não convertido` + pendência. Testes: 6 de unidade e a **ida e volta**
+  `tests/ida_e_volta_js_vba.rs` (JS → VBA → JS pelo conversor, os dois rodados no motor dão as mesmas células;
+  foi ela que achou o `Total: 8641,5` × `8641.5`). Falta a etapa 5 (ligar no Salvar `.xlsm`) e traduzir os
+  motivos das pendências.
+
 - **Caminho de volta JS → VBA, etapas 1 a 3** (24/11/2026; o usuário escolheu "gerar VBA de verdade"):
   `ovba_gravar::comprimir` (MS-OVBA §2.4.1.3; volta igual pelo descompressor; o exemplo da especificação sai do
   mesmo tamanho, mas não byte a byte: num empate de três candidatos o exemplo usou outro critério, e o Excel só

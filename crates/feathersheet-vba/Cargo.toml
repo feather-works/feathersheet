@@ -14,6 +14,8 @@ description = "Converte macros VBA (do .xlsm do Excel) para as macros em JavaScr
 zip = { version = "4.2.0", default-features = false, features = ["deflate"] }
 quick-xml = "0.39.4"
 cfb = "0.14"
+# O caminho de volta (JS → VBA) lê o JavaScript com a sintaxe do motor das macros (mesma tag do falcao-runtime).
+falcao-sintaxe = { git = "https://github.com/feather-works/falcao", tag = "v0.1.1" }
 serde = { version = "1", features = ["derive"] }
 # Os motivos do que não converteu passam pelo dicionário do app (feathersheet_core::tr!).
 feathersheet-core = { path = "../feathersheet-core" }
