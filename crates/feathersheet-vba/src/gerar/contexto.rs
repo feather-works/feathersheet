@@ -242,6 +242,7 @@ pub fn tipo_declarado(t: Option<&str>) -> Tipo {
         "workbook" => Tipo::NovaPasta,
         "worksheetfunction" => Tipo::Funcoes,
         "collection" | "dictionary" | "scripting.dictionary" | "vba.collection" => Tipo::Colecao,
+        "listobject" => Tipo::Tabela,
         // Enumerações do Excel/Office/VBA (`XlLookAt`, `MsoTriState`, `VbMsgBoxStyle`): são números.
         x if ["xl", "mso", "vb"].iter().any(|p| x.starts_with(p)) => Tipo::Valor(T::Num),
         x if x.starts_with("word.") => Tipo::Impossivel("automação do Word".into()),
@@ -256,7 +257,7 @@ pub fn valor_inicial(t: &Tipo) -> &'static str {
         Tipo::Valor(T::Texto) => "''",
         Tipo::Valor(T::Num) => "0",
         Tipo::Valor(T::Bool) => "false",
-        Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta | Tipo::Impossivel(_) | Tipo::Funcoes | Tipo::Shell | Tipo::Word | Tipo::DocWord | Tipo::Colecao | Tipo::Objeto(_) | Tipo::Valor(T::Obj) => "null",
+        Tipo::Aba | Tipo::Faixa(_) | Tipo::NovaPasta | Tipo::Impossivel(_) | Tipo::Funcoes | Tipo::Shell | Tipo::Word | Tipo::DocWord | Tipo::Colecao | Tipo::Objeto(_) | Tipo::Tabela | Tipo::Valor(T::Obj) => "null",
         Tipo::Valor(T::Var | T::Matriz) => "undefined",
     }
 }

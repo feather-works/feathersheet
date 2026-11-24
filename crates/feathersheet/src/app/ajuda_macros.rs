@@ -102,6 +102,7 @@ pub(crate) const GUIA: &[(&str, &[(&str, &str, &str)])] = &[
         ("getLastRow", "sheet.getLastRow(col = \"A\")", "const ultima = sheet.getLastRow(\"A\");"),
         ("getLastColumn", "sheet.getLastColumn(row = 1)", "const ultima = sheet.getLastColumn(1);"),
         ("getDataRange", "sheet.getDataRange()", "sheet.getDataRange().address;  // \"A1:F200\""),
+        ("tableRange", "sheet.tableRange(nome, parte = \"range\")", "sheet.tableRange(\"Vendas\", \"data\");  // \"A2:D50\""),
         ("getRegion", "sheet.getRegion(addr)", "sheet.getRegion(\"A1\").values();"),
         ("offset", "sheet.offset(addr, rows, cols)", "sheet.offset(\"A1\", 1, 0);  // A2"),
         ("resize", "sheet.resize(addr, rows, cols)", "sheet.resize(\"A1\", 10, 5);  // A1:E10"),
@@ -211,7 +212,7 @@ mod tests {
     use super::*;
     #[test] fn todas_as_funcoes_do_guia_ts_foram_portadas() {
         assert_eq!(GUIA.len(),15);
-        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),154);
+        assert_eq!(GUIA.iter().map(|(_,e)|e.len()).sum::<usize>(),155);
         let j:Value=serde_json::from_str(include_str!("../../../../src/idiomas/pt-BR.json")).unwrap();
         for (_,entries) in GUIA {
             for (nome,_,_) in *entries {

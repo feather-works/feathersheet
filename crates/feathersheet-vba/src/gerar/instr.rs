@@ -342,6 +342,23 @@ impl Gerador<'_> {
         let chave = n.to_lowercase();
         // `Set c = New Collection`, `Set d = CreateObject("Scripting.Dictionary")`, `Set c = outra`,
         // `Set c = Nothing`: a variável passa a guardar coleção (mesmo declarada `As Object`).
+        // `Set t = ws.ListObjects("X")`: a variável guarda o nome da tabela; a aba fica anotada.
+        if set && matches!(valor, Expr::Chamada(f, _) if matches!(&**f, Expr::Membro(_, m) | Expr::MembroDoCom(m) if m.eq_ignore_ascii_case("listobjects"))) {
+            let atual = self.var(n).or_else(|| self.global(n));
+            if atual.as_ref().is_none_or(|v| matches!(v.tipo, Tipo::Tabela | Tipo::Impossivel(_) | Tipo::Valor(T::Var | T::Obj))) {
+                if let Obj::Tabela(aba, quem) = self.objeto(valor)? {
+                    let js = match atual {
+                        Some(v) => {
+                            if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = Tipo::Tabela; }
+                            v.js
+                        }
+                        None => self.declarar(n, Tipo::Tabela, false),
+                    };
+                    self.escopo.aba_da_faixa.insert(js.clone(), aba);
+                    return Ok(format!("{js} = {quem};"));
+                }
+            }
+        }
         // `Set NomeDaFuncao = objeto`: é o retorno, não uma variável nova.
         if set && self.escopo.funcao.as_deref() == Some(chave.as_str()) {
             let v = self.valor(valor)?;
@@ -468,6 +485,13 @@ impl Gerador<'_> {
             Tipo::Word | Tipo::DocWord => Err(Motivo::novo(feathersheet_core::tr!("objeto do Word guardado em variável e trocado depois"))),
             // `Set c = FuncaoQueDevolveColecao()`.
             Tipo::Colecao | Tipo::Objeto(_) => Ok(format!("{} = {};", var.js, self.valor(valor)?.js)),
+            Tipo::Tabela => match self.objeto(valor)? {
+                Obj::Tabela(aba, quem) => {
+                    self.escopo.aba_da_faixa.insert(var.js.clone(), aba);
+                    Ok(format!("{} = {quem};", var.js))
+                }
+                _ => Err(Motivo::novo(feathersheet_core::tr!("Set de tabela com algo que não é tabela"))),
+            },
             Tipo::Impossivel(antes) if set && antes.starts_with("objeto do tipo") => {
                 // O `Set` diz o motivo melhor que o `As Object` (ex.: `CreateObject("WScript.Shell")`).
                 let m = self.motivo_do_objeto(valor);

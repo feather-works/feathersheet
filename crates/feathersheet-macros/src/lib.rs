@@ -23,6 +23,7 @@ mod pasta;
 pub mod formularios;
 pub mod riscos;
 mod formas;
+mod tabelas;
 /// A forma de nome `nome` no JSON `ob` da aba (o nome padrão vale em qualquer língua).
 pub use formas::achar as achar_forma;
 pub use pasta::{AcaoFiltro, Contexto, Escolha, PedidoArquivo, PedidoFiltro, PedidoForma, PedidoImagem, PedidoProtecao};
@@ -310,6 +311,10 @@ impl HospedeiroMacros for HospedeiroSheet {
             let aba = e.pasta.indice_do_id(id as u32).ok_or_else(|| "Aba inexistente".to_string())?;
             // API de navegação: cada comando é escalar; nunca gera
             // uma matriz 10M x 16K para devolver metadados.
+            if op == "tableRange" {
+                let s = &e.pasta.aba(aba).ok_or("Aba inexistente")?.sheet;
+                return tabelas::parte(s, &dados[1], dados[2].as_str().unwrap_or("range"));
+            }
             if matches!(op, "lastRow" | "lastColumn" | "getLastRow"
                 | "getLastColumn" | "getDataRange" | "address")
             {
@@ -1117,6 +1122,7 @@ function __sheet(indice) {
         get lastColumn(){return __ft('lastColumn',[i]);},
         address:(r,c)=>__ft('address',[i,r,c]),
         getLastRow:col=>__ft('getLastRow',[i,col===undefined?'A':col]),
+        tableRange:(nome,parte)=>__ft('tableRange',[i,nome,parte===undefined?'range':parte]),
         getLastColumn:r=>__ft('getLastColumn',[i,r===undefined?1:r]),
         // Tamanhos das seleções são metadados, sem varredura de células.
         rowCount:a=>__ft('rowCount',[i,a]),

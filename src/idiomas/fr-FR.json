@@ -394,6 +394,7 @@
       "insertCells": "Insère des cellules vides et pousse la sélection vers le bas (\"down\") ou vers la droite (\"right\").",
       "rowCount": "Le nombre de lignes de la plage.",
       "columnCount": "Le nombre de colonnes de la plage.",
+      "tableRange": "Adresse d'une partie du tableau (par nom ou par position, à partir de 1) : \"range\" (entier), \"data\" (données seules), \"header\", \"totals\", \"col:N\" et \"datacol:N\" (la colonne N), ou \"rows\" (nombre de lignes de données). Le `ListObjects(\"Ventes\").DataBodyRange` de VBA.",
       "getLastRow": "Numéro de la dernière ligne contenant des données dans la colonne ; 0 si la colonne est vide. Le `Cells(Rows.Count, 1).End(xlUp).Row`.",
       "getLastColumn": "Numéro de la dernière colonne contenant des données dans la ligne ; 0 si la ligne est vide.",
       "getDataRange": "Le plus petit rectangle contenant tout ce qui est utilisé (`UsedRange`), ou `null` si la feuille est vide.",

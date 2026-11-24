@@ -68,6 +68,7 @@ impl Gerador<'_> {
                 Tipo::Shell => Err(Motivo::novo(format!("WScript.Shell ({n}) usado como valor"))),
                 Tipo::Word | Tipo::DocWord => Err(Motivo::novo(format!("o Word ({n}) usado como valor"))),
                 Tipo::Colecao | Tipo::Objeto(_) => Ok(V::novo(v.js, T::Obj)),
+                Tipo::Tabela => Err(Motivo::novo(format!("a tabela {n} usada como valor"))),
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
             };
         }

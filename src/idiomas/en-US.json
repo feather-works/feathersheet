@@ -394,6 +394,7 @@
       "insertCells": "Inserts empty cells and pushes the selection down (\"down\") or right (\"right\").",
       "rowCount": "How many rows the range has.",
       "columnCount": "How many columns the range has.",
+      "tableRange": "Address of a part of the table (by name or by position, from 1): \"range\" (whole), \"data\" (data only), \"header\", \"totals\", \"col:N\" and \"datacol:N\" (column N), or \"rows\" (how many data rows). The VBA `ListObjects(\"Sales\").DataBodyRange`.",
       "getLastRow": "Number of the last row with data in the column; 0 if the column is empty. The `Cells(Rows.Count, 1).End(xlUp).Row`.",
       "getLastColumn": "Number of the last column with data in the row; 0 if the row is empty.",
       "getDataRange": "The smallest rectangle containing everything used (`UsedRange`), or `null` if the sheet is empty.",

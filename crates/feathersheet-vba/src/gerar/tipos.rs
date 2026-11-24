@@ -143,6 +143,12 @@ pub enum Obj {
     AbaNova(String, String),
     /// Um formulário (UserForm), pelo nome: `UserForm1.Show`, `Me.Hide`.
     Formulario(String),
+    /// `ws.ListObjects(x)`: (aba, nome ou posição em JS). Ver `gerar/tabela.rs`.
+    Tabela(String, String),
+    /// `.ListColumns(n)` de uma tabela: (aba, tabela, coluna em JS).
+    ColunaTabela(String, String, String),
+    /// `.ListRows` de uma tabela, para o `.Count`.
+    LinhasTabela(String, String),
     /// Um controle do formulário aberto (`TextBox1`, `Me.TextBox1`): `sheet.field("TextBox1")`.
     Controle(String),
     /// `Range.FormatConditions`: `.Delete` e `.Add`.
@@ -218,4 +224,6 @@ pub enum Tipo {
     Colecao,
     /// Objeto de um módulo de classe do projeto (o índice do módulo; ver `gerar/classe.rs`).
     Objeto(usize),
+    /// `As ListObject`: a variável guarda o nome (ou posição) da tabela; a aba fica em `aba_da_faixa`.
+    Tabela,
 }

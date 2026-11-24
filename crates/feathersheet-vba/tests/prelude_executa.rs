@@ -654,3 +654,26 @@ fn on_error_goto_dentro_de_if_e_repetido_roda() {
     assert_eq!(wb.valor(0, 1, 0), Value::Empty);
     assert_eq!(wb.valor(0, 2, 0), Value::Number(5.0));
 }
+
+/// `ListObjects` (#143): as partes da tabela viram intervalos com o endereço lido ao rodar.
+#[test]
+fn listobjects_le_as_partes_da_tabela() {
+    let vba = "Sub T()\n  Dim t As ListObject\n  Set t = ActiveSheet.ListObjects(\"Vendas\")\n  Range(\"F1\").Value = t.ListRows.Count\n\
+        Range(\"F2\").Value = t.DataBodyRange.Rows.Count\n  Range(\"F3\").Value = t.HeaderRowRange.Cells(1, 2).Value\n\
+        t.ListColumns(2).DataBodyRange.Cells(1, 1).Value = 99\n  With ActiveSheet.ListObjects(1)\n    Range(\"F4\").Value = .Range.Rows.Count\n  End With\nEnd Sub\n";
+    let c = converter_texto(&[("Módulo1", vba)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").expect("macro").codigo.clone();
+    assert!(c.pendencias.iter().all(|p| p.aviso), "{:#?}\n{js}", c.pendencias);
+    let mut wb = Workbook::new();
+    for (r, linha) in [["Região", "Valor"], ["Sul", "10"], ["Norte", "20"], ["Leste", "30"]].iter().enumerate() {
+        for (col, t) in linha.iter().enumerate() { let _ = wb.escrever_celula(0, r as u32, col as u32, t.to_string()); }
+    }
+    wb.aba_mut(0).unwrap().sheet.tb = Some(r#"[{"nome":"Vendas","temCabecalho":true,"area":{"r0":0,"c0":0,"r1":3,"c1":1}}]"#.into());
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(wb.valor(0, 0, 5), Value::Number(3.0));
+    assert_eq!(wb.valor(0, 1, 5), Value::Number(3.0));
+    assert_eq!(wb.valor(0, 2, 5), Value::Text("Valor".into()), "{js}");
+    assert_eq!(wb.valor(0, 1, 1), Value::Number(99.0));
+    assert_eq!(wb.valor(0, 3, 5), Value::Number(4.0));
+}

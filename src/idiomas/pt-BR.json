@@ -394,6 +394,7 @@
       "insertCells": "Insere células vazias e empurra as da seleção para baixo (\"down\") ou para a direita (\"right\").",
       "rowCount": "Quantas linhas o intervalo tem.",
       "columnCount": "Quantas colunas o intervalo tem.",
+      "tableRange": "Endereço de uma parte da tabela (pelo nome ou pela posição, a partir de 1): \"range\" (inteira), \"data\" (só os dados), \"header\", \"totals\", \"col:N\" e \"datacol:N\" (a coluna N), ou \"rows\" (quantas linhas de dados). O `ListObjects(\"Vendas\").DataBodyRange` do VBA.",
       "getLastRow": "Número da última linha com dado na coluna; 0 se a coluna está vazia. É o `Cells(Rows.Count, 1).End(xlUp).Row`.",
       "getLastColumn": "Número da última coluna com dado na linha; 0 se a linha está vazia.",
       "getDataRange": "O menor retângulo que contém tudo que foi usado (`UsedRange`), ou `null` se a aba está vazia.",

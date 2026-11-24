@@ -36,6 +36,13 @@
   nós (agora 20 mil): matriz de 17 `Array(…)` de 31 números numa linha com `_` converte; `m(1)(2)` num `Variant`
   vira item de item. Placar 87,2% → 87,3%. Testes `on_error_goto_dentro_de_if_e_repetido_roda`,
   `matriz_de_matrizes_larga_converte`; `vba_aninhado_demais_nao_derruba_e_o_normal_continua` segue passando.
+  **Sétima rodada**: `ListObjects` (tabelas): API nova das macros `sheet.tableRange(nome|posição, parte)`
+  (`feathersheet-macros/src/tabelas.rs`: `range`, `data`, `header`, `totals`, `col:N`, `datacol:N`, `rows`; a linha de
+  totais fica fora da área, em `r1 + 1`) e `gerar/tabela.rs` liga `.Range`, `.DataBodyRange`, `.HeaderRowRange`,
+  `.TotalsRowRange`, `.ListColumns(n).Range/.DataBodyRange` e `.ListRows.Count` a intervalos com endereço lido ao
+  rodar; variável `As ListObject` guarda o nome e a aba. Corrigido junto: `Cells(l, c)` sobre um intervalo de várias
+  células devolvia o intervalo deslocado inteiro (agora uma célula, `resize(…, 1, 1)`). Ajuda das macros com
+  `tableRange`. Testes `partes_da_tabela_pelo_nome_e_pela_posicao`, `listobjects_le_as_partes_da_tabela`.
 
 - **Gráfico dinâmico vai e volta no `.xlsx` (24/11/2026)**: o `pivotSource` do gráfico (id da dinâmica) sai como
   `<c:pivotSource><c:name>Aba!Nome</c:name><c:fmtId val="0"/></c:pivotSource>` (`xlsx_write_graficos::chart_space`,

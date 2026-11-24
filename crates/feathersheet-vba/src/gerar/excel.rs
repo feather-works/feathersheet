@@ -149,6 +149,10 @@ impl Gerador<'_> {
                 Tipo::DocWord => Ok(Obj::DocWord(v.js.clone())),
                 Tipo::Colecao => Err(Motivo::novo(feathersheet_core::trf!("{n} é coleção, não objeto do Excel"))),
                 Tipo::Objeto(_) => Err(Motivo::novo(feathersheet_core::trf!("{n} é objeto de classe, não objeto do Excel"))),
+                Tipo::Tabela => {
+                    let aba = self.escopo.aba_da_faixa.get(&v.js).cloned().unwrap_or_else(|| self.atual.clone());
+                    Ok(Obj::Tabela(aba, v.js.clone()))
+                }
                 Tipo::Impossivel(m) => Err(Motivo::novo(m.clone())),
                 Tipo::Valor(_) => Err(Motivo::novo(feathersheet_core::trf!("{n} não é objeto do Excel"))),
             };
@@ -202,6 +206,7 @@ impl Gerador<'_> {
                 _ => Err(Motivo::novo(format!("Worksheets.{nome}"))),
             },
             Obj::Aba(aba, nome_aba) => self.membro_da_aba(&aba, nome_aba, &n, args),
+            o @ (Obj::Tabela(..) | Obj::ColunaTabela(..) | Obj::LinhasTabela(..)) => self.membro_da_tabela(o, &n, args),
             Obj::Faixa(f) => self.membro_da_faixa(f, &n, args),
             Obj::Parte(f, Parte::Bordas(None)) if n == "item" && args.len() == 1 => {
                 let lado = args[0].valor.as_ref().and_then(lado_da_borda).ok_or_else(|| Motivo::novo(feathersheet_core::tr!("borda com lado calculado")))?;
@@ -365,6 +370,7 @@ impl Gerador<'_> {
             "rows" => self.linha_ou_coluna(aba, Inteira::Linhas, &args[0])?,
             "columns" => self.linha_ou_coluna(aba, Inteira::Colunas, &args[0])?,
             "usedrange" => Obj::Faixa(Faixa::dinamica(aba, format!("({aba}.getDataRange()?.address ?? 'A1')"))),
+            "listobjects" if !args.is_empty() => self.tabela_do_argumento(aba, args)?,
             "shapes" | "buttons" | "pictures" if args.is_empty() => Obj::Formas(aba.into()),
             "shapes" | "buttons" | "pictures" => self.forma_do_argumento(aba, &args[0])?,
             "chartobjects" => return Err(Motivo::novo(feathersheet_core::tr!("formas e botões do Excel (use Inserir → Botão de macro)"))),
@@ -530,7 +536,11 @@ impl Gerador<'_> {
                 let vl = self.valor(p[0])?;
                 let vc = self.valor(p[1])?;
                 let (a, b) = (self.como_num(&vl), self.como_num(&vc));
-                self.deslocado(&f, &format!("{a} - 1"), &format!("{b} - 1"))
+                // `Cells(l, c)` é uma célula só (o `Offset` guarda o tamanho do intervalo; aqui não).
+                match self.deslocado(&f, &format!("{a} - 1"), &format!("{b} - 1")) {
+                    Obj::Faixa(d) if !d.uma_celula() => Obj::Faixa(Faixa::dinamica(&aba, format!("{aba}.resize({}, 1, 1).address", d.end))),
+                    o => o,
+                }
             }
             "end" => self.fim_da_faixa(f, args)?,
             "currentregion" => Obj::Faixa(Faixa::dinamica(&aba, format!("{aba}.getRegion({}).address", f.end))),
@@ -628,6 +638,7 @@ impl Gerador<'_> {
         let n = nome.to_lowercase();
         match o {
             Obj::Faixa(f) => self.propriedade_da_faixa(f, &n, args),
+            o @ (Obj::Tabela(..) | Obj::ColunaTabela(..) | Obj::LinhasTabela(..)) => self.propriedade_da_tabela(o, &n, args),
             Obj::Forma(js) if n == "visible" => Ok(V::novo(format!("{js}.visible"), T::Bool)),
             Obj::Forma(js) if n == "onaction" => Ok(V::novo(format!("{js}.onAction"), T::Texto)),
             Obj::Forma(js) if matches!(n.as_str(), "left" | "top" | "width" | "height") => Ok(V::novo(format!("{js}.{n}"), T::Num)),

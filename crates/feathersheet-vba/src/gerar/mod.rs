@@ -19,6 +19,7 @@ mod expr;
 mod funcoes;
 mod instr;
 mod por_ref;
+mod tabela;
 mod tipos;
 
 use std::collections::{BTreeMap, HashMap, HashSet};

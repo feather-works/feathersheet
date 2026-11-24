@@ -394,6 +394,7 @@
    "insertCells": "Inserta celdas vacías y empuja la selección hacia abajo (\"down\") o a la derecha (\"right\").",
    "rowCount": "Cuántas filas tiene el rango.",
    "columnCount": "Cuántas columnas tiene el rango.",
+   "tableRange": "Dirección de una parte de la tabla (por nombre o por posición, desde 1): \"range\" (entera), \"data\" (solo los datos), \"header\", \"totals\", \"col:N\" y \"datacol:N\" (la columna N), o \"rows\" (cuántas filas de datos). El `ListObjects(\"Ventas\").DataBodyRange` de VBA.",
    "getLastRow": "Número de la última fila con datos en la columna; 0 si la columna está vacía. El `Cells(Rows.Count, 1).End(xlUp).Row`.",
    "getLastColumn": "Número de la última columna con datos en la fila; 0 si la fila está vacía.",
    "getDataRange": "El rectángulo más pequeño que contiene todo lo usado (`UsedRange`), o `null` si la hoja está vacía.",
