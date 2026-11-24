@@ -20,16 +20,22 @@ pub struct ModuloNovo {
     pub codigo: String,
 }
 
-/// Texto → bytes na página de código do projeto (1252 ou UTF-8); o que não cabe vira `?`.
+/// Texto → bytes na página de código do projeto; o que não cabe vira `?`.
 pub fn codificar(texto: &str, pagina: u16) -> Vec<u8> {
-    if pagina == 65001 {
+    let cod = crate::ovba::codificacao(pagina);
+    if cod == encoding_rs::UTF_8 {
         return texto.as_bytes().to_vec();
     }
-    const DE_0X80: &str = "€\u{81}‚ƒ„…†‡ˆ‰Š‹Œ\u{8d}Ž\u{8f}\u{90}‘’“”•–—˜™š›œ\u{9d}žŸ";
-    texto.chars().map(|c| match u32::from(c) {
-        n if n < 0x80 || (0xA0..0x100).contains(&n) => n as u8,
-        _ => DE_0X80.chars().position(|x| x == c).map_or(b'?', |i| 0x80 + i as u8),
-    }).collect()
+    let (bytes, _, com_erro) = cod.encode(texto);
+    if !com_erro { return bytes.into_owned(); }
+    // O `encode` troca o que não cabe por `&#N;`; o VBA quer `?`, caractere por caractere.
+    let mut saida = Vec::with_capacity(texto.len());
+    let mut um = [0u8; 4];
+    for c in texto.chars() {
+        let (b, _, erro) = cod.encode(c.encode_utf8(&mut um));
+        if erro { saida.push(b'?') } else { saida.extend_from_slice(&b) }
+    }
+    saida
 }
 
 /// Cifra de dados do MS-OVBA §2.4.3.2 (o `CMG`, `DPB` e `GC` do fluxo `PROJECT`), em hexadecimal maiúsculo.
@@ -227,7 +233,9 @@ pub fn alterar_projeto(bin: &[u8], modulos: &[ModuloNovo]) -> Result<Vec<u8>, St
     for (i, (id, d)) in dir.iter().enumerate() {
         match id {
             0x0019 => nome_atual = crate::ovba::decodificar(d, pagina),
+            0x0047 if !d.is_empty() => nome_atual = crate::ovba::de_utf16(d),
             0x001A => existentes.push((nome_atual.clone(), 0, crate::ovba::decodificar(d, pagina))),
+            0x0032 if !d.is_empty() => if let Some(e) = existentes.last_mut() { e.2 = crate::ovba::de_utf16(d); },
             0x0031 => if let Some(e) = existentes.last_mut() { e.1 = i; },
             _ => {}
         }

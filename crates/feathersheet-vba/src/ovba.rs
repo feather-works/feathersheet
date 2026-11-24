@@ -94,16 +94,38 @@ pub fn descomprimir(dados: &[u8]) -> Result<Vec<u8>, String> {
     Ok(saida)
 }
 
-/// Bytes na página de código do projeto → texto. 1252 (o padrão do Excel em pt-BR e en-US)
-/// difere do Latin-1 só em 0x80–0x9F; 65001 é UTF-8.
-pub fn decodificar(bytes: &[u8], pagina: u16) -> String {
-    if pagina == 65001 {
-        return String::from_utf8_lossy(bytes).into_owned();
+/// A codificação de uma página de código do Windows (`PROJECTCODEPAGE`); desconhecida fica no 1252, o padrão
+/// do Excel em pt-BR e en-US. Achado na bateria de `.xlsm` reais (#143): projetos em chinês e turco.
+pub fn codificacao(pagina: u16) -> &'static encoding_rs::Encoding {
+    use encoding_rs::*;
+    match pagina {
+        65001 => UTF_8,
+        874 => WINDOWS_874,
+        932 => SHIFT_JIS,
+        936 => GBK,
+        949 => EUC_KR,
+        950 => BIG5,
+        866 => IBM866,
+        1250 => WINDOWS_1250,
+        1251 => WINDOWS_1251,
+        1253 => WINDOWS_1253,
+        1254 => WINDOWS_1254,
+        1255 => WINDOWS_1255,
+        1256 => WINDOWS_1256,
+        1257 => WINDOWS_1257,
+        1258 => WINDOWS_1258,
+        _ => WINDOWS_1252,
     }
-    const DE_0X80: [char; 32] = [
-        '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8d}', 'Ž', '\u{8f}', '\u{90}', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\u{9d}', 'ž', 'Ÿ',
-    ];
-    bytes.iter().map(|&b| if (0x80..0xa0).contains(&b) { DE_0X80[usize::from(b - 0x80)] } else { char::from(b) }).collect()
+}
+
+/// Bytes na página de código do projeto → texto.
+pub fn decodificar(bytes: &[u8], pagina: u16) -> String {
+    codificacao(pagina).decode_without_bom_handling(bytes).0.into_owned()
+}
+
+/// Nome em UTF-16LE (os registros `…UNICODE` do fluxo `dir`).
+pub(crate) fn de_utf16(dado: &[u8]) -> String {
+    String::from_utf16_lossy(&dado.chunks_exact(2).map(|b| u16::from_le_bytes([b[0], b[1]])).collect::<Vec<_>>())
 }
 
 /// O que o fluxo `dir` diz de um módulo.
@@ -135,6 +157,9 @@ fn ler_dir(dir: &[u8]) -> Result<(u16, Vec<Entrada>), String> {
             0x0003 if tamanho >= 2 => pagina = u16::from_le_bytes([dado[0], dado[1]]),
             0x0019 => atual = Entrada { nome: decodificar(dado, pagina), ..Entrada::default() },
             0x001A => atual.fluxo = decodificar(dado, pagina),
+            // MODULENAMEUNICODE e MODULESTREAMNAME (Unicode): valem mais que os da página de código.
+            0x0047 if !dado.is_empty() => atual.nome = de_utf16(dado),
+            0x0032 if !dado.is_empty() => atual.fluxo = de_utf16(dado),
             0x0031 if tamanho >= 4 => atual.deslocamento = u32::from_le_bytes([dado[0], dado[1], dado[2], dado[3]]) as usize,
             0x0021 => atual.padrao = true,
             0x002B => modulos.push(std::mem::take(&mut atual)),
@@ -208,6 +233,15 @@ mod testes {
         // assim cresciam sem limite e a distância passava de 16 bits (pânico).
         let c = [0x01, 0xff, 0xbf, 0xfe, 0x61, 0xff, 0x0f];
         assert!(descomprimir(&c).is_err());
+    }
+
+    #[test]
+    fn paginas_de_outras_linguas() {
+        // "模块1" em GBK e "Çalışma" em 1254 (os nomes que a bateria #143 não achava).
+        assert_eq!(decodificar(&[0xC4, 0xA3, 0xBF, 0xE9, 0x31], 936), "模块1");
+        assert_eq!(decodificar(&[0xC7, 0x61, 0x6C, 0xFD, 0xFE, 0x6D, 0x61], 1254), "Çalışma");
+        assert_eq!(crate::ovba_projeto::codificar("模块1", 936), [0xC4, 0xA3, 0xBF, 0xE9, 0x31]);
+        assert_eq!(crate::ovba_projeto::codificar("a😀b", 1252), b"a?b");
     }
 
     #[test]

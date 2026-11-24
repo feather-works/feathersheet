@@ -14,6 +14,8 @@ description = "Converte macros VBA (do .xlsm do Excel) para as macros em JavaScr
 zip = { version = "4.2.0", default-features = false, features = ["deflate"] }
 quick-xml = "0.39.4"
 cfb = "0.14"
+# Páginas de código do projeto VBA fora do 1252 (GBK, Shift_JIS, 1254 turco…); já vinha pelo zip/quick-xml.
+encoding_rs = "0.8"
 # O caminho de volta (JS → VBA) lê o JavaScript com a sintaxe do motor das macros (mesma tag do falcao-runtime).
 falcao-sintaxe = { git = "https://github.com/feather-works/falcao", tag = "v0.1.1" }
 serde = { version = "1", features = ["derive"] }
