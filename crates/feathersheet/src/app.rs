@@ -72,7 +72,7 @@ mod dialogo_interno;
 pub(crate) mod link_ui;
 mod congelar_ui;
 mod painel_dividido;
-use painel_dividido::PainelVista;
+use painel_dividido::{Divisao, PainelVista};
 mod formulas_ui;
 mod inspecao_ui;
 mod mcp_vivo;
@@ -106,6 +106,7 @@ mod primeiros_passos;
 mod novidades;
 mod aviso_xlsx;
 mod relatorio_vba;
+mod tema_pasta;
 mod excluir_aba;
 mod efeitos_imagem;
 mod imagens_importadas;
@@ -389,9 +390,9 @@ pub enum Msg {
     TelaInteira,
     /// Exibir ▸ Janela ▸ Dividir: liga ou desliga o segundo painel (#83).
     /// `true`: lado a lado; `false`: um em cima do outro. O mesmo de novo desfaz.
-    Dividir(bool),
+    Dividir(painel_dividido::Divisao),
     /// Mensagem da grade do painel inativo: ele vira o ativo antes de tratá-la.
-    NoOutroPainel(Box<Msg>),
+    NoOutroPainel(usize, Box<Msg>),
     /// Arquivo > Renomear…: escolhe o novo nome e renomeia o arquivo no disco.
     RenomearArquivo, DestinoRenomear(Option<PathBuf>),
     MenuSalvarCopia, DestinoCopia(Option<PathBuf>),
@@ -470,7 +471,7 @@ pub enum Msg {
     CopiarAba(copiar_aba::Evento),
     /// Comentários das células (aba Revisão, Inserir, botão direito, Limpar).
     Comentario(comentarios_ui::Evento),
-    VbaImportar, RelatorioVba(relatorio_vba::Evento), VbaLido(Result<Option<(String, Vec<u8>)>, String>), NovoEstilo(estilo_novo::Evento),
+    VbaImportar, RelatorioVba(relatorio_vba::Evento), TemaPasta(tema_pasta::Evento), VbaLido(Result<Option<(String, Vec<u8>)>, String>), NovoEstilo(estilo_novo::Evento),
     OcultarDimensoes(bool), ReexibirDimensoes(bool),
     Preencher(DirecaoPreenchimento),
     /// Alça de preenchimento (canto da seleção) solta: o destino da prévia.

@@ -99,6 +99,7 @@ fn montar(lida: &PastaLida, colunas: Option<Vec<ColunasDaAba>>) -> Workbook {
     }
     pasta.macros = lida.mc.as_ref().map(|v| v.to_string());
     pasta.formularios = lida.fm.as_ref().map(|v| v.to_string());
+    pasta.tema = lida.tm.as_ref().map(|v| v.to_string());
     if let Some(binario) = lida.vb.as_ref().and_then(|v| crate::base64::decodificar(v["bin"].as_str()?)) {
         let vb = lida.vb.as_ref().expect("lido acima");
         let abas = vb["abas"].as_array().map(|l| l.iter().map(|n| n.as_str().map(String::from)).collect()).unwrap_or_default();
@@ -694,6 +695,7 @@ mod testes {
             mc: None,
             ex: None,
             fm: None,
+            tm: None,
             vb: None,
             sheets: vec![AbaLida {
                 estilos: Default::default(),
@@ -797,6 +799,7 @@ mod testes {
             mc: None,
             ex: None,
             fm: None,
+            tm: None,
             vb: None,
             sheets: vec![AbaLida {
                 estilos: Default::default(),

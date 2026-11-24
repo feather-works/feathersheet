@@ -90,7 +90,7 @@
           "• Formatação condicional (Página Inicial → Condicional): pinta células por regra — maior que, contém texto, duplicados, fórmula própria, escala de cor e barra de dados.",
           "• Cores alternadas (Página Inicial → Estilos) listra as linhas; Estilos de célula aplica um estilo pronto.",
           "• Congelar (Exibir → Congelar) fixa as primeiras linhas ou colunas enquanto você rola.",
-          "• Dividir janela (Exibir → Janela) mostra dois painéis, um em cima do outro (Lado a lado: um ao lado do outro), cada um com a sua aba e a sua rolagem, com as imagens, formas, gráficos e botões de cada aba. Clique num painel para usá-lo e escolha a aba dele no rodapé; clique de novo no mesmo botão para voltar a um painel só."
+          "• Dividir janela (Exibir → Janela) mostra dois painéis, um em cima do outro (Lado a lado: um ao lado do outro), cada um com a sua aba e a sua rolagem, com as imagens, formas, gráficos e botões de cada aba. Clique num painel para usá-lo e escolha a aba dele no rodapé; clique de novo no mesmo botão para voltar a um painel só. Em quatro divide em quatro painéis (dois em cima, dois embaixo), cada um com a sua aba."
         ]
       },
       "tabelas": {
@@ -181,7 +181,7 @@
       "impressao": {
         "titulo": "Página e impressão",
         "corpo": [
-          "Layout da Página: Margens, Orientação, Tamanho do papel, Área de impressão, Quebras, Dimensionar para Ajustar (páginas de largura e altura, ou escala) e Imprimir linhas de grade.",
+          "Layout da Página: Margens, Orientação, Tamanho do papel, Área de impressão, Quebras, Dimensionar para Ajustar (páginas de largura e altura, ou escala) e Imprimir linhas de grade. Temas (no começo da aba): Temas aplica um tema pronto inteiro, Cores troca só as cores e Fontes só o par título/corpo. As células e formas com cores do tema (e os tons mais claros e mais escuros delas) passam para as cores do novo tema; cores de fora do tema ficam. Um Ctrl+Z desfaz. O tema vai e volta no .xlsx (xl/theme) e abrir um arquivo do Excel traz o tema dele.",
           "Visualizar mostra as páginas antes de imprimir. Inserir → Cabeçalho e rodapé põe um texto no alto e no pé de cada página.",
           "Tudo isso fica guardado na aba e vai junto no arquivo (.fshz e .xlsx): ao abrir um .xlsx, as margens, o papel, a área de impressão e o cabeçalho que o Excel gravou já vêm prontos."
         ]

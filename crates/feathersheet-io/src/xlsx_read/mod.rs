@@ -23,7 +23,7 @@ mod autofiltro;
 mod condicional;
 mod minigraficos;
 mod pagina;
-mod cores;
+pub mod cores;
 mod comentarios;
 mod controles;
 pub mod nao_convertidos;

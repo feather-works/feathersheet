@@ -1699,10 +1699,41 @@ pub fn montar_partes(pasta: &Workbook) -> Vec<(String, Vec<u8>)> {
 /// `.xlsm`, o `vbaProject.bin` como veio e os `codeName` da pasta e das abas.
 pub fn montar_partes_formato(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> {
     let mut partes = montar_partes_xlsx(pasta, macros);
+    com_tema(pasta, &mut partes);
     if macros {
         com_macros(pasta, &mut partes);
     }
     partes
+}
+
+/// O tema da pasta (#80) como `xl/theme/theme1.xml`; sem tema, nada (o Excel usa o Office padrão). "Padrão" (a
+/// letra da interface) vira Calibri, que é o que o Excel mostra no lugar.
+fn com_tema(pasta: &Workbook, partes: &mut Vec<(String, Vec<u8>)>) {
+    let Some(tema) = pasta.tema.as_deref().and_then(|t| serde_json::from_str::<serde_json::Value>(t).ok()) else { return };
+    let Some(cores) = tema["cores"].as_array().filter(|c| c.len() == 12) else { return };
+    let cor = |i: usize| format!("{:06X}", cores[i].as_u64().unwrap_or(0) & 0xFF_FFFF);
+    let fonte = |k: &str| match tema[k].as_str() { None | Some("Padrão") | Some("") => "Calibri".to_string(), Some(f) => escape_xml(f) };
+    let nome = escape_xml(tema["nome"].as_str().unwrap_or("FeatherSheet"));
+    let nomes = ["dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"];
+    // A ordem do arquivo é dk1, lt1, dk2, lt2; a do índice (e a guardada) é lt1, dk1, lt2, dk2.
+    let indice = [1, 0, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11];
+    let esquema: String = nomes.iter().zip(indice).map(|(n, i)| format!("<a:{n}><a:srgbClr val=\"{}\"/></a:{n}>", cor(i))).collect();
+    let solido = "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>";
+    let linha = |w: u32| format!("<a:ln w=\"{w}\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill></a:ln>");
+    let xml = format!(
+        "{XML_DECL}<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"{nome}\"><a:themeElements>\
+         <a:clrScheme name=\"{nome}\">{esquema}</a:clrScheme>\
+         <a:fontScheme name=\"{nome}\"><a:majorFont><a:latin typeface=\"{}\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/></a:majorFont>\
+         <a:minorFont><a:latin typeface=\"{}\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/></a:minorFont></a:fontScheme>\
+         <a:fmtScheme name=\"{nome}\"><a:fillStyleLst>{solido}{solido}{solido}</a:fillStyleLst><a:lnStyleLst>{}{}{}</a:lnStyleLst>\
+         <a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>\
+         <a:bgFillStyleLst>{solido}{solido}{solido}</a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>",
+        fonte("titulo"), fonte("corpo"), linha(6350), linha(12700), linha(19050));
+    trocar_na_parte(partes, "[Content_Types].xml", "</Types>",
+        "<Override PartName=\"/xl/theme/theme1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.theme+xml\"/></Types>");
+    trocar_na_parte(partes, "xl/_rels/workbook.xml.rels", "</Relationships>",
+        &format!("<Relationship Id=\"rIdTema\" Type=\"{NS_REL}/theme\" Target=\"theme/theme1.xml\"/></Relationships>"));
+    partes.push(("xl/theme/theme1.xml".into(), xml.into_bytes()));
 }
 
 const CT_LIVRO: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
@@ -2217,6 +2248,30 @@ pub fn gerar_delimitado(pasta: &mut Workbook, indice: usize, separador: char) ->
 
 #[cfg(test)]
 mod testes {
+    /// #80: o tema da pasta vai como `theme1.xml` (cores na ordem do arquivo, fontes, "Padrão" vira Calibri) e
+    /// volta como o mesmo tema; sem tema, nenhum `theme1.xml` (o Excel usa o padrão).
+    #[test]
+    fn tema_da_pasta_vai_e_volta_no_xlsx() {
+        let mut pasta = Workbook::new();
+        pasta.escrever_celula(0, 0, 0, "x".into());
+        let sem = gerar_xlsx(&pasta).unwrap();
+        assert!(zip::ZipArchive::new(std::io::Cursor::new(sem)).unwrap().by_name("xl/theme/theme1.xml").is_err());
+        let cores: Vec<u32> = vec![0xFFFFFF, 0x000000, 0xEEF3E8, 0x2F3E2C, 0x2E7D32, 0x8BC34A, 0xA1887F, 0xFFB300, 0x558B2F, 0x6D4C41, 0x1B5E20, 0x795548];
+        pasta.tema = Some(serde_json::json!({"nome": "Floresta & Cia", "cores": cores, "titulo": "Georgia", "corpo": "Padrão"}).to_string());
+        let bytes = gerar_xlsx(&pasta).unwrap();
+        let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes.clone())).unwrap();
+        let mut ler = |n: &str| { let mut t = String::new(); std::io::Read::read_to_string(&mut z.by_name(n).unwrap(), &mut t).unwrap(); t };
+        let tema = ler("xl/theme/theme1.xml");
+        assert!(tema.find("<a:dk1><a:srgbClr val=\"000000\"").unwrap() < tema.find("<a:lt1><a:srgbClr val=\"FFFFFF\"").unwrap());
+        assert!(tema.contains("<a:accent1><a:srgbClr val=\"2E7D32\"/>") && tema.contains("typeface=\"Calibri\"") && tema.contains("Floresta &amp; Cia"));
+        assert!(ler("[Content_Types].xml").contains("/xl/theme/theme1.xml"));
+        assert!(ler("xl/_rels/workbook.xml.rels").contains("theme/theme1.xml"));
+        let (lida, _) = crate::xlsx_read::ler_xlsx_workbook(bytes).unwrap();
+        let v: serde_json::Value = serde_json::from_str(lida.tema.as_deref().unwrap()).unwrap();
+        assert_eq!(v["cores"], serde_json::json!(cores));
+        assert_eq!((v["titulo"].as_str(), v["corpo"].as_str(), v["nome"].as_str()), (Some("Georgia"), Some("Calibri"), Some("Floresta & Cia")));
+    }
+
     #[test]
     fn paineis_congelados_e_grade_vao_e_voltam_no_xlsx() {
         use crate::xlsx_read::VistaAba;

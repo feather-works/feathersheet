@@ -4,6 +4,28 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Dividir em quatro (#83, parte; 24/11/2026)**: Exibir ▸ Janela ▸ Em quatro, grade 2×2. `painel_dividido.rs` passou
+  de um painel extra para `outros: Vec<Painel>`, cada um com o seu `lugar` (0..3), e o ativo com `lugar_ativo`;
+  clicar num outro troca os dois de papel e de lugar (`Msg::NoOutroPainel(i, …)`, `Msg::Dividir(Divisao)`). Mudar
+  de modo sobra ou completa painéis (`arrumar`). Foto `FEATHERSHEET_CAPTURAR_DIVIDIR=quatro`. Teste
+  `dividir_em_quatro_e_voltar_para_dois`. Ajuda F1 nas quatro línguas. Falta: Nova janela, Organizar tudo,
+  Alternar janelas.
+  Novidade para o `VERSOES` da 0.4.0: "Dividir janela em quatro painéis, cada um com a sua aba".
+
+- **Temas da pasta (#80; 24/11/2026)**, tela decidida sem o usuário, referência Layout da Página ▸ Temas do Excel:
+  grupo Temas no começo da aba (Temas ▾, Cores ▾, Fontes ▾ no menu suspenso da faixa; Efeitos fica de fora). Tema =
+  12 cores na ordem do `theme="n"` + fonte de título e de corpo, em `Workbook::tema` (JSON; `tm` no `.fshz`). Como
+  células e formas guardam a cor e não o índice, trocar o tema remapeia em todas as abas cada cor do tema antigo e
+  os tons 80/60/40% mais claros e 25/50% mais escuros (o mesmo `aplicar_tint` da leitura do `.xlsx`) para as da
+  mesma posição no novo, e as fontes título/corpo (`Sheet::remapear_estilos` no motor; formas: preenchimento,
+  contorno, cor e família do texto). Um Ctrl+Z pela foto da pasta. `.xlsx`: `theme1.xml` gravado só quando a pasta
+  tem tema ("Padrão" vira Calibri) e lido de volta (`cores::tema_da_pasta`). Seis temas prontos com nomes e paletas
+  próprios; o primeiro tem as cores do Office. Testes `troca_cores_e_fontes_de_todos_os_estilos` (motor),
+  `tons_como_o_excel`, `trocar_o_tema_recolore_celulas_e_formas`, `tema_da_pasta_vai_e_volta_no_xlsx`. Foto
+  `FEATHERSHEET_CAPTURAR_JANELA=menu_temas`. Ajuda F1 nas quatro línguas. Limite: célula sem fonte própria usa a
+  da interface (não muda com a fonte de corpo do tema).
+  Novidade para o `VERSOES` da 0.4.0: "Temas da pasta: troque cores e fontes de tudo de uma vez (Layout da Página)".
+
 - **Grupo de formas estica e gira inteiro (#79; 24/11/2026)**: esticar uma forma do grupo pelas alças escala as
   outras na mesma proporção a partir da borda que ficou parada (`esticar_grupo`); girar pela alça ou por Girar 90°
   roda cada forma em volta do centro do grupo e dá a elas o mesmo giro (`girar_grupo`). Sai o `shortcut:` antigo.

@@ -420,6 +420,14 @@ impl App {
         let menu = |rotulo: &str, icone: &str, tipo: &'static str| self.faixa_grande_seta(
             rotulo, icone, Some(Msg::AlternarMenuEdicao(tipo)), self.edicao_menu == Some(tipo));
         vec![
+            // Temas do Excel (#80): o tema inteiro, só as cores ou só as fontes.
+            self.faixa_grupo(tr!("Temas"), self.faixa_linha(vec![
+                menu(tr!("Temas"), "brush", "tm_temas"),
+                self.faixa_pilha(vec![
+                    self.faixa_pequeno(tr!("Cores"), "palette", Some(Msg::AlternarMenuEdicao("tm_cores")), self.edicao_menu == Some("tm_cores")),
+                    self.faixa_pequeno(tr!("Fontes"), "text-size", Some(Msg::AlternarMenuEdicao("tm_fontes")), self.edicao_menu == Some("tm_fontes")),
+                ]),
+            ])),
             self.faixa_grupo(tr!("Configurar Página"), self.faixa_linha(vec![
                 menu(tr!("Margens"), "borda_externa_espessa", "pg_margens"),
                 menu(tr!("Orientação"), "orientacao_pagina", "pg_orientacao"),

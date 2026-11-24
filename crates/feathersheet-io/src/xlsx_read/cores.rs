@@ -78,6 +78,18 @@ pub fn instalar(theme_xml: &str, styles_xml: &str) -> Guarda {
     Guarda(Some(antiga))
 }
 
+/// O tema do arquivo como o app guarda na pasta (`Workbook::tema`, #80): nome, as 12 cores na ordem do
+/// `theme="n"` e as fontes de título (`majorFont`) e corpo (`minorFont`). `None` sem `theme1.xml`.
+pub fn tema_da_pasta(xml: &str) -> Option<String> {
+    let cores = ler_tema(xml)?;
+    let raiz = parse_xml(xml).ok()?;
+    let elementos = raiz.child("themeElements")?;
+    let fonte = |qual: &str| elementos.child("fontScheme").and_then(|f| f.child(qual)).and_then(|f| f.child("latin"))
+        .and_then(|l| l.attr("typeface")).filter(|t| !t.is_empty()).unwrap_or("Padrão").to_string();
+    let nome = elementos.child("clrScheme").and_then(|c| c.attr("name")).or(raiz.attr("name")).unwrap_or("Office");
+    Some(serde_json::json!({"nome": nome, "cores": cores, "titulo": fonte("majorFont"), "corpo": fonte("minorFont")}).to_string())
+}
+
 /// `<a:clrScheme>` do `theme1.xml`, na ordem do índice `theme="n"`.
 pub fn ler_tema(xml: &str) -> Option<Tema> {
     if xml.trim().is_empty() {

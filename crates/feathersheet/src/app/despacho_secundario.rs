@@ -31,6 +31,7 @@ impl App {
                 Task::batch([t, self.editor_para_o_relatorio_vba()])
             }
             Msg::RelatorioVba(e) => self.evento_relatorio_vba(e),
+            Msg::TemaPasta(e) => { self.evento_tema_pasta(e); Task::none() }
             Msg::MacroResponder(sim) => { self.responder_macro(sim); self.salvar_depois_do_evento() }
             Msg::MacroEscolher(i) => { self.escolher_na_macro(i); self.salvar_depois_do_evento() }
             Msg::MacroDigitar(t) => { self.digitar_na_macro(t); Task::none() }
@@ -1234,7 +1235,11 @@ impl App {
                                 self.workbook.escrever_celula(self.folha, r, 0, t.into());
                             }
                             if modo == "lado" { self.preparar_captura_objetos("1"); self.faixa_ativa = AbaFaixa::Exibir; }
-                            self.alternar_divisao(modo == "lado");
+                            self.alternar_divisao(match modo.as_str() {
+                                "lado" => painel_dividido::Divisao::LadoALado,
+                                "quatro" => painel_dividido::Divisao::Quatro,
+                                _ => painel_dividido::Divisao::Horizontal,
+                            });
                             let _ = self.update(Msg::AdicionarAba);
                             self.workbook.escrever_celula(self.folha, 0, 0, "Metas".into());
                             self.trocar_selecao(1, 1);
@@ -1510,6 +1515,18 @@ impl App {
                                     self.orientacao_menu_aberto = true;
                                     self.orientacao_popup_x = 506.0;
                                     self.orientacao_popup_y = 168.0;
+                                    return Task::none();
+                                }
+                                // menu_temas: Layout da Página com o menu Temas aberto e o tema Floresta aplicado (#80).
+                                "menu_temas" => {
+                                    for (r, t) in [(0, "Região"), (1, "Norte"), (2, "Sul")] { self.workbook.escrever_celula(self.folha, r, 0, t.into()); }
+                                    self.workbook.editar(self.folha, |s| s.set_style(&Rect::new(0, 0, 0, 0),
+                                        &[("bg".to_string(), Campo::Texto("#4472c4".into())), ("color".to_string(), Campo::Texto("#ffffff".into()))].into()));
+                                    self.evento_tema_pasta(tema_pasta::Evento::Tema(2));
+                                    self.faixa_ativa = AbaFaixa::Layout;
+                                    self.edicao_menu = Some("tm_temas");
+                                    self.edicao_popup_x = 16.0;
+                                    self.edicao_popup_y = 150.0;
                                     return Task::none();
                                 }
                                 // menu_moeda: a seta ao lado do "R$" aberta, na aba Página Inicial.

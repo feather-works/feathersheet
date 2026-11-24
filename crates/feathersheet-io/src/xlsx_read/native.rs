@@ -894,6 +894,7 @@ pub fn ler_xlsx_workbook(bytes: Vec<u8>) -> Result<(Workbook, usize), String> {
         workbook.definir_nome_formula_na_leitura(&n.name, &super::formula::formula_from_excel(&n.text), aba);
     }
     super::vinculos::instalar(&mut workbook, externos);
+    workbook.tema = super::cores::tema_da_pasta(&tema_xml);
     // Dinâmica sem resultado nas células (Google Planilhas, `refreshOnLoad`)
     // é calculada aqui; com resultado, só ganha a área para o painel editar.
     super::dinamica_importada::materializar(&mut workbook);

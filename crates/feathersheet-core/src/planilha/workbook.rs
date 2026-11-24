@@ -199,6 +199,8 @@ pub struct Workbook {
     /// Os formulários das macros (`sheet.showComponent`), JSON opaco como as
     /// macros; o modelo mora no `feathersheet-macros`.
     pub formularios: Option<String>,
+    /// O tema da pasta (cores e fontes, Layout da Página ▸ Temas): JSON opaco, o app interpreta.
+    pub tema: Option<String>,
     /// O projeto VBA de um `.xlsm` aberto, guardado como veio, para salvar o `.xlsm` igual.
     pub vba: Option<ProjetoVba>,
     /// Ver [`Workbook::areas_citadas`]: reler 780 mil fórmulas de vínculo custava 2 s (#136).
@@ -257,6 +259,7 @@ impl Workbook {
             propriedades: Propriedades::default(),
             macros: None,
             formularios: None,
+            tema: None,
             vba: None,
             areas_cache: std::cell::RefCell::new(None),
         }

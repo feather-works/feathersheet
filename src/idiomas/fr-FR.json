@@ -90,7 +90,7 @@
           "• Mise en forme conditionnelle (Accueil → Conditionnelle) : colore les cellules selon une règle — supérieur à, texte qui contient, doublons, formule personnalisée, échelle de couleurs et barre de données.",
           "• Lignes à bandes (Accueil → Styles) alterne les couleurs des lignes ; Styles de cellules applique un style prêt à l'emploi.",
           "• Figer les volets (Affichage → Figer) maintient les premières lignes ou colonnes en place pendant le défilement.",
-          "• Fractionner (Affichage → Fenêtre) affiche deux volets l'un au-dessus de l'autre (Côte à côte : l'un à côté de l'autre), chacun avec sa feuille et son défilement, y compris les images, formes, graphiques et boutons de cette feuille. Cliquez sur un volet pour l'utiliser et choisissez sa feuille en bas ; cliquez à nouveau sur le même bouton pour revenir à un seul volet."
+          "• Fractionner (Affichage → Fenêtre) affiche deux volets l'un au-dessus de l'autre (Côte à côte : l'un à côté de l'autre), chacun avec sa feuille et son défilement, y compris les images, formes, graphiques et boutons de cette feuille. Cliquez sur un volet pour l'utiliser et choisissez sa feuille en bas ; cliquez à nouveau sur le même bouton pour revenir à un seul volet. En quatre divise en quatre volets (deux en haut, deux en bas), chacun avec sa feuille."
         ]
       },
       "tabelas": {
@@ -181,7 +181,7 @@
       "impressao": {
         "titulo": "Mise en page et impression",
         "corpo": [
-          "Mise en page : Marges, Orientation, Taille du papier, Zone d'impression, Sauts de page, Mise à l'échelle (pages en largeur et en hauteur, ou une échelle) et Imprimer le quadrillage.",
+          "Mise en page : Marges, Orientation, Taille du papier, Zone d'impression, Sauts de page, Mise à l'échelle (pages en largeur et en hauteur, ou une échelle) et Imprimer le quadrillage. Thèmes (au début de l'onglet) : Thèmes applique un thème prêt complet, Couleurs ne change que les couleurs et Polices que la paire titre/corps. Les cellules et formes aux couleurs du thème (et leurs nuances plus claires et plus foncées) prennent les couleurs du nouveau thème ; les couleurs hors du thème restent. Un Ctrl+Z annule. Le thème fait l'aller-retour dans le .xlsx (xl/theme) et ouvrir un fichier Excel apporte son thème.",
           "Aperçu montre les pages avant l'impression. Insertion → En-tête et pied de page ajoute du texte en haut et en bas de chaque page.",
           "Tout cela est conservé dans la feuille et enregistré avec le fichier (.fshz et .xlsx) : ouvrir un .xlsx rapporte les marges, le papier, la zone d'impression et l'en-tête enregistrés par Excel."
         ]

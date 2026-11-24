@@ -445,8 +445,9 @@ impl App {
                     self.faixa_grande_seta(tr!("Congelar"), "lock", Some(Msg::CongelarMenu), self.congelar_menu_aberto),
                     self.faixa_grande(if self.tela_inteira { tr!("Sair tela inteira") } else { tr!("Tela inteira") },
                         "arrows-maximize", Some(Msg::TelaInteira), self.tela_inteira),
-                    self.faixa_grande(tr!("Dividir janela"), "layout-align-middle", Some(Msg::Dividir(false)), self.janela_dividida(false)),
-                    self.faixa_grande(tr!("Lado a lado"), "layout-columns", Some(Msg::Dividir(true)), self.janela_dividida(true)),
+                    self.faixa_grande(tr!("Dividir janela"), "layout-align-middle", Some(Msg::Dividir(Divisao::Horizontal)), self.janela_dividida(Divisao::Horizontal)),
+                    self.faixa_grande(tr!("Lado a lado"), "layout-columns", Some(Msg::Dividir(Divisao::LadoALado)), self.janela_dividida(Divisao::LadoALado)),
+                    self.faixa_grande(tr!("Em quatro"), "layout-grid", Some(Msg::Dividir(Divisao::Quatro)), self.janela_dividida(Divisao::Quatro)),
                     self.faixa_grande(tr!("Modo micro"), "layout-rows", Some(Msg::FaixaMicro), self.config.faixa_micro),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Zoom"), self.faixa_linha(vec![

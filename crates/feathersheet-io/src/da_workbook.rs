@@ -86,6 +86,7 @@ pub fn da_workbook(workbook: &Workbook, ativa: u32) -> PastaBruta {
         mc: workbook.macros.as_deref().and_then(|t| serde_json::from_str(t).ok()),
         ex: crate::externos_guardados::para_json(&workbook.externos_para_gravar()),
         fm: workbook.formularios.as_deref().and_then(|t| serde_json::from_str(t).ok()),
+        tm: workbook.tema.as_deref().and_then(|t| serde_json::from_str(t).ok()),
         vb: workbook.vba.as_ref().map(|_| vba_para_json(workbook)),
         sheets,
     }

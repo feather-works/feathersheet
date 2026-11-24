@@ -90,7 +90,7 @@
      "• Formato condicional (Inicio → Condicional): colorea celdas según una regla — mayor que, contiene texto, duplicados, fórmula personalizada, escala de color y barra de datos.",
      "• Colores alternados (Inicio → Estilos) rayan las filas; Estilos de celda aplica un estilo listo.",
      "• Inmovilizar (Mostrar → Inmovilizar) mantiene las primeras filas o columnas fijas mientras se desplaza.",
-     "• Dividir ventana (Mostrar → Ventana) muestra dos paneles, uno encima del otro (En paralelo: uno al lado del otro), cada uno con su hoja y su desplazamiento, con las imágenes, formas, gráficos y botones de esa hoja. Haga clic en un panel para usarlo y elija su hoja abajo; vuelva a pulsar el mismo botón para quedarse con un solo panel."
+     "• Dividir ventana (Mostrar → Ventana) muestra dos paneles, uno encima del otro (En paralelo: uno al lado del otro), cada uno con su hoja y su desplazamiento, con las imágenes, formas, gráficos y botones de esa hoja. Haga clic en un panel para usarlo y elija su hoja abajo; vuelva a pulsar el mismo botón para quedarse con un solo panel. En cuatro divide en cuatro paneles (dos arriba, dos abajo), cada uno con su hoja."
     ]
    },
    "tabelas": {
@@ -181,7 +181,7 @@
    "impressao": {
     "titulo": "Página e impresión",
     "corpo": [
-     "Diseño de página: Márgenes, Orientación, Tamaño del papel, Área de impresión, Saltos, Ajustar área de impresión (páginas de ancho y alto, o escala) e Imprimir líneas de cuadrícula.",
+     "Diseño de página: Márgenes, Orientación, Tamaño del papel, Área de impresión, Saltos, Ajustar área de impresión (páginas de ancho y alto, o escala) e Imprimir líneas de cuadrícula. Temas (al inicio de la pestaña): Temas aplica un tema listo completo, Colores cambia solo los colores y Fuentes solo el par título/cuerpo. Las celdas y formas con colores del tema (y sus tonos más claros y más oscuros) pasan a los colores del tema nuevo; los colores fuera del tema se quedan. Un Ctrl+Z lo deshace. El tema va y vuelve en el .xlsx (xl/theme) y abrir un archivo de Excel trae su tema.",
      "Vista previa muestra las páginas antes de imprimir. Insertar → Encabezado y pie de página añade un texto arriba y abajo de cada página.",
      "Todo esto se guarda en la hoja y va con el archivo (.fshz y .xlsx): al abrir un .xlsx, los márgenes, el papel, el área de impresión y el encabezado que guardó Excel ya vienen listos."
     ]

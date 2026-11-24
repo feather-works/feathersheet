@@ -1460,6 +1460,38 @@ impl Sheet {
         Some(self.style_parts.len() - 1)
     }
 
+    /// Troca, em todos os estilos da aba, cada texto de cor (`color`, `bg`, cor das bordas) e de fonte
+    /// (`fontFamily`) pelo que `cor`/`fonte` devolverem (`None` = fica). É o "trocar o tema da pasta": as células
+    /// guardam a cor e não o índice do tema. Não passa pelo histórico das células (quem chama guarda a foto).
+    /// Devolve quantos estilos mudaram.
+    pub fn remapear_estilos(&mut self, cor: &impl Fn(&str) -> Option<String>, fonte: &impl Fn(&str) -> Option<String>) -> usize {
+        use crate::celulas::estilo_parcial::Campo;
+        let trocar = |v: &mut Campo, f: &dyn Fn(&str) -> Option<String>| -> bool {
+            if let Campo::Texto(t) = v { if let Some(n) = f(t) { if n != *t { *t = n; return true; } } }
+            false
+        };
+        let mut mudaram = 0;
+        for (i, parte) in self.style_parts.iter_mut().enumerate() {
+            let mut mudou = false;
+            for (chave, v) in parte.iter_mut() {
+                match chave.as_str() {
+                    "color" | "bg" => mudou |= trocar(v, cor),
+                    "fontFamily" => mudou |= trocar(v, fonte),
+                    "borders" => if let Campo::Objeto(b) = v {
+                        if let Some(c) = b.get_mut("color") { mudou |= trocar(c, cor); }
+                    },
+                    _ => {}
+                }
+            }
+            if mudou {
+                self.style_table[i] = crate::celulas::estilo_parcial::para_style(parte);
+                mudaram += 1;
+            }
+        }
+        if mudaram > 0 { self.tocar(); }
+        mudaram
+    }
+
     /// O estilo de uma célula, já resolvido.
     pub fn get_style(&self, row: u32, col: u32) -> Option<&crate::celulas::style::Style> {
         let idx = self.get_style_idx(row, col)?;

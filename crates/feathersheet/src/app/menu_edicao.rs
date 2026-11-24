@@ -220,6 +220,12 @@ impl App {
                 reabrir(EventoOpenQuery::AbrirRecente(f.clone())))).collect(),
             "conexoes" => self.conexoes_existentes().into_iter().map(|(id, nome)| Item::Dinamico(
                 nome, "table", reabrir(EventoOpenQuery::EditarSalva(id)))).collect(),
+            "tm_temas" | "tm_cores" | "tm_fontes" => {
+                let titulo = match tipo { "tm_temas" => tr!("TEMAS"), "tm_cores" => tr!("CORES DO TEMA"), _ => tr!("FONTES DO TEMA") };
+                let mut v = vec![Item::Titulo(titulo)];
+                v.extend(self.itens_menu_tema(tipo).into_iter().map(|(rotulo, icone, msg)| Item::Dinamico(rotulo, icone, msg)));
+                return v;
+            }
             "moeda" => {
                 use feathersheet_core::celulas::moedas::MOEDAS;
                 let mut v = vec![Item::Titulo(tr!("MOEDA DA CÉLULA"))];
