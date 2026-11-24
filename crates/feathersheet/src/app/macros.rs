@@ -476,7 +476,7 @@ impl App {
     }
 
     pub(super) fn view_macros(&self) -> Element<'_, Msg> {
-        editor_visual::janela(self)
+        self.sobrepor_relatorio_vba(editor_visual::janela(self))
     }
 
 }

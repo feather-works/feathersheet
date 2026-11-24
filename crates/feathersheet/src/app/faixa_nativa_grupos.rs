@@ -472,6 +472,10 @@ impl App {
                         self.faixa_pequeno(tr!("Novo componente"), "plus", Some(Msg::MacroNovoFormulario), false),
                         self.faixa_pequeno(tr!("Editar"), "edit", Some(Msg::Macros), false),
                     ]),
+                    self.faixa_pilha(vec![
+                        self.faixa_pequeno(tr!("Importar VBA"), "file-code", Some(Msg::VbaImportar), false),
+                        self.faixa_pequeno(tr!("Relatório do VBA"), "list-details", Some(Msg::RelatorioVba(super::relatorio_vba::Evento::Abrir)), false),
+                    ]),
                 ])));
                 {
                     // Desenvolvedor > Inserir > Controles de formulário do Excel.

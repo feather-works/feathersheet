@@ -105,6 +105,7 @@ mod recuperacao;
 mod primeiros_passos;
 mod novidades;
 mod aviso_xlsx;
+mod relatorio_vba;
 mod excluir_aba;
 mod efeitos_imagem;
 mod imagens_importadas;
@@ -469,7 +470,7 @@ pub enum Msg {
     CopiarAba(copiar_aba::Evento),
     /// Comentários das células (aba Revisão, Inserir, botão direito, Limpar).
     Comentario(comentarios_ui::Evento),
-    VbaImportar, VbaLido(Result<Option<(String, Vec<u8>)>, String>), NovoEstilo(estilo_novo::Evento),
+    VbaImportar, RelatorioVba(relatorio_vba::Evento), VbaLido(Result<Option<(String, Vec<u8>)>, String>), NovoEstilo(estilo_novo::Evento),
     OcultarDimensoes(bool), ReexibirDimensoes(bool),
     Preencher(DirecaoPreenchimento),
     /// Alça de preenchimento (canto da seleção) solta: o destino da prévia.
@@ -1108,6 +1109,8 @@ pub struct App {
     faixa_salvamento: Option<(String, bool)>,
     /// Depois de exportar .xlsx: funções usadas que o Excel não tem.
     aviso_xlsx: Option<Vec<String>>,
+    /// O último VBA convertido nesta pasta (Arquivo → Relatório da conversão do VBA, no editor de macros).
+    relatorio_vba: Option<relatorio_vba::RelatorioVba>,
     /// "Excluir aba" numa aba com dados: espera a confirmação (o Excel também pergunta).
     excluir_aba_pedida: bool,
     ctrl_pressionado: bool,
@@ -1308,6 +1311,7 @@ impl Default for App {
             aviso_salvamento_de: None,
             faixa_salvamento: None,
             aviso_xlsx: None,
+            relatorio_vba: None,
             excluir_aba_pedida: false,
             ctrl_pressionado: false,
         }

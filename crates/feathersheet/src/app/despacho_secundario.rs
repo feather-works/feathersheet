@@ -26,7 +26,11 @@ impl App {
             Msg::Consolidar(evento) => self.evento_consolidar(evento),
             Msg::FiltroAvancado(evento) => self.evento_filtro_avancado(evento),
             Msg::InspetorDocumento(evento) => self.evento_inspetor_documento(evento),
-            Msg::VbaImportar => self.importar_vba(),
+            Msg::VbaImportar => {
+                let t = self.importar_vba();
+                Task::batch([t, self.editor_para_o_relatorio_vba()])
+            }
+            Msg::RelatorioVba(e) => self.evento_relatorio_vba(e),
             Msg::MacroResponder(sim) => { self.responder_macro(sim); self.salvar_depois_do_evento() }
             Msg::MacroEscolher(i) => { self.escolher_na_macro(i); self.salvar_depois_do_evento() }
             Msg::MacroDigitar(t) => { self.digitar_na_macro(t); Task::none() }
@@ -47,7 +51,7 @@ impl App {
             Msg::SenhaArquivo(evento) => self.evento_senha_arquivo(evento),
             Msg::CopiarAba(evento) => self.evento_copiar_aba(evento),
             Msg::Comentario(evento) => self.evento_comentario(evento),
-            Msg::VbaLido(lido) => { self.vba_lido(lido); Task::none() }
+            Msg::VbaLido(lido) => { self.vba_lido(lido); self.editor_para_o_relatorio_vba() }
             Msg::NovoEstilo(evento) => self.evento_novo_estilo(evento),
             Msg::ColarEspecialJanela(evento) => self.evento_colar_especial(evento),
             Msg::FormularioMacro(evento) => self.evento_formulario_macro(evento),
@@ -1403,6 +1407,10 @@ impl App {
                         if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("busca_macros") {
                             return self.preparar_captura_busca_macros();
                         }
+                        // FEATHERSHEET_CAPTURAR_JANELA=relatorio_vba: VBA de exemplo convertido e o relatório aberto.
+                        if std::env::var("FEATHERSHEET_CAPTURAR_JANELA").as_deref() == Ok("relatorio_vba") {
+                            return self.preparar_captura_relatorio_vba();
+                        }
                         // FEATHERSHEET_CAPTURAR_JANELA=primeiros:<passo 1–5>, novidades[:<versão 1–3>],
                         // monitor (F12), config:<seção 1–7> ou formatar:<aba 1–6> (Formatar células).
                         if let Ok(janela) = std::env::var("FEATHERSHEET_CAPTURAR_JANELA") {
@@ -1558,7 +1566,7 @@ impl App {
                                 Ok("inspecao") => self.janelas.id(Auxiliar::Inspecao),
                                 Ok("condicional") => self.janelas.id(Auxiliar::Condicional),
                                 Ok("dividir") => self.janelas.id(Auxiliar::DividirTexto),
-                                Ok("historico_macros" | "busca_macros") => self.janelas.id(Auxiliar::Macros),
+                                Ok("historico_macros" | "busca_macros" | "relatorio_vba") => self.janelas.id(Auxiliar::Macros),
                                 Ok(j) if j.starts_with("primeiros") => self.janelas.id(Auxiliar::PrimeirosPassos),
                                 Ok(j) if j.starts_with("novidades") => self.janelas.id(Auxiliar::Novidades),
                                 Ok("monitor") => self.janelas.id(Auxiliar::Monitor),

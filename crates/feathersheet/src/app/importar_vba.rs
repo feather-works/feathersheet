@@ -298,6 +298,7 @@ impl App {
         let mut base = self.macro_catalogo.clone();
         base.macros.retain(|m| !veio_do_arquivo(m, arquivo));
         let novos = modulos_da_conversao(&base, arquivo, c);
+        self.guardar_relatorio_vba(arquivo, c, &novos, abrir_no_editor);
         self.instalar_formularios(c, &novos);
         if novos.is_empty() && !c.formularios.is_empty() {
             self.status = trf!("{} formulário(s) do VBA de {arquivo} importado(s): Macros → Formulários (Alt+F11).", c.formularios.len());

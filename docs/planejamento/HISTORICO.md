@@ -4,6 +4,18 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Relatório da conversão do VBA (24/11/2026)**, tela decidida sem o usuário, referência o Verificador de
+  Compatibilidade do Excel: diálogo comum por cima do editor de macros (`app/relatorio_vba.rs`) com o resumo
+  (macros, eventos, formulários, pendências) e duas seções, "Não convertido" e "Pode agir diferente", cada item com
+  módulo · linha, motivo e até 4 linhas do VBA. Botões: Copiar relatório (texto inteiro), Abrir no editor (o módulo
+  `VBA_pendencias_<arquivo>`), Fechar. Abre sozinho depois de Importar VBA com pendência; abrir um `.xlsm` só guarda.
+  Entradas: Macros → Editor → Relatório do VBA (também Importar VBA, que só existia no menu do editor) e Arquivo →
+  Relatório da conversão do VBA no editor; pedido da janela principal abre o editor. Foto
+  `FEATHERSHEET_CAPTURAR_JANELA=relatorio_vba`. Teste `relatorio_da_conversao_lista_pendencias_e_abre_o_modulo`.
+  Ajuda F1 (tópico vba) nas quatro línguas.
+  Novidade para o `VERSOES` da 0.4.0: "Relatório da conversão do VBA: o que não converteu e o que pode agir
+  diferente, com o trecho original".
+
 - **Auditoria de 24/11/2026 (correções)**: (1) o roteiro de atualização do macOS apagava `/Applications/FeatherSheet.app`
   antes de copiar o novo; cópia que falhasse (disco cheio) deixava a pessoa sem programa. Agora copia para
   `FeatherSheet.app.novo`, depois apaga e renomeia (`atualizacao.rs`, teste `roteiros_mostram_e_conferem_antes_de_instalar`).

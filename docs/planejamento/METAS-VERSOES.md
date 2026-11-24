@@ -374,8 +374,8 @@
 - [ ] Caminho de volta: macro JS → VBA, gravada no `.xlsm` (o Excel abre e roda).
 - [ ] Ida e volta sem perda: VBA → JS → VBA dá código equivalente (teste
       automático com o conjunto de arquivos).
-- [ ] Relatório de conversão: o que converteu, o que ficou como comentário e por quê.
-      *Parcial: módulo de pendências com cada trecho e o motivo; falta uma tela própria.*
+- [x] Relatório de conversão: o que converteu, o que ficou como comentário e por quê.
+      *(24/11/2026: tela própria, `app/relatorio_vba.rs`.)*
 - [ ] Conjunto de teste com **pelo menos 50 `.xlsm` reais**.
 
 ### Integração com o FeatherDocs (pedido do usuário, 02/11/2026)

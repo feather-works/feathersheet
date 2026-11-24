@@ -23,7 +23,8 @@ milhar, datas, nomes de função) nas quatro línguas.
 - [x] Caminho de volta JS → VBA gravado no `.xlsm` e teste de ida e volta (24/11: compressão, gravador do
       `vbaProject.bin`, tradutor, Salvar `.xlsm`, eventos); conferido no LibreOffice e no olevba (24/11). Excel de
       verdade: só se o usuário tiver um à mão.
-- [ ] Relatório de conversão numa tela própria (hoje é o módulo de pendências). **Tela nova: confirmar.**
+- [x] Relatório de conversão numa tela própria (24/11): diálogo no editor de macros, referência o Verificador de
+      Compatibilidade do Excel; o módulo de pendências continua.
 - [ ] Bateria com pelo menos 50 `.xlsm` reais (#143); meta de 95% rodando igual.
 - [x] Integração com o FeatherDocs: `docs.fill` (modelo → `.docx`) e o conversor do `Word.Application` (mala
       direta do VBA), 24/11.
