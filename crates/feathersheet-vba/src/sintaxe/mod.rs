@@ -4,6 +4,7 @@
 
 mod expr;
 mod instr;
+mod precompilar;
 
 pub use instr::analisar;
 
@@ -175,6 +176,8 @@ pub struct Modulo {
     pub constantes: Vec<Decl>,
     /// Funções da API do Windows (`Declare … Lib "…"`): nome → linha.
     pub externas: Vec<(String, usize)>,
-    /// Trechos de módulo que não entraram (`Type`, `Enum`, lixo): (linha, texto).
+    /// Os `Enum` do módulo (os membros estão em `constantes`).
+    pub enums: Vec<String>,
+    /// Trechos de módulo que não entraram (`Type`, lixo): (linha, texto).
     pub ignorados: Vec<(usize, String)>,
 }

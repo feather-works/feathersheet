@@ -267,6 +267,14 @@ impl Gerador<'_> {
                 _ => Err(Motivo::novo(format!("Err.{nome}"))),
             };
         }
+        // `Cor.Vermelho`: membro de um `Enum` do projeto.
+        if let Expr::Nome(b) = base {
+            if args.is_empty() && self.var(b).is_none() && self.p.modulos.iter().any(|m| m.ast.enums.iter().any(|e| e.eq_ignore_ascii_case(b))) {
+                if let Some(v) = self.global(nome) {
+                    return Ok(V::novo(v.js, T::Num));
+                }
+            }
+        }
         // `Módulo1.Foo(x)`, `Sheet8.Inversor(Target)`.
         if let Expr::Nome(m) = base {
             if let Some(r) = self.p.achar_qualificado(m, nome) {

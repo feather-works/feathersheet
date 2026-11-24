@@ -531,7 +531,40 @@ impl Analisador {
         Ok(Proc { nome, tipo, publico, params, retorno, corpo, linha })
     }
 
-    /// Pula `Type … End Type` / `Enum … End Enum`.
+    /// `Enum Nome … End Enum`: cada membro vira constante numérica (sem valor, o anterior + 1, a partir de 0).
+    fn enumeracao(&mut self, m: &mut Modulo) -> Res<()> {
+        let nome = self.l.nome()?;
+        self.ate_o_fim();
+        let mut anterior: Option<Expr> = None;
+        let mut membros: Vec<(String, f64)> = Vec::new();
+        loop {
+            self.pular_fins();
+            if self.l.acabou() { return Err(()); }
+            if self.e_fim_de("enum") {
+                self.l.i += 2;
+                break;
+            }
+            let membro = self.l.nome()?;
+            let valor = if self.l.aceita_op("=") {
+                self.l.expr()?
+            } else {
+                match &anterior {
+                    None => Expr::Num(0.0),
+                    Some(e) => Expr::Bin(Op::Soma, Box::new(e.clone()), Box::new(Expr::Num(1.0))),
+                }
+            };
+            // Dobra para número quando dá (`&H10`, `2 ^ 3`, `A Or B` com membros anteriores).
+            let valor = dobrar(&valor, &membros).map_or(valor, Expr::Num);
+            if let Expr::Num(x) = valor { membros.push((membro.to_lowercase(), x)); }
+            anterior = Some(valor.clone());
+            m.constantes.push(Decl { nome: membro, tipo: Some("long".into()), dims: None, novo: false, valor: Some(valor) });
+            self.ate_o_fim();
+        }
+        m.enums.push(nome);
+        Ok(())
+    }
+
+    /// Pula `Type … End Type`.
     fn pular_ate_fim_de(&mut self, p: &str) {
         while !self.l.acabou() && !self.e_fim_de(p) {
             self.l.i += 1;
@@ -553,7 +586,9 @@ impl Analisador {
             self.l.nome()?;
             m.externas.push((self.l.nome()?, linha));
             self.ate_o_fim();
-        } else if self.l.e("type") || self.l.e("enum") {
+        } else if self.l.aceita("enum") {
+            self.enumeracao(m)?;
+        } else if self.l.e("type") {
             let p = self.l.nome()?.to_lowercase();
             self.pular_ate_fim_de(&p);
             m.ignorados.push((linha, format!("{p} (bloco de módulo)")));
@@ -576,9 +611,33 @@ impl Leitor {
     }
 }
 
+/// O valor numérico de uma expressão constante do `Enum`.
+fn dobrar(e: &Expr, membros: &[(String, f64)]) -> Option<f64> {
+    Some(match e {
+        Expr::Num(x) => *x,
+        Expr::Paren(x) => dobrar(x, membros)?,
+        Expr::Neg(x) => -dobrar(x, membros)?,
+        Expr::Nao(x) => !(dobrar(x, membros)? as i64) as f64,
+        Expr::Nome(n) => membros.iter().find(|(m, _)| m.eq_ignore_ascii_case(n))?.1,
+        Expr::Bin(op, a, b) => {
+            let (a, b) = (dobrar(a, membros)?, dobrar(b, membros)?);
+            match op {
+                Op::Soma => a + b,
+                Op::Sub => a - b,
+                Op::Mul => a * b,
+                Op::Pot => a.powf(b),
+                Op::Ou => ((a as i64) | (b as i64)) as f64,
+                Op::E => ((a as i64) & (b as i64)) as f64,
+                _ => return None,
+            }
+        }
+        _ => return None,
+    })
+}
+
 /// Analisa o código de um módulo VBA.
 pub fn analisar(fonte: &str) -> Modulo {
-    let mut a = Analisador { l: Leitor { t: lexico::fichas(fonte), i: 0, profundidade: 0, nos: 0 }, linhas: fonte.lines().map(String::from).collect(), blocos: 0 };
+    let mut a = Analisador { l: Leitor { t: lexico::fichas(&super::precompilar::pre_compilar(fonte)), i: 0, profundidade: 0, nos: 0 }, linhas: fonte.lines().map(String::from).collect(), blocos: 0 };
     let mut m = Modulo::default();
     loop {
         a.pular_fins();

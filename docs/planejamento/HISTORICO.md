@@ -15,6 +15,11 @@
   Placar: 76,0% → 80,2% das instruções convertidas (15.913 → 18.989), 54 de 54 arquivos convertem. Testes
   `modulo_de_classe_vira_objeto_com_metodos` e `modulo_de_classe_roda_no_motor` (roda no Falcão).
   Novidade para o `VERSOES` da 0.4.0: "Macros VBA com módulos de classe e em qualquer página de código convertem".
+  **Segunda rodada (mesmo dia)**: `Enum` vira constantes (`sintaxe/instr.rs::enumeracao`, valores dobrados para
+  número; `Enum.Membro` em `expr.rs::membro`), constante pública de outro módulo comum é achada (`Gerador::global`),
+  e a compilação condicional (`sintaxe/precompilar.rs`: `#If/#ElseIf/#Else/#End If/#Const`, ramo do Windows 64 bits,
+  linhas descartadas em branco). Placar 80,2% → 82,9% (20.225 convertidas). Teste
+  `enum_constante_de_outro_modulo_e_if_de_compilacao_rodam`.
 
 - **Gráfico dinâmico vai e volta no `.xlsx` (24/11/2026)**: o `pivotSource` do gráfico (id da dinâmica) sai como
   `<c:pivotSource><c:name>Aba!Nome</c:name><c:fmtId val="0"/></c:pivotSource>` (`xlsx_write_graficos::chart_space`,

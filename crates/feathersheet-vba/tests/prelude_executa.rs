@@ -578,3 +578,20 @@ fn modulo_de_classe_roda_no_motor() {
     assert_eq!(wb.valor(0, 0, 0), Value::Text("32Ana".into()));
     assert_eq!(wb.valor(0, 1, 0), Value::Number(10.0), "cada objeto com os seus campos");
 }
+
+/// `Enum` (valores implícitos, `&H`, `Or` de membros), `Enum.Membro`, constante pública de outro módulo e
+/// `#If VBA7`/`Mac` (#143): convertem sem pendência e rodam.
+#[test]
+fn enum_constante_de_outro_modulo_e_if_de_compilacao_rodam() {
+    let tipos = "Option Explicit\n#If VBA7 Then\nPublic Const BASE As Long = 100\n#Else\nPublic Const BASE As Long = 1\n#End If\n\
+        Public Enum Cor\n  Vermelho\n  Verde = 5\n  Azul\n  Mistura = Vermelho Or Azul\n  Alto = &H10\nEnd Enum\n";
+    let modulo = "Sub T()\n#If Mac Then\n  Range(\"A1\").Value = \"mac\"\n#Else\n  Range(\"A1\").Value = BASE + Azul + Cor.Alto + Mistura\n#End If\nEnd Sub\n";
+    let c = converter_texto(&[("Tipos", tipos), ("Módulo1", modulo)], &[]);
+    assert!(c.pendencias.iter().all(|p| p.aviso), "{:#?}", c.pendencias);
+    let js = c.macros.iter().find(|m| m.nome == "T").expect("macro").codigo.clone();
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    // 100 + 6 + 16 + (0 Or 6)
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(128.0), "{js}");
+}

@@ -314,14 +314,19 @@ impl Gerador<'_> {
                 return Some(Var { js: format!("$eu.{}", js_nome(&d.nome)), tipo: self.tipo_de(d.tipo.as_deref()), matriz: d.dims.is_some(), por_ref: false });
             }
         }
-        let d = m.variaveis.iter().chain(&m.constantes).find(|d| d.nome.to_lowercase() == chave)?.clone();
-        let js = match self.m.globais.get(&(self.modulo, chave.clone())) {
+        let achada = m.variaveis.iter().chain(&m.constantes).find(|d| d.nome.to_lowercase() == chave).cloned().map(|d| (self.modulo, d));
+        // Constante (ou membro de `Enum`) pública de um módulo comum.
+        let (mi, d) = achada.or_else(|| {
+            self.p.modulos.iter().enumerate().filter(|(_, m)| m.tipo == TipoDeModulo::Padrao)
+                .find_map(|(mi, m)| m.ast.constantes.iter().find(|d| d.nome.to_lowercase() == chave).cloned().map(|d| (mi, d)))
+        })?;
+        let js = match self.m.globais.get(&(mi, chave.clone())) {
             Some(j) => j.clone(),
             None => {
                 let base = js_nome(&d.nome);
-                let j = if self.m.topo.contains(&base) { js_nome(&format!("{}_{}", self.p.modulos[self.modulo].nome, d.nome)) } else { base };
+                let j = if self.m.topo.contains(&base) { js_nome(&format!("{}_{}", self.p.modulos[mi].nome, d.nome)) } else { base };
                 self.m.topo.insert(j.clone());
-                self.m.globais.insert((self.modulo, chave), j.clone());
+                self.m.globais.insert((mi, chave), j.clone());
                 if d.novo {
                     let nova = match d.tipo.as_deref().and_then(|t| self.classe(t)) {
                         Some(c) => Some(self.criar_objeto(c)),
