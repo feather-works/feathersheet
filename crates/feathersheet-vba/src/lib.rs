@@ -9,6 +9,7 @@ pub mod formulario;
 pub mod gerar;
 pub mod lexico;
 pub mod ovba;
+pub mod ovba_gravar;
 pub mod sintaxe;
 pub mod xlsm;
 
