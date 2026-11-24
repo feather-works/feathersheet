@@ -51,13 +51,14 @@ pub enum Instalacao {
 }
 
 impl Instalacao {
-    /// Nome do arquivo publicado no release para esta instalação.
-    pub fn arquivo(self) -> Option<&'static str> {
+    /// Nome do arquivo publicado no release `versao` (sem o `v`) para esta instalação. O `.dmg` leva a versão
+    /// e o processador desta cópia (`.github/workflows/macos.yml`), desde a v0.3.3 (#167).
+    pub fn arquivo(self, versao: &str) -> Option<String> {
         match self {
-            Self::Deb => Some("feathersheet-linux-amd64.deb"),
-            Self::PastaDoUsuario => Some("feathersheet-linux-x86_64.tar.gz"),
-            Self::Windows => Some("FeatherSheet-windows-x64.exe"),
-            Self::Mac => Some("FeatherSheet-macos.dmg"),
+            Self::Deb => Some("feathersheet-linux-amd64.deb".into()),
+            Self::PastaDoUsuario => Some("feathersheet-linux-x86_64.tar.gz".into()),
+            Self::Windows => Some("FeatherSheet-windows-x64.exe".into()),
+            Self::Mac => Some(dmg(versao, cfg!(target_arch = "aarch64"))),
             Self::Desconhecida => None,
         }
     }
@@ -77,6 +78,11 @@ impl Instalacao {
     pub fn pede_senha(self) -> bool {
         matches!(self, Self::Deb)
     }
+}
+
+/// `FeatherSheet-0.4.0-macos-apple-silicon.dmg` ou `…-macos-intel.dmg`.
+fn dmg(versao: &str, apple_silicon: bool) -> String {
+    format!("FeatherSheet-{versao}-macos-{}.dmg", if apple_silicon { "apple-silicon" } else { "intel" })
 }
 
 /// Descobre a instalação pelo caminho do executável (`casa` = pasta do usuário).
@@ -188,9 +194,11 @@ fn url_arquivo(versao: &str, arquivo: &str) -> String {
 /// Roteiro comentado que o terminal executa: (nome do arquivo, conteúdo).
 /// `pid` = este processo (Windows e macOS esperam o app fechar antes de trocar).
 pub fn roteiro(inst: Instalacao, versao: &str, pid: u32) -> Option<(String, String)> {
-    let arquivo = inst.arquivo()?;
+    let arquivo = inst.arquivo(versao)?;
+    let arquivo = arquivo.as_str();
     let url = url_arquivo(versao, arquivo);
-    let somas = url_arquivo(versao, "SHA256SUMS");
+    // O `SHA256SUMS` não traz os `.dmg`: cada um tem o seu `.dmg.sha256` (mesma linha "soma  nome").
+    let somas = if inst == Instalacao::Mac { url_arquivo(versao, &format!("{arquivo}.sha256")) } else { url_arquivo(versao, "SHA256SUMS") };
     let cabecalho = |c: &str| {
         format!(
             "{c} Atualização do FeatherSheet para a versão {versao}.\n\
@@ -415,7 +423,7 @@ impl App {
             pelicano::Space::new(Length::FILL, 0.0),
             button(text(tr!("Depois")).size(12)).padding([6, 12]).style(estilo_botao_secundario).on_press(ev(Evento::Depois)),
         ].spacing(8).align(pelicano::Align::Center);
-        if inst.arquivo().is_some() {
+        if inst.arquivo(&l.versao).is_some() {
             let rotulo = if matches!(inst, Instalacao::Windows | Instalacao::Mac) { tr!("Atualizar e reiniciar") } else { tr!("Atualizar") };
             acoes = acoes.push(button(text(rotulo).size(12)).padding([6, 14]).style(estilo_botao_primario).on_press(ev(Evento::Instalar)));
         }
@@ -583,6 +591,11 @@ mod testes {
         let (nome, mac) = roteiro(Instalacao::Mac, "0.0.3", 42).unwrap();
         assert!(nome.ends_with(".command"));
         assert!(mac.contains("shasum -a 256 -c") && mac.contains("kill -0 42") && mac.contains("/Applications/FeatherSheet.app"));
+        // #167: o nome que o release publica e a soma do próprio .dmg.
+        let esperado = dmg("0.0.3", cfg!(target_arch = "aarch64"));
+        assert!(mac.contains(&format!("releases/download/v0.0.3/{esperado}\n")) && mac.contains(&format!("v0.0.3/{esperado}.sha256")), "{mac}");
+        assert_eq!(dmg("0.3.5", true), "FeatherSheet-0.3.5-macos-apple-silicon.dmg");
+        assert_eq!(dmg("0.3.5", false), "FeatherSheet-0.3.5-macos-intel.dmg");
 
         assert!(roteiro(Instalacao::Desconhecida, "0.0.3", 42).is_none());
     }

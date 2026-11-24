@@ -499,7 +499,7 @@ fn secao_atualizacao(app: &App) -> Element<'_, Msg> {
         Estado::Disponivel(l) => {
             let notas: String = l.notas.lines().filter(|x| !x.trim().is_empty()).take(6).collect::<Vec<_>>().join("\n");
             let mut acoes = row![opcao(tr!("Ver no GitHub"), "info-circle", false, ev(Evento::AbrirPagina))].spacing(8);
-            if inst.arquivo().is_some() {
+            if inst != super::atualizacao::Instalacao::Desconhecida {
                 acoes = acoes.push(opcao(&trf!("Atualizar para a {}", l.versao), "terminal", true, ev(Evento::Instalar)));
             }
             pelicano::column![
@@ -508,7 +508,7 @@ fn secao_atualizacao(app: &App) -> Element<'_, Msg> {
                 acoes,
                 text(if inst.pede_senha() {
                     tr!("Atualizar abre o terminal com os passos à vista: baixa do GitHub, confere o arquivo e instala por cima (pede sua senha lá).")
-                } else if inst.arquivo().is_some() {
+                } else if inst != super::atualizacao::Instalacao::Desconhecida {
                     tr!("Atualizar abre o terminal com os passos à vista: baixa do GitHub, confere o arquivo e instala por cima.")
                 } else {
                     tr!("Esta cópia não veio de um instalador: baixe a versão nova pela página do GitHub.")
