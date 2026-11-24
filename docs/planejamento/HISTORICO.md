@@ -4,6 +4,10 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **MCP: PDF da aba** (24/11/2026, `sheet_impressao` acao `pdf`, ao vivo): a página da aba (papel, orientação,
+  escala, margens, áreas) vira `ConfigPagina` como no Salvar PDF; gravação atômica; `shortcut:` gera na thread da
+  janela, por isso o teto de 300 mil células (acima, a IA é mandada para Arquivo ▸ Imprimir). Teste `pdf_pelo_mcp`.
+
 - **MCP `sheet_imagem`** (24/11/2026, ao vivo): listar, inserir de arquivo (o mesmo `importar` do Inserir ▸
   Imagem: PNG/JPEG, 16 MiB conferidos antes de ler, 64 por aba) e remover. Teste `imagem_pelo_mcp`.
 

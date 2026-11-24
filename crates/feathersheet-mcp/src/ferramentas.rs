@@ -557,6 +557,10 @@ fn impressao(h: &mut dyn Hospede, args: &Json) -> Saida {
     let nome = h.pasta().nomes()[aba].clone();
     let mut p = pagina_aba::ler(h.pasta().aba(aba).and_then(|a| a.sheet.pg.as_deref()));
     let acao = arg_texto(args, "acao").unwrap_or("listar");
+    if acao == "pdf" {
+        let caminho = arg_texto(args, "arquivo").ok_or("Falta `arquivo` (caminho .pdf).")?;
+        return Ok(conteudo(h.pdf(aba, std::path::Path::new(caminho))?));
+    }
     if acao == "definir" {
         if let Some(t) = args.get("area").and_then(Json::as_str) {
             pagina_aba::ler_area(&mut p, t);
@@ -593,7 +597,7 @@ fn impressao(h: &mut dyn Hospede, args: &Json) -> Saida {
         h.pasta_mut().editar(aba, |s| s.pg = novo);
         h.marcar_alterado();
     } else if acao != "listar" {
-        return Err(format!("Ação desconhecida: {acao}. Use listar ou definir."));
+        return Err(format!("Ação desconhecida: {acao}. Use listar, definir ou pdf."));
     }
     let papel = PAPEIS.iter().find(|(_, c)| *c == p.papel).map_or_else(|| format!("código {}", p.papel), |(n, _)| (*n).to_string());
     Ok(conteudo(format!("{nome}: área {}; títulos {}; {}; papel {papel}; {}",

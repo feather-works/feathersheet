@@ -661,6 +661,35 @@ impl App {
         Task::none()
     }
 
+    /// PDF da aba com a página dela (`pg`: papel, orientação, escala, margens, áreas), como o Salvar PDF do
+    /// diálogo. Para o MCP ao vivo.
+    pub(super) fn pdf_pelo_mcp(&self, folha: usize, caminho: &std::path::Path) -> Result<String, String> {
+        // shortcut: gera na thread da janela; acima disto, o diálogo Imprimir (que mostra o andamento).
+        const MAX_CELULAS: u64 = 300_000;
+        if !caminho.extension().is_some_and(|e| e.eq_ignore_ascii_case("pdf")) {
+            return Err("O arquivo precisa terminar em .pdf.".into());
+        }
+        let pg = self.pagina_aba(folha);
+        let p = Pagina::de(&pg);
+        let config = ConfigPagina { papel: p.papel.papel(), orientacao: p.orientacao, escala: p.escala.escala(),
+            margens: p.margens(), linhas_de_grade: p.grade, cabecalhos: p.cabecalhos,
+            cabecalho: pg.cabecalho.clone(), rodape: pg.rodape.clone() };
+        let mut faixas = self.areas_da_folha(folha);
+        if faixas.is_empty() {
+            let u = self.workbook.aba(folha).ok_or("Aba inexistente.")?.sheet.used_rect();
+            faixas.push(Rect::new(0, 0, u.r1, u.c1));
+        }
+        let celulas: u64 = faixas.iter().map(|a| u64::from(a.r1 - a.r0 + 1) * u64::from(a.c1 - a.c0 + 1)).sum();
+        if celulas > MAX_CELULAS {
+            return Err(format!("{celulas} células é muito para gerar daqui: defina uma área de impressão menor (sheet_impressao) ou use Arquivo ▸ Imprimir no app."));
+        }
+        let areas: Vec<AreaImpressao> = faixas.iter()
+            .map(|a| AreaImpressao { linha0: a.r0, coluna0: a.c0, linha1: a.r1, coluna1: a.c1 }).collect();
+        let bytes = feathersheet_io::impressao_pdf::gerar_varias(&self.workbook, folha, &areas, &config)?;
+        feathersheet_io::arquivo::gravar_atomico(caminho, &bytes).map_err(|e| format!("Não gravei {}: {e}", caminho.display()))?;
+        Ok(format!("PDF gravado: {} ({} KB)", caminho.display(), bytes.len().div_ceil(1024)))
+    }
+
     fn pdf_do_dialogo(&self) -> Result<Vec<u8>, String> {
         let e = self.impressao.dialogo.as_ref().ok_or(tr!("diálogo fechado"))?;
         let faixas = self.faixas_impressao(e);

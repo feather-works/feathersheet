@@ -579,6 +579,10 @@ impl Hospede for HospedeApp<'_> {
         self.app.dinamica_pelo_mcp(args, origem)
     }
 
+    fn pdf(&mut self, aba: usize, caminho: &std::path::Path) -> Result<String, String> {
+        self.app.pdf_pelo_mcp(aba, caminho)
+    }
+
     fn imagem(&mut self, aba: usize, args: &Json) -> Result<String, String> {
         let celula = args.get("celula").map(|_| feathersheet_mcp::texto::intervalo(self, args, "celula").map(|(_, r)| (r.r0, r.c0))).transpose()?;
         self.app.imagem_pelo_mcp(aba, args, celula)
@@ -850,6 +854,21 @@ mod testes {
         let (erro, t) = chamar(&mut app, "sheet_imagem", json!({ "acao": "remover", "id": id }));
         assert!(!erro, "{t}");
         assert!(chamar(&mut app, "sheet_imagem", json!({ "acao": "listar" })).1.contains("Nenhuma"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `sheet_impressao` pdf: grava um PDF de verdade com a página da aba (área definida antes); recusa sem .pdf.
+    #[test]
+    fn pdf_pelo_mcp() {
+        let dir = std::env::temp_dir().join(format!("fs-mcp-pdf-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut app = App::default();
+        chamar(&mut app, "sheet_escrever", json!({ "celula": "A1", "valores": [["Item", "Valor"], ["a", 1234.5]] }));
+        chamar(&mut app, "sheet_impressao", json!({ "acao": "definir", "area": "A1:B2", "orientacao": "paisagem" }));
+        let (erro, t) = chamar(&mut app, "sheet_impressao", json!({ "acao": "pdf", "arquivo": dir.join("saida.pdf") }));
+        assert!(!erro, "{t}");
+        assert!(std::fs::read(dir.join("saida.pdf")).unwrap().starts_with(b"%PDF"));
+        assert!(chamar(&mut app, "sheet_impressao", json!({ "acao": "pdf", "arquivo": dir.join("saida.txt") })).0);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
