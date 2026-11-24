@@ -3814,6 +3814,7 @@
  "{nome} não é membro da classe {}": "{nome} is not a member of class {}",
  "objeto da classe guardado em {n}, que tem outro tipo": "class object stored in {n}, which has another type",
  "{n} é objeto de classe, não objeto do Excel": "{n} is a class object, not an Excel object",
+ "objeto guardado em {n}, que tem outro tipo": "object stored in {n}, which has another type",
  "a pasta {} não existe": "the folder {} does not exist",
  "aba de teste": "test sheet",
  "aba do cenário": "scenario sheet",

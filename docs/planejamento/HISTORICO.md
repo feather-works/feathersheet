@@ -26,6 +26,10 @@
   **Quarta rodada**: `Type … End Type` vira módulo de classe sintético só com campos (`InfoModulo::registro`,
   `Modulo::registros`); a variável (local, de módulo ou campo) já nasce com o objeto (`Gerador::inicial`).
   `shortcut:` cópia por referência e sem matriz de registros. Placar 84,1% → 84,7%. Teste `type_do_vba_roda_no_motor`.
+  **Quinta rodada**: objeto que vem de função do próprio VBA (`Set json = JsonConverter.ParseJson(t)`, o VBA-JSON)
+  vira objeto dinâmico (`gerar/dinamico.rs`): `x(k)` → `vba.item`, `x.Count`/`x.Exists(k)` → `vba.membro`, e
+  `Variant` com chave de texto (`v("nome")`) também. Corrigido junto: `Set NomeDaFuncao = objeto` virava variável local
+  em vez do retorno. Placar 84,7% → 87,2%. Teste `objeto_de_funcao_do_projeto_roda_como_dicionario`.
 
 - **Gráfico dinâmico vai e volta no `.xlsx` (24/11/2026)**: o `pivotSource` do gráfico (id da dinâmica) sai como
   `<c:pivotSource><c:name>Aba!Nome</c:name><c:fmtId val="0"/></c:pivotSource>` (`xlsx_write_graficos::chart_space`,

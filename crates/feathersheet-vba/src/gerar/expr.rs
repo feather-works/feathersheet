@@ -128,6 +128,15 @@ impl Gerador<'_> {
         if let Some(js) = self.var_colecao(f) {
             return self.membro_colecao(&js, "item", args);
         }
+        // `x.Exists(k)`: membro com argumentos, não o item do membro.
+        if let Expr::Membro(b, n) = f {
+            if let Some(base) = self.dinamico(b) {
+                return self.membro_dinamico(&base, n, args);
+            }
+        }
+        if let Some(base) = self.dinamico(f) {
+            return self.item_dinamico(&base, args);
+        }
         match f {
             Expr::Nome(n) => self.chamada_por_nome(n, args),
             Expr::Membro(base, nome) => self.membro(base, nome, args),
@@ -168,8 +177,13 @@ impl Gerador<'_> {
         }
         if let Some(v) = self.var(n).or_else(|| self.global(n)) {
             if v.matriz || matches!(v.tipo, Tipo::Valor(T::Var | T::Matriz)) {
+                let vs = self.valores(args)?;
+                // Chave de texto num Variant (`json("nome")`): é dicionário, não matriz.
+                if !v.matriz && vs.iter().any(|a| a.t == T::Texto) {
+                    return self.item_dinamico(&v.js, args);
+                }
                 let mut js = v.js.clone();
-                for a in self.valores(args)? {
+                for a in vs {
                     js.push_str(&format!("[{}]", if a.t == T::Num { a.js.clone() } else { self.como_num(&a) }));
                 }
                 return Ok(V::novo(js, T::Var));
@@ -251,6 +265,9 @@ impl Gerador<'_> {
         }
         if let Some((js, c)) = self.var_objeto(base) {
             return self.membro_classe(&js, c, nome, args);
+        }
+        if let Some(b) = self.dinamico(base) {
+            return self.membro_dinamico(&b, nome, args);
         }
         // `VBA.Len(x)`, `VBA.Mid(…)`.
         if matches!(base, Expr::Nome(b) if b.eq_ignore_ascii_case("vba")) {

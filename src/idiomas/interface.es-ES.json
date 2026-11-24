@@ -3810,6 +3810,7 @@
  "{nome} não é membro da classe {}": "{nome} no es miembro de la clase {}",
  "objeto da classe guardado em {n}, que tem outro tipo": "objeto de clase guardado en {n}, que tiene otro tipo",
  "{n} é objeto de classe, não objeto do Excel": "{n} es un objeto de clase, no un objeto de Excel",
+ "objeto guardado em {n}, que tem outro tipo": "objeto guardado en {n}, que tiene otro tipo",
  "a pasta {} não existe": "la carpeta {} no existe",
  "aba de teste": "hoja de prueba",
  "aba do cenário": "hoja del escenario",

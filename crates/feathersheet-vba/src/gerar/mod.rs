@@ -12,6 +12,7 @@ mod ajuda;
 mod classe;
 mod colecao;
 mod contexto;
+mod dinamico;
 mod escrita;
 mod excel;
 mod expr;

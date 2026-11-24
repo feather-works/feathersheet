@@ -327,6 +327,11 @@ impl Gerador<'_> {
         let chave = n.to_lowercase();
         // `Set c = New Collection`, `Set d = CreateObject("Scripting.Dictionary")`, `Set c = outra`,
         // `Set c = Nothing`: a variável passa a guardar coleção (mesmo declarada `As Object`).
+        // `Set NomeDaFuncao = objeto`: é o retorno, não uma variável nova.
+        if set && self.escopo.funcao.as_deref() == Some(chave.as_str()) {
+            let v = self.valor(valor)?;
+            return Ok(format!("$r = {};", v.js));
+        }
         // `Set obj = New Classe` / `Set obj = outro`: a variável passa a guardar objeto da classe.
         if set {
             if let Some(c) = self.classe_de_expr(valor) {
@@ -342,6 +347,21 @@ impl Gerador<'_> {
                 let v = self.valor(valor)?;
                 return Ok(format!("{js} = {};", v.js));
             }
+        }
+        // `Set json = JsonConverter.ParseJson(texto)`: objeto que só se conhece ao rodar (ver `gerar/dinamico.rs`).
+        if set && (self.e_chamada_de_funcao_do_projeto(valor) || self.dinamico(valor).is_some()) {
+            let atual = self.var(n).or_else(|| self.global(n));
+            let js = match atual {
+                Some(v) if matches!(v.tipo, Tipo::Impossivel(_) | Tipo::Valor(T::Var | T::Obj)) && !v.matriz => {
+                    if let Some(v) = self.escopo.vars.get_mut(&chave) { v.tipo = Tipo::Valor(T::Obj); }
+                    v.js
+                }
+                Some(v) if v.tipo == Tipo::Colecao => v.js,
+                Some(_) => return Err(Motivo::novo(feathersheet_core::trf!("objeto guardado em {n}, que tem outro tipo"))),
+                None => self.declarar(n, Tipo::Valor(T::Obj), false),
+            };
+            let v = self.valor(valor)?;
+            return Ok(format!("{js} = {};", v.js));
         }
         if set {
             let nova = match self.criar_colecao(valor) {
@@ -566,6 +586,9 @@ impl Gerador<'_> {
         }
         if let Some((js, c)) = self.var_objeto(base) {
             return self.chamar_classe(&js, c, m, args);
+        }
+        if let Some(b) = self.dinamico(base) {
+            return Ok(format!("{};", self.membro_dinamico(&b, m, args)?.js));
         }
         if let Expr::Nome(b) = base {
             if b.eq_ignore_ascii_case("debug") {

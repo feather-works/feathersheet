@@ -620,3 +620,23 @@ fn type_do_vba_roda_no_motor() {
     assert_eq!(wb.valor(0, 0, 0), Value::Number(3.5));
     assert_eq!(wb.valor(0, 1, 0), Value::Text("P0".into()));
 }
+
+/// Objeto que vem de uma função do próprio VBA (o padrão do VBA-JSON, bateria #143): `Set j = Json.Ler()`,
+/// `j("a")`, `j("lista")(1)`, `j.Count`, `j.Exists(k)` convertem e rodam.
+#[test]
+fn objeto_de_funcao_do_projeto_roda_como_dicionario() {
+    let json = "Public Function Ler() As Object\n  Dim d As Object, c As New Collection\n  Set d = CreateObject(\"Scripting.Dictionary\")\n\
+        d.Add \"a\", 1\n  c.Add \"x\"\n  d.Add \"lista\", c\n  Set Ler = d\nEnd Function\n";
+    let modulo = "Sub T()\n  Dim j As Object, v\n  Set j = Json.Ler()\n  Range(\"A1\").Value = j(\"a\") + j.Count\n\
+        Range(\"A2\").Value = j(\"lista\")(1)\n  If j.Exists(\"a\") Then Range(\"A3\").Value = \"sim\"\n  Set v = Json.Ler()\n  Range(\"A4\").Value = v(\"a\")\nEnd Sub\n";
+    let c = converter_texto(&[("Json", json), ("Módulo1", modulo)], &[]);
+    let js = c.macros.iter().find(|m| m.nome == "T").expect("macro").codigo.clone();
+    assert!(c.pendencias.iter().all(|p| p.aviso), "{:#?}\n{js}", c.pendencias);
+    let mut wb = Workbook::new();
+    let r = feathersheet_macros::executar(&mut wb, 0, &js);
+    assert!(r.erro.is_none(), "{:?}\n{js}", r.erro);
+    assert_eq!(wb.valor(0, 0, 0), Value::Number(3.0));
+    assert_eq!(wb.valor(0, 1, 0), Value::Text("x".into()));
+    assert_eq!(wb.valor(0, 2, 0), Value::Text("sim".into()));
+    assert_eq!(wb.valor(0, 3, 0), Value::Number(1.0));
+}
