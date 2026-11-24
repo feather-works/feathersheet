@@ -4,6 +4,16 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Caminho de volta JS → VBA, etapas 1 a 3** (24/11/2026; o usuário escolheu "gerar VBA de verdade"):
+  `ovba_gravar::comprimir` (MS-OVBA §2.4.1.3; volta igual pelo descompressor; o exemplo da especificação sai do
+  mesmo tamanho, mas não byte a byte: num empate de três candidatos o exemplo usou outro critério, e o Excel só
+  descomprime) e `ovba_projeto`: `projeto_novo` (pasta, abas e módulos padrão, referência stdole, `PROJECT` com
+  `CMG`/`DPB`/`GC` pela cifra do §2.4.3) e `alterar_projeto` (troca o código de módulos existentes guardando as
+  linhas `Attribute`, acrescenta módulos padrão, `_VBA_PROJECT` 0xFFFF para o Excel recompilar, tira o `__SRP_*`).
+  Testes de unidade e dois com o `.xlsm` real do usuário (`--ignored`): a cifra decifra o que o Excel gravou e
+  alterar o projeto real deixa todos os outros módulos e os formulários iguais. Falta: o tradutor JS → VBA
+  (etapa 4) e ligar no Salvar `.xlsm` (etapa 5); conferir no Excel de verdade fica com o usuário.
+
 - **Aviso: macro JavaScript não vai no `.xlsx`/`.xlsm`** (24/11/2026; furo achado ao olhar o "caminho de volta
   JS → VBA"): o `.xlsm` regrava o `vbaProject.bin` original e o JavaScript só vive no `.fshz`, então macro criada
   ou editada aqui sumia calada ao reabrir o `.xlsm`. Agora a conversão guarda a marca de cada módulo

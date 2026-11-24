@@ -6245,5 +6245,6 @@
  "objeto do Word guardado em variável e trocado depois": "Word object stored in a variable and changed later",
  "Word.{nome} (só abrir o modelo, Localizar e Substituir e Salvar como convertem)": "Word.{nome} (only opening the template, Find and Replace and Save as convert)",
  "{fora} macro(s) JavaScript criada(s) ou editada(s) aqui não vão no arquivo do Excel (ele roda só o VBA original): para guardá-las, salve também em .fshz.": "{fora} JavaScript macro(s) created or edited here are not saved in the Excel file (Excel only runs the original VBA): to keep them, also save as .fshz.",
- "O código VBA não pôde ser comprimido.": "The VBA code could not be compressed."
+ "O código VBA não pôde ser comprimido.": "The VBA code could not be compressed.",
+ "Não consegui gravar o projeto VBA: {e}": "Could not write the VBA project: {e}"
 }
