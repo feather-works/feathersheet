@@ -460,65 +460,6 @@ fn tem_bit(bitmap: &[u8], i: usize) -> bool {
     bitmap.get(i >> 3).is_some_and(|b| b & (1 << (i & 7)) != 0)
 }
 
-/// Traduz o estilo que veio do arquivo (JSON, como o TypeScript grava).
-///
-/// Campo que não se reconhece é ignorado em silêncio, de propósito: um
-/// arquivo de uma versão mais nova não pode deixar de abrir por causa de um
-/// atributo novo. É a mesma política do `unpack` do `io/fshz.ts`.
-#[allow(dead_code)]
-fn estilo_de_json(json: &serde_json::Value) -> Option<Style> {
-    let obj = json.as_object()?;
-    let bool_de = |k: &str| obj.get(k).and_then(|v| v.as_bool()).unwrap_or(false);
-    let texto_de = |k: &str| obj.get(k).and_then(|v| v.as_str()).map(str::to_string);
-
-    let estilo = Style {
-        bold: bool_de("bold"),
-        italic: bool_de("italic"),
-        underline: bool_de("underline"),
-        strike: bool_de("strike"),
-        wrap: bool_de("wrap"),
-        font_size: obj.get("fontSize").and_then(|v| v.as_f64()).map(|n| n as f32),
-        font_family: texto_de("fontFamily"),
-        decimals: obj.get("decimals").and_then(|v| v.as_u64()).map(|n| n as u8),
-        borders: None,
-        align: match texto_de("align").as_deref() {
-            Some("left") => Align::Left,
-            Some("center") => Align::Center,
-            Some("right") => Align::Right,
-            _ => Align::Auto,
-        },
-        valign: match texto_de("vAlign").as_deref() {
-            Some("top") => VAlign::Top,
-            Some("bottom") => VAlign::Bottom,
-            _ => VAlign::Middle,
-        },
-        format: match texto_de("format").as_deref() {
-            Some("number") => NumberFormat::Number,
-            Some("integer") => NumberFormat::Integer,
-            Some("currency") => NumberFormat::Currency,
-            Some("scientific") => NumberFormat::Scientific,
-            Some("accounting") => NumberFormat::Accounting,
-            Some("duration") => NumberFormat::Duration,
-            Some("percent") => NumberFormat::Percent,
-            Some("date") => NumberFormat::Date,
-            Some("datetime") => NumberFormat::Datetime,
-            Some("time") => NumberFormat::Time,
-            Some("text") => NumberFormat::Text,
-            _ => NumberFormat::Auto,
-        },
-        color: texto_de("color"),
-        bg: texto_de("bg"),
-        rotation: obj.get("rotation").and_then(|v| v.as_i64()).map(|n| n as i16),
-        link: texto_de("link"),
-        code: texto_de("numFmt"),
-    };
-    if estilo.is_empty() {
-        None
-    } else {
-        Some(estilo)
-    }
-}
-
 pub fn estilo_para_json(estilo: &Style) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     if estilo.bold {
@@ -598,7 +539,7 @@ mod testes {
     use feathersheet_core::celulas::values::Value;
 
     #[test]
-    fn estilo_ida_e_volta() {
+    fn estilo_vira_json_com_link() {
         let json_original = serde_json::json!({
             "bold": true,
             "fontSize": 14,
@@ -609,9 +550,11 @@ mod testes {
             // `.fshz` pela pasta do Rust (item 19, 23/09/2026).
             "link": "https://exemplo.com"
         });
-        let estilo = estilo_de_json(&json_original).expect("deveria converter json para estilo");
-        let json_reconstruido = estilo_para_json(&estilo);
-        assert_eq!(json_original, json_reconstruido);
+        let estilo = Style {
+            bold: true, font_size: Some(14.0), align: Align::Right, format: NumberFormat::Currency,
+            color: Some("#ff0000".into()), link: Some("https://exemplo.com".into()), ..Style::default()
+        };
+        assert_eq!(estilo_para_json(&estilo), json_original);
     }
 
     /// A planilha de exemplo do repositório: 22 mil fórmulas, várias abas,

@@ -4,6 +4,19 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Auditoria de 24/11/2026 (correções)**: (1) o roteiro de atualização do macOS apagava `/Applications/FeatherSheet.app`
+  antes de copiar o novo; cópia que falhasse (disco cheio) deixava a pessoa sem programa. Agora copia para
+  `FeatherSheet.app.novo`, depois apaga e renomeia (`atualizacao.rs`, teste `roteiros_mostram_e_conferem_antes_de_instalar`).
+  (2) O tracejado "formigueiro" da área copiada não andava: o `LineDash::offset` era jogado fora porque o pelicano
+  não recebe deslocamento. `compat::tracejado_deslocado` gira o padrão (teste `tracejado_anda_com_o_deslocamento`);
+  quando a pelicano ganhar deslocamento no `Stroke`, passar direto. (3) `AGORA()`/`HOJE()` relêem o fuso do sistema a
+  cada pulso de 1 s (`MonitorPulso`): o horário de verão mudava com o app aberto e ficava 1 h fora. (4) Apagados
+  `estilo_de_json` (só um teste usava) e o que sobrava sem uso do `compat.rs` (o `allow(dead_code)` justificado pela
+  GUI do Iced, já aposentada). Conferido sem o Excel: a extensão do `exportPdf`/`docs.fill` já era cobrada no
+  `feathersheet-macros/src/pasta.rs` (`com_extensao`).
+  Novidade para o `VERSOES` da 0.4.0: "A borda tracejada da área copiada volta a se mover" e "Atualizar no Mac não
+  apaga o programa se a cópia falhar".
+
 - **FeatherQuery: arquivo como segunda fonte de Mesclar/Acrescentar (24/11/2026)**: botão "Arquivo…" na Fonte
   secundária do assistente (`Evento::ArquivoComoFonte` marca `importar_como_fonte`; a leitura é a mesma da fonte
   principal, em tarefa separada, e a tabela entra em `fontes` como "Arquivo: nome" e já fica escolhida). A foto vai

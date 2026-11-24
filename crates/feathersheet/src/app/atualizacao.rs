@@ -229,7 +229,7 @@ pub fn roteiro(inst: Instalacao, versao: &str, pid: u32) -> Option<(String, Stri
         Instalacao::Mac => ("feathersheet-atualizar.command".into(), unix(
             &format!(
                 "\n  echo \"== Esperando o FeatherSheet fechar (feche a janela dele)\"\n  while kill -0 {pid} 2>/dev/null; do sleep 1; done\n\
-                 \n  echo \"== Copiando para Aplicativos\"\n  ponto=\"$(mktemp -d)\"\n  hdiutil attach -nobrowse -quiet -mountpoint \"$ponto\" {arquivo}\n  rm -rf /Applications/FeatherSheet.app\n  cp -R \"$ponto/FeatherSheet.app\" /Applications/\n  hdiutil detach -quiet \"$ponto\"\n  open /Applications/FeatherSheet.app\n"
+                 \n  echo \"== Copiando para Aplicativos\"\n  ponto=\"$(mktemp -d)\"\n  hdiutil attach -nobrowse -quiet -mountpoint \"$ponto\" {arquivo}\n  rm -rf /Applications/FeatherSheet.app.novo\n  cp -R \"$ponto/FeatherSheet.app\" /Applications/FeatherSheet.app.novo\n  hdiutil detach -quiet \"$ponto\"\n  rm -rf /Applications/FeatherSheet.app\n  mv /Applications/FeatherSheet.app.novo /Applications/FeatherSheet.app\n  open /Applications/FeatherSheet.app\n"
             ),
         )),
         Instalacao::Windows => ("feathersheet-atualizar.ps1".into(), format!(
@@ -591,6 +591,8 @@ mod testes {
         let (nome, mac) = roteiro(Instalacao::Mac, "0.0.3", 42).unwrap();
         assert!(nome.ends_with(".command"));
         assert!(mac.contains("shasum -a 256 -c") && mac.contains("kill -0 42") && mac.contains("/Applications/FeatherSheet.app"));
+        // A cópia vai para o lado antes de apagar o app antigo: cópia que falha não deixa a pessoa sem programa.
+        assert!(mac.find("cp -R").unwrap() < mac.find("rm -rf /Applications/FeatherSheet.app\n").unwrap());
         // #167: o nome que o release publica e a soma do próprio .dmg.
         let esperado = dmg("0.0.3", cfg!(target_arch = "aarch64"));
         assert!(mac.contains(&format!("releases/download/v0.0.3/{esperado}\n")) && mac.contains(&format!("v0.0.3/{esperado}.sha256")), "{mac}");

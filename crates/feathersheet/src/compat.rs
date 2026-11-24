@@ -1,7 +1,6 @@
 //! O pedaço do canvas do Iced 0.13 que a interface usava, sobre o `Renderer` do pelicano.
 //! Existe para o desenho portado ficar linha a linha igual ao do `feathersheet-gui`:
 //! mudança feita num lado se repete no outro sem retraduzir.
-#![allow(dead_code)] // a API do Iced espelhada inteira: nem toda peça é usada fora dos testes.
 use pelicano::{Background, Border, FillRule, Font, Point, Rect, Renderer, Size, Transform};
 pub use pelicano::{Align, Color};
 
@@ -40,12 +39,9 @@ pub type Rectangle = Rect;
 pub trait Retangulo {
     fn position(&self) -> Point;
     fn center(&self) -> Point;
-    fn expand(&self, v: f32) -> Rect;
     fn intersects(&self, o: &Rect) -> bool;
     fn center_x(&self) -> f32;
     fn center_y(&self) -> f32;
-    /// A parte comum, ou `None` se não se tocam.
-    fn intersection(&self, o: &Rect) -> Option<Rect>;
 }
 impl Retangulo for Rect {
     fn position(&self) -> Point {
@@ -53,9 +49,6 @@ impl Retangulo for Rect {
     }
     fn center(&self) -> Point {
         Point::new(self.x + self.width / 2.0, self.y + self.height / 2.0)
-    }
-    fn expand(&self, v: f32) -> Rect {
-        Rect { x: self.x - v, y: self.y - v, width: self.width + 2.0 * v, height: self.height + 2.0 * v }
     }
     fn intersects(&self, o: &Rect) -> bool {
         self.x < o.x + o.width && o.x < self.x + self.width && self.y < o.y + o.height && o.y < self.y + self.height
@@ -65,10 +58,6 @@ impl Retangulo for Rect {
     }
     fn center_y(&self) -> f32 {
         self.y + self.height / 2.0
-    }
-    fn intersection(&self, o: &Rect) -> Option<Rect> {
-        let r = self.intersect(o);
-        (r.width > 0.0 && r.height > 0.0).then_some(r)
     }
 }
 
@@ -137,17 +126,31 @@ impl<'a> Stroke<'a> {
     }
     fn pelicano(&self) -> pelicano::Stroke {
         let s = pelicano::Stroke::new(self.width).cap(self.line_cap).join(self.line_join);
-        if self.line_dash.segments.is_empty() { s } else { s.dash(self.line_dash.segments.to_vec()) }
+        if self.line_dash.segments.is_empty() { s } else { s.dash(tracejado_deslocado(self.line_dash.segments, self.line_dash.offset as f32)) }
     }
 }
 
-/// `canvas::path::Arc`.
-#[derive(Debug, Clone, Copy)]
-pub struct Arc {
-    pub center: Point,
-    pub radius: f32,
-    pub start_angle: Radians,
-    pub end_angle: Radians,
+/// O tracejado começando `deslocamento` adiante (o "formigueiro" da área copiada anda assim). O pelicano
+/// não recebe deslocamento: o padrão é girado e completado com um traço ou espaço de comprimento zero para
+/// continuar em pares (traço, espaço).
+fn tracejado_deslocado(segmentos: &[f32], deslocamento: f32) -> Vec<f32> {
+    let periodo: f32 = segmentos.iter().sum();
+    let mut resto = if periodo > 0.0 { deslocamento.rem_euclid(periodo) } else { 0.0 };
+    if resto == 0.0 { return segmentos.to_vec(); }
+    for (i, &seg) in segmentos.iter().enumerate() {
+        if resto < seg {
+            let mut v = Vec::with_capacity(segmentos.len() + 2);
+            if i % 2 == 1 { v.push(0.0); } // começa no meio de um espaço: traço vazio antes
+            v.push(seg - resto);
+            v.extend_from_slice(&segmentos[i + 1..]);
+            v.extend_from_slice(&segmentos[..i]);
+            v.push(resto);
+            if i % 2 == 0 { v.push(0.0); } // terminou num traço: espaço vazio fecha o par
+            return v;
+        }
+        resto -= seg;
+    }
+    segmentos.to_vec()
 }
 
 /// `canvas::path::Builder`.
@@ -178,12 +181,6 @@ impl Builder {
     }
     pub fn rectangle(&mut self, p: Point, s: Size) {
         self.0.rect(Rect::new(p, s));
-    }
-    pub fn circle(&mut self, c: Point, r: f32) {
-        self.0.circle(c, r);
-    }
-    pub fn arc(&mut self, a: Arc) {
-        self.0.arc(a.center, Point::new(a.radius, a.radius), a.start_angle.0, a.end_angle.0);
     }
     pub fn ellipse(&mut self, e: Elipse) {
         self.0.ellipse(e.center, Point::new(e.radii.x, e.radii.y));
@@ -257,7 +254,6 @@ impl Path {
 pub struct Frame<'r> {
     pub renderer: &'r mut Renderer,
     base: Point,
-    tamanho: Size,
     t: Transform,
     /// Escala e deslocamento quando `t` não gira: aí retângulo e texto vão pelos caminhos rápidos.
     simples: Option<(f32, f32, f32)>,
@@ -267,23 +263,11 @@ impl<'r> Frame<'r> {
     /// O quadro de um canvas em `bounds` (coordenadas da janela), recortado nele.
     pub fn new(renderer: &'r mut Renderer, bounds: Rect) -> Self {
         renderer.push_clip(bounds, [0.0; 4]);
-        Frame { renderer, base: Point::new(bounds.x, bounds.y), tamanho: bounds.size(), t: Transform::default(), simples: Some((1.0, 0.0, 0.0)) }
+        Frame { renderer, base: Point::new(bounds.x, bounds.y), t: Transform::default(), simples: Some((1.0, 0.0, 0.0)) }
     }
     /// Fecha o recorte aberto em [`Frame::new`].
     pub fn fim(self) {
         self.renderer.pop_clip();
-    }
-    pub fn width(&self) -> f32 {
-        self.tamanho.width
-    }
-    pub fn height(&self) -> f32 {
-        self.tamanho.height
-    }
-    pub fn size(&self) -> Size {
-        self.tamanho
-    }
-    pub fn center(&self) -> Point {
-        Point::new(self.tamanho.width / 2.0, self.tamanho.height / 2.0)
     }
     fn total(&self) -> Transform {
         self.t.then(Transform::translate(self.base.x, self.base.y))
@@ -318,7 +302,7 @@ impl<'r> Frame<'r> {
     pub fn with_clip<R>(&mut self, region: Rect, f: impl FnOnce(&mut Frame) -> R) -> R {
         let base = Point::new(self.base.x + region.x, self.base.y + region.y);
         self.renderer.push_clip(Rect { x: base.x, y: base.y, width: region.width, height: region.height }, [0.0; 4]);
-        let mut dentro = Frame { renderer: &mut *self.renderer, base, tamanho: region.size(), t: Transform::default(), simples: Some((1.0, 0.0, 0.0)) };
+        let mut dentro = Frame { renderer: &mut *self.renderer, base, t: Transform::default(), simples: Some((1.0, 0.0, 0.0)) };
         let r = f(&mut dentro);
         self.renderer.pop_clip();
         r
@@ -401,17 +385,24 @@ impl<'r> Frame<'r> {
             self.renderer.pop_transform();
         }
     }
-    pub fn draw_svg(&mut self, r: Rect, svg: &pelicano::Svg, cor: Option<Color>) {
-        if let Some((k, x, y)) = self.simples {
-            let r = Rect { x: self.base.x + x + r.x * k, y: self.base.y + y + r.y * k, width: r.width * k, height: r.height * k };
-            self.renderer.draw_svg(svg, r, cor);
-        }
-    }
 }
 
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    /// O formigueiro da área copiada: antes o deslocamento era jogado fora e o tracejado ficava parado.
+    #[test]
+    fn tracejado_anda_com_o_deslocamento() {
+        assert_eq!(tracejado_deslocado(&[5.0, 3.0], 0.0), vec![5.0, 3.0]);
+        assert_eq!(tracejado_deslocado(&[5.0, 3.0], 2.0), vec![3.0, 3.0, 2.0, 0.0]);
+        assert_eq!(tracejado_deslocado(&[5.0, 3.0], 6.0), vec![0.0, 2.0, 5.0, 1.0]);
+        assert_eq!(tracejado_deslocado(&[5.0, 3.0], 8.0), vec![5.0, 3.0], "uma volta inteira é o mesmo desenho");
+        for d in 0..8 {
+            let v = tracejado_deslocado(&[5.0, 3.0], d as f32);
+            assert!(v.len() % 2 == 0 && v.iter().sum::<f32>() == 8.0 && v.iter().all(|x| *x >= 0.0), "{d}: {v:?}");
+        }
+    }
 
     #[test]
     fn recorte_poe_a_origem_no_canto_e_ignora_a_escala_de_fora() {
@@ -441,8 +432,6 @@ pub mod keyboard {
     /// Os métodos e constantes do Iced sobre o `ModifiersState` do winit.
     pub trait Modificadores {
         const CTRL: Modifiers = Modifiers::CONTROL;
-        const COMMAND: Modifiers = Modifiers::CONTROL;
-        const LOGO: Modifiers = Modifiers::SUPER;
         fn shift(&self) -> bool;
         fn control(&self) -> bool;
         fn alt(&self) -> bool;
@@ -479,6 +468,7 @@ pub mod window {
     pub use pelicano::raw_window_handle;
     pub use pelicano::WindowId as Id;
     /// Ids das janelas abertas fora do `feather_ui::janelas` (que conta a partir do 1).
+    #[cfg(test)]
     pub fn novo_id() -> Id {
         static PROXIMO: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1 << 32);
         Id(PROXIMO.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
@@ -488,10 +478,10 @@ pub mod window {
 /// `iced::widget::canvas`: o quadro acima e o `Program` do pelicano.
 #[allow(unused_imports)]
 pub mod canvas {
-    pub use super::{Arc, Builder, Elipse, Frame, LineCap, LineDash, LineJoin, Path, Raio, Stroke, Text, Vector};
+    pub use super::{Builder, Elipse, Frame, LineCap, LineDash, LineJoin, Path, Raio, Stroke, Text, Vector};
     pub use pelicano::{Event, FillRule, Image, Program};
     pub mod path {
-        pub use super::super::{Arc, Builder};
+        pub use super::super::Builder;
         pub mod arc {
             pub use super::super::super::Elipse as Elliptical;
         }

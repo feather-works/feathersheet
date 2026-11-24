@@ -58,7 +58,6 @@ impl Eixo {
 
     /// Posição absoluta do início do índice. O limite é inclusivo para
     /// permitir calcular a extensão total sem percorrer o eixo.
-    #[allow(dead_code)]
     pub(super) fn inicio(&self, indice: u32) -> f64 {
         // Depois do limite tudo tem tamanho zero: a posição para de crescer.
         let indice = indice.min(self.quantidade).min(self.limite);
@@ -66,13 +65,11 @@ impl Eixo {
         f64::from(indice) * f64::from(self.padrao) + self.prefixos[antes]
     }
 
-    #[allow(dead_code)]
     pub(super) fn total(&self) -> f64 {
         self.inicio(self.quantidade)
     }
 
     /// Equivalente a indexAt do TS; útil para hit-test por posição absoluta.
-    #[allow(dead_code)]
     pub(super) fn indice_em(&self, px: f64) -> Option<u32> {
         if self.quantidade == 0 { return None; }
         if px <= 0.0 { return Some(0); }

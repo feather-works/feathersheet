@@ -1588,6 +1588,8 @@ impl App {
             Msg::CopiaPulso => Task::none(),
             Msg::MonitorPulso => {
                 self.recolher_diario_motor();
+                // O horário de verão pode mudar com o app aberto: AGORA()/HOJE() seguem o fuso do sistema.
+                fuso::aplicar(self.config.fuso_minutos);
                 // Parado e com o visível calculado: arruma a memória do motor
                 // aos poucos, em lotes, até ~30 ms por pulso (500 mil de uma
                 // vez davam um tranco por segundo depois de colar 13 milhões
