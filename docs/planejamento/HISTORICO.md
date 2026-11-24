@@ -4,6 +4,12 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **MCP `sheet_proteger`** (24/11/2026): listar, proteger a aba (senha opcional, permissões pelo nome do Excel:
+  `sort`, `autoFilter`…; permissão desconhecida é recusada com a lista) e desproteger conferindo a senha. O hash da
+  senha (SHA-512 com sal e giros do Excel) saiu do app para `feathersheet_io::senha_planilha` (o app reexporta; tirou
+  `sha2`/`getrandom` do `Cargo.toml` dele). Teste `proteger_e_desproteger_pelo_mcp`. Nome de aba excluída: some da
+  lista de nomes e do arquivo, volta com a aba no desfazer (`nome_de_aba_excluida_some_e_volta_com_a_aba`).
+
 - **Excluir linhas com filtro em fundo** (24/11/2026; o "fica para depois" da 0.3.5, que parava a janela 2,5 s com
   5000 trechos): com 200 trechos ou mais (`TRECHOS_EM_FUNDO`), a exclusão vai para outra thread com a pasta, como o
   cálculo em fundo (espelho na tela, diálogo "Excluindo as linhas visíveis" com o andamento, sem Parar); a foto do

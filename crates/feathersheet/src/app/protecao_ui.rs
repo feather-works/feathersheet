@@ -12,46 +12,10 @@
 //! A senha usa o hash do `<sheetProtection>` do Excel (SHA-512 com sal e
 //! giros), para o `.xlsx` abrir protegido no Excel com a mesma senha.
 use super::*;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use feathersheet_core::planilha::sheet::protecao::{Permissao, ProtecaoPlanilha, Recusa, SenhaPlanilha};
-use sha2::{Digest, Sha512};
+use feathersheet_core::planilha::sheet::protecao::{Permissao, ProtecaoPlanilha, Recusa};
 use std::collections::BTreeSet;
-
-/// Giros do hash: o mesmo do Excel.
-const GIROS: u32 = 100_000;
-/// Arquivo malicioso não pode travar a interface com bilhões de giros.
-const GIROS_MAXIMO: u32 = 10_000_000;
-
-fn hash_excel(senha: &str, sal: &[u8], giros: u32) -> Vec<u8> {
-    let utf16: Vec<u8> = senha.encode_utf16().flat_map(u16::to_le_bytes).collect();
-    let mut h = Sha512::new().chain_update(sal).chain_update(&utf16).finalize().to_vec();
-    for i in 0..giros {
-        h = Sha512::new().chain_update(&h).chain_update(i.to_le_bytes()).finalize().to_vec();
-    }
-    h
-}
-
-pub(super) fn criar_senha(senha: &str) -> Result<SenhaPlanilha, String> {
-    let mut sal = [0_u8; 16];
-    getrandom::getrandom(&mut sal).map_err(|_| tr!("O gerador criptográfico não está disponível."))?;
-    Ok(SenhaPlanilha {
-        algoritmo: "SHA-512".into(),
-        hash: STANDARD.encode(hash_excel(senha, &sal, GIROS)),
-        sal: STANDARD.encode(sal),
-        giros: GIROS,
-    })
-}
-
-pub(super) fn conferir(senha: &str, guardada: &SenhaPlanilha) -> Result<bool, String> {
-    if !guardada.algoritmo.eq_ignore_ascii_case("SHA-512") {
-        return Err(trf!("Senha protegida com {}, que o FeatherSheet ainda não confere.", guardada.algoritmo));
-    }
-    if guardada.giros > GIROS_MAXIMO { return Err(tr!("Proteção com número de giros inválido.").into()); }
-    let sal = STANDARD.decode(&guardada.sal).map_err(|_| tr!("Sal da proteção inválido."))?;
-    let hash = STANDARD.decode(&guardada.hash).map_err(|_| tr!("Hash da proteção inválido."))?;
-    let obtido = hash_excel(senha, &sal, guardada.giros);
-    Ok(obtido.len() == hash.len() && obtido.iter().zip(&hash).fold(0u8, |d, (a, b)| d | (a ^ b)) == 0)
-}
+// O hash mora no `feathersheet-io` (o MCP também protege abas); aqui os nomes de sempre.
+pub(super) use feathersheet_io::senha_planilha::{conferir, criar_senha};
 
 #[derive(Debug, Clone)]
 pub enum Evento {
@@ -427,17 +391,6 @@ mod testes {
         assert!(app.workbook.propriedades.protecao_estrutura.is_none());
         let _ = app.update(Msg::AdicionarAba);
         assert_eq!(app.workbook.len(), 2);
-    }
-
-    #[test]
-    fn senha_no_formato_do_excel_confere_e_recusa_errada() {
-        let s = criar_senha("Fluxo 2026").unwrap();
-        assert!(conferir("Fluxo 2026", &s).unwrap());
-        assert!(!conferir("fluxo 2026", &s).unwrap());
-        assert_eq!(STANDARD.decode(&s.hash).unwrap().len(), 64);
-        let mut ruim = s.clone();
-        ruim.giros = u32::MAX;
-        assert!(conferir("x", &ruim).is_err(), "giros absurdos não travam a tela");
     }
 
     #[test]

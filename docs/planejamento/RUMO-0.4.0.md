@@ -52,7 +52,7 @@ milhar, datas, nomes de função) nas quatro línguas.
 
 - [ ] Escolher um arquivo direto como segunda fonte de Juntar/Acrescentar.
 - [ ] #94: tipo de dado clicável e script legível.
-- [ ] MCP: tabelas, links, imagens, congelar/zoom, impressão, proteção (`MCP-PENDENTE.md`).
+- [ ] MCP: tabelas, links, imagens, congelar/zoom, impressão, proteger a pasta (`MCP-PENDENTE.md`). Proteger aba: feito.
 
 ## Para decidir (usuário)
 

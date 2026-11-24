@@ -28,6 +28,7 @@ pub fn chamar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
         "sheet_limpar" => limpar(h, args),
         "sheet_aba" => aba(h, args),
         "sheet_nomes" => nomes(h, args),
+        "sheet_proteger" => proteger(h, args),
         "sheet_desfazer" => desfazer(h, args),
         "sheet_formula" => formula(h, args),
         "sheet_abrir" => {
@@ -342,6 +343,56 @@ fn nomes(h: &mut dyn Hospede, args: &Json) -> Saida {
     Ok(conteudo(texto))
 }
 
+/// Proteger planilha (como Página Inicial ▸ Formatar ▸ Proteger planilha): senha opcional no formato do Excel e as
+/// permissões pelo nome do `<sheetProtection>` (`sort`, `autoFilter`, `formatCells`…). Desproteger confere a senha.
+fn proteger(h: &mut dyn Hospede, args: &Json) -> Saida {
+    use feathersheet_core::planilha::sheet::protecao::{Permissao, ProtecaoPlanilha};
+    let acao = arg_texto(args, "acao").unwrap_or("listar");
+    if acao == "listar" {
+        let pasta = h.pasta();
+        let linhas: Vec<String> = (0..pasta.len()).filter_map(|i| pasta.aba(i)).map(|a| match &a.sheet.protecao {
+            None => format!("{}: sem proteção", a.sheet.name),
+            Some(p) => format!("{}: protegida {} · permite: {}", a.sheet.name,
+                if p.senha.is_some() { "com senha" } else { "sem senha" },
+                p.permitidas.iter().map(|x| x.chave()).collect::<Vec<_>>().join(", ")),
+        }).collect();
+        return Ok(conteudo(linhas.join("\n")));
+    }
+    let aba = aba_do_arg(h, args)?;
+    let nome = h.pasta().nomes()[aba].clone();
+    let guardada = h.pasta().aba(aba).and_then(|a| a.sheet.protecao.clone());
+    let senha = arg_texto(args, "senha").unwrap_or("");
+    let texto = match acao {
+        "proteger" => {
+            if guardada.is_some() { return Err(format!("A aba {nome} já está protegida: desproteja antes (como no Excel).")); }
+            let mut permitidas = Permissao::padrao();
+            for p in args.get("permitir").and_then(Json::as_array).into_iter().flatten() {
+                let chave = p.as_str().unwrap_or_default();
+                let todas: Vec<&str> = Permissao::TODAS.iter().map(|(_, _, a)| *a).collect();
+                permitidas.insert(Permissao::da_chave(chave)
+                    .ok_or_else(|| format!("Permissão desconhecida: {chave}. Use: {}.", todas.join(", ")))?);
+            }
+            let senha = (!senha.is_empty()).then(|| feathersheet_io::senha_planilha::criar_senha(senha)).transpose()?;
+            let com_senha = senha.is_some();
+            h.pasta_mut().editar(aba, |s| { s.proteger(ProtecaoPlanilha { senha, permitidas }); });
+            format!("Aba {nome} protegida{}.", if com_senha { " com senha" } else { " sem senha" })
+        }
+        "desproteger" => {
+            let Some(p) = guardada else { return Err(format!("A aba {nome} não está protegida.")) };
+            if let Some(g) = &p.senha {
+                if !feathersheet_io::senha_planilha::conferir(senha, g)? {
+                    return Err(format!("Senha errada: a aba {nome} continua protegida."));
+                }
+            }
+            h.pasta_mut().editar(aba, |s| { s.desproteger(); });
+            format!("Aba {nome} desprotegida.")
+        }
+        outra => return Err(format!("Ação desconhecida: {outra}. Use listar, proteger ou desproteger.")),
+    };
+    h.marcar_alterado();
+    Ok(conteudo(texto))
+}
+
 fn desfazer(h: &mut dyn Hospede, args: &Json) -> Saida {
     let refazer = arg_bool(args, "refazer", false);
     let aba = aba_do_arg(h, args)?;
@@ -442,6 +493,22 @@ mod testes {
         texto(chamar(&mut h, "sheet_nomes", &json!({ "acao": "remover", "nome": "Meta", "escopo": "Plan2" })));
         texto(chamar(&mut h, "sheet_nomes", &json!({ "acao": "remover", "nome": "Taxa" })));
         assert!(h.pasta.nomes_formula().is_empty());
+    }
+
+    /// `sheet_proteger`: protege com senha e permissões, recusa proteger de novo e desproteger com a senha errada.
+    #[test]
+    fn proteger_e_desproteger_pelo_mcp() {
+        let mut h = Avulso::default();
+        assert!(chamar(&mut h, "sheet_proteger", &json!({ "acao": "proteger", "permitir": ["voar"] })).unwrap_err().contains("desconhecida"));
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "proteger", "senha": "s3gr3d0", "permitir": ["sort"] })));
+        let p = h.pasta.aba(0).unwrap().sheet.protecao.clone().unwrap();
+        assert!(p.senha.is_some() && p.permite(feathersheet_core::planilha::sheet::protecao::Permissao::Classificar));
+        assert!(texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "listar" }))).contains("protegida com senha"));
+        assert!(chamar(&mut h, "sheet_proteger", &json!({ "acao": "proteger" })).is_err(), "já protegida");
+        assert!(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger", "senha": "errada" })).unwrap_err().contains("Senha errada"));
+        assert!(h.pasta.aba(0).unwrap().sheet.protegida());
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger", "senha": "s3gr3d0" })));
+        assert!(!h.pasta.aba(0).unwrap().sheet.protegida());
     }
 
     #[test]

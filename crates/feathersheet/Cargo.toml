@@ -22,9 +22,6 @@ feather-shapes = { git = "https://github.com/feather-works/feather-shapes", tag 
 # Efeitos RGBA compartilhados com FeatherDocs; codecs ficam na GUI.
 feather-image = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.1" }
 base64 = "0.22"
-# Senha da proteção de planilha: o hash SHA-512 com sal do Excel (protecao_ui.rs).
-sha2 = "0.10"
-getrandom = "0.2"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp"] }
 # Apenas representacao/algoritmos de borda no Canvas; engine colunar permanece no core.
 feather-tables = { git = "https://github.com/feather-works/feather-io", tag = "v0.2.1" }

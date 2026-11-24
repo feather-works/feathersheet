@@ -14,7 +14,7 @@
 |---|---|---|
 | `sheet_resumo`, `sheet_ler` (teto 2000), `sheet_amostra`, `sheet_estatistica`, `sheet_localizar` | sim | sim |
 | `sheet_escrever` (valores, fórmula pt-BR, preencher fórmula), `sheet_limpar`, `sheet_desfazer` | sim | sim |
-| `sheet_aba`, `sheet_nomes`, `sheet_formula` (precedentes, dependentes, erro, passo a passo) | sim | sim |
+| `sheet_aba`, `sheet_nomes` (também de fórmula e de aba), `sheet_proteger`, `sheet_formula` (precedentes, dependentes, erro, passo a passo) | sim | sim |
 | `sheet_consulta` (passos do OpenQuery, grava em aba), `sheet_macro` (catálogo comum + executar) | sim | sim |
 | `sheet_formatar`, `sheet_estrutura`, `sheet_mesclar` | sim | sim |
 | `sheet_abrir`, `sheet_salvar` (.fshz, .xlsx, .csv/.tsv) | sim | sim |
@@ -103,7 +103,7 @@ O que mais se pede depois de dados e fórmulas.
 - [ ] **Congelar painéis**, zoom, linhas de grade, tema: hoje só ao vivo, por `menu`/`tecla`
       (são estado da janela, não do arquivo).
 - [ ] **Impressão**: área de impressão, quebras, exportar PDF pelo produtor comum da suíte.
-- [ ] **Proteção**: proteger aba/pasta com senha e bloquear células (existe no app e nas macros, `sheet.protect`; falta ferramenta).
+- [x] **Proteção** (24/11/2026, `sheet_proteger`): listar, proteger aba com senha (formato do Excel) e permissões, desproteger conferindo a senha. Falta: proteger a pasta e bloquear/desbloquear células.
 - [ ] **Recentes e modelos**: abrir um recente, criar a partir de um modelo da tela inicial.
 
 ## Falta — no próprio MCP

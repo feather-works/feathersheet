@@ -48,6 +48,7 @@ pub mod xlsx_read;
 pub mod xlsb_read;
 pub mod xlsx_write;
 pub mod xlsx_senha;
+pub mod senha_planilha;
 mod xlsx_write_controles;
 mod xlsx_validacao_custom;
 mod xlsx_write_condicional;
