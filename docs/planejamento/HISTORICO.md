@@ -10,8 +10,8 @@
   `sheet_estrutura` confere a permissão antes (inserir/excluir não entram no desfazer); `sheet_aba`
   criar/renomear/excluir recusa com a pasta protegida; `sheet_proteger` ganhou `alvo: "pasta"`. Teste
   `protecao_vale_para_a_ia`. Fica como está: as macros escrevem em aba protegida de propósito (o
-  Unprotect → escrever → Protect do VBA convertido é aplicado no fim), e outras ferramentas que criam aba
-  (`sheet_consulta` com destino novo, dinâmica) ainda não conferem a proteção da estrutura.
+  Unprotect → escrever → Protect do VBA convertido é aplicado no fim), e (mesmo dia) o portão também desfaz aba criada ou
+  renomeada por outra ferramenta (`sheet_consulta` com destino novo, dinâmica) com a pasta protegida.
 
 - **Dinâmica: botão direito no campo de uma área abre o menu dele** (#165, 24/11/2026; antes só a setinha ▾ abria):
   `Evento::MenuItemEm` com o ponto do `on_right_press_at`, que segura o clique (o painel de fora não o recebe).

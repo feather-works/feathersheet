@@ -30,7 +30,26 @@ pub fn chamar(h: &mut dyn Hospede, nome: &str, args: &Json) -> Saida {
     }
     let marcas: Vec<(u32, usize)> = (0..h.pasta().len()).filter_map(|i| h.pasta().aba(i))
         .filter(|a| a.sheet.protegida()).map(|a| (a.id, a.sheet.profundidade_do_historico())).collect();
+    let estrutura = h.pasta().propriedades.protecao_estrutura.is_some().then(|| {
+        (0..h.pasta().len()).filter_map(|i| h.pasta().aba(i)).map(|a| (a.id, a.sheet.name.clone())).collect::<Vec<_>>()
+    });
     let saida = despachar(h, nome, args);
+    // Pasta protegida: aba nova (consulta com destino novo, dinâmica…) sai e nome trocado volta.
+    if let Some(antes) = estrutura {
+        let depois: Vec<(u32, String)> = (0..h.pasta().len()).filter_map(|i| h.pasta().aba(i)).map(|a| (a.id, a.sheet.name.clone())).collect();
+        if depois != antes {
+            for (id, _) in depois.iter().filter(|(id, _)| !antes.iter().any(|(a, _)| a == id)) {
+                if let Some(i) = h.pasta().indice_do_id(*id) { h.pasta_mut().remover_aba(i); }
+            }
+            for (id, nome_antes) in &antes {
+                if let Some(i) = h.pasta().indice_do_id(*id) {
+                    if h.pasta().nomes()[i] != *nome_antes { h.pasta_mut().renomear_aba(i, nome_antes); }
+                }
+            }
+            h.definir_aba_ativa(h.aba_ativa().min(h.pasta().len().saturating_sub(1)));
+            return Err("A pasta de trabalho está protegida (estrutura): a chamada criaria ou renomearia abas e foi desfeita.".into());
+        }
+    }
     for (id, marca) in marcas {
         let Some(i) = h.pasta().indice_do_id(id) else { continue };
         let Some(aba) = h.pasta().aba(i) else { continue };
@@ -735,6 +754,12 @@ mod testes {
         assert!(chamar(&mut h, "sheet_aba", &json!({ "acao": "criar", "nome": "Nova" })).unwrap_err().contains("protegida"));
         assert_eq!(h.pasta.len(), 1);
         assert!(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger", "alvo": "pasta", "senha": "y" })).is_err());
+        // Outra ferramenta que cria aba (consulta com destino novo) também é barrada.
+        texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger" })));
+        texto(chamar(&mut h, "sheet_escrever", &json!({ "celula": "D1", "valores": [["n"], [1], [2]] })));
+        let e = chamar(&mut h, "sheet_consulta", &json!({ "fonte": "D1:D3", "destino": "NovaAba" }));
+        assert!(e.as_ref().is_err_and(|e| e.contains("protegida")), "{e:?}");
+        assert_eq!(h.pasta.len(), 1);
         texto(chamar(&mut h, "sheet_proteger", &json!({ "acao": "desproteger", "alvo": "pasta", "senha": "x1" })));
         texto(chamar(&mut h, "sheet_aba", &json!({ "acao": "criar", "nome": "Nova" })));
     }
