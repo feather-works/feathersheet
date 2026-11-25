@@ -1,14 +1,15 @@
 # Documentação do FeatherSheet
 
-Documentação técnica do FeatherSheet, organizado por assunto. **A implementação ativa é Rust/Iced**; referências ao frontend TypeScript são históricas e servem para conferir paridade.
+Documentação técnica do FeatherSheet, organizada por assunto. **A interface ativa é Rust sobre pelicano + feather-ui** ([INTERFACE-PELICANO.md](INTERFACE-PELICANO.md)); o Iced e o frontend TypeScript foram aposentados, e os documentos de migração abaixo são históricos.
 
 ## Por onde começar
 
+- [Histórico](planejamento/HISTORICO.md) — cada entrega, versão, medição e decisão; procure o recurso pelo nome.
+- [Rumo à 0.4.0](planejamento/RUMO-0.4.0.md) — o que falta para a próxima versão.
+- [Paridade com o Excel](planejamento/PARIDADE-EXCEL.md) — botão por botão da faixa (250 / 290 em 24/11/2026).
 - [Arquitetura](arquitetura/ARQUITETURA.md) — responsabilidades dos componentes.
 - [Documentação do funcionamento](arquitetura/DOCUMENTACAO.md) — fluxo de dados e comandos.
-- [Roadmap](planejamento/ROADMAP.md) — planejamento e inventário de funcionalidades.
-- [Auditoria TS → Rust](migracao/AUDITORIA-FRONTEND-TS-RUST-3APPS.md) — lacunas rastreadas.
-- [Plano de migração Iced](migracao/PLANO-MIGRACAO-ICED.md) — escopo, fases e aceite.
+- [Roadmap até a 1.0](../ROADMAP.md) — o que falta para ficar 100% funcional.
 
 ## Índice por assunto
 
@@ -28,7 +29,7 @@ Documentação técnica do FeatherSheet, organizado por assunto. **A implementa�
 - [Tabelas Ts Para Rust](funcionalidades/TABELAS-TS-PARA-RUST.md)
 - [Xlsx Memoria Importacao](funcionalidades/XLSX-MEMORIA-IMPORTACAO.md)
 
-### Interface Rust / Iced
+### Interface (histórico da fase Iced)
 
 - [Classificacao Pagina Rust](interface/CLASSIFICACAO-PAGINA-RUST.md)
 - [Estatisticas Selecao Rust](interface/ESTATISTICAS-SELECAO-RUST.md)
@@ -44,6 +45,12 @@ Documentação técnica do FeatherSheet, organizado por assunto. **A implementa�
 - [Funcoes Faltantes](planejamento/FUNCOES-FALTANTES.md)
 - [Paridade Avaliacao](planejamento/PARIDADE-AVALIACAO.md)
 - [Paridade Excel](planejamento/PARIDADE-EXCEL.md)
+- [Paridade das funções VBA](planejamento/PARIDADE-VBA-FUNCOES.md)
+- [Auditoria de 13/11](planejamento/AUDITORIA-2026-11-13.md)
+- [Pendências do MCP](planejamento/MCP-PENDENTE.md)
+- [Metas por versão](planejamento/METAS-VERSOES.md)
+- [Histórico](planejamento/HISTORICO.md)
+- [Rumo à 0.4.0](planejamento/RUMO-0.4.0.md)
 - [Roadmap](planejamento/ROADMAP.md)
 - [Tarefas Gemini](planejamento/TAREFAS-GEMINI.md)
 

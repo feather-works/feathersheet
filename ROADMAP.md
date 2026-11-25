@@ -9,7 +9,7 @@ The numbers come from the detailed surveys (recounted from the code on 11/24/202
 
 | Front | Today | Survey |
 |---|---|---|
-| Ribbon commands | **251 / 290** (86.6%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
+| Ribbon commands | **250 / 290** (86.2%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
 | Developer tab | **5 / 19** | same, "Desenvolvedor" section |
 | Worksheet functions | **520 / 520** | [`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md) |
 | VBA functions in the converter | **116** covered, **1** partial (`CDec`), of 117 applicable | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
@@ -66,13 +66,13 @@ What could make someone lose work or give up on day one.
         scrolling;
       - a warning when the same file is opened twice (read-only the second time).
 
-## Phase 2 — Complete the ribbon (39 commands left)
+## Phase 2 — Complete the ribbon (40 commands left)
 
 In order of how much users miss them.
 
 **Page Layout (8 / 23)** — what matters most for printing:
-- [x] Margins, Breaks, Print Titles, Print Headings.
-- [ ] Background.
+- [x] Margins, Breaks, Print Headings.
+- [ ] Print Titles (rows repeated on each page; today they only round-trip in `.xlsx`), Background.
 - [x] Themes, theme Colors and Fonts (0.4.0, #80).
 - [ ] Theme Effects.
 - [x] Arrange objects: Bring Forward, Send Backward, Align, Group, Rotate, Selection Pane.

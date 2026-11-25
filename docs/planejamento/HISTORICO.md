@@ -4,6 +4,17 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Documentação conferida com o código (24/11/2026)**: `PARIDADE-EXCEL.md` recontado lendo o rótulo de cada botão
+  da faixa (250 / 290, 86,2%; botão "Em breve" não conta; por funcionalidade 32 feitas, 49 parciais, 36 faltando),
+  `ROADMAP.md` da raiz com as caixas feitas desde a 0.2.0 marcadas, README com v0.3.4, v0.3.5 e o que vem na 0.4.0,
+  índice `docs/README.md` apontando para os planos atuais. "Imprimir títulos" do Excel (repetir linhas em cada página)
+  continua faltando: `titulos_linhas` só vai e volta no `.xlsx`, não há onde escolher nem a impressão repete; o botão
+  "Imprimir títulos (A, B, 1, 2)" é o de cabeçalhos. Ajuda F1: de 199 botões, 75 não eram citados; entraram os que
+  são recurso de verdade (Gráfico dinâmico, Repetir rótulos, Subtotal, Região atual, Quebras de página, Imprimir
+  títulos A/B/1/2, Travar proporção, Efeitos da imagem, Duplicar aba, Pintar linha/coluna, AutoSoma, Trazer para
+  frente/Enviar para trás, Atribuir macro) nas quatro línguas; o
+  resto é alinhamento (Centro, Topo), ocultar/reexibir e botões "Em breve".
+
 - **Faixa recolhida como no Excel (pedido de 24/11/2026: "o ribbon minimizado muda os títulos e as posições de
   lugar")**: recolhida, a linha das abas era trocada pelos menus clássicos (ARQUIVO, EDITAR…). Agora as abas ficam as
   mesmas e no mesmo lugar; clicar numa abre a faixa por cima da planilha (opaca, com sombra; `App::faixa_temporaria`),

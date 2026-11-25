@@ -2,7 +2,7 @@
 
 > Levantamento realizado em 13/10/2026, conferindo botão por botão da interface Rust/Iced (`feathersheet-gui`). O inventário contém 290 comandos para avaliar a cobertura funcional do FeatherSheet em relação ao Excel. Conta como **implementado** o comando que tem botão, menu, atalho ou botão direito ligado a uma ação de verdade; botão desabilitado ("Em breve") conta como **faltando**. Mede só **amplitude**, não profundidade nem fidelidade. A avaliação geral e o desempenho estão em [`PARIDADE-AVALIACAO.md`](PARIDADE-AVALIACAO.md).
 
-**Geral: 251 / 290 comandos implementados (86,6%)**, recontado em 24/11/2026 lendo o código da faixa (rótulo de cada botão; botão "Em breve" desabilitado não conta). A aba Desenvolvedor (macros) fica à parte: 5 / 19. O que entrou desde 15/10 está anotado em cada item ("24/11", "#83"…); o histórico de cada entrega está no `HISTORICO.md`.
+**Geral: 250 / 290 comandos implementados (86,2%)**, recontado em 24/11/2026 lendo o código da faixa (rótulo de cada botão; botão "Em breve" desabilitado não conta). A aba Desenvolvedor (macros) fica à parte: 5 / 19. O que entrou desde 15/10 está anotado em cada item ("24/11", "#83"…); o histórico de cada entrega está no `HISTORICO.md`.
 
 
 | Aba | Implementados | Total | Paridade |
@@ -11,7 +11,7 @@
 | Página Inicial | 93 | 94 | 99% |
 | Inserir | 21 | 25 | 84% |
 | Desenhar | 4 | 4 | 100% |
-| Layout da Página | 20 | 23 | 87% |
+| Layout da Página | 19 | 23 | 83% |
 | Fórmulas | 23 | 23 | 100% |
 | Dados | 21 | 28 | 75% |
 | Revisão | 12 | 18 | 67% |
@@ -195,7 +195,7 @@ Implementado:
 Faltando (fora da contagem do Excel): mover/redimensionar a seleção do laço, pressão da caneta
 (o Iced 0.13 não entrega), tinta para texto/matemática, reproduzir tinta e importar a tinta do `.xlsx`.
 
-## Layout da Página (20 / 23, 87%)
+## Layout da Página (19 / 23, 83%)
 
 Implementado:
 
@@ -212,7 +212,6 @@ Implementado:
 - `pageLayout.themeFonts` Fontes (Temas) — Layout da Página ▸ Temas ▸ Fontes ▾ (#80, 24/11)
 - `pageLayout.margins` Margens (Configurar página) — Layout da Página ▸ Configurar Página ▸ Margens ▾
 - `pageLayout.breaks` Quebras (Configurar página) — Layout da Página ▸ Configurar Página ▸ Quebras
-- `pageLayout.printTitles` Imprimir títulos (Configurar página) — Layout da Página ▸ Opções de Planilha ▸ Imprimir títulos (A, B, 1, 2)
 - `arrange.bringForward` Avançar (Organizar) — Formas ▸ Organizar ▸ Trazer para frente
 - `arrange.sendBackward` Recuar (Organizar) — Formas ▸ Organizar ▸ Enviar para trás
 - `arrange.selectionPane` Painel de seleção (Organizar) — Formas ▸ Organizar ▸ Painel de Seleção
@@ -222,6 +221,7 @@ Implementado:
 
 Faltando:
 
+- `pageLayout.printTitles` Imprimir títulos (Configurar página) — as linhas/colunas a repetir (`_xlnm.Print_Titles`) vão e voltam no `.xlsx`, mas não há onde escolhê-las e a impressão não as repete. O botão "Imprimir títulos (A, B, 1, 2)" é o de cabeçalhos, das Opções de Planilha.
 - `pageLayout.themeEffects` Efeitos (Temas)
 - `pageLayout.background` Plano de fundo (Configurar página)
 - `view.headings` Exibir títulos (Opções de planilha)
@@ -822,7 +822,7 @@ da imagem.
 O que ainda falta para a paridade de comandos, por aba (a lista completa está em cada seção acima):
 
 - **Inserir**: Instantâneo, Mapas, Linha de assinatura e Objeto (botões "Em breve").
-- **Layout da Página**: Efeitos do tema, Plano de fundo e Exibir títulos.
+- **Layout da Página**: Imprimir títulos (repetir linhas em cada página), Efeitos do tema, Plano de fundo e Exibir títulos.
 - **Dados**: Atualizar tudo, Planilha de previsão, Solver, tipos de dados Ações e Geografia,
   Relações e Analisar dados.
 - **Revisão**: Dicionário de sinônimos, Estatísticas da pasta, Verificar acessibilidade, Converter em

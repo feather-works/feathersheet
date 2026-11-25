@@ -305,7 +305,7 @@ The generator command is at the top of this section.
 
 | What is compared | Score | Details |
 |---|---|---|
-| **Features** (ribbon commands, button by button) | **251 / 290** (86.6%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
+| **Features** (ribbon commands, button by button) | **250 / 290** (86.2%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
 | **Worksheet functions** | **520 / 520** | [function catalog](docs/funcionalidades/FUNCOES.md) · [known limits](docs/planejamento/FUNCOES-FALTANTES.md) |
 | **VBA functions** (VBA → JavaScript converter) | **116** covered and **1** partial (`CDec`), out of **117** that apply (141 listed; 24 are files, registry or printer) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 
