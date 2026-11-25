@@ -4,6 +4,14 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Faixa recolhida como no Excel (pedido de 24/11/2026: "o ribbon minimizado muda os títulos e as posições de
+  lugar")**: recolhida, a linha das abas era trocada pelos menus clássicos (ARQUIVO, EDITAR…). Agora as abas ficam as
+  mesmas e no mesmo lugar; clicar numa abre a faixa por cima da planilha (opaca, com sombra; `App::faixa_temporaria`),
+  outra aba troca, e clicar fora, Esc, a mesma aba ou Expandir fecha. Os menus clássicos ficam no modo micro e no
+  botão Menu. Foto `FEATHERSHEET_CAPTURAR_FAIXA=recolhida` e `=recolhida:inserir`. Teste
+  `faixa_recolhida_abre_a_aba_por_cima_como_no_excel`. Ajuda F1 (Começar) nas quatro línguas.
+  Novidade para o `VERSOES` da 0.4.0: "Faixa recolhida como no Excel: as abas não mudam e abrem a faixa por cima".
+
 - **Bateria de `.xlsm` reais (#143; 24/11/2026)**, sem o usuário: `scripts/bateria-xlsm/` baixa 54 `.xlsm` de
   repositórios públicos do GitHub (`fontes.txt`, um por repositório), converte cada um com o `converter_vba` e resume
   por motivo. **Só converte**: rodar macro de terceiros foi barrado pela permissão (código alheio), então a meta "95%

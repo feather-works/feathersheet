@@ -982,6 +982,7 @@ impl App {
                 }
                 if let Some(evento) = acao { self.update(evento) } else { Task::none() }
             }
+            Msg::FecharFaixaTemporaria => { self.faixa_temporaria = false; Task::none() }
             Msg::FecharMenu => {
                 (self.menu_aberto, self.barra_menu_aberta) = (false, false);
                 self.menu_caminho.clear(); Task::none()
@@ -1049,6 +1050,10 @@ impl App {
                 self.estilos_menu_aberto = false;
                 self.edicao_menu = None;
                 self.tabela_popup_filtro = false;
+                // Faixa recolhida: clicar numa aba abre a faixa por cima; a mesma aba de novo fecha.
+                if self.config.faixa_recolhida && !self.faixa_micro() {
+                    self.faixa_temporaria = !(self.faixa_temporaria && self.faixa_ativa == aba);
+                }
                 if aba == AbaFaixa::Tabela {
                     // A Ribbon contextual trabalha com a tabela ativa na seleção.
                     self.acao_tabela(tabelas::Acao::Abrir)
@@ -1205,6 +1210,15 @@ impl App {
                         }
                         // FEATHERSHEET_CAPTURAR_FAIXA=formulas abre essa aba da faixa (`inserir+mais` abre o "Mais").
                         if let Ok(chave) = std::env::var("FEATHERSHEET_CAPTURAR_FAIXA") {
+                            // `recolhida` recolhe a faixa; `recolhida:inserir` também abre a aba por cima da planilha.
+                            let chave = match chave.split_once(':').filter(|(c, _)| *c == "recolhida").or_else(|| (chave == "recolhida").then_some(("recolhida", ""))) {
+                                Some((_, aba)) => {
+                                    self.config.faixa_recolhida = true;
+                                    self.faixa_temporaria = !aba.is_empty();
+                                    if aba.is_empty() { "inicio".to_string() } else { aba.to_string() }
+                                }
+                                None => chave,
+                            };
                             let (chave, mais) = chave.split_once('+').map_or((chave.as_str(), false), |(c, _)| (c, true));
                             // `micro` liga o modo micro (#68); `micro+mais` abre também o menu Editar.
                             if chave == "micro" {
@@ -1833,6 +1847,7 @@ impl App {
                 self.config.gravar(); Task::none() }
             Msg::Faixa => { self.config.faixa_recolhida = !self.config.faixa_recolhida;
                 self.barra_menu_aberta = false;
+                self.faixa_temporaria = false;
                 self.config.gravar(); Task::none() }
             Msg::SecaoConfig(c) => {
                 self.config_secao = c.min(configuracoes_ui::SECAO_SOBRE);

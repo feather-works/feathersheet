@@ -396,6 +396,8 @@ pub enum Msg {
     NoOutroPainel(usize, Box<Msg>),
     /// Exibir ▸ Janela ▸ Nova janela / Organizar tudo / Alternar janelas (#83).
     NovaJanela(nova_janela::Evento),
+    /// Fecha a faixa recolhida aberta por cima da planilha.
+    FecharFaixaTemporaria,
     /// Mensagem da grade da Nova janela.
     NaNovaJanela(Box<Msg>),
     /// Arquivo > Renomear…: escolhe o novo nome e renomeia o arquivo no disco.
@@ -983,6 +985,8 @@ pub struct App {
     menu_aberto: bool,
     /// Lista do menu clássico aberta (faixa recolhida).
     barra_menu_aberta: bool,
+    /// Faixa recolhida aberta por cima da planilha ao clicar numa aba, como no Excel.
+    faixa_temporaria: bool,
     /// Tela inicial em janela inteira: fica ativa até escolher nova planilha, modelo, abrir ou recente.
     em_tela_inicio: bool,
     /// Passo do modo de captura (0 = preparar, 1 = fotografar, 2 = feito).
@@ -1270,7 +1274,7 @@ impl Default for App {
             status: tr!("Pronto — FeatherSheet nativo Rust/Iced").into(),
             carregando: false, calculo_pendente: false,
             aviso_abas: None,
-            menu_aberto: false, barra_menu_aberta: false, menu_pagina: menu_principal::Pagina::Inicio,
+            menu_aberto: false, barra_menu_aberta: false, faixa_temporaria: false, menu_pagina: menu_principal::Pagina::Inicio,
             em_tela_inicio: false, passo_captura: 0, captura_clicou: false, carrossel_modelos: 0, ver_todos_modelos: false, busca_recentes: String::new(),
             recentes: menu_principal::Historico::carregar(),
             recente_destino: None,

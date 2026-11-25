@@ -27,6 +27,11 @@ impl App {
                     if let Some(tarefa) = self.tecla_validacao_serie(&key) { return tarefa; }
                 }
                 if self.janelas.principal==Some(id) && key==keyboard::Key::Named(keyboard::key::Named::Escape)
+                    && self.faixa_temporaria {
+                    self.faixa_temporaria = false;
+                    return Task::none();
+                }
+                if self.janelas.principal==Some(id) && key==keyboard::Key::Named(keyboard::key::Named::Escape)
                     && !self.editor_formula.ativo {
                     // Aba Desenhar: fecha o menu da caneta, depois sai do modo desenho.
                     if let Some(tarefa) = self.esc_desenhar() { return tarefa; }

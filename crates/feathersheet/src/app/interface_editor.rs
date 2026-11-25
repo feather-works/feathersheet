@@ -65,10 +65,11 @@ impl App {
         let botao_menu = button(row![feather_ui::icones::icone("menu-2", 14.0), text(tr!("Menu")).size(13)]
             .spacing(6).align(pelicano::Align::Center))
             .padding([7, 12]).style(estilo_botao_secundario).on_press(Msg::Menu)
-            // Largura fixa com a faixa recolhida: a lista do menu clássico se alinha por ela.
-            .width(if self.config.faixa_recolhida { Length::Fixed(LARGURA_BOTAO_MENU) } else { Length::Shrink });
-        // Faixa recolhida: os menus clássicos (Arquivo, Editar…) tomam o lugar das abas.
-        let abas_escolha: Element<'_, Msg> = if self.config.faixa_recolhida {
+            // Largura fixa no modo micro: a lista do menu clássico se alinha por ela.
+            .width(if micro { Length::Fixed(LARGURA_BOTAO_MENU) } else { Length::Shrink });
+        // Recolhida ou não, as abas são as mesmas e no mesmo lugar (como no Excel); os menus clássicos
+        // (Arquivo, Editar…) ficam no modo micro.
+        let abas_escolha: Element<'_, Msg> = if micro {
             row![botao_menu, self.barra_menu_classico(LARGURA_TITULO_MENU)].spacing(4).align(pelicano::Align::Center).into()
         } else { row![
             botao_menu,
@@ -604,6 +605,23 @@ impl App {
                     pelicano::mouse_area(Space::new(Length::FILL, Length::FILL)).on_press(Msg::FecharMenu),
                 ],
                 column![Space::new(0.0, Length::Fixed(topo_lista)), self.painel_menu_classico()],
+            ].height(Length::FILL).into()
+        } else { base };
+        // Faixa recolhida: a aba clicada abre a faixa por cima da planilha; clicar fora fecha.
+        let base: Element<'_, Msg> = if self.faixa_temporaria && self.config.faixa_recolhida && !self.faixa_micro() {
+            let topo = self.topo_abaixo_abas();
+            stack![
+                base,
+                column![
+                    Space::new(0.0, Length::Fixed(topo)),
+                    pelicano::mouse_area(Space::new(Length::FILL, Length::FILL)).on_press(Msg::FecharFaixaTemporaria),
+                ],
+                column![Space::new(0.0, Length::Fixed(topo)), container(self.view_faixa()).width(Length::FILL).style(|t: &pelicano::Theme| {
+                    // Opaca, com a cor da faixa aberta e sombra embaixo: fica por cima da grade.
+                    feather_ui::tema::estilo_container_topo(t)
+                        .border(pelicano::Border::default().color(feather_ui::tema::COR_BORDA(), 1.0))
+                        .shadow(pelicano::Shadow { color: pelicano::Color { a: 0.3, ..pelicano::Color::BLACK }, offset: pelicano::Point::new(0.0, 4.0), blur: 12.0 })
+                })],
             ].height(Length::FILL).into()
         } else { base };
         let base = self.sobrepor_condicional(base);

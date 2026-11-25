@@ -1223,3 +1223,27 @@ fn grade_limitada_tem_minimo_e_cresce_com_dados_selecao_e_mais() {
     let _ = app.update(Msg::GradeCrescer(true));
     assert_eq!(app.grade().limite.map(|l| l.0), Some(40));
 }
+
+/// Faixa recolhida (pedido de 24/11): as abas são as mesmas da faixa aberta; clicar numa abre a faixa por cima
+/// da planilha, outra aba troca, a mesma aba de novo ou clicar fora fecha, e Expandir também.
+#[test]
+fn faixa_recolhida_abre_a_aba_por_cima_como_no_excel() {
+    let mut app = App::default();
+    app.config.faixa_recolhida = true;
+    let _ = app.update(Msg::AbaFaixa(AbaFaixa::Inserir));
+    assert!(app.faixa_temporaria && app.faixa_ativa == AbaFaixa::Inserir);
+    { let _tela: Element<'_, Msg> = app.view_editor(window::Id::MAIN); }
+    let _ = app.update(Msg::AbaFaixa(AbaFaixa::Dados));
+    assert!(app.faixa_temporaria && app.faixa_ativa == AbaFaixa::Dados, "trocar de aba mantém aberta");
+    let _ = app.update(Msg::AbaFaixa(AbaFaixa::Dados));
+    assert!(!app.faixa_temporaria, "a mesma aba fecha");
+    let _ = app.update(Msg::AbaFaixa(AbaFaixa::Formulas));
+    let _ = app.update(Msg::FecharFaixaTemporaria);
+    assert!(!app.faixa_temporaria, "clicar fora fecha");
+    let _ = app.update(Msg::AbaFaixa(AbaFaixa::Formulas));
+    let _ = app.update(Msg::Faixa);
+    assert!(!app.faixa_temporaria && !app.config.faixa_recolhida);
+    // Com a faixa aberta, clicar numa aba não abre nada por cima.
+    let _ = app.update(Msg::AbaFaixa(AbaFaixa::Inserir));
+    assert!(!app.faixa_temporaria);
+}
