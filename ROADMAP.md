@@ -5,14 +5,14 @@ to be **100% functional**: every command an Excel user looks for exists and
 works, every common formula calculates the same way, every `.xlsx` file opens
 and saves without losing anything, and everyday macros run.
 
-The numbers come from the detailed surveys (current as of v0.2.0, 10/27/2026):
+The numbers come from the detailed surveys (recounted from the code on 11/24/2026, on the way to 0.4.0):
 
 | Front | Today | Survey |
 |---|---|---|
-| Ribbon commands | **212 / 290** (73.1%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
-| Developer tab | **4 / 19** | same, "Desenvolvedor" section |
+| Ribbon commands | **251 / 290** (86.6%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
+| Developer tab | **5 / 19** | same, "Desenvolvedor" section |
 | Worksheet functions | **520 / 520** | [`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md) |
-| VBA functions in the converter | **52** covered, **12** partial, **53** missing (of 117 applicable) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
+| VBA functions in the converter | **116** covered, **1** partial (`CDec`), of 117 applicable | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 
 The linked surveys are in Portuguese.
 
@@ -66,36 +66,44 @@ What could make someone lose work or give up on day one.
         scrolling;
       - a warning when the same file is opened twice (read-only the second time).
 
-## Phase 2 — Complete the ribbon (79 commands)
+## Phase 2 — Complete the ribbon (39 commands left)
 
 In order of how much users miss them.
 
 **Page Layout (8 / 23)** — what matters most for printing:
-- [ ] Margins, Breaks, Print Titles, Print Headings, Background.
-- [ ] Themes, theme Colors, Fonts and Effects.
-- [ ] Arrange objects: Bring Forward, Send Backward, Align, Group, Rotate, Selection Pane.
+- [x] Margins, Breaks, Print Titles, Print Headings.
+- [ ] Background.
+- [x] Themes, theme Colors and Fonts (0.4.0, #80).
+- [ ] Theme Effects.
+- [x] Arrange objects: Bring Forward, Send Backward, Align, Group, Rotate, Selection Pane.
 
 **Insert (12 / 25):**
-- [ ] Text Box, Header & Footer, Symbol, Equation.
+- [x] Text Box, Header & Footer, Symbol, Equation.
 - [x] Sparklines.
-- [ ] Recommended Charts.
-- [ ] Timeline.
-- [ ] SmartArt (the engine already exists in [`feather-shapes`](https://github.com/feather-works/feather-shapes)), Screenshot, Maps, Signature Line, Object.
+- [x] Recommended Charts.
+- [x] Timeline (0.4.0).
+- [x] SmartArt.
+- [ ] Screenshot, Maps, Signature Line, Object.
 
 **View (9 / 20):**
 - [ ] Normal and Page Layout views, custom views, Ruler.
-- [ ] Zoom to Selection.
-- [ ] Windows: New Window, Arrange All, Split, Hide, Unhide, Switch Windows.
+- [x] Zoom to Selection.
+- [x] Windows: New Window, Arrange All, Split (two or four panes), Switch Windows (0.4.0, #83).
+- [ ] Hide and Unhide window.
 
 **Review (7 / 18):**
-- [ ] Spelling and Thesaurus (local Hunspell dictionaries, as in FeatherSlide).
-- [ ] Workbook Statistics, Check Accessibility, Alt Text.
-- [ ] Show Comments, Convert to Comments.
-- [ ] Protect Workbook, Allow Edit Ranges.
-- [ ] Show Changes.
+- [x] Spelling (F7).
+- [ ] Thesaurus.
+- [x] Alt Text on images.
+- [ ] Workbook Statistics, Check Accessibility.
+- [x] Show Comments.
+- [ ] Convert to Comments.
+- [x] Protect Workbook, Allow Edit Ranges.
+- [x] Show Changes.
 
 **Data (18 / 28):**
-- [ ] Consolidate, Circle Invalid Data, Relationships.
+- [x] Consolidate, Circle Invalid Data.
+- [ ] Relationships.
 - [ ] Forecast Sheet, Solver.
 - [ ] Refresh All (queries and connections).
 - [ ] Custom Lists, Data Form.
@@ -103,9 +111,11 @@ In order of how much users miss them.
 **Contextual tabs:**
 - [ ] Table Design: Summarize with PivotTable, Insert Slicer, style options
       (header row, first and last column).
-- [ ] Chart Design: Quick Layout, Styles, Switch Row/Column, Move Chart.
-- [ ] Shape Format: Format Selection, Shape Fill and Outline.
-- [ ] PivotTable: Sort, Clear All, Grand Totals.
+- [x] Chart Design: Switch Row/Column (chart panel).
+- [ ] Chart Design: Quick Layout, Styles, Move Chart.
+- [x] Shape Format: Format Selection, Shape Fill and Outline (chart panel).
+- [x] PivotTable: Grand Totals.
+- [ ] PivotTable: Sort, Clear All.
 
 **File (10 / 11):**
 - [ ] Export as a web page.
@@ -125,19 +135,14 @@ lists the known limits). What is left is calculation behavior:
 Macros run on [Falcão](https://github.com/feather-works/falcao), the suite's
 JavaScript engine written in Rust (since v0.2.0).
 
-- [ ] **VBA functions still missing in the converter** (53), starting with the
-      most used: dates (`DateAdd`, `DateDiff`, `DatePart`, `DateSerial`,
-      `DateValue`, `TimeSerial`, `TimeValue`, `Hour`, `Minute`, `Second`,
-      `Weekday`, `WeekdayName`, `MonthName`, `IsDate`, `CDate`), formatting
-      (`FormatNumber`, `FormatCurrency`, `FormatPercent`, `FormatDateTime`),
-      text (`StrComp`, `Filter`), logic (`Choose`, `Switch`, `IsError`,
-      `IsMissing`, `TypeName`, `VarType`), financial (`Pmt`, `PV`, `FV`, `NPV`,
-      `IRR`, `Rate`, `NPer`, `IPmt`, `PPmt`, `MIRR`, `SLN`, `SYD`, `DDB`) and the
-      rest of the [list](docs/planejamento/PARIDADE-VBA-FUNCOES.md).
-- [ ] Complete the 12 partial ones.
+- [x] **VBA functions in the converter**: 116 of the 117 that apply ([list](docs/planejamento/PARIDADE-VBA-FUNCOES.md)).
+- [x] **VBA language**: class modules, `Type`, `Enum`, `#If`, objects from the project's own functions,
+      Excel tables (`ListObjects`); tested on 54 public `.xlsm` files, ~87% of statements convert (0.4.0, #143).
+- [ ] `CDec` (the only partial one).
 - [ ] **Macro recorder** (record actions as JavaScript) and Use Relative References.
-- [ ] **Event macros** matching Excel's (open, cell change, sheet switch…).
-- [ ] Developer tab: macro security, form controls and design mode.
+- [x] **Event macros**: open, before save, before close, cell change, selection change, sheet activate.
+- [x] Form controls (v0.2.8).
+- [ ] Developer tab: macro security and design mode.
 
 ## Phase 5 — Charts
 
@@ -151,8 +156,10 @@ lines, mouse tooltip, clickable legend, pivot charts.
 
 ## Phase 6 — Advanced data
 
-- [ ] SQLite connector (pure Rust, read-only) and `SQL()` / `QUERY()` functions.
-- [ ] Timeline linked to pivot tables (slicers already work).
+- [x] Databases in FeatherQuery: SQLite, PostgreSQL, MySQL/MariaDB, SQL Server (v0.3.3).
+- [ ] `SQL()` / `QUERY()` worksheet functions.
+- [x] Timeline linked to pivot tables, and slicers linked to several pivot tables (0.4.0).
+- [ ] Slicers and timelines saved to `.xlsx` (#145).
 - [ ] Data model with relationships (Power Pivot), on top of the engine's
       column storage.
 - [ ] Analyze data with a local AI (through the MCP server, on request only).
