@@ -17,6 +17,7 @@ mod graficos_ancora;
 pub use formas::{ler_formas, Forma};
 mod native;
 mod dinamica_importada;
+mod segmentacoes;
 pub(crate) mod formula;
 mod pt_name;
 mod autofiltro;
@@ -377,6 +378,8 @@ fn anexar_elementos(
         }))
         .collect();
 
+    // (aba, nome, cacheId) de cada dinâmica lida, para as segmentações acharem a delas.
+    let mut dinamicas_lidas: Vec<(usize, String, String)> = Vec::new();
     // Ler tabelas dinâmicas do Excel por aba
     for (i, sheet) in sheets.iter_mut().enumerate() {
         if i >= sheets_xml_por_indice.len() { break; }
@@ -577,9 +580,44 @@ fn anexar_elementos(
                     if let Some((r0, c0, r1, c1)) = area_resultado {
                         dinamica["areaResultado"] = serde_json::json!({ "r0": r0, "c0": c0, "r1": r1, "c1": c1 });
                     }
+                    dinamicas_lidas.push((i, p_node.attr("name").unwrap_or_default().to_string(), cache_id.to_string()));
                     sheet.dinamicas.push(dinamica);
                 }
             }
+        }
+    }
+
+    // Segmentações de dados das dinâmicas (#145): ficam no JSON da primeira dinâmica que citam.
+    let livro = entry_text(archive, "xl/workbook.xml").ok().and_then(|t| xml::parse_xml(&t).ok());
+    let aba_do_tab_id: std::collections::HashMap<String, usize> = livro.iter()
+        .filter_map(|b| b.child("sheets")).flat_map(|s| s.children_named("sheet")).enumerate()
+        .filter_map(|(i, s)| Some((s.attr("sheetId")?.to_string(), i))).collect();
+    for fname in zip_names.iter().filter(|n| n.starts_with("xl/slicerCaches/") && n.ends_with(".xml")) {
+        let Ok(raiz) = xml::parse_xml(&entry_text(archive, fname)?) else { continue };
+        let Some(lida) = segmentacoes::ler(&raiz) else { continue };
+        // (aba, posição na lista de dinâmicas da aba, cacheId) de cada dinâmica citada.
+        let achadas: Vec<(usize, usize, &str)> = lida.dinamicas.iter().filter_map(|(tab, nome)| {
+            let aba = *aba_do_tab_id.get(tab)?;
+            let pos = dinamicas_lidas.iter().filter(|(a, _, _)| *a == aba).position(|(_, n, _)| n == nome)?;
+            let cache = dinamicas_lidas.iter().find(|(a, n, _)| *a == aba && n == nome)?.2.as_str();
+            Some((aba, pos, cache))
+        }).collect();
+        let Some(&(aba, pos, cache_id)) = achadas.first() else { continue };
+        let Some(cache) = pivot_caches.get(cache_id) else { continue };
+        let Some(campo) = cache._fields.iter().position(|f| f.eq_ignore_ascii_case(&lida.campo)) else { continue };
+        let chaves = cache.itens.get(campo).cloned().unwrap_or_default();
+        let sel: Vec<String> = if lida.itens.iter().all(|(_, s)| *s) { Vec::new() } else {
+            lida.itens.iter().filter(|(_, s)| *s).filter_map(|(x, _)| chaves.get(*x).cloned()).collect()
+        };
+        let liga: Vec<String> = achadas[1..].iter()
+            .filter_map(|(a, p, _)| sheets.get(*a)?.dinamicas.get(*p)?["id"].as_str().map(str::to_string)).collect();
+        let Some(meta) = sheets.get_mut(aba).and_then(|s| s.dinamicas.get_mut(pos)) else { continue };
+        let Some(c0) = meta["fonte"]["area"]["c0"].as_i64() else { continue };
+        let mut s = serde_json::json!({ "col": c0 + campo as i64, "sel": sel });
+        if !liga.is_empty() { s["liga"] = serde_json::json!(liga); }
+        match meta["segmentacoes"].as_array_mut() {
+            Some(lista) => lista.push(s),
+            None => meta["segmentacoes"] = serde_json::json!([s]),
         }
     }
 

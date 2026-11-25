@@ -1789,6 +1789,9 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     // Tabelas dinâmicas (`xl/pivotCache/…`, `xl/pivotTables/…`): `xlsx_write_dinamica`.
     let mut dinamicas: Vec<crate::xlsx_write_dinamica::ParteDinamica> = Vec::new();
     let mut contador_dinamicas = 0usize;
+    // Segmentações de dados das dinâmicas (#145): `xlsx_write_segmentacao`.
+    let mut segmentacoes = crate::xlsx_write_segmentacao::Livro::default();
+    let mut arquivos_segmentacoes: Vec<(String, Vec<u8>)> = Vec::new();
     let livros_externos = crate::xlsx_write_vinculos::livros(pasta);
     crate::xlsx_write_vinculos::usar_ordem(&livros_externos);
     for i in 0..pasta.len() {
@@ -1809,7 +1812,22 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         }
         let tn = pasta.aba(i).and_then(|a| a.sheet.tn.as_deref());
         let tinta = crate::tinta_aba::desenho_xlsx(tn);
-        if let Some(desenho) = crate::xlsx_write_graficos::desenho_da_aba(pasta, i, tinta, &mut contador_graficos, &mut nomes_graficos, &dinamicas_por_id) {
+        let novas = crate::xlsx_write_dinamica::da_aba(pasta, i, &mut contador_dinamicas);
+        let segmentacoes_da_aba = segmentacoes.da_aba(&novas, i + 1);
+        let desenho = crate::xlsx_write_graficos::desenho_da_aba(pasta, i, tinta, &mut contador_graficos, &mut nomes_graficos, &dinamicas_por_id);
+        // O cartão da segmentação é uma âncora do desenho da aba; sem desenho, um só com ela.
+        let desenho = match (desenho, &segmentacoes_da_aba) {
+            (Some(mut d), Some(sg)) => {
+                if let Some(fim) = d.xml.rfind("</xdr:wsDr>") { d.xml.insert_str(fim, &sg.ancoras); }
+                Some(d)
+            }
+            (None, Some(sg)) => Some(crate::xlsx_write_graficos::DesenhoAba {
+                xml: format!("{XML_DECL}<xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">{}</xdr:wsDr>", sg.ancoras),
+                rels: None, partes: Vec::new(), midias: Vec::new(),
+            }),
+            (d, None) => d,
+        };
+        if let Some(desenho) = desenho {
             // `drawing` vem depois de `hyperlinks` no CT_Worksheet.
             if let Some(fim) = xml.rfind("</worksheet>") {
                 xml.insert_str(fim, "<drawing r:id=\"rIdTinta\"/>");
@@ -1863,9 +1881,12 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
             comentarios.push((i + 1, c));
         }
         // Dinâmicas com destino nesta aba: só nas relações (o XML da aba não as cita).
-        let novas = crate::xlsx_write_dinamica::da_aba(pasta, i, &mut contador_dinamicas);
         if !novas.is_empty() {
-            let relacao: String = novas.iter().map(crate::xlsx_write_dinamica::relacao_da_aba).collect();
+            let mut relacao: String = novas.iter().map(crate::xlsx_write_dinamica::relacao_da_aba).collect();
+            if let Some(sg) = &segmentacoes_da_aba {
+                relacao.push_str(&crate::xlsx_write_segmentacao::Livro::relacao_da_aba(i + 1));
+                arquivos_segmentacoes.push((format!("xl/slicers/slicer{}.xml", i + 1), sg.xml.clone().into_bytes()));
+            }
             rels = Some(match rels {
                 Some(mut r) => {
                     if let Some(fim) = r.rfind("</Relationships>") {
@@ -1877,8 +1898,16 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
             });
             dinamicas.extend(novas);
         }
-        // Minigráficos: o `extLst` é o último filho do CT_Worksheet.
-        if let Some(ext) = pasta.aba(i).and_then(|a| crate::xlsx_write_minigraficos::ext_da_aba(&a.sheet)) {
+        // Minigráficos e segmentações: o `extLst` é o último filho do CT_Worksheet, um só para os dois.
+        let mut ext = pasta.aba(i).and_then(|a| crate::xlsx_write_minigraficos::ext_da_aba(&a.sheet)).unwrap_or_default();
+        if segmentacoes_da_aba.is_some() {
+            let da_segmentacao = crate::xlsx_write_segmentacao::Livro::ext_da_aba();
+            match ext.rfind("</extLst>") {
+                Some(fim) => ext.insert_str(fim, &da_segmentacao),
+                None => ext = format!("<extLst>{da_segmentacao}</extLst>"),
+            }
+        }
+        if !ext.is_empty() {
             if let Some(fim) = xml.rfind("</worksheet>") {
                 xml.insert_str(fim, &ext);
             }
@@ -1927,7 +1956,8 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         let texto = formula_to_excel(&n.formula);
         Some((format!("<definedName name=\"{}\"{local}>", escape_xml(&n.nome)), escape_xml(texto.strip_prefix('=').unwrap_or(&texto))))
     }).collect();
-    let nomes_definidos = if nomeados.is_empty() && de_pagina.is_empty() && nomes_graficos.is_empty() && nomes_formula.is_empty() {
+    let nomes_segmentacoes = segmentacoes.nomes_definidos();
+    let nomes_definidos = if nomeados.is_empty() && de_pagina.is_empty() && nomes_graficos.is_empty() && nomes_formula.is_empty() && nomes_segmentacoes.is_empty() {
         String::new()
     } else {
         let primeira = nomes_das_abas.first().cloned().unwrap_or_else(|| "Planilha1".to_string());
@@ -1963,7 +1993,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
                 format!("<definedName name=\"_xlchart.v1.{i}\" hidden=\"1\">{}</definedName>", escape_xml(f))
             }))
             .collect();
-        format!("<definedNames>{itens}</definedNames>")
+        format!("<definedNames>{itens}{nomes_segmentacoes}</definedNames>")
     };
 
     let tipos_abas: String = (1..=n)
@@ -1981,6 +2011,7 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         }))
         .chain(std::iter::once(crate::xlsx_write_dinamica::tipos_de_conteudo(&dinamicas)))
         .chain(std::iter::once(crate::xlsx_write_vinculos::tipos_de_conteudo(&livros_externos)))
+        .chain(std::iter::once(segmentacoes.tipos_de_conteudo()))
         .collect();
     let tipo_vml = if comentarios.is_empty() {
         String::new()
@@ -2025,6 +2056,8 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
     crate::xlsx_write_vinculos::usar_ordem(&[]);
     let externas = crate::xlsx_write_vinculos::referencias_do_livro(&livros_externos);
     let rels_externas = crate::xlsx_write_vinculos::relacoes_do_livro(&livros_externos);
+    let ext_livro = segmentacoes.ext_do_livro();
+    let rels_segmentacoes = segmentacoes.relacoes_do_livro();
 
     let mut partes: Vec<(String, Vec<u8>)> = vec![
         (
@@ -2044,14 +2077,14 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         (
             "xl/workbook.xml".into(),
             format!(
-                "{XML_DECL}<workbook xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\">{protecao_pasta}<bookViews><workbookView activeTab=\"{aba_ativa}\" firstSheet=\"{aba_ativa}\"/></bookViews><sheets>{entradas_abas}</sheets>{externas}{nomes_definidos}{caches_dinamicas}</workbook>"
+                "{XML_DECL}<workbook xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\">{protecao_pasta}<bookViews><workbookView activeTab=\"{aba_ativa}\" firstSheet=\"{aba_ativa}\"/></bookViews><sheets>{entradas_abas}</sheets>{externas}{nomes_definidos}{caches_dinamicas}{ext_livro}</workbook>"
             )
             .into_bytes(),
         ),
         (
             "xl/_rels/workbook.xml.rels".into(),
             format!(
-                "{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{rels_abas}<Relationship Id=\"rIdStyles\" Type=\"{NS_REL}/styles\" Target=\"styles.xml\"/><Relationship Id=\"rIdStrings\" Type=\"{NS_REL}/sharedStrings\" Target=\"sharedStrings.xml\"/>{rel_metadata}{rels_dinamicas}{rels_externas}</Relationships>"
+                "{XML_DECL}<Relationships xmlns=\"{NS_PKG_REL}\">{rels_abas}<Relationship Id=\"rIdStyles\" Type=\"{NS_REL}/styles\" Target=\"styles.xml\"/><Relationship Id=\"rIdStrings\" Type=\"{NS_REL}/sharedStrings\" Target=\"sharedStrings.xml\"/>{rel_metadata}{rels_dinamicas}{rels_externas}{rels_segmentacoes}</Relationships>"
             )
             .into_bytes(),
         ),
@@ -2104,6 +2137,8 @@ fn montar_partes_xlsx(pasta: &Workbook, macros: bool) -> Vec<(String, Vec<u8>)> 
         partes.push((format!("xl/drawings/vmlDrawing{i}.vml"), vml.into_bytes()));
     }
     partes.extend(crate::xlsx_write_dinamica::arquivos(dinamicas));
+    partes.extend(segmentacoes.arquivos());
+    partes.extend(arquivos_segmentacoes);
     partes.extend(crate::xlsx_write_vinculos::arquivos(pasta, &livros_externos));
     partes
 }

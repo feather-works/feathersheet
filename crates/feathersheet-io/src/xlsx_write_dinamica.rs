@@ -67,6 +67,8 @@ const NS_X14: &str = "http://schemas.microsoft.com/office/spreadsheetml/2009/9/m
 const EXT_CAMPO_DE_VALOR: &str = "{E15A36E0-9728-4e99-A89B-3F7291B0FE68}";
 /// `ext` do `x14:pivotField` (repetir rótulos dos itens).
 const EXT_CAMPO: &str = "{2946ED86-A175-432a-8AC1-64E0C546D7DE}";
+/// `x14:pivotCacheDefinition` (o id que a segmentação cita). O Excel exige "48be" em minúsculas.
+const EXT_CACHE_X14: &str = "{725AE2AE-9491-48be-B2B4-4EB974FC3084}";
 
 const TIPO_CACHE: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml";
 const TIPO_TABELA: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml";
@@ -79,9 +81,14 @@ const CAMPO_VALORES: u32 = 4_294_967_294;
 
 /// Uma dinâmica pronta para o pacote. `n` numera os arquivos e é o `cacheId`.
 pub(crate) struct ParteDinamica {
-    n: usize,
+    pub n: usize,
     cache: String,
     tabela: String,
+    /// O nome da dinâmica no `.xlsx` (o `pivotTable name` que a segmentação cita).
+    pub nome: String,
+    pub segmentacoes: Vec<crate::xlsx_write_segmentacao::Segmentacao>,
+    /// (r0, c0, r1, c1) do resultado: a segmentação fica à direita dele.
+    pub area: (u32, u32, u32, u32),
 }
 
 struct Medida {
@@ -131,6 +138,8 @@ struct Plano {
     totais_linhas: bool,
     totais_colunas: bool,
     tema: String,
+    /// Segmentações de dados: (campo, chaves escolhidas; vazia = todas).
+    segmentacoes: Vec<(usize, Vec<String>)>,
 }
 
 /// Tema da dinâmica ⇄ estilo embutido do Excel, nos dois sentidos (a leitura
@@ -274,6 +283,10 @@ fn plano(pasta: &Workbook, destino: usize, meta: &Json) -> Option<Plano> {
         totais_linhas: extras.totais_gerais_linhas,
         totais_colunas: extras.totais_gerais_colunas,
         tema: meta["tema"].as_str().unwrap_or("padrao").to_string(),
+        segmentacoes: meta["segmentacoes"].as_array().into_iter().flatten().filter_map(|s| {
+            let sel = s["sel"].as_array().into_iter().flatten().filter_map(|v| v.as_str().map(str::to_string)).collect();
+            Some((campo(&s["col"])?, sel))
+        }).collect(),
     })
 }
 
@@ -425,7 +438,7 @@ fn nomes_dos_campos(pasta: &Workbook, folha: usize, origem: (u32, u32, u32, u32)
 
 // ------------------------------------------------------------ XML
 
-fn cache_xml(p: &Plano, nomes: &[String], itens: &[Option<Itens>]) -> String {
+fn cache_xml(p: &Plano, nomes: &[String], itens: &[Option<Itens>], id_segmentacao: Option<usize>) -> String {
     let (r0, c0, r1, c1) = p.origem;
     let mut x = format!(
         "{XML_DECL}<pivotCacheDefinition xmlns=\"{NS}\" xmlns:r=\"{NS_REL}\" invalid=\"1\" saveData=\"0\" refreshOnLoad=\"1\" createdVersion=\"6\" refreshedVersion=\"6\" minRefreshableVersion=\"3\">"
@@ -442,7 +455,12 @@ fn cache_xml(p: &Plano, nomes: &[String], itens: &[Option<Itens>]) -> String {
         };
         let _ = write!(x, "<cacheField name=\"{}\" numFmtId=\"0\">{compartilhados}</cacheField>", atributo(nome));
     }
-    x.push_str("</cacheFields></pivotCacheDefinition>");
+    x.push_str("</cacheFields>");
+    // A segmentação acha o cache por este id (`tabular pivotCacheId`); é o mesmo `n` do `cacheId`.
+    if let Some(id) = id_segmentacao {
+        let _ = write!(x, "<extLst><ext uri=\"{EXT_CACHE_X14}\" xmlns:x14=\"{NS_X14}\"><x14:pivotCacheDefinition pivotCacheId=\"{id}\"/></ext></extLst>");
+    }
+    x.push_str("</pivotCacheDefinition>");
     x
 }
 
@@ -778,16 +796,26 @@ pub(crate) fn da_aba(pasta: &Workbook, indice: usize, contador: &mut usize) -> V
     for (_, p, n, nome) in nomeadas(pasta, indice, contador) {
         let nomes = nomes_dos_campos(pasta, p.folha, p.origem);
         let mut itens: Vec<Option<Itens>> = (0..nomes.len()).map(|_| None).collect();
-        let enumerados = p.linhas.iter().chain(&p.colunas).copied().chain(p.filtros.iter().map(|f| f.campo));
+        let enumerados = p.linhas.iter().chain(&p.colunas).copied().chain(p.filtros.iter().map(|f| f.campo))
+            .chain(p.segmentacoes.iter().map(|s| s.0));
         for campo in enumerados {
             if itens.get(campo).is_some_and(Option::is_none) {
                 itens[campo] = Some(itens_do_campo(pasta, p.folha, p.origem, campo));
             }
         }
+        // O item `x` do cache é a posição na lista (ver `Itens`); escolhida = `s="1"`, como no Excel.
+        let segmentacoes = p.segmentacoes.iter().filter_map(|(campo, sel)| {
+            let lista = itens.get(*campo)?.as_ref()?;
+            let escolhidos = lista.chaves.iter().map(|c| sel.is_empty() || sel.contains(c)).collect();
+            Some(crate::xlsx_write_segmentacao::Segmentacao { campo: nomes.get(*campo)?.clone(), escolhidos })
+        }).collect::<Vec<_>>();
         saida.push(ParteDinamica {
             n,
-            cache: cache_xml(&p, &nomes, &itens),
+            cache: cache_xml(&p, &nomes, &itens, (!segmentacoes.is_empty()).then_some(n)),
             tabela: tabela_xml(&p, n, &nome, &nomes, &itens),
+            nome,
+            segmentacoes,
+            area: p.area,
         });
     }
     saida

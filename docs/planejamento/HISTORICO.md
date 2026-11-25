@@ -4,6 +4,22 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Segmentação de dados no `.xlsx` (#145, 24/11/2026)**: a segmentação de uma dinâmica vai e volta. Gravar
+  (`xlsx_write_segmentacao.rs`): `xl/slicerCaches/slicerCacheK.xml` (campo, dinâmica por `tabId` + nome, itens pela
+  posição no `sharedItems` com `s="1"` nos escolhidos), `xl/slicers/slicerN.xml` da aba, o `graphicFrame` `sle:slicer`
+  no desenho (à direita do resultado; com a forma reserva em `mc:Fallback`), o nome `Slicer_<campo>` = `#N/A`, o
+  `x14:slicerCaches` do livro, o `x14:slicerList` da aba (no mesmo `extLst` dos minigráficos) e o
+  `x14:pivotCacheDefinition pivotCacheId` no cache da dinâmica (o mesmo `n` do `cacheId`). Os campos da segmentação
+  passam a ter os itens no cache. Ler (`xlsx_read/segmentacoes.rs`): o cache casa com a dinâmica pelo `tabId` + nome;
+  a primeira dinâmica citada fica com a segmentação, as outras vão em `liga`. Segmentação de dinâmica sai do aviso
+  de "não convertido" (a de tabela comum fica), e a forma reserva dela não conta como forma. Conferido: teste
+  `segmentacao_vai_e_volta` (`tests/dinamica_xlsx.rs`), LibreOffice abre e refaz a dinâmica com o filtro, e os nomes e
+  atributos obrigatórios batem com o XSD do MS-XLSX (Apêndice A; o `lxml` não carrega o conjunto de esquemas, então
+  a conferência foi por leitura). Limites (`shortcut:` no módulo): as dinâmicas ligadas vão com o filtro mas sem a
+  corrente (o Excel exige cache comum, e cada dinâmica grava o seu); a linha do tempo (`x15:timeline`) ainda não vai.
+  Sem Excel para abrir de verdade.
+  Novidade para o `VERSOES` da 0.4.0: "Segmentação de dados de tabela dinâmica vai e volta no .xlsx".
+
 - **Documentação conferida com o código (24/11/2026)**: `PARIDADE-EXCEL.md` recontado lendo o rótulo de cada botão
   da faixa (250 / 290, 86,2%; botão "Em breve" não conta; por funcionalidade 32 feitas, 49 parciais, 36 faltando),
   `ROADMAP.md` da raiz com as caixas feitas desde a 0.2.0 marcadas, README com v0.3.4, v0.3.5 e o que vem na 0.4.0,

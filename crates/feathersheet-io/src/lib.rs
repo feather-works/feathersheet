@@ -58,6 +58,7 @@ mod xlsx_write_futuras;
 mod xlsx_write_autofiltro;
 mod xlsx_write_comentarios;
 mod xlsx_write_dinamica;
+mod xlsx_write_segmentacao;
 mod xlsx_write_minigraficos;
 mod xlsx_write_graficos;
 mod xlsx_write_vinculos;

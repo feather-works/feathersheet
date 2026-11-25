@@ -368,3 +368,33 @@ fn grafico_dinamico_vai_e_volta_ligado_a_dinamica() {
     assert_eq!(graficos.len(), 1);
     assert_eq!(graficos[0]["pivotSource"], dn[0]["id"], "o gráfico volta ligado à dinâmica");
 }
+
+/// Segmentação de dados (#145): vai como slicerCache + slicer + desenho + nome definido e volta para o JSON da dinâmica.
+#[test]
+fn segmentacao_vai_e_volta() {
+    let m = meta(json!({
+        "filtros": [{"col": 0, "valores": ["Norte", "Sul"], "excluir": false}],
+        "segmentacoes": [{"col": 0, "sel": ["Norte", "Sul"]}, {"col": 1, "sel": []}],
+    }));
+    let w = com_dinamica(&m);
+    let p = partes(&w);
+    todas_bem_formadas(&p);
+    let cache = &p["xl/slicerCaches/slicerCache1.xml"];
+    assert!(cache.contains("sourceName=\"Região\"") && cache.contains("<pivotTable tabId=\"2\""), "{cache}");
+    // Itens na ordem do cache (Leste, Norte, Sul): só Norte e Sul escolhidos.
+    assert!(cache.contains("<i x=\"0\"/><i x=\"1\" s=\"1\"/><i x=\"2\" s=\"1\"/>"), "{cache}");
+    assert!(p["xl/pivotCache/pivotCacheDefinition1.xml"].contains("<x14:pivotCacheDefinition pivotCacheId=\"1\"/>"));
+    assert!(p["xl/slicers/slicer2.xml"].contains("cache=\"Slicer_Região\""));
+    assert!(p["xl/slicers/slicer2.xml"].contains("name=\"Produto\""));
+    assert!(p["xl/drawings/drawing2.xml"].contains("<sle:slicer "));
+    assert!(p["xl/worksheets/sheet2.xml"].contains("<x14:slicerList>"));
+    assert!(p["xl/workbook.xml"].contains("<definedName name=\"Slicer_Região\">#N/A</definedName>"));
+    assert!(p["xl/workbook.xml"].contains("<x14:slicerCache r:id=\"rIdSegmentacao2\"/>"));
+    assert!(p["[Content_Types].xml"].contains("/xl/slicers/slicer2.xml"));
+
+    let (_, d) = ida_e_volta(&w);
+    assert_eq!(d["segmentacoes"], json!([{"col": 0, "sel": ["Norte", "Sul"]}, {"col": 1, "sel": []}]));
+    // Nem a segmentação nem a forma reserva dela contam como "não convertido".
+    let avisos = feathersheet_io::xlsx_read::nao_convertidos::nao_convertidos(gerar_xlsx(&w).unwrap()).unwrap();
+    assert!(avisos.is_empty(), "{avisos:?}");
+}

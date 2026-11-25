@@ -148,14 +148,23 @@ pub fn nao_convertidos(bytes: Vec<u8>) -> Result<Vec<NaoConvertido>, String> {
         }
         let (pasta, arquivo) = caminho.rsplit_once('/').unwrap_or(("", &caminho));
         for alvo in sheet::read_rels(&entry_text(&mut z, &format!("{pasta}/_rels/{arquivo}.rels")).unwrap_or_default()).values() {
-            if let Some(o) = pelo_alvo(alvo) { somar(Some(nome), o, 1); }
+            // Segmentação de dinâmica converte (#145); a de tabela comum (sem `tabular` no cache), não.
+            let de_tabela = || z.file_names().filter(|n| n.starts_with("xl/slicerCaches/")).map(str::to_owned).collect::<Vec<_>>()
+                .into_iter().any(|n| !entry_text(&mut z.clone(), &n).unwrap_or_default().contains("tabular"));
+            match pelo_alvo(alvo) {
+                Some("Segmentação de dados") if !de_tabela() => {}
+                Some(o) => somar(Some(nome), o, 1),
+                None => {}
+            }
             // Desenho da aba: desde 20/11/2026 a forma vai para o .xlsx gravado, mas sem degradê, sombra,
             // ajustes e grupo. Contar aqui segue fazendo o Ctrl+S pedir "Salvar como" no arquivo original.
             let a = alvo.to_ascii_lowercase();
             if a.contains("drawings/") && !a.contains("vmldrawing") && a.ends_with(".xml") {
                 let desenho = caminho_relativo(pasta, alvo);
                 let texto = entry_text(&mut z, &desenho).unwrap_or_default();
-                somar(Some(nome), "Forma ou caixa de texto", texto.matches("<xdr:sp>").count() + texto.matches("<xdr:sp ").count());
+                // A forma reserva de cada segmentação (`mc:Fallback`) não é forma do usuário.
+                let formas = texto.matches("<xdr:sp>").count() + texto.matches("<xdr:sp ").count();
+                somar(Some(nome), "Forma ou caixa de texto", formas.saturating_sub(texto.matches("<sle:slicer ").count()));
             }
         }
     }
