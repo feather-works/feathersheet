@@ -2,30 +2,26 @@
 
 > Levantamento realizado em 13/10/2026, conferindo botão por botão da interface Rust/Iced (`feathersheet-gui`). O inventário contém 290 comandos para avaliar a cobertura funcional do FeatherSheet em relação ao Excel. Conta como **implementado** o comando que tem botão, menu, atalho ou botão direito ligado a uma ação de verdade; botão desabilitado ("Em breve") conta como **faltando**. Mede só **amplitude**, não profundidade nem fidelidade. A avaliação geral e o desempenho estão em [`PARIDADE-AVALIACAO.md`](PARIDADE-AVALIACAO.md).
 
-**Geral: 212 / 290 comandos implementados (73,1%).** A aba Desenvolvedor (macros) não entra nesse total: fica à parte, em "Desenvolvedor: 4 / 19" (seção no fim do checklist). Atualizado em 15/10 (tarde): Página Inicial fechada, 93 / 94 — Sublinhado ▾ com sublinhado duplo, caneta de borda (Desenhar borda, grade, Apagar, cor e estilo da linha), recuo pela faixa e por Ctrl+Alt+Tab, Limpar tudo e Limpar hiperlinks no Limpar ▾, Reaplicar no Classificar e filtrar ▾ (6 comandos); Suplementos fica fora do escopo. Antes, no mesmo dia: Preenchimento relâmpago (Ctrl+E, Preencher ▾ e Dados > Ferramentas de dados; 2 comandos). Antes, no mesmo dia: comentários (anotações) na aba Revisão nova, em Inserir > Comentário e em Limpar ▾ > Limpar comentários (8 comandos). Antes, no mesmo dia, Inserir ganhou Formas (`c5543c9f`), Ícones (`01c9ed76`), Caixa de seleção (`316961b9`, `92dcf633`) e WordArt (`9970bdf2`). Em 14/10 (noite): aba Desenhar inteira (Caneta, Borracha, Laço, Tinta para forma). Antes, à tarde: Desproteger planilha (o mesmo botão de Proteger, contado à parte); Proteger planilha; Inserir/Excluir células, Novo estilo de célula, Largura padrão e a estrutura de tópicos da aba Dados (Agrupar, Desagrupar, Subtotal, Mostrar e Ocultar detalhe). Antes, no mesmo dia: aba Fórmulas na faixa (recentes, Financeira, Usar em fórmula, rastrear precedentes/dependentes, remover setas, opções de cálculo, F9 e Shift+F9).
+**Geral: 251 / 290 comandos implementados (86,6%)**, recontado em 24/11/2026 lendo o código da faixa (rótulo de cada botão; botão "Em breve" desabilitado não conta). A aba Desenvolvedor (macros) fica à parte: 5 / 19. O que entrou desde 15/10 está anotado em cada item ("24/11", "#83"…); o histórico de cada entrega está no `HISTORICO.md`.
 
-> **Recontagem parcial em 02/11/2026** (leitura do código, sem rodar o app): Inserir 17/25 (gráficos
-> recomendados, gráfico dinâmico, segmentação, caixa de texto, cabeçalho e rodapé, símbolo), Layout da
-> Página 10/23 (margens, quebras), Dados 20/28 (da Web, circular dados inválidos), Revisão 8/18 (proteger
-> pasta). Total estimado: **~222 / 290 (77%)**. As outras abas não foram recontadas; a tabela abaixo é a de 15/10.
 
 | Aba | Implementados | Total | Paridade |
 |---|---|---|---|
 | Arquivo | 10 | 11 | 91% |
 | Página Inicial | 93 | 94 | 99% |
-| Inserir | 11 | 25 | 44% |
+| Inserir | 21 | 25 | 84% |
 | Desenhar | 4 | 4 | 100% |
-| Layout da Página | 8 | 23 | 35% |
+| Layout da Página | 20 | 23 | 87% |
 | Fórmulas | 23 | 23 | 100% |
-| Dados | 18 | 28 | 64% |
-| Revisão | 7 | 18 | 39% |
-| Exibir | 9 | 20 | 45% |
+| Dados | 21 | 28 | 75% |
+| Revisão | 12 | 18 | 67% |
+| Exibir | 14 | 20 | 70% |
 | Automatizar | 2 | 3 | 67% |
 | Design da Tabela | 8 | 13 | 62% |
-| Design do Gráfico | 4 | 8 | 50% |
-| Formatar | 0 | 3 | 0% |
+| Design do Gráfico | 5 | 8 | 62% |
+| Formatar | 3 | 3 | 100% |
 | Análise de Tabela Dinâmica | 11 | 13 | 85% |
-| Design de Tabela Dinâmica | 3 | 4 | 75% |
+| Design de Tabela Dinâmica | 4 | 4 | 100% |
 
 ## Arquivo (10 / 11, 91%)
 
@@ -148,7 +144,7 @@ Fora do escopo:
 
 - `home.addIns` Suplementos (Suplementos) — a suíte não tem loja nem extensões de terceiros (privacidade por padrão); não entra.
 
-## Inserir (12 / 25, 48%)
+## Inserir (21 / 25, 84%)
 
 Implementado:
 
@@ -164,22 +160,22 @@ Implementado:
 - `insert.wordArt` WordArt (Texto) — Inserir > WordArt: 4 estilos, deformação, sombra, texto editável (`9970bdf2`, 15/10)
 - `review.newComment` Comentário (Comentários) — Inserir > Comentário abre o editor de comentário da célula ativa (15/10)
 - `insert.sparkline` Minigráficos (Minigráficos) — Linha, Coluna e Ganhos/Perdas: diálogo Criar Minigráficos, aba contextual Minigráfico (tipo, pontos em destaque, estilo, mesmo eixo, limpar), `.fshz` e `.xlsx` (04/11)
+- `insert.recommendedCharts` Gráficos recomendados (Gráficos) — Inserir ▸ Gráficos ▸ Recomendados
+- `insert.pivotChart` Gráfico dinâmico (Gráficos) — Inserir ▸ Gráfico dinâmico; segue a dinâmica e vai e volta no .xlsx (`pivotSource`, 24/11)
+- `insert.slicer` Segmentação de dados (Filtros) — Inserir ▸ Segmentação de dados; ligada a várias dinâmicas da mesma origem (#145, 24/11)
+- `insert.textBox` Caixa de texto (Texto) — Inserir ▸ Texto ▸ Caixa de texto
+- `pageLayout.headerFooter` Cabeçalho e rodapé (Texto) — Inserir ▸ Texto ▸ Cabeçalho e rodapé
+- `insert.symbol` Símbolo (Símbolos) — Inserir ▸ Símbolos ▸ Símbolo
+- `insert.smartArt` SmartArt (Ilustrações) — Inserir ▸ Ilustrações ▸ SmartArt
+- `insert.timeline` Linha do tempo (Filtros) — Inserir ▸ Linha do tempo (Anos, Trimestres, Meses, Dias; filtro por período no motor, 24/11)
+- `insert.equation` Equação (Símbolos) — Inserir ▸ Símbolos ▸ Equação ▾
 
 Faltando:
 
-- `insert.recommendedCharts` Gráficos recomendados (Gráficos)
-- `insert.pivotChart` Gráfico dinâmico (Gráficos)
-- `insert.slicer` Segmentação de dados (Filtros) — botão desabilitado com a dica "Em breve"
-- `insert.textBox` Caixa de texto (Texto)
-- `pageLayout.headerFooter` Cabeçalho e rodapé (Texto)
-- `insert.symbol` Símbolo (Símbolos)
-- `insert.smartArt` SmartArt (Ilustrações)
 - `insert.screenshot` Instantâneo (Ilustrações)
 - `insert.map` Mapas (Gráficos)
-- `insert.timeline` Linha do tempo (Filtros) — botão desabilitado com a dica "Em breve"
 - `insert.signatureLine` Linha de assinatura (Texto)
 - `insert.object` Objeto (Texto)
-- `insert.equation` Equação (Símbolos)
 
 ## Desenhar (4 / 4, 100%)
 
@@ -199,7 +195,7 @@ Implementado:
 Faltando (fora da contagem do Excel): mover/redimensionar a seleção do laço, pressão da caneta
 (o Iced 0.13 não entrega), tinta para texto/matemática, reproduzir tinta e importar a tinta do `.xlsx`.
 
-## Layout da Página (8 / 23, 35%)
+## Layout da Página (20 / 23, 87%)
 
 Implementado:
 
@@ -211,24 +207,24 @@ Implementado:
 - `view.gridlines` Exibir linhas de grade (Opções de planilha) — Exibir → Linhas de grade
 - `pageLayout.printGridlines` Imprimir linhas de grade (Opções de planilha) — Imprimir → linhas de grade
 - `pageLayout.printHeadings` Imprimir títulos (Opções de planilha) — Imprimir → títulos A,B,C e 1,2,3
+- `pageLayout.theme` Temas (Temas) — Layout da Página ▸ Temas ▾ (recolore células e formas, um Ctrl+Z, xl/theme no .xlsx; #80, 24/11)
+- `pageLayout.themeColors` Cores (Temas) — Layout da Página ▸ Temas ▸ Cores ▾ (#80, 24/11)
+- `pageLayout.themeFonts` Fontes (Temas) — Layout da Página ▸ Temas ▸ Fontes ▾ (#80, 24/11)
+- `pageLayout.margins` Margens (Configurar página) — Layout da Página ▸ Configurar Página ▸ Margens ▾
+- `pageLayout.breaks` Quebras (Configurar página) — Layout da Página ▸ Configurar Página ▸ Quebras
+- `pageLayout.printTitles` Imprimir títulos (Configurar página) — Layout da Página ▸ Opções de Planilha ▸ Imprimir títulos (A, B, 1, 2)
+- `arrange.bringForward` Avançar (Organizar) — Formas ▸ Organizar ▸ Trazer para frente
+- `arrange.sendBackward` Recuar (Organizar) — Formas ▸ Organizar ▸ Enviar para trás
+- `arrange.selectionPane` Painel de seleção (Organizar) — Formas ▸ Organizar ▸ Painel de Seleção
+- `arrange.align` Alinhar (Organizar) — Formas ▸ Organizar ▸ Alinhar ▾
+- `arrange.rotate` Girar (Organizar) — Formas ▸ Organizar ▸ Girar (grupo gira inteiro, #79)
+- `arrange.group` Agrupar (Organizar) — Shift+clique em várias formas ▸ Agrupar/Desagrupar; grupo do .xlsx abre agrupado (#79)
 
 Faltando:
 
-- `pageLayout.theme` Temas (Temas)
-- `pageLayout.themeColors` Cores (Temas)
-- `pageLayout.themeFonts` Fontes (Temas)
 - `pageLayout.themeEffects` Efeitos (Temas)
-- `pageLayout.margins` Margens (Configurar página)
-- `pageLayout.breaks` Quebras (Configurar página)
 - `pageLayout.background` Plano de fundo (Configurar página)
-- `pageLayout.printTitles` Imprimir títulos (Configurar página)
 - `view.headings` Exibir títulos (Opções de planilha)
-- `arrange.bringForward` Avançar (Organizar)
-- `arrange.sendBackward` Recuar (Organizar)
-- `arrange.selectionPane` Painel de seleção (Organizar)
-- `arrange.align` Alinhar (Organizar)
-- `arrange.group` Agrupar (Organizar)
-- `arrange.rotate` Girar (Organizar)
 
 ## Fórmulas (23 / 23, 100%)
 
@@ -267,7 +263,7 @@ Faltando: nada.
 Também na rodada: **Ctrl+/** seleciona a matriz derramada da célula ativa; o contorno da área
 derramada passou a usar a cor da seleção da grade.
 
-## Dados (18 / 28, 64%)
+## Dados (21 / 28, 75%)
 
 Implementado:
 
@@ -289,21 +285,21 @@ Implementado:
 - `data.subtotal` Subtotal (Estrutura de tópicos) — Dados → Subtotal (janela, Remover todos)
 - `data.showDetail` Mostrar detalhe (Estrutura de tópicos) — Dados → Mostrar detalhe · [+] na grade
 - `data.hideDetail` Ocultar detalhe (Estrutura de tópicos) — Dados → Ocultar detalhe · [−] na grade
+- `data.circleInvalid` Circular dados inválidos (Ferramentas de dados) — Dados ▸ Validação ▾ ▸ Circular dados inválidos
+- `data.consolidate` Consolidar (Ferramentas de dados) — Dados ▸ Ferramentas de dados ▸ Consolidar
+- `data.fromWeb` Da Web (Obter e transformar) — Dados ▸ Obter Dados ▸ Da Web (FeatherQuery)
 
 Faltando:
 
 - `data.refreshAll` Atualizar tudo (Consultas e conexões)
-- `data.circleInvalid` Circular dados inválidos (Ferramentas de dados)
-- `data.consolidate` Consolidar (Ferramentas de dados)
 - `data.forecastSheet` Planilha de previsão (Previsão)
 - `data.solver` Solver (Análise)
-- `data.fromWeb` Da Web (Obter e transformar)
 - `data.stocks` Ações (Tipos de dados)
 - `data.geography` Geografia (Tipos de dados)
 - `data.relationships` Relações (Ferramentas de dados)
 - `data.analyzeData` Analisar dados (Análise)
 
-## Revisão (7 / 18, 39%)
+## Revisão (12 / 18, 67%)
 
 Implementado:
 
@@ -314,22 +310,22 @@ Implementado:
 - `review.nextComment` Próximo comentário (Comentários) — Revisão → Próximo
 - `review.showNote` Mostrar/ocultar anotação (Anotações) — Revisão → Mostrar/ocultar comentário; botão direito (gravado no arquivo: `visivel`)
 - `review.showAllNotes` Mostrar todas as anotações (Anotações) — Revisão → Mostrar todos os comentários (só a tela)
+- `review.spelling` Ortografia (Revisão de texto) — Revisão ▸ Revisão de texto ▸ Ortografia
+- `review.showComments` Mostrar comentários (Comentários) — Revisão ▸ Comentários ▸ Mostrar todos os comentários
+- `review.protectWorkbook` Proteger pasta de trabalho (Proteger) — Revisão ▸ Proteger ▸ Proteger pasta de trabalho
+- `review.allowEditRanges` Permitir edição de intervalos (Proteger) — Revisão ▸ Proteger ▸ Permitir edição de intervalos
+- `review.showChanges` Mostrar alterações (Alterações) — Revisão ▸ Alterações ▸ Mostrar alterações
 
 Faltando:
 
-- `review.spelling` Ortografia (Revisão de texto)
 - `review.thesaurus` Dicionário de sinônimos (Revisão de texto)
 - `review.workbookStatistics` Estatísticas da pasta (Revisão de texto)
 - `review.checkAccessibility` Verificar acessibilidade (Acessibilidade)
-- `review.showComments` Mostrar comentários (Comentários) — o painel lateral de comentários encadeados não existe
 - `review.convertToComments` Converter em comentários (Anotações)
-- `review.protectWorkbook` Proteger pasta de trabalho (Proteger)
-- `review.allowEditRanges` Permitir edição de intervalos (Proteger)
 - `review.smartLookup` Pesquisa inteligente (Ideias)
 - `review.translate` Traduzir (Idioma)
-- `review.showChanges` Mostrar alterações (Alterações)
 
-## Exibir (9 / 20, 45%)
+## Exibir (14 / 20, 70%)
 
 Implementado:
 
@@ -342,6 +338,11 @@ Implementado:
 - `view.freezeFirstColumn` Congelar primeira coluna (Janela) — Congelar → Até a coluna atual
 - `view.unfreezePanes` Descongelar painéis (Janela) — Congelar → Descongelar
 - `view.macros` Macros (Macros) — Macros → Editor · Alt+F11
+- `view.zoomToSelection` Zoom na seleção (Zoom) — Exibir ▸ Zoom ▸ Zoom na seleção
+- `view.newWindow` Nova janela (Janela) — Exibir ▸ Janela ▸ Nova janela: a mesma pasta noutra janela, ao vivo; a edição é na principal (#83, 24/11)
+- `view.arrangeAll` Organizar tudo (Janela) — Exibir ▸ Janela ▸ Organizar tudo (#83, 24/11)
+- `view.split` Dividir (Janela) — Exibir ▸ Janela ▸ Dividir janela, Lado a lado e Em quatro (#83, 24/11)
+- `view.switchWindows` Alternar janelas (Janela) — Exibir ▸ Janela ▸ Alternar janelas (#83, 24/11)
 
 Faltando:
 
@@ -349,13 +350,8 @@ Faltando:
 - `view.pageLayout` Layout da página (Modos de exibição)
 - `view.customViews` Modos de exibição personalizados (Modos de exibição)
 - `view.ruler` Régua (Mostrar)
-- `view.zoomToSelection` Zoom na seleção (Zoom)
-- `view.newWindow` Nova janela (Janela)
-- `view.arrangeAll` Organizar tudo (Janela)
-- `view.split` Dividir (Janela)
 - `view.hideWindow` Ocultar janela (Janela)
 - `view.unhideWindow` Reexibir janela (Janela)
-- `view.switchWindows` Alternar janelas (Janela)
 
 ## Automatizar (2 / 3, 67%)
 
@@ -389,7 +385,7 @@ Faltando:
 - `table.firstColumn` Primeira coluna (Opções de estilo)
 - `table.lastColumn` Última coluna (Opções de estilo)
 
-## Design do Gráfico (4 / 8, 50%)
+## Design do Gráfico (5 / 8, 62%)
 
 Implementado:
 
@@ -397,21 +393,21 @@ Implementado:
 - `chart.changeColors` Alterar cores (Estilos) — editor → Paleta
 - `chart.selectData` Selecionar dados (Dados) — editor → intervalo
 - `chart.changeType` Alterar tipo (Tipo) — editor → Tipo de gráfico
+- `chart.switchRowColumn` Alternar linha/coluna (Dados) — painel do gráfico ▸ Séries em colunas
 
 Faltando:
 
 - `chart.quickLayout` Layout rápido (Layouts)
 - `chart.set` Estilos de gráfico (Estilos)
-- `chart.switchRowColumn` Alternar linha/coluna (Dados)
 - `chart.move` Mover gráfico (Local)
 
-## Formatar (0 / 3, 0%)
+## Formatar (3 / 3, 100%)
+- `chart.formatSelection` Formatar seleção (Seleção atual) — o painel do gráfico (clique duplo) formata a parte escolhida
+- `chart.shapeFill` Preenchimento da forma (Estilos de forma) — painel do gráfico ▸ Área e fundo ▸ Fundo
+- `chart.shapeOutline` Contorno da forma (Estilos de forma) — painel do gráfico ▸ Contorno, Cor da borda, Espessura
 
 Faltando:
 
-- `chart.formatSelection` Formatar seleção (Seleção atual)
-- `chart.shapeFill` Preenchimento da forma (Estilos de forma)
-- `chart.shapeOutline` Contorno da forma (Estilos de forma)
 
 ## Análise de Tabela Dinâmica (11 / 13, 85%)
 
@@ -434,19 +430,19 @@ Faltando:
 - `pivot.sort` Classificar (Classificar)
 - `pivot.delete` Limpar tudo (Ações)
 
-## Design de Tabela Dinâmica (3 / 4, 75%)
+## Design de Tabela Dinâmica (4 / 4, 100%)
 
 Implementado:
 
 - `pivot.subtotals` Subtotais (Layout) — Opções avançadas → Subtotais
 - `pivot.reportLayout` Layout do relatório (Layout) — Opções avançadas → Layout
 - `pivot.style` Estilos de tabela dinâmica (Estilos) — Opções avançadas → Tema
+- `pivot.grandTotals` Totais gerais (Layout) — Tabela Dinâmica ▸ Layout ▸ Totais gerais
 
 Faltando:
 
-- `pivot.grandTotals` Totais gerais (Layout)
 
-## Desenvolvedor (macros) (4 / 19, 21%)
+## Desenvolvedor (macros) (5 / 19, 26%)
 
 Fora do "Geral": a aba Desenvolvedor do Excel é separada da contagem da faixa. No FeatherSheet as macros ficam na aba
 **Macros** da faixa e no editor Alt+F11; os itens abaixo são conferidos contra essas peças.
@@ -458,6 +454,7 @@ Implementado:
 - `developer.macros` Macros (Código) — aba Macros → Executar macro · Editar
 - `developer.viewCode` Exibir código (Código) — aba Macros → Editar (mesmo editor de macros)
 - `developer.properties` Propriedades (Controles) — editor Alt+F11 → Exibir → Propriedades
+- `developer.insertControls` Inserir controles (Controles) — Macros ▸ Controles: caixa de seleção, botão de macro e controles de formulário do Excel (v0.2.8)
 
 Faltando:
 
@@ -467,7 +464,6 @@ Faltando:
 - `developer.addIns` Suplementos (Suplementos)
 - `developer.excelAddIns` Suplementos do Excel (Suplementos)
 - `developer.comAddIns` Suplementos COM (Suplementos)
-- `developer.insertControls` Inserir controles (Controles) — só o Botão de macro (aba Macros → Planilha); caixa de combinação, lista, opção etc. faltam
 - `developer.designMode` Modo de design (Controles) — não há alternância; o designer só existe dentro do componente
 - `developer.runDialog` Executar caixa de diálogo (Controles) — botão Componentes da aba Macros está desabilitado; o componente abre por macro (`sheet.showComponent`)
 - `developer.xmlSource` Origem (XML)
@@ -488,25 +484,24 @@ Faltando:
 > conta ou servidor da Microsoft entram como falta, mas a regra de privacidade da suíte
 > (nada sai da máquina sem pedido) decide se algum deles será feito.
 
-**24 feitas, 41 parciais e 52 faltando, de 117 funcionalidades** (20,5% completas; 55,6% com alguma cobertura). Contagem refeita linha a linha em 15/10; Comentários passou a parcial no mesmo dia; Máscara de formato de número e Recuo continuam como estavam (em andamento). Preenchimento relâmpago passou a parcial em 15/10.
+**32 feitas, 49 parciais e 36 faltando, de 117 funcionalidades** (27,4% completas; 69,2% com alguma cobertura). Contagem refeita em 24/11/2026 a partir das marcas de cada linha.
 
 | Área | Feito | Parcial | Falta | Total |
 |---|---|---|---|---|
-| 1. Estruturação, entrada e manipulação de dados | 4 | 10 | 6 | 20 |
+| 1. Estruturação, entrada e manipulação de dados | 6 | 10 | 4 | 20 |
 | 2. Formatação, tipografia e máscaras | 2 | 3 | 1 | 6 |
-| 3. Engenharia de dados, ETL e modelagem | 0 | 3 | 4 | 7 |
+| 3. Engenharia de dados, ETL e modelagem | 0 | 5 | 2 | 7 |
 | 4. Análise, estatística e simulação | 4 | 3 | 2 | 9 |
-| 5. Motor de cálculo e endereçamento | 3 | 2 | 5 | 10 |
-| 6. Visualização e elementos gráficos | 2 | 4 | 7 | 13 |
-| 7. Automação, programação e extensibilidade | 1 | 3 | 3 | 7 |
-| 8. Dados estruturados, XML, tempo real e hardware | 0 | 0 | 5 | 5 |
-| 9. Auditoria, inspeção e governança | 5 | 2 | 2 | 9 |
-| 10. Exibição, janelas, layout e impressão | 2 | 4 | 3 | 9 |
-| 11. Colaboração, governança e segurança | 0 | 2 | 4 | 6 |
+| 5. Motor de cálculo e endereçamento | 4 | 4 | 2 | 10 |
+| 6. Visualização e elementos gráficos | 3 | 5 | 5 | 13 |
+| 7. Automação, programação e extensibilidade | 2 | 2 | 3 | 7 |
+| 8. Dados estruturados, XML, tempo real e hardware | 0 | 1 | 4 | 5 |
+| 9. Auditoria, inspeção e governança | 6 | 2 | 1 | 9 |
+| 10. Exibição, janelas, layout e impressão | 3 | 5 | 1 | 9 |
+| 11. Colaboração, governança e segurança | 0 | 4 | 2 | 6 |
 | 12. Desenho à tinta e dispositivos | 0 | 1 | 1 | 2 |
-| 13. Acessibilidade, voz e idiomas | 0 | 0 | 7 | 7 |
-| 14. Arquivos, recuperação e integração | 1 | 3 | 3 | 7 |
-| **Total** | **24** | **41** | **52** | **117** |
+| 13. Acessibilidade, voz e idiomas | 0 | 2 | 5 | 7 |
+| 14. Arquivos, recuperação e integração | 2 | 2 | 3 | 7 |
 
 ## 1. Estruturação, entrada e manipulação de dados
 
@@ -537,7 +532,7 @@ Faltando:
 - [~] Alinhamento: esquerda, centro, direita, cima, meio, embaixo, quebrar texto, rotação de -90° a 90°, recuo de 0 a 15 (commit c6113971, grava `indent` no .xlsx), mesclar e centralizar, mesclar através, mesclar e desmesclar. Reduzir para caber e texto vertical empilhado em Formatar células ▸ Alinhamento, com ida e volta no `.xlsx` (`shrinkToFit`, `textRotation="255"`, 19/11). Centralizar na seleção, Preencher, Justificar e Distribuído vindos do `.xlsx` são guardados e voltam ao salvar (na tela, o alinhamento mais próximo). Falta: escolher esses quatro no app, desenhá-los como o Excel e direção do texto.
 - [x] AutoAjuste de altura e largura (duplo clique e menu) e tamanho exato pelo diálogo.
 - [x] Pincel de formatação.
-- [~] Estilos de célula: menu de estilos prontos e Novo estilo de célula (14/10). Falta: temas do documento (fontes e paleta de 12 cores) trocando tudo de uma vez.
+- [~] Estilos de célula: menu de estilos prontos e Novo estilo de célula (14/10). Falta: temas do documento (fontes e paleta de 12 cores) trocando tudo de uma vez. **Temas da pasta feitos em 24/11 (#80).**
 - [ ] Formatação por caractere dentro da célula (rich text): negrito, cor, sobrescrito numa palavra só. Hoje sobrescrito/subscrito valem para a célula inteira.
 
 ## 3. Engenharia de dados, ETL e modelagem
@@ -545,8 +540,8 @@ Faltando:
 - [~] Power Query → **OpenQuery**: editor em janela própria, passos guardados no `.fshz`, mesclar (6 modos), acrescentar, dinamizar, importar CSV/TSV/TXT/JSON/XLSX, prévia por etapa, perfil e qualidade de coluna. Falta: conectores de banco SQL, Web/API, PDF, Parquet e pasta inteira; correspondência difusa; coluna de exemplos; editor avançado em linguagem própria; parâmetros e funções. Fontes externas só por pedido explícito (privacidade).
 - [ ] Power Pivot (modelo de dados, relacionamentos, DAX, hierarquias, KPIs, perspectivas). O armazenamento colunar do motor já é a base.
 - [~] Tabelas dinâmicas: arrastar campos, filtros, agrupar datas, campo calculado, layouts compacto/estrutura/tabular, repetir rótulos, subtotais, recolher, dinâmicas recomendadas. **Motor pronto em 15/10/2026, commit 4b29bab1** (`dinamica/exibicao.rs`, `Extras`; falta ligar na GUI): Mostrar valores como (12 modos, igual ao Excel), agrupar número em faixas e data por ano/trimestre/mês/dia, classificar itens (A→Z, Z→A, por valor) e totais gerais de linhas e colunas separados; lê `showDataAs`/`fieldGroup`/`sortType`/`rowGrandTotals`/`colGrandTotals` do .xlsx (a gravação de `pivotTable` não existe). Falta: itens manuais, itens calculados, mostrar páginas de filtro, detalhar com duplo clique, item base nomeado vindo do .xlsx, GUI para tudo isso.
-- [ ] Segmentação de dados (slicers): botão na faixa desabilitado, com a dica "Em breve" (15/10).
-- [ ] Linha do tempo (timeline).
+- [~] Segmentação de dados (slicers): botão na faixa desabilitado, com a dica "Em breve" (15/10). **Feito (24/11): Inserir ▸ Segmentação, ligada a várias dinâmicas da mesma origem (Conexões de Relatório), com milhões de linhas; falta ir e voltar no `.xlsx` (slicerCache, #145).**
+- [~] Linha do tempo (timeline). **Feito (24/11): Anos, Trimestres, Meses e Dias, filtro por período no motor; falta ir e voltar no `.xlsx` (timelineCache, #145).**
 - [ ] Funções de cubo (OLAP).
 - [~] Consultas e conexões: atualizar a consulta do OpenQuery. Falta: atualizar tudo, atualização automática a cada X minutos e ao abrir, Editar Links (vínculos com outras pastas existem no motor, `planilha/vinculo.rs`).
 
@@ -581,12 +576,12 @@ Faltando:
 - [~] Gráficos: colunas, barras, linhas, degraus, área (empilhados e 100%), pizza, rosca, dispersão, bolhas, radar, cascata, histograma, cotação (candlestick), mapa de calor, Gantt e combinação, com agregação sobre milhões de linhas. Falta: 3D, pizza de pizza, superfície, funil, treemap, sunburst, caixa e bigodes, Pareto e eixo secundário.
 - [ ] Elementos analíticos de gráfico: linha de tendência com equação e R², barras de erro, linhas de projeção, máximo/mínimo, barras superiores/inferiores.
 - [ ] Modelos de gráfico e aba só de gráfico.
-- [ ] Gráfico dinâmico.
+- [~] Gráfico dinâmico. **Feito: Inserir ▸ Gráfico dinâmico segue a dinâmica, e o vínculo vai e volta no `.xlsx` (`pivotSource`, 24/11). Falta: botões de campo no gráfico.**
 - [x] Minigráficos (sparklines): Linha, Coluna e Ganhos/Perdas, com aba contextual, `.fshz` e `.xlsx` (04/11).
 - [ ] Mapas coropléticos e Mapas 3D.
 - [ ] Ferramenta Câmera.
 - [x] Imagem na célula e imagem flutuante, com `=IMAGEM`, base64 e efeitos de imagem. Remover plano de fundo falta.
-- [~] Formas (`c5543c9f`) e ícones (`01c9ed76`) feitos como objetos da camada sobre a grade. Falta: SmartArt (botão "Em breve") e modelos 3D.
+- [~] Formas (`c5543c9f`) e ícones (`01c9ed76`) feitos como objetos da camada sobre a grade. Falta: SmartArt (botão "Em breve") e modelos 3D. **SmartArt e Caixa de texto entraram depois (Inserir ▸ Ilustrações/Texto).**
 - [~] WordArt feito (`9970bdf2`: 4 estilos, deformação, sombra, texto editável). Falta a caixa de texto ligada a uma célula.
 - [ ] Captura de tela.
 - [x] Caixa de seleção na célula: Inserir > Checkbox põe caixas na seleção (VERDADEIRO/FALSO), clique e Espaço marcam, o botão aceso remove (`316961b9`, `92dcf633`, 15/10). Não é gravada no `.xlsx` (14/10/2026, `f9a9e485`).
@@ -594,11 +589,11 @@ Faltando:
 ## 7. Automação, programação e extensibilidade
 
 - [ ] Gravador de macros (gravar ações gerando JavaScript, a fazer).
-- [~] VBA e VBE → macros em **JavaScript** com editor Alt+F11 estilo VBE (módulos, Objeto/Procedimento, Propriedades, Janela de Inspeção, verificar sintaxe), funções definidas pelo usuário e eventos. Conversor VBA → JavaScript com interface: Macros → Importar VBA do Excel (.xlsm) (`c195e9fd`); as macros importadas entram sozinhas no editor; eventos do VBA (`Worksheet_Change`, `Worksheet_Activate`) rodam sozinhos (`6edc796e`); `Workbook_Open` continua à mão. Falta no editor: depurador (pausar, passo a passo, Locais, Pilha) e cerca de 110 de 128 chamadas da API na interface Iced.
+- [~] VBA e VBE → macros em **JavaScript** com editor Alt+F11 estilo VBE (módulos, Objeto/Procedimento, Propriedades, Janela de Inspeção, verificar sintaxe), funções definidas pelo usuário e eventos. Conversor VBA → JavaScript com interface: Macros → Importar VBA do Excel (.xlsm) (`c195e9fd`); as macros importadas entram sozinhas no editor; eventos do VBA (`Worksheet_Change`, `Worksheet_Activate`) rodam sozinhos (`6edc796e`); `Workbook_Open` continua à mão. Falta no editor: depurador (pausar, passo a passo, Locais, Pilha) e cerca de 110 de 128 chamadas da API na interface Iced. **Bateria de 54 `.xlsm` públicos em 24/11 (#143): 54/54 convertem, ~87% das instruções; classes, Type, Enum, #If, ListObjects.**
 - [~] UserForms → componentes HTML+CSS com designer.
 - [x] Office Scripts → as próprias macros JavaScript rodam na máquina, sem nuvem.
 - [ ] Python na planilha (`=PY()`): anotado, não iniciado; seria local, nunca em nuvem.
-- [~] Controles na grade: botão de macro (arrastar, redimensionar, rodar). Falta: caixa de combinação, opção, lista, barra de rolagem, botão de número, caixa de grupo.
+- [x] Controles na grade: botão de macro (arrastar, redimensionar, rodar). Falta: caixa de combinação, opção, lista, barra de rolagem, botão de número, caixa de grupo. **Controles de formulário do Excel (caixa de combinação, opção, barra de rolagem…) desde a v0.2.8: botão direito, Formatar controle, criar pela aba Macros.**
 - [ ] Suplementos (add-ins).
 
 ## 8. Dados estruturados, XML, tempo real e hardware
@@ -607,7 +602,7 @@ Faltando:
 - [ ] Data Streamer (porta serial, Arduino).
 - [ ] RTD e DDE (cotações em tempo real).
 - [ ] OLE (objetos de outros programas embutidos).
-- [ ] Editor de equações.
+- [~] Editor de equações. **Inserir ▸ Equação ▾ insere equações prontas; falta o editor livre.**
 
 ## 9. Auditoria, inspeção e governança
 
@@ -619,13 +614,13 @@ Faltando:
 - [ ] Inquire (relatório da pasta, diagramas, comparar arquivos, limpar formatação em excesso).
 - [~] Estatísticas da pasta: o F12 → Métricas mostra abas e células ocupadas; falta por aba (fórmulas, tabelas, gráficos) e última célula.
 - [x] Verificar desempenho → formatação fantasma é colapsada ao abrir (`feathersheet-io/src/enxugar.rs`).
-- [ ] Painel de seleção (camadas dos objetos).
+- [x] Painel de seleção (camadas dos objetos). **Feito na v0.3.3: Formas ▸ Organizar ▸ Painel de Seleção lista, esconde e reordena os objetos.**
 
 ## 10. Exibição, janelas, layout e impressão
 
 - [x] Congelar painéis (linha, coluna ou interseção).
-- [~] Dividir a janela em 2 painéis (em cima/embaixo ou lado a lado, cada um com sua aba e rolagem; Exibir ▸ Janela). Falta: 4 painéis.
-- [ ] Nova janela, organizar tudo, lado a lado com rolagem sincronizada.
+- [x] Dividir a janela em 2 painéis (em cima/embaixo ou lado a lado, cada um com sua aba e rolagem; Exibir ▸ Janela). Falta: 4 painéis. **Completo em 24/11: em cima/embaixo, lado a lado e em quatro (#83).**
+- [~] Nova janela, organizar tudo, lado a lado com rolagem sincronizada. **Feito (24/11, #83): Nova janela (vista ao vivo da mesma pasta; a edição é na principal), Organizar tudo e Alternar janelas. Falta: editar na nova janela e rolagem sincronizada.**
 - [~] Modos de exibição: Normal e Visualização de quebra de página. Falta: Layout da página com régua e cabeçalho editável na folha.
 - [ ] Modos de exibição de planilha (visões por pessoa) e personalizados.
 - [x] Foco na célula → "Pintar linha/coluna" da célula ativa (Exibir).
@@ -653,7 +648,7 @@ Faltando:
 - [~] Texto alternativo em imagens e gráficos: imagens (botão direito ▸ Texto alternativo…, vai no `.xlsx`), gráficos (painel) e controles. Falta: formas.
 - [ ] Falar células (leitura em voz alta).
 - [ ] Tradutor.
-- [ ] Ortografia, sinônimos e pesquisa inteligente.
+- [~] Ortografia, sinônimos e pesquisa inteligente. **Ortografia (F7) feita na v0.3.3; faltam sinônimos e pesquisa inteligente.**
 - [ ] AutoCorreção.
 - [ ] Planilha da direita para a esquerda e fonética asiática.
 
@@ -730,14 +725,20 @@ Pronto:
   mudança feita pela pessoa, e `Worksheet_Activate` (aoAtivar), ao trocar de aba. `Workbook_Open`
   continua à mão, de propósito: rodar código ao abrir o arquivo é o caso mais arriscado.
 
+- **Motor próprio (Falcão, v0.2.0)** e API das macros com 155 chamadas documentadas na Ajuda
+  (`app/ajuda_macros.rs`); UserForm do `.xlsm` convertido em formulário (#67, 26/10); macro editada
+  volta para o VBA ao salvar `.xlsm`; relatório da conversão no editor (24/11).
+- **Bateria de 54 `.xlsm` públicos** (`scripts/bateria-xlsm/`, #143, 24/11): 54/54 convertem e ~87% das
+  instruções viram JavaScript. Entraram módulos de classe, `Type`, `Enum`, `#If`, objeto devolvido por
+  função do projeto (VBA-JSON), `ListObjects`, `GoTo` para o tratador de erro e qualquer página de
+  código. O que sobra é quase todo automação de outros programas (`CreateObject`).
+
 A fazer:
 
-1. Completar a API de macros na interface Iced (em 12/10 cerca de 17 de 128 chamadas
-   funcionavam).
-2. Gravar ações (`automate.recordActions`) gerando JavaScript, com loops de coluna vetorizados.
-3. Macros executadas no Rust: loop de coluna vira operação vetorizada; o resto num motor embutido.
-4. Depurador: pausar, passo a passo, pontos de parada, Locais e Pilha de chamadas.
-5. UserForm `.frm` convertido direto para componente pelo desenho do designer.
+1. Gravar ações (`automate.recordActions`) gerando JavaScript.
+2. Depurador: pausar, passo a passo, pontos de parada, Locais e Pilha de chamadas (o editor só tem
+   "Sempre depurar").
+3. Rodar as macros da bateria e comparar com o Excel (hoje a bateria mede só a conversão).
 
 ## 3. Arquivo grande, memória e velocidade
 
@@ -807,55 +808,32 @@ Otimizações que faltam (a fazer):
 
 ## 5. Planejado (a fazer)
 
-- **MCP do FeatherSheet**: feito em 14/10 (`crates/feathersheet-mcp`, base `d177e8f5`, formatar/estrutura/mesclar `1d8a43b0`): a IA recebe estrutura, amostra e estatística, nunca a planilha inteira; cada ferramenta é um Ctrl+Z. Pendências em `MCP-PENDENTE.md`.
-- **CONTAR.COR / SOMAR.COR** e a mesma coisa na API de macros (o VBA não tem).
 - **Histórico e ramificações** da planilha (Copy-on-Write sobre o Git do `.fshz`).
 - **Modo de página finita para relatório**, com grade e guias de alinhamento.
 - **Cartão HTML personalizável** na grade, ligado a macro.
-- **Edição leve de imagem embutida** (recortar, girar, brilho) pelo crate comum da suíte.
 - **Dados de gráfico e tabela do FeatherSlide** editados e calculados no FeatherSheet.
-- **Interface em várias línguas** (JSON por língua).
 
-## 6. Caminho a seguir
+Feitos desde a primeira versão desta lista: MCP do FeatherSheet (14/10; pendências em `MCP-PENDENTE.md`),
+SOMAR.COR/CONTAR.COR (`fn_cor.rs`), interface em quatro línguas (pt-BR, en-US, es-ES, fr-FR) e Efeitos
+da imagem.
 
-Ordem sugerida, juntando paridade e diferenciais. Cada passo termina com teste e print do app.
+## 6. O que falta na faixa (24/11/2026)
 
-1. **Fechar o que está aberto**: queda ao salvar (falta a linha `panicked` do terminal); prints do
-   painel novo da tabela dinâmica; linhas de filtro em cima da dinâmica gerada; os 24 testes da
-   interface que falham (contagens antigas de funções, divisão, salvamento automático, eixos);
-   commit do que está pronto.
-2. **Página Inicial: 93 / 94 em 15/10** (sublinhado duplo, caneta de borda, recuo com atalho, Limpar tudo/hiperlinks, Reaplicar). Só Suplementos fica de fora, por escopo.
-3. **Fórmulas**: completa em 14/10 (23 / 23).
-4. **Funções, lote 1**: referência e matriz dinâmica (`OFFSET`, `INDIRECT`, `XMATCH`, `LOOKUP`,
-   `VSTACK`, `HSTACK`, `TAKE`, `DROP`, `BYROW`…). Lista completa em
-   [`FUNCOES-FALTANTES.md`](FUNCOES-FALTANTES.md).
-5. **Dados**: Agrupar/Desagrupar e Subtotal (`8d1ffeb2`), Atingir meta e Tabela de dados já feitos; falta Consolidar.
-6. **Revisão**: proteger planilha feita (`28f11abe`, com senha e as 15 permissões) e anotações (15/10, aba Revisão); falta responder a comentário encadeado.
-7. **Diferenciais**: macros VBA (conversor já na interface; falta o depurador); OpenQuery em fluxo para milhões de linhas. MCP do FeatherSheet feito em 14/10 (`crates/feathersheet-mcp`); falta o que está em `MCP-PENDENTE.md`.
-8. **Otimização**: gravar coluna inteira, `para_workbook`, colar CSV.
+O que ainda falta para a paridade de comandos, por aba (a lista completa está em cada seção acima):
 
-### Feito em 14 e 15/10/2026
+- **Inserir**: Instantâneo, Mapas, Linha de assinatura e Objeto (botões "Em breve").
+- **Layout da Página**: Efeitos do tema, Plano de fundo e Exibir títulos.
+- **Dados**: Atualizar tudo, Planilha de previsão, Solver, tipos de dados Ações e Geografia,
+  Relações e Analisar dados.
+- **Revisão**: Dicionário de sinônimos, Estatísticas da pasta, Verificar acessibilidade, Converter em
+  comentários, Pesquisa inteligente e Traduzir.
+- **Exibir**: Normal e Layout da página (modos de exibição), Modos de exibição personalizados, Régua,
+  Ocultar e Reexibir janela.
+- **Design da Tabela**: Resumir com tabela dinâmica, Inserir segmentação, Linha de cabeçalho, Primeira e
+  Última coluna. **Design do Gráfico**: Layout rápido, Estilos de gráfico e Mover gráfico.
+- **Tabela Dinâmica**: Classificar e Limpar tudo. **Arquivo**: exportar como página da Web.
+- **Automatizar/Desenvolvedor**: gravar macro, referências relativas, segurança de macro, modo de design
+  e XML.
 
-- **Inserir**: Formas (`c5543c9f`), Ícones (`01c9ed76`), Caixa de seleção (`316961b9`, `92dcf633`) e WordArt (`9970bdf2`). Minigráficos, Segmentação de dados e Linha do tempo seguem sem motor: botões desabilitados com a dica "Em breve".
-- **Dados**: Agrupar, Desagrupar e Subtotal (`8d1ffeb2`). **Revisão**: Proteger planilha (`28f11abe`) e comentários/anotações (15/10: aba Revisão, Inserir > Comentário, botão direito, Limpar comentários; `.fshz` e `.xlsx`).
-- **Fórmulas**: aba completa (modos de cálculo, F9, rastreio, Avaliar fórmula, Janela de inspeção, Criar a partir da seleção).
-- **MCP do FeatherSheet** (`crates/feathersheet-mcp`).
-
-### Feito na rodada de 13/10/2026
-
-- Grupo **Células**: botão **Formatar ▾** (Altura da linha…, AutoAjuste da altura, Largura da
-  coluna…, AutoAjuste da largura, Ocultar/Reexibir linhas e colunas, Formatar células…) e o
-  diálogo de tamanho (`app/dimensao_dialogo.rs`): vale para a seleção toda, um Ctrl+Z.
-- **Mesclar ▾** dividido: Mesclar e centralizar, Mesclar através, Mesclar, Desmesclar
-  (`app/mesclas/modos.rs`), cada um numa transação só.
-- Ícones `line-height`, `arrow-autofit-width` e `arrow-autofit-height` no catálogo Tabler.
-- Testes da interface voltaram a compilar (`grade/testes.rs`, `openquery_ui/janela.rs`).
-- **Cálculo em várias threads** (`planilha/calculo_paralelo.rs`): ao abrir, a planilha é
-  calculada em paralelo fora da janela, coluna por coluna na ordem das dependências; resultado
-  idêntico ao cálculo sob demanda, conferido célula por célula.
-- **Edição não recalcula tudo**: escrever numa aba só suja as fórmulas de outras abas que leem
-  aquela aba e aquelas colunas.
-- **Alocador ajustado** (`paralelismo::ajustar_alocador`): a memória que as threads liberam volta
-  ao sistema.
-- **Monitor F12 no `feather-ui` v0.2.2**: o aplicativo só manda mensagens e métricas.
-- Paridade por funcionalidade (117 itens, 14 áreas) acrescentada a este documento.
+O plano da versão em andamento está em [`RUMO-0.4.0.md`](RUMO-0.4.0.md); o histórico de cada entrega, em
+[`HISTORICO.md`](HISTORICO.md).

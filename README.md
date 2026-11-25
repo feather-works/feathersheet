@@ -59,6 +59,25 @@ Help menu, under *What's new*).
 
 ### Coming in the next version
 
+- **Collapsed ribbon like Excel:** the tabs keep their names and places; clicking one opens the ribbon over the sheet (#170).
+- **Workbook themes** (*Page Layout ▸ Themes, Colors, Fonts*): change the colors and fonts of everything at once, with one undo; the theme opens from and saves to `.xlsx` (#80).
+- **Windows** (*View ▸ Window*): split into four panes, **New window** (the same workbook in a second window, for another monitor), **Arrange all** and **Switch windows** (#83).
+- **PivotTable timeline:** filter by years, quarters, months or days; **slicers linked to several PivotTables** (*Report Connections*), with millions of rows; **pivot charts** keep their link when saved to `.xlsx`.
+- **Shapes in a group** stretch and rotate as a whole (#79).
+- **VBA conversion, tested on 54 public `.xlsm` files:** class modules, `Type`, `Enum`, `#If` conditional compilation, objects returned by the project's own functions (the VBA-JSON pattern), Excel tables (`ListObjects`), `GoTo` to the error handler, and projects written in any Windows code page (Chinese, Turkish…). 87% of the statements convert; the rest is mostly automation of other programs. A **conversion report** lists what did not convert.
+- **FeatherQuery:** merge or append straight from a file, and Currency and Percentage types that read values written in any language.
+- **Name Manager:** choose the sheet (scope) when creating a name.
+- Fixed: `.fshz` files from the first versions open again (#168); the marching ants around a copied range move again.
+
+### New in v0.3.5
+
+- **Limited grid** (*View ▸ Limited grid*): the sheet shows only your working area and grows with **+** buttons (#164).
+- **Insert several rows or columns at once**, in one undo step (#164).
+- **Copy with a filter, as in Excel:** only the visible rows are copied.
+- **Older Excel files calculate as in Excel:** implicit intersection for formulas saved before Excel 365, and `@` no longer opens as `#NAME?`.
+
+### New in v0.3.4
+
 - **Split window** (View → Window → Split or Side by side, #83): two panes, one above the other or next to each other, each with its own sheet and scrolling, pictures, shapes, charts and buttons included. Click a pane to work in it.
 - **Sheet tab colors** now open from and save to `.xlsx`.
 - **Click to copy** a sum, average or count in the status bar, like Excel.
@@ -286,7 +305,7 @@ The generator command is at the top of this section.
 
 | What is compared | Score | Details |
 |---|---|---|
-| **Features** (ribbon commands, button by button) | **212 / 290** (73.1%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
+| **Features** (ribbon commands, button by button) | **251 / 290** (86.6%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
 | **Worksheet functions** | **520 / 520** | [function catalog](docs/funcionalidades/FUNCOES.md) · [known limits](docs/planejamento/FUNCOES-FALTANTES.md) |
 | **VBA functions** (VBA → JavaScript converter) | **116** covered and **1** partial (`CDec`), out of **117** that apply (141 listed; 24 are files, registry or printer) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 
