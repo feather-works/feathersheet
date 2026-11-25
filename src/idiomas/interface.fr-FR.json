@@ -6348,7 +6348,7 @@
  "Relativas: a macro faz o mesmo a partir da célula em que estiver quando rodar.": "Relatives : la macro fait la même chose à partir de la cellule active au moment où elle s'exécute.",
  "O nome começa com letra e tem só letras, números e _ (sem espaços).": "Le nom commence par une lettre et ne contient que des lettres, des chiffres et _ (sans espaces).",
  "Já existe um módulo chamado {nome}.": "Un module nommé {nome} existe déjà.",
- "Gravando a macro {nome}: o que você fizer vira código. Parar fica no rodapé.": "Enregistrement de la macro {nome} : ce que vous faites devient du code. Arrêter est dans la barre d'état.",
+ "Gravando a macro {nome}.": "Enregistrement de la macro {nome}.",
  "Nada foi gravado na macro {}.": "Rien n'a été enregistré dans la macro {}.",
  "Macro {} gravada": "Macro {} enregistrée",
  "Gravando {} · Parar": "Enregistrement de {} · Arrêter",

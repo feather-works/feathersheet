@@ -6348,7 +6348,7 @@
  "Relativas: a macro faz o mesmo a partir da célula em que estiver quando rodar.": "Relative: the macro does the same starting from whatever cell is active when it runs.",
  "O nome começa com letra e tem só letras, números e _ (sem espaços).": "The name starts with a letter and has only letters, numbers and _ (no spaces).",
  "Já existe um módulo chamado {nome}.": "There is already a module called {nome}.",
- "Gravando a macro {nome}: o que você fizer vira código. Parar fica no rodapé.": "Recording macro {nome}: what you do becomes code. Stop is in the status bar.",
+ "Gravando a macro {nome}.": "Recording macro {nome}.",
  "Nada foi gravado na macro {}.": "Nothing was recorded in macro {}.",
  "Macro {} gravada": "Macro {} recorded",
  "Gravando {} · Parar": "Recording {} · Stop",

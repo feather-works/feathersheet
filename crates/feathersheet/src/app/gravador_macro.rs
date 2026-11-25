@@ -67,7 +67,7 @@ impl App {
                     .map(|a| (a.sheet.name.clone(), a.sheet.edicoes_novas())).collect();
                 let aba = self.workbook.aba(self.folha).map(|a| a.sheet.name.clone()).unwrap_or_default();
                 self.gravacao = Some(Gravacao { nome: nome.clone(), relativas: d.relativas, aba, ativa: (self.linha, self.coluna), linhas: Vec::new(), vistas });
-                self.status = trf!("Gravando a macro {nome}: o que você fizer vira código. Parar fica no rodapé.");
+                self.status = trf!("Gravando a macro {nome}.");
             },
             Evento::Fechar => self.gravar_dialogo = None,
             Evento::Parar => return self.parar_gravacao(),
