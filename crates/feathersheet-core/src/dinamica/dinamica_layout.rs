@@ -195,15 +195,6 @@ type Numeros = Vec<Acumulador>;
 /// Separa o caminho de Linhas da chave de Colunas na chave de `por_caminho`.
 const JUNTA: char = '\u{1e}';
 
-/// As somas do grupo `chave`, criadas na primeira vez: só então a chave é
-/// copiada (antes, uma cópia por linha e por nível — 1 milhão de linhas).
-fn somas_de<'a>(mapa: &'a mut HashMap<String, Numeros>, chave: &str, config: &DinamicaConfig) -> &'a mut Numeros {
-    if !mapa.contains_key(chave) {
-        mapa.insert(chave.to_owned(), acumuladores(config));
-    }
-    mapa.get_mut(chave).expect("acabou de entrar")
-}
-
 fn acumuladores(config: &DinamicaConfig) -> Numeros {
     config.valores.iter().map(|m| Acumulador::novo(m.op)).collect()
 }
@@ -533,6 +524,68 @@ fn com_calculados(chave: &str, niveis: &[Vec<Calculado>], base: &dyn Fn(&str) ->
     })
 }
 
+/// O grupo raiz (todas as linhas) de um [`Agrupador`].
+const RAIZ: u32 = u32::MAX;
+
+/// Os grupos de um eixo (Linhas ou Colunas) da dinâmica, por número: grupo = (grupo pai, item do nível).
+struct Agrupador {
+    /// Por nível: item (texto) → número.
+    itens: Vec<HashMap<String, u32>>,
+    nomes: Vec<Vec<String>>,
+    grupos: HashMap<(u32, u32), u32>,
+    /// Por grupo: o pai, o nível, o item e a ordem natural (campo agrupado). Pai sempre antes do filho.
+    dados: Vec<(u32, usize, u32, Option<f64>)>,
+}
+
+impl Agrupador {
+    fn novo(niveis: usize) -> Self {
+        Agrupador { itens: vec![HashMap::new(); niveis], nomes: vec![Vec::new(); niveis], grupos: HashMap::new(), dados: Vec::new() }
+    }
+
+    fn grupo(&mut self, nivel: usize, pai: u32, chave: String, ordem: Option<f64>) -> u32 {
+        let item = match self.itens[nivel].get(&chave) {
+            Some(&i) => i,
+            None => {
+                let i = self.nomes[nivel].len() as u32;
+                self.nomes[nivel].push(chave.clone());
+                self.itens[nivel].insert(chave, i);
+                i
+            }
+        };
+        let proximo = self.dados.len() as u32;
+        let g = *self.grupos.entry((pai, item)).or_insert(proximo);
+        if g == proximo { self.dados.push((pai, nivel, item, ordem)); }
+        // Como o `No::filho`: a ordem da última linha vale.
+        else { self.dados[g as usize].3 = ordem; }
+        g
+    }
+
+    /// O caminho em texto de cada grupo (níveis unidos pelo separador).
+    fn caminhos(&self, sep: &str) -> Vec<String> {
+        let mut v: Vec<String> = Vec::with_capacity(self.dados.len());
+        for &(pai, nivel, item, _) in &self.dados {
+            let nome = &self.nomes[nivel][item as usize];
+            v.push(if pai == RAIZ { nome.clone() } else { format!("{}{sep}{nome}", v[pai as usize]) });
+        }
+        v
+    }
+
+    fn arvore(&self) -> No {
+        let mut raiz = No::default();
+        let mut trilhas: Vec<Vec<String>> = Vec::with_capacity(self.dados.len());
+        for &(pai, nivel, item, ordem) in &self.dados {
+            let mut trilha = if pai == RAIZ { Vec::new() } else { trilhas[pai as usize].clone() };
+            let mut no = &mut raiz;
+            for n in &trilha { no = no.filhos.get_mut(n).expect("o pai entrou antes"); }
+            let nome = self.nomes[nivel][item as usize].clone();
+            no.filho(nome.clone(), ordem);
+            trilha.push(nome);
+            trilhas.push(trilha);
+        }
+        raiz
+    }
+}
+
 fn montar_estruturado(
     total_linhas: usize,
     valor: &impl Fn(usize, usize) -> Value,
@@ -553,21 +606,28 @@ fn montar_estruturado(
         }
     };
 
-    // Uma passada: cada linha vai para o seu grupo em TODOS os níveis, nas
-    // linhas e nas colunas.
-    let mut raiz = No::default();
-    let mut raiz_col = No::default();
-    // Chave = caminho + JUNTA + chave da coluna: procurar não aloca.
-    let mut por_caminho: HashMap<String, Numeros> = HashMap::new();
-    let mut dupla = String::new();
-    let mut por_caminho_total: HashMap<String, Numeros> = HashMap::new();
-    let mut por_coluna: HashMap<String, Numeros> = HashMap::new();
+    // Uma passada: cada linha vai para o seu grupo em TODOS os níveis, nas linhas e nas colunas. Na passada,
+    // cada item vira um número (uma busca por texto por nível) e cada grupo é achado por um par de números
+    // (pai, item); os textos dos caminhos e a árvore só se montam no fim, uma vez por grupo. A soma continua
+    // linha a linha na ordem da origem: o resultado é o mesmo bit a bit (era 350 ms em 1 milhão de linhas com 2
+    // campos, contra 166 ms do tabular, que já não montava texto por linha).
+    let sep = SEPARADOR.to_string();
+    let mut eixo_linhas = Agrupador::novo(config.linhas.len());
+    let mut eixo_colunas = Agrupador::novo(config.colunas.len());
+    let mut somas_linha: Vec<Numeros> = Vec::new();
+    let mut somas_coluna: Vec<Numeros> = Vec::new();
+    let mut duplas: HashMap<(u32, u32), u32> = HashMap::new();
+    let mut somas_dupla: Vec<Numeros> = Vec::new();
     let mut tudo: Numeros = acumuladores(config);
     let mut medidas: Vec<Medida> = Vec::with_capacity(n_medidas);
     let empurrar = |alvo: &mut Numeros, medidas: &[Medida]| {
         for (acc, &m) in alvo.iter_mut().zip(medidas) { acc.receber_medida(m); }
     };
-    let sep = SEPARADOR.to_string();
+    let somas = |v: &mut Vec<Numeros>, i: u32| -> usize {
+        let i = i as usize;
+        while v.len() <= i { v.push(acumuladores(config)); }
+        i
+    };
 
     'linhas: for r in 1..total_linhas {
         if !opcoes.passa(r, c0, &valor) {
@@ -579,36 +639,41 @@ fn montar_estruturado(
         }
         // As colunas: cada prefixo da chave também acumula (para ordenar por
         // valor e para os irmãos do "mostrar valores como").
-        let mut chave_coluna = String::new();
-        let mut no_col = &mut raiz_col;
+        let mut grupo_coluna = RAIZ;
         for (d, &c) in config.colunas.iter().enumerate() {
             let (chave, ordem) = chave_do_valor(valor(r, rel(c)), d, &extras.colunas, config.agrupar_data);
-            let chave = extras.juntar(c, chave);
-            if d > 0 {
-                chave_coluna.push(SEPARADOR);
-            }
-            chave_coluna.push_str(&chave);
-            no_col = no_col.filho(chave, ordem);
-            empurrar(somas_de(&mut por_coluna, &chave_coluna, config), &medidas);
+            grupo_coluna = eixo_colunas.grupo(d, grupo_coluna, extras.juntar(c, chave), ordem);
+            let i = somas(&mut somas_coluna, grupo_coluna);
+            empurrar(&mut somas_coluna[i], &medidas);
         }
-        let mut caminho = String::new();
-        let mut no = &mut raiz;
+        let mut grupo = RAIZ;
         for (d, &c) in config.linhas.iter().enumerate() {
             let (chave, ordem) = chave_do_valor(valor(r, rel(c)), d, &extras.linhas, config.agrupar_data);
-            let chave = extras.juntar(c, chave);
-            if d > 0 {
-                caminho.push(SEPARADOR);
-            }
-            caminho.push_str(&chave);
-            no = no.filho(chave, ordem);
-            dupla.clear();
-            dupla.push_str(&caminho);
-            dupla.push(JUNTA);
-            dupla.push_str(&chave_coluna);
-            empurrar(somas_de(&mut por_caminho, &dupla, config), &medidas);
-            empurrar(somas_de(&mut por_caminho_total, &caminho, config), &medidas);
+            grupo = eixo_linhas.grupo(d, grupo, extras.juntar(c, chave), ordem);
+            let proxima = somas_dupla.len() as u32;
+            let k = *duplas.entry((grupo, grupo_coluna)).or_insert(proxima);
+            let i = somas(&mut somas_dupla, k);
+            empurrar(&mut somas_dupla[i], &medidas);
+            let i = somas(&mut somas_linha, grupo);
+            empurrar(&mut somas_linha[i], &medidas);
         }
         empurrar(&mut tudo, &medidas);
+    }
+
+    // De volta aos caminhos em texto e às árvores que o resto usa.
+    let caminhos_linhas = eixo_linhas.caminhos(&sep);
+    let caminhos_colunas = eixo_colunas.caminhos(&sep);
+    let mut raiz = eixo_linhas.arvore();
+    let mut raiz_col = eixo_colunas.arvore();
+    let tirar = |v: &mut Vec<Numeros>, i: usize| std::mem::take(&mut v[i]);
+    let mut por_caminho_total: HashMap<String, Numeros> = HashMap::with_capacity(somas_linha.len());
+    for (i, c) in caminhos_linhas.iter().enumerate() { if i < somas_linha.len() { por_caminho_total.insert(c.clone(), tirar(&mut somas_linha, i)); } }
+    let mut por_coluna: HashMap<String, Numeros> = HashMap::with_capacity(somas_coluna.len());
+    for (i, c) in caminhos_colunas.iter().enumerate() { if i < somas_coluna.len() { por_coluna.insert(c.clone(), tirar(&mut somas_coluna, i)); } }
+    let mut por_caminho: HashMap<String, Numeros> = HashMap::with_capacity(duplas.len());
+    for ((l, c), k) in duplas {
+        let ck = if c == RAIZ { "" } else { caminhos_colunas[c as usize].as_str() };
+        por_caminho.insert(format!("{}{JUNTA}{ck}", caminhos_linhas[l as usize]), tirar(&mut somas_dupla, k as usize));
     }
 
     let vazio: Numeros = acumuladores(config);

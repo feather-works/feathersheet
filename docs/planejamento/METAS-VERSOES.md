@@ -107,9 +107,9 @@
       dinâmica; clicar filtra a dinâmica e o gráfico dela.
 
 **Metas de número**
-- [ ] 1 milhão de linhas, 2 campos de linha + 1 de valor: **≤ 200 ms** (16/10, no F12: 1 campo de linha + 1 de valor 130–205 ms; 2 campos de linha 350 ms; antes
+- [x] 1 milhão de linhas, 2 campos de linha + 1 de valor: **≤ 200 ms** (24/11: 183 ms no compacto, 166 ms no tabular; `medir_dinamica`) (16/10, no F12: 1 campo de linha + 1 de valor 130–205 ms; 2 campos de linha 350 ms; antes
       500 mil = 107 ms).
-- [ ] Arrastar um campo no painel responde em **≤ 100 ms** até 1 milhão de linhas.
+- [~] Arrastar um campo no painel responde em **≤ 100 ms** até 1 milhão de linhas. (24/11: a janela não trava — a origem é lida aos pedaços e guardada, a conta vai para o fundo; a conta leva 92 ms com 1 campo e 183 ms com 2.)
 
 ### Referência entre dois arquivos abertos
 - [x] Fórmula `=[Vendas.fshz]Dados!A1` (e intervalos) aceita, com

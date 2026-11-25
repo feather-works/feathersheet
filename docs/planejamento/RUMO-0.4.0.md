@@ -48,13 +48,17 @@ milhar, datas, nomes de função) nas quatro línguas.
 - [ ] #145: segmentação ligada a várias dinâmicas e linha do tempo feitas no app (24/11); a segmentação já vai e
       volta no `.xlsx` (24/11, pelo MS-XLSX, conferida no LibreOffice). Falta a linha do tempo (`x15:timeline`) e a
       corrente das ligadas (exige cache comum entre as dinâmicas de mesma origem).
-- [ ] Atualizar só o grupo que mudou; arrastar campo ≤ 100 ms com 1 milhão de linhas.
+- [~] Dinâmica com 1 milhão de linhas (24/11, `medir_dinamica`): 2 campos de linha + valor 350 → 183 ms (meta ≤ 200 ✓);
+      1 campo 147 → 92 ms; 2 linhas + 1 coluna 571 → 333 ms. Arrastar não trava a janela (conta em fundo); falta
+      atualizar só o grupo que mudou.
 - [ ] Metas de número da dinâmica (o usuário mede).
 
 ## Falta — memória e desempenho
 
 - [ ] Resultado direto na coluna (sem `calc.cache`), `.xlsx` com dados tipados, abrir sob demanda (`mmap`).
-- [ ] #142: recálculo.
+- [~] #142: recálculo medido (24/11, `medir_recalculo`, 1 milhão de linhas, 3 milhões de fórmulas e uma corrente
+      de 1 milhão): tudo 1,6 s; editar no meio 289 ms; editar A1 (a corrente inteira) 550 ms; sem dependentes 0 ms.
+      Escrever 4 milhões de células uma a uma pela API leva 46 s (abrir e colar usam o caminho em lote).
 - [x] Excluir milhares de trechos filtrados sem parar a janela (em fundo, 24/11). Falta só ficar rápido numa
       pasta enorme (vários cortes numa operação do motor).
 

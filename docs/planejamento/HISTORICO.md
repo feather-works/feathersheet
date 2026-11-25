@@ -4,6 +4,19 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Desempenho medido com 1 milhão de linhas (pedido de 24/11/2026: "teste a parte de desempenho")**.
+  Dinâmica (`feathersheet-core/examples/medir_dinamica.rs`, mediana de 5): o layout compacto (o padrão do app) levava
+  o dobro do tabular (2 campos de linha + valor: 350 ms × 166 ms) porque `montar_estruturado` montava o caminho em
+  texto e procurava 3–4 tabelas por texto a cada linha e nível. Agora cada item vira um número uma vez por nível e o
+  grupo é achado pelo par (pai, item) (`Agrupador` em `dinamica_layout.rs`); os textos e a árvore saem no fim, uma vez
+  por grupo. A soma segue linha a linha na ordem da origem (mesmo resultado bit a bit; os 1029 testes do motor
+  passam). 2 campos 350 → 183 ms (meta ≤ 200 ms cumprida), 1 campo 147 → 92 ms, 2 linhas + 1 coluna 571 → 333 ms.
+  Arrastar um campo não trava a janela: a origem é lida aos pedaços (`ORCAMENTO`) e guardada, e a conta vai para o
+  fundo. Recálculo (#142, `examples/medir_recalculo.rs`, 3 milhões de fórmulas e uma soma acumulada de 1 milhão):
+  tudo 1,6 s; editar no meio 289 ms; editar A1 550 ms; célula sem dependentes 0 ms. Limite visto: escrever 4
+  milhões de células uma a uma por `escrever_celula` leva 46 s (abrir arquivo e colar usam o caminho em lote).
+  Novidade para o `VERSOES` da 0.4.0: "Tabela dinâmica com 1 milhão de linhas duas vezes mais rápida".
+
 - **Gravar macro (pedido de 24/11/2026: "gravar as minhas iterações e virar macro")**, como o gravador do Excel.
   Macros ▸ Executar ▸ Gravar macro (e Referências relativas), também no menu clássico Macros ▸ Gravar macro…: a caixa
   (`app/gravador_macro.rs`, no molde do `inserir_varias`) pede o nome (`Macro1`…, só letras, números e `_`) e as
