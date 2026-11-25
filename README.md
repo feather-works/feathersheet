@@ -57,7 +57,7 @@ macro took 25 s.
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
 
-### Coming in the next version
+### New in v0.4.0
 
 - **Macro recorder** (*Macros ▸ Run ▸ Record macro*): what you do becomes a macro, like Excel's recorder. Typing, pasting, formatting, widths and inserting or deleting rows are written as code; with *Relative references* the macro works from whatever cell is active when it runs. The status bar shows "● Recording" with Stop.
 - **PivotTable slicers saved to `.xlsx`** (#145): Excel opens them with the same items chosen.
@@ -68,8 +68,14 @@ Help menu, under *What's new*).
 - **Shapes in a group** stretch and rotate as a whole (#79).
 - **VBA conversion, tested on 54 public `.xlsm` files:** class modules, `Type`, `Enum`, `#If` conditional compilation, objects returned by the project's own functions (the VBA-JSON pattern), Excel tables (`ListObjects`), `GoTo` to the error handler, and projects written in any Windows code page (Chinese, Turkish…). 87% of the statements convert; the rest is mostly automation of other programs. A **conversion report** lists what did not convert.
 - **FeatherQuery:** merge or append straight from a file, and Currency and Percentage types that read values written in any language.
-- **Name Manager:** choose the sheet (scope) when creating a name.
-- Fixed: `.fshz` files from the first versions open again (#168); the marching ants around a copied range move again.
+- **Macros back to Excel:** saving as `.xlsm` takes macros edited or created in FeatherSheet back into VBA (edited ones replace only their procedure; new ones become modules). `Workbook_Open` and `Workbook_BeforeSave` run, and "Run on open" modules now run. Saving as `.xlsx`/`.xlsm` warns how many JavaScript macros are left out.
+- **Word documents from a template** (`docs.fill`), and VBA mail merge converts to it.
+- **Opens `.xlsb`** (Excel binary workbook): values, dates, formulas and defined names.
+- **Name Manager:** names with a value or formula, names for one sheet only (Scope column), and choosing the sheet when creating a name.
+- **AI integration (MCP):** protect sheets and workbooks (Excel-format password, locked cells), links, tables, pictures, page setup and PDF, zoom and gridlines; every tool honors sheet and workbook protection.
+- **Faster:** PivotTable with 1 million rows twice as fast; the heavy sample sheet opens from `.fshz` in 1.5 s (was 2.4 s); deleting visible rows of a large filtered list and Recalculate All run off the window thread.
+- Fixed: `.fshz` files from the first versions open again (#168); the marching ants around a copied range move again; the macOS update downloads the right `.dmg` (#167); right-click on a PivotTable field opens its menu (#165).
+- More fixes: old `.xlsx` formulas intersect ranges inside `IF`/`YEAR`/`MONTH`/`DAY`/`WEEKDAY` as pre-365 Excel did; copying with a filter pastes formulas and links from their own rows; `INT` of big numbers; `Vendas2024!A1` no longer breaks; a truncated `.xlsb` no longer hangs; inserting that would push cells off the sheet is refused; `NOW()`/`TODAY()` follow daylight saving time on the Mac; names scoped to a deleted sheet leave with it and come back if it is restored; PivotTable requests over live MCP no longer hold the window.
 
 ### New in v0.3.5
 

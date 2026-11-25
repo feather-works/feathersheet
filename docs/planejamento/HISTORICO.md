@@ -2,7 +2,16 @@
 
 > **Decisão atual (12/10/2026):** não desenvolver nem manter o frontend TypeScript/Tauri. A interface oficial é Rust/Iced; uma interface web futura utilizará os motores Rust via WebAssembly. A UI TS histórica está em `descarte/feathersheet/legacy-frontend/src/`. Entradas antigas neste documento servem como referência de migração, não como estado vigente.
 
-## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
+## Depois da v0.4.0 (para a 0.4.1)
+
+## v0.4.0 (24/11/2026)
+
+Lançada a pedido ("Lançar 0.4.0 inteira", 24/11): versão 0.4.0 no `Cargo.toml`, `VERSOES` com 6 destaques (gravar
+macro, macros de volta ao VBA, `.xlsb`, temas, janelas, linha do tempo) e as correções, README "New in v0.4.0" e as
+tabelas da Planilha Pesada com a coluna v0.4.0. A 0.3.6 foi pulada (decisão de 24/11). Ficaram para a 0.4.1: linha do
+tempo no `.xlsx` e a corrente de segmentações ligadas (#145), o resto do VBA (#143), botões de campo do gráfico
+dinâmico, dinâmica refazendo só o grupo que mudou, recálculo (#142) e o #166 (sem reproduzir).
+
 
 - **Planilha Pesada `.xlsx` × `.fshz` remedida (24/11/2026)**, `medir_abrir_calcular`, 16 núcleos, mediana de 3:
   `.xlsx` lê 3,4 s + calcula 1,5 s = 4,9 s (pico 0,82 GB; no app ~5 s e 312 MB pronta). O `.fshz` estava em 2,4 s

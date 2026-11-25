@@ -2230,7 +2230,7 @@ dependencies = [
 
 [[package]]
 name = "feathersheet"
-version = "0.3.5"
+version = "0.4.0"
 dependencies = [
  "arboard",
  "base64 0.22.1",
