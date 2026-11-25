@@ -52,7 +52,7 @@ macro took 25 s.
 - **A long macro doesn't freeze the window:** "Running… N s" and a **Stop** button that undoes what it wrote.
 - **A more complete VBA converter:** block `Range.Value`, dates, `RemoveDuplicates`, `FormatConditions`, `On Error Resume Next`, `Worksheets.Add`, UserForms.
 
-![The "What's new" window for version 0.2.0: our own JavaScript engine, long macros without freezing, a more complete VBA converter and 200 thousand rows in seconds](docs/imagens/novidades-0.2.0.png)
+![The "What's new" window for version 0.4.0: record macro, macros back to VBA, opening .xlsb, workbook themes, windows like Excel's and the PivotTable timeline](docs/imagens/novidades-0.4.0.png)
 
 The same window opens by itself the first time after an update (and in the
 Help menu, under *What's new*).
