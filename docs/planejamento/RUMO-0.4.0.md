@@ -29,6 +29,7 @@ milhar, datas, nomes de função) nas quatro línguas.
       instruções; subir com os motivos do placar (CreateObject, GoTo para trás, GoSub…).
 - [x] Integração com o FeatherDocs: `docs.fill` (modelo → `.docx`) e o conversor do `Word.Application` (mala
       direta do VBA), 24/11.
+- [x] Gravar macro (24/11): Macros ▸ Executar ▸ Gravar macro, com referências relativas; vira módulo no editor.
 - [ ] Caso da "Planilha de Informações" com o `.xlsm` real do usuário (conferir o que mais do Word ele usa).
 
 ## Falta — interface (telas novas: confirmar antes)

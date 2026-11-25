@@ -2,7 +2,7 @@
 
 > Levantamento realizado em 13/10/2026, conferindo botão por botão da interface Rust/Iced (`feathersheet-gui`). O inventário contém 290 comandos para avaliar a cobertura funcional do FeatherSheet em relação ao Excel. Conta como **implementado** o comando que tem botão, menu, atalho ou botão direito ligado a uma ação de verdade; botão desabilitado ("Em breve") conta como **faltando**. Mede só **amplitude**, não profundidade nem fidelidade. A avaliação geral e o desempenho estão em [`PARIDADE-AVALIACAO.md`](PARIDADE-AVALIACAO.md).
 
-**Geral: 250 / 290 comandos implementados (86,2%)**, recontado em 24/11/2026 lendo o código da faixa (rótulo de cada botão; botão "Em breve" desabilitado não conta). A aba Desenvolvedor (macros) fica à parte: 5 / 19. O que entrou desde 15/10 está anotado em cada item ("24/11", "#83"…); o histórico de cada entrega está no `HISTORICO.md`.
+**Geral: 251 / 290 comandos implementados (86,6%)**, recontado em 24/11/2026 lendo o código da faixa (rótulo de cada botão; botão "Em breve" desabilitado não conta). A aba Desenvolvedor (macros) fica à parte: 7 / 19. O que entrou desde 15/10 está anotado em cada item ("24/11", "#83"…); o histórico de cada entrega está no `HISTORICO.md`.
 
 
 | Aba | Implementados | Total | Paridade |
@@ -16,7 +16,7 @@
 | Dados | 21 | 28 | 75% |
 | Revisão | 12 | 18 | 67% |
 | Exibir | 14 | 20 | 70% |
-| Automatizar | 2 | 3 | 67% |
+| Automatizar | 3 | 3 | 100% |
 | Design da Tabela | 8 | 13 | 62% |
 | Design do Gráfico | 5 | 8 | 62% |
 | Formatar | 3 | 3 | 100% |
@@ -353,16 +353,16 @@ Faltando:
 - `view.hideWindow` Ocultar janela (Janela)
 - `view.unhideWindow` Reexibir janela (Janela)
 
-## Automatizar (2 / 3, 67%)
+## Automatizar (3 / 3, 100%)
 
 Implementado:
 
 - `automate.newScript` Novo script (Ferramentas de script) — Macros → Novo módulo
 - `automate.allScripts` Todos os scripts (Ferramentas de script) — Editor de macros
+- `automate.recordActions` Gravar ações (Ferramentas de script) — Macros ▸ Executar ▸ Gravar macro: o que se faz vira JavaScript da API das macros (24/11)
 
 Faltando:
 
-- `automate.recordActions` Gravar ações (Ferramentas de script)
 
 ## Design da Tabela (8 / 13, 62%)
 
@@ -442,7 +442,7 @@ Implementado:
 Faltando:
 
 
-## Desenvolvedor (macros) (5 / 19, 26%)
+## Desenvolvedor (macros) (7 / 19, 37%)
 
 Fora do "Geral": a aba Desenvolvedor do Excel é separada da contagem da faixa. No FeatherSheet as macros ficam na aba
 **Macros** da faixa e no editor Alt+F11; os itens abaixo são conferidos contra essas peças.
@@ -455,11 +455,11 @@ Implementado:
 - `developer.viewCode` Exibir código (Código) — aba Macros → Editar (mesmo editor de macros)
 - `developer.properties` Propriedades (Controles) — editor Alt+F11 → Exibir → Propriedades
 - `developer.insertControls` Inserir controles (Controles) — Macros ▸ Controles: caixa de seleção, botão de macro e controles de formulário do Excel (v0.2.8)
+- `developer.recordMacro` Gravar macro (Código) — o mesmo gravador (Macros ▸ Executar ▸ Gravar macro)
+- `developer.relativeReferences` Usar referências relativas (Código) — Macros ▸ Executar ▸ Referências relativas (e na caixa do gravador)
 
 Faltando:
 
-- `developer.recordMacro` Gravar macro (Código) — é `automate.recordActions`, a fazer
-- `developer.relativeReferences` Usar referências relativas (Código)
 - `developer.macroSecurity` Segurança de macro (Código) — não há central de confiança
 - `developer.addIns` Suplementos (Suplementos)
 - `developer.excelAddIns` Suplementos do Excel (Suplementos)
@@ -484,7 +484,7 @@ Faltando:
 > conta ou servidor da Microsoft entram como falta, mas a regra de privacidade da suíte
 > (nada sai da máquina sem pedido) decide se algum deles será feito.
 
-**32 feitas, 49 parciais e 36 faltando, de 117 funcionalidades** (27,4% completas; 69,2% com alguma cobertura). Contagem refeita em 24/11/2026 a partir das marcas de cada linha.
+**33 feitas, 49 parciais e 35 faltando, de 117 funcionalidades** (28,2% completas; 70,1% com alguma cobertura). Contagem refeita em 24/11/2026 a partir das marcas de cada linha.
 
 | Área | Feito | Parcial | Falta | Total |
 |---|---|---|---|---|
@@ -494,7 +494,7 @@ Faltando:
 | 4. Análise, estatística e simulação | 4 | 3 | 2 | 9 |
 | 5. Motor de cálculo e endereçamento | 4 | 4 | 2 | 10 |
 | 6. Visualização e elementos gráficos | 3 | 5 | 5 | 13 |
-| 7. Automação, programação e extensibilidade | 2 | 2 | 3 | 7 |
+| 7. Automação, programação e extensibilidade | 3 | 2 | 2 | 7 |
 | 8. Dados estruturados, XML, tempo real e hardware | 0 | 1 | 4 | 5 |
 | 9. Auditoria, inspeção e governança | 6 | 2 | 1 | 9 |
 | 10. Exibição, janelas, layout e impressão | 3 | 5 | 1 | 9 |
@@ -588,7 +588,7 @@ Faltando:
 
 ## 7. Automação, programação e extensibilidade
 
-- [ ] Gravador de macros (gravar ações gerando JavaScript, a fazer).
+- [x] Gravador de macros: Macros ▸ Executar ▸ Gravar macro, com referências relativas (24/11).
 - [~] VBA e VBE → macros em **JavaScript** com editor Alt+F11 estilo VBE (módulos, Objeto/Procedimento, Propriedades, Janela de Inspeção, verificar sintaxe), funções definidas pelo usuário e eventos. Conversor VBA → JavaScript com interface: Macros → Importar VBA do Excel (.xlsm) (`c195e9fd`); as macros importadas entram sozinhas no editor; eventos do VBA (`Worksheet_Change`, `Worksheet_Activate`) rodam sozinhos (`6edc796e`); `Workbook_Open` continua à mão. Falta no editor: depurador (pausar, passo a passo, Locais, Pilha) e cerca de 110 de 128 chamadas da API na interface Iced. **Bateria de 54 `.xlsm` públicos em 24/11 (#143): 54/54 convertem, ~87% das instruções; classes, Type, Enum, #If, ListObjects.**
 - [~] UserForms → componentes HTML+CSS com designer.
 - [x] Office Scripts → as próprias macros JavaScript rodam na máquina, sem nuvem.
@@ -735,7 +735,7 @@ Pronto:
 
 A fazer:
 
-1. Gravar ações (`automate.recordActions`) gerando JavaScript.
+1. ~~Gravar ações~~ feito em 24/11 (Macros ▸ Executar ▸ Gravar macro).
 2. Depurador: pausar, passo a passo, pontos de parada, Locais e Pilha de chamadas (o editor só tem
    "Sempre depurar").
 3. Rodar as macros da bateria e comparar com o Excel (hoje a bateria mede só a conversão).
@@ -832,8 +832,7 @@ O que ainda falta para a paridade de comandos, por aba (a lista completa está e
 - **Design da Tabela**: Resumir com tabela dinâmica, Inserir segmentação, Linha de cabeçalho, Primeira e
   Última coluna. **Design do Gráfico**: Layout rápido, Estilos de gráfico e Mover gráfico.
 - **Tabela Dinâmica**: Classificar e Limpar tudo. **Arquivo**: exportar como página da Web.
-- **Automatizar/Desenvolvedor**: gravar macro, referências relativas, segurança de macro, modo de design
-  e XML.
+- **Desenvolvedor**: segurança de macro, modo de design e XML.
 
 O plano da versão em andamento está em [`RUMO-0.4.0.md`](RUMO-0.4.0.md); o histórico de cada entrega, em
 [`HISTORICO.md`](HISTORICO.md).

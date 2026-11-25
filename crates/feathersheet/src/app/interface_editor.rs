@@ -355,6 +355,7 @@ impl App {
             self.view_aviso_abas().unwrap_or_else(|| Space::new(0, 0.0).into()),
             self.view_progresso_abertura(),
             self.view_progresso_dinamica(),
+            self.view_gravando(),
             status,
         ].spacing(5).padding([0, 8]).height(Length::Fixed(36.0))
             .align(pelicano::Align::Center);
@@ -643,6 +644,7 @@ impl App {
         let base = self.sobrepor_comentario(base);
         let base = self.sobrepor_dimensao(base);
         let base = self.sobrepor_inserir_varias(base);
+        let base = self.sobrepor_gravar_macro(base);
         let base = self.sobrepor_celulas(base);
         let base = self.sobrepor_subtotal(base);
         let base = self.sobrepor_consolidar(base);
@@ -1340,6 +1342,7 @@ impl App {
             "goTo" => Msg::IrParaJanela(ir_para::Evento::Abrir),
             "customSort" => Msg::Classificar(classificar::Evento::Abrir),
             "novoModulo" => Msg::MacroNovoModulo,
+            "gravarMacro" => Msg::GravarMacro(gravador_macro::Evento::Abrir),
             "novoComponente" => Msg::MacroNovoFormulario,
             "insertMacroButton" => Msg::BotaoMacroNovo,
             "openMacroHelp" => Msg::AjudaAbrirSecao("macros"),

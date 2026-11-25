@@ -498,6 +498,13 @@ impl App {
                 }
                 grupos.push(self.faixa_grupo(tr!("Executar"), self.faixa_linha(vec![
                     self.faixa_grande(tr!("Executar macro"), "player-play", Some(Msg::MacroExecutar), false),
+                    // Desenvolvedor ▸ Código do Excel: Gravar macro e Usar referências relativas.
+                    self.faixa_pilha(vec![
+                        self.faixa_pequeno(if self.gravacao.is_some() { tr!("Parar gravação") } else { tr!("Gravar macro") }, "player-record",
+                            Some(Msg::GravarMacro(super::gravador_macro::Evento::Abrir)), self.gravacao.is_some()),
+                        self.faixa_pequeno(tr!("Referências relativas"), "arrow-down-right",
+                            Some(Msg::GravarMacro(super::gravador_macro::Evento::Relativas(!self.gravar_relativas))), self.gravar_relativas),
+                    ]),
                     self.faixa_grande(tr!("Componentes"), "componentes", Some(Msg::MacroComponentes), false),
                 ])));
                 grupos.push(self.faixa_grupo(tr!("Planilha"), self.faixa_grande(tr!("Botão de macro"), "code", Some(Msg::BotaoMacroNovo), false)));

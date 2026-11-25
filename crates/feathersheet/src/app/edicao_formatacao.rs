@@ -292,6 +292,7 @@ impl App {
             self.workbook.inserir_linhas(self.folha, at, n)
         };
         if resultado.is_some() {
+            self.gravar_estrutura(coluna, false, at, n);
             let tabela = tabelas::refluir(&mut self.workbook, self.folha, coluna, at, n, false);
             let mescla = mesclas::refluir(&mut self.workbook, self.folha, coluna, at, n, false);
             self.refluir_minigraficos(self.folha, coluna, at, n, false);
@@ -329,6 +330,7 @@ impl App {
                 Estrutura::ExcluirColuna=>(true,true),
             };
             let pos=if coluna {self.coluna} else {self.linha};
+            self.gravar_estrutura(coluna, removendo, pos, 1);
             let tabela=tabelas::refluir(&mut self.workbook,self.folha,coluna,pos,1,removendo);
             let mescla=mesclas::refluir(&mut self.workbook,self.folha,coluna,pos,1,removendo);
             self.refluir_minigraficos(self.folha,coluna,pos,1,removendo);

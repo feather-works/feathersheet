@@ -126,6 +126,7 @@ mod estatisticas_ui;
 mod ajuste_dimensoes;
 mod dimensao_dialogo;
 mod inserir_varias;
+mod gravador_macro;
 mod celulas_dialogo;
 pub(crate) mod topicos_ui;
 pub(crate) mod consolidar_ui;
@@ -468,7 +469,7 @@ pub enum Msg {
     CondicionalAdicionar, CondicionalEditar(usize), CondicionalRemover(usize), CondicionalMover(usize, i32),
     CondicionalLimparSelecao, CondicionalLimparTudo, CondicionalCoresAlternadas,
     Limpar, Desfazer, Refazer, Mesclar, MesclarModo(mesclas::ModoMescla), InclinarTexto,
-    AjustarAltura, Dimensao(dimensao_dialogo::Evento), InserirVarias(inserir_varias::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento), Consolidar(consolidar_ui::Evento), FiltroAvancado(filtro_avancado_ui::Evento), InspetorDocumento(inspetor_documento::Evento),
+    AjustarAltura, Dimensao(dimensao_dialogo::Evento), InserirVarias(inserir_varias::Evento), GravarMacro(gravador_macro::Evento), Celulas(celulas_dialogo::Evento), Topicos(topicos_ui::Evento), Consolidar(consolidar_ui::Evento), FiltroAvancado(filtro_avancado_ui::Evento), InspetorDocumento(inspetor_documento::Evento),
     /// Macros → Importar VBA (do .xlsm aberto ou escolhido) e o arquivo lido.
     Protecao(protecao_ui::Evento),
     Intervalos(intervalos_ui::Evento),
@@ -782,6 +783,10 @@ pub struct App {
     alteracoes_painel: Option<bool>,
     dimensao_modal: Option<dimensao_dialogo::Estado>,
     inserir_varias: Option<inserir_varias::Estado>,
+    gravar_dialogo: Option<gravador_macro::Dialogo>,
+    /// Macros ▸ Gravar macro em andamento.
+    gravacao: Option<gravador_macro::Gravacao>,
+    gravar_relativas: bool,
     celulas_modal: Option<celulas_dialogo::Estado>,
     subtotal: Option<topicos_ui::EstadoSubtotal>,
     consolidar: Option<consolidar_ui::EstadoConsolidar>,
@@ -1203,6 +1208,9 @@ impl Default for App {
             intervalos_dialogo: None, senha_intervalo: None, intervalos_abertos: Default::default(), ortografia: None, alteracoes_painel: None,
             dimensao_modal: None,
             inserir_varias: None,
+            gravar_dialogo: None,
+            gravacao: None,
+            gravar_relativas: false,
             celulas_modal: None,
             subtotal: None,
             consolidar: None,
@@ -1586,6 +1594,7 @@ impl App {
     pub fn update(&mut self, msg: Msg) -> Task<Msg> {
         crate::grade::modelo::alturas_proprias::marcar_update(true);
         let tarefa = self.update_dentro(msg);
+        if self.gravacao.is_some() { self.colher_gravacao(); }
         crate::grade::modelo::alturas_proprias::marcar_update(false);
         tarefa
     }

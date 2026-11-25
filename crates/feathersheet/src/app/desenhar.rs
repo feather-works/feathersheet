@@ -509,6 +509,7 @@ impl App {
             || self.link_modal.is_some()
             || self.dimensao_modal.is_some()
             || self.inserir_varias.is_some()
+            || self.gravar_dialogo.is_some()
             || self.celulas_modal.is_some()
             || self.macro_pergunta.is_some()
             || self.protecao_modal.is_some()

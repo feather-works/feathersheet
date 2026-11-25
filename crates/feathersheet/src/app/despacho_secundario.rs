@@ -21,6 +21,7 @@ impl App {
             Msg::LinkFechar => { self.link_modal = None; Task::none() }
             Msg::Dimensao(evento) => self.evento_dimensao(evento),
             Msg::InserirVarias(evento) => self.evento_inserir_varias(evento),
+            Msg::GravarMacro(evento) => self.evento_gravador(evento),
             Msg::Celulas(evento) => self.evento_celulas(evento),
             Msg::Topicos(evento) => self.evento_topicos(evento),
             Msg::Consolidar(evento) => self.evento_consolidar(evento),

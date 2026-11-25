@@ -122,6 +122,7 @@ pub fn icone_tabler(nome: &str) -> &'static str {
         "dividir" => "columns",
         "macros" => "code",
         "executar" => "player-play",
+        "player-record" => "player-record",
         "mais" => "plus",
         "lapis" => "edit",
         "ajuda" => "help",

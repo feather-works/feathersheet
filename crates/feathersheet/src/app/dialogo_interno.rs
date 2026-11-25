@@ -65,6 +65,12 @@ impl App {
                 Task::none()
             }
             "estatisticas" => self.update(Msg::EstatisticasAbrir),
+            "gravar_macro" => self.update(Msg::GravarMacro(gravador_macro::Evento::Abrir)),
+            // Gravando, com o rodapé "● Gravando Macro1 · Parar".
+            "gravando" => {
+                let _ = self.update(Msg::GravarMacro(gravador_macro::Evento::Abrir));
+                self.update(Msg::GravarMacro(gravador_macro::Evento::Comecar))
+            }
             "perfil" => self.update(Msg::PerfilColunaAbrir),
             "link" => self.update(Msg::LinkEditar),
             "cenarios" => self.update(Msg::Cenarios(cenarios_ui::Evento::Abrir)),

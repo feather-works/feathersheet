@@ -24,6 +24,7 @@ pub mod formularios;
 pub mod riscos;
 mod formas;
 mod tabelas;
+pub mod gravador;
 /// A forma de nome `nome` no JSON `ob` da aba (o nome padrão vale em qualquer língua).
 pub use formas::achar as achar_forma;
 pub use pasta::{AcaoFiltro, Contexto, Escolha, PedidoArquivo, PedidoFiltro, PedidoForma, PedidoImagem, PedidoProtecao};

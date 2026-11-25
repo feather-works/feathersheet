@@ -9,8 +9,8 @@ The numbers come from the detailed surveys (recounted from the code on 11/24/202
 
 | Front | Today | Survey |
 |---|---|---|
-| Ribbon commands | **250 / 290** (86.2%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
-| Developer tab | **5 / 19** | same, "Desenvolvedor" section |
+| Ribbon commands | **251 / 290** (86.6%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) |
+| Developer tab | **7 / 19** | same, "Desenvolvedor" section |
 | Worksheet functions | **520 / 520** | [`FUNCOES-FALTANTES.md`](docs/planejamento/FUNCOES-FALTANTES.md) |
 | VBA functions in the converter | **116** covered, **1** partial (`CDec`), of 117 applicable | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 
@@ -66,7 +66,7 @@ What could make someone lose work or give up on day one.
         scrolling;
       - a warning when the same file is opened twice (read-only the second time).
 
-## Phase 2 — Complete the ribbon (40 commands left)
+## Phase 2 — Complete the ribbon (39 commands left)
 
 In order of how much users miss them.
 
@@ -139,7 +139,7 @@ JavaScript engine written in Rust (since v0.2.0).
 - [x] **VBA language**: class modules, `Type`, `Enum`, `#If`, objects from the project's own functions,
       Excel tables (`ListObjects`); tested on 54 public `.xlsm` files, ~87% of statements convert (0.4.0, #143).
 - [ ] `CDec` (the only partial one).
-- [ ] **Macro recorder** (record actions as JavaScript) and Use Relative References.
+- [x] **Macro recorder** (record actions as JavaScript) and Use Relative References (0.4.0).
 - [x] **Event macros**: open, before save, before close, cell change, selection change, sheet activate.
 - [x] Form controls (v0.2.8).
 - [ ] Developer tab: macro security and design mode.
@@ -159,7 +159,8 @@ lines, mouse tooltip, clickable legend, pivot charts.
 - [x] Databases in FeatherQuery: SQLite, PostgreSQL, MySQL/MariaDB, SQL Server (v0.3.3).
 - [ ] `SQL()` / `QUERY()` worksheet functions.
 - [x] Timeline linked to pivot tables, and slicers linked to several pivot tables (0.4.0).
-- [ ] Slicers and timelines saved to `.xlsx` (#145).
+- [x] Slicers saved to `.xlsx` (#145).
+- [ ] Timelines saved to `.xlsx`.
 - [ ] Data model with relationships (Power Pivot), on top of the engine's
       column storage.
 - [ ] Analyze data with a local AI (through the MCP server, on request only).

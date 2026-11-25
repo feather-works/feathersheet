@@ -4,6 +4,24 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Gravar macro (pedido de 24/11/2026: "gravar as minhas iterações e virar macro")**, como o gravador do Excel.
+  Macros ▸ Executar ▸ Gravar macro (e Referências relativas), também no menu clássico Macros ▸ Gravar macro…: a caixa
+  (`app/gravador_macro.rs`, no molde do `inserir_varias`) pede o nome (`Macro1`…, só letras, números e `_`) e as
+  referências relativas; o rodapé mostra "● Gravando Macro1 · Parar". Como funciona: depois de cada mensagem
+  (`App::update`) o app colhe as transações novas de cada aba (`Sheet::edicoes_novas` + o novo
+  `Sheet::transacoes_para_gravar`, que lê o histórico do Ctrl+Z: célula a célula, inclusive colagem compacta, troca
+  de estilo de faixa e regravação de literais) e o `feathersheet_macros::gravador::traduzir` escreve a API das
+  macros: `set`/`setFormula`/`clearContents`, um setter por campo de estilo que mudou (`setBold`, `setBackground`,
+  `setNumberFormat` pelo `numFmt`…), `setColumnWidth`/`setRowHeight`; células com a mesma mudança numa chamada só
+  (`"A1:C1"` ou várias áreas). Inserir/excluir linhas ou colunas entram à parte (`App::gravar_estrutura`, chamado
+  em `edicao_formatacao.rs`), porque trocam o histórico pela foto da pasta. Outra aba sai como `sheets("Nome")`.
+  Relativas: a macro guarda a célula ativa ao rodar e escreve `aqui(l, c, a, b)`. Ao parar, vira módulo novo e abre
+  no editor. Limites (`shortcut:` nos dois módulos): classificar, mesclar, tabela, dinâmica, gráfico e objetos viram
+  comentário; criar/renomear aba, seleção, filtro e zoom não entram; transação com mais de 500 células diferentes
+  vira comentário. Testes: `tests/gravar_macro.rs` (core), `gravador::testes` (a macro gravada, rodada numa pasta
+  limpa, deixa as mesmas células e estilos) e `gravador_macro::testes` (caixa, nome inválido, gravar, parar, módulo).
+  Novidade para o `VERSOES` da 0.4.0: "Gravar macro: o que você faz vira macro, como no Excel".
+
 - **Segmentação de dados no `.xlsx` (#145, 24/11/2026)**: a segmentação de uma dinâmica vai e volta. Gravar
   (`xlsx_write_segmentacao.rs`): `xl/slicerCaches/slicerCacheK.xml` (campo, dinâmica por `tabId` + nome, itens pela
   posição no `sharedItems` com `s="1"` nos escolhidos), `xl/slicers/slicerN.xml` da aba, o `graphicFrame` `sle:slicer`

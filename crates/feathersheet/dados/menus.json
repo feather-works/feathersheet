@@ -2758,6 +2758,19 @@
           "filhos": []
         },
         {
+          "rotulo": "Gravar macro…",
+          "icone": "player-record",
+          "dica": "",
+          "atalho": "",
+          "separador": false,
+          "catalogo": false,
+          "acao": {
+            "id": "gravarMacro",
+            "args": []
+          },
+          "filhos": []
+        },
+        {
           "rotulo": "Novo módulo",
           "icone": "mais",
           "dica": "",

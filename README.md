@@ -59,6 +59,8 @@ Help menu, under *What's new*).
 
 ### Coming in the next version
 
+- **Macro recorder** (*Macros ▸ Run ▸ Record macro*): what you do becomes a macro, like Excel's recorder. Typing, pasting, formatting, widths and inserting or deleting rows are written as code; with *Relative references* the macro works from whatever cell is active when it runs. The status bar shows "● Recording" with Stop.
+- **PivotTable slicers saved to `.xlsx`** (#145): Excel opens them with the same items chosen.
 - **Collapsed ribbon like Excel:** the tabs keep their names and places; clicking one opens the ribbon over the sheet (#170).
 - **Workbook themes** (*Page Layout ▸ Themes, Colors, Fonts*): change the colors and fonts of everything at once, with one undo; the theme opens from and saves to `.xlsx` (#80).
 - **Windows** (*View ▸ Window*): split into four panes, **New window** (the same workbook in a second window, for another monitor), **Arrange all** and **Switch windows** (#83).
@@ -305,7 +307,7 @@ The generator command is at the top of this section.
 
 | What is compared | Score | Details |
 |---|---|---|
-| **Features** (ribbon commands, button by button) | **250 / 290** (86.2%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
+| **Features** (ribbon commands, button by button) | **251 / 290** (86.6%) | [`PARIDADE-EXCEL.md`](docs/planejamento/PARIDADE-EXCEL.md) · [overall assessment](docs/planejamento/PARIDADE-AVALIACAO.md) |
 | **Worksheet functions** | **520 / 520** | [function catalog](docs/funcionalidades/FUNCOES.md) · [known limits](docs/planejamento/FUNCOES-FALTANTES.md) |
 | **VBA functions** (VBA → JavaScript converter) | **116** covered and **1** partial (`CDec`), out of **117** that apply (141 listed; 24 are files, registry or printer) | [`PARIDADE-VBA-FUNCOES.md`](docs/planejamento/PARIDADE-VBA-FUNCOES.md) |
 

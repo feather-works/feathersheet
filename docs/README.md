@@ -6,7 +6,7 @@ Documentação técnica do FeatherSheet, organizada por assunto. **A interface a
 
 - [Histórico](planejamento/HISTORICO.md) — cada entrega, versão, medição e decisão; procure o recurso pelo nome.
 - [Rumo à 0.4.0](planejamento/RUMO-0.4.0.md) — o que falta para a próxima versão.
-- [Paridade com o Excel](planejamento/PARIDADE-EXCEL.md) — botão por botão da faixa (250 / 290 em 24/11/2026).
+- [Paridade com o Excel](planejamento/PARIDADE-EXCEL.md) — botão por botão da faixa (251 / 290 em 24/11/2026).
 - [Arquitetura](arquitetura/ARQUITETURA.md) — responsabilidades dos componentes.
 - [Documentação do funcionamento](arquitetura/DOCUMENTACAO.md) — fluxo de dados e comandos.
 - [Roadmap até a 1.0](../ROADMAP.md) — o que falta para ficar 100% funcional.

@@ -499,6 +499,16 @@ pub struct Historico {
     alteracoes: Vec<Alteracao>,
 }
 
+/// Um passo de uma transação, para o gravador de macros ([`Sheet::transacoes_para_gravar`]).
+#[derive(Debug, Clone)]
+pub enum Gravado {
+    Celula { r: u32, c: u32, antes: Option<Snap>, depois: Option<Snap> },
+    /// Largura de coluna (`coluna`) ou altura de linha.
+    Largura { coluna: bool, indice: u32, depois: Option<u32> },
+    /// O que o gravador não traduz, pelo nome em português (vira um comentário na macro).
+    Outro(&'static str),
+}
+
 /// Uma mudança registrada para Mostrar alterações. Transação com mais de
 /// [`ALTERACOES_POR_TRANSACAO`] células vira um registro só, com a área e a contagem.
 #[derive(Debug, Clone, PartialEq)]
@@ -2783,6 +2793,55 @@ impl Sheet {
 
     /// Ver `Historico::novas`.
     pub fn edicoes_novas(&self) -> u64 { self.hist.novas }
+
+    /// Macros ▸ Gravar macro: o que as últimas `n` transações fizeram, da mais velha à mais nova. Colagem grande
+    /// (passos compactos) vem célula a célula; o que o gravador não traduz vem como [`Gravado::Outro`].
+    pub fn transacoes_para_gravar(&self, n: usize) -> Vec<Vec<Gravado>> {
+        let pilha = &self.hist.desfazer;
+        pilha[pilha.len().saturating_sub(n)..].iter().map(|t| {
+            let mut saida = Vec::new();
+            let mut celula = |k: CellKey, antes: Option<Snap>, depois: Option<Snap>| {
+                let (r, c) = Sheet::key_to_coord(k);
+                saida.push(Gravado::Celula { r, c, antes, depois });
+            };
+            let mut outros = Vec::new();
+            for passo in t {
+                match passo {
+                    Passo::Celula(ch) => celula(ch.k, ch.antes.clone(), ch.depois.clone()),
+                    Passo::Compacto(b) => for e in &b.alteracoes { celula(e.k, b.reconstruir(e.antes), b.reconstruir(e.depois)) },
+                    Passo::CompactoNoDisco(b) => match b.carregar() {
+                        Ok(b) => for e in &b.alteracoes { celula(e.k, b.reconstruir(e.antes), b.reconstruir(e.depois)) },
+                        Err(_) => outros.push(Gravado::Outro("colagem grande")),
+                    },
+                    // Só o estilo mudou: o texto fica igual dos dois lados.
+                    Passo::Estilos { trocas, .. } => for t in trocas {
+                        let estilo = |i: Option<usize>| Some(Snap { raw: String::new(), style: i.and_then(|i| self.style_parts.get(i).cloned()) });
+                        celula(t.k, estilo(t.antes), estilo(t.depois));
+                    },
+                    // Literais por cima de literais: o que ficou é o de agora (lido logo depois da transação).
+                    Passo::Regravacao { area, .. } => for c in area[1]..=area[3] {
+                        for r in area[0]..=area[2] { celula(key(r, c), None, self.snapshot(r, c)); }
+                    },
+                    Passo::Divisao { .. } => outros.push(Gravado::Outro("texto para colunas")),
+                    Passo::Validacoes { .. } => outros.push(Gravado::Outro("validação de dados")),
+                    Passo::Condicionais { .. } => outros.push(Gravado::Outro("formatação condicional")),
+                    Passo::Comentario { .. } => outros.push(Gravado::Outro("comentário")),
+                    Passo::Dimensao { coluna, indice, depois, .. } => outros.push(Gravado::Largura { coluna: *coluna, indice: *indice, depois: *depois }),
+                    Passo::Permutacao { .. } => outros.push(Gravado::Outro("classificar")),
+                    Passo::Mesclas { .. } => outros.push(Gravado::Outro("mesclar")),
+                    Passo::Tabelas { .. } => outros.push(Gravado::Outro("tabela")),
+                    Passo::Dinamicas { .. } => outros.push(Gravado::Outro("tabela dinâmica")),
+                    Passo::Graficos { .. } => outros.push(Gravado::Outro("gráfico")),
+                    Passo::Minigraficos { .. } => outros.push(Gravado::Outro("minigráfico")),
+                    Passo::Imagens { .. } | Passo::Objetos { .. } | Passo::Botoes { .. } | Passo::Tinta { .. } => outros.push(Gravado::Outro("objeto")),
+                    _ => {}
+                }
+            }
+            outros.dedup_by(|a, b| matches!((a, b), (Gravado::Outro(x), Gravado::Outro(y)) if x == y));
+            saida.extend(outros);
+            saida
+        }).collect()
+    }
 
     pub fn undo(&mut self) -> bool {
         self.tocar();
