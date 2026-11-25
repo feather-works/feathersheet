@@ -4,6 +4,15 @@
 
 ## Depois da v0.3.5 (para a 0.4.0 — a 0.3.6 foi pulada, decisão de 24/11)
 
+- **Planilha Pesada `.xlsx` × `.fshz` remedida (24/11/2026)**, `medir_abrir_calcular`, 16 núcleos, mediana de 3:
+  `.xlsx` lê 3,4 s + calcula 1,5 s = 4,9 s (pico 0,82 GB; no app ~5 s e 312 MB pronta). O `.fshz` estava em 2,4 s
+  (v0.2.0: 0,9 s): o texto do `.xlsx` de Data e Preço (`textos`, #138) ia como 2 milhões de avulsas ao lado das
+  colunas, e a carga analisava e registrava cada uma para jogar fora. Agora `da_workbook` não grava o texto que é o
+  próprio número ("157.99") e `para_workbook` deixa para depois das colunas a avulsa sem estilo de coluna numérica
+  (só confere se o texto volta ao `textos`). `.fshz` novo: 31,3 MB, 1,1 s + 0,4 s = 1,5 s, pico 0,49 GB; os antigos
+  abrem em 1,85 s. `comparar_xlsx_fshz`: 0 diferenças em 13 mi de células. Resta: a data vai como texto (o
+  `textos` guarda "06/05/2026"), por isso o `.fshz` não volta aos 0,9 s. README com a coluna v0.4.0 nas duas tabelas.
+
 - **Desempenho medido com 1 milhão de linhas (pedido de 24/11/2026: "teste a parte de desempenho")**.
   Dinâmica (`feathersheet-core/examples/medir_dinamica.rs`, mediana de 5): o layout compacto (o padrão do app) levava
   o dobro do tabular (2 campos de linha + valor: 350 ms × 166 ms) porque `montar_estruturado` montava o caminho em

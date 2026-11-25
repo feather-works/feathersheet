@@ -324,10 +324,21 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
     use feathersheet_core::planilha::sheet::carga::{CelulaPreparada, Padroes};
     let mut padroes = Padroes::default();
     let mut sobras = Vec::new();
+    // O texto de um número da coluna ("06/05/2026", "16,9%", #138) não passa pelo `set_cell_raw`: a coluna,
+    // carregada depois, já tem o número, e analisar e registrar 2 milhões de textos para jogá-los fora era 1,4 s
+    // da Planilha Pesada. Fica para depois das colunas (abaixo); se a coluna não cobrir a célula, entra lá.
+    let numericas: std::collections::HashSet<u32> = prontas.iter().flatten().filter(|c| c.1.is_some()).map(|c| c.0)
+        .chain(proprias.iter().flat_map(|p| p.0.iter().map(|c| c.col)))
+        .chain(aba.colunas_num.iter().map(|c| c.col)).collect();
+    let mut adiadas: Vec<&crate::fshz_read::CelulaAvulsaLida> = Vec::new();
     for (i, celula) in aba.avulsas.iter().enumerate() {
         if i % 65_536 == 65_535 { crate::progresso::etapa_somar(65_536); }
         let row = (celula.k / 16384) as u32;
         let col = (celula.k % 16384) as u32;
+        if celula.estilo.is_none() && numericas.contains(&col) && !celula.v.trim_start().starts_with('=') {
+            adiadas.push(celula);
+            continue;
+        }
         let idx = celula.estilo.and_then(|i| estilo_idx(sheet, i));
         if celula.v.trim().starts_with('=') {
             // Arquivos anteriores guardavam cada PROCX como avulsa. A carga
@@ -372,6 +383,24 @@ fn carregar_aba(sheet: &mut feathersheet_core::planilha::sheet::Sheet, aba: &Aba
         let n = num.as_ref().map_or(0, |c| c.max_row + 1) + txt.as_ref().map_or(0, |c| c.max_row + 1);
         sheet.instalar_coluna(col, num, txt);
         crate::progresso::etapa_somar(n.max(0) as u64);
+    }
+
+    // As adiadas do passo 1, com as colunas no lugar: número na coluna = o texto volta ao `textos` se for mesmo
+    // o texto daquele número (mesma regra do laço acima); sem número, a célula entra como antes.
+    for celula in adiadas {
+        let v = celula.v.as_str();
+        let (row, col) = ((celula.k / 16384) as u32, (celula.k % 16384) as u32);
+        let k = feathersheet_core::planilha::sheet::Sheet::cell_key(row, col);
+        match sheet.get_value(row, col) {
+            feathersheet_core::Value::Number(n) => {
+                let perto = |m: f64| (m - n).abs() <= 1e-12 * m.abs().max(n.abs());
+                if !sheet.textos.contains_key(&k) && feathersheet_core::celulas::number::to_js_string(n) != v
+                    && matches!(feathersheet_core::celulas::input::parse_literal(v.trim()).value, feathersheet_core::Value::Number(m) if perto(m)) {
+                    sheet.textos.insert(k, v);
+                }
+            }
+            _ => sheet.set_cell_raw(row, col, celula.v.clone(), None),
+        }
     }
 
     // 5) o estilo direto: por faixa (arquivos de 16/10/2026 em diante) e por

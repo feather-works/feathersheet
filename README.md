@@ -231,13 +231,15 @@ What the file contains:
 The file carries no stored results (`fullCalcOnLoad`): everything is
 calculated on open.
 
-| `Planilha_Pesada.xlsx`, AMD Ryzen 7 5700G, 16 threads, 32 GB | v0.0.4 | v0.0.5 | v0.1.0 | v0.2.0 | v0.2.1 |
-|---|---|---|---|---|---|
-| Read the `.xlsx` | 27.8 s | 7.4 s | 5.8 s | 5.2 s | **3.7 s** |
-| Calculate the 7 million formulas | 6.3 s | 2.4 s | 2.4 s | 2.3 s | **1.9 s** |
-| Until the sheet is ready | ~34 s | 9.7 s | 8.2 s | 7.4 s | **5.7 s** |
-| RAM once ready | | | | 362 MB | **336 MB** |
+| `Planilha_Pesada.xlsx`, AMD Ryzen 7 5700G, 16 threads, 32 GB | v0.0.4 | v0.0.5 | v0.1.0 | v0.2.0 | v0.2.1 | v0.4.0 |
+|---|---|---|---|---|---|---|
+| Read the `.xlsx` | 27.8 s | 7.4 s | 5.8 s | 5.2 s | 3.7 s | **3.4 s** |
+| Calculate the 7 million formulas | 6.3 s | 2.4 s | 2.4 s | 2.3 s | 1.9 s | **1.5 s** |
+| Until the sheet is ready | ~34 s | 9.7 s | 8.2 s | 7.4 s | 5.7 s | **4.9 s** |
+| RAM once ready | | | | 362 MB | 336 MB | **312 MB** |
 
+The v0.4.0 column is the `medir_abrir_calcular` bench (median of 3 runs, peak 0.82 GB);
+in the app the same file is ready in about 5 s and holds 312 MB once ready.
 The v0.0.4 and v0.2.1 columns come from the app console (F12; v0.2.1 in a build
 without link-time optimization, so the released app is, if anything, a bit faster);
 the others from the `medir_abrir_calcular` bench (the same open-and-calculate code,
@@ -249,27 +251,36 @@ computer, reading this `.xlsx` dropped from 33.7 s to 8.4 s.
 
 **The same file saved as `.fshz`**, FeatherSheet's own format:
 
-| v0.2.0, same machine and bench | `.xlsx` | `.fshz` |
-|---|---|---|
-| File size | 93.6 MB | **29.8 MB** |
-| Read the file | 5.2 s | **0.4 s** |
-| Calculate on open | 2.3 s (7,000,807 formulas) | **0.5 s** (807 formulas) |
-| Until the sheet is ready | 7.4 s | **0.9 s** |
-| Peak RAM (bench) | 0.78 GB | **0.42 GB** |
+| Same machine and bench | v0.2.0 `.xlsx` | v0.2.0 `.fshz` | v0.4.0 `.xlsx` | v0.4.0 `.fshz` |
+|---|---|---|---|---|
+| File size | 93.6 MB | 29.8 MB | 93.6 MB | **31.3 MB** |
+| Read the file | 5.2 s | 0.4 s | 3.4 s | **1.1 s** |
+| Calculate on open | 2.3 s (7,000,807 formulas) | 0.5 s (807 formulas) | 1.5 s (7,000,807 formulas) | **0.4 s** (807 formulas) |
+| Until the sheet is ready | 7.4 s | 0.9 s ¹ | 4.9 s | **1.5 s** |
+| Peak RAM (bench) | 0.78 GB | 0.42 GB | 0.82 GB | **0.49 GB** |
+
+¹ Since v0.2.9 the `.fshz` also stores the text a cell shows whenever the number
+alone might not give it back: `"TOTAL "` with its trailing space, `16,9%` that came
+from the `.xlsx` as text, `007`. Before that, saving as `.fshz` could silently lose
+those details (#138). The guarantee made loading this file slower, from about 1 s
+to about 2 s here: the million dates keep their text (`06/05/2026`, what the
+formula bar shows) and, until v0.3.5, the million prices did too (`157.99`, the
+number itself). v0.4.0 no longer stores text that is just the number.
+All 13 million cells of the `.fshz` match the `.xlsx`.
 
 The `.fshz` stores the columns already split by type, along with the formula
 results: on open, only the 807 summaries over the million rows (`SUMIFS`,
 `COUNTIFS`) are recalculated. The `.xlsx` in this test carries no results at
 all, so everything is calculated again.
 
-**Compared with other programs** (same `Planilha_Pesada.xlsx`; FeatherSheet `.xlsx` from v0.2.1, `.fshz` times from v0.2.0 and its RAM from v0.1.1):
+**Compared with other programs** (same `Planilha_Pesada.xlsx`; FeatherSheet from v0.4.0):
 
 | | FeatherSheet (`.fshz`) | FeatherSheet (`.xlsx`) | Microsoft Excel ² | LibreOffice Calc 26.2 | OnlyOffice 9.4 | WPS Office 12.1 |
 |---|---|---|---|---|---|---|
 | Machine | Ryzen 7 5700G, 32 GB | Ryzen 7 5700G, 32 GB | Core Ultra 7 155H, 64 GB (laptop) | Ryzen 7 5700G | Ryzen 7 5700G | Ryzen 7 5700G |
-| Ready to use | **0.8 s** | **5.7 s** | 1 min 36.8 s | ~3 min 40 s | did not open in 10 min | hung: shows the sheet in ~50 s, but it can't be used and doesn't calculate |
-| Peak RAM | 270 MB ⁴ | ~0.69 GB | 4.5 GB | 3.5 GB | 5.1 GB ¹ | 2.5 GB |
-| RAM once ready | **270 MB** | **336 MB** | 4.5 GB ³ | 3.5 GB | | |
+| Ready to use | **1.5 s** | **~5 s** | 1 min 36.8 s | ~3 min 40 s | did not open in 10 min | hung: shows the sheet in ~50 s, but it can't be used and doesn't calculate |
+| Peak RAM | 0.49 GB ⁴ | ~0.54 GB | 4.5 GB | 3.5 GB | 5.1 GB ¹ | 2.5 GB |
+| RAM once ready | **257 MB** | **312 MB** | 4.5 GB ³ | 3.5 GB | | |
 
 ¹ Built on Chromium, with several processes; adding up each one's RAM counts
 the memory they share twice, so the real peak is somewhat lower.
@@ -277,7 +288,7 @@ the memory they share twice, so the real peak is somewhat lower.
 calculating the formulas at 1 min 36.8 s. A reference, not an exact
 measurement.
 ³ Assumed equal to the peak (not measured once ready).
-⁴ Assumed equal to the RAM once ready (peak not measured).
+⁴ From the `medir_abrir_calcular` bench (the `.fshz` time too; the `.xlsx` column is the app).
 
 FeatherSheet's times are those shown in the app's status bar; LibreOffice's
 was read off the screen; the other programs' RAM is the sum of all their

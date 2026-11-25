@@ -148,10 +148,16 @@ fn montar_aba_bruta(sheet: &Sheet) -> AbaBruta {
 
     // 1b) Número com o texto como veio do .xlsx ("16,9%"): a coluna guarda só o
     //     número, então o texto vai também como avulsa (#138).
+    //     O texto que é só o próprio número ("157.99") não vai: a carga o descarta (`para_workbook`), e na
+    //     Planilha Pesada era uma coluna inteira de preços (1 milhão de avulsas, 6 MB e 0,5 s ao abrir). A data
+    //     ("06/05/2026") fica: é dela que a barra de fórmulas tira o texto (sem ela, mostraria 46148).
     for (&k, texto) in sheet.textos.iter() {
-        if !sheet.cells.contains_key(&k) {
-            avulsas.push(CelulaAvulsaBruta { k, v: texto.to_owned(), estilo: None });
+        if sheet.cells.contains_key(&k) { continue; }
+        let (row, col) = (feathersheet_core::celulas::refs::key_row(k), feathersheet_core::celulas::refs::key_col(k));
+        if matches!(sheet.get_value(row, col), feathersheet_core::Value::Number(n) if feathersheet_core::celulas::number::to_js_string(n) == texto) {
+            continue;
         }
+        avulsas.push(CelulaAvulsaBruta { k, v: texto.to_owned(), estilo: None });
     }
     avulsas.sort_unstable_by_key(|c| c.k);
 
